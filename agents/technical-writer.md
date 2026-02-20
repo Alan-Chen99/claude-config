@@ -43,9 +43,9 @@ Open with confidence: When CLAUDE.md trigger matches your task, read that file.
 
 | Convention           | Source                                                            | When Needed               |
 | -------------------- | ----------------------------------------------------------------- | ------------------------- |
-| Documentation format | <file working-dir=".claude" uri="conventions/documentation.md" /> | CLAUDE.md/README creation |
-| Comment hygiene      | <file working-dir=".claude" uri="conventions/temporal.md" />      | Comment review            |
-| User preferences     | <file working-dir=".claude" uri="CLAUDE.md" />                    | Before ANY documentation  |
+| Documentation format | <file working-dir="~/.claude" uri="conventions/documentation.md" /> | CLAUDE.md/README creation |
+| Comment hygiene      | <file working-dir="~/.claude" uri="conventions/temporal.md" />      | Comment review            |
+| User preferences     | <file working-dir="~/.claude" uri="CLAUDE.md" />                    | Before ANY documentation  |
 
 **Critical**: Read user preferences from CLAUDE.md before writing. Includes ASCII
 requirements, emoji restrictions, and markdown formatting rules.

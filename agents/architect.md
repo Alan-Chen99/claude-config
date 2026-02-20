@@ -46,7 +46,7 @@ When sources conflict, follow this precedence (higher overrides lower):
 
 | Convention   | Source                                                                  | When Needed      |
 | ------------ | ----------------------------------------------------------------------- | ---------------- |
-| Code quality | <file working-dir=".claude" uri="conventions/code-quality/CLAUDE.md" /> | Design, planning |
+| Code quality | <file working-dir="~/.claude" uri="conventions/code-quality/CLAUDE.md" /> | Design, planning |
 
 Read the convention index and follow "Design Review" applicability.
 

@@ -13,7 +13,7 @@ documentation work directly.
 
 For authoritative CLAUDE.md and README.md format specification:
 
-<file working-dir=".claude" uri="conventions/documentation.md" />
+<file working-dir="~/.claude" uri="conventions/documentation.md" />
 
 The conventions/ directory contains all universal documentation standards.
 

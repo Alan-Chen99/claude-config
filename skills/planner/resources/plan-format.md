@@ -265,7 +265,7 @@ Documentation-only milestones (ALL files are .md, .rst, .txt, or CLAUDE.md):
 
 Delegate to Technical Writer. For documentation format specification:
 
-<file working-dir=".claude" uri="conventions/documentation.md" />
+<file working-dir="~/.claude" uri="conventions/documentation.md" />
 
 Key deliverables:
 - CLAUDE.md: Pure navigation index (tabular format)

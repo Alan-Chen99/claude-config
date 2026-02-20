@@ -50,7 +50,7 @@ When sources conflict, follow this precedence (higher overrides lower):
 
 | Convention   | Source                                                                  | When Needed                 |
 | ------------ | ----------------------------------------------------------------------- | --------------------------- |
-| Code quality | <file working-dir=".claude" uri="conventions/code-quality/CLAUDE.md" /> | Implementation, refactoring |
+| Code quality | <file working-dir="~/.claude" uri="conventions/code-quality/CLAUDE.md" /> | Implementation, refactoring |
 
 Read the convention index and follow "Diff Review" applicability.
 
