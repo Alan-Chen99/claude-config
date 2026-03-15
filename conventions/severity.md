@@ -21,6 +21,7 @@ Knowledge loss is permanent. These ALWAYS block.
 | IK_TRANSFER_FAILURE    | Invisible knowledge not at BEST location    |
 | TEMPORAL_CONTAMINATION | Change-relative language in comments        |
 | BASELINE_REFERENCE     | Comment references removed/replaced code    |
+| POLICY_VIOLATION       | Violates documented agent policy            |
 | ASSUMPTION_UNVALIDATED | Architectural assumption without citation   |
 | LLM_COMPREHENSION_RISK | Pattern that would confuse future LLM       |
 | MARKER_INVALID         | Intent marker without valid explanation     |

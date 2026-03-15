@@ -11,9 +11,13 @@ sources (doc/ directories, wikis, external documentation). If knowledge exists
 in an authoritative source, it must be summarized locally. Duplication is
 acceptable; the maintenance burden is the cost of locality.
 
-**CLAUDE.md = pure index**: CLAUDE.md files are navigation aids only. They
-contain WHAT is in the directory and WHEN to read each file. All explanatory
-content (architecture, decisions, invariants) belongs in README.md.
+**CLAUDE.md = pure index + policy**: CLAUDE.md files are primarily navigation
+aids. They contain WHAT is in the directory and WHEN to read each file. All
+explanatory content (architecture, decisions, invariants) belongs in README.md.
+CLAUDE.md may additionally contain agent policy -- behavioral rules and
+constraints that agents must follow. Policy in a parent directory applies to all
+descendants. Claude Code auto-loads CLAUDE.md from the working directory and all
+parent directories upward, so policy placement at any level is effective.
 
 **README.md = invisible knowledge**: README.md files capture knowledge NOT
 visible from reading source code. If ANY invisible knowledge exists for a
@@ -102,6 +106,11 @@ See also: conventions/code-quality/baseline.md "Generated and Vendored Code Awar
 ## Development
 
 [Setup instructions, environment requirements, workflow notes]
+
+## Agent Policy
+
+[Behavioral rules for agents: coding standards, tool preferences,
+workflow constraints, things to always/never do]
 ```
 
 **SUBDIRECTORY CLAUDE.md:**
@@ -127,6 +136,9 @@ documents. They contain:
 - One-sentence overview (OPTIONAL): what this directory is
 - Operational sections (OPTIONAL): Build, Test, Regenerate, Deploy, or similar
   commands specific to this directory's artifacts
+- Agent policy (OPTIONAL): behavioral rules and constraints for agents (coding
+  standards, tool preferences, workflow rules). Applies to this directory and all
+  descendants
 
 They do NOT contain:
 

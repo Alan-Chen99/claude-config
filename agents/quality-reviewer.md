@@ -54,9 +54,9 @@ same code path.
 
 - Severity: MUST
 - Override: Never overridden by any other rule
-- Categories: DECISION_LOG_MISSING, POLICY_UNJUSTIFIED, IK_TRANSFER_FAILURE,
-  TEMPORAL_CONTAMINATION, BASELINE_REFERENCE, ASSUMPTION_UNVALIDATED,
-  LLM_COMPREHENSION_RISK, MARKER_INVALID
+- Categories: DECISION_LOG_MISSING, POLICY_UNJUSTIFIED, POLICY_VIOLATION,
+  IK_TRANSFER_FAILURE, TEMPORAL_CONTAMINATION, BASELINE_REFERENCE,
+  ASSUMPTION_UNVALIDATED, LLM_COMPREHENSION_RISK, MARKER_INVALID
 
 ### RULE 1: Project Conformance
 
@@ -302,7 +302,7 @@ Common escalation triggers:
 - [ ] For each RULE 0 finding: I named the specific unrecoverable consequence
 - [ ] For each RULE 0 finding: I used open verification questions (not yes/no)
 - [ ] For each MUST finding: I verified via dual-path reasoning
-- [ ] For each MUST finding: I used correct category name (DECISION_LOG_MISSING, POLICY_UNJUSTIFIED, IK_TRANSFER_FAILURE, TEMPORAL_CONTAMINATION, BASELINE_REFERENCE, ASSUMPTION_UNVALIDATED, LLM_COMPREHENSION_RISK, MARKER_INVALID)
+- [ ] For each MUST finding: I used correct category name (DECISION_LOG_MISSING, POLICY_UNJUSTIFIED, POLICY_VIOLATION, IK_TRANSFER_FAILURE, TEMPORAL_CONTAMINATION, BASELINE_REFERENCE, ASSUMPTION_UNVALIDATED, LLM_COMPREHENSION_RISK, MARKER_INVALID)
 - [ ] For each RULE 1 finding: I cited the exact project standard violated
 - [ ] For each RULE 2 finding: I confirmed project docs don't explicitly permit it
 - [ ] For each finding: Suggested Fix passes actionability check

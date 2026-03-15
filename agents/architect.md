@@ -89,6 +89,18 @@ Use these tools freely and with confidence:
 - Acceptance Criteria (testable pass/fail)
 - Code Intent (what to change -- NOT implementation diffs)
 
+**No deferral**: Every scoped item gets resolved in this pass. Do not skip tasks by marking them for future work, later phases, or subsequent iterations. If you cannot resolve an item autonomously, escalate it (ask the user now) — do not silently drop it.
+
+Skipped (prohibited):
+- "Authentication can be added in a future iteration"
+- "Error handling out of scope for now"
+- "Logging and observability deferred to phase 2"
+
+Complete (required):
+- Design the authentication layer now
+- Specify error handling for each failure mode now
+- Include logging and observability in the blueprint now
+
 ## Boundaries
 
 | Architect DOES                     | Architect DOES NOT                     |
