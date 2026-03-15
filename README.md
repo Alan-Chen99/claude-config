@@ -1,3 +1,18 @@
+# claude-config (repo root)
+
+This configuration is installed via symlinks:
+
+`~/.claude/agents` -> `./agents`
+`~/.claude/skills` -> `./skills`
+`~/.claude/conventions` -> `./conventions`
+
+---
+
+This repository is forked from `solatis/claude-config`; most code is from upstream.
+Original `README.md`:
+
+---
+
 # My Claude Code Workflow
 
 I use Claude Code for most of my work. After months of iteration, I noticed a
