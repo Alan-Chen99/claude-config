@@ -862,7 +862,7 @@ FORMATTING_INSTRUCTIONS = (
     "  - Use the answer structure determined in Step 3\n"
     "  - Integrate key trade-offs naturally into the explanation\n"
     "  - Note limitations only where they materially affect the answer\n"
-    "  - Omit workflow artifacts (step references, sub-agent names, etc.)\n"
+    # "  - Omit workflow artifacts (step references, sub-agent names, etc.)\n"
     "\n"
     "CONFIDENCE: {confidence_guidance}\n"
     "\n"

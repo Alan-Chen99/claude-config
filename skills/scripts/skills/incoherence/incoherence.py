@@ -166,7 +166,8 @@ def format_incoherence_output(step, phase, agent_type, guidance):
     parts.append(render_step_header(StepHeaderNode(
         title=title,
         script="incoherence",
-        step=str(step),
+        step=step,
+        phase=phase,
     )))
     parts.append("")
 
@@ -183,7 +184,7 @@ CRITICAL: All script outputs use XML format. You MUST:
     parts.append("")
 
     next_text = guidance.get("next", "")
-    if step >= total or "COMPLETE" in next_text.upper():
+    if step >= len(STEPS) or "COMPLETE" in next_text.upper():
         parts.append("WORKFLOW COMPLETE - Present report to user.")
     else:
         next_cmd = f'python3 -m skills.incoherence.incoherence --step-number {step + 1}'

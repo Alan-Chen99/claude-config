@@ -18,6 +18,7 @@ All tests must live in `tests/` and run through pytest. No test files elsewhere 
 | `test_domain_types.py`       | Unit tests for BoundedInt, ChoiceSet, Constant       | Testing domain type behavior               |
 | `test_generation.py`         | Schema extraction and input generation for tests     | Modifying test case generation             |
 | `test_ast.py`                | Property-based AST node and renderer tests           | Testing AST construction and rendering     |
+| `test_alan_coding_style.py`  | Unit and behavioral tests for alan-coding-style workflow | Modifying alan-coding-style, debugging quality gate or threshold behavior |
 
 ## Test Execution
 

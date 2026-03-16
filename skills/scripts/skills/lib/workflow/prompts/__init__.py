@@ -14,7 +14,7 @@ from skills.lib.workflow.prompts.subagent import (
     roster_dispatch,
 )
 # format_step provides step assembly: body content + continuation directive
-from skills.lib.workflow.prompts.step import format_step
+from skills.lib.workflow.prompts.step import format_step, format_step_error
 # format_file_content provides file content embedding with 4-backtick fencing
 from skills.lib.workflow.prompts.file import format_file_content
 
@@ -29,6 +29,7 @@ __all__ = [
     "roster_dispatch",
     # Step assembly
     "format_step",
+    "format_step_error",
     # File content embedding
     "format_file_content",
 ]

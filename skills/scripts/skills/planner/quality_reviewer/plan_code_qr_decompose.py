@@ -76,6 +76,7 @@ STEP_5_GENERATE = """\
 SEVERITY ASSIGNMENT (per conventions/severity.md, plan-code scope):
 
   MUST (blocks all iterations):
+    - POLICY_VIOLATION: violates documented agent policy
     - ASSUMPTION_UNVALIDATED: architectural assumption without citation
     - MARKER_INVALID: intent marker without valid explanation
     - decision_ref references non-existent decision

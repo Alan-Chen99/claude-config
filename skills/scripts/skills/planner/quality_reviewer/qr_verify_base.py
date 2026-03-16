@@ -158,7 +158,7 @@ class VerifyBase(ABC):
         item_summary = []
         for item in items:
             severity = item.get("severity", "SHOULD")
-            item_summary.append(f"  {item['id']} [{severity}]: {item.get('check', '')[:60]}")
+            item_summary.append(f"  {item['id']} [{severity}]: {item.get('check', '')}")
 
         return {
             "title": f"QR Verify Step 1/{total_steps}: Context ({self.PHASE})",

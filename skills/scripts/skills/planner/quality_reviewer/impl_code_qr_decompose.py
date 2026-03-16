@@ -73,6 +73,7 @@ STEP_5_GENERATE = """\
 SEVERITY ASSIGNMENT (per conventions/severity.md, impl-code scope):
 
   MUST (blocks all iterations):
+    - POLICY_VIOLATION: violates documented agent policy
     - Acceptance criterion not met
     - MARKER_INVALID: intent marker without valid explanation
 

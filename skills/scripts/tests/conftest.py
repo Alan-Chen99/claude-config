@@ -27,6 +27,7 @@ SKILL_MODULES = [
     "skills.refactor.refactor",
     "skills.planner.orchestrator.planner",
     "skills.prompt_engineer.optimize",
+    "skills.alan_coding_style.coding_style",
 ]
 
 

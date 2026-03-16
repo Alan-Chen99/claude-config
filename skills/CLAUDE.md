@@ -39,6 +39,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `incoherence/`        | Consistency detection                     | Finding spec/implementation mismatches   |
 | `doc-sync/`           | Documentation synchronization             | Syncing docs across repos                |
 | `leon-writing-style/` | Style-matched content generation          | Writing content matching user's style    |
+| `alan-coding-style/`  | Style-matched code generation and review  | Coding matching user's conventions       |
 | `arxiv-to-md/`        | arXiv paper to markdown conversion        | Converting papers for LLM consumption    |
 | `cc-history/`         | Claude Code conversation history analysis | Querying past conversations, token usage |
 

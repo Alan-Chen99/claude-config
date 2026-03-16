@@ -73,6 +73,7 @@ def _build_execution_constraint(count: int) -> str:
         "      [You send message with Task call 2]",
         "",
         "    FORBIDDEN: Waiting for any agent before dispatching the next.",
+        "    FORBIDDEN: Setting run_in_background on any agent. Always omit or set false.",
         "  </execution_constraint>",
     ]
     return "\n".join(lines)

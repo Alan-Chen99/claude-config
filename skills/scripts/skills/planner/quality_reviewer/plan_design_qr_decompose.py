@@ -85,6 +85,7 @@ SEVERITY ASSIGNMENT (per conventions/severity.md, plan-design scope):
       * INVALID_SCOPE_REF: scope references non-existent milestone
     - KNOWLEDGE subset:
       * DECISION_LOG_MISSING: non-trivial choice without logged rationale
+      * POLICY_VIOLATION: Violates documented agent policy
       * POLICY_UNJUSTIFIED: policy default without Tier 1 backing
       * ASSUMPTION_UNVALIDATED: architectural assumption without citation
 

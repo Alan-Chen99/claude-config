@@ -90,6 +90,8 @@ Content that MAY stay in CLAUDE.md (operational sections):
 - Regeneration/sync commands (e.g., protobuf regeneration)
 - Deploy commands
 - Other copy-pasteable procedural commands
+- Agent policy: behavioral rules and constraints for agents (coding standards,
+  tool preferences, workflow rules). Applies to this directory and all descendants
 
 **Test:** Ask "is this explaining WHY or telling HOW?" Explanatory content
 (architecture, decisions, rationale) goes to README.md. Operational content
@@ -131,7 +133,7 @@ After all updates complete, verify:
 3. No drift remains (files <-> index entries match)
 4. No misplaced content in CLAUDE.md (explanatory prose moved to README.md)
 5. README.md files are indexed in their parent CLAUDE.md
-6. CLAUDE.md contains only: one-sentence overview + tabular index + operational sections
+6. CLAUDE.md contains only: one-sentence overview + tabular index + operational sections + agent policy
 7. README.md exists wherever invisible knowledge was identified
 8. README.md files are self-contained (no external authoritative references)
 

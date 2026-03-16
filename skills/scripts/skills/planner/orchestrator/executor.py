@@ -39,6 +39,82 @@ from skills.planner.shared.constraints import (
 MODULE_PATH = "skills.planner.orchestrator.executor"
 
 
+# =============================================================================
+# Direct dispatch prompts (no script invocation)
+# Used when sub-agent receives task via prompt rather than mode script.
+# =============================================================================
+
+IMPL_CODE_QR_PROMPT = """\
+Review all implemented code against the plan's acceptance criteria.
+
+For EACH milestone in the plan:
+  1. Read the acceptance criteria
+  2. Read the implemented code files
+  3. Verify each criterion is satisfied
+
+Also check:
+  - Cross-cutting concerns (error handling, logging, shared state)
+  - Code quality (structure, patterns, no god objects/functions)
+  - Intent marker validation
+  - Implementation drift from plan
+
+OUT OF SCOPE: Plan structure, documentation files.
+
+Report format:
+  PASS - if all criteria met and code quality verified
+  ISSUES - with findings grouped by milestone"""
+
+IMPL_DOCS_QR_PROMPT = """\
+Review all post-implementation documentation against plan requirements.
+
+Check:
+  - CLAUDE.md files: tabular index format, presence in modified directories
+  - README.md: creation criteria, accuracy
+  - Code comments: explain WHY not WHAT, no temporal contamination
+  - Invisible knowledge transfer: docs adjacent to code
+
+OUT OF SCOPE: Code quality, plan structure.
+
+Report format:
+  PASS - if documentation meets all requirements
+  ISSUES - with specific findings and locations"""
+
+CODE_FIX_PROMPT = """\
+Code QR found issues in implemented code. Apply targeted fixes.
+
+1. Read the Code QR report findings from the orchestrator's context
+2. For EACH failed item:
+   - Understand the issue from the finding description
+   - Locate the relevant code
+   - Apply a targeted fix (minimal change to resolve the issue)
+3. Run tests to validate fixes: pytest / tsc / go test -race
+   Pass criteria: 100% tests pass, zero warnings"""
+
+
+def direct_dispatch(agent_type: str, task_prompt: str) -> str:
+    """Generate dispatch block with direct task prompt (no script invocation).
+
+    Use when the sub-agent should follow prompt instructions directly,
+    rather than invoking a mode script as its first action.
+    """
+    return (
+        "DISPATCH SUB-AGENT\n"
+        "==================\n"
+        "\n"
+        f"ACTION: Use the Task tool to spawn a {agent_type} agent.\n"
+        "\n"
+        "Task tool parameters:\n"
+        f"  - subagent_type: {agent_type}\n"
+        "  - prompt: Include the full task description below\n"
+        "  - run_in_background: NEVER set this. Always omit or set false.\n"
+        "\n"
+        "TASK FOR THE SUB-AGENT:\n"
+        f"{task_prompt}\n"
+        "\n"
+        "After the sub-agent returns, continue with the next workflow step."
+    )
+
+
 def detect_reconciliation_signals(user_request: str) -> bool:
     """Detect if user request requires reconciliation phase."""
     signals = ["already implemented", "resume", "partially complete",
@@ -78,7 +154,7 @@ STEPS = {
             "    Wave 4: [4]       (sequential)",
             "",
             "WORKFLOW:",
-            "  This step is ANALYSIS ONLY. Do NOT delegate yet.",
+            "  This step is ANALYSIS ONLY. Do NOT delegate yet. PROHIBITED: read files other than $PLAN_FILE",
             "  Record wave groupings for step 3 (Implementation).",
         ],
     },
@@ -119,7 +195,6 @@ STEPS = {
         "qr_name": "CODE QR",
         "is_dispatch": True,
         "dispatch_agent": "quality-reviewer",
-        "mode_script": "quality_reviewer/impl-code-qr.py",
         "pre_dispatch": [
             "<qa_integration>",
             "Before QR code review, run post-implementation QA.",
@@ -157,7 +232,6 @@ STEPS = {
         "qr_name": "DOC QR",
         "is_dispatch": True,
         "dispatch_agent": "quality-reviewer",
-        "mode_script": "quality_reviewer/impl-docs-qr.py",
         "post_dispatch": [
             "The sub-agent will invoke the script and follow its guidance.",
             "",
@@ -270,12 +344,9 @@ def format_step_3_implementation(qr: QRState, total_steps: int, milestone_count:
         actions.append(ORCHESTRATOR_CONSTRAINT)
         actions.append("")
 
-        mode_script = get_mode_script_path("dev/fix-code.py")
-        invoke_cmd = f"python3 -m {mode_script} --step 1 --qr-fail --qr-iteration {qr.iteration}"
-
-        actions.append(subagent_dispatch(
+        actions.append(direct_dispatch(
             agent_type="developer",
-            command=invoke_cmd,
+            task_prompt=CODE_FIX_PROMPT,
         ))
         actions.append("")
         actions.append("Developer reads QR report and fixes issues in <milestone> blocks.")
@@ -295,20 +366,30 @@ def format_step_3_implementation(qr: QRState, total_steps: int, milestone_count:
             ORCHESTRATOR_CONSTRAINT,
             "",
             "FOR EACH WAVE:",
-            "  1. Dispatch developer agents for ALL milestones in wave:",
+            "  1. Dispatch a developer agent for EACH milestone in wave:",
             "     Task(developer): Milestone N",
-            "     Task(developer): Milestone M  (if parallel)",
             "",
-            "  2. Each prompt must include:",
-            "     - Plan file: $PLAN_FILE",
-            "     - Milestone: [number and name]",
-            "     - Files: [exact paths to create/modify]",
-            "     - Acceptance criteria: [from plan]",
+            "  2. Each prompt must use exactly this template:",
+            "     > Execute Milestone $N of $PLAN_FILE.",
+            "     > Pass criteria:",
+            "     > - [ ] Run tests: pytest / tsc / go test -race; 100% tests pass, zero warnings",
+            "     > - [ ] Acceptance criteria of Milestone $N in $PLAN_FILE met.",
+            "     > - [ ] Tests of Milestone $N in $PLAN_FILE passes.",
+            "",
+            "     Do NOT substitue acceptance criteria from $PLAN_FILE",
+            "     Do NOT repeat content already in any file; point to the file instead.",
             "",
             "  3. Wait for ALL agents in wave to complete",
             "",
-            "  4. Run tests: pytest / tsc / go test -race",
-            "     Pass criteria: 100% tests pass, zero warnings",
+            "  4. For each agent output, assess:",
+            "       (a) ACCEPTANCE CRITERIA: Were acceptance criteria met?",
+            "       (b) COMPLETENESS: Plan partially executed? Only ran a subset of tests?",
+            "       (c) CLAIMS: Verify any claims that may not be properly verified.",
+            "       (d) DEVIATIONS: If deviation from the plan: is this the right approach? alternatives?",
+            "",
+            "     RATING SCALE:",
+            "       - PASS: Proceed",
+            "       - FAIL: Use another developer or debugger to fix,",
             "",
             "  5. Proceed to next wave (repeat 1-4)",
             "",
@@ -371,19 +452,20 @@ def format_step_1_planning(qr: QRState, total_steps: int, reconciliation_check: 
     info = STEPS[1]
 
     actions = list(info["actions"])
-    actions.extend([
-        "",
-        "=" * 70,
-        "MANDATORY NEXT ACTION",
-        "=" * 70,
-    ])
+    # actions.extend([
+    #     "",
+    #     "=" * 70,
+    #     "MANDATORY NEXT ACTION",
+    #     "=" * 70,
+    # ])
     if reconciliation_check:
         next_cmd = f"python3 -m {MODULE_PATH} --step 2 --reconciliation-check"
     else:
         actions.extend([
-            "Proceed to Implementation step.",
-            "Use the wave groupings from your analysis.",
-            "=" * 70,
+            # "Proceed to Implementation step.",
+            # "Proceed to Implementation step.",
+            # "Use the wave groupings from your analysis.",
+            # "=" * 70,
         ])
         next_cmd = f"python3 -m {MODULE_PATH} --step 3"
 
@@ -410,14 +492,9 @@ def format_step_4_code_qr(qr: QRState, total_steps: int, **kw) -> str:
     actions.append(ORCHESTRATOR_CONSTRAINT)
     actions.append("")
 
-    mode_script = get_mode_script_path(info["mode_script"])
-    dispatch_agent = info.get("dispatch_agent", "agent")
-    invoke_suffix = info.get("invoke_suffix", "")
-    invoke_cmd = f"python3 -m {mode_script} --step 1{invoke_suffix}"
-
-    actions.append(subagent_dispatch(
-        agent_type=dispatch_agent,
-        command=invoke_cmd,
+    actions.append(direct_dispatch(
+        agent_type=info.get("dispatch_agent", "quality-reviewer"),
+        task_prompt=IMPL_CODE_QR_PROMPT,
     ))
     actions.append("")
 
@@ -445,14 +522,9 @@ def format_step_7_doc_qr(qr: QRState, total_steps: int, **kw) -> str:
     actions.append(ORCHESTRATOR_CONSTRAINT)
     actions.append("")
 
-    mode_script = get_mode_script_path(info["mode_script"])
-    dispatch_agent = info.get("dispatch_agent", "agent")
-    invoke_suffix = info.get("invoke_suffix", "")
-    invoke_cmd = f"python3 -m {mode_script} --step 1{invoke_suffix}"
-
-    actions.append(subagent_dispatch(
-        agent_type=dispatch_agent,
-        command=invoke_cmd,
+    actions.append(direct_dispatch(
+        agent_type=info.get("dispatch_agent", "quality-reviewer"),
+        task_prompt=IMPL_DOCS_QR_PROMPT,
     ))
     actions.append("")
 
@@ -516,12 +588,19 @@ def format_output(step: int,
         fix_actions.append(ORCHESTRATOR_CONSTRAINT)
         fix_actions.append("")
 
-        mode_script = get_mode_script_path(f"{fix_target}/fix.py")
-        invoke_cmd = f"python3 -m {mode_script} --step 1 --qr-fail --qr-iteration {qr.iteration}"
-
-        fix_actions.append(subagent_dispatch(
+        fix_prompt = (
+            f"{qr_name} found issues. Apply targeted fixes.\n"
+            "\n"
+            "1. Read the QR report findings from the orchestrator's context\n"
+            "2. For EACH failed item:\n"
+            "   - Understand the issue\n"
+            "   - Locate the relevant file\n"
+            "   - Apply a targeted fix\n"
+            "3. Validate fixes locally"
+        )
+        fix_actions.append(direct_dispatch(
             agent_type=fix_target,
-            command=invoke_cmd,
+            task_prompt=fix_prompt,
         ))
 
         body = "\n".join(fix_actions)

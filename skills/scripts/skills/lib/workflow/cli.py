@@ -4,10 +4,11 @@ Handles argument parsing and mode script entry points.
 """
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Callable
 
-from .prompts.step import format_step
+from .prompts.step import format_step, format_step_error
 from .types import UserInputResponse
 
 
@@ -98,6 +99,20 @@ def mode_main(
         **{k: v for k, v in vars(parsed).items()
            if k not in ('step',)}
     )
+
+    # Handle error returns before dict-vs-dataclass branch
+    if isinstance(guidance, dict):
+        if "error" in guidance:
+            print(format_step_error(
+                f"Step {parsed.step}: {guidance['error']}"
+            ))
+            sys.exit(1)
+        if "actions" not in guidance:
+            print(format_step_error(
+                f"Step {parsed.step}: guidance dict missing required 'actions' key "
+                f"(keys: {list(guidance.keys())})"
+            ))
+            sys.exit(1)
 
     # Handle both dict and dataclass (GuidanceResult) returns
     if hasattr(guidance, '__dataclass_fields__'):

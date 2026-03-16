@@ -1366,6 +1366,7 @@ def format_step_4_dispatch_custom(info: dict, scope: str | None = None) -> str:
         '  <execution_constraint type="MANDATORY_PARALLEL">',
         "    You MUST dispatch ALL agents in ONE assistant message.",
         "    FORBIDDEN: Waiting for any agent before dispatching the next.",
+        "    FORBIDDEN: Setting run_in_background on any agent. Always omit or set false.",
         '    FORBIDDEN: Using "Explore" subagent_type. Use "general-purpose".',
         "  </execution_constraint>",
         "",

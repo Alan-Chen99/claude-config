@@ -55,4 +55,20 @@ def format_step(body: str, next_cmd: str = "", title: str = "",
         return f"{body}\n\n{invoke}"
 
     else:
-        return f"{body}\n\nWORKFLOW COMPLETE - Return the output from the step above. Do not summarize."
+        return f"{body}\n\nWORKFLOW COMPLETE (final step — no further steps exist) - Return the output from the step above. Do not summarize."
+
+
+def format_step_error(message: str) -> str:
+    """Emit structured error output — distinct from WORKFLOW COMPLETE.
+
+    Used by mode_main when get_step_guidance returns an error dict
+    or a dict missing the required 'actions' key.
+    """
+    return (
+        f"WORKFLOW ERROR — HALTED\n"
+        f"{'=' * 40}\n\n"
+        f"{message}\n\n"
+        f"DO NOT PROCEED. Do not use Edit, Write, or Bash tools on target files.\n"
+        f"Return this error message to the orchestrator verbatim.\n\n"
+        f"WORKFLOW ERROR — HALTED"
+    )
