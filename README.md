@@ -5,6 +5,8 @@ This configuration is installed via symlinks:
 `~/.claude/agents` -> `./agents`
 `~/.claude/skills` -> `./skills`
 `~/.claude/conventions` -> `./conventions`
+`~/.claude/hooks` -> `./hooks`
+`~/.claude/settings.json` -> `./settings.json`
 
 ---
 

@@ -1,0 +1,348 @@
+"""Rendering and formatting for Claude Code JSONL session logs.
+
+Pure display logic — takes parsed records and produces formatted strings.
+No JSON parsing or schema validation here.
+"""
+
+from __future__ import annotations
+
+import json
+import textwrap
+from datetime import datetime
+
+from cc_pretty_parse import (
+    AgentProgress,
+    AssistantRecord,
+    BashProgress,
+    FileHistorySnapshotRecord,
+    HookProgress,
+    LastPromptRecord,
+    ProgressRecord,
+    QueueOperationRecord,
+    SystemRecord,
+    TextBlock,
+    ThinkingBlock,
+    ToolResultBlock,
+    ToolUseBlock,
+    ToolUseResultDict,
+    Usage,
+    UserRecord,
+)
+
+
+# ─── ANSI colors ────────────────────────────────────────────────────────────
+
+class C:
+    """ANSI color codes, disabled when --no-color."""
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    USER = "\033[1;34m"       # bold blue
+    ASSISTANT = "\033[1;32m"  # bold green
+    SYSTEM = "\033[1;33m"     # bold yellow
+    THINKING = "\033[35m"     # magenta
+    TOOL = "\033[36m"         # cyan
+    RESULT = "\033[33m"       # yellow
+    ERROR = "\033[1;31m"      # bold red
+    SEPARATOR = "\033[90m"    # gray
+    TIMESTAMP = "\033[90m"    # gray
+    HINT = "\033[90m"         # gray (for jq hints)
+    PROGRESS = "\033[90m"     # gray
+    QUEUE = "\033[90;3m"      # gray italic
+
+    @classmethod
+    def disable(cls):
+        for attr in list(vars(cls)):
+            if attr.isupper():
+                setattr(cls, attr, "")
+
+
+# ─── Text helpers ────────────────────────────────────────────────────────────
+
+def trunc(s: str, maxlen: int) -> str:
+    if len(s) <= maxlen:
+        return s
+    return s[:maxlen] + f" ... [{len(s) - maxlen} more chars]"
+
+
+def is_truncated(s: str, maxlen: int) -> bool:
+    return len(s) > maxlen
+
+
+def fmt_ts(ts_str: str) -> str:
+    try:
+        dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        return dt.strftime("%H:%M:%S")
+    except Exception:
+        return ts_str or ""
+
+
+def fmt_duration(ms: int | float) -> str:
+    ms = int(ms)
+    if ms < 1000:
+        return f"{ms}ms"
+    secs = ms / 1000
+    if secs < 60:
+        return f"{secs:.1f}s"
+    mins = int(secs // 60)
+    remaining = secs % 60
+    return f"{mins}m{remaining:.0f}s"
+
+
+def separator() -> str:
+    return f"{C.SEPARATOR}{'─' * 80}{C.RESET}"
+
+
+def ind(text: str, prefix: str = "  ") -> str:
+    return textwrap.indent(text, prefix)
+
+
+def jq_hint(log_path: str, lineno: int, jq_path: str) -> str:
+    cmd = f"sed -n '{lineno}p' {log_path} | jq -r '{jq_path}'"
+    return f"{C.HINT}    # {cmd}{C.RESET}"
+
+
+# ─── Usage formatting ───────────────────────────────────────────────────────
+
+def fmt_usage(u: Usage) -> str:
+    parts = [f"in:{u.input_tokens:,}", f"out:{u.output_tokens:,}"]
+    if u.cache_read_input_tokens:
+        parts.append(f"cached:{u.cache_read_input_tokens:,}")
+    if u.cache_creation_input_tokens:
+        parts.append(f"cache_create:{u.cache_creation_input_tokens:,}")
+    if u.cache_creation:
+        if u.cache_creation.ephemeral_5m_input_tokens:
+            parts.append(f"eph5m:{u.cache_creation.ephemeral_5m_input_tokens:,}")
+        if u.cache_creation.ephemeral_1h_input_tokens:
+            parts.append(f"eph1h:{u.cache_creation.ephemeral_1h_input_tokens:,}")
+    return " ".join(parts)
+
+
+# ─── Renderer ────────────────────────────────────────────────────────────────
+
+class Renderer:
+    """Stateful renderer that tracks tool_use IDs to correlate results with names."""
+
+    def __init__(self, log_path: str, tool_max: int, show_thinking: bool = True):
+        self.log_path = log_path
+        self.tool_max = tool_max
+        self.show_thinking = show_thinking
+        self._tool_id_to_name: dict[str, str] = {}
+
+    # ── Content block renderers ──────────────────────────────────────────
+
+    def _render_thinking(self, block: ThinkingBlock) -> str:
+        prefix = C.THINKING + "  │ " + C.RESET
+        body = textwrap.indent(block.thinking, prefix, predicate=lambda _: True)
+        return (
+            f"{C.THINKING}  ╭─ thinking ─────────────────────────{C.RESET}\n"
+            f"{body}\n"
+            f"{C.THINKING}  ╰─────────────────────────────────────{C.RESET}"
+        )
+
+    def _render_tool_use(self, block: ToolUseBlock, lineno: int, block_idx: int) -> str:
+        inp = block.input
+        inp_str = json.dumps(inp, indent=2) if isinstance(inp, dict) else str(inp)
+
+        if block.id:
+            self._tool_id_to_name[block.id] = block.name
+
+        id_suffix = f"  {C.DIM}({block.id}){C.RESET}" if block.id else ""
+        lines = [f"{C.TOOL}  ▶ {block.name}{C.RESET}{id_suffix}"]
+        lines.append(ind(trunc(inp_str, self.tool_max), "    "))
+        if is_truncated(inp_str, self.tool_max):
+            lines.append(jq_hint(self.log_path, lineno, f".message.content[{block_idx}].input"))
+        return "\n".join(lines)
+
+    def _render_tool_result(self, block: ToolResultBlock, lineno: int, block_idx: int,
+                            tur: str | ToolUseResultDict | None = None) -> str:
+        tool_name = self._tool_id_to_name.get(block.tool_use_id, "")
+        name_suffix = f" ({tool_name})" if tool_name else ""
+
+        label_color = C.ERROR if block.is_error else C.RESULT
+        label = f"✗ error{name_suffix}" if block.is_error else f"◀ result{name_suffix}"
+
+        content = block.content
+        any_truncated = False
+
+        if isinstance(content, list):
+            parts = []
+            for sub in content:
+                if sub.get("type") == "text":
+                    t = sub.get("text", "")
+                    parts.append(trunc(t, self.tool_max))
+                    if is_truncated(t, self.tool_max):
+                        any_truncated = True
+                else:
+                    s = str(sub)
+                    parts.append(trunc(s, self.tool_max))
+                    if is_truncated(s, self.tool_max):
+                        any_truncated = True
+            body = "\n".join(parts)
+        else:
+            body = trunc(content, self.tool_max)
+            any_truncated = is_truncated(content, self.tool_max)
+
+        jq_path = f".message.content[{block_idx}].content"
+        lines = [f"{label_color}  {label}{C.RESET}", ind(body, "    ")]
+        if any_truncated:
+            lines.append(jq_hint(self.log_path, lineno, jq_path))
+
+        if isinstance(tur, ToolUseResultDict):
+            if tur.stderr:
+                lines.append(f"    {C.DIM}stderr: {trunc(tur.stderr, 100)}{C.RESET}")
+        elif isinstance(tur, str) and tur:
+            lines.append(f"    {C.DIM}{trunc(tur, 120)}{C.RESET}")
+
+        return "\n".join(lines)
+
+    def _render_context_text(self, text: str, lineno: int, block_idx: int) -> str:
+        lines = [f"{C.RESULT}  ◀ context{C.RESET}", ind(trunc(text, self.tool_max), "    ")]
+        if is_truncated(text, self.tool_max):
+            lines.append(jq_hint(self.log_path, lineno, f".message.content[{block_idx}].text"))
+        return "\n".join(lines)
+
+    # ── Turn renderers ───────────────────────────────────────────────────
+
+    def render_user_input(self, records: list[tuple[UserRecord, int]], ts: str) -> str:
+        lines = [f"{C.USER}┌ User{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"]
+        for rec, _ in records:
+            if isinstance(rec.message.content, str):
+                lines.append(ind(rec.message.content, "  "))
+        return "\n".join(lines)
+
+    def render_tool_output(self, records: list[tuple[UserRecord, int]], ts: str) -> str:
+        lines = [f"{C.RESULT}┌ Tool Output{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"]
+        for rec, lineno in records:
+            tur = rec.parsed_tool_use_result()
+            for bi, block in enumerate(rec.message.content_blocks()):
+                if isinstance(block, ToolResultBlock):
+                    lines.append(self._render_tool_result(block, lineno, bi, tur=tur))
+                elif isinstance(block, TextBlock):
+                    lines.append(self._render_context_text(block.text, lineno, bi))
+        return "\n".join(lines)
+
+    def render_assistant_turn(self, records: list[tuple[AssistantRecord, int]], ts: str) -> str:
+        usage: Usage | None = None
+        model = ""
+        stop_reason = ""
+
+        for rec, _ in records:
+            if rec.message.usage and not usage:
+                usage = rec.message.usage
+            if rec.message.model and not model:
+                model = rec.message.model
+            if rec.message.stop_reason and not stop_reason:
+                stop_reason = rec.message.stop_reason
+
+        model_tag = ""
+        if model == "<synthetic>":
+            model_tag = f"  {C.DIM}[synthetic]{C.RESET}"
+        elif model:
+            model_tag = f"  {C.DIM}[{model}]{C.RESET}"
+
+        stop_tag = ""
+        if stop_reason and stop_reason != "end_turn":
+            stop_tag = f"  {C.DIM}stop:{stop_reason}{C.RESET}"
+
+        lines = [f"{C.ASSISTANT}┌ Assistant{C.RESET}{model_tag}  {C.TIMESTAMP}{ts}{C.RESET}{stop_tag}"]
+        if usage:
+            lines[0] += f"  {C.DIM}[{fmt_usage(usage)}]{C.RESET}"
+
+        for rec, lineno in records:
+            for bi, block in enumerate(rec.message.content_blocks()):
+                if isinstance(block, ThinkingBlock):
+                    if self.show_thinking:
+                        lines.append(self._render_thinking(block))
+                    else:
+                        lines.append(f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}")
+                elif isinstance(block, TextBlock):
+                    lines.append(ind(block.text, "  "))
+                elif isinstance(block, ToolUseBlock):
+                    lines.append(self._render_tool_use(block, lineno, bi))
+
+        return "\n".join(lines)
+
+    def render_system(self, rec: SystemRecord, ts: str) -> str:
+        if rec.subtype == "turn_duration":
+            return (
+                f"{C.SYSTEM}┌ System{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"
+                f"  {C.DIM}turn_duration: {fmt_duration(rec.durationMs)}{C.RESET}"
+            )
+
+        if rec.subtype == "stop_hook_summary":
+            lines = [
+                f"{C.SYSTEM}┌ System{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"
+                f"  {C.DIM}hooks: {rec.hookCount} ran{C.RESET}"
+            ]
+            for hi in rec.parsed_hook_infos():
+                lines.append(f"  {C.DIM}  hook: {hi.command} ({fmt_duration(hi.durationMs)}){C.RESET}")
+            return "\n".join(lines)
+
+        if rec.subtype == "local_command":
+            return (
+                f"{C.SYSTEM}┌ System{C.RESET}  {C.DIM}[local_command]{C.RESET}"
+                f"  {C.TIMESTAMP}{ts}{C.RESET}\n"
+                f"{ind(rec.content[:200], '  ')}"
+            )
+
+        return f"{C.SYSTEM}┌ System{C.RESET}  {C.DIM}[{rec.subtype}]{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"
+
+    def render_progress(self, rec: ProgressRecord, ts: str) -> str:
+        data = rec.parsed_data()
+
+        if isinstance(data, BashProgress):
+            preview = data.output.strip().split("\n")[-1] if data.output else ""
+            if len(preview) > 120:
+                preview = preview[:120] + "..."
+            return (
+                f"{C.PROGRESS}  ⋯ bash {data.elapsedTimeSeconds:.0f}s"
+                f" ({data.totalLines} lines, {data.totalBytes} bytes)"
+                f" {preview}{C.RESET}"
+            )
+
+        if isinstance(data, AgentProgress):
+            aid = data.agentId[:12] if data.agentId else "?"
+            preview = data.prompt[:80] + "..." if len(data.prompt) > 80 else data.prompt
+            return f"{C.PROGRESS}  ⋯ agent {aid} {preview}{C.RESET}"
+
+        if isinstance(data, HookProgress):
+            return f"{C.PROGRESS}  ⋯ hook {data.hookName}: {data.command}{C.RESET}"
+
+        return f"{C.PROGRESS}  ⋯ progress [{getattr(data, 'type', '?')}]{C.RESET}"
+
+    def render_file_snapshot(self, rec: FileHistorySnapshotRecord) -> str:
+        snap = rec.parsed_snapshot()
+        file_count = len(snap.trackedFileBackups)
+        label = "update" if rec.isSnapshotUpdate else "snapshot"
+        return f"{C.DIM}  ⌂ file-history {label}: {file_count} files tracked{C.RESET}"
+
+    def render_queue_op(self, rec: QueueOperationRecord) -> str:
+        content = rec.content or ""
+        preview = content[:100] + "..." if len(content) > 100 else content
+        preview = preview.replace("<task-notification>", "").replace("</task-notification>", "").strip()
+        return f"{C.QUEUE}  ⊞ queue {rec.operation}: {preview}{C.RESET}"
+
+    def render_last_prompt(self, rec: LastPromptRecord) -> str:
+        preview = rec.lastPrompt[:100] + "..." if len(rec.lastPrompt) > 100 else rec.lastPrompt
+        return f"{C.DIM}  ⎘ last-prompt: {preview}{C.RESET}"
+
+    # ── Session header ───────────────────────────────────────────────────
+
+    def render_session_header(self, first_record) -> str | None:
+        version = getattr(first_record, "version", "")
+        session_id = getattr(first_record, "sessionId", "")
+        slug = getattr(first_record, "slug", "")
+        cwd = getattr(first_record, "cwd", "")
+        header_parts = []
+        if slug:
+            header_parts.append(f"session: {slug}")
+        if session_id:
+            header_parts.append(f"id: {session_id[:8]}")
+        if version:
+            header_parts.append(f"v{version}")
+        if cwd:
+            header_parts.append(f"cwd: {cwd}")
+        if header_parts:
+            return f"{C.DIM}{'  '.join(header_parts)}{C.RESET}"
+        return None

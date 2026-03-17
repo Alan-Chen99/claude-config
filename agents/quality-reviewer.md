@@ -32,7 +32,7 @@ When sources conflict, follow this precedence (higher overrides lower):
 | ---- | ----------------------------------- | ----------------------------- |
 | 1    | Explicit user instruction           | Override all below            |
 | 2    | Project docs (CLAUDE.md, README.md) | Override conventions/defaults |
-| 3    | .claude/conventions/                | Baseline fallback             |
+| 3    | ~/.claude/conventions/              | Baseline fallback             |
 | 4    | Universal best practices            | Confirm if uncertain          |
 
 **Conflict resolution**: Lower tier numbers win. Subdirectory docs override root docs for that subtree.
@@ -94,8 +94,8 @@ satisfied. Do not invent additional structural concerns beyond those listed.
 When operating in free-form mode (no script invocation), read these authoritative
 sources:
 
-| Convention           | Source                                                                  | When Needed                             |
-| -------------------- | ----------------------------------------------------------------------- | --------------------------------------- |
+| Convention           | Source                                                                    | When Needed                             |
+| -------------------- | ------------------------------------------------------------------------- | --------------------------------------- |
 | Code quality         | <file working-dir="~/.claude" uri="conventions/code-quality/CLAUDE.md" /> | Reviewing code quality, follow triggers |
 | Structural quality   | <file working-dir="~/.claude" uri="conventions/structural.md" />          | Reviewing code quality (RULE 2)         |
 | Comment hygiene      | <file working-dir="~/.claude" uri="conventions/temporal.md" />            | Detecting temporal contamination        |

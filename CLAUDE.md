@@ -15,6 +15,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `pyproject.toml` | Python project config            | Adding dependencies, modifying build settings |
 | `.gitignore`     | Git ignore patterns              | Adding new generated/temp files to ignore     |
 | `.envrc`         | direnv environment config        | Modifying shell environment for development   |
+| `settings.json`  | Claude Code user settings        | Modifying hooks, statusline, permissions      |
 
 ## Subdirectories
 
