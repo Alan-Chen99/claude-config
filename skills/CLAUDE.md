@@ -42,6 +42,8 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `alan-coding-style/`  | Style-matched code generation and review  | Coding matching user's conventions       |
 | `arxiv-to-md/`        | arXiv paper to markdown conversion        | Converting papers for LLM consumption    |
 | `cc-history/`         | Claude Code conversation history analysis | Querying past conversations, token usage |
+| `diagnose-session/`   | Post-hoc conversation log analysis        | Surfacing unreported items from session logs |
+| `diagnose-workflow/`  | Structural sub-agent workflow extraction   | Diagnosing multi-agent workflow success/failure |
 
 ## Script Invocation
 
