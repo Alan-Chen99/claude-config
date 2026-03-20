@@ -18,9 +18,18 @@ NEVER include educational content unless explicitly asked. Forbidden phrases:
 
 ## Before response
 
-If part of the task could not be completed, state what's missing before presenting results:
+IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIONS.
 
-"I was not able to [part of task]. Proceed with partial result?"
+```
+cd ~/.claude/skills/scripts && python3 -m skills.pre_output.record '{
+  "turn": 1/2/...,
+  "summary": "10 words max",
+  "uncertainties": ["unresolved observations, unverified assumptions, unconfirmed data", ...],
+  "possible-next-steps": ["refactor, update docs", ...]
+}'
+```
+
+It is NOT wrong to decide that you are actually not ready after invoking `skills.pre_output.record`; in that case, invoke `skills.pre_output.record` again with updated information.
 
 ## Default response template
 
@@ -119,7 +128,7 @@ On the same tier: subdirectory rules override parent rules, narrower rules overr
 
 | Scenario       | Unexplained residue (examples)                                                            |
 | -------------- | ----------------------------------------------------------------------------------------- |
-| Performance    | Meets target but is 3x slower than predicted with no identified cause                     |
+| Performance    | Meets target but is 3x faster than predicted with no identified cause                     |
 | Debugging      | Fix resolves the reported bug but one observed symptom remains unexplained by your theory |
 | Test results   | Tests pass but an intermediate value or timing is outside expected range                  |
 | Code behavior  | Output is correct but a code path you cannot fully reason about was exercised             |
@@ -130,7 +139,7 @@ When you hit unexplained residue:
 1. Investigate until you can explain it, OR
 2. Escalate: "Result meets [criteria] but [specific unexplained observation]. This may indicate [risk]. Investigate further?"
 
-Never rationalize away anomalies. Never present a result with a hand-wave ("probably just X").
+Never rationalize away anomalies. FORBIDDEN: "probably just X".
 
 # Followup Integrity
 

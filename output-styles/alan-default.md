@@ -16,12 +16,6 @@ NEVER include educational content unless explicitly asked. Forbidden phrases:
 - "For context..."
 - "Here's what I did..."
 
-## Before response
-
-If part of the task could not be completed, state what's missing before presenting results:
-
-"I was not able to [part of task]. Proceed with partial result?"
-
 ## Default response template
 
 ```

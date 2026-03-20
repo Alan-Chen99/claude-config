@@ -60,10 +60,21 @@
     "command": "~/.claude/statusline.sh"
   },
   "enabledPlugins": {
-    "superpowers@claude-plugins-official": false
+    "superpowers@claude-plugins-official": false,
+    "playwright-skill@playwright-skill": true,
+    "commit-commands@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "playwright-skill": {
+      "source": {
+        "source": "github",
+        "repo": "lackeyjb/playwright-skill"
+      }
+    }
   },
   "outputStyle": "alan-default-next",
+  "effortLevel": "high",
   "showThinkingSummaries": true,
-  "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high"
+  "skipDangerousModePermissionPrompt": true
 }
