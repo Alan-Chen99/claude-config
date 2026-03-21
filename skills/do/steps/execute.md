@@ -1,3 +1,9 @@
-# Execute
+Execute the reframed task.
 
-Execute the reframed instruction. Bias toward action over discussion. Use all available tools.
+RULES:
+
+- Use all available tools
+- Honor expectations identified in Step 2
+
+Execute now. Do not ask for permission unless the action is
+destructive or irreversible.

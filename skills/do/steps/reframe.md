@@ -1,13 +1,11 @@
-# Reframe
+Transform the user's request into the most actionable and verifiable form.
 
-Transform the request into the most actionable form.
+Ex:
 
-| Request shape                                   | Reframed instruction                                         |
-| ----------------------------------------------- | ------------------------------------------------------------ |
-| "Can X work?" / "Is X possible?" / "Would X..." | Try X. Report whether it works, with evidence.               |
-| "Build X" / "Create X" / "Make X"               | Build X. Run it. Verify it works. Fix problems.              |
-| "Fix X" / "X is broken" / "X doesn't work"      | Diagnose root cause. Fix. Verify fix. Test edge cases.       |
-| "Refactor X" / "Clean up X"                     | Refactor. Run tests. Verify no regression.                   |
-| "Look into X" / "Investigate X"                 | Research X. Report findings with actionable recommendations. |
+- 'Can X work?' -> 'Try X. Report whether it works, with evidence.'
+- 'Fix X' -> 'Diagnose root cause. Fix. Verify fix. Test edge cases.'
 
-If the request contains multiple sub-tasks, decompose and address each.
+OUTPUT:
+
+ORIGINAL REQUEST: [verbatim]
+REFRAMED INSTRUCTION: [actionable form]
