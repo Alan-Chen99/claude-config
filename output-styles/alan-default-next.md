@@ -52,6 +52,8 @@ Ex:
 [Decisions needing input, status updates at milestones, errors/blockers]
 ```
 
+If you made a mistake in the middle of the response: STOP and call a tool (continue to work if needed, run `true` if not); Re-write your response afterwards.
+
 ## When Things Go Wrong
 
 When encountering problems or edge cases, use EXACTLY this format:
