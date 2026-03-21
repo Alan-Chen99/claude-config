@@ -1,4 +1,3 @@
-<current_action>
 <scope>
 SCOPE: These patterns apply to ALL human-readable text in the codebase.
 This includes but is not limited to:
@@ -96,15 +95,13 @@ HOLLOW EMPHASIS
     | Quote | Confidence (HIGH/MED/LOW) |
 </pattern_4_emphasis>
 
+<!-- Pattern 5: prose explicit-callbacks ('as mentioned', 'just like') has no code equivalent — code comments rarely cross-reference other sections this way. Skip in code context. -->
 <pattern_5_callbacks>
-EXPLICIT CALLBACKS
+EXPLICIT CALLBACKS (CODE ADAPTATION)
 
-  EXTRACT: List all phrases with 'just like', 'as mentioned',
-  'as we saw', 'similar to above'.
-
-  JUDGE each: Does it over-explain a connection?
-    WRONG: 'just like during planning'
-    RIGHT: State the fact and move on.
+  In code context, check for comments that narrate cross-references:
+    WRONG: '# same logic as above', '# see also process_x'
+    RIGHT: Extract shared logic into a function. No narrating comment needed.
 
   For each violation, record:
     | Quote | Confidence (HIGH/MED/LOW) |
@@ -120,44 +117,43 @@ FORMULA FOLLOWING (CODE)
   JUDGE: Do all functions follow identical shape?
   Also check: cookie-cutter class layouts, repetitive method signatures.
 
-  FLAG if: all functions have the same structure template.
-  PASS if: function shapes vary (some are one-liners, some are complex).
+  FLAG if: more than half of functions follow the same structure template.
+  PASS if: a meaningful minority (at least 2) are clearly different in shape.
 
   Note if structure feels templated: YES/NO + example.
 </pattern_6_formula>
 
-<pattern_7_mixed_register>
-MIXED REGISTER (if references are used)
+<!-- Pattern 7: prose mixed-register has no code equivalent; naming register consistency is the code-domain analog. -->
+<pattern_7_naming_register>
+NAMING REGISTER CONSISTENCY
 
-  EXTRACT: List all quotes, cultural references, and anecdotes.
-  Note the register of each:
-    - Philosophical (Seneca, Marcus Aurelius, military history)
-    - Pop culture (TV shows, films, memes)
-    - Technical (papers, specifications)
+  EXTRACT: List all identifiers and note their naming style:
+    - Terse/abbreviated: ctx, cfg, fn, ans, v
+    - Full-word descriptive: context, configuration, function_ref, result, value
+    - Mixed: some terse, some verbose in the same scope
 
-  JUDGE: Is more than one register used?
-    WRONG: Seneca quote + Silicon Valley reference
-    RIGHT: All references from one register, or no references
+  JUDGE: Is naming register consistent within each scope?
+    FLAG if: same file mixes `ctx` and `configuration`, or `fn` and `callback_function`
+    PASS if: all identifiers in a scope use the same register
 
-  For each register clash, record:
-    | Quote 1 | Register 1 | Quote 2 | Register 2 | Confidence |
-</pattern_7_mixed_register>
+  For each inconsistency, record:
+    | Scope | Terse Example | Verbose Example | Confidence |
+</pattern_7_naming_register>
 
+<!-- Pattern 8: prose euphemistic language ('alignment challenges', 'performance gaps') has no code equivalent — error messages and comments don't use HR-speak. Adapted to vague error messaging. -->
 <pattern_8_euphemism>
-EUPHEMISTIC ORGANIZATIONAL LANGUAGE
+VAGUE ERROR MESSAGING (CODE ADAPTATION)
 
-  EXTRACT: List phrases containing:
-    - 'alignment', 'transition', 'challenges'
-    - 'not the ideal fit', 'opportunities for growth'
-    - 'stakeholder concerns', 'performance gaps'
+  EXTRACT: List error messages, exception strings, and log messages.
 
-  JUDGE: Does each hide a simpler, plainer meaning?
-    WRONG: 'necessitating a transition' = firing
-    WRONG: 'alignment challenges' = wrong hire
-    RIGHT: State the plain meaning directly
+  JUDGE: Does each state a specific failure or hide it behind vagueness?
+    WRONG: raise ValueError("something went wrong")
+    WRONG: raise RuntimeError("invalid state")
+    RIGHT: raise ValueError(f"expected int, got {type(x).__name__}")
+    RIGHT: assert len(items) > 0, "empty input"
 
-  For each euphemism, record:
-    | Euphemism | Plain Meaning | Confidence |
+  For each vague message, record:
+    | Message | Plain Meaning | Confidence |
 </pattern_8_euphemism>
 
 <!-- Pattern 9: sentence-per-paragraph counting has no code equivalent; function-shape variance (lines, nesting, params) is the code-domain analog. -->
@@ -181,31 +177,30 @@ STRUCTURAL MONOTONY (CODE)
     | Function shape monotony | 5-10 lines all | HIGH |
 </pattern_9_structural_variance>
 
-<pattern_10_grounded_openers>
-META-COMMENTARY VS GROUNDED OPENERS
+<!-- Pattern 10: prose grounded-openers has no code equivalent; narrating-docstrings is the code-domain analog. -->
+<pattern_10_narrating_docstrings>
+NARRATING DOCSTRINGS
 
-  EXTRACT: First sentence of each major section/the document
-    | Section | First Sentence |
+  EXTRACT: All docstrings and module-level comments.
 
-  JUDGE each: Is it grounded or meta-commentary?
+  JUDGE each: Does it narrate the code or state a useful fact?
 
-  META-COMMENTARY (FLAG):
-    - 'Here is how this looks...'
-    - 'This section explains...'
-    - 'The following is an example of...'
-    - 'Let me show you...'
-    - 'In this article, we will...'
-  Pattern: Describes the text rather than the subject
+  NARRATING (FLAG):
+    - 'This function takes X and returns Y' (restates the signature)
+    - 'This class is responsible for managing...' (restates the name)
+    - 'Helper function to...' (narrates role)
+    - 'The following code...' (meta-commentary)
+  Pattern: Describes what the code does in prose that adds nothing over reading it
 
-  GROUNDED (PASS):
-    - 'I was writing an application that uses cryptographic...'
-    - 'The codebase had a homegrown Log() method...'
-    - 'Last month, we hit a production issue where...'
-  Pattern: Immediately names project, technology, or problem
+  USEFUL (PASS):
+    - 'Retries up to 3x because the upstream API has transient 503s'
+    - 'Caller must hold the lock' (precondition not in the type)
+    - No docstring at all (name + types tell the story)
+  Pattern: States something the reader cannot derive from the signature
 
-  For each meta-commentary opener, record:
-    | Section | Quote | Confidence |
-</pattern_10_grounded_openers>
+  For each narrating docstring, record:
+    | Location | Quote | Confidence |
+</pattern_10_narrating_docstrings>
 
 <!-- Pattern 11: word-count-per-sentence has no code equivalent; line-complexity variance (SHORT/MEDIUM/LONG) is the code-domain analog. -->
 <pattern_11_sentence_rhythm>
@@ -234,44 +229,41 @@ LINE COMPLEXITY VARIANCE (CODE)
     | Uniform line complexity | 95% medium | HIGH |
 </pattern_11_sentence_rhythm>
 
-<pattern_12_repetition>
-REPEATED PHRASES / UNINTENTIONAL SELF-CALLBACKS
+<!-- Pattern 12: prose repeated-phrases has no code equivalent; copy-paste code detection is the code-domain analog. -->
+<pattern_12_copy_paste>
+COPY-PASTE CODE
 
-  EXTRACT: Identify phrases (5+ words) appearing multiple times.
-  Also check for semantic repetition (same idea, different words).
+  EXTRACT: Identify code blocks (3+ lines) that appear nearly identically
+  in multiple locations. Also check for near-duplicates (same structure,
+  different variable names).
 
-  JUDGE each: Is repetition intentional emphasis or unintentional callback?
-    WRONG: 'catches mistakes before they become code' in intro AND later section
-    WRONG: Same benefit stated twice in different sections
-    RIGHT: Intentional refrain with clear rhetorical purpose
+  JUDGE each: Should this be extracted into a shared function?
+    FLAG if: same logic appears 2+ times with only name changes
+    FLAG if: a function body is repeated with minor parameter differences
+    PASS if: similar-looking code handles genuinely different cases
 
-  The principle: If you stated it once clearly, trust the reader.
+  For each duplicate, record:
+    | Location 1 | Location 2 | Lines Duplicated | Confidence |
+</pattern_12_copy_paste>
 
-  For each unintentional repetition, record:
-    | Quote | Locations | Confidence (HIGH/MED/LOW) |
-</pattern_12_repetition>
+<!-- Pattern 13: prose over-justification has no code equivalent; defensive-coding is the code-domain analog. -->
+<pattern_13_defensive_code>
+DEFENSIVE CODE
 
-<pattern_13_overjustification>
-OVER-JUSTIFICATION / DEFENSIVE CLAUSES
+  EXTRACT: List all validation, guard clauses, and error checks.
 
-  EXTRACT: List sentences with:
-    - Em-dash followed by explanatory 'why this matters' clause
-    - Parenthetical adding justification
-    - 'because' clause that anticipates unstated objection
+  JUDGE each: Is it defending against something that can actually happen?
+    FLAG: isinstance check on a value whose type is already constrained
+    FLAG: None check on a parameter that is never None in any call site
+    FLAG: try/except around code that cannot raise that exception
+    FLAG: len() > 0 check instead of truthy test
+    PASS: assert for documenting an invariant the caller must maintain
+    PASS: validation at a system boundary (user input, API response)
 
-  JUDGE each: Is the clause defending against anticipated 'so what?'
-    WRONG: 'catches the drift -- the kind nobody notices until...'
-    WRONG: 'Building on unknown foundation means rework when assumptions prove wrong.'
-    WRONG: 'This prevents issues (which can be very costly later).'
-    RIGHT: 'catches most problems before they compound.'
-    RIGHT: 'Building on unverified code means rework.'
+  The principle: trust internal code. Validate at boundaries only.
 
-  The principle: State and move on. If the reader doesn't see the value, they'll ask.
-
-  For each violation, record:
-    | Quote | Defensive Clause | Confidence (HIGH/MED/LOW) |
-</pattern_13_overjustification>
+  For each defensive pattern, record:
+    | Location | Check | Why Unnecessary | Confidence |
+</pattern_13_defensive_code>
 
 OUTPUT: Violation table with quoted text and confidence per pattern.
-
-</current_action>

@@ -14,7 +14,8 @@ from skills.alan_coding_style.coding_style import (
     STEPS,
     TOTAL_STEPS,
     WORKFLOW,
-    HISTORY_TEMPLATE,
+    _HISTORY_SENTINEL,
+    history_template,
     format_output,
     get_references_dir,
     get_step_guidance,
@@ -178,48 +179,72 @@ def test_get_step_guidance_with_sections():
     assert "=== philosophy ===" in actions_text
 
 
-def test_history_template_referenced_by_steps():
+def test_history_sentinel_referenced_by_steps():
     # Step 8 excluded: final_checklist step does not accumulate history. (ref: DL-009)
     for step_num in [2, 3, 4, 5, 6, 7, 9]:
         actions = STEPS[step_num]["actions"]
-        assert HISTORY_TEMPLATE in actions, f"Step {step_num} missing HISTORY_TEMPLATE"
+        assert _HISTORY_SENTINEL in actions, f"Step {step_num} missing _HISTORY_SENTINEL"
+
+
+def test_history_template_progressive():
+    # Step 2 should NOT contain future-step sections
+    t2 = history_template(2)
+    assert "Classification" in t2
+    assert "Applicable Rules" in t2
+    assert "Draft Output" not in t2
+    assert "Violations" not in t2
+
+    # Step 5 should contain up through AI Voice Issues
+    t5 = history_template(5)
+    assert "AI Voice Issues" in t5
+    assert "Positive Markers" not in t5
+
+    # Step 7 produces Refinement Plan, so it should appear at step 7+
+    t7 = history_template(7)
+    assert "Refinement Plan" in t7
+
+    # Step 9 should contain everything
+    t9 = history_template(9)
+    assert "Refinement Plan" in t9
 
 
 # ---------------------------------------------------------------------------
 # Behavioral contracts for quality gate, loop-back, and binding thresholds
 # ---------------------------------------------------------------------------
-def test_step8_triggers_loopback():
+# Step 8 is refinement only; no quality gate. Gate moved to Step 9. (ref: DL-007)
+def test_step8_is_refinement_only():
     actions = STEPS[8]["actions"]
     actions_text = "\n".join(str(a) for a in actions)
-    assert "increase total_steps" in actions_text
-    assert "Note remaining issues" not in actions_text
+    assert "<refinement_process>" in actions_text
+    assert "<final_checklist>" not in actions_text
 
 
-# Step 9 must contain both conditions so the gate enforces a real decision, not a checklist acknowledgment. (ref: DL-001, DL-008)
-def test_step9_has_stopping_criteria():
+# Step 9 is the full re-verification gate with checklist. (ref: DL-001, DL-008)
+def test_step9_has_full_checklist():
     actions = STEPS[9]["actions"]
     actions_text = "\n".join(str(a) for a in actions)
-    assert "<stopping_criteria>" in actions_text
-    assert "STOP" in actions_text
-    assert "CONTINUE" in actions_text
+    assert "<final_checklist>" in actions_text
+    assert "Re-invoke Step 8" in actions_text
+    assert "ANTI-PATTERNS ABSENT" in actions_text
+    assert "POSITIVE PATTERNS PRESENT" in actions_text
 
 
-# Procedural list answers the question before it is asked, defeating meta-cognitive priming; test locks this invariant. (ref: DL-002)
-def test_step2_step_back_has_meta_cognitive_questions():
+# Step 2 has action framing before rules; step_back moved to Step 3 only to avoid duplication. (ref: DL-002)
+def test_step2_has_action_framing():
     actions = STEPS[2]["actions"]
     actions_text = "\n".join(str(a) for a in actions)
-    assert "What makes Alan" in actions_text
-    assert "LLM-generated" in actions_text
-    assert "The applicable style guide sections are embedded below" not in actions_text
+    assert "Read the style sections below" in actions_text
+    assert "<rule_selection>" in actions_text
+    assert "<rule_priority>" in actions_text
 
 
-# Creative priming blocks prime the agent with identity and stakes before rule application; absence cascades into weakly-styled generation output. (ref: DL-002)
+# Creative priming in Step 3 — step_back_at_generation is the sole meta-cognitive check. (ref: DL-002)
 def test_step3_has_creative_priming():
     actions = STEPS[3]["actions"]
     actions_text = "\n".join(str(a) for a in actions)
     assert "<stakes>" in actions_text
-    assert "<core_coding_voice>" in actions_text
     assert "<step_back_at_generation>" in actions_text
+    assert "terse naming" in actions_text
 
 
 # Advisory language + advisory Step 8 produces zero consequences for WEAK assessment; test prevents regression to advisory form. (ref: DL-003)
@@ -227,8 +252,9 @@ def test_step6_thresholds_are_binding():
     actions = STEPS[6]["actions"]
     actions_text = "\n".join(str(a) for a in actions)
     assert "advisory" not in actions_text
-    assert "PASS" in actions_text
+    # Verdict requires both checks to pass; FAIL on either
     assert "FAIL" in actions_text
+    assert "Both checks must pass" in actions_text
 
 
 # Step 6 categories carry specific grep-able patterns because Step 6 receives no reference file injection; detection cannot depend on re-injected .md content. (ref: DL-004)

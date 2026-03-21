@@ -14,7 +14,7 @@ workflow.
 
 | Argument     | Required | Description                                        |
 | ------------ | -------- | -------------------------------------------------- |
-| `--step`     | Yes      | Current step (1-8)                                 |
+| `--step`     | Yes      | Current step (1-9)                                 |
 | `--thoughts` | No       | Accumulated thinking, draft code, and findings     |
 
 Do NOT write or draft code first. Run the script and follow its output.
