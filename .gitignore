@@ -15,11 +15,10 @@ hooks/.env
 /.claude/worktrees
 
 # ralph-orchestrator
-PROMPT.md
-**/.ralph/*
-!**/.ralph/specs/
-!**/.ralph/tasks/
-!**/.ralph/agent/
-**/.ralph/agent/*
-!**/.ralph/agent/memories.md
-!**/.ralph/agent/tasks.jsonl
+**/.ralph/**/*.lock
+**/.ralph/current-events
+**/.ralph/current-loop-id
+**/.ralph/diagnostics
+**/.ralph/events-*.jsonl
+**/.ralph/history.jsonl
+**/.ralph/loops.json
