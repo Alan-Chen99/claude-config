@@ -98,53 +98,44 @@ _HISTORY_SENTINEL = "_HISTORY_"
 
 
 def history_template(step: int) -> str:
-    """Progressive context accumulation — shows only sections complete at this step."""
+    """Progressive context accumulation — shows only sections complete at this step.
+
+    Compact format: section headers only for sections the LLM already created
+    in prior steps. Table/format hints kept only where the LLM first creates
+    the section (Violations at step 4, Positive Markers at step 6).
+    """
     parts = [
         "",
         "CONTEXT ACCUMULATION: Your --thoughts MUST include:",
         "",
         "  ## Classification (from Step 1)",
-        "  | Aspect | Value |",
-        "  | Task Type | generate/review/refactor/fix |",
-        "  | Language(s) | ... |",
-        "  | Scope | file/function/module |",
     ]
     if step >= 2:
         parts += [
-            "",
             "  ## Applicable Rules (from Step 2)",
-            "  | Category | Rule | Source Section |",
         ]
     if step >= 3:
         parts += [
-            "",
             "  ## Draft Output (from Step 3)",
-            "  Code or analysis notes produced in Step 3.",
         ]
     if step >= 4:
         parts += [
-            "",
             "  ## Violations (from Steps 4-5)",
             "  | Location | Pattern | Code | Confidence |",
         ]
     if step >= 5:
         parts += [
-            "",
-            "  ## AI Voice Issues (from Step 5)",
-            "  | Location | Tell Type | Code | Confidence |",
+            "  ## Structural Metrics (from Steps 4-5)",
         ]
     if step >= 6:
         parts += [
-            "",
             "  ## Positive Markers (from Step 6)",
-            "  | Category | Count | Examples |",
             "  Assessment: STRONG/MODERATE/WEAK/MINIMAL",
         ]
     if step >= 7:
         parts += [
-            "",
-            "  ## Refinement Plan (from Step 7)",
-            "  Ordered list of fixes to apply in Step 8.",
+            "  ## Refinements (from Steps 7-8)",
+            "  | # | Original | Revised | Pattern Fixed |",
         ]
     parts.append("")
     return "\n".join(parts)
@@ -157,6 +148,12 @@ STEPS = {
         "phase": "UNDERSTANDING",
         "step_title": "Context Analysis",
         "actions": [
+            # purpose_gate first: agent must articulate purpose before classifying task or selecting sections. (ref: leon step 2 pattern)
+            "<purpose_gate>",
+            "If you cannot state in one sentence what this code must accomplish and who",
+            "consumes it, stop and request clarification before proceeding.",
+            "</purpose_gate>",
+            "",
             "Before coding, classify your task. Style rules depend on this.",
             "",
             "<task_types>",
@@ -193,25 +190,17 @@ STEPS = {
             "</classification_output>",
             "",
             "<section_selection>",
-            "Select applicable reference sections for your task.",
+            "Select sections for your task (always include philosophy):",
+            "  GENERATE: naming, structure, types, functions, idioms, anti-patterns",
+            "  REVIEW:   naming, anti-patterns, thresholds, examples",
+            "  REFACTOR: structure, architecture, functions, naming",
+            "  FIX:      error-handling, naming",
+            "Available: philosophy, naming, structure, types, error-handling, comments,",
+            "  functions, architecture, idioms, testing, anti-patterns, thresholds, examples",
+            "  (ai-voice-removal auto-loads in Step 5)",
             "",
-            "  ALWAYS INCLUDE:",
-            "    philosophy -- Core design instincts",
-            "",
-            "  SELECT BY TASK TYPE (defaults, adjust as needed):",
-            "    GENERATE: naming, structure, types, functions, idioms, anti-patterns",
-            "    REVIEW:   naming, anti-patterns, thresholds, examples",
-            "    REFACTOR: structure, architecture, functions, naming",
-            "    FIX:      error-handling, naming",
-            "",
-            "  ALL AVAILABLE:",
-            "    philosophy, naming, structure, types, error-handling, comments,",
-            "    functions, architecture, idioms, testing, anti-patterns,",
-            "    thresholds, examples, ai-voice-removal",
-            "",
-            "OUTPUT: Write your selected sections as a comma-separated list (no spaces).",
+            "OUTPUT: Comma-separated list to replace <SELECTED_SECTIONS> in next command.",
             "Example: SECTIONS: philosophy,naming,structure,types,functions,idioms,anti-patterns",
-            "Use this exact list to replace <SELECTED_SECTIONS> in the next command.",
             "</section_selection>",
         ],
         "next_desc": "Load applicable style rules.",
@@ -222,11 +211,6 @@ STEPS = {
         "phase": "UNDERSTANDING",
         "step_title": "Style Rule Retrieval",
         "actions": [
-            "<purpose_gate>",
-            "If you cannot state in one sentence what this code must accomplish and who",
-            "consumes it, stop and request clarification before proceeding.",
-            "</purpose_gate>",
-            "",
             "Read the style sections below for your task type and language.",
             "Then use <rule_selection> to surface the applicable rules as a concrete list.",
             "",
@@ -254,6 +238,26 @@ STEPS = {
             "  | Category | Rule | Source Section |",
             "One row per applicable rule (5-10 rows). Then state your rule_priority order.",
             "",
+            "<context_schema_preview>",
+            "Your --thoughts will accumulate these sections across all steps.",
+            "Later steps will fill them; structure your thinking to collect this data:",
+            "",
+            "  ## Classification (from Step 1)",
+            "  | Aspect | Value |",
+            "  ## Applicable Rules (from Step 2)",
+            "  | Category | Rule | Source Section |",
+            "  ## Draft Output (from Step 3)",
+            "  ## Violations (from Steps 4-5)",
+            "  | Location | Pattern | Code | Confidence |",
+            "  ## Structural Metrics (from Steps 4-5)",
+            "  | Function | Lines | Nesting | Params |",
+            "  ## Positive Markers (from Step 6)",
+            "  | Category | Count | Examples |",
+            "  Assessment: STRONG/MODERATE/WEAK/MINIMAL",
+            "  ## Refinements (from Steps 7-8)",
+            "  | # | Original | Revised | Pattern Fixed |",
+            "</context_schema_preview>",
+            "",
             _HISTORY_SENTINEL,
         ],
         "next_desc": "Apply style rules to code.",
@@ -270,6 +274,16 @@ STEPS = {
             "Generate code that Alan would recognize as his own -- not code that happens",
             "to pass a style check.",
             "</stakes>",
+            "",
+            # step_back front-loaded before rule application — primes LLM to avoid AI tells during generation rather than checking after. (ref: DL-002, leon step 3 pattern)
+            "<step_back_at_generation>",
+            "Before producing output, ask yourself:",
+            "1. What makes Alan's coding style distinctive from generic clean code?",
+            "   (Terse names, assert guards, registry dispatch, no speculative abstractions)",
+            "2. What would make this code obviously LLM-generated?",
+            "   (Over-engineered names, excessive comments, defensive internal validation)",
+            "Write code that passes both tests.",
+            "</step_back_at_generation>",
             "",
             # Brief reminder of four signature patterns — full rules are in Step 2 and --thoughts. (ref: DL-002)
             "Apply rules from Step 2, prioritized by task type (see <rule_priority>).",
@@ -327,16 +341,6 @@ STEPS = {
             "  Minimize changes outside the fix.",
             "</apply_rules>",
             "",
-            # Repeats Step 2 meta-cognitive questions at generation time — supplements, does not replace, Step 2 step-back. (ref: DL-002)
-            "<step_back_at_generation>",
-            "Before producing output, ask yourself:",
-            "1. What makes Alan's coding style distinctive from generic clean code?",
-            "   (Terse names, assert guards, registry dispatch, no speculative abstractions)",
-            "2. What would make this code obviously LLM-generated?",
-            "   (Over-engineered names, excessive comments, defensive internal validation)",
-            "Write code that passes both tests.",
-            "</step_back_at_generation>",
-            "",
             "<output_expectations>",
             "GENERATE / REFACTOR / FIX: Output your draft code.",
             "REVIEW: Output your analysis notes with code references.",
@@ -354,8 +358,8 @@ STEPS = {
         "step_title": "Anti-Pattern Detection",
         "actions": [
             "<re_read>",
-            "Before checking, re-read the anti-patterns section from your Step 2 rules.",
-            "With those WRONG/RIGHT pairs fresh, read your code function by function.",
+            "Before checking, scan the WRONG/RIGHT pairs in each pattern below.",
+            "With those contrasts fresh, read your code function by function.",
             "</re_read>",
             "",
             "VERIFICATION METHOD: Extract first, then judge.",
@@ -469,6 +473,9 @@ STEPS = {
             "",
             "The patterns below are already adapted to code context.",
             "Follow every pattern exactly as written.",
+            "PROCESS: Complete each pattern fully before moving to the next.",
+            "After each pattern, record a running tally:",
+            "  Patterns completed: N/13 | Violations found: M",
             # Prose-to-code adaptation mapping (reference only; patterns already incorporate these):
             #   sentences -> lines of code, comments, docstrings
             #   paragraphs -> functions, classes, modules
@@ -477,7 +484,7 @@ STEPS = {
             #   structural variance -> function-shape variance
             #   sentence rhythm -> line-complexity mix
             "",
-            "OUTPUT: AI voice violation table with quoted code and confidence per pattern.",
+            "OUTPUT: Add AI voice violations to your Violations table (same format as Step 4).",
             "",
             _HISTORY_SENTINEL,
         ],
@@ -493,6 +500,9 @@ STEPS = {
             "VERIFICATION METHOD: Extract first, then assess sufficiency.",
             "Steps 4-5 check for ABSENCE of bad patterns.",
             "This step checks for PRESENCE of Alan's signature coding patterns.",
+            "PROCESS: Complete each category fully before moving to the next.",
+            "After each category, record a running tally:",
+            "  Categories completed: N/5 | Markers found: M",
             "",
             "CATEGORY 1: NAMING IDIOMS",
             # Step 6 receives no reference file injection (Step 2 is the only injection point), so category patterns must be self-contained. (ref: DL-004)
@@ -591,8 +601,7 @@ STEPS = {
         "phase": "VERIFICATION",
         "step_title": "Cross-Check Consolidation",
         "actions": [
-            "Consolidate ALL violations from Steps 4-6 before refinement.",
-            "Include anti-pattern violations, AI voice issues, AND positive pattern assessment.",
+            "Consolidate ALL violations from Steps 4-5 and positive pattern assessment from Step 6.",
             "",
             "<consolidation>",
             "Create a single violation table:",
@@ -627,6 +636,13 @@ STEPS = {
             "",
             "  4. Are any areas violation-free? (Confirm explicitly)",
             "     -> Note: 'Lines X-Y: No violations found.'",
+            "",
+            "  5. Does the output format match the task type from Step 1?",
+            "     -> GENERATE: complete, runnable code with module layout",
+            "     -> REVIEW: analysis notes with code references, not rewritten code",
+            "     -> REFACTOR: restructured code preserving behavior",
+            "     -> FIX: minimal change focused on the bug, not style cleanup",
+            "     If mismatched, record as P1 violation.",
             "</cross_check>",
             "",
             "<refinement_plan>",
@@ -675,11 +691,27 @@ STEPS = {
             "  AFTER:  Two module-level constants",
             "</overengineering_fix>",
             "",
+            "<error_handling_fix>",
+            "ERROR HANDLING FIX:",
+            "  BEFORE: try: x = api.get() except Exception: return None",
+            "  AFTER:  x = api.get()  # trust internal; validate at boundary only",
+            "  BEFORE: if result is not None and len(result) > 0:",
+            "  AFTER:  assert result  # invariant: caller guarantees non-empty",
+            "</error_handling_fix>",
+            "",
             "<comment_fix>",
             "COMMENT FIX:",
             "  BEFORE: # increment the counter\\n  counter += 1",
             "  AFTER:  counter += 1",
             "</comment_fix>",
+            "",
+            "<structure_fix>",
+            "STRUCTURE FIX:",
+            "  BEFORE: def process(data): (validates + transforms + writes in one function)",
+            "  AFTER:  def _transform(data): ... + def write(data): ...  # split I/O from compute",
+            "  BEFORE: 3 levels of nesting (if > for > if)",
+            "  AFTER:  early return to flatten; extract inner loop if distinct concern",
+            "</structure_fix>",
             "",
             "<llm_authorship_fix>",
             "LLM AUTHORSHIP FIX (covers both LLM tells and AI voice):",
@@ -691,6 +723,84 @@ STEPS = {
             "  Formulaic structure: vary function shapes by purpose",
             "  Completionist features: delete unrequested configurability",
             "</llm_authorship_fix>",
+            "",
+            "<structural_variance_fix>",
+            "STRUCTURAL MONOTONY FIX:",
+            "  BEFORE: all functions 5-10 lines, flat, 1-3 params (cookie-cutter shape)",
+            "  AFTER:  mix of short utilities (1-3 lines) AND longer complex functions (15+ lines)",
+            "  BEFORE: every function follows docstring -> validate -> process -> return",
+            "  AFTER:  vary shape by purpose: pure transforms (no docstring, single expression),",
+            "          pipeline orchestrators (longer, multi-branch), data validators (assert-heavy)",
+            "</structural_variance_fix>",
+            "",
+            "<copy_paste_fix>",
+            "COPY-PASTE FIX:",
+            "  BEFORE: same 3+ line block appears in multiple locations with only name changes",
+            "  AFTER:  extract shared logic into a function; call from both sites",
+            "  BEFORE: near-duplicate functions with minor parameter differences",
+            "  AFTER:  single parameterized function or registry-driven dispatch",
+            "</copy_paste_fix>",
+            "",
+            "<defensive_code_fix>",
+            "DEFENSIVE CODE FIX:",
+            "  BEFORE: if x is not None: ... (on a value that is never None at any call site)",
+            "  AFTER:  (delete the check -- trust the caller)",
+            "  BEFORE: isinstance(x, str) where x is already str by type constraint",
+            "  AFTER:  (delete -- type system already guarantees this)",
+            "  BEFORE: try: x() except TypeError: pass (cannot raise that exception)",
+            "  AFTER:  x()  # type-safe by construction",
+            "</defensive_code_fix>",
+            "",
+            "<vague_message_fix>",
+            "VAGUE MESSAGE FIX:",
+            "  BEFORE: raise ValueError('something went wrong')",
+            "  AFTER:  raise ValueError(f'expected int, got {type(x).__name__}')",
+            "  BEFORE: raise RuntimeError('invalid state')",
+            "  AFTER:  raise RuntimeError(f'state={state!r}, expected READY or DONE')",
+            "</vague_message_fix>",
+            "",
+            "<positive_pattern_fix>",
+            "MISSING POSITIVE PATTERNS FIX (when Step 6 verdict is WEAK/MINIMAL):",
+            "  Naming idioms:",
+            "    BEFORE: result = compute(data)",
+            "    AFTER:  ans = compute(data)",
+            "  Registry dispatch:",
+            "    BEFORE: if kind == 'a': ... elif kind == 'b': ...",
+            "    AFTER:  HANDLERS = {'a': handle_a, 'b': handle_b}; HANDLERS[kind]()",
+            "  Assert guards:",
+            "    BEFORE: if not items: return None  # defensive",
+            "    AFTER:  assert items  # caller guarantees non-empty",
+            "  Language idioms:",
+            "    BEFORE: x = get_val(); if x: use(x)",
+            "    AFTER:  if x := get_val(): use(x)",
+            "</positive_pattern_fix>",
+            "",
+            "<code_prose_fix>",
+            "TEXT-LEVEL AI TELLS IN CODE FIX (covers patterns 1-5 in comments/docstrings/messages):",
+            "  Tricolons in docstrings:",
+            "    BEFORE: '''Validates, transforms, and persists the data.'''",
+            "    AFTER:  '''Transform raw input to domain model. Persists via store.'''",
+            "  Dead metaphors in comments:",
+            "    BEFORE: # This is the foundation of the pipeline",
+            "    AFTER:  # Entry point — all transforms chain from here",
+            "  Hollow emphasis in error messages:",
+            "    BEFORE: raise ValueError('Critical: invalid input')",
+            "    AFTER:  raise ValueError(f'expected str, got {type(v).__name__}')",
+            "  Contrarian openers in docstrings:",
+            "    BEFORE: '''This isn't just a cache — it's a state manager.'''",
+            "    AFTER:  '''LRU cache with TTL eviction.'''",
+            "</code_prose_fix>",
+            "",
+            "<line_complexity_fix>",
+            "LINE COMPLEXITY FIX (when pattern_11 flags uniform complexity):",
+            "  BEFORE: all lines medium complexity (assignment, call, assignment, return)",
+            "  AFTER:  mix short (single assert, bare return) with long (chained pipeline,",
+            "          multi-clause comprehension, complex f-string)",
+            "  BEFORE: x = get_a(); y = process(x); z = format(y); return z",
+            "  AFTER:  return format(process(get_a()))  # inline when pipeline is clear",
+            "  BEFORE: if cond: x = True; else: x = False",
+            "  AFTER:  x = cond  # direct boolean assignment",
+            "</line_complexity_fix>",
             "",
             "<refinement_log>",
             "Record each change:",
@@ -715,40 +825,116 @@ STEPS = {
             "FINAL VERIFICATION. Re-read your refined code before checking.",
             "Do not rely on earlier assessments -- verify each item fresh.",
             "",
+            "<stopping_criteria>",
+            "STOP (workflow complete) when ALL are true:",
+            "  - Zero HIGH-confidence violations remain from Steps 4-5",
+            "  - Naming register consistent within each scope (no terse/verbose mixing)",
+            "  - No AI voice patterns (formulaic structure, narrating comments, cliche names)",
+            "  - Positive marker threshold met (Step 6 verdict: STRONG or MODERATE)",
+            "  - Code organization matches conventions (section separators, imports)",
+            "",
+            "CONTINUE (invoke Step 10) if ANY are true:",
+            "  - Any HIGH-confidence violation remains",
+            "  - Positive markers below threshold",
+            "  - Naming register inconsistency detected",
+            "  - AI voice patterns still present",
+            "  - Structural monotony (all functions same shape)",
+            "</stopping_criteria>",
+            "",
             "<final_checklist>",
-            "Check each box ONLY if the condition is met. Leave unchecked if not.",
+            "All items below are pre-checked [x]. Uncheck to [ ] any that fail verification.",
             "",
-            "ANTI-PATTERNS ABSENT:",
-            "  [ ] No naming convention violations",
-            "  [ ] No over-engineering (speculative abstraction)",
-            "  [ ] No error handling violations",
-            "  [ ] No comment violations (restating code, commented-out code)",
-            "  [ ] No structural violations (function length, nesting)",
+            "ANTI-PATTERNS ABSENT (verify against Step 4 patterns):",
+            "  [x] No naming convention violations (-> pattern_1_naming)",
+            "  [x] No over-engineering (-> pattern_2_overengineering)",
+            "  [x] No error handling violations (-> pattern_3_error_handling)",
+            "  [x] No comment violations (-> pattern_4_comments)",
+            "  [x] No structural violations (-> pattern_5_structure)",
             "",
-            "AI VOICE ABSENT:",
-            "  [ ] No formulaic function signatures (cookie-cutter structure)",
-            "  [ ] No didactic or narrative comments (lecturing, step-by-step narration)",
-            "  [ ] No cliche naming (Manager, Handler, Service, Helper, Util)",
-            "  [ ] No gratuitous type hints on obvious locals",
+            "AI VOICE ABSENT (verify against Step 5 patterns):",
+            "  [x] No formulaic function signatures (-> pattern_6_formula)",
+            "  [x] No naming register mixing (-> pattern_7_naming_register)",
+            "  [x] No narrating docstrings (-> pattern_10_narrating_docstrings)",
+            "  [x] No structural monotony (-> pattern_9_structural_variance)",
+            "  [x] No gratuitous type hints or defensive code (-> pattern_13_defensive_code)",
+            "  [x] No text-level AI tells in comments/strings/messages (-> patterns 1-5, 8:",
+            "      tricolons, contrarian openers, dead metaphors, hollow emphasis, callbacks, euphemisms)",
+            "  [x] No code-level uniformity issues (-> patterns 11, 12:",
+            "      line complexity variance, copy-paste duplication)",
             "",
-            "POSITIVE PATTERNS PRESENT:",
-            "  [ ] Naming follows conventions (terse, abbreviated, ans/ctx/fn)",
-            "  [ ] Architecture patterns present (registry dicts, frozen dataclasses)",
-            "  [ ] Error handling follows conventions (assert guards, boundary validation)",
-            "  [ ] Language idioms used (walrus operator, comprehensions, f-strings)",
-            "  [ ] Code organization matches conventions (section separators, imports)",
+            "POSITIVE PATTERNS PRESENT (verify against Step 6 categories):",
+            "  [x] Naming idioms present (-> Step 6 category 1)",
+            "  [x] Architecture patterns present (-> Step 6 category 2)",
+            "  [x] Error handling follows conventions (-> Step 6 category 3)",
+            "  [x] Language idioms used (-> Step 6 category 4)",
+            "  [x] Code organization matches conventions (-> Step 6 category 5)",
+            "",
+            "CODE CONVENTIONS (verify against Step 3 + philosophy):",
+            "  [x] Module layout follows top-to-bottom convention (-> Step 3 GENERATE)",
+            "  [x] Data-driven dispatch used where applicable (-> philosophy)",
+            "  [x] Immutable value types where applicable (-> philosophy)",
+            "  [x] No forward references (functions defined before use)",
+            "  [x] Boundary validation only, no internal defensive checks (-> philosophy)",
             "",
             "If any checkbox is [ ] instead of [x]:",
-            "  Re-invoke Step 8 (include your --sections from the current invocation).",
+            "  Invoke step 10 for additional refinement (include your --sections).",
             "",
-            "Otherwise: all boxes checked. Deliver final code.",
+            "Otherwise: all boxes still [x]. Deliver final code.",
             "</final_checklist>",
-            "",
-            _HISTORY_SENTINEL,
         ],
         "next_desc": "WORKFLOW COMPLETE - deliver final code.",
     },
 }
+
+
+def _overflow_step(step: int) -> dict:
+    """Additional refinement for steps beyond TOTAL_STEPS.
+
+    Mirrors leon_writing_style overflow: agent reviews --thoughts for
+    outstanding violations and applies Step 8 refinement rules until clean.
+    Focus varies by step to prevent re-checking already-fixed items.
+    """
+    # Step 10: HIGH-confidence violations. Step 11: MED-confidence and polish.
+    # Step 12+: diminishing returns — remaining items are likely LOW or false positives.
+    if step == TOTAL_STEPS + 1:
+        focus = [
+            "Focus on HIGH-confidence violations first.",
+            "Re-run the Step 9 checklist after each fix.",
+            "When all HIGH-confidence violations are addressed,",
+            "deliver final code or invoke step {} for remaining MED-confidence items.".format(step + 1),
+        ]
+    elif step == TOTAL_STEPS + 2:
+        focus = [
+            "HIGH-confidence violations should be resolved by now.",
+            "Focus on remaining MED-confidence violations and final polish.",
+            "Apply naming register consistency and positive pattern checks.",
+            "When satisfied, deliver final code.",
+        ]
+    else:
+        focus = [
+            "Refinement has diminishing returns at this point.",
+            "Remaining violations are likely LOW-confidence or false positives.",
+            "Review critically — do not make changes unless clearly wrong.",
+            "Deliver final code.",
+        ]
+    return {
+        "id": "additional_refinement",
+        "phase": "REFINEMENT",
+        "step_title": "Additional Refinement",
+        "actions": [
+            "Continue addressing remaining violations.",
+            "",
+            "<additional_refinement>",
+            "Review your --thoughts for outstanding violations.",
+            "Apply refinement rules from Step 8.",
+            "",
+            *focus,
+            "</additional_refinement>",
+            "",
+            history_template(step),
+        ],
+        "next_desc": "WORKFLOW COMPLETE - deliver final code.",
+    }
 
 
 def get_step_guidance(step: int, sections: list[str] | None = None) -> dict:
@@ -757,17 +943,21 @@ def get_step_guidance(step: int, sections: list[str] | None = None) -> dict:
     When sections is provided, loads the corresponding reference files and
     prepends them as labeled plain-text blocks into the actions list.
     Step 5 always appends the ai-voice-removal section regardless of sections.
+    Steps beyond TOTAL_STEPS produce overflow refinement steps.
     (ref: DL-004, DL-003)
     """
     next_step = step + 1 if step < TOTAL_STEPS else None
     step_data = STEPS.get(step)
     if not step_data:
-        return {
-            "phase": "UNKNOWN",
-            "step_title": "Unknown Step",
-            "actions": ["ERROR: Invalid step number."],
-            "next": "COMPLETE",
-        }
+        if step > TOTAL_STEPS:
+            step_data = _overflow_step(step)
+        else:
+            return {
+                "phase": "UNKNOWN",
+                "step_title": "Unknown Step",
+                "actions": ["ERROR: Invalid step number."],
+                "next": "COMPLETE",
+            }
     phase = step_data["phase"]
     next_text = f"Step {next_step}: {step_data['next_desc']}" if next_step else step_data["next_desc"]
     actions = list(step_data["actions"])
@@ -776,10 +966,12 @@ def get_step_guidance(step: int, sections: list[str] | None = None) -> dict:
     actions = [history_template(step) if item == _HISTORY_SENTINEL else item for item in actions]
 
     # Reference sections inject at Step 2 only; Steps 3-9 carry rules via --thoughts accumulation. Step 5 ai-voice injection (step == 5, below) operates on a separate path. (ref: DL-001, DL-006)
+    # Sections insert AFTER the opening instruction ("Read the style sections below...")
+    # so the LLM sees the task before the reference material.
     if sections and step == 2:
         loaded = load_section_files(sections)
         section_blocks = [format_section_block(name, content) for name, content in loaded]
-        actions = section_blocks + actions
+        actions = [actions[0], ""] + section_blocks + [""] + actions[1:]
 
     if step == 5:
         ai_voice_sections = load_section_files(["ai-voice-removal"])
@@ -898,9 +1090,6 @@ def main():
 
     if args.step_number < 1:
         print("ERROR: step-number must be >= 1", file=sys.stderr)
-        sys.exit(1)
-    if args.step_number > TOTAL_STEPS:
-        print(f"ERROR: step-number cannot exceed {TOTAL_STEPS}", file=sys.stderr)
         sys.exit(1)
 
     sec_list = [s.strip() for s in args.sections.split(",") if s.strip()] if args.sections else None
