@@ -37,6 +37,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `codebase-analysis/`  | Systematic codebase exploration           | Repository architecture review           |
 | `prompt-engineer/`    | Prompt optimization and engineering       | Improving agent prompts                  |
 | `incoherence/`        | Consistency detection                     | Finding spec/implementation mismatches   |
+| `do/`                 | Meta-execution pipeline (intent→reframe→execute→reflect) | Wrapping requests in structured execution |
 | `doc-sync/`           | Documentation synchronization             | Syncing docs across repos                |
 | `leon-writing-style/` | Style-matched content generation          | Writing content matching user's style    |
 | `alan-coding-style/`  | Style-matched code generation and review  | Coding matching user's conventions       |
