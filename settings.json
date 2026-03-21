@@ -53,6 +53,18 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '.tool_input | .run_in_background = false | {hookSpecificOutput: {hookEventName: \"PreToolUse\", permissionDecision: \"allow\", updatedInput: .}}'",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
