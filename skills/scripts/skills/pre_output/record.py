@@ -15,8 +15,8 @@ import sys
 RULES = """\
 <system-reminder>
 IMPORTANT RULES:
-- NEVER reply to user if you can make more progress and do more verification autonomously
-- NEVER reply to user if uncertainties remain. Do more verification and research.
+- NEVER ask user to read files or run commands that you have not already read or run yourself
+- NEVER reply to user if uncertainties remain. Do more verification and research
 </system-reminder>"""
 
 
