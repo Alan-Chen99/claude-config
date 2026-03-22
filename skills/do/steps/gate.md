@@ -1,17 +1,28 @@
-Quality gate. For each item, mark PASS/FAIL.
+Quality gate. Review the followups from the previous step.
 
-**Intent match** — Does any findings invalidate your interpretation of user request?
-**Expectations** — Expectations from step 2 are accomplished, or verified to be impossible
-**Assumptions** — Remaining assumptions are impossible to verify on your own.
-**No Followups** — You do not leave user needing to ask a followup question or request.
+For each followup, identify:
+
+- **further action needed**: writing more code, further verification, running commands, read files, search online
+- **answer sketch**: how would you respond
+
+Then triage every action identified above:
+
+| Category        | Criteria                                               | Action                                                             |
+| --------------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
+| slow            | `> max(1 minute, 0.2 * length of this session so far)` | SKIP                                                               |
+| destructive     | not reversible                                         | SKIP                                                               |
+| unlikely-change | writing code that is most likely going to be reverted  | SKIP                                                               |
+| parametrized    | the command to run depend on specific user input       | smoke-test with one random choice, then revert side-effects caused |
+| runnable        | none of the above; includes tests, reading files, etc  | DO NOW                                                             |
 
 OUTPUT:
 
 RESPONSE SKETCH: ...
 
-GATE RESULTS:
+ANTICIPATED FOLLOWUPS:
 
-- Intent match: [PASS / FAIL]
-- [Expectations(enumerate)]: [intent fully met/met as written/not met], [PASS / FAIL]
-- Assumptions ([items]): [PASS / FAIL]
-- No Followups: [PASS / FAIL]
+- [followup]: [further action needed, or "no verification needed"]; [answer sketch]
+
+ACTIONS: (all actions you wrote from above)
+
+- [action]: (Category)
