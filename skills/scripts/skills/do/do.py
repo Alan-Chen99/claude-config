@@ -10,101 +10,46 @@ Six-step workflow:
   5. Gate          - Triage followup actions: skip, do now, or smoke-test
   6. Gate-Execute  - Execute gate-identified actions, then loop 6->4->5
 
-Converts vague or passive requests into structured action with built-in
-reflection and self-correction.
+All steps live in a single steps.md file, separated by `---step N: name---`
+markers. This script parses the file and prints the requested step.
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
-
-from skills.lib.workflow.prompts import format_step
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-MODULE_PATH = "skills.do.do"
 TOTAL_STEPS = 6
 
-# skills/do/steps/ — prompt content lives in markdown, loaded at runtime
-STEPS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "do" / "steps"
+# skills/do/steps.md — all steps in one file, separated by ---step N: name---
+STEPS_FILE = Path(__file__).resolve().parent.parent.parent.parent / "do" / "steps.md"
 
-STEP_TO_FILE: dict[int, tuple[str, str]] = {
-    1: ("Reframe", "reframe.md"),
-    2: ("Identify Expectations", "expectations.md"),
-    3: ("Execute", "execute.md"),
-    4: ("Anticipate Followup", "followup.md"),
-    5: ("Gate", "gate.md"),
-    6: ("Gate-Execute", "gate-execute.md"),
-}
+SEPARATOR = re.compile(r"^<!--\s*step\s+(\d+):\s*(.+?)\s*-->$", re.MULTILINE)
 
 
 # ============================================================================
-# STEP LOADING
+# PARSING
 # ============================================================================
 
 
-def load_step(step: int) -> tuple[str, str]:
-    """Load step title and instructions from markdown."""
-    if step not in STEP_TO_FILE:
-        sys.exit(f"ERROR: Unknown step {step}")
+def parse_steps(text: str) -> dict[int, str]:
+    """Split steps.md into {step_number: content} using separator markers."""
+    markers = list(SEPARATOR.finditer(text))
+    if not markers:
+        sys.exit(f"ERROR: No step separators found in {STEPS_FILE}")
 
-    title, filename = STEP_TO_FILE[step]
-    path = STEPS_DIR / filename
+    steps: dict[int, str] = {}
+    for i, match in enumerate(markers):
+        step_num = int(match.group(1))
+        start = match.end()
+        end = markers[i + 1].start() if i + 1 < len(markers) else len(text)
+        steps[step_num] = text[start:end].strip()
 
-    if not path.exists():
-        sys.exit(f"ERROR: Step file not found: {path}")
-
-    body = path.read_text().strip()
-    return title, body
-
-
-# ============================================================================
-# MESSAGE BUILDERS
-# ============================================================================
-
-
-def build_next_command(step: int) -> str | None:
-    """Build invoke command for next step."""
-    base = f"python3 -m {MODULE_PATH}"
-    if step == 1:
-        return f"{base} --step 2"
-    if step == 2:
-        return f"{base} --step 3"
-    if step == 3:
-        return f"{base} --step 4"
-    if step == 4:
-        return f"{base} --step 5"
-    if step == 6:
-        return f"{base} --step 4"
-    # Step 5 has inline routing in format_output (conditional on gate result)
-    return None
-
-
-# ============================================================================
-# OUTPUT FORMATTING
-# ============================================================================
-
-
-def format_output(step: int) -> str:
-    """Format output for the given step."""
-    title, instructions = load_step(step)
-    full_title = f"DO - {title}"
-
-    # Step 5: conditional routing — format_step would add contradictory
-    # WORKFLOW COMPLETE, so build output directly.
-    if step == 5:
-        execute_cmd = f"python3 -m {MODULE_PATH} --step 6"
-        instructions += (
-            f"\n\nIf no runnable actions: workflow complete, respond to user."
-            f"\nIf any runnable actions: execute: {execute_cmd}"
-        )
-        header = f"{full_title}\n{'=' * len(full_title)}\n\n"
-        return header + instructions
-
-    next_cmd = build_next_command(step)
-    return format_step(instructions, next_cmd or "", title=full_title)
+    return steps
 
 
 # ============================================================================
@@ -125,7 +70,15 @@ def main():
     if args.step < 1 or args.step > TOTAL_STEPS:
         sys.exit(f"ERROR: --step must be 1-{TOTAL_STEPS}")
 
-    print(format_output(args.step))
+    if not STEPS_FILE.exists():
+        sys.exit(f"ERROR: Steps file not found: {STEPS_FILE}")
+
+    steps = parse_steps(STEPS_FILE.read_text())
+
+    if args.step not in steps:
+        sys.exit(f"ERROR: Step {args.step} not found in {STEPS_FILE}")
+
+    print(steps[args.step])
 
 
 if __name__ == "__main__":
