@@ -2,19 +2,16 @@
 
 # DO - Reframe
 
+By invoking `/do`, the user is telling you the task is larger than what is literally written.
 Transform the user's request into the most actionable and verifiable form.
 
 - 'Can X work?' -> 'Try X. Report whether it works, with evidence.'
 - 'Fix X' -> 'Reproduce X. Then, diagnose root cause. Fix. Verify fix. Test edge cases.'
-- 'other' -> 'infer similarly as above'
 
-OUTPUT:
-
-ORIGINAL REQUEST: [verbatim]
-REFRAMED INSTRUCTION: [actionable form]
+<system-reminder> Verify all claims by running the code </system-reminder>
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 2" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 2 --original='verbatim' --reframed='actionable form'" />
 Execute this command now.
 
 <!-- step 2: expectations -->
@@ -30,15 +27,8 @@ Before acting, determine a list of implicit user expectations:
 | Verification | "Verified X against source code, Assumptions tested with commands" |
 | Future work  | "Updating dependency X will be easy"                               |
 
-OUTPUT:
-
-ACTION: [...]
-KNOWLEDGE: [...]
-VERIFICATION: [...]
-FUTURE WORK: [...]
-
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 3" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 3 --action='...' --knowledge='...' --verification='...' --future-work='...'" />
 Execute this command now.
 
 <!-- step 3: execute -->
@@ -55,8 +45,8 @@ RULES:
 Execute now. Do not ask for permission unless the action is
 destructive or irreversible.
 
-NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 4" />
+NEXT STEP (after execution is complete):
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 4 --executed='brief summary of what was executed and outcome'" />
 Execute this command now.
 
 <!-- step 4: followup -->
@@ -75,19 +65,8 @@ Then, generate mostly likely followups, if user had seen your proposed response.
 
 User will not be asking about anything that will be in your response.
 
-OUTPUT:
-
-RESPONSE SKETCH: ...
-
-ANTICIPATED FOLLOWUPS:
-
-1. VERIFICATION: [items, or "none"]
-2. COMPLETENESS: [items, or "none"]
-3. ALTERNATIVES: [items, or "none"]
-4. OTHER: [items, or "none"]
-
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 5" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 5 --sketch='...' --verification='...' --completeness='...' --alternatives='...' --other='...'" />
 Execute this command now.
 
 <!-- step 5: gate -->
@@ -111,22 +90,12 @@ Then triage every action identified above:
 | parametrized    | the command to run depend on specific user input       | smoke-test with one random choice, then revert side-effects caused |
 | runnable        | none of the above; includes tests, reading files, etc  | DO NOW                                                             |
 
-OUTPUT:
-
-RESPONSE SKETCH: ...
-
-ANTICIPATED FOLLOWUPS:
-
-- [followup]: [further action needed, or "no verification needed"]; [answer sketch]
-
-ACTIONS: (all actions you wrote from above)
-
-- [action]: (Category)
+For each followup, write the triage result inline.
 
 If no runnable actions: workflow complete, respond to user.
 If any runnable actions:
 
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 6" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 6 --sketch='...' --followups='followup: action/skip; ...' --runnable='action1, action2, ...'" />
 Execute this command now.
 
 <!-- step 6: gate-execute -->
@@ -138,9 +107,9 @@ Execute the actions identified in the gate step.
 RULES:
 
 - Use all available tools
-- No quality degration: this step is equally important as step 3.
+- No quality degradation: this step is equally important as step 3.
 - After done, go to step 4: re-evaluate what followup user will ask with updated context
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 4" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 4 --executed='brief summary of gate-execute outcome'" />
 Execute this command now.

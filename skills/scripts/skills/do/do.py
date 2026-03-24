@@ -65,7 +65,10 @@ def main():
     )
     parser.add_argument("--step", type=int, required=True)
 
-    args = parser.parse_args()
+    # Extra args capture step output from the model. Accepted and
+    # discarded — the value is in making the model externalize state into
+    # the tool call (same technique as pre_output.record).
+    args, _extra = parser.parse_known_args()
 
     if args.step < 1 or args.step > TOTAL_STEPS:
         sys.exit(f"ERROR: --step must be 1-{TOTAL_STEPS}")

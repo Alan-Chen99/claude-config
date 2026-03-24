@@ -10,17 +10,15 @@ workflow.
 
 ## Evidence Hierarchy
 
-| Tier | Source         | Notes                                                               |
-| ---- | -------------- | ------------------------------------------------------------------- |
-| 1    | running-code   | ALWAYS PREFERED                                                     |
-| 2    | source-code    | By default, clone using git to /tmp and checkout the exact revision |
-| 3    | documentation  | Use same version if possible                                        |
-| 4    | human-provided | MUST verify if possbile                                             |
-| 5    | from-memory    | MUST verify, state clearly if not possible                          |
+| Tier | Source         | Notes                                                |
+| ---- | -------------- | ---------------------------------------------------- |
+| 1    | running-code   | MUST run as final evidence                           |
+| 2    | source-code    | Use for analysis, run/test before responding to user |
+| 3    | documentation  | Use for analysis, run/test before responding to user |
+| 4    | human-provided | MUST verify                                          |
+| 5    | from-memory    | MUST verify                                          |
 
-IMPORTANT: Cite the tier on all claims made. Ex: "...claim (source-code)"
-
-ALWAYS find higher tier evidence if available.
+SHOULD: to read source code, clone using git to /tmp and checkout the exact revision
 
 ## Invocation
 
