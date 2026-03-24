@@ -9,7 +9,7 @@ Then triage every action identified above:
 
 | Category        | Criteria                                               | Action                                                             |
 | --------------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
-| slow            | `> max(1 minute, 0.2 * length of this session so far)` | SKIP                                                               |
+| slow            | `> max(1 minute, 0.2 * length of this session so far)` | run with 30s timeout, or SKIP if it is guaranteed to take longer   |
 | destructive     | not reversible                                         | SKIP                                                               |
 | unlikely-change | writing code that is most likely going to be reverted  | SKIP                                                               |
 | parametrized    | the command to run depend on specific user input       | smoke-test with one random choice, then revert side-effects caused |
