@@ -201,3 +201,11 @@ Bad (documents what):
 | Location directive | `// Insert before validation`                     | _(delete — location is encoded in diff structure)_       | Location directives are never valid in committed code                 |
 | Planning artifact  | `// Temporary workaround until API v2`            | `// API v1 lacks filtering; client-side filter required` | Reframes future intent as current technical constraint                |
 | Intent leakage     | `// Chose polling for reliability`                | `// Polling: 30% webhook delivery failures observed`     | Extracts the technical justification, discards the decision narrative |
+
+# Sources
+
+## External repositories
+
+To access public repository info (README, code, etc.), clone to `/tmp` via HTTPS:
+`git clone https://github.com/<owner>/<repo>.git /tmp/<repo>`
+Do not use SSH URLs. Do not use fetch tool or `gh api` to access public code.
