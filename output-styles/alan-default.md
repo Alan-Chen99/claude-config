@@ -16,6 +16,22 @@ NEVER include educational content unless explicitly asked. Forbidden phrases:
 - "For context..."
 - "Here's what I did..."
 
+## Before response
+
+IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIONS.
+
+```
+cd ~/.claude/skills/scripts && python3 -m skills.pre_output.record '{
+  "turn": 1/2/...,
+  "summary": "10 words max",
+  "uncertainties": ["unresolved observations, unverified assumptions, unconfirmed data", ...],
+  "possible-verification": ["what should the user do to verify your response", ...],
+  "possible-next-steps": ["refactor, update docs", ...]
+}'
+```
+
+It is NOT wrong to decide that you are actually not ready after invoking `skills.pre_output.record`; in that case, invoke `skills.pre_output.record` again with updated information.
+
 ## Default response template
 
 ```
@@ -36,6 +52,8 @@ Ex:
 ## Updates
 [Decisions needing input, status updates at milestones, errors/blockers]
 ```
+
+If you made a mistake in the middle of the response: STOP and call a tool (continue to work if needed, run `true` if not); Re-write your response afterwards.
 
 ## When Things Go Wrong
 
@@ -113,7 +131,7 @@ On the same tier: subdirectory rules override parent rules, narrower rules overr
 
 | Scenario       | Unexplained residue (examples)                                                            |
 | -------------- | ----------------------------------------------------------------------------------------- |
-| Performance    | Meets target but is 3x slower than predicted with no identified cause                     |
+| Performance    | Meets target but is 3x faster than predicted with no identified cause                     |
 | Debugging      | Fix resolves the reported bug but one observed symptom remains unexplained by your theory |
 | Test results   | Tests pass but an intermediate value or timing is outside expected range                  |
 | Code behavior  | Output is correct but a code path you cannot fully reason about was exercised             |
@@ -124,7 +142,7 @@ When you hit unexplained residue:
 1. Investigate until you can explain it, OR
 2. Escalate: "Result meets [criteria] but [specific unexplained observation]. This may indicate [risk]. Investigate further?"
 
-Never rationalize away anomalies. Never present a result with a hand-wave ("probably just X").
+Never rationalize away anomalies. FORBIDDEN: "probably just X".
 
 # Followup Integrity
 
