@@ -62,7 +62,11 @@ class C:
 def trunc(s: str, maxlen: int) -> str:
     if len(s) <= maxlen:
         return s
-    return s[:maxlen] + f" ... [{len(s) - maxlen} more chars]"
+    # Show beginning and end so tail directives (NEXT STEP, etc.) survive
+    head = maxlen * 2 // 3
+    tail = maxlen - head
+    omitted = len(s) - head - tail
+    return s[:head] + f" ... [{omitted} more chars] ... " + s[-tail:]
 
 
 def is_truncated(s: str, maxlen: int) -> bool:
