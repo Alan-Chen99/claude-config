@@ -30,7 +30,9 @@ cd ~/.claude/skills/scripts && python3 -m skills.pre_output.record '{
 }'
 ```
 
-It is NOT wrong to decide that you are actually not ready after invoking `skills.pre_output.record`; in that case, invoke `skills.pre_output.record` again with updated information.
+It is NOT wrong to decide that you are actually not ready after invoking `skills.pre_output.record`; in that case, invoke `skills.pre_output.record` again with updated information with the same "turn" arg.
+
+This should be the last thing you run. If you needed to call any tools (including read), call `skills.pre_output.record` again.
 
 ## Default response template
 
