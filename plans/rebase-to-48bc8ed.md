@@ -23,7 +23,7 @@ decomposed modules, changed AST node types, and simplified StepDef from 7 fields
 | Reset target | `48bc8ed` | Clean, 167 tests pass, most recent stable commit before refactor |
 | planner_lite | Exclude | Uses new AST API; re-add after upstream fixes |
 | alan-coding-style | Backport to old API | Valuable independent feature; W.el() pattern maps cleanly |
-| Path patching (c597c3e) | Run `post-sync.sh` instead of cherry-pick | c597c3e touches files that won't exist at 48bc8ed; script is idempotent |
+| Path patching (c597c3e) | Run `patch-upstream-paths.sh` instead of cherry-pick | c597c3e touches files that won't exist at 48bc8ed; script is idempotent |
 | Test backport | Yes, adapted | Remove phase regression test; rest tests public interface |
 | solution-design skill | Keep (exists at 48bc8ed) | Removed in refactor but still valid |
 
@@ -58,7 +58,7 @@ These files were created in `32a0e90` and have zero dependency on the refactor:
 ```bash
 git checkout backup-pre-rebase -- \
   .envrc .python-version .gitignore pyproject.toml uv.lock statusline.sh \
-  CLAUDE.md post-sync.sh \
+  CLAUDE.md patch-upstream-paths.sh \
   hooks/.env.example hooks/install.sh hooks/ntfy_hook.py \
   "skills/alan-coding-style/" \
   "skills/scripts/skills/alan_coding_style/__init__.py"
@@ -94,7 +94,7 @@ Adds architecture documentation section and agent policy guidance.
 ### skills/CLAUDE.md — MANUAL EDIT
 
 The diff from `32a0e90` both adds `alan-coding-style/` (want) AND removes `solution-design/`
-(don't want — it still exists at 48bc8ed). Also patches paths (post-sync.sh handles that).
+(don't want — it still exists at 48bc8ed). Also patches paths (patch-upstream-paths.sh handles that).
 
 Changes to make manually:
 1. Add the "MANDATORY: Read Before Modifying" section after line 2
@@ -102,7 +102,7 @@ Changes to make manually:
 3. Add `alan-coding-style/` row to Subdirectories table
 4. **Keep** `solution-design/` row (do NOT remove)
 5. Update Script Invocation section (remove `--total-steps N`)
-6. Leave paths as `.claude` (post-sync.sh will patch them in Phase 6)
+6. Leave paths as `.claude` (patch-upstream-paths.sh will patch them in Phase 6)
 
 ### conftest.py — MANUAL EDIT
 
@@ -256,10 +256,10 @@ Backport from `832d7bb` with these changes:
 
 ---
 
-## Phase 6: Run post-sync.sh
+## Phase 6: Run patch-upstream-paths.sh
 
 ```bash
-./post-sync.sh
+./patch-upstream-paths.sh
 ```
 
 Patches all `.claude` → `~/.claude` paths across `*.md` and `*.py` files.
@@ -267,7 +267,7 @@ Must run AFTER all content is in place (Phase 2-5).
 
 **Verify dry-run first:**
 ```bash
-./post-sync.sh --dry-run
+./patch-upstream-paths.sh --dry-run
 ```
 
 ---
@@ -303,7 +303,7 @@ introduced 3 categories of test failures. All 22 post-refactor commits
 depend on the refactored API and cannot be cherry-picked.
 
 Backported: alan-coding-style skill (rewritten for old AST API)
-Extracted: hooks, post-sync.sh, pyproject.toml, CLAUDE.md, plans, .envrc
+Extracted: hooks, patch-upstream-paths.sh, pyproject.toml, CLAUDE.md, plans, .envrc
 Excluded: planner_lite (depends on new API, re-add after upstream fixes)
 Preserved: solution-design skill (still valid at this commit)"
 ```

@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# post-sync.sh — Run after syncing with upstream to patch paths.
+# patch-upstream-paths.sh — Patch relative .claude/ paths to ~/.claude/.
 #
-# Upstream uses relative .claude/ paths in working-dir attributes.
-# This repo needs ~/.claude/ (absolute home-relative) paths instead.
+# Upstream (solatis/claude-config) uses relative .claude/ paths in
+# working-dir attributes. This fork needs ~/.claude/ (absolute
+# home-relative) paths instead.
 #
-# Usage: ./post-sync.sh [--dry-run]
+# Run manually after pulling/rebasing upstream changes.
+#
+# Usage: ./patch-upstream-paths.sh [--dry-run]
 
 set -euo pipefail
 cd "$(dirname "$0")"

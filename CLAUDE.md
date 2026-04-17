@@ -11,7 +11,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | File             | What                             | When to read                                  |
 | ---------------- | -------------------------------- | --------------------------------------------- |
 | `README.md`      | Workflow philosophy, usage guide | Understanding the approach, getting started   |
-| `post-sync.sh`   | Post-sync hook for symlink setup | Troubleshooting installation, modifying setup |
+| `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After pulling/rebasing upstream changes |
 | `pyproject.toml` | Python project config            | Adding dependencies, modifying build settings |
 | `.gitignore`     | Git ignore patterns              | Adding new generated/temp files to ignore     |
 | `.envrc`         | direnv environment config        | Modifying shell environment for development   |
