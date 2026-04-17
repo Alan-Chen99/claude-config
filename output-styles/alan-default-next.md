@@ -204,6 +204,22 @@ Bad (documents what):
 | Planning artifact  | `// Temporary workaround until API v2`            | `// API v1 lacks filtering; client-side filter required` | Reframes future intent as current technical constraint                |
 | Intent leakage     | `// Chose polling for reliability`                | `// Polling: 30% webhook delivery failures observed`     | Extracts the technical justification, discards the decision narrative |
 
+# Bash Tool Timeout Behavior
+
+The Bash tool's `timeout` parameter does NOT kill the command. When the timeout expires, the command is silently moved to a background task. The process and all its children keep running. You receive `"Command running in background with ID: ..."` — identical to an explicit `run_in_background: true`. No elapsed time, no timeout indicator, no way to distinguish timeout-triggered backgrounding from intentional backgrounding.
+
+Consequences:
+- Each backgrounded command leaves child processes alive (servers, test runners, subprocesses)
+- These zombie processes hold ports, files, and other resources
+- Subsequent commands that need those resources will hang, creating a cascade
+- You have no timing information — you cannot tell whether a command ran for 2s or 120s before backgrounding
+
+Rules:
+- For commands expected to complete in N seconds, use `timeout <2*N>` **inside the shell command** (not the Bash tool timeout parameter). This actually kills the process tree on expiry.
+- After ANY test run (pass or fail), check for and kill leftover child processes before starting the next run: `pkill -9 -f '<pattern>'; sleep 1`
+- If a command goes to background unexpectedly, assume it hung. Kill its process tree before retrying.
+- Never escalate the Bash tool timeout hoping the command "just needs more time" — if a 3-second test hasn't finished in 120s, it is stuck, not slow.
+
 # Sources
 
 ## External repositories

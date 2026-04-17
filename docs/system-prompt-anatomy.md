@@ -11,46 +11,63 @@ re-injected fresh, and some accumulate over the conversation.
 Each box is a message in the array sent to the model. The harness rebuilds this
 array before every API call.
 
+The system prompt is assembled in two stages. First, `getSystemPrompt()` produces
+a `string[]` of behavioral rules. Then `queryModel()` prepends the billing header
+and identity prefix. Finally, `splitSysPromptPrefix()` converts the array into
+API `system[]` blocks with cache controls.
+
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ SYSTEM PROMPT  (string[], cached per section)           │
+│ SYSTEM PROMPT  (as sent to API: system[] blocks)        │
 │                                                         │
-│  ┌─ Tool definitions ────────────────────────────────┐  │
-│  │ Bash, Read, Edit, Write, Glob, Grep,              │  │
-│  │ Agent, Skill, ToolSearch, + MCP tools              │  │
+│  ┌─ system[0]: Attribution header ─────────────────┐   │
+│  │ "x-anthropic-billing-header: cc_version=..."     │   │
+│  │ Prepended by queryModel() → getAttributionHeader │   │
+│  │ cache_control: none                               │   │
 │  └───────────────────────────────────────────────────┘  │
-│  ┌─ Agent identity ─────────────────────────────────┐   │
-│  │ "You are Claude Code..." + behavioral rules,      │  │
-│  │ guidelines, git safety, commit/PR instructions    │  │
+│  ┌─ system[1]: Identity prefix ────────────────────┐   │
+│  │ Prepended by queryModel() → getCLISyspromptPrefix│   │
+│  │ Varies by mode (see table below)                  │   │
+│  │ cache_control: ephemeral or omitted (see below)   │   │
 │  └───────────────────────────────────────────────────┘  │
-│  ┌─ Static sections (cacheable) ────────────────────┐   │
-│  │ getSimpleIntroSection                             │  │
-│  │ getSimpleSystemSection                            │  │
-│  │ getSimpleDoingTasksSection                        │  │
-│  │ getActionsSection                                 │  │
-│  │ getUsingYourToolsSection                          │  │
-│  │ getSimpleToneAndStyleSection                      │  │
-│  │ getOutputEfficiencySection                        │  │
+│  ┌─ system[2]: Main prompt body ───────────────────┐   │
+│  │ All getSystemPrompt() sections joined:            │   │
+│  │                                                   │   │
+│  │  Tool definitions ───────────────────────────     │   │
+│  │   Bash, Read, Edit, Write, Glob, Grep,           │   │
+│  │   Agent, Skill, ToolSearch, + MCP tools           │   │
+│  │                                                   │   │
+│  │  Static sections (from getSystemPrompt()) ───     │   │
+│  │   getSimpleIntroSection                           │   │
+│  │   getSimpleSystemSection                          │   │
+│  │   getSimpleDoingTasksSection                      │   │
+│  │   getActionsSection                               │   │
+│  │   getUsingYourToolsSection                        │   │
+│  │   getSimpleToneAndStyleSection                    │   │
+│  │   getOutputEfficiencySection                      │   │
+│  │                                                   │   │
+│  │  Dynamic sections (registry-managed) ─────────    │   │
+│  │   session_guidance      (memoized per session)    │   │
+│  │   memory                (auto-memory prompt)      │   │
+│  │   env_info_simple       (cwd, platform, model)    │   │
+│  │   language              (if non-English)          │   │
+│  │   output_style          (from output-styles/)     │   │
+│  │   mcp_instructions      (DANGEROUS: uncached)     │   │
+│  │   scratchpad            (temp dir instructions)   │   │
+│  │   frc                   (function result clearing)│   │
+│  │   summarize_tool_results                          │   │
+│  │   token_budget          (feature-gated)           │   │
+│  │   brief                 (feature-gated)           │   │
+│  │                                                   │   │
+│  │  systemContext (appended) ────────────────────     │   │
+│  │   gitStatus: branch, status, recent commits       │   │
+│  │                                                   │   │
+│  │ cache_control: ephemeral or omitted (see below)   │   │
 │  └───────────────────────────────────────────────────┘  │
-│  ┌─ SYSTEM_PROMPT_DYNAMIC_BOUNDARY ─────────────────┐   │
-│  │ (marker separating cache-stable from volatile)    │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌─ Dynamic sections (registry-managed) ────────────┐   │
-│  │ session_guidance      (memoized per session)      │  │
-│  │ memory                (auto-memory prompt)        │  │
-│  │ env_info_simple       (cwd, platform, model ID)   │  │
-│  │ language              (if non-English)             │  │
-│  │ output_style          (from output-styles/ config) │  │
-│  │ mcp_instructions      (DANGEROUS: uncached)       │  │
-│  │ scratchpad            (temp dir instructions)      │  │
-│  │ frc                   (function result clearing)   │  │
-│  │ summarize_tool_results                            │  │
-│  │ token_budget          (feature-gated)             │  │
-│  │ brief                 (feature-gated)             │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌─ systemContext (appended) ───────────────────────┐   │
-│  │ gitStatus: branch, status, recent commits         │  │
-│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  NOTE: In global cache mode with boundary marker,       │
+│  system[2] splits into two blocks (system[2] static +   │
+│  system[3] dynamic) — see "API Block Structure" below.  │
 └─────────────────────────────────────────────────────────┘
 
 ┌─ userContext (user message, isMeta=true) ─────────────┐
@@ -140,7 +157,10 @@ exist (microcompact, snip, autocompact, context collapse). After any compaction:
 
 ## System Prompt Assembly
 
-**Entry point:** `getSystemPrompt()` in `constants/prompts.ts:444-577`
+Assembly happens in two stages: `getSystemPrompt()` builds the content, then
+`queryModel()` wraps it for the API.
+
+### Stage 1: `getSystemPrompt()` (`constants/prompts.ts:444-577`)
 
 Two code paths:
 
@@ -152,7 +172,7 @@ Standard mode returns a `string[]`:
 ```
 [
   // --- Static (cacheable) ---
-  getSimpleIntroSection()         // "You are Claude Code..."
+  getSimpleIntroSection()         // "You are an interactive agent that helps users..."
   getSimpleSystemSection()        // tool permissions, hooks, context compression
   getSimpleDoingTasksSection()    // coding guidance (skipped if output style replaces it)
   getActionsSection()             // reversibility/blast-radius rules
@@ -182,6 +202,43 @@ Standard mode returns a `string[]`:
 - `systemPromptSection()` — memoized, computed once, cached until `/clear` or `/compact`
 - `DANGEROUS_uncachedSystemPromptSection()` — recomputed every turn, breaks prompt cache when value changes (used for MCP instructions)
 
+### Stage 2: `queryModel()` (`services/api/claude.ts:1358-1369`)
+
+Before calling the API, `queryModel()` prepends two items to the `string[]`:
+
+```typescript
+systemPrompt = asSystemPrompt([
+  getAttributionHeader(fingerprint),   // billing/attestation header
+  getCLISyspromptPrefix({ ... }),       // identity prefix
+  ...systemPrompt,                      // ← Stage 1 output
+  ...(advisorModel ? [...] : []),
+  ...(injectChromeHere ? [...] : []),
+])
+```
+
+**Identity prefix** (`constants/system.ts:10-45`): `getCLISyspromptPrefix()` returns
+one of three values depending on mode:
+
+| Mode | Prefix |
+|------|--------|
+| Interactive (default) | `"You are Claude Code, Anthropic's official CLI for Claude."` |
+| Non-interactive + `--append-system-prompt` | `"You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK."` |
+| Non-interactive, no append | `"You are a Claude agent, built on Anthropic's Claude Agent SDK."` |
+
+**Attribution header** (`constants/system.ts:73`): `getAttributionHeader()` returns
+a billing string like `x-anthropic-billing-header: cc_version=2.1.79.04b; cc_entrypoint=cli; cch=00000;`.
+When `NATIVE_CLIENT_ATTESTATION` is enabled, the `cch=00000` placeholder is overwritten
+by Bun's HTTP stack with a computed attestation hash before the request is sent.
+
+### Stage 3: `splitSysPromptPrefix()` (`utils/api.ts:321-435`)
+
+Converts the `string[]` into API `TextBlockParam[]` with cache controls. Identifies
+the billing header and identity prefix by content (not position), then groups
+remaining strings by whether they appear before or after the
+`SYSTEM_PROMPT_DYNAMIC_BOUNDARY` marker.
+
+See **API Block Structure** below for the three output modes.
+
 **Effective prompt priority** (`utils/systemPrompt.ts:41-123`):
 1. Override prompt (loop mode) — replaces everything
 2. Coordinator prompt (coordinator mode)
@@ -191,6 +248,85 @@ Standard mode returns a `string[]`:
 6. Append prompt — always added at end (except when override is set)
 
 **systemContext** (`context.ts:116-150`): `gitStatus` is computed by `getSystemContext()` (memoized) and appended to the system prompt via `appendSystemContext()` — it is NOT inside the claudeMd user message.
+
+## API Block Structure
+
+`splitSysPromptPrefix()` produces the `system[]` array sent to the Anthropic API.
+The structure depends on feature flags and provider.
+
+**Cache control mapping** (`getCacheControl()` in `services/api/claude.ts:358-374`):
+
+| Internal `cacheScope` | API `cache_control` |
+|------------------------|---------------------|
+| `null` | omitted (no caching) |
+| `'org'` | `{ type: 'ephemeral' }` |
+| `'global'` | `{ type: 'ephemeral', scope: 'global' }` |
+
+`ttl: '1h'` is added when the user is eligible (ant or subscriber) and the query
+source matches the GrowthBook allowlist. Otherwise, default ephemeral (5 minute TTL).
+
+### Mode 1: Default / 3P providers (boundary missing or global cache off)
+
+3 blocks. All behavioral content joined into one block.
+
+```
+system[0]  billing header        cache_control: (omitted)
+system[1]  identity prefix       cache_control: { type: ephemeral }
+system[2]  everything else       cache_control: { type: ephemeral }
+```
+
+Observed API dump (1P subscriber with 1h TTL):
+```json
+system[0]  { text: "x-anthropic-billing-header: ..." }
+system[1]  { text: "You are Claude Code...", cache_control: { type: "ephemeral", ttl: "1h" } }
+system[2]  { text: "\nYou are an interactive agent...", cache_control: { type: "ephemeral", ttl: "1h" } }
+```
+
+### Mode 2: Global cache + boundary marker (1P only)
+
+4 blocks. Static content before the boundary gets global (cross-org) cache scope.
+
+```
+system[0]  billing header        cache_control: (omitted)
+system[1]  identity prefix       cache_control: (omitted)
+system[2]  static sections       cache_control: { type: ephemeral, scope: global }
+system[3]  dynamic sections      cache_control: (omitted)
+```
+
+### Mode 3: MCP tools present (skipGlobalCacheForSystemPrompt)
+
+3 blocks. Boundary marker stripped, no global scope. Same structure as Mode 1.
+
+### Extracting the exact API payload
+
+Session JSONL logs do **not** store the system prompt — it is rebuilt each API call.
+To capture the exact `system[]`, `messages[]`, and `tools[]` sent to the API:
+
+```bash
+# Write hook to /tmp/dump-api-request.cjs
+cat > /tmp/dump-api-request.cjs << 'HOOK'
+const origFetch = globalThis.fetch;
+let callNum = 0;
+globalThis.fetch = async function(url, opts) {
+  if (typeof url === 'string' && url.includes('/v1/messages') && opts?.body) {
+    const n = ++callNum;
+    const outFile = `/tmp/claude-api-dump-${n}.json`;
+    try {
+      const body = JSON.parse(opts.body);
+      require('fs').writeFileSync(outFile, JSON.stringify(body, null, 2));
+      process.stderr.write(`[dump] #${n} → ${outFile}\n`);
+    } catch(e) {}
+  }
+  return origFetch.apply(this, arguments);
+};
+HOOK
+
+# Launch Claude Code with the hook
+NODE_OPTIONS="--require=/tmp/dump-api-request.cjs" claude
+# Dumps appear at /tmp/claude-api-dump-{1,2,...}.json
+# dump-1 is typically a Haiku preflight (no system prompt)
+# dump-2+ contain the full system[] array
+```
 
 ## userContext / claudeMd
 
@@ -359,14 +495,15 @@ Post-compaction cleanup (`services/compact/postCompactCleanup.ts:31-77`):
 
 ## Sources
 
-- [`constants/prompts.ts`](https://github.com/anthropics/claude-code) — `getSystemPrompt()`, section generators, `computeSimpleEnvInfo()`
+- [`constants/prompts.ts`](https://github.com/anthropics/claude-code) — `getSystemPrompt()` (Stage 1), section generators, `computeSimpleEnvInfo()`
+- [`constants/system.ts`](https://github.com/anthropics/claude-code) — `getCLISyspromptPrefix()` (identity prefix variants), `getAttributionHeader()` (billing/attestation)
+- [`services/api/claude.ts`](https://github.com/anthropics/claude-code) — `queryModel()` (Stage 2: prepends header+prefix), `buildSystemPromptBlocks()` (cache scope metadata)
+- [`utils/api.ts`](https://github.com/anthropics/claude-code) — `splitSysPromptPrefix()` (Stage 3: string[] → API blocks), `prependUserContext()`, `appendSystemContext()`
 - [`utils/systemPrompt.ts`](https://github.com/anthropics/claude-code) — `buildEffectiveSystemPrompt()` priority logic
 - [`constants/systemPromptSections.ts`](https://github.com/anthropics/claude-code) — section caching (`systemPromptSection`, `DANGEROUS_uncachedSystemPromptSection`)
 - [`context.ts`](https://github.com/anthropics/claude-code) — `getUserContext()`, `getSystemContext()`
-- [`utils/api.ts`](https://github.com/anthropics/claude-code) — `prependUserContext()`, `appendSystemContext()`, `splitSysPromptPrefix()`
 - [`utils/claudemd.ts`](https://github.com/anthropics/claude-code) — `getMemoryFiles()`, path-scoped rule loading, `@include` resolution
 - [`utils/messages.ts`](https://github.com/anthropics/claude-code) — `smooshSystemReminderSiblings()`, `ensureSystemReminderWrap()`
 - [`utils/attachments.ts`](https://github.com/anthropics/claude-code) — `Attachment` type union (~50 types), `getAttachments()`
 - [`tools/AgentTool/runAgent.ts`](https://github.com/anthropics/claude-code) — sub-agent context omission logic
 - [`services/compact/postCompactCleanup.ts`](https://github.com/anthropics/claude-code) — post-compaction cache clearing
-- [`services/api/claude.ts`](https://github.com/anthropics/claude-code) — `buildSystemPromptBlocks()`, cache scope metadata
