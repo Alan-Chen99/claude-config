@@ -24,6 +24,7 @@ IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIO
 cd ~/.claude/skills/scripts && python3 -m skills.pre_output.record '{
   "turn": 1/2/...,
   "summary": "10 words max",
+  "workflow": "executing which skill/workflow: step #/name, or 'none'",
   "uncertainties": ["unresolved observations, unverified assumptions, unconfirmed data", ...],
   "possible-verification": ["what should the user do to verify your response", ...],
   "possible-next-steps": ["refactor, update docs", ...]
