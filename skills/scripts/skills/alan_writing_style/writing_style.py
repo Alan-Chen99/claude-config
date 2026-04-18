@@ -14,6 +14,7 @@ Grounded in:
 
 import argparse
 import sys
+from pathlib import Path
 
 from skills.lib.workflow.core import (
     StepDef,
@@ -38,56 +39,81 @@ CRITICAL: All script outputs use XML format. You MUST:
 3. DO NOT modify commands. DO NOT skip steps.
 </xml_format_mandate>"""
 
-# Sentinel replaced with step-specific content in get_step_guidance.
+SECTION_TO_FILE = {
+    "content-types": "content-types.md",
+    "voice": "voice.md",
+    "ai-tells": "ai-tells.md",
+    "positive-markers": "positive-markers.md",
+    "voice-alignment": "voice-alignment.md",
+    "fixes": "fixes.md",
+}
+
+
+def get_references_dir() -> Path:
+    # scripts/skills/alan_writing_style/ -> scripts/skills/ -> scripts/ -> skills/
+    return Path(__file__).parent.parent.parent.parent / "alan-writing-style" / "references"
+
+
+def load_section_files(sections: list[str]) -> list[tuple[str, str]]:
+    """Load reference markdown files for the given section names.
+
+    Isolated from format_output so file I/O stays separate from output
+    formatting. Returns (section_name, file_content) pairs. Exits on
+    unknown section name or missing file.
+    """
+    refs_dir = get_references_dir()
+    result = []
+    for sec in sections:
+        if sec not in SECTION_TO_FILE:
+            valid = ", ".join(sorted(SECTION_TO_FILE.keys()))
+            sys.exit(f"ERROR: Unknown section '{sec}'. Valid: {valid}")
+        rel_path = SECTION_TO_FILE[sec]
+        full_path = refs_dir / rel_path
+        if not full_path.exists():
+            sys.exit(f"ERROR: Section file not found: {full_path}")
+        content = full_path.read_text()
+        result.append((sec, content))
+    return result
+
+
+# Sentinel replaced with HISTORY_TEMPLATE in get_step_guidance.
 _HISTORY_SENTINEL = "_HISTORY_"
 
+# Sentinel prefix for reference file injection in get_step_guidance.
+_SECTION_PREFIX = "_SECTION:"
 
-def history_template(step: int) -> str:
-    """Progressive context accumulation -- shows only sections complete at this step.
 
-    Compact format: section headers only for sections the LLM already created
-    in prior steps. Table/format hints kept only where the LLM first creates
-    the section (Violations at step 4, Positive Markers at step 5).
-    """
-    parts = [
-        "",
-        "CONTEXT ACCUMULATION: Your --thoughts MUST include:",
-        "",
-        "  ## Classification (from Step 1)",
-        "  | Section | Content Type | Voice |",
-    ]
-    if step >= 2:
-        parts += [
-            "  ## Purpose (from Step 2)",
-            "  Core message: [one sentence]",
-            "  Reference register: [philosophical / pop culture / technical / none]",
-        ]
-    if step >= 3:
-        parts += [
-            "  ## Draft (from Step 3)",
-        ]
-    if step >= 4:
-        parts += [
-            "  ## Violations (from Steps 4-6)",
-            "  | Location | Pattern | Quoted Text | Confidence |",
-            "  ## Structural Metrics (from Step 4)",
-            "  Paragraph range: X-Y sentences",
-            "  Sentence length mix: X% short, Y% medium, Z% long",
-            "  Opener type: grounded / meta-commentary",
-        ]
-    if step >= 5:
-        parts += [
-            "  ## Positive Markers (from Step 5)",
-            "  | Category | Count | Examples |",
-            "  Verdict: PASS/FAIL (found N, required M)",
-        ]
-    if step >= 8:
-        parts += [
-            "  ## Refinements (from Step 8)",
-            "  | Original | Revised |",
-        ]
-    parts.append("")
-    return "\n".join(parts)
+def _section(name: str) -> str:
+    """Sentinel for reference file injection in get_step_guidance."""
+    return f"{_SECTION_PREFIX}{name}"
+
+
+# Flat history template matching leon_writing_style output format.
+HISTORY_TEMPLATE = """
+CONTEXT ACCUMULATION: Your --thoughts MUST include:
+
+  ## Classification (from Step 1)
+  | Section | Content Type | Voice |
+
+  ## Purpose (from Step 2)
+  Core message: [one sentence]
+  Reference register: [philosophical / pop culture / technical / none]
+
+  ## Violations (from Steps 4-6)
+  | Location | Pattern | Quoted Text | Confidence |
+
+  ## Positive Markers (from Step 5)
+  | Category | Count | Examples |
+  Verdict: PASS/FAIL (found N, required M)
+
+  ## Structural Metrics (from Step 4)
+  Paragraph range: X-Y sentences
+  Sentence length mix: X% short, Y% medium, Z% long
+  Opener type: grounded / meta-commentary
+
+  ## Refinements (from Step 8+)
+  | Original | Revised |
+"""
 
 
 STEPS = {
@@ -98,23 +124,7 @@ STEPS = {
         "actions": [
             "Before writing, classify your content. Voice rules depend on this.",
             "",
-            "<content_types>",
-            "NARRATIVE - Tell a story, share experience, explain motivation",
-            "  Voice: First-person ('I found', 'I chose', 'my advice')",
-            "  Use for: Introductions, rationale, design decisions, opinions",
-            "",
-            "INSTRUCTIONAL - Teach how to do something",
-            "  Voice: Imperative ('Run the command', 'Configure the setting')",
-            "  Use for: Usage guides, tutorials, step-by-step procedures",
-            "",
-            "REFERENCE - Document facts, APIs, specifications",
-            "  Voice: Third-person declarative ('The function accepts...')",
-            "  Use for: API docs, parameter tables, specifications",
-            "",
-            "HYBRID - Mixed content (most technical writing)",
-            "  Voice: Shifts by section purpose",
-            "  Use for: READMEs, blog posts, technical articles",
-            "</content_types>",
+            _section("content-types"),
             "",
             "<classification_output>",
             "Map your content to types:",
@@ -200,39 +210,7 @@ STEPS = {
             "Readers will judge Alan's expertise by this writing.",
             "</stakes>",
             "",
-            "<core_voice>",
-            "CONFIDENT AUTHORITY:",
-            "  State conclusions first, then support.",
-            "  NOT: 'This might be problematic'",
-            "  YES: 'This is the wrong approach.'",
-            "",
-            "FIRST-PERSON FOR NARRATIVE:",
-            "  'I found', 'my advice', 'I would recommend'",
-            "  Exception: Instructions use imperative, reference uses third-person",
-            "",
-            "SARDONIC WHEN WARRANTED:",
-            "  'of course!', 'Sigh.', 'I almost cannot believe I'm reading this.'",
-            "  Express genuine frustration at poor engineering decisions.",
-            "",
-            "PRAGMATIC, NOT THEORETICAL:",
-            "  Ground in real code, real projects, real consequences.",
-            "  Name specific projects, people, technologies.",
-            "</core_voice>",
-            "",
-            "<structure_pattern>",
-            "1. HOOK - state the problem and why it matters",
-            "2. CONTEXT - background needed to understand",
-            "3. TECHNICAL DEEP DIVE - code examples, step-by-step",
-            "4. ANALYSIS - options and trade-offs",
-            "5. RECOMMENDATION - definitive advice",
-            "6. IMPLICATIONS (optional) - broader meaning",
-            "</structure_pattern>",
-            "",
-            "<transitions>",
-            "Use: 'So, ...', 'However, ...', 'Now, ...', 'As such, ...'",
-            "Signature: 'The astute reader will notice...', 'Once again, ...'",
-            "Avoid: 'Moving on to...', 'In conclusion...', 'Let's explore...'",
-            "</transitions>",
+            _section("voice"),
             "",
             "Write your draft now. Verification follows in the next steps.",
             "",
@@ -260,257 +238,7 @@ STEPS = {
             "VERIFICATION METHOD: Extract first, then judge.",
             "For each pattern: (1) extract candidates, (2) assess each.",
             "",
-            "<pattern_1_tricolons>",
-            "TRICOLONS / RHYTHMIC PARALLELISM",
-            "",
-            "  EXTRACT: List all sentences with 3+ comma-separated elements",
-            "  or parallel phrase structures.",
-            "",
-            "  JUDGE each: Does it have manufactured symmetry?",
-            "    WRONG: 'Clear context, focused execution, reliable results.'",
-            "    RIGHT: 'The same agents run at every stage. Standards don't change.'",
-            "",
-            "  For each violation, record:",
-            "    | Quote | Confidence (HIGH/MED/LOW) |",
-            "</pattern_1_tricolons>",
-            "",
-            "<pattern_2_contrarian>",
-            "CONTRARIAN OPENERS / RHETORICAL REFRAMING",
-            "",
-            "  EXTRACT: List all sentences with contrastive structure:",
-            "    - 'X isn't Y -- it's Z'",
-            "    - 'X is not Y -- it's Z'",
-            "    - 'This is not X' followed by counter-statement",
-            "    - 'not X but Y' / 'not X -- Y'",
-            "    - Any sentence negating X then asserting Y as replacement",
-            "",
-            "  JUDGE each: Is it a rhetorical reframe that adds no information?",
-            "    WRONG: 'Review isn't a gate you pass once -- it's continuous.'",
-            "    WRONG: 'This is not overhead -- it catches mistakes.'",
-            "    WRONG: 'It's not about X -- it's about Y.'",
-            "    RIGHT: 'I run every plan through review before execution starts.'",
-            "    RIGHT: State what happens without the rhetorical negation.",
-            "",
-            "  For each violation, record:",
-            "    | Quote | Confidence (HIGH/MED/LOW) |",
-            "</pattern_2_contrarian>",
-            "",
-            "<pattern_3_metaphors>",
-            "DEAD METAPHORS",
-            "",
-            "  EXTRACT: List all figurative language (metaphors, analogies).",
-            "",
-            "  JUDGE each: Is it a cliche that has lost vividness?",
-            "",
-            "  WRONG (by category -- if it appears in business writing, it's dead):",
-            "    FOUNDATION: 'flawed foundation', 'unknown foundation', 'solid foundation',",
-            "                'building blocks', 'cornerstone', 'pillars'",
-            "    JOURNEY:    'ever-evolving landscape', 'roadmap', 'path forward',",
-            "                'on the same page', 'moving forward'",
-            "    BUILDING:   'framework', 'architecture', 'construct', 'scaffold'",
-            "    NATURE:     'ecosystem', 'organic', 'root cause', 'cultivate'",
-            "    MACHINE:    'leverage', 'drive', 'fuel', 'mechanism'",
-            "",
-            "  RIGHT: Use concrete consequences instead:",
-            "    'all need to be thrown away'",
-            "    'invalidates half of them'",
-            "    'you're building on code you haven't verified'",
-            "",
-            "  For each violation, record:",
-            "    | Quote | Category | Confidence (HIGH/MED/LOW) |",
-            "</pattern_3_metaphors>",
-            "",
-            "<pattern_4_emphasis>",
-            "HOLLOW EMPHASIS",
-            "",
-            "  EXTRACT: List all sentences containing 'important', 'critical',",
-            "  'worth noting', 'key', 'crucial', 'essential'.",
-            "",
-            "  JUDGE each: Does it announce importance instead of showing it?",
-            "    WRONG: 'This is important.'",
-            "    RIGHT: 'Without this, X happens.' (shows consequence)",
-            "",
-            "  For each violation, record:",
-            "    | Quote | Confidence (HIGH/MED/LOW) |",
-            "</pattern_4_emphasis>",
-            "",
-            "<pattern_5_callbacks>",
-            "EXPLICIT CALLBACKS",
-            "",
-            "  EXTRACT: List all phrases with 'just like', 'as mentioned',",
-            "  'as we saw', 'similar to above'.",
-            "",
-            "  JUDGE each: Does it over-explain a connection?",
-            "    WRONG: 'just like during planning'",
-            "    RIGHT: State the fact and move on.",
-            "",
-            "  For each violation, record:",
-            "    | Quote | Confidence (HIGH/MED/LOW) |",
-            "</pattern_5_callbacks>",
-            "",
-            "<pattern_6_formula>",
-            "FORMULA FOLLOWING",
-            "",
-            "  EXTRACT: What is the structure of each paragraph?",
-            "  (e.g., Statement -> Explanation -> Consequence)",
-            "",
-            "  JUDGE: Are all paragraphs structured identically?",
-            "  Alan's writing varies. Some points just get stated.",
-            "",
-            "  Note if rhythm feels artificial: YES/NO + explanation.",
-            "</pattern_6_formula>",
-            "",
-            "<pattern_7_mixed_register>",
-            "MIXED REGISTER (if references are used)",
-            "",
-            "  EXTRACT: List all quotes, cultural references, and anecdotes.",
-            "  Note the register of each:",
-            "    - Philosophical (Seneca, Marcus Aurelius, military history)",
-            "    - Pop culture (TV shows, films, memes)",
-            "    - Technical (papers, specifications)",
-            "",
-            "  JUDGE: Is more than one register used?",
-            "    WRONG: Seneca quote + Silicon Valley reference",
-            "    RIGHT: All references from one register, or no references",
-            "",
-            "  For each register clash, record:",
-            "    | Quote 1 | Register 1 | Quote 2 | Register 2 | Confidence |",
-            "</pattern_7_mixed_register>",
-            "",
-            "<pattern_8_euphemism>",
-            "EUPHEMISTIC ORGANIZATIONAL LANGUAGE",
-            "",
-            "  EXTRACT: List phrases containing:",
-            "    - 'alignment', 'transition', 'challenges'",
-            "    - 'not the ideal fit', 'opportunities for growth'",
-            "    - 'stakeholder concerns', 'performance gaps'",
-            "",
-            "  JUDGE: Does each hide a simpler, plainer meaning?",
-            "    WRONG: 'necessitating a transition' = firing",
-            "    WRONG: 'alignment challenges' = wrong hire",
-            "    RIGHT: State the plain meaning directly",
-            "",
-            "  For each euphemism, record:",
-            "    | Euphemism | Plain Meaning | Confidence |",
-            "</pattern_8_euphemism>",
-            "",
-            "<pattern_9_structural_variance>",
-            "STRUCTURAL MONOTONY",
-            "",
-            "  EXTRACT: Count sentences per paragraph",
-            "    | Para # | Sentence Count |",
-            "    | 1      | ?              |",
-            "    | 2      | ?              |",
-            "    | ...    | ...            |",
-            "",
-            "  JUDGE: What is the variance?",
-            "    - Narrow (all 2-4 sentences): FLAG as monotonous",
-            "    - Wide (includes 1-sentence AND 5+ sentence): PASS",
-            "",
-            "  REQUIRED: At least one paragraph that breaks the pattern",
-            "    - One-liner (<= 1 sentence): 'That's the core idea.'",
-            "    - Long block (>= 5 sentences): deep technical dive",
-            "",
-            "  If no variance, record:",
-            "    | Issue | Range | Confidence |",
-            "    | Structural monotony | 2-4 sentences | HIGH |",
-            "</pattern_9_structural_variance>",
-            "",
-            "<pattern_10_grounded_openers>",
-            "META-COMMENTARY VS GROUNDED OPENERS",
-            "",
-            "  EXTRACT: First sentence of each major section/the document",
-            "    | Section | First Sentence |",
-            "",
-            "  JUDGE each: Is it grounded or meta-commentary?",
-            "",
-            "  META-COMMENTARY (FLAG):",
-            "    - 'Here is how this looks...'",
-            "    - 'This section explains...'",
-            "    - 'The following is an example of...'",
-            "    - 'Let me show you...'",
-            "    - 'In this article, we will...'",
-            "  Pattern: Describes the text rather than the subject",
-            "",
-            "  GROUNDED (PASS):",
-            "    - 'I was writing an application that uses cryptographic...'",
-            "    - 'The codebase had a homegrown Log() method...'",
-            "    - 'Last month, we hit a production issue where...'",
-            "  Pattern: Immediately names project, technology, or problem",
-            "",
-            "  For each meta-commentary opener, record:",
-            "    | Section | Quote | Confidence |",
-            "</pattern_10_grounded_openers>",
-            "",
-            "<pattern_11_sentence_rhythm>",
-            "SENTENCE RHYTHM VARIANCE",
-            "",
-            "  EXTRACT: Categorize sentences by word count",
-            "    SHORT (<8 words): punchy emphasis",
-            "      - 'That's not a good sign.'",
-            "      - 'Sigh.'",
-            "      - 'This is wrong.'",
-            "    MEDIUM (8-20 words): standard prose",
-            "    LONG (>20 words): complex technical explanations",
-            "",
-            "  COUNT per category:",
-            "    | Category | Count | Example Quote |",
-            "    | Short    | ?     | '...'         |",
-            "    | Medium   | ?     | '...'         |",
-            "    | Long     | ?     | '...'         |",
-            "",
-            "  JUDGE: Is there variety?",
-            "    FLAG if: 90%+ sentences in single category (typically medium)",
-            "    PASS if: Mix includes at least one SHORT and one LONG",
-            "",
-            "  BONUS CHECK: Questions and exclamations",
-            "    EXTRACT: Any sentences ending in ? or !",
-            "    For narrative content: at least one question adds engagement",
-            "      - 'So how do we fix this?'",
-            "      - 'Victory!'",
-            "",
-            "  If no variance, record:",
-            "    | Issue | Breakdown | Confidence |",
-            "    | Uniform rhythm | 95% medium | HIGH |",
-            "</pattern_11_sentence_rhythm>",
-            "",
-            "<pattern_12_repetition>",
-            "REPEATED PHRASES / UNINTENTIONAL SELF-CALLBACKS",
-            "",
-            "  EXTRACT: Identify phrases (5+ words) appearing multiple times.",
-            "  Also check for semantic repetition (same idea, different words).",
-            "",
-            "  JUDGE each: Is repetition intentional emphasis or unintentional callback?",
-            "    WRONG: 'catches mistakes before they become code' in intro AND later section",
-            "    WRONG: Same benefit stated twice in different sections",
-            "    RIGHT: Intentional refrain with clear rhetorical purpose",
-            "",
-            "  The principle: If you stated it once clearly, trust the reader.",
-            "",
-            "  For each unintentional repetition, record:",
-            "    | Quote | Locations | Confidence (HIGH/MED/LOW) |",
-            "</pattern_12_repetition>",
-            "",
-            "<pattern_13_overjustification>",
-            "OVER-JUSTIFICATION / DEFENSIVE CLAUSES",
-            "",
-            "  EXTRACT: List sentences with:",
-            "    - Em-dash followed by explanatory 'why this matters' clause",
-            "    - Parenthetical adding justification",
-            "    - 'because' clause that anticipates unstated objection",
-            "",
-            "  JUDGE each: Is the clause defending against anticipated 'so what?'",
-            "    WRONG: 'catches the drift -- the kind nobody notices until...'",
-            "    WRONG: 'Building on unknown foundation means rework when assumptions prove wrong.'",
-            "    WRONG: 'This prevents issues (which can be very costly later).'",
-            "    RIGHT: 'catches most problems before they compound.'",
-            "    RIGHT: 'Building on unverified code means rework.'",
-            "",
-            "  The principle: State and move on. If the reader doesn't see the value, they'll ask.",
-            "",
-            "  For each violation, record:",
-            "    | Quote | Defensive Clause | Confidence (HIGH/MED/LOW) |",
-            "</pattern_13_overjustification>",
+            _section("ai-tells"),
             "",
             "OUTPUT: Violation table with quoted text and confidence per pattern.",
             "",
@@ -523,71 +251,7 @@ STEPS = {
         "phase": "VERIFICATION",
         "step_title": "Positive Voice Marker Check",
         "actions": [
-            "<positive_markers>",
-            "VERIFICATION METHOD: Extract first, then assess sufficiency.",
-            "The skill checks for ABSENCE of bad patterns (Steps 4).",
-            "This step checks for PRESENCE of Alan's signature voice.",
-            "",
-            "CATEGORY 1: SIGNATURE TRANSITIONS",
-            "  EXTRACT: Sentences opening with:",
-            "    - 'So,' or 'So '",
-            "    - 'Now,' or 'Now '",
-            "    - 'However,'",
-            "    - 'As such,'",
-            "  COUNT: How many found? Quote each.",
-            "",
-            "CATEGORY 2: QUESTION-ANSWER PATTERNS",
-            "  EXTRACT: Any 'X? Well,' or 'X? Y:' constructions",
-            "    - 'How do we fix this? Well:'",
-            "    - 'So what does this mean? Simple:'",
-            "  COUNT: How many found? Quote each.",
-            "",
-            "CATEGORY 3: PARENTHETICAL ASIDES",
-            "  EXTRACT: Text within parentheses that adds context",
-            "    - '(or at least, that's what it has come to be)'",
-            "    - '(otherwise X will fail)'",
-            "  COUNT: How many found? Quote each.",
-            "",
-            "CATEGORY 4: SARDONIC MARKERS",
-            "  EXTRACT: Expressions of genuine frustration or irony",
-            "    - 'Sigh.'",
-            "    - 'of course!'",
-            "    - 'I almost cannot believe...'",
-            "  COUNT: How many found? Quote each.",
-            "",
-            "CATEGORY 5: SIGNATURE PHRASES",
-            "  EXTRACT: Alan's distinctive expressions",
-            "    - 'The astute reader will notice...'",
-            "    - 'Once again, ...'",
-            "  COUNT: How many found? Quote each.",
-            "</positive_markers>",
-            "",
-            "<sufficiency_check>",
-            "THRESHOLDS (for narrative content only):",
-            "  - Content <300 words: at least 1 marker from any category",
-            "  - Content 300-800 words: at least 2 markers",
-            "  - Content >800 words: at least 3 markers",
-            "",
-            "EXEMPT: Instructional and reference sections (per Step 1 classification)",
-            "",
-            "TALLY:",
-            "  | Category | Count | Examples |",
-            "  |----------|-------|----------|",
-            "  | Transitions | ? | '...' |",
-            "  | Question-Answer | ? | '...' |",
-            "  | Parentheticals | ? | '...' |",
-            "  | Sardonic | ? | '...' |",
-            "  | Signature | ? | '...' |",
-            "  | TOTAL | ? | |",
-            "",
-            "VERDICT:",
-            "  PASS: Meets threshold for content length",
-            "  FAIL: Below threshold - record as HIGH priority violation",
-            "",
-            "If FAIL, record:",
-            "  | Issue | Found | Required | Priority |",
-            "  | Missing voice markers | N | M | HIGH |",
-            "</sufficiency_check>",
+            _section("positive-markers"),
             "",
             _HISTORY_SENTINEL,
         ],
@@ -605,57 +269,7 @@ STEPS = {
             "",
             "VERIFICATION METHOD: Extract voice markers, then compare to expected.",
             "",
-            "<narrative_check>",
-            "FOR EACH NARRATIVE SECTION:",
-            "",
-            "  EXTRACT: What pronouns appear? Quote first 3 sentences.",
-            "  EXTRACT: What verb forms? (active: 'I built' vs passive: 'was built')",
-            "  EXTRACT: What hedging words? ('might', 'could', 'may', 'perhaps')",
-            "",
-            "  EXPECTED: First-person, active voice, definitive statements.",
-            "    RIGHT: 'I built this because...'",
-            "    WRONG: 'The tool was created to...'",
-            "",
-            "  VIOLATIONS: | Section | Quote | Issue | Confidence |",
-            "</narrative_check>",
-            "",
-            "<instructional_check>",
-            "FOR EACH INSTRUCTIONAL SECTION:",
-            "",
-            "  EXTRACT: What verb forms open each instruction?",
-            "  EXTRACT: Any first-person pronouns? Quote them.",
-            "",
-            "  EXPECTED: Imperative verbs, no first-person.",
-            "    RIGHT: 'Pass the --strict flag for full validation.'",
-            "    WRONG: 'I pass the --strict flag when I want full validation.'",
-            "",
-            "  VIOLATIONS: | Section | Quote | Issue | Confidence |",
-            "</instructional_check>",
-            "",
-            "<reference_check>",
-            "FOR EACH REFERENCE SECTION:",
-            "",
-            "  EXTRACT: What subjects appear? ('The function', 'It', 'I')",
-            "  EXTRACT: Any opinion language? ('best', 'should', 'recommended')",
-            "",
-            "  EXPECTED: Third-person declarative, factual.",
-            "    RIGHT: 'The function accepts three parameters...'",
-            "    WRONG: 'I accept three parameters...'",
-            "",
-            "  VIOLATIONS: | Section | Quote | Issue | Confidence |",
-            "</reference_check>",
-            "",
-            "<hybrid_boundary_check>",
-            "FOR HYBRID CONTENT:",
-            "",
-            "  EXTRACT: Where do section boundaries occur?",
-            "  At each boundary, what voice is used before/after?",
-            "",
-            "  EXPECTED: Clean voice shifts at section boundaries.",
-            "  COMMON FAILURE: First-person bleeding into usage instructions.",
-            "",
-            "  VIOLATIONS: | Boundary | Before Voice | After Voice | Issue |",
-            "</hybrid_boundary_check>",
+            _section("voice-alignment"),
             "",
             "OUTPUT: Section-by-section compliance with violations table.",
             "",
@@ -735,78 +349,7 @@ STEPS = {
             "  4. Verify the fix doesn't introduce new violations",
             "</refinement_process>",
             "",
-            "<tricolon_fix>",
-            "TRICOLON FIX:",
-            "  Break artificial symmetry. Vary sentence length.",
-            "  BEFORE: 'Clear context, focused execution, reliable results.'",
-            "  AFTER:  'The same agents run at every stage. Standards don't change.'",
-            "</tricolon_fix>",
-            "",
-            "<metaphor_fix>",
-            "METAPHOR FIX:",
-            "  Replace with concrete consequences.",
-            "  BEFORE: 'built on a flawed foundation'",
-            "  AFTER:  'all need to be thrown away'",
-            "</metaphor_fix>",
-            "",
-            "<emphasis_fix>",
-            "EMPHASIS FIX:",
-            "  Delete the announcement, show the consequence.",
-            "  BEFORE: 'This is important. You don't want X.'",
-            "  AFTER:  'Without this, X happens. The LLM starts...'",
-            "</emphasis_fix>",
-            "",
-            "<voice_fix>",
-            "VOICE FIX:",
-            "  Match voice to section purpose.",
-            "  Narrative: 'I built this because...'",
-            "  Instructional: 'Run with --verbose to...'",
-            "  Reference: 'The function accepts...'",
-            "</voice_fix>",
-            "",
-            "<rhythm_fix>",
-            "RHYTHM FIX:",
-            "  Vary paragraph structure. Not every point needs explanation.",
-            "  Some things just get stated. Some get questions.",
-            "  'So how do we fix this? Well, easy:'",
-            "</rhythm_fix>",
-            "",
-            "<marker_fix>",
-            "MISSING VOICE MARKERS FIX:",
-            "  Add signature transitions at natural pivot points.",
-            "  BEFORE: 'The analysis showed three options.'",
-            "  AFTER:  'So, the analysis showed three options.'",
-            "",
-            "  Add question-answer at decision points.",
-            "  BEFORE: 'We chose option A.'",
-            "  AFTER:  'Which option? We chose A.'",
-            "",
-            "  Add parenthetical context where useful.",
-            "  BEFORE: 'This fails silently.'",
-            "  AFTER:  'This fails silently (no error message, just wrong data).'",
-            "</marker_fix>",
-            "",
-            "<opener_fix>",
-            "META-COMMENTARY OPENER FIX:",
-            "  Replace meta-commentary with grounded specifics.",
-            "  BEFORE: 'Here is how this looks on a real task.'",
-            "  AFTER:  'Last month I needed to migrate a legacy C# service.'",
-            "",
-            "  Name the project, technology, or constraint immediately.",
-            "  BEFORE: 'The following example demonstrates the workflow.'",
-            "  AFTER:  'The codebase had 31 Log() call sites and no rotation.'",
-            "</opener_fix>",
-            "",
-            "<variance_fix>",
-            "STRUCTURAL MONOTONY FIX:",
-            "  Add one-liner paragraphs for punch.",
-            "  BEFORE: [3 sentences] [3 sentences] [3 sentences]",
-            "  AFTER:  [3 sentences] [1 sentence punch] [5 sentence deep-dive]",
-            "",
-            "  Combine related short paragraphs into one longer block.",
-            "  Or break up a medium paragraph with a standalone statement.",
-            "  'That's the core problem.'",
-            "</variance_fix>",
+            _section("fixes"),
             "",
             "<refinement_log>",
             "Record each change:",
@@ -848,8 +391,6 @@ STEPS = {
             "</stopping_criteria>",
             "",
             "<final_checklist>",
-            "All items below are pre-checked [x]. Uncheck to [ ] any that fail verification.",
-            "",
             "AI TELLS ABSENT (must all be true):",
             "  [x] No tricolons or rhythmic parallelism",
             "  [x] No contrarian openers ('X isn't Y -- it's Z')",
@@ -883,10 +424,9 @@ STEPS = {
             "  [x] Hook states problem and why it matters",
             "</final_checklist>",
             "",
-            "If any checkbox would be [ ] instead of [x]:",
-            "  Invoke step 10 for additional refinement.",
+            "If any checkbox would be [ ] instead of [x]: increase total_steps.",
             "",
-            "Otherwise: all boxes still [x]. Deliver final content.",
+            "Otherwise: draft complete. Deliver final content.",
         ],
         "next_desc": "WORKFLOW COMPLETE - deliver final content.",
     },
@@ -933,7 +473,7 @@ def _overflow_step(step: int) -> dict:
             *focus,
             "</additional_refinement>",
             "",
-            history_template(step),
+            HISTORY_TEMPLATE,
         ],
         "next_desc": "WORKFLOW COMPLETE - deliver final content.",
     }
@@ -942,7 +482,9 @@ def _overflow_step(step: int) -> dict:
 def get_step_guidance(step: int) -> dict:
     """Return step-specific guidance dict for the given step.
 
-    Steps beyond TOTAL_STEPS produce overflow refinement steps.
+    Expands _HISTORY_SENTINEL to HISTORY_TEMPLATE and _SECTION: sentinels
+    to loaded reference file content. Steps beyond TOTAL_STEPS produce
+    overflow refinement steps.
     """
     step_data = STEPS.get(step)
     if not step_data:
@@ -960,8 +502,19 @@ def get_step_guidance(step: int) -> dict:
     next_text = f"Step {next_step}: {step_data['next_desc']}" if next_step else step_data["next_desc"]
     actions = list(step_data["actions"])
 
-    # Replace history sentinel with step-specific progressive template
-    actions = [history_template(step) if item == _HISTORY_SENTINEL else item for item in actions]
+    # Expand sentinels: history template and section references
+    expanded = []
+    for item in actions:
+        if item == _HISTORY_SENTINEL:
+            expanded.append(HISTORY_TEMPLATE)
+        elif isinstance(item, str) and item.startswith(_SECTION_PREFIX):
+            name = item[len(_SECTION_PREFIX):]
+            loaded = load_section_files([name])
+            content = loaded[0][1].rstrip("\n")
+            expanded.extend(content.split("\n"))
+        else:
+            expanded.append(item)
+    actions = expanded
 
     return {
         "phase": phase,
@@ -999,7 +552,7 @@ def format_output(step: int, guidance: dict, thoughts: str) -> str:
     if is_complete or "COMPLETE" in next_text.upper():
         parts.append("WORKFLOW COMPLETE - Deliver final content.")
     else:
-        next_cmd = f'python3 -m skills.alan_writing_style.writing_style --step {step + 1} --thoughts \\"<accumulated>\\"'
+        next_cmd = f'python3 -m skills.alan_writing_style.writing_style --step-number {step + 1} --thoughts \\"<accumulated>\\"'
         parts.append(render_invoke_after(InvokeAfterNode(cmd=next_cmd)))
 
     return "\n".join(parts)

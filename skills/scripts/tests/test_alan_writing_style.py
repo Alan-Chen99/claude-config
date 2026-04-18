@@ -1,7 +1,7 @@
 """Tests for alan_writing_style skill.
 
-Covers: WORKFLOW construction, format_output for all steps, CLI invocation,
-history template progression, and behavioral contracts for the quality gate.
+Covers: WORKFLOW construction, format_output for all steps, section loading,
+CLI invocation, history template, and behavioral contracts for the quality gate.
 """
 
 import subprocess
@@ -14,10 +14,13 @@ from skills.alan_writing_style.writing_style import (
     STEPS,
     TOTAL_STEPS,
     WORKFLOW,
+    SECTION_TO_FILE,
     _HISTORY_SENTINEL,
-    history_template,
+    _SECTION_PREFIX,
     format_output,
+    get_references_dir,
     get_step_guidance,
+    load_section_files,
 )
 from skills.lib.workflow.core import Workflow
 
@@ -114,7 +117,7 @@ def test_format_output_middle_step_includes_invoke_after():
     guidance = get_step_guidance(3)
     output = format_output(3, guidance, "ctx")
     assert "<invoke_after>" in output
-    assert "--step 4" in output
+    assert "--step-number 4" in output
 
 
 def test_format_output_includes_accumulated_thoughts():
@@ -128,6 +131,84 @@ def test_format_output_empty_thoughts_omits_block():
     guidance = get_step_guidance(2)
     output = format_output(2, guidance, "")
     assert "<accumulated_thoughts>" not in output
+
+
+# ---------------------------------------------------------------------------
+# Section loading
+# ---------------------------------------------------------------------------
+
+
+def test_references_dir_exists():
+    assert get_references_dir().is_dir()
+
+
+def test_load_section_files_returns_tuples():
+    nodes = load_section_files(["voice"])
+    assert len(nodes) == 1
+    name, content = nodes[0]
+    assert name == "voice"
+    assert len(content) > 0
+
+
+def test_load_section_files_multiple():
+    nodes = load_section_files(["voice", "ai-tells", "fixes"])
+    assert len(nodes) == 3
+
+
+def test_section_sentinel_expanded_in_guidance():
+    """Section sentinels are expanded to file content in get_step_guidance."""
+    guidance = get_step_guidance(4)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
+    # ai-tells.md content should be present
+    assert "<pattern_1_tricolons>" in actions_text
+    assert "<pattern_13_overjustification>" in actions_text
+    # Sentinel should NOT be present
+    assert _SECTION_PREFIX not in actions_text
+
+
+def test_all_section_files_exist():
+    """All sections in SECTION_TO_FILE have corresponding reference files."""
+    refs_dir = get_references_dir()
+    for name, filename in SECTION_TO_FILE.items():
+        path = refs_dir / filename
+        assert path.exists(), f"Missing reference file for section '{name}': {path}"
+
+
+def test_step1_loads_content_types():
+    guidance = get_step_guidance(1)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
+    assert "<content_types>" in actions_text
+    assert "NARRATIVE" in actions_text
+    assert "</content_types>" in actions_text
+
+
+def test_step3_loads_voice():
+    guidance = get_step_guidance(3)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
+    assert "<core_voice>" in actions_text
+    assert "<structure_pattern>" in actions_text
+    assert "<transitions>" in actions_text
+
+
+def test_step5_loads_positive_markers():
+    guidance = get_step_guidance(5)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
+    assert "<positive_markers>" in actions_text
+    assert "<sufficiency_check>" in actions_text
+
+
+def test_step6_loads_voice_alignment():
+    guidance = get_step_guidance(6)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
+    assert "<narrative_check>" in actions_text
+    assert "<hybrid_boundary_check>" in actions_text
+
+
+def test_step8_loads_fixes():
+    guidance = get_step_guidance(8)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
+    assert "<tricolon_fix>" in actions_text
+    assert "<variance_fix>" in actions_text
 
 
 # ---------------------------------------------------------------------------
@@ -147,41 +228,19 @@ def test_step1_omits_history_sentinel():
     assert _HISTORY_SENTINEL not in actions
 
 
-def test_history_template_progressive():
-    # Step 2: Classification and Purpose, but not later sections
-    t2 = history_template(2)
-    assert "Classification" in t2
-    assert "Purpose" in t2
-    assert "Draft" not in t2
-    assert "Violations" not in t2
-
-    # Step 3: adds Draft
-    t3 = history_template(3)
-    assert "Draft" in t3
-    assert "Violations" not in t3
-
-    # Step 4: adds Violations and Structural Metrics
-    t4 = history_template(4)
-    assert "Violations" in t4
-    assert "Structural Metrics" in t4
-    assert "Positive Markers" not in t4
-
-    # Step 5: adds Positive Markers
-    t5 = history_template(5)
-    assert "Positive Markers" in t5
-    assert "Refinements" not in t5
-
-    # Step 8: adds Refinements
-    t8 = history_template(8)
-    assert "Refinements" in t8
-
-
 def test_step9_omits_context_accumulation():
-    """Step 9 quality gate has no context template -- LLM has seen it enough times."""
+    """Step 9 quality gate has no context template."""
     actions = STEPS[9]["actions"]
     assert _HISTORY_SENTINEL not in actions
-    actions_text = "\n".join(str(a) for a in actions)
-    assert "CONTEXT ACCUMULATION" not in actions_text
+
+
+def test_history_template_expanded_in_guidance():
+    """HISTORY_TEMPLATE is expanded by get_step_guidance."""
+    guidance = get_step_guidance(2)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
+    assert "CONTEXT ACCUMULATION" in actions_text
+    assert "Classification" in actions_text
+    assert "Violations" in actions_text
 
 
 # ---------------------------------------------------------------------------
@@ -190,13 +249,15 @@ def test_step9_omits_context_accumulation():
 
 
 def test_step3_has_creative_priming():
-    actions_text = "\n".join(str(a) for a in STEPS[3]["actions"])
+    guidance = get_step_guidance(3)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
     assert "<stakes>" in actions_text
     assert "<step_back_principles>" in actions_text
 
 
 def test_step4_has_ai_tells_patterns():
-    actions_text = "\n".join(str(a) for a in STEPS[4]["actions"])
+    guidance = get_step_guidance(4)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
     assert "<pattern_1_tricolons>" in actions_text
     assert "<pattern_2_contrarian>" in actions_text
     assert "<pattern_3_metaphors>" in actions_text
@@ -213,14 +274,16 @@ def test_step4_has_ai_tells_patterns():
 
 
 def test_step5_has_positive_markers():
-    actions_text = "\n".join(str(a) for a in STEPS[5]["actions"])
+    guidance = get_step_guidance(5)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
     assert "<positive_markers>" in actions_text
     assert "<sufficiency_check>" in actions_text
     assert "VERDICT" in actions_text
 
 
 def test_step6_has_voice_checks():
-    actions_text = "\n".join(str(a) for a in STEPS[6]["actions"])
+    guidance = get_step_guidance(6)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
     assert "<narrative_check>" in actions_text
     assert "<instructional_check>" in actions_text
     assert "<reference_check>" in actions_text
@@ -235,7 +298,8 @@ def test_step7_has_consolidation():
 
 
 def test_step8_has_refinement_fixes():
-    actions_text = "\n".join(str(a) for a in STEPS[8]["actions"])
+    guidance = get_step_guidance(8)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
     assert "<tricolon_fix>" in actions_text
     assert "<metaphor_fix>" in actions_text
     assert "<emphasis_fix>" in actions_text
@@ -248,7 +312,8 @@ def test_step8_has_refinement_fixes():
 
 def test_step8_is_refinement_only():
     """Step 8 is refinement; quality gate is in step 9."""
-    actions_text = "\n".join(str(a) for a in STEPS[8]["actions"])
+    guidance = get_step_guidance(8)
+    actions_text = "\n".join(str(a) for a in guidance["actions"])
     assert "<refinement_process>" in actions_text
     assert "<final_checklist>" not in actions_text
 
@@ -261,13 +326,6 @@ def test_step9_has_full_checklist():
     assert "ALAN'S VOICE PRESENT" in actions_text
     assert "VOICE" in actions_text
     assert "STRUCTURE" in actions_text
-
-
-def test_step9_checklist_uses_prechecked_boxes():
-    """Step 9 uses [x] pre-checked boxes (exception-finding framing)."""
-    actions_text = "\n".join(str(a) for a in STEPS[9]["actions"])
-    assert "[x] No tricolons" in actions_text
-    assert "All items below are pre-checked [x]" in actions_text
 
 
 # ---------------------------------------------------------------------------
