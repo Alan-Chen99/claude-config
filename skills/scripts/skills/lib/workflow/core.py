@@ -50,6 +50,7 @@ class Workflow:
         entry_point: str | None = None,
         description: str = "",
         validate: bool = True,
+        params: dict[str, list[dict]] | None = None,
     ):
         ids = [s.id for s in steps]
         if dupes := [x for x in ids if ids.count(x) > 1]:
@@ -60,6 +61,7 @@ class Workflow:
         self.steps = {s.id: s for s in steps}
         self._step_order = [s.id for s in steps]
         self.entry_point = entry_point or steps[0].id
+        self._params: dict[str, list[dict]] = params or {}
 
         if validate:
             self._validate()

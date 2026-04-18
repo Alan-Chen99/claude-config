@@ -167,7 +167,7 @@ def format_incoherence_output(step, phase, agent_type, guidance):
         title=title,
         script="incoherence",
         step=step,
-        phase=phase,
+        category=phase,
     )))
     parts.append("")
 

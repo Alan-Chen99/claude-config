@@ -21,7 +21,7 @@ from .qr_verify_base import VerifyBase
 
 
 PHASE = "impl-docs"
-WORKFLOW = "executor"
+PARENT_WORKFLOW = "executor"
 
 
 class ImplDocsVerify(VerifyBase):

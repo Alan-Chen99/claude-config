@@ -32,7 +32,7 @@ from .qr_verify_base import VerifyBase
 
 
 PHASE = "plan-docs"
-WORKFLOW = "planner"
+PARENT_WORKFLOW = "planner"
 
 
 class PlanDocsVerify(VerifyBase):

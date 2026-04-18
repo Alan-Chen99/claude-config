@@ -54,6 +54,9 @@ def discover_workflows(package: str) -> dict[str, "Workflow"]:
             module = importlib.import_module(modname)
             if hasattr(module, "WORKFLOW"):
                 workflow = module.WORKFLOW
+                # Skip non-Workflow objects (e.g. string constants)
+                if not hasattr(workflow, "_module_path"):
+                    continue
                 # Set _module_path if not already set (frozen dataclass bypass)
                 if workflow._module_path is None:
                     object.__setattr__(workflow, "_module_path", modname)

@@ -10,10 +10,15 @@ from typing import Any
 import pytest
 
 
-# Skills excluded from testing (not in git or incompatible)
+# Skills excluded from step invocation testing.
+# leon-writing-style: not in git
+# prompt-engineer-improver: not in git
+# planner-lite, planner-lite-execute: WIP — requires real state files (plan.md, context.json)
 EXCLUDED = {
     "leon-writing-style",
     "prompt-engineer-improver",
+    "planner-lite",
+    "planner-lite-execute",
 }
 
 # All skill modules to import for registry population

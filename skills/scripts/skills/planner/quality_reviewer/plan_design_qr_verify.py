@@ -21,7 +21,7 @@ from .qr_verify_base import VerifyBase
 
 
 PHASE = "plan-design"
-WORKFLOW = "planner"
+PARENT_WORKFLOW = "planner"
 
 
 class PlanDesignVerify(VerifyBase):
