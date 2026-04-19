@@ -11,8 +11,13 @@ Mode: `claude -p` (pipe/non-interactive)
 |---|---|
 | `system-prompt.md` | System prompt with custom output style (`alan-default-next`) |
 | `system-prompt-default.md` | System prompt with default output style (no custom style) |
+| `system-prompt-flag-system-prompt.md` | System prompt with `--system-prompt "You are a custom assistant."` |
+| `system-prompt-flag-append.md` | System prompt with `--append-system-prompt "You are a custom assistant."` |
 | `full-api-request.json` | Complete API request body with custom output style. Metadata redacted. |
 | `full-api-request-default.json` | Complete API request body with default output style. Metadata redacted. |
+| `full-api-request-flag-system-prompt.json` | API request with `--system-prompt`. Metadata redacted. |
+| `full-api-request-flag-append.json` | API request with `--append-system-prompt`. Metadata redacted. |
+| `intercept.js` | Node.js `--require` script that logs API calls to `~/.claude/http-logs/` |
 | `CONFIG-VARIATIONS.md` | All configuration knobs that cause the prompt to diverge |
 
 All system prompt files concatenate the 3 system text blocks, separated by
@@ -20,45 +25,33 @@ All system prompt files concatenate the 3 system text blocks, separated by
 
 ## How to reproduce
 
-Two steps: (1) write a Node.js `--require` script that patches `fetch`, (2) run `claude` with `NODE_OPTIONS` pointing at it.
-
-### Step 1: Create the intercept script
-
-```js
-// /tmp/intercept.js
-const fs = require('fs');
-const origFetch = globalThis.fetch;
-
-globalThis.fetch = async function(url, options, ...rest) {
-  if (options && options.body && typeof url === 'string' && url.includes('anthropic')) {
-    try {
-      const body = JSON.parse(options.body);
-      if (body.system && !fs.existsSync('/tmp/system_prompt.txt')) {
-        const systemTexts = body.system
-          .filter(s => s.type === 'text')
-          .map(s => s.text);
-        fs.writeFileSync('/tmp/system_prompt.txt',
-          systemTexts.join('\n\n---BLOCK_SEPARATOR---\n\n'));
-        fs.writeFileSync('/tmp/full_request.json',
-          JSON.stringify(body, null, 2));
-      }
-    } catch(e) {}
-  }
-  return origFetch.call(this, url, options, ...rest);
-};
-```
-
-### Step 2: Run claude with the intercept
+The intercept script (`intercept.js` in this directory) patches `globalThis.fetch`
+to dump every API call. Run it via `NODE_OPTIONS='--require'`:
 
 ```bash
-echo "say exactly: hello" \
-  | NODE_OPTIONS='--require /tmp/intercept.js' claude -p \
-  1>/dev/null 2>/dev/null
+# Interactive session — logs every API call for the session
+NODE_OPTIONS='--require /path/to/intercept.js' claude
 
-# Results:
-cat /tmp/system_prompt.txt    # system prompt text
-cat /tmp/full_request.json    # full API request body (contains tool schemas, messages, etc.)
+# Pipe mode — single prompt
+echo "say exactly: hello" \
+  | NODE_OPTIONS='--require /path/to/intercept.js' claude -p \
+  1>/dev/null 2>/dev/null
 ```
+
+Output lands in `~/.claude/http-logs/<session>/`:
+
+```
+~/.claude/http-logs/2026-04-19T06-00-20_c4cbfc/
+  001-system.txt      # system prompt text (blocks joined by ---BLOCK_SEPARATOR---)
+  001-request.json    # full API request body (tools, messages, params)
+  002-system.txt      # second API call (tool-use follow-up, etc.)
+  002-request.json
+  ...
+```
+
+Each launch creates a new session directory. No cleanup needed between runs.
+The main system prompt is typically the largest `*-system.txt` file;
+smaller ones are summary/compact calls.
 
 ### Why this works
 
@@ -94,6 +87,57 @@ subsequent requests in the same session).
 
 - The `metadata.user_id` field in the request contains device/account/session
   UUIDs. Redact before sharing.
+
+## `--system-prompt` vs `--append-system-prompt` comparison
+
+Captured using the same intercept technique with `--system-prompt "You are a custom assistant."` and `--append-system-prompt "You are a custom assistant."`.
+
+### `--system-prompt` replaces block 3 entirely
+
+The entire main prompt (behavioral rules, tool instructions, memory, output style, everything) is replaced with just the custom text. Only the billing header and agent identity survive:
+
+```
+Block 1: x-anthropic-billing-header: cc_version=2.1.79.04b; ...   (unchanged)
+Block 2: You are a Claude agent, built on Anthropic's Claude Agent SDK.  (generic identity)
+Block 3: You are a custom assistant.                                     (your text, nothing else)
+```
+
+What still works despite the prompt replacement:
+- All 9 tools are still provided (Agent, Bash, Glob, Grep, Read, Edit, Write, Skill, ToolSearch)
+- User message injections still fire (deferred tools, skills, CLAUDE.md context)
+- API parameters unchanged (model, max_tokens, thinking, etc.)
+
+What's gone:
+- All behavioral rules ("Executing actions with care", "Using your tools", etc.)
+- Memory system
+- Output style
+- Git commit/PR instructions
+- Output efficiency guidance
+- "Doing tasks" section
+- Tone and style rules
+
+### `--append-system-prompt` appends to block 3
+
+The default prompt stays intact. The custom text is concatenated at the end of block 3, after git status / recent commits.
+
+One side effect: the agent identity (block 2) changes from the generic form to the Claude Code form:
+
+| Flag | Block 2 identity |
+|---|---|
+| (none) | `You are a Claude agent, built on Anthropic's Claude Agent SDK.` |
+| `--system-prompt` | `You are a Claude agent, built on Anthropic's Claude Agent SDK.` |
+| `--append-system-prompt` | `You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK.` |
+
+This is because `getCLISyspromptPrefix()` selects the identity based on whether `appendSystemPrompt` is set (see `CONFIG-VARIATIONS.md` section 1).
+
+### Diff summary (vs `system-prompt.md`)
+
+`--system-prompt`: 9 lines total. Block 3 = 1 line (your custom text).
+
+`--append-system-prompt`: Identical to `system-prompt.md` except:
+1. Block 2 identity change (see table above)
+2. Custom text appended after git status at end of block 3
+3. Git status differences (untracked files, recent commits vary per session)
 
 ## System prompt structure (as of 2.1.79)
 
