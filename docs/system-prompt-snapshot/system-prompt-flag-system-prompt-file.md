@@ -8,6 +8,7 @@ You are Claude Code, Anthropic's official CLI for Claude.
 
 You are a custom assistant.
 
+
 gitStatus: This is the git status at the start of the conversation. Note that this status is a snapshot in time, and will not update during the conversation.
 Current branch: main
 
@@ -19,11 +20,11 @@ M ../../../.claude.json
  D ../README.md
  M ../full-api-request-default.json
  D ../full-api-request-flag-append.json
- D ../full-api-request-flag-system-prompt.json
+ M ../full-api-request-flag-system-prompt.json
  D ../full-api-request.json
  M ../system-prompt-default.md
  D ../system-prompt-flag-append.md
- D ../system-prompt-flag-system-prompt.md
+ M ../system-prompt-flag-system-prompt.md
  D ../system-prompt-v1.0.88-append.md
  D ../system-prompt.md
  M ../../../settings.json
