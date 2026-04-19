@@ -27,6 +27,15 @@ rebuilt each API call and never persisted to the JSONL transcript. See
   guidance — otherwise the model receives no coding rules at all.
 - `alan-default` must remain a valid, complete style at all times.
 
+## Activation
+
+Set the active style via `/config` (interactive picker) or by editing
+`settings.json` → `outputStyle` field directly. The value matches the style's
+`name` frontmatter field (or filename without `.md` if `name` is absent).
+
+`/output-style` existed but is deprecated and hidden — it prints a message
+redirecting to `/config`.
+
 ## Official Documentation
 
 https://docs.anthropic.com/en/docs/claude-code/output-styles
@@ -35,21 +44,119 @@ https://docs.anthropic.com/en/docs/claude-code/output-styles
 
 ## Reference
 
+### System prompt context
+
+The system prompt is a `string[]`. `splitSysPromptPrefix()` joins all elements
+with `\n\n`. For the full layout, see
+[`docs/system-prompt-anatomy.md`](../docs/system-prompt-anatomy.md).
+
+**10 lines before** `# Output Style:` (end of `env_info_simple`, the
+immediately preceding dynamic section — `language` appears between them only if
+a language preference is set):
+
+```
+ - Platform: linux
+ - Shell: zsh
+ - OS Version: Linux 6.8.0-50-generic
+ - You are powered by the model named Claude Opus 4.6 (with 1M context). The exact model ID is claude-opus-4-6[1m].
+ -
+
+Assistant knowledge cutoff is May 2025.
+ - The most recent Claude model family is Claude 4.5/4.6. Model IDs — ...
+ - Claude Code is available as a CLI in the terminal, desktop app ...
+
+<fast_mode_info>
+Fast mode for Claude Code uses the same Claude Opus 4.6 model with faster output. It does NOT switch to a different model. It can be toggled with /fast.
+</fast_mode_info>
+```
+
+**10 lines after** (end of style content → next non-null dynamic sections →
+`systemContext` appended by `appendSystemContext()`):
+
+```
+                                            ← style content ends here
+
+When working with tool results, write down any important information you might
+need later in your response, as the original tool result may be cleared later.
+
+gitStatus: This is the git status at the start of the conversation. Note that
+this status is a snapshot in time, and will not update during the conversation.
+Current branch: main
+...
+```
+
+Between the style and `gitStatus`, additional sections may appear if active:
+`mcp_instructions` (MCP servers connected), `scratchpad` (if enabled),
+`frc` (function result clearing).
+
+### Section boundary
+
+There is no closing marker for the output style. Sections are separate strings
+in the array, joined with `\n\n` by `splitSysPromptPrefix()`. The model infers
+where the style ends from the next `#`-level heading (the next section). Since
+output style content can contain its own sub-headings (`##`, `###`), only a
+top-level `#` heading signals a new section.
+
+When an output style is active, the intro preamble (first section in the prompt)
+reads:
+
+> You are an interactive agent that helps users according to your "Output Style"
+> below, which describes how you should respond to user queries.
+
+When no output style is active (default):
+
+> You are an interactive agent that helps users with software engineering tasks.
+
+Source: `prompts.ts:151-158,175-184`, `api.ts:321-435`
+
 ### Injection points
 
-Output styles register as a cacheable `output_style` section in the dynamic
-portion of the system prompt, after static behavioral sections. The harness wraps
-content with `# Output Style: {name}` before injection. The section is memoized
-via `systemPromptSection()` — changing the file mid-conversation has no effect
-until the cache clears (`/clear`, `/compact`, or settings sync).
+The output style is registered as a `systemPromptSection('output_style', ...)`
+in the dynamic portion of the system prompt. The wrapping is minimal — just a
+heading and raw content, no closing marker:
 
-Styles load with descending priority: managed (`/etc/claude-code/`) > user
-(`~/.claude/output-styles/`) > project (`.claude/output-styles/`). Same-name
-styles in higher-priority locations shadow lower ones.
+```
+# Output Style: {name}
+{prompt}
+```
+
+Source: `prompts.ts:151-158`
+
+Styles load with descending priority: managed (policy) > project
+(`.claude/output-styles/`) > user (`~/.claude/output-styles/`) > plugin >
+built-in. Same-name styles in higher-priority locations shadow lower ones.
+
+Note: the source code comment at `outputStyles.ts:158` says
+"lowest to highest: built-in, plugin, managed, user, project" but the actual
+array order is `[plugin, user, project, managed]` — managed wins because it's
+last in the override loop.
+
+Source: `outputStyles.ts:137-174`
 
 YAML frontmatter fields: `name` (display name, defaults to filename without
 `.md`), `description` (falls back to first markdown line),
-`keep-coding-instructions` (section suppression flag).
+`keep-coding-instructions` (section suppression flag),
+`force-for-plugin` (plugin-only, auto-apply when plugin is enabled).
+
+### Caching
+
+Two independent caches gate output style content:
+
+1. **File discovery** — `getAllOutputStyles()` is memoized via
+   `lodash-es/memoize`. Cleared by `clearAllCaches()` (plugin operations,
+   `/reload-plugins`). NOT cleared by `/clear` or `/compact`.
+
+2. **System prompt section** — `systemPromptSection('output_style', ...)`
+   caches the computed section string. Cleared by `/clear` and `/compact`.
+
+Editing a `.md` file mid-conversation requires clearing **both** caches. Since
+`/clear` only clears cache #2, edits to style files effectively require a new
+session. Changing the `outputStyle` setting (which style is selected) also
+requires a new session — the deprecation message for `/output-style` explicitly
+says so.
+
+Source: `outputStyles.ts:137,177-179`, `systemPromptSections.ts:60-68`,
+`cacheUtils.ts:26-50`
 
 ### Section suppression
 
