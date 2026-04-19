@@ -9,8 +9,14 @@ Mode: `claude -p` (pipe/non-interactive)
 
 | File | What |
 |---|---|
-| `system-prompt.md` | The 3 system text blocks concatenated, separated by `---BLOCK_SEPARATOR---` |
-| `full-api-request.json` | Complete API request body (tools, messages, config). Metadata redacted. |
+| `system-prompt.md` | System prompt with custom output style (`alan-default-next`) |
+| `system-prompt-default.md` | System prompt with default output style (no custom style) |
+| `full-api-request.json` | Complete API request body with custom output style. Metadata redacted. |
+| `full-api-request-default.json` | Complete API request body with default output style. Metadata redacted. |
+| `CONFIG-VARIATIONS.md` | All configuration knobs that cause the prompt to diverge |
+
+All system prompt files concatenate the 3 system text blocks, separated by
+`---BLOCK_SEPARATOR---`.
 
 ## How to reproduce
 
