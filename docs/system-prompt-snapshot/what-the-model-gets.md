@@ -35,8 +35,7 @@ IMPORTANT: You must NEVER generate or guess URLs...
 {10 bullets: software engineering framing, read before modify, avoid file bloat, no time estimates,
 no brute-force retries, OWASP security, avoid over-engineering, no backwards-compat hacks, /help link}
 
-{this section is REMOVED when an output style sets keep-coding-instructions: false.
- when omitted or true, the section stays. see table below.}
+{removed when output style sets keep-coding-instructions: false; stays otherwise}
 
 # Executing actions with care
 {reversibility/blast radius policy, 4 categories of risky actions, investigate before destroying}
@@ -85,36 +84,181 @@ Recent commits:
 {last 5 commits}
 ```
 
-### Output style behavior
+When `keep-coding-instructions: false` is set in the output style frontmatter, `# Doing tasks` is removed from this block (~3.4K chars smaller).
 
-The `outputStyle` setting selects a style by name. Styles come from three sources:
-built-in (`Explanatory`, `Learning`), plugins, or user files in `~/.claude/output-styles/`.
-
-`"default"` maps to null — no output style, no `# Output Style` section.
-
-The `keep-coding-instructions` frontmatter flag in `.md` output style files controls
-whether `# Doing tasks` stays in the previous block:
-
-| outputStyle | Block above | `# Doing tasks` | `# Output Style` |
-|---|---|---|---|
-| `"default"` (= null) | 12,573 chars | yes | no |
-| `"Explanatory"` (built-in, keep: true) | 12,636 chars | yes | yes |
-| custom style (keep: false) | 9,245 chars | no | yes |
-| custom style (keep: true) | 12,636 chars | yes | yes |
-| custom style (keep: omitted) | 12,636 chars | yes (default) | yes |
-
-## system (25 tools, 48K chars — largest block)
+## tool (8.0K)
 
 ```
-{for each of 25 tools: name, description (usage instructions), parameter schema}
+Agent: Launch a new agent to handle complex, multi-step tasks autonomously.
+{input_schema: prompt, description, subagent_type, isolation, model, run_in_background}
+```
 
-{largest: Bash 10.8K (includes git commit/PR workflow instructions),
-Agent 7K (lists all subagent types), EnterPlanMode 4K}
+## tool (12.3K)
 
-{other tools: Read, Edit, Write, Glob, Grep, NotebookEdit, WebFetch, WebSearch,
-Skill, AskUserQuestion, ExitPlanMode, EnterWorktree, ExitWorktree,
-TaskCreate, TaskGet, TaskUpdate, TaskList, TaskOutput, TaskStop,
-CronCreate, CronDelete, CronList}
+```
+Bash: Executes a given bash command and returns its output.
+{input_schema: command, description, timeout, run_in_background, dangerouslyDisableSandbox}
+```
+
+## tool (1.1K)
+
+```
+Glob: Fast file pattern matching tool that works with any codebase size.
+{input_schema: pattern, path}
+```
+
+## tool (3.3K)
+
+```
+Grep: A powerful search tool built on ripgrep.
+{input_schema: pattern, path, glob, type, output_mode, -A, -B, -C, -i, -n, multiline, head_limit, offset}
+```
+
+## tool (2.5K)
+
+```
+Read: Reads a file from the local filesystem.
+{input_schema: file_path, offset, limit, pages}
+```
+
+## tool (1.7K)
+
+```
+Edit: Performs exact string replacements in files.
+{input_schema: file_path, old_string, new_string, replace_all}
+```
+
+## tool (1.0K)
+
+```
+Write: Writes a file to the local filesystem.
+{input_schema: file_path, content}
+```
+
+## tool (1.5K)
+
+```
+NotebookEdit: Completely replaces the contents of a specific cell in a Jupyter notebook.
+{input_schema: notebook_path, cell_number, new_source, cell_type}
+```
+
+## tool (1.8K)
+
+```
+WebFetch: Fetches content from a URL (fails for authenticated/private URLs).
+{input_schema: url, prompt}
+```
+
+## tool (1.8K)
+
+```
+WebSearch: Allows Claude to search the web and use the results to inform responses.
+{input_schema: query, domain_filter, max_results, time_period}
+```
+
+## tool (1.6K)
+
+```
+Skill: Execute a skill within the main conversation.
+{input_schema: skill, args}
+```
+
+## tool (4.9K)
+
+```
+AskUserQuestion: Ask the user questions during execution.
+{input_schema: question, options, allow_free_text, default_value, ...}
+```
+
+## tool (4.1K)
+
+```
+EnterPlanMode: Enter plan mode for non-trivial implementation tasks.
+{input_schema: plan_file_path}
+```
+
+## tool (2.5K)
+
+```
+ExitPlanMode: Exit plan mode after writing plan to file.
+{input_schema: plan_file_path, approved, feedback}
+```
+
+## tool (1.6K)
+
+```
+EnterWorktree: Create an isolated git worktree and switch to it.
+{input_schema: branch_name, commit}
+```
+
+## tool (2.4K)
+
+```
+ExitWorktree: Exit a worktree session and return to original directory.
+{input_schema: save_changes, merge_strategy, target_branch}
+```
+
+## tool (2.9K)
+
+```
+TaskCreate: Create a structured task list for the current coding session.
+{input_schema: tasks, description}
+```
+
+## tool (1.0K)
+
+```
+TaskGet: Retrieve a task by its ID from the task list.
+{input_schema: task_id}
+```
+
+## tool (3.4K)
+
+```
+TaskUpdate: Update a task in the task list.
+{input_schema: task_id, status, ...}
+```
+
+## tool (1.1K)
+
+```
+TaskList: List all tasks in the task list.
+{input_schema: (none)}
+```
+
+## tool (0.9K)
+
+```
+TaskOutput: Retrieves output from a running or completed task.
+{input_schema: task_id, timeout}
+```
+
+## tool (0.5K)
+
+```
+TaskStop: Stops a running background task by its ID.
+{input_schema: task_id}
+```
+
+## tool (3.0K)
+
+```
+CronCreate: Schedule a prompt to be enqueued at a future time.
+{input_schema: schedule, prompt, description, ...}
+```
+
+## tool (0.3K)
+
+```
+CronDelete: Cancel a cron job previously scheduled with CronCreate.
+{input_schema: cron_id}
+```
+
+## tool (0.2K)
+
+```
+CronList: List all cron jobs scheduled via CronCreate in this session.
+{input_schema: (none)}
 ```
 
 ## user (injected by harness)

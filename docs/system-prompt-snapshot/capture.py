@@ -37,6 +37,9 @@ set timeout 25
 set env(CLAUDECODE) ""
 unset env(CLAUDECODE)
 spawn {*}$argv
+# Accept trust dialog if it appears (new/unknown project dirs)
+sleep 2
+send "\\r"
 sleep 4
 send "say exactly: done\\r"
 expect {
@@ -68,7 +71,11 @@ def find_main_request(new_dirs: list[Path]) -> Path | None:
     return best
 
 
-def spawn_claude(extra_args: list[str]) -> None:
+def spawn_claude(
+    extra_args: list[str],
+    model: str = "haiku",
+    output_style: str | None = None,
+) -> None:
     exp_file = tempfile.NamedTemporaryFile(
         mode="w", suffix=".exp", prefix="capture-", delete=False
     )
@@ -77,6 +84,17 @@ def spawn_claude(extra_args: list[str]) -> None:
 
     env = os.environ.copy()
     env["NODE_OPTIONS"] = f"--require {INTERCEPT}"
+
+    # Run from a temp dir with its own .claude/settings.local.json so we
+    # never touch the real repo's config. git init so interactive mode works.
+    work_dir = tempfile.mkdtemp(prefix="capture-cwd-")
+    subprocess.run(["git", "init", "-q", work_dir], capture_output=True)
+    settings_dir = Path(work_dir) / ".claude"
+    settings_dir.mkdir()
+    settings = {}
+    if output_style is not None:
+        settings["outputStyle"] = output_style
+    (settings_dir / "settings.local.json").write_text(json.dumps(settings))
 
     try:
         subprocess.run(
@@ -87,10 +105,11 @@ def spawn_claude(extra_args: list[str]) -> None:
                 "--",
                 "claude",
                 "--model",
-                "haiku",
+                model,
                 *extra_args,
             ],
             env=env,
+            cwd=work_dir,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=35,
@@ -99,6 +118,7 @@ def spawn_claude(extra_args: list[str]) -> None:
         pass
     finally:
         os.unlink(exp_file.name)
+        shutil.rmtree(work_dir, ignore_errors=True)
 
 
 def extract(req_path: Path) -> None:
@@ -148,8 +168,21 @@ def extract(req_path: Path) -> None:
 def main() -> None:
     extra_args = sys.argv[1:]
 
+    # Our flags, not passed to claude
+    model = "haiku"
+    if "--capture-model" in extra_args:
+        idx = extra_args.index("--capture-model")
+        model = extra_args[idx + 1]
+        extra_args = extra_args[:idx] + extra_args[idx + 2:]
+
+    output_style: str | None = None
+    if "--capture-output-style" in extra_args:
+        idx = extra_args.index("--capture-output-style")
+        output_style = extra_args[idx + 1]
+        extra_args = extra_args[:idx] + extra_args[idx + 2:]
+
     before = get_log_dirs()
-    spawn_claude(extra_args)
+    spawn_claude(extra_args, model=model, output_style=output_style)
     after = get_log_dirs()
 
     new_dirs = [Path(d) for d in sorted(after - before)]
