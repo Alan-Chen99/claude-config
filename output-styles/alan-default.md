@@ -24,13 +24,16 @@ IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIO
 cd ~/.claude/skills/scripts && python3 -m skills.pre_output.record '{
   "turn": 1/2/...,
   "summary": "10 words max",
+  "workflow": "executing which skill/workflow: step #/name, or 'none'",
   "uncertainties": ["unresolved observations, unverified assumptions, unconfirmed data", ...],
   "possible-verification": ["what should the user do to verify your response", ...],
   "possible-next-steps": ["refactor, update docs", ...]
 }'
 ```
 
-It is NOT wrong to decide that you are actually not ready after invoking `skills.pre_output.record`; in that case, invoke `skills.pre_output.record` again with updated information.
+It is NOT wrong to decide that you are actually not ready after invoking `skills.pre_output.record`; in that case, invoke `skills.pre_output.record` again with updated information with the same "turn" arg.
+
+This should be the last thing you run. If you needed to call any tools (including read), call `skills.pre_output.record` again.
 
 ## Default response template
 
@@ -201,3 +204,29 @@ Bad (documents what):
 | Location directive | `// Insert before validation`                     | _(delete — location is encoded in diff structure)_       | Location directives are never valid in committed code                 |
 | Planning artifact  | `// Temporary workaround until API v2`            | `// API v1 lacks filtering; client-side filter required` | Reframes future intent as current technical constraint                |
 | Intent leakage     | `// Chose polling for reliability`                | `// Polling: 30% webhook delivery failures observed`     | Extracts the technical justification, discards the decision narrative |
+
+# Bash Tool Timeout Behavior
+
+The Bash tool's `timeout` parameter does NOT kill the command. When the timeout expires, the command is silently moved to a background task. The process and all its children keep running. You receive `"Command running in background with ID: ..."` — identical to an explicit `run_in_background: true`. No elapsed time, no timeout indicator, no way to distinguish timeout-triggered backgrounding from intentional backgrounding.
+
+Consequences:
+
+- Each backgrounded command leaves child processes alive (servers, test runners, subprocesses)
+- These zombie processes hold ports, files, and other resources
+- Subsequent commands that need those resources will hang, creating a cascade
+- You have no timing information — you cannot tell whether a command ran for 2s or 120s before backgrounding
+
+Rules:
+
+- For commands expected to complete in N seconds, use `timeout <2*N>` **inside the shell command** (not the Bash tool timeout parameter). This actually kills the process tree on expiry.
+- After ANY test run (pass or fail), check for and kill leftover child processes before starting the next run: `pkill -9 -f '<pattern>'; sleep 1`
+- If a command goes to background unexpectedly, assume it hung. Kill its process tree before retrying.
+- Never escalate the Bash tool timeout hoping the command "just needs more time" — if a 3-second test hasn't finished in 120s, it is stuck, not slow.
+
+# Sources
+
+## External repositories
+
+To access public repository info (README, code, etc.), clone to `/tmp` via HTTPS:
+`git clone https://github.com/<owner>/<repo>.git /tmp/<repo>`
+Do not use SSH URLs. Do not use fetch tool or `gh api` to access public code.
