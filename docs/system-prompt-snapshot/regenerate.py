@@ -11,6 +11,7 @@ Usage:
     ./regenerate.py --list               # show available variants
 """
 
+import json
 import shutil
 import subprocess
 import sys
@@ -107,10 +108,41 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
     shutil.copy2(request_src, out_dir / "request.json")
     shutil.copy2(system_src, out_dir / "system-prompt.md")
 
-    req_size = (out_dir / "request.json").stat().st_size
+    # Generate summary.json (tracked) from request.json (gitignored)
+    data = json.loads(request_src.read_text())
+    sys_blocks = [s for s in data.get("system", []) if s.get("type") == "text"]
+    tools = data.get("tools", [])
+    deferred = []
+    for msg in data.get("messages", []):
+        content = msg.get("content", [])
+        if isinstance(content, list):
+            for block in content:
+                text = block.get("text", "")
+                if "deferred tools" in text.lower():
+                    for line in text.splitlines():
+                        line = line.strip()
+                        if line and not line.startswith("<") and not line.startswith("The"):
+                            deferred.append(line)
+    summary = {
+        "model": data.get("model"),
+        "system_blocks": len(sys_blocks),
+        "system_chars": sum(len(s["text"]) for s in sys_blocks),
+        "tools_upfront": [t["name"] for t in tools],
+        "tools_upfront_count": len(tools),
+        "tools_deferred": deferred,
+        "tools_deferred_count": len(deferred),
+        "tools_total_chars": sum(
+            len(t.get("description", "")) + len(json.dumps(t.get("input_schema", {})))
+            for t in tools
+        ),
+        "has_output_style": any("Output Style" in s.get("text", "") for s in sys_blocks),
+        "has_doing_tasks": any("Doing tasks" in s.get("text", "") for s in sys_blocks),
+    }
+    (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+
     sys_size = (out_dir / "system-prompt.md").stat().st_size
-    print(f"  request.json      ({req_size:,} chars)")
     print(f"  system-prompt.md  ({sys_size:,} chars)")
+    print(f"  summary.json      ({len(tools)} upfront, {len(deferred)} deferred)")
 
     if result.stderr:
         for line in result.stderr.strip().splitlines():

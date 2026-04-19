@@ -14,6 +14,10 @@ hooks/.env
 
 /.claude/worktrees
 
+# system-prompt-snapshot: raw API captures are regenerable
+docs/system-prompt-snapshot/capture-output/
+docs/system-prompt-snapshot/**/request.json
+
 # ralph-orchestrator
 **/.ralph/**/*.lock
 **/.ralph/current-events
