@@ -35,7 +35,7 @@ IMPORTANT: {URL policy — NEVER generate or guess URLs}
 {10 bullets: software engineering framing, read before modify, avoid file bloat, no time estimates,
 no brute-force retries, OWASP security, avoid over-engineering, no backwards-compat hacks, /help link}
 
-{removed when output style sets keep-coding-instructions: false}
+{removed when output style omits or sets keep-coding-instructions: false}
 
 # Executing actions with care
 {reversibility/blast radius policy, 4 categories of risky actions, investigate before destroying}

@@ -1,6 +1,7 @@
 ---
 name: alan-default-next
 description: Direct, fact-focused communication. Minimal explanation, maximum clarity. Simplicity over abstraction.
+keep-coding-instructions: false
 ---
 
 # Communication Style

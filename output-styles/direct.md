@@ -1,6 +1,7 @@
 ---
 name: Direct
 description: Direct, fact-focused communication. Minimal explanation, maximum clarity. Simplicity over abstraction.
+keep-coding-instructions: false
 ---
 
 # Technical Directness

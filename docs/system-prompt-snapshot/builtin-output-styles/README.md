@@ -45,6 +45,6 @@ is included in the behavioral rules block (block 2):
 |---|---|
 | `true` | included |
 | `false` | removed |
-| omitted | included (default) |
+| omitted | removed (default) |
 
 See [what-the-model-gets.md](../what-the-model-gets.md) for the full block layout.
