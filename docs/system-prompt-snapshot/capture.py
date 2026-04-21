@@ -59,29 +59,45 @@ expect eof
 
 # Subagent mode: send a message that triggers an Agent tool call, then wait
 # long enough for the subagent's API round-trip before exiting.
+# {message} is replaced at runtime with the agent-type-specific prompt.
 EXPECT_SCRIPT_SUBAGENT = """\
 set timeout 120
 set env(CLAUDECODE) ""
 unset env(CLAUDECODE)
-spawn {*}$argv
+spawn {{*}}$argv
 sleep 2
 send "\\r"
 # Use expect (not sleep) to consume pty output and prevent buffer-full blocking
 set timeout 5
-expect {
-  timeout {}
-  eof {}
-}
-send "I need you to spawn a subagent. Call the Agent tool with subagent_type Explore and have it investigate the project structure and find all Python files. You MUST use the Agent tool for this, not Glob or Grep directly.\\r"
+expect {{
+  timeout {{}}
+  eof {{}}
+}}
+send "{message}\\r"
 # Drain pty output for 70s while model + subagent run
 set timeout 70
-expect {
-  timeout {}
-  eof {}
-}
+expect {{
+  timeout {{}}
+  eof {{}}
+}}
 send "/exit\\r"
 expect eof
 """
+
+SUBAGENT_MESSAGES = {
+    "Explore": (
+        "I need you to spawn a subagent. Call the Agent tool with "
+        "subagent_type Explore and have it investigate the project structure "
+        "and find all Python files. You MUST use the Agent tool for this, "
+        "not Glob or Grep directly."
+    ),
+    "general-purpose": (
+        "I need you to spawn a subagent. Call the Agent tool with "
+        "subagent_type general-purpose and have it research what programming "
+        "languages and frameworks are used in this project. You MUST use the "
+        "Agent tool, not Glob or Grep directly."
+    ),
+}
 
 
 def get_log_dirs() -> set[str]:
@@ -163,9 +179,13 @@ def spawn_claude(
     extra_args: list[str],
     model: str = "haiku",
     output_style: str | None = None,
-    subagent: bool = False,
+    subagent: str | None = None,
 ) -> None:
-    script = EXPECT_SCRIPT_SUBAGENT if subagent else EXPECT_SCRIPT
+    if subagent:
+        message = SUBAGENT_MESSAGES.get(subagent, SUBAGENT_MESSAGES["Explore"])
+        script = EXPECT_SCRIPT_SUBAGENT.format(message=message)
+    else:
+        script = EXPECT_SCRIPT
 
     exp_file = tempfile.NamedTemporaryFile(
         mode="w", suffix=".exp", prefix="capture-", delete=False
@@ -242,11 +262,16 @@ def main() -> None:
         output_style = extra_args[idx + 1]
         extra_args = extra_args[:idx] + extra_args[idx + 2:]
 
-    subagent = False
+    subagent: str | None = None
     if "--subagent" in extra_args:
         idx = extra_args.index("--subagent")
-        subagent = True
-        extra_args = extra_args[:idx] + extra_args[idx + 1:]
+        # Optional agent type follows --subagent (default: Explore)
+        if idx + 1 < len(extra_args) and not extra_args[idx + 1].startswith("-"):
+            subagent = extra_args[idx + 1]
+            extra_args = extra_args[:idx] + extra_args[idx + 2:]
+        else:
+            subagent = "Explore"
+            extra_args = extra_args[:idx] + extra_args[idx + 1:]
 
     # Subagent mode: force "default" output style to avoid output-style hooks
     # (e.g. pre_output.record) that add Bash tool calls before the Agent call,
