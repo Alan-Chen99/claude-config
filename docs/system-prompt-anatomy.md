@@ -261,12 +261,37 @@ plans-on-disk or sub-agents to avoid depending on recall of earlier work.
 
 ## Sub-agents
 
-Sub-agents (launched via the Agent tool) receive a different, lighter prompt:
+Sub-agents (launched via the Agent tool) receive a different, lighter prompt
+constructed independently from the parent. `--system-prompt` and
+`--append-system-prompt` do **not** propagate to subagents.
 
-- Read-only agents (Explore, Plan) skip CLAUDE.md and git status to save tokens
-- MCP tools are inherited; agent-specific servers can be added
-- Skills can be preloaded from agent frontmatter
-- Environment info and current date are always included
+### Prompt structure
+
+Each subagent's system prompt is built by `agentDefinition.getSystemPrompt()` +
+`enhanceSystemPromptWithEnvDetails()`, which appends shared notes (absolute
+paths, emoji, colon guidance) and environment info (cwd, platform, model,
+gitStatus).
+
+### Built-in agent types
+
+| Type | Identity | Model | Tools | CLAUDE.md | gitStatus |
+|------|----------|-------|-------|-----------|-----------|
+| **Explore** | "file search specialist" | haiku | All minus Agent, Edit, Write, NotebookEdit, ExitPlanMode | Omitted | Omitted |
+| **general-purpose** | "an agent for Claude Code" | inherits parent | All (`*`) | Loaded | Included |
+| **Plan** | "software architect" | inherits parent | Same as Explore | Omitted | Omitted |
+| **claude-code-guide** | (documentation helper) | haiku | Glob, Grep, Read, WebFetch, WebSearch | — | — |
+| **statusline-setup** | (statusline config) | sonnet | Read, Edit | — | — |
+| **verification** | (verification agent) | inherits parent | All minus disallowed | — | — |
+
+All agents additionally have `ALL_AGENT_DISALLOWED_TOOLS` removed: TaskOutput,
+ExitPlanModeV2, EnterPlanMode, AskUserQuestion, TaskStop, and Agent (for
+non-ant users).
+
+### What subagents inherit / don't inherit
+
+- **Inherited:** MCP tools, environment info, current date
+- **Not inherited:** parent's `--system-prompt` / `--append-system-prompt`, output style, memory system
+- **Conditional:** CLAUDE.md (only when `omitClaudeMd` is false), gitStatus, skills (from agent frontmatter)
 
 ## Extracting the API Payload
 

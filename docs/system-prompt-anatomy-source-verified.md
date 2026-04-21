@@ -408,13 +408,15 @@ Nested directory rules (`getMemoryFilesForNestedDirectory()`) load lazily when r
 
 ## Parent Agent vs Sub-Agent
 
-Sub-agents (launched via the `Agent` tool) receive a different prompt via `agentDefinition.getSystemPrompt()` rather than the main `getSystemPrompt()` path.
+Sub-agents (launched via the `Agent` tool) receive a different prompt via `agentDefinition.getSystemPrompt()` rather than the main `getSystemPrompt()` path. `--system-prompt` and `--append-system-prompt` do **not** propagate — subagent prompts are constructed independently by `getAgentSystemPrompt()` in `runAgent.ts:906-932`.
 
 **Context omission** (`tools/AgentTool/runAgent.ts:385-410`):
 
 | Component | Parent | Sub-agent | Source |
 |-----------|--------|-----------|--------|
 | System prompt sections | `getSystemPrompt()` | `agentDefinition.getSystemPrompt()` | runAgent.ts:508-518 |
+| `--system-prompt` | Replaces blocks 2-3 | **Not inherited** | runAgent.ts:906-932 (calls agentDefinition.getSystemPrompt, not parent options) |
+| `--append-system-prompt` | Appended to prompt | **Not inherited** | Same as above |
 | claudeMd (CLAUDE.md, rules) | Always | **Omitted** when `omitClaudeMd=true` + feature flag `tengu_slim_subagent_claudemd` (default: true). Explore/Plan agents omit by default. | runAgent.ts:390-398 |
 | gitStatus | Always | **Omitted** for Explore and Plan agents | runAgent.ts:404-410 |
 | Output style | Yes | Via agent definition | systemPrompt.ts:77-123 |
@@ -423,9 +425,36 @@ Sub-agents (launched via the `Agent` tool) receive a different prompt via `agent
 | Environment info | Yes | Yes (enhanced by `enhanceSystemPromptWithEnvDetails()`) | prompts.ts:760-791 |
 | currentDate | Yes | Yes | context.ts:186 |
 
+**Built-in agent definitions** (`tools/AgentTool/built-in/`):
+
+| Agent | Source file | Identity | Model | Tools | `omitClaudeMd` |
+|-------|------------|----------|-------|-------|----------------|
+| **Explore** | `exploreAgent.ts` | "file search specialist" | `'haiku'` (external), `'inherit'` (ant) | All minus `disallowedTools`: Agent, ExitPlanMode, Edit, Write, NotebookEdit | `true` |
+| **general-purpose** | `generalPurposeAgent.ts` | "an agent for Claude Code" | `getDefaultSubagentModel()` | `['*']` (all) | (default: false) |
+| **Plan** | `planAgent.ts` | "software architect" | `'inherit'` | Same as Explore (reuses `EXPLORE_AGENT.tools`) | `true` |
+| **claude-code-guide** | `claudeCodeGuideAgent.ts` | (documentation helper) | `'haiku'` | Glob, Grep, Read, WebFetch, WebSearch | — |
+| **statusline-setup** | `statuslineSetup.ts` | (statusline config) | `'sonnet'` | Read, Edit | — |
+| **verification** | `verificationAgent.ts` | (verification agent) | `'inherit'` | All minus `disallowedTools` | — |
+
+**Tool filtering** (`constants/tools.ts:36-71`, `agentToolUtils.ts:122-225`):
+
+All agents have `ALL_AGENT_DISALLOWED_TOOLS` removed: TaskOutput, ExitPlanModeV2, EnterPlanMode, AskUserQuestion, TaskStop, and Agent (for non-ant users). Custom (user/project-defined) agents additionally have `CUSTOM_AGENT_DISALLOWED_TOOLS` removed.
+
+When `tools` is undefined or `['*']`, `resolveAgentTools()` returns all available tools minus disallowed. When `disallowedTools` is set, those are removed from the wildcard set.
+
+**Prompt enhancement** (`constants/prompts.ts:760-791`):
+
+`enhanceSystemPromptWithEnvDetails()` appends to every subagent prompt:
+- Shared notes: absolute path guidance, emoji/colon guidance
+- Environment info: cwd, platform, shell, OS, model identity, knowledge cutoff, gitStatus
+
 Rationale for omitting claudeMd from read-only agents: Explore and Plan don't act on commit/PR/lint rules — dropping claudeMd saves ~5-15 Gtok/week across 34M+ Explore spawns.
 
 **Fork children** (same-model sub-agents) use the parent's already-rendered system prompt bytes (`toolUseContext.renderedSystemPrompt`) cached at turn start, ensuring identical API request prefix for prompt cache hits. This prevents divergence from feature flag state changes between parent and child spawn.
+
+**Empirical validation** (captured via `system-prompt-snapshot/capture.py --subagent`):
+
+Captured Explore and general-purpose subagent prompts match the source definitions exactly, with `enhanceSystemPromptWithEnvDetails()` appending the notes and env blocks. Tested with `--system-prompt` and `--append-system-prompt` — subagent prompts are byte-identical (modulo temp dir path) regardless of parent flags. See `system-prompt-snapshot/sonnet/subagent/` for captured payloads.
 
 ## Attention and Degradation
 
@@ -491,6 +520,7 @@ Post-compaction cleanup (`services/compact/postCompactCleanup.ts:31-77`):
 - **Compaction drops old attachments but preserves userContext.** After compaction, both caches are cleared and content re-read from disk. Old system-reminder attachments are summarized away. Fresh attachments resume on new tool results.
 - **Path-scoped rules are demand-loaded.** They load when Claude reads a file matching the `paths:` glob, not at session start. If no matching file is ever read, the rule never enters context.
 - **Read-only sub-agents skip claudeMd.** Explore and Plan agents omit CLAUDE.md and gitStatus to save tokens. If they need git info, they run `git status` themselves for fresh data.
+- **`--system-prompt` does not affect sub-agents.** Subagent prompts are constructed independently from the parent. Neither `--system-prompt` nor `--append-system-prompt` propagates. Each agent type always gets its own static persona regardless of parent flags.
 - **claudeMd overrides defaults.** The preamble explicitly states these instructions override default behavior. Project `CLAUDE.md` can override global rules; subdirectory `CLAUDE.md` can override parent directory rules.
 
 ## Sources

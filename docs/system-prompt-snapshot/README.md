@@ -70,6 +70,21 @@ What survives `--system-prompt`:
 - All 25 tool definitions and descriptions (in `tools[]`, not system prompt)
 - User message injections (deferred tools, skills, CLAUDE.md context)
 
+### Sub-agent behavior
+
+Neither `--system-prompt` nor `--append-system-prompt` propagates to sub-agents.
+Subagent prompts are constructed independently by `agentDefinition.getSystemPrompt()`
++ `enhanceSystemPromptWithEnvDetails()`. Each agent type gets its static persona
+regardless of parent flags.
+
+Source: `tools/AgentTool/runAgent.ts:906-932`, `tools/AgentTool/built-in/`
+
+| Agent | Prompt identity | Model | Key difference |
+|-------|----------------|-------|----------------|
+| Explore | "file search specialist" | haiku | Read-only, no Edit/Write, omits CLAUDE.md |
+| general-purpose | "an agent for Claude Code" | inherits parent | Read-write, tools: `['*']`, loads CLAUDE.md |
+| Plan | "software architect" | inherits parent | Same tools as Explore, omits CLAUDE.md |
+
 ## Interactive vs `-p` mode differences
 
 These captures use interactive mode (real pty). In `-p` (pipe) mode, two things differ:
