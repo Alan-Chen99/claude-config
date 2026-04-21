@@ -49,6 +49,11 @@ VARIANTS: dict[str, dict] = {
         "claude_args": ["--append-system-prompt", CUSTOM_PROMPT],
         "capture_flags": ["--capture-output-style", "default"],
     },
+    # --- subagent capture ---
+    "subagent": {
+        "claude_args": [],
+        "capture_flags": ["--capture-output-style", "default", "--subagent"],
+    },
 }
 
 
@@ -81,7 +86,7 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
             cwd=SCRIPT_DIR,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=120 if "--subagent" in capture_flags else 60,
         )
     except subprocess.TimeoutExpired:
         print(f"  TIMEOUT", file=sys.stderr)
@@ -107,6 +112,18 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
     out_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(request_src, out_dir / "request.json")
     shutil.copy2(system_src, out_dir / "system-prompt.md")
+
+    # Copy subagent files if present
+    sub_src = cap_dir / "subagents"
+    n_subagents = 0
+    if sub_src.exists() and sub_src.is_dir():
+        sub_dst = out_dir / "subagents"
+        if sub_dst.exists():
+            shutil.rmtree(sub_dst)
+        shutil.copytree(sub_src, sub_dst)
+        for f in list(sub_dst.glob("*-system.txt")):
+            f.rename(sub_dst / f.name.replace("-system.txt", "-system-prompt.md"))
+        n_subagents = len(list(sub_dst.glob("*-request.json")))
 
     # Generate summary.json (tracked) from request.json (gitignored)
     data = json.loads(request_src.read_text())
@@ -137,12 +154,15 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
         ),
         "has_output_style": any("Output Style" in s.get("text", "") for s in sys_blocks),
         "has_doing_tasks": any("Doing tasks" in s.get("text", "") for s in sys_blocks),
+        "subagent_count": n_subagents,
     }
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
     sys_size = (out_dir / "system-prompt.md").stat().st_size
     print(f"  system-prompt.md  ({sys_size:,} chars)")
     print(f"  summary.json      ({len(tools)} upfront, {len(deferred)} deferred)")
+    if n_subagents:
+        print(f"  subagents/        ({n_subagents} subagent prompt(s))")
 
     if result.stderr:
         for line in result.stderr.strip().splitlines():

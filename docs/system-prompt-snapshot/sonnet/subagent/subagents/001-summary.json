@@ -1,0 +1,68 @@
+{
+  "version": "x-anthropic-billing-header: cc_version=2.1.79.e1d; cc_entrypoint=cli; cch=00000;",
+  "model": "claude-haiku-4-5-20251001",
+  "block_count": 3,
+  "total_chars": 3550,
+  "blocks": [
+    {
+      "index": 0,
+      "length": 80,
+      "preview": "x-anthropic-billing-header: cc_version=2.1.79.e1d; cc_entrypoint=cli; cch=00000;"
+    },
+    {
+      "index": 1,
+      "length": 57,
+      "preview": "You are Claude Code, Anthropic's official CLI for Claude."
+    },
+    {
+      "index": 2,
+      "length": 3363,
+      "preview": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS"
+    }
+  ],
+  "tools": [
+    "Bash",
+    "Glob",
+    "Grep",
+    "Read",
+    "WebFetch",
+    "WebSearch",
+    "Skill",
+    "TaskCreate",
+    "TaskGet",
+    "TaskUpdate",
+    "TaskList",
+    "EnterWorktree",
+    "ExitWorktree",
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "mcp__claude_ai_Indeed__search_jobs",
+    "mcp__claude_ai_Indeed__get_job_details",
+    "mcp__claude_ai_Indeed__get_company_data",
+    "mcp__claude_ai_Indeed__get_resume"
+  ],
+  "tool_description_chars": {
+    "Bash": 10847,
+    "Glob": 530,
+    "Grep": 866,
+    "Read": 1773,
+    "WebFetch": 1479,
+    "WebSearch": 1318,
+    "Skill": 1272,
+    "TaskCreate": 2310,
+    "TaskGet": 732,
+    "TaskUpdate": 2243,
+    "TaskList": 998,
+    "EnterWorktree": 1335,
+    "ExitWorktree": 1923,
+    "CronCreate": 2319,
+    "CronDelete": 100,
+    "CronList": 60,
+    "mcp__claude_ai_Indeed__search_jobs": 367,
+    "mcp__claude_ai_Indeed__get_job_details": 530,
+    "mcp__claude_ai_Indeed__get_company_data": 630,
+    "mcp__claude_ai_Indeed__get_resume": 157
+  },
+  "source_request": "002-request.json"
+}

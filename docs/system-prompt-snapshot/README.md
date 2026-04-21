@@ -19,6 +19,16 @@ Mode: interactive (real pty via `capture.py`)
 | `capture.py` | Python script that captures system prompts via expect + intercept.js |
 | `intercept.js` | Node.js `--require` script that logs API calls to `~/.claude/http-logs/` |
 
+### Subagent captures
+
+When `capture.py --subagent` is used, the output includes a `subagents/` directory:
+
+| File | What |
+|---|---|
+| `subagents/NNN-system-prompt.md` | System prompt for subagent N |
+| `subagents/NNN-request.json` | Full API request for subagent N |
+| `subagents/NNN-summary.json` | Block structure and tools for subagent N |
+
 System prompt blocks are separated by `---BLOCK_SEPARATOR---` in the `.md` files.
 
 ## System prompt structure (v2.1.79, interactive mode)
@@ -86,6 +96,9 @@ The behavioral rules and `--system-prompt` replacement logic are the same in bot
 
 # With --append-system-prompt
 ./capture.py --append-system-prompt "Extra instructions"
+
+# Capture subagent prompts (triggers an Explore agent, extracts all unique prompts)
+./capture.py --subagent
 ```
 
 `capture.py` uses expect to spawn claude with a real pty (true interactive mode), sends a canary message via haiku, then extracts the system prompt from the intercepted API request. Output goes to `capture-output/` (system.txt, request.json, summary.json) and stdout.
