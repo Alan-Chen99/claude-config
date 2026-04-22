@@ -40,6 +40,10 @@ redirecting to `/config`.
 
 https://docs.anthropic.com/en/docs/claude-code/output-styles
 
+## Feature backlog
+
+"use jq for json, not read/edit"
+
 ---
 
 ## Reference
