@@ -1,17 +1,17 @@
 {
   "model": "claude-sonnet-4-6",
-  "system_blocks": 3,
-  "system_chars": 26197,
+  "system_blocks": 4,
+  "system_chars": 27311,
   "tools_upfront": [
     "Agent",
     "Bash",
+    "Edit",
     "Glob",
     "Grep",
     "Read",
-    "Edit",
-    "Write",
     "Skill",
-    "ToolSearch"
+    "ToolSearch",
+    "Write"
   ],
   "tools_upfront_count": 9,
   "tools_deferred": [
@@ -24,6 +24,7 @@
     "ExitPlanMode",
     "ExitWorktree",
     "NotebookEdit",
+    "RemoteTrigger",
     "TaskCreate",
     "TaskGet",
     "TaskList",
@@ -31,14 +32,10 @@
     "TaskStop",
     "TaskUpdate",
     "WebFetch",
-    "WebSearch",
-    "mcp__claude_ai_Indeed__get_company_data",
-    "mcp__claude_ai_Indeed__get_job_details",
-    "mcp__claude_ai_Indeed__get_resume",
-    "mcp__claude_ai_Indeed__search_jobs"
+    "WebSearch"
   ],
-  "tools_deferred_count": 21,
-  "tools_total_chars": 32902,
+  "tools_deferred_count": 18,
+  "tools_total_chars": 31827,
   "has_output_style": false,
   "has_doing_tasks": true,
   "subagent_count": 1

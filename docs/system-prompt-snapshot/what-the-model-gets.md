@@ -1,22 +1,24 @@
 # What the Model Gets
 
 Everything the model receives, in order, on a fresh interactive session (no CLAUDE.md, no output style).
-v2.1.79. Source: `opus/default/request.json`. ~66.5K chars total.
-Sonnet receives identical content except the model name string.
+v2.1.87. Source: `opus/default/request.json`, `sonnet/default/request.json`.
+Sonnet and Opus receive identical system prompt text except model name and knowledge cutoff.
 
-## system (80 chars, not cached)
+## system[0] (80 chars, not cached)
 
 ```
-x-anthropic-billing-header: cc_version=2.1.79.04b; cc_entrypoint=cli; cch=00000;
+x-anthropic-billing-header: cc_version=2.1.87.7b6; cc_entrypoint=cli; cch=00000;
 ```
 
-## system (57 chars, cached 1h)
+## system[1] (57 chars, not cached)
 
 ```
 You are Claude Code, Anthropic's official CLI for Claude.
 ```
 
-## system (26,018 chars, cached 1h)
+## system[2] (13,211 chars, cached global+1h)
+
+Static behavioral rules. Cross-org cacheable (scope: global).
 
 ```
 You are an interactive agent that helps users with software engineering tasks...
@@ -29,13 +31,16 @@ IMPORTANT: {security policy}
 IMPORTANT: {URL policy — NEVER generate or guess URLs}
 
 # System
-{6 bullets: output rendering, permissions, system-reminder tags, prompt injection, hooks, compression}
+{7 bullets: output rendering, permissions, ! prefix for interactive commands,
+system-reminder tags, prompt injection, hooks, compression}
 
 # Doing tasks
-{10 bullets: software engineering framing, read before modify, avoid file bloat, no time estimates,
-no brute-force retries, OWASP security, avoid over-engineering, no backwards-compat hacks, /help link}
+{12 bullets: software engineering framing, defer to user judgement, read before modify,
+avoid file bloat, no time estimates, diagnose before switching tactics,
+OWASP security, no extras beyond what was asked, no speculative error handling,
+no premature abstractions, no backwards-compat hacks, /help link}
 
-{removed when output style omits or sets keep-coding-instructions: false}
+{kept even when output style is active — no longer removed}
 
 # Executing actions with care
 {reversibility/blast radius policy, 4 categories of risky actions, investigate before destroying}
@@ -43,15 +48,23 @@ no brute-force retries, OWASP security, avoid over-engineering, no backwards-com
 # Using your tools
 Do NOT use Bash when a dedicated tool is provided — CRITICAL
 {Read not cat, Edit not sed, Write not echo, Glob not find, Grep not grep}
-{Agent for exploration, Skill for slash commands, parallel calls when independent}
+{TaskCreate for work tracking, Agent for exploration, Skill for slash commands,
+parallel calls when independent}
 
 # Tone and style
-{no emojis, concise, file_path:line_number references, no colon before tool calls}
+{no emojis, concise, file_path:line_number references, owner/repo#123 for GH links,
+no colon before tool calls}
 
 # Output efficiency
-IMPORTANT: Go straight to the point. Be extra concise.
+IMPORTANT: Go straight to the point. Try the simplest approach first. Be extra concise.
 {lead with answer not reasoning, focus on decisions/milestones/errors, one sentence over three}
+```
 
+## system[3] (13,920 chars, not cached)
+
+Dynamic sections. Recomputed per session, not globally cached.
+
+```
 # auto memory
 {memory system path and write instructions}
 ## Types of memory
@@ -65,8 +78,9 @@ IMPORTANT: Go straight to the point. Be extra concise.
 
 # Environment
  - Primary working directory, git repo, platform, shell, OS
- - Model name: "Opus 4.6" / "claude-opus-4-6"
- - Knowledge cutoff, model family IDs, fast mode info
+ - Model name: "Opus 4.6" / "claude-opus-4-6" (or Sonnet 4.6 / claude-sonnet-4-6)
+ - Knowledge cutoff: Opus May 2025, Sonnet August 2025
+ - Model family IDs, fast mode info, Claude Code availability
 
 # Output Style: <name>                                ← only present when output style is set
 {full output style markdown content}
@@ -78,7 +92,7 @@ Status: {modified/untracked files}
 Recent commits: {last 5 commits}
 ```
 
-## tool desc (Agent, 7.9K)
+## tool desc (Agent, 7.0K desc + 1.0K schema)
 
 ```
 Agent: Launch a new agent to handle complex, multi-step tasks autonomously.
@@ -102,7 +116,7 @@ Example usage:
 {input_schema: prompt, description, subagent_type, model, run_in_background, isolation}
 ```
 
-## tool desc (Bash, 12.1K)
+## tool desc (Bash, 10.0K desc + 1.5K schema)
 
 ```
 Bash: Executes a given bash command and returns its output.
@@ -136,15 +150,29 @@ IMPORTANT: follow steps carefully
 {input_schema: command, description, timeout, run_in_background, dangerouslyDisableSandbox}
 ```
 
-## tool desc (Glob, 1.1K)
+## tool desc (Edit, 1.1K desc + 0.6K schema)
+
+```
+Edit: Performs exact string replacements in files.
+
+Usage:
+MUST Read file first — errors if not.
+ALWAYS prefer editing existing files. NEVER write new files unless required.
+{preserve indentation from Read output, old_string must be unique or use replace_all,
+replace_all for renaming}
+
+{input_schema: file_path, old_string, new_string, replace_all}
+```
+
+## tool desc (Glob, 0.4K desc + 0.6K schema)
 
 ```
 Glob: Fast file pattern matching tool that works with any codebase size.
-{glob patterns, sorted by mtime, use Agent for open-ended search, parallel searches}
+{glob patterns, sorted by mtime, use Agent for open-ended search}
 {input_schema: pattern, path}
 ```
 
-## tool desc (Grep, 3.2K)
+## tool desc (Grep, 0.9K desc + 2.5K schema)
 
 ```
 Grep: A powerful search tool built on ripgrep.
@@ -157,7 +185,7 @@ ripgrep brace escaping, multiline mode}
 {input_schema: pattern, path, glob, type, output_mode, -A, -B, -C, -i, -n, multiline, head_limit, offset}
 ```
 
-## tool desc (Read, 2.4K)
+## tool desc (Read, 1.6K desc + 0.7K schema)
 
 ```
 Read: Reads a file from the local filesystem.
@@ -165,39 +193,13 @@ Read: Reads a file from the local filesystem.
 Usage:
 {absolute paths, default 2000 lines, read only needed part, cat -n format,
 images (multimodal), PDFs (MUST use pages param for >10 pages, max 20),
-Jupyter notebooks, files only not dirs, parallel reads}
+Jupyter notebooks, files only not dirs}
 ALWAYS read screenshots when user provides path.
 
 {input_schema: file_path, offset, limit, pages}
 ```
 
-## tool desc (Edit, 1.7K)
-
-```
-Edit: Performs exact string replacements in files.
-
-Usage:
-MUST Read file first — errors if not.
-ALWAYS prefer editing existing files. NEVER write new files unless required.
-{preserve indentation from Read output, old_string must be unique or use replace_all}
-
-{input_schema: file_path, old_string, new_string, replace_all}
-```
-
-## tool desc (Write, 1.0K)
-
-```
-Write: Writes a file to the local filesystem.
-
-Usage:
-MUST Read first if file exists — errors if not.
-{prefer Edit for modifications, overwrites existing}
-NEVER create *.md or README unless explicitly requested.
-
-{input_schema: file_path, content}
-```
-
-## tool desc (Skill, 1.6K)
+## tool desc (Skill, 1.3K desc + 0.3K schema)
 
 ```
 Skill: Execute a skill within the main conversation.
@@ -214,10 +216,10 @@ not for built-in CLI commands, <command-name> tag = already loaded}
 {input_schema: skill, args}
 ```
 
-## tool desc (ToolSearch, 1.3K)
+## tool desc (ToolSearch, 1.0K desc + 0.4K schema)
 
 ```
-ToolSearch: Fetches full schema definitions for tools listed in <system-reminder> messages.
+ToolSearch: Fetches full schema definitions for deferred tools so they can be called.
 {until fetched, only name known — no schema, cannot invoke}
 {returns <function> JSON schema blocks}
 
@@ -227,7 +229,20 @@ Query forms:
 {input_schema: query, max_results}
 ```
 
-## user (injected by harness, 291 chars)
+## tool desc (Write, 0.6K desc + 0.4K schema)
+
+```
+Write: Writes a file to the local filesystem.
+
+Usage:
+MUST Read first if file exists — errors if not.
+{prefer Edit for modifications, overwrites existing}
+NEVER create *.md or README unless explicitly requested.
+
+{input_schema: file_path, content}
+```
+
+## user (injected by harness, 305 chars)
 
 ```
 <system-reminder>
@@ -241,6 +256,7 @@ EnterWorktree
 ExitPlanMode
 ExitWorktree
 NotebookEdit
+RemoteTrigger
 TaskCreate
 TaskGet
 TaskList
@@ -252,7 +268,7 @@ WebSearch
 </system-reminder>
 ```
 
-## user (injected by harness, 5,953 chars)
+## user (injected by harness, ~5.5K chars)
 
 ```
 <system-reminder>
@@ -265,7 +281,7 @@ The following skills are available for use with the Skill tool:
 </system-reminder>
 ```
 
-## user (injected by harness, 306 chars without CLAUDE.md)
+## user (injected by harness, ~306 chars without CLAUDE.md)
 
 ```
 <system-reminder>
@@ -275,7 +291,7 @@ IMPORTANT: These instructions OVERRIDE any default behavior — MUST follow exac
 {full CLAUDE.md text — absent in this capture}
 
 # currentDate
-Today's date is 2026-04-19.
+Today's date is 2026-04-22.
 </system-reminder>
 ```
 
@@ -288,11 +304,21 @@ Today's date is 2026-04-19.
 ## API parameters
 
 ```json
+// Opus
 {
   "max_tokens": 64000,
   "thinking": { "type": "adaptive" },
   "context_management": { "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] },
   "output_config": { "effort": "max" },
+  "stream": true
+}
+
+// Sonnet
+{
+  "max_tokens": 32000,
+  "thinking": { "type": "adaptive" },
+  "context_management": { "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] },
+  "output_config": { "effort": "high" },
   "stream": true
 }
 ```

@@ -1,6 +1,6 @@
 # Built-in Output Styles
 
-From `constants/outputStyles.ts` in Claude Code v2.1.79.
+From `constants/outputStyles.ts` in Claude Code v2.1.87.
 These are the three built-in output styles. Custom styles go in `~/.claude/output-styles/*.md`.
 
 ## default
@@ -36,15 +36,11 @@ See: [Learning.md](Learning.md)
 ## How output styles work
 
 The style's prompt text is injected as `# Output Style: <name>` inside the
-memory/environment system block (block 3), between `# Environment` and `gitStatus`.
+dynamic system block (block 3), between `# Environment` and `gitStatus`.
 
-The `keep-coding-instructions` flag controls whether `# Doing tasks` (~3.4K chars)
-is included in the behavioral rules block (block 2):
-
-| value | `# Doing tasks` |
-|---|---|
-| `true` | included |
-| `false` | removed |
-| omitted | removed (default) |
+As of v2.1.87, `# Doing tasks` is always included in system[2] regardless of
+the output style or `keep-coding-instructions` flag. The preamble changes from
+"helps users with software engineering tasks" to "helps users according to your
+'Output Style' below".
 
 See [what-the-model-gets.md](../what-the-model-gets.md) for the full block layout.

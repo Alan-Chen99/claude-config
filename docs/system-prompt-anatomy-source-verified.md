@@ -174,7 +174,7 @@ Standard mode returns a `string[]`:
   // --- Static (cacheable) ---
   getSimpleIntroSection()         // "You are an interactive agent that helps users..."
   getSimpleSystemSection()        // tool permissions, hooks, context compression
-  getSimpleDoingTasksSection()    // coding guidance (skipped if output style replaces it)
+  getSimpleDoingTasksSection()    // coding guidance (kept even when output style is set)
   getActionsSection()             // reversibility/blast-radius rules
   getUsingYourToolsSection()      // tool usage preferences, parallel calls
   getSimpleToneAndStyleSection()  // emoji, response format

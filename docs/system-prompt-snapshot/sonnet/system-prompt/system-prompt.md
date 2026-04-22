@@ -1,4 +1,4 @@
-x-anthropic-billing-header: cc_version=2.1.79.04b; cc_entrypoint=cli; cch=00000;
+x-anthropic-billing-header: cc_version=2.1.87.7b6; cc_entrypoint=cli; cch=00000;
 
 ---BLOCK_SEPARATOR---
 
@@ -14,6 +14,6 @@ Current branch: master
 Main branch (you will usually use this for PRs): main
 
 Status:
-(clean)
+?? .claude/
 
 Recent commits:

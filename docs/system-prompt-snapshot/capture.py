@@ -106,12 +106,11 @@ def get_log_dirs() -> set[str]:
     return {str(p) for p in HTTP_LOGS.iterdir() if p.is_dir()}
 
 
-def find_all_requests(new_dirs: list[Path]) -> list[tuple[Path, int]]:
+def find_all_requests(new_dirs: list[Path]) -> list[tuple[Path, int, bool]]:
     """Return deduplicated request.json files, preserving chronological order.
 
-    First entry is the parent agent (earliest API call). Subsequent entries
-    are subagents. Deduplicates by system prompt content hash so multiple
-    turns from the same agent collapse to one entry.
+    Each entry is (path, system_chars, has_tools). Deduplicates by system
+    prompt content hash so multiple turns from the same agent collapse to one.
     """
     results = []
     seen = set()
@@ -131,7 +130,8 @@ def find_all_requests(new_dirs: list[Path]) -> list[tuple[Path, int]]:
                 if h in seen:
                     continue
                 seen.add(h)
-                results.append((req_path, len(content)))
+                has_tools = len(req.get("tools", [])) > 0
+                results.append((req_path, len(content), has_tools))
             except (json.JSONDecodeError, OSError):
                 continue
     return results
@@ -297,22 +297,35 @@ def main() -> None:
         shutil.rmtree(OUT_DIR)
     OUT_DIR.mkdir(parents=True)
 
-    # Extract main prompt (largest system prompt)
-    main_summary = extract_request(all_reqs[0][0], OUT_DIR)
+    # Select main prompt: prefer requests that have tools defined (the main
+    # conversation call), falling back to largest system prompt. v2.1.87+ makes
+    # a title-generation Haiku call (~900 chars, no tools) before the main call.
+    # With --system-prompt the main call can be smaller than the title-gen call,
+    # so size alone is not sufficient — tools presence is the reliable signal.
+    main_idx = max(
+        range(len(all_reqs)),
+        key=lambda i: (all_reqs[i][2], all_reqs[i][1]),  # (has_tools, size)
+    )
+    main_summary = extract_request(all_reqs[main_idx][0], OUT_DIR)
     content = (OUT_DIR / "system.txt").read_text()
     print(content)
 
-    # Extract subagent prompts
+    # Extract subagent prompts (everything except the main prompt)
     subagent_summaries = []
-    if subagent and len(all_reqs) > 1:
-        sub_dir = OUT_DIR / "subagents"
-        sub_dir.mkdir()
-        for i, (req_path, _) in enumerate(all_reqs[1:], 1):
-            prefix = f"{i:03d}"
-            s = extract_request(req_path, sub_dir, file_prefix=f"{prefix}-")
-            subagent_summaries.append(s)
-            sub_content = (sub_dir / f"{prefix}-system.txt").read_text()
-            print(f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}")
+    other_reqs = [r for i, r in enumerate(all_reqs) if i != main_idx]
+    if subagent and other_reqs:
+        # Filter out preflight/title-gen calls: keep only requests with tools
+        # (subagents always have tools) or substantial system prompts (> 2K)
+        sub_reqs = [(p, sz) for p, sz, ht in other_reqs if ht or sz > 2000]
+        if sub_reqs:
+            sub_dir = OUT_DIR / "subagents"
+            sub_dir.mkdir()
+            for i, (req_path, _) in enumerate(sub_reqs, 1):
+                prefix = f"{i:03d}"
+                s = extract_request(req_path, sub_dir, file_prefix=f"{prefix}-")
+                subagent_summaries.append(s)
+                sub_content = (sub_dir / f"{prefix}-system.txt").read_text()
+                print(f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}")
     elif subagent:
         print(
             "WARNING: --subagent specified but no subagent calls captured.",

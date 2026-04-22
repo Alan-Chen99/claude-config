@@ -1,17 +1,17 @@
 {
   "model": "claude-sonnet-4-6",
   "system_blocks": 3,
-  "system_chars": 436,
+  "system_chars": 440,
   "tools_upfront": [
     "Agent",
     "Bash",
+    "Edit",
     "Glob",
     "Grep",
     "Read",
-    "Edit",
-    "Write",
     "Skill",
-    "ToolSearch"
+    "ToolSearch",
+    "Write"
   ],
   "tools_upfront_count": 9,
   "tools_deferred": [
@@ -24,6 +24,7 @@
     "ExitPlanMode",
     "ExitWorktree",
     "NotebookEdit",
+    "RemoteTrigger",
     "TaskCreate",
     "TaskGet",
     "TaskList",
@@ -33,8 +34,9 @@
     "WebFetch",
     "WebSearch"
   ],
-  "tools_deferred_count": 17,
-  "tools_total_chars": 32902,
+  "tools_deferred_count": 18,
+  "tools_total_chars": 31827,
   "has_output_style": false,
-  "has_doing_tasks": false
+  "has_doing_tasks": false,
+  "subagent_count": 0
 }
