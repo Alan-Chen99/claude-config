@@ -95,5 +95,6 @@
   "outputStyle": "alan-default-next",
   "effortLevel": "high",
   "showThinkingSummaries": true,
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "autoMemoryEnabled": false
 }
