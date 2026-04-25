@@ -6,7 +6,9 @@ This configuration is installed via symlinks:
 `~/.claude/skills` -> `./skills`
 `~/.claude/conventions` -> `./conventions`
 `~/.claude/hooks` -> `./hooks`
+`~/.claude/output-styles` -> `./output-styles`
 `~/.claude/settings.json` -> `./settings.json`
+`~/.claude/statusline.sh` -> `./statusline.sh`
 
 ---
 

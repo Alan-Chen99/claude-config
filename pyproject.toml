@@ -5,8 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+  "cappa>=0.31.0",
   #
   "pip>=26.0.1",
   "pydantic>=2.12.5",
   "pytest>=9.0.2",
 ]
+
+[tool.uv]
+python-preference = "only-managed"
