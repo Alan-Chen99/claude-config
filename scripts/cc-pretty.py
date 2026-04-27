@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/chenxy/repos/claude-config/.venv/bin/python3
 """Pretty-print a Claude Code JSONL session log to stdout.
 
 Usage: cc-pretty.py <session.jsonl> [--tool-max N] [--no-color] [--no-progress] [--no-thinking]
