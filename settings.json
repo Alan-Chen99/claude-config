@@ -76,7 +76,7 @@
     "playwright-skill@playwright-skill": true,
     "commit-commands@claude-plugins-official": true,
     "ralph-loop@claude-plugins-official": false,
-    "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": true
+    "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false
   },
   "extraKnownMarketplaces": {
     "playwright-skill": {
@@ -94,7 +94,8 @@
   },
   "outputStyle": "alan-default-next",
   "effortLevel": "high",
+  "showClearContextOnPlanAccept": true,
+  "autoMemoryEnabled": false,
   "showThinkingSummaries": true,
-  "skipDangerousModePermissionPrompt": true,
-  "autoMemoryEnabled": false
+  "skipDangerousModePermissionPrompt": true
 }
