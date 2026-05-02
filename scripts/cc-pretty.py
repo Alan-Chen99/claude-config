@@ -440,8 +440,9 @@ def _emit_agent_output(output: str, file_path: str) -> None:
 
     read_max_tokens = int(os.environ.get(
         'CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS', '25000'))
-    # 3 chars/token conservative; cap at 200K chars to stay under 256KB file size limit
-    chunk_chars = min(read_max_tokens * 3, 200_000)
+    # 2 chars/token: rendered logs contain JSON tool input which tokenizes densely.
+    # Also cap at 200K chars to stay under Read tool's 256KB file size limit.
+    chunk_chars = min(read_max_tokens * 2, 200_000)
 
     lines = output.split('\n')
     chunks: list[tuple[list[str], int]] = []  # (lines, start_lineno)
