@@ -1,8 +1,10 @@
 #!/home/chenxy/repos/claude-config/.venv/bin/python3
 """Pretty-print a Claude Code JSONL session log to stdout.
 
-Usage: cc-pretty.py <session.jsonl> [--tool-max N] [--no-color] [--no-thinking]
+Usage: cc-pretty.py <session.jsonl> [--tool-max N] [--truncate-input]
+                                    [--no-color] [--no-thinking]
                                     [--show-rewound] [--show-all]
+                                    [--agent]
 
 By default, rewound conversation branches are collapsed to a single marker,
 and records not presented to the model (hooks, progress, system metadata)
@@ -12,6 +14,8 @@ are hidden.
 from __future__ import annotations
 
 import argparse
+import io
+import os
 import sys
 
 from cc_pretty_parse import (
@@ -236,7 +240,13 @@ def main():
         "--tool-max",
         type=int,
         default=200,
-        help="Max chars for tool input/output (default: 200)",
+        help="Max chars for tool output (default: 200). "
+        "Tool input is shown in full unless --truncate-input is set.",
+    )
+    parser.add_argument(
+        "--truncate-input",
+        action="store_true",
+        help="Also truncate tool input to --tool-max chars (full by default)",
     )
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI colors")
     parser.add_argument(
@@ -261,6 +271,13 @@ def main():
         "(hooks, progress, system metadata)",
     )
     parser.add_argument(
+        "--agent",
+        action="store_true",
+        help="Agent-friendly output: if small enough, print directly; "
+        "otherwise write chunk files to /tmp and print paths for parallel reads. "
+        "Implies --no-color.",
+    )
+    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Parse all records through pydantic schema without rendering; "
@@ -268,7 +285,7 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.no_color:
+    if args.no_color or args.agent:
         C.disable()
 
     raw_records = read_jsonl(args.file)
@@ -280,7 +297,19 @@ def main():
         print(f"{ok}/{total} records parsed OK, {errors} errors", file=sys.stderr)
         sys.exit(1 if errors else 0)
 
-    r = Renderer(args.file, args.tool_max, show_thinking=not args.no_thinking)
+    tool_input_max = args.tool_max if args.truncate_input else sys.maxsize
+    r = Renderer(
+        args.file,
+        tool_output_max=args.tool_max,
+        tool_input_max=tool_input_max,
+        show_thinking=not args.no_thinking,
+    )
+
+    # In agent mode, capture stdout so we can split if needed
+    saved_stdout = None
+    if args.agent:
+        saved_stdout = sys.stdout
+        sys.stdout = io.StringIO()
 
     # ── Rewind detection ────────────────────────────────────────────────
     rewound = find_rewound_indices(records)
@@ -395,6 +424,58 @@ def main():
             i += 1
 
     print(separator())
+
+    if args.agent:
+        output = sys.stdout.getvalue()
+        sys.stdout = saved_stdout
+        _emit_agent_output(output, args.file)
+
+
+def _emit_agent_output(output: str, file_path: str) -> None:
+    """Print directly if output fits in Bash, otherwise write chunk files."""
+    bash_limit = int(os.environ.get('BASH_MAX_OUTPUT_LENGTH', '30000')) * 4 // 5
+    if len(output) <= bash_limit:
+        sys.stdout.write(output)
+        return
+
+    read_max_tokens = int(os.environ.get(
+        'CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS', '25000'))
+    # 3 chars/token conservative; cap at 200K chars to stay under 256KB file size limit
+    chunk_chars = min(read_max_tokens * 3, 200_000)
+
+    lines = output.split('\n')
+    chunks: list[tuple[list[str], int]] = []  # (lines, start_lineno)
+    current: list[str] = []
+    current_size = 0
+    chunk_start = 1
+
+    for lineno, line in enumerate(lines, 1):
+        line_len = len(line) + 1
+        if current_size + line_len > chunk_chars and current:
+            chunks.append((current, chunk_start))
+            current = []
+            current_size = 0
+            chunk_start = lineno
+        current.append(line)
+        current_size += line_len
+    if current:
+        chunks.append((current, chunk_start))
+
+    session_id = os.path.basename(file_path).replace('.jsonl', '')[:8]
+    infos: list[tuple[str, int, int, int]] = []
+    for i, (chunk_lines, start) in enumerate(chunks, 1):
+        path = f'/tmp/cc-pretty-{session_id}-{i}.txt'
+        content = '\n'.join(chunk_lines)
+        with open(path, 'w') as f:
+            f.write(content)
+        end = start + len(chunk_lines) - 1
+        infos.append((path, len(content), start, end))
+
+    n = len(infos)
+    print(f"Rendered {len(output):,} chars, {len(lines)} lines across {n} files.")
+    print(f"Read all {n} files in parallel:")
+    for path, chars, start, end in infos:
+        print(f"  {path} ({chars:,} chars, lines {start}-{end})")
 
 
 if __name__ == "__main__":

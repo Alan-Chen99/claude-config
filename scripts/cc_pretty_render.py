@@ -128,9 +128,11 @@ def fmt_usage(u: Usage) -> str:
 class Renderer:
     """Stateful renderer that tracks tool_use IDs to correlate results with names."""
 
-    def __init__(self, log_path: str, tool_max: int, show_thinking: bool = True):
+    def __init__(self, log_path: str, tool_output_max: int,
+                 tool_input_max: int, show_thinking: bool = True):
         self.log_path = log_path
-        self.tool_max = tool_max
+        self.tool_output_max = tool_output_max
+        self.tool_input_max = tool_input_max
         self.show_thinking = show_thinking
         self._tool_id_to_name: dict[str, str] = {}
 
@@ -154,8 +156,8 @@ class Renderer:
 
         id_suffix = f"  {C.DIM}({block.id}){C.RESET}" if block.id else ""
         lines = [f"{C.TOOL}  ▶ {block.name}{C.RESET}{id_suffix}"]
-        lines.append(ind(trunc(inp_str, self.tool_max), "    "))
-        if is_truncated(inp_str, self.tool_max):
+        lines.append(ind(trunc(inp_str, self.tool_input_max), "    "))
+        if is_truncated(inp_str, self.tool_input_max):
             lines.append(jq_hint(self.log_path, lineno, f".message.content[{block_idx}].input"))
         return "\n".join(lines)
 
@@ -175,18 +177,18 @@ class Renderer:
             for sub in content:
                 if sub.get("type") == "text":
                     t = sub.get("text", "")
-                    parts.append(trunc(t, self.tool_max))
-                    if is_truncated(t, self.tool_max):
+                    parts.append(trunc(t, self.tool_output_max))
+                    if is_truncated(t, self.tool_output_max):
                         any_truncated = True
                 else:
                     s = str(sub)
-                    parts.append(trunc(s, self.tool_max))
-                    if is_truncated(s, self.tool_max):
+                    parts.append(trunc(s, self.tool_output_max))
+                    if is_truncated(s, self.tool_output_max):
                         any_truncated = True
             body = "\n".join(parts)
         else:
-            body = trunc(content, self.tool_max)
-            any_truncated = is_truncated(content, self.tool_max)
+            body = trunc(content, self.tool_output_max)
+            any_truncated = is_truncated(content, self.tool_output_max)
 
         jq_path = f".message.content[{block_idx}].content"
         lines = [f"{label_color}  {label}{C.RESET}", ind(body, "    ")]
@@ -202,8 +204,8 @@ class Renderer:
         return "\n".join(lines)
 
     def _render_context_text(self, text: str, lineno: int, block_idx: int) -> str:
-        lines = [f"{C.RESULT}  ◀ context{C.RESET}", ind(trunc(text, self.tool_max), "    ")]
-        if is_truncated(text, self.tool_max):
+        lines = [f"{C.RESULT}  ◀ context{C.RESET}", ind(trunc(text, self.tool_output_max), "    ")]
+        if is_truncated(text, self.tool_output_max):
             lines.append(jq_hint(self.log_path, lineno, f".message.content[{block_idx}].text"))
         return "\n".join(lines)
 

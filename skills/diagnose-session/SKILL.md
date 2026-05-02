@@ -16,29 +16,21 @@ agent may have missed in its self-reporting (Required notes).
 
 ## Workflow
 
-### Step 1: Render the log
+### Step 1: Render and read the log
 
-Locate cc-pretty.py (ships with claude-config, sibling to skills/):
+Run cc-pretty.py in agent mode:
 
 ```bash
 CC_PRETTY="$(dirname "$(readlink -f ~/.claude/skills)")/scripts/cc-pretty.py"
+PYTHONPATH="$(dirname "$CC_PRETTY")" python3 "$CC_PRETTY" <FILE> --agent 2>/dev/null
 ```
 
-Render the conversation to a temporary file:
+If the session is small, the rendered log appears directly in the Bash output.
+If large, the script writes chunk files to `/tmp` and prints their paths —
+read all listed files in parallel using the Read tool.
 
-```bash
-SESSION_ID="$(basename "<FILE>" .jsonl)"
-PYTHONPATH="$(dirname "$CC_PRETTY")" python3 "$CC_PRETTY" <FILE> --tool-max 500 --no-progress --no-color 2>/dev/null > "/tmp/diagnose-session-${SESSION_ID}.txt"
-```
-
-Thinking blocks are rendered with `╭─ thinking ─` markers. These are a critical
-data source — many important findings (contradictions, under-investigation,
-suspicious reasoning) appear ONLY in thinking blocks.
-
-If the output is too large (>4000 lines), re-run with `--tool-max 200`.
-
-Read the rendered output using the Read tool. If it exceeds context, read in
-chunks using offset/limit.
+Thinking blocks (`╭─ thinking ─` markers) and full tool input are always shown
+(critical for diagnosis — many findings appear only in thinking blocks).
 
 ### Step 2: Scan for findings
 
