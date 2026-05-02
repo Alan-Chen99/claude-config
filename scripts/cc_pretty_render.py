@@ -49,6 +49,7 @@ class C:
     HINT = "\033[90m"         # gray (for jq hints)
     PROGRESS = "\033[90m"     # gray
     QUEUE = "\033[90;3m"      # gray italic
+    REWIND = "\033[1;35m"     # bold magenta
 
     @classmethod
     def disable(cls):
@@ -350,3 +351,15 @@ class Renderer:
         if header_parts:
             return f"{C.DIM}{'  '.join(header_parts)}{C.RESET}"
         return None
+
+    def render_rewind_marker(
+        self, count: int, first_ts: str, last_ts: str,
+        n_user: int, n_assistant: int, hidden: bool,
+    ) -> str:
+        time_range = f"{first_ts}\u2013{last_ts}" if first_ts != last_ts else first_ts
+        turns = f"{n_user} user, {n_assistant} assistant"
+        status = f"{count} records hidden" if hidden else f"{count} records shown above"
+        return (
+            f"{C.REWIND}{'─' * 30} ⟲ rewind {'─' * 30}{C.RESET}\n"
+            f"{C.DIM}  {turns}  {time_range}  ({status}){C.RESET}"
+        )

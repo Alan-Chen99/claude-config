@@ -177,6 +177,7 @@ class AssistantRecord(_Base):
     uuid: str = ""
     timestamp: str = ""
     sessionId: str = ""
+    parentUuid: str | None = None
     message: Message = Field(default_factory=Message)
     # Session metadata
     version: str = ""
@@ -189,6 +190,7 @@ class UserRecord(_Base):
     uuid: str = ""
     timestamp: str = ""
     sessionId: str = ""
+    parentUuid: str | None = None
     message: Message = Field(default_factory=Message)
     toolUseResult: Any = None  # str | dict | None — parsed separately
     sourceToolAssistantUUID: str = ""
@@ -206,6 +208,7 @@ class SystemRecord(_Base):
     uuid: str = ""
     timestamp: str = ""
     sessionId: str = ""
+    parentUuid: str | None = None
     subtype: str = ""
     # turn_duration
     durationMs: int = 0
