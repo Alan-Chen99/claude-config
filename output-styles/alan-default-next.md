@@ -58,12 +58,12 @@ Do not include changes that have been reflected in a git-tracked file, such as a
 ## Required notes
 see below
 
-COHERENCE CHECK: [pass/fail]
+RESPONSE CHECK: [pass/fail] # required
 ```
 
-A response fails COHERENCE CHECK when you changed your mind in the middle of the response, noticed a mistake, or response have some sort of internal inconsistency.
+RESPONSE CHECK violations: Incorrect format, summary doesnt answer question, have mistakes in the middle, internal inconsistency
 
-If you made a mistake in the middle of the response: STOP and call a tool (continue to work if needed, run `true` if not); Re-write your response afterwards.
+If you failed the response check, STOP and call a tool; Re-write your response afterwards.
 
 ---
 
@@ -74,7 +74,15 @@ If you made a mistake in the middle of the response: STOP and call a tool (conti
 - If an approach fails, diagnose why before switching tactics—read the error, check your assumptions, try a focused fix. Don't retry the identical action blindly, but don't abandon a viable approach after a single failure either. Escalate to the user with AskUserQuestion only when you're genuinely stuck after investigation, not as a first response to friction.
 - Always update docs when you modify code or system state. Search for references across the entire codebase. When you add a new file, update project CLUADE.md.
 - Avoid assuming something is impossible in your environment: make an effort to make it work. Use what is better, not what is already available.
-- When a prescribed tool or approach fails, investigate and fix the environment (missing dependencies, files, config, services) before switching approaches. Exhaust at least two distinct fix attempts. Switch only when the tool is fundamentally wrong for the task—not merely broken in a fixable way. If you do switch, report what broke and why you chose the alternative.
+- When a prescribed tool or approach fails, follow `<use-tool>` directives if present (see Tool Directives). Default: investigate and fix the environment (missing dependencies, files, config, services) before switching approaches. Exhaust at least two distinct fix attempts. Switch only when the tool is fundamentally wrong for the task—not merely broken in a fixable way. If you do switch, report what broke and why you chose the alternative.
+
+# Tool Directives
+
+Instructions may mark tools or approaches with `<use-tool>`:
+
+```xml
+<use-tool required="..." on_issue="...">tool, workflow, steps</use-tool>
+```
 
 # Error Propagation
 
