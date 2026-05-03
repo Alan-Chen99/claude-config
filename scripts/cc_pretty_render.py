@@ -74,6 +74,34 @@ def is_truncated(s: str, maxlen: int) -> bool:
     return len(s) > maxlen
 
 
+def fmt_tool_input(inp: dict) -> str:
+    """Format tool input dict as readable key-value pairs with raw strings.
+
+    json.dumps quotes strings and escapes \\n, \\t, \\" — unreadable for code.
+    This renders string values as raw text, multi-line strings as indented blocks.
+    """
+    if not isinstance(inp, dict):
+        return json.dumps(inp, indent=2) if not isinstance(inp, str) else inp
+    lines: list[str] = []
+    for key, val in inp.items():
+        if isinstance(val, str):
+            if "\n" in val or len(val) > 120:
+                lines.append(f"{key}:")
+                lines.extend(f"  {line}" for line in val.splitlines())
+            else:
+                lines.append(f"{key}: {val}")
+        elif isinstance(val, bool):
+            lines.append(f"{key}: {str(val).lower()}")
+        elif val is None:
+            lines.append(f"{key}: null")
+        elif isinstance(val, (int, float)):
+            lines.append(f"{key}: {val}")
+        else:
+            # lists, nested dicts — fall back to compact JSON
+            lines.append(f"{key}: {json.dumps(val)}")
+    return "\n".join(lines)
+
+
 def fmt_ts(ts_str: str) -> str:
     try:
         dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
@@ -149,7 +177,7 @@ class Renderer:
 
     def _render_tool_use(self, block: ToolUseBlock, lineno: int, block_idx: int) -> str:
         inp = block.input
-        inp_str = json.dumps(inp, indent=2) if isinstance(inp, dict) else str(inp)
+        inp_str = fmt_tool_input(inp) if isinstance(inp, dict) else str(inp)
 
         if block.id:
             self._tool_id_to_name[block.id] = block.name
