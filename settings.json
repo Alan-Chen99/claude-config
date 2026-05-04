@@ -97,5 +97,6 @@
   "showClearContextOnPlanAccept": true,
   "autoMemoryEnabled": false,
   "showThinkingSummaries": true,
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "cleanupPeriodDays": 36500
 }
