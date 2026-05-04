@@ -48,6 +48,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `cc-history/`         | Claude Code conversation history analysis | Querying past conversations, token usage |
 | `diagnose-session/`   | Post-hoc conversation log analysis        | Surfacing unreported items from session logs |
 | `diagnose-workflow/`  | Structural sub-agent workflow extraction   | Diagnosing multi-agent workflow success/failure |
+| `long-bash/`          | Long-running bash command protocol         | Running commands that may exceed 2min timeout   |
 
 ## Script Invocation
 
