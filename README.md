@@ -1,14 +1,13 @@
 # claude-config (repo root)
 
-This configuration is installed via symlinks:
+Clone this repo somewhere, then run the installer to create symlinks into `~/.claude/`:
 
-`~/.claude/agents` -> `./agents`
-`~/.claude/skills` -> `./skills`
-`~/.claude/conventions` -> `./conventions`
-`~/.claude/hooks` -> `./hooks`
-`~/.claude/output-styles` -> `./output-styles`
-`~/.claude/settings.json` -> `./settings.json`
-`~/.claude/statusline.sh` -> `./statusline.sh`
+```bash
+git clone https://github.com/<you>/claude-config ~/claude-config
+~/claude-config/hooks/install.sh
+```
+
+This creates directory-level symlinks (`~/.claude/hooks -> ~/claude-config/hooks`, etc.) for: `agents`, `conventions`, `hooks`, `output-styles`, `skills`, `settings.json`, `statusline.sh`.
 
 ---
 

@@ -10,6 +10,9 @@
 # Secrets
 hooks/.env
 
+# Hook runtime artifacts
+hooks/ntfy_hook.log
+
 #####
 
 /.claude/worktrees

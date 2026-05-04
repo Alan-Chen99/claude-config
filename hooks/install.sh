@@ -2,16 +2,40 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-HOOK_SRC="${REPO_DIR}/hooks/ntfy_hook.py"
-HOOK_DST="${HOME}/.claude/hooks/ntfy_hook.py"
+CLAUDE_DIR="${HOME}/.claude"
 
-mkdir -p "$(dirname "$HOOK_DST")"
+# Directories to symlink
+DIRS=(agents conventions hooks output-styles skills)
 
-if [ -f "$HOOK_DST" ] && [ ! -L "$HOOK_DST" ]; then
-    echo "error: $HOOK_DST exists as a regular file (not a symlink)"
-    echo "remove it manually if you want to proceed"
-    exit 1
-fi
+# Files to symlink
+FILES=(settings.json statusline.sh)
 
-ln -sf "$HOOK_SRC" "$HOOK_DST"
-echo "linked: $HOOK_DST -> $HOOK_SRC"
+mkdir -p "$CLAUDE_DIR"
+
+for dir in "${DIRS[@]}"; do
+    src="${REPO_DIR}/${dir}"
+    dst="${CLAUDE_DIR}/${dir}"
+    [ ! -d "$src" ] && continue
+
+    if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+        echo "error: $dst exists and is not a symlink -- remove it manually"
+        exit 1
+    fi
+
+    ln -sfn "$src" "$dst"
+    echo "linked: $dst -> $src"
+done
+
+for file in "${FILES[@]}"; do
+    src="${REPO_DIR}/${file}"
+    dst="${CLAUDE_DIR}/${file}"
+    [ ! -f "$src" ] && continue
+
+    if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+        echo "error: $dst exists and is not a symlink -- remove it manually"
+        exit 1
+    fi
+
+    ln -sf "$src" "$dst"
+    echo "linked: $dst -> $src"
+done
