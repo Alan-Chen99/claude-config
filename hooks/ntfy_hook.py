@@ -461,12 +461,12 @@ def is_mid_turn_stop(transcript_path: str) -> bool:
     if not isinstance(content, list):
         return False
 
-    has_tool_use = any(
-        isinstance(b, dict) and b.get("type") == "tool_use"
+    has_agent_tool = any(
+        isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "Agent"
         for b in content
     )
-    if not has_tool_use:
-        return False  # Agent finished with text, this is the main stop
+    if not has_agent_tool:
+        return False  # No Agent dispatch → not a mid-turn subagent stop
 
     # Tool_use exists — check if tool_results came back but agent hasn't
     # produced a new response yet (mid-turn subagent completion).
@@ -647,7 +647,6 @@ def do_stop(args: argparse.Namespace) -> None:
     hook_input = read_hook_input()
     session_id = hook_input.get("session_id", "unknown")
     kill_pending(session_id)
-    donefile_path(session_id).touch()
 
     transcript_path = hook_input.get("transcript_path", "")
 
@@ -661,6 +660,10 @@ def do_stop(args: argparse.Namespace) -> None:
     if is_mid_turn_stop(transcript_path):
         log.debug("suppressed stop notification: mid-turn subagent stop (session %s)", session_id)
         return
+
+    # Create donefile only after confirming this is a real stop,
+    # so mid-turn suppression doesn't block subsequent idle notifications.
+    donefile_path(session_id).touch()
 
     topic_url = get_topic_url()
     if not topic_url:
