@@ -13,4 +13,4 @@ export NODE_OPTIONS='--require /home/chenxy/repos/claude-config/docs/system-prom
 
 unset DISPLAY
 
-ralph -c /workspace/ralph/build.yml
+ralph --no-auto-commit -c /workspace/ralph/build.yml
