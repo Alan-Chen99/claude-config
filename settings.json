@@ -92,7 +92,7 @@
       }
     }
   },
-  "outputStyle": "alan-default",
+  "outputStyle": "alan-default-next",
   "effortLevel": "high",
   "showClearContextOnPlanAccept": true,
   "autoMemoryEnabled": false,
