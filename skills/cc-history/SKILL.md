@@ -14,7 +14,8 @@ Reference documentation for querying and analyzing Claude Code's conversation hi
   |-- {session-uuid}.jsonl          # Main conversation
   |-- {session-uuid}/
       |-- subagents/
-      |   |-- agent-{hash}.jsonl    # Subagent conversations
+      |   |-- agent-{agentId}.jsonl      # Subagent conversations
+      |   |-- agent-{agentId}.meta.json  # {"agentType":"Explore","description":"..."}
       |-- tool-results/             # Large tool outputs
 ```
 
@@ -39,16 +40,33 @@ Examples:
 
 ## Message Types
 
-| Type              | Description                                   |
-| ----------------- | --------------------------------------------- |
-| `user`            | User input messages                           |
-| `assistant`       | Model responses (thinking, tool_use, text)    |
-| `system`          | System messages                               |
-| `queue-operation` | Background task notifications (subagent done) |
+Transcript entries (each JSONL line):
+
+| Type                        | Description                                             |
+| --------------------------- | ------------------------------------------------------- |
+| `user`                      | User input or tool_result (1 content block per entry)   |
+| `assistant`                 | Model response (1 content block per entry, normalized)  |
+| `system`                    | System messages                                         |
+| `queue-operation`           | Background task notifications OR user message queue ops |
+| `file-history-snapshot`     | File state snapshot (no `timestamp` field)              |
+| `summary`                   | Conversation summary (for resume)                       |
+| `task-summary`              | Periodic agent status (has `timestamp`, `summary`)      |
+| `custom-title`              | User-set session title                                  |
+| `ai-title`                  | AI-generated session title                              |
+| `last-prompt`               | Last user prompt (for resume picker)                    |
+| `tag`                       | Session tag (searchable in /resume)                     |
+| `pr-link`                   | GitHub PR linked to session                             |
+| `agent-name` / `agent-color` / `agent-setting` | Subagent display metadata               |
+| `mode`                      | Session mode (`coordinator` or `normal`)                |
+| `worktree-state`            | Worktree enter/exit state                               |
+| `content-replacement`       | Large content block replacement records                 |
+| `marble-origami-commit`     | Context collapse commit                                 |
+| `marble-origami-snapshot`   | Context collapse staged state                           |
+| `speculation-accept`        | Speculation accepted (has `timeSavedMs`)                 |
 
 ## Message Structure
 
-Each line in a JSONL file is a message object:
+Each line in a JSONL file is a message object. Messages are stored **already normalized**: each entry has exactly 1 content block, even when the API returned multiple blocks in a single response. See "Parallel Tool Calls" below for how to reassemble.
 
 ```json
 {
@@ -57,9 +75,13 @@ Each line in a JSONL file is a message object:
   "parentUuid": "xyz789",
   "timestamp": "2025-01-15T19:39:16.000Z",
   "sessionId": "session-uuid",
+  "isSidechain": false,
+  "agentId": null,
+  "requestId": "req_...",
   "message": {
+    "id": "msg_01K...",
     "role": "assistant",
-    "content": [...],
+    "content": [{ "type": "tool_use", "name": "Bash", "input": {...}, "id": "toolu_..." }],
     "usage": {
       "input_tokens": 20000,
       "output_tokens": 500,
@@ -70,11 +92,23 @@ Each line in a JSONL file is a message object:
 }
 ```
 
-Assistant message content blocks:
+Key fields:
+- `message.id` — API response message ID. **Shared** across all entries from the same API response (critical for parallel detection)
+- `uuid` — unique per JSONL entry (derived via `deriveUUID(baseUuid, index)` for split messages)
+- `parentUuid` — links to previous entry in chain
+- `isSidechain` — `true` for subagent entries
+- `agentId` — subagent identifier (present on sidechain entries)
 
-- `type: "thinking"` - Model thinking (has `thinking` field)
-- `type: "tool_use"` - Tool invocation (has `name`, `input` fields)
-- `type: "text"` - Text response (has `text` field)
+Assistant message content block types (exactly 1 per entry):
+
+- `type: "thinking"` — model thinking (has `thinking` field)
+- `type: "tool_use"` — tool invocation (has `name`, `input`, `id` fields)
+- `type: "text"` — text response (has `text` field)
+
+User message content (exactly 1 per entry):
+
+- String — actual user input
+- `type: "tool_result"` — tool result (has `tool_use_id`, `content` fields)
 
 ## Common Queries
 
@@ -165,14 +199,18 @@ jq -s '[.[] | select(.type=="assistant") | .message.content[]? | select(.type=="
 ### Subagent Analysis
 
 ```bash
-# List subagents for a session
-ls "${SESSION_DIR}/subagents/"
+# List subagents with metadata
+for f in "${SESSION_DIR}/subagents/"*.meta.json; do
+  echo "$(basename "$f" .meta.json): $(cat "$f")"
+done
 
 # Get subagent task description (first user message)
-jq -c 'select(.type=="user") | .message.content' agent-*.jsonl | head -1
+jq -c 'select(.type=="user") | .message.content' "${SESSION_DIR}/subagents/"agent-*.jsonl | head -1
 
-# Find Task tool calls in parent (these spawn subagents)
-jq -c 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use" and .name=="Task") | .input' file.jsonl
+# Find Agent tool calls in parent (these spawn subagents)
+jq -c 'select(.type=="assistant" and .message.content[0].type=="tool_use" and
+  .message.content[0].name=="Agent") | .message.content[0].input |
+  {description, subagent_type}' file.jsonl
 ```
 
 ## Conversation Branching
@@ -263,10 +301,194 @@ TARGET="uuid-from-step-2"
 extract_branch "$TARGET" "$FILE" | jq 'select(.type=="user") | .message.content'
 ```
 
+## Timing and Concurrency
+
+Source: `claude-code-src/` — types in `src/types/logs.ts`, bash tool in `src/tools/BashTool/BashTool.tsx`, shell command in `src/utils/ShellCommand.ts`, agent tool in `src/tools/AgentTool/runAgent.ts`, message normalization in `src/utils/messages.ts`.
+
+### Timestamps
+
+Most transcript entries have a `timestamp` field (ISO 8601 string, e.g. `"2025-01-15T19:39:16.000Z"`). Set at write time via `new Date().toISOString()`.
+
+Present on: `user`, `assistant`, `system`, `queue-operation`, `task-summary`, `pr-link`, `speculation-accept`.
+
+**Not present on**: `file-history-snapshot` (use surrounding message timestamps as approximation).
+
+Additional timing fields outside the JSONL transcript:
+- SDK result messages include `duration_ms` and `duration_api_ms` (total turn duration)
+- `task-summary` entries include a separate `timestamp` for periodic agent status snapshots
+
+Timestamps include milliseconds (e.g. `2026-05-05T18:39:20.417Z`). jq's `fromdateiso8601` requires integer-second format, so strip milliseconds first.
+
+```bash
+# Helper: strip milliseconds for fromdateiso8601
+# .ts | split(".")[0] + "Z" | fromdateiso8601
+
+# Wall-clock duration between consecutive messages (gaps > 10s)
+jq -s '[.[] | select(.timestamp) | {type, ts: .timestamp}] as $msgs |
+  [range(1; $msgs | length) | {
+    from: $msgs[.-1].type, to: $msgs[.].type,
+    gap_s: ((($msgs[.].ts | split(".")[0] + "Z") | fromdateiso8601) -
+            (($msgs[.-1].ts | split(".")[0] + "Z") | fromdateiso8601))
+  }] | .[] | select(.gap_s > 10)' file.jsonl
+```
+
+### Parallel Tool Calls
+
+Messages are stored **already normalized** — each JSONL entry has exactly 1 content block. When the model makes N tool calls in a single API response, the JSONL contains N separate assistant entries, each with 1 `tool_use` block. Similarly, each tool result is a separate user entry with 1 `tool_result` block.
+
+**Detection**: entries from the same API response share `message.id`. Group `tool_use` entries by `message.id` — groups with 2+ entries are parallel.
+
+```bash
+# Find parallel tool calls: group tool_use entries by message.id
+jq -s '[.[] | select(.type=="assistant" and .message.content[0].type=="tool_use") |
+  {mid: .message.id, tool: .message.content[0].name, uuid: .uuid[:8]}] |
+  group_by(.mid) | map(select(length > 1)) | .[] |
+  {msg_id: .[0].mid, count: length, tools: [.[].tool]}' file.jsonl
+
+# Count how many turns used parallel tool calls
+jq -s '[.[] | select(.type=="assistant" and .message.content[0].type=="tool_use") |
+  .message.id] | group_by(.) | map(select(length > 1)) | length' file.jsonl
+```
+
+The `thinking` block preceding parallel tool calls shares the same `message.id`:
+
+```bash
+# Show full API response reconstruction (thinking + tool calls)
+jq -s '[.[] | select(.type=="assistant") |
+  {mid: .message.id, type: .message.content[0].type,
+   name: .message.content[0].name?, uuid: .uuid[:8]}] |
+  group_by(.mid) | map(select(length > 1))' file.jsonl | head -30
+```
+
+### Parallel Subagents
+
+Subagent conversations are stored in `{session}/subagents/agent-{agentId}.jsonl` with a companion `.meta.json` file containing `{"agentType":"Explore","description":"..."}`. Each JSONL entry has `isSidechain: true` and `agentId` field.
+
+Subagents that run **in the foreground** (sync) block the parent — the tool_result contains the full agent output.
+
+Subagents that run **in the background** (async via `run_in_background: true`) return immediately. When completed, a `queue-operation` (operation: `enqueue`) with `<task-notification>` content is appended to the parent transcript.
+
+Detection: parallel subagents share the same `message.id` on their `Agent` tool_use entries (same as parallel tool calls). Background agents have `run_in_background: true` in the tool input.
+
+```bash
+# Find Agent tool calls and their metadata
+jq -c 'select(.type=="assistant" and .message.content[0].type=="tool_use" and
+  .message.content[0].name=="Agent") |
+  {id: .message.content[0].id, desc: .message.content[0].input.description,
+   bg: .message.content[0].input.run_in_background, mid: .message.id}' file.jsonl
+
+# Detect parallel agents: group Agent tool_use by message.id
+jq -s '[.[] | select(.type=="assistant" and .message.content[0].type=="tool_use" and
+  .message.content[0].name=="Agent") |
+  {mid: .message.id, desc: .message.content[0].input.description}] |
+  group_by(.mid) | map(select(length > 1)) | .[] |
+  {parallel: length, descs: [.[].desc]}' file.jsonl
+
+# List all subagent files with metadata
+for f in "${SESSION_DIR}/subagents/"agent-*.meta.json; do
+  echo "$(basename "$f" .meta.json): $(cat "$f")"
+done
+
+# Find queue-operation task notifications (background completions)
+jq -c 'select(.type=="queue-operation" and .operation=="enqueue" and
+  (.content // "" | test("<task-notification>"))) |
+  {ts: .timestamp, content: .content[:200]}' file.jsonl
+```
+
+### Background Commands
+
+When `run_in_background: true` is set on a Bash tool call, the command starts and the tool returns immediately. The tool result `content` string contains:
+
+```
+Command running in background with ID: {backgroundTaskId}. Output is being written to: {outputPath}
+```
+
+The Bash output schema (`src/tools/BashTool/BashTool.tsx:285-287`) includes:
+- `backgroundTaskId` (string) — always present when backgrounded
+- `backgroundedByUser` (boolean) — true if user pressed Ctrl+B
+- `assistantAutoBackgrounded` (boolean) — true if assistant-mode budget exceeded
+
+These fields appear in the raw tool output data. In the JSONL transcript, the tool_result `content` string contains the human-readable message with the background ID.
+
+```bash
+# Find all backgrounded Bash commands
+jq -c 'select(.type=="user") | .message.content[]? |
+  select(.type=="tool_result" and (.content | test("background")))' file.jsonl
+
+# Extract background task IDs
+jq -r 'select(.type=="user") | .message.content[]? |
+  select(.type=="tool_result") | .content |
+  capture("background.*ID: (?<id>[^ .]+)") | .id' file.jsonl
+```
+
+### Auto-Background After Timeout
+
+Two distinct auto-background mechanisms exist:
+
+1. **Tool timeout auto-background** (`ShellCommand.ts:135-141`): When the Bash tool's `timeout` parameter expires, if `shouldAutoBackground` is true, the command is backgrounded instead of killed. The `onTimeout` callback calls `shellCommand.background(taskId)`. The tool result content string says:
+   ```
+   Command running in background with ID: {id}. Output is being written to: {path}
+   ```
+   This is **indistinguishable** from an explicit `run_in_background: true` in the tool_result content — both produce the same message format.
+
+2. **Assistant-mode blocking budget** (`BashTool.tsx:973-983`): In assistant mode (feature `KAIROS`), a 15-second timer auto-backgrounds any main-thread blocking command. The tool result content says:
+   ```
+   Command exceeded the assistant-mode blocking budget (15s) and was moved to the background with ID: {id}. ...
+   ```
+   This message is unique and detectable.
+
+Detection strategy:
+
+```bash
+# Find assistant-mode auto-backgrounded commands (unique message)
+jq -c 'select(.type=="user") | .message.content[]? |
+  select(.type=="tool_result" and (.content | test("assistant-mode blocking budget")))' file.jsonl
+
+# Find timeout-triggered or explicit backgrounds (same message format)
+# Distinguish by checking if the preceding tool_use had run_in_background: true
+# If run_in_background was NOT set, it was a timeout auto-background
+jq -c 'select(.type=="assistant") | .message.content[]? |
+  select(.type=="tool_use" and .name=="Bash" and
+    (.input.run_in_background != true) and
+    (.input.timeout != null))' file.jsonl
+
+# Cross-reference: find Bash calls where result was backgrounded but input had no run_in_background
+# Step 1: get tool_use IDs without run_in_background
+jq -r 'select(.type=="assistant") | .message.content[]? |
+  select(.type=="tool_use" and .name=="Bash" and (.input.run_in_background != true)) |
+  .id' file.jsonl > /tmp/foreground_ids.txt
+# Step 2: find tool_results for those IDs that mention "background"
+jq -c --slurpfile ids <(jq -R . /tmp/foreground_ids.txt) '
+  select(.type=="user") | .message.content[]? |
+  select(.type=="tool_result" and
+    (.tool_use_id as $id | $ids | any(. == $id)) and
+    (.content | test("background")))' file.jsonl
+```
+
+Key distinction: `run_in_background: true` in the tool input means the model requested it. Absence of `run_in_background` + backgrounded result = timeout or assistant-mode auto-background. The "assistant-mode blocking budget" substring in the result uniquely identifies the KAIROS auto-background; all other auto-backgrounds are timeout-triggered.
+
+### Queue Operations
+
+`queue-operation` entries serve two purposes:
+
+1. **Background task notifications**: `operation: "enqueue"` with `<task-notification>` XML in `content`. Contains `<task-id>`, `<tool-use-id>`, `<output-file>`, `<status>` (completed/failed), `<summary>`. Followed by `operation: "dequeue"` when consumed.
+2. **User message queue**: `operation: "enqueue"` with plain text `content` (user typed while agent was busy). `operation: "remove"` or `"popAll"` when cleared.
+
+```bash
+# Separate task notifications from user message queue
+jq -c 'select(.type=="queue-operation" and .operation=="enqueue") |
+  if (.content // "" | test("<task-notification>"))
+  then {kind: "task", ts: .timestamp,
+    status: (.content | capture("<status>(?<s>[^<]+)") | .s),
+    summary: (.content | capture("<summary>(?<s>[^<]+)") | .s)}
+  else {kind: "user-msg", ts: .timestamp, preview: (.content // "")[:80]}
+  end' file.jsonl
+```
+
 ## Correlation
 
-Subagent files (`agent-{hash}.jsonl`) don't link directly to parent Task calls. To correlate:
+Subagent files (`agent-{agentId}.jsonl`) correlate to parent via:
 
-1. List all subagent files under `{session}/subagents/`
-2. Read first user message of each for task description
-3. Match description to Task tool_use blocks in parent conversation
+1. `.meta.json` file: contains `agentType` and `description`
+2. Match `description` to Agent `tool_use` blocks in parent by `input.description`
+3. `tool_use_id` in `<task-notification>` links to the Agent tool_use `id` for background agents
