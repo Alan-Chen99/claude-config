@@ -55,6 +55,108 @@ def is_model_visible(rec: Record) -> bool:
     return False
 
 
+# ─── Compaction detection ──────────────────────────────────────────────────────
+
+
+def find_compaction_boundaries(
+    records: list[tuple[Record, int]],
+) -> list[dict]:
+    """Find indices where context compaction broke the parentUuid chain.
+
+    A compaction boundary is where a chain record's parentUuid points to a UUID
+    not stored in the JSONL (the synthetic summary message).  Returns a list of
+    boundary dicts with section metadata.
+    """
+    uuid_set: set[str] = set()
+    chain_records: list[tuple[int, Record]] = []
+
+    for i, (rec, _) in enumerate(records):
+        if not _is_chain_record(rec):
+            continue
+        uid = getattr(rec, "uuid", "") or ""
+        if uid:
+            uuid_set.add(uid)
+        chain_records.append((i, rec))
+
+    if not chain_records:
+        return []
+
+    # Find breaks: chain record whose parentUuid is not in uuid_set
+    # (and parent is not None/empty — those are just chain roots)
+    boundaries: list[int] = []
+    for i, rec in chain_records:
+        parent = getattr(rec, "parentUuid", None)
+        if parent and parent not in uuid_set:
+            boundaries.append(i)
+
+    if not boundaries:
+        return []
+
+    # Build section info: each section runs from a boundary (or start) to the
+    # next boundary (or end).  Extract token counts from first assistant usage.
+    section_starts = [0] + boundaries
+    section_ends = boundaries + [len(records)]
+
+    results: list[dict] = []
+    for bi, boundary_idx in enumerate(boundaries):
+        prev_start = section_starts[bi]
+        prev_end = boundary_idx
+
+        # Summarize the section that was compacted away
+        prev_records = [records[j][0] for j in range(prev_start, prev_end)]
+        first_ts = ""
+        last_ts = ""
+        for rec in prev_records:
+            ts = getattr(rec, "timestamp", "")
+            if ts and not first_ts:
+                first_ts = ts
+            if ts:
+                last_ts = ts
+
+        n_assistant = sum(1 for r in prev_records if isinstance(r, AssistantRecord))
+        n_user_input = sum(
+            1 for r in prev_records
+            if isinstance(r, UserRecord) and is_user_input(r)
+        )
+
+        # Token count: last assistant usage in the compacted section
+        last_tokens = 0
+        for r in reversed(prev_records):
+            if isinstance(r, AssistantRecord) and r.message.usage:
+                u = r.message.usage
+                last_tokens = (
+                    u.input_tokens + u.cache_read_input_tokens
+                    + u.cache_creation_input_tokens
+                )
+                break
+
+        # Token count: first assistant usage in the NEW section (after compact)
+        new_tokens = 0
+        for j in range(boundary_idx, min(boundary_idx + 10, len(records))):
+            rec = records[j][0]
+            if isinstance(rec, AssistantRecord) and rec.message.usage:
+                u = rec.message.usage
+                new_tokens = (
+                    u.input_tokens + u.cache_read_input_tokens
+                    + u.cache_creation_input_tokens
+                )
+                break
+
+        results.append({
+            "idx": boundary_idx,
+            "section_num": bi + 1,
+            "prev_records": prev_end - prev_start,
+            "prev_first_ts": fmt_ts(first_ts),
+            "prev_last_ts": fmt_ts(last_ts),
+            "prev_n_user": n_user_input,
+            "prev_n_assistant": n_assistant,
+            "tokens_before": last_tokens,
+            "tokens_after": new_tokens,
+        })
+
+    return results
+
+
 # ─── Rewind detection via parentUuid chain ───────────────────────────────────
 
 def _is_chain_record(rec: Record) -> bool:
@@ -77,8 +179,10 @@ def find_rewound_indices(
     active chain (reachable from the last record) is kept; children on dead
     branches and all their descendants are "rewound".
 
-    Context compaction also breaks the chain (parentUuid=null) but does NOT
-    create forks, so compaction-orphaned records are NOT marked as rewound.
+    Context compaction breaks the chain (parentUuid points to a synthetic
+    summary message not stored in JSONL).  Forks within compaction-orphaned
+    sections (e.g. parallel tool calls) are ignored because no sibling is on
+    the active chain — only forks where at least one child IS active count.
 
     Returns set of rewound indices, or None if no rewinds detected.
     """
@@ -123,10 +227,16 @@ def find_rewound_indices(
         else:
             break
 
-    # Mark dead fork branches and all their descendants
+    # Mark dead fork branches and all their descendants.
+    # A fork is only a rewind if at least one sibling IS on the active chain.
+    # Forks where ALL children are off the active chain (e.g. parallel tool
+    # calls in a section orphaned by context compaction) are not rewinds.
     rewound: set[int] = set()
     for children in parent_to_children.values():
-        if len(_non_progress_children(children)) < 2:
+        real_kids = _non_progress_children(children)
+        if len(real_kids) < 2:
+            continue
+        if not any(k in active for k in real_kids):
             continue
         for child_idx in children:
             if child_idx in active:
@@ -311,7 +421,12 @@ def main():
         saved_stdout = sys.stdout
         sys.stdout = io.StringIO()
 
-    # ── Rewind detection ────────────────────────────────────────────────
+    # ── Compaction & rewind detection ────────────────────────────────────
+    compaction_bounds = find_compaction_boundaries(records)
+    compaction_markers: dict[int, dict] = {
+        cb["idx"]: cb for cb in compaction_bounds
+    }
+
     rewound = find_rewound_indices(records)
     rewind_markers, hidden_for_rewind, rewind_boundaries = build_rewind_info(
         records, rewound, hide_rewound=not args.show_rewound,
@@ -331,6 +446,21 @@ def main():
     # ── Render records ──────────────────────────────────────────────────
     i = 0
     while i < len(records):
+        # Compaction marker at chain break
+        if i in compaction_markers:
+            cb = compaction_markers[i]
+            print(separator())
+            print(r.render_compaction_marker(
+                section_num=cb["section_num"],
+                prev_records=cb["prev_records"],
+                prev_first_ts=cb["prev_first_ts"],
+                prev_last_ts=cb["prev_last_ts"],
+                prev_n_user=cb["prev_n_user"],
+                prev_n_assistant=cb["prev_n_assistant"],
+                tokens_before=cb["tokens_before"],
+                tokens_after=cb["tokens_after"],
+            ))
+
         # Rewind marker at block boundary
         if i in rewind_markers:
             print(separator())
@@ -357,6 +487,7 @@ def main():
                 j < len(records)
                 and j not in hidden_for_rewind
                 and j not in rewind_boundaries
+                and j not in compaction_markers
                 and isinstance(records[j][0], AssistantRecord)
             ):
                 group.append(records[j])  # type: ignore
@@ -373,6 +504,7 @@ def main():
                     j < len(records)
                     and j not in hidden_for_rewind
                     and j not in rewind_boundaries
+                    and j not in compaction_markers
                     and isinstance(records[j][0], UserRecord)
                     and is_user_input(records[j][0])
                 ):
@@ -388,6 +520,7 @@ def main():
                     j < len(records)
                     and j not in hidden_for_rewind
                     and j not in rewind_boundaries
+                    and j not in compaction_markers
                     and isinstance(records[j][0], UserRecord)
                     and not is_user_input(records[j][0])
                 ):

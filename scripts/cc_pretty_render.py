@@ -393,3 +393,30 @@ class Renderer:
             f"{C.REWIND}{'─' * 30} ⟲ rewind {'─' * 30}{C.RESET}\n"
             f"{C.DIM}  {turns}  {time_range}  ({status}){C.RESET}"
         )
+
+    def render_compaction_marker(
+        self, section_num: int, prev_records: int,
+        prev_first_ts: str, prev_last_ts: str,
+        prev_n_user: int, prev_n_assistant: int,
+        tokens_before: int, tokens_after: int,
+    ) -> str:
+        time_range = (
+            f"{prev_first_ts}\u2013{prev_last_ts}"
+            if prev_first_ts != prev_last_ts else prev_first_ts
+        )
+        header = f"{C.SYSTEM}{'─' * 26} ⟐ compacted {'─' * 26}{C.RESET}"
+        prev_summary = (
+            f"  section {section_num}: "
+            f"{prev_n_user} user, {prev_n_assistant} assistant  "
+            f"{time_range}  ({prev_records} records)"
+        )
+        token_info = ""
+        if tokens_before or tokens_after:
+            parts = []
+            if tokens_before:
+                parts.append(f"{tokens_before:,}tok")
+            if tokens_after:
+                parts.append(f"{tokens_after:,}tok")
+            arrow = " → ".join(parts)
+            token_info = f"\n{C.DIM}  context: {arrow}{C.RESET}"
+        return f"{header}\n{C.DIM}{prev_summary}{C.RESET}{token_info}"
