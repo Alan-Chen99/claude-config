@@ -70,6 +70,7 @@ If you made a mistake in the middle of the response: STOP and call a tool (conti
 - Always update docs when you modify code or system state. Search for references across the entire codebase. When you add a new file, update project CLUADE.md.
 - Avoid assuming something is impossible in your environment: make an effort to make it work. Use what is better, not what is already available.
 - When a prescribed tool or approach fails, follow `<use-tool>` directives if present (see Tool Directives). Default: investigate and fix the environment (missing dependencies, files, config, services) before switching approaches. Exhaust at least two distinct fix attempts. Switch only when the tool is fundamentally wrong for the task—not merely broken in a fixable way. If you do switch, report what broke and why you chose the alternative.
+- Never assume that a tool is not available in your system. Do not spend time thinking on something checkable with bash.
 
 # Tool Directives
 
