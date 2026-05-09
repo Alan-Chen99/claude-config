@@ -23,24 +23,35 @@ Define the target and generate multiple paths to reach it.
 1. **Target result state**: Describe the exact end-state you want the agent to produce.
    (e.g., "all facts verified before inclusion", "code compiles and passes tests before response")
 
-2. **Workflow options** (at least 2): For each, describe the sequence of tool calls / chain-of-thought / agent behavior that would produce the target state.
+2. **Workflow options** For each, describe the sequence of tool calls / chain-of-thought / agent behavior that would produce the target state as they appear in the agent context window.
 
    Format per option:
    ```
    Option A: [name]
    [step] -> [step] -> [step] -> end
-   Key assumption: ...
    ```
 
    Example:
    ```
-   Option A: verify-then-work
-   [verify all facts] -> [do work using verified facts] -> end
-   Key assumption: verification is possible before work begins
+   Problem: Agent does not use memory skill
 
-   Option B: work-then-verify
-   [do work] -> [verify facts in output] -> [fix false facts] -> end
-   Key assumption: self-correction after generation is reliable
+   Option A: update-as-generated
+   [rule] -> [work] -> [important step] -> [think: "this is important, i need to remember..."] -> [update memory] -> [work] -> ...
+
+   Option B: random-reminder
+   [rule] -> [work] -> [randomly emit after each tool call: <system-reminder> rule </system-reminder>] -> [maybe update memory]
+
+   Option C: upate-at-end
+   [rule] -> [work] -> [work] -> [work] -> [workflow step X: update memory]
+
+   Option D: upate-at-end-deferred
+   no rule -> [work] -> [work] -> [work] -> [workflow step X: update memory] (rule only given at the step)
+
+   Option E: collect-and-filter
+   [rule] -> [work] -> [progress_update.py <items>] -> [work] -> [work] -> [you have wrote <items> as progress; update memory if important] 
+
+   Option F: clean-at-start
+   [rule] -> [workflow step 1: drop items by past agents that are no longer relevent] -> ...
    ```
 
 NEXT STEP:
