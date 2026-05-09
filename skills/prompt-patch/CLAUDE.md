@@ -1,6 +1,6 @@
 # prompt-patch/
 
-Structured prompt change workflow. Script-based 10-step pipeline.
+Structured prompt change workflow. Script-based 11-step pipeline.
 
 ## Files
 

@@ -2,17 +2,18 @@
 """
 Prompt Patch - Structured prompt change workflow.
 
-Ten-step workflow:
-  1.  Motivation     - Why change? What breaks if we don't?
-  2.  Identify       - Target state + multiple workflow options
-  3.  Draft Options  - Prompt updates per option
-  4.  Context Check  - System prompt/instructions alignment; failure points
-  5.  Regressions    - Identify regressions; revise
-  6.  Pick & Draft   - Select best option; full draft
-  7.  Deterministic  - Crash/silent-fail/impossible-to-follow checks
-  8.  Non-deterministic - Agent mistake modes
-  9.  Top Concerns   - 3 problems not covered above
-  10. Final          - Write final version
+Eleven-step workflow:
+  1.  Motivation        - Why change? What breaks if we don't?
+  2.  Brainstorm        - Rapid unfiltered idea generation (10+ one-liners)
+  3.  Identify          - Target state + workflow options from brainstorm
+  4.  Draft Options     - Prompt updates per option
+  5.  Context Check     - System prompt/instructions alignment; failure points
+  6.  Regressions       - Identify regressions; revise
+  7.  Pick & Draft      - Select best option; full draft
+  8.  Deterministic     - Crash/silent-fail/impossible-to-follow checks
+  9.  Non-deterministic - Agent mistake modes
+  10. Top Concerns      - 3 problems not covered above
+  11. Final             - Write final version
 
 All steps live in a single steps.md file, separated by `<!--step N: name-->`
 markers. This script parses the file and prints the requested step.
@@ -27,7 +28,7 @@ from pathlib import Path
 # CONFIGURATION
 # ============================================================================
 
-TOTAL_STEPS = 10
+TOTAL_STEPS = 11
 
 STEPS_FILE = Path(__file__).resolve().parent.parent.parent.parent / "prompt-patch" / "steps.md"
 
@@ -64,7 +65,7 @@ def main():
     """Entry point for prompt-patch workflow."""
     parser = argparse.ArgumentParser(
         description="Prompt Patch - Structured prompt change workflow",
-        epilog="Steps: motivation (1) -> identify (2) -> draft-options (3) -> context-check (4) -> regressions (5) -> pick-draft (6) -> deterministic (7) -> non-deterministic (8) -> concerns (9) -> final (10)",
+        epilog="Steps: motivation (1) -> brainstorm (2) -> identify (3) -> draft-options (4) -> context-check (5) -> regressions (6) -> pick-draft (7) -> deterministic (8) -> non-deterministic (9) -> concerns (10) -> final (11)",
     )
     parser.add_argument("--step", type=int, required=True)
 

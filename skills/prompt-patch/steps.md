@@ -14,7 +14,43 @@ NEXT STEP:
 <invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 2 --problem='...' --cost='...' --success-criteria='...'" />
 Execute this command now.
 
-<!-- step 2: identify -->
+<!-- step 2: brainstorm -->
+
+# Prompt Patch - Brainstorm
+
+Before designing workflow options, generate a rapid, unfiltered list of ideas.
+
+**Instructions:**
+1. List **10+ ideas** as one-liners (≤ 2 sentences each). No elaboration, no evaluation — quantity over quality.
+2. Vary along these dimensions — if all your ideas cluster on one, force ideas on the others (these are starting dimensions, not exhaustive — add problem-specific dimensions as needed):
+   - **Timing**: when does it happen? (before, during, after, periodic)
+   - **Actor**: who/what does it? (agent, system, user, tool, separate process)
+   - **Mechanism**: how is it enforced? (rule, example, tool, workflow step, system injection)
+   - **Scope**: where does it apply? (per-item, per-task, per-session, global)
+3. Review your list. Mark ideas that share the same core mechanism with the same letter (A, B, C...). If any group has >3 ideas, you are converging — force ideas using underrepresented mechanisms.
+
+The only exception: if the change is purely mechanical (e.g., rewording a single phrase, moving text between sections), 5 ideas minimum.
+
+**Example** (problem: agent does not use memory skill):
+```
+1. (A) Add rule: "after each important step, update memory" — agent-driven, during-work
+2. (B) System injects <system-reminder> after each tool call — system-driven, periodic
+3. (A) Add workflow step at end: "update memory with key findings" — agent-driven, after-work
+4. (C) Script collects progress items, prompts agent to persist important ones — tool-enforced, periodic
+5. (A) Rule deferred: only given at the workflow step that should trigger it — agent-driven, after-work
+6. (D) Workflow step 1: drop stale items from prior agents — agent-driven, before-work
+7. (B) Emit reminder only when agent produces output matching importance heuristic — system-driven, conditional
+8. (E) User confirms which items to persist at end of session — user-driven, after-work
+9. (C) Tool auto-persists anything written to a scratch file — tool-enforced, during-work
+10. (F) Separate background agent monitors conversation, persists independently — separate process, periodic
+```
+Note: letters mark mechanism groups. Ideas 1/3/5 share mechanism (A), signaling convergence — ideas 7-10 were forced into underrepresented groups.
+
+NEXT STEP:
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 3 --ideas='...'" />
+Execute this command now.
+
+<!-- step 3: identify -->
 
 # Prompt Patch - Identify Target State & Workflows
 
@@ -23,46 +59,25 @@ Define the target and generate multiple paths to reach it.
 1. **Target result state**: Describe the exact end-state you want the agent to produce.
    (e.g., "all facts verified before inclusion", "code compiles and passes tests before response")
 
-2. **Workflow options** For each, describe the sequence of tool calls / chain-of-thought / agent behavior that would produce the target state as they appear in the agent context window.
+2. **Workflow options** Build your workflow options from ideas in your brainstorm list (step 2). Select ideas from different mechanism groups. You may combine or refine ideas, but each option must trace to at least one brainstorm idea. For each, describe the sequence of tool calls / chain-of-thought / agent behavior that would produce the target state as they appear in the agent context window.
 
    Format per option:
    ```
-   Option A: [name]
+   Option A: [name] (from brainstorm ideas #N, #M)
    [step] -> [step] -> [step] -> end
    ```
 
-   Example:
-   ```
-   Problem: Agent does not use memory skill
-
-   Option A: update-as-generated
-   [rule] -> [work] -> [important step] -> [think: "this is important, i need to remember..."] -> [update memory] -> [work] -> ...
-
-   Option B: random-reminder
-   [rule] -> [work] -> [randomly emit after each tool call: <system-reminder> rule </system-reminder>] -> [maybe update memory]
-
-   Option C: upate-at-end
-   [rule] -> [work] -> [work] -> [work] -> [workflow step X: update memory]
-
-   Option D: upate-at-end-deferred
-   no rule -> [work] -> [work] -> [work] -> [workflow step X: update memory] (rule only given at the step)
-
-   Option E: collect-and-filter
-   [rule] -> [work] -> [progress_update.py <items>] -> [work] -> [work] -> [you have wrote <items> as progress; update memory if important] 
-
-   Option F: clean-at-start
-   [rule] -> [workflow step 1: drop items by past agents that are no longer relevent] -> ...
-   ```
+   Options must differ in fundamental mechanism, not just parameter values. If your options form a matrix (same structure, varying one parameter), at least 2 must use a fundamentally different approach.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 3 --target-state='...' --option-a='...' --option-b='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 4 --target-state='...' --option-a='...' --option-b='...'" />
 Execute this command now.
 
-<!-- step 3: draft-options -->
+<!-- step 4: draft-options -->
 
 # Prompt Patch - Draft Prompt Updates Per Option
 
-For EACH workflow option from step 2, write the concrete set of prompt changes needed to make the agent follow that workflow.
+For EACH workflow option from step 3, write the concrete set of prompt changes needed to make the agent follow that workflow.
 
 Per option, specify:
 
@@ -74,10 +89,10 @@ Per option, specify:
 Do NOT pick a winner yet. Write both/all options fully.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 4 --options-drafted='brief summary of each option'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 5 --options-drafted='brief summary of each option'" />
 Execute this command now.
 
-<!-- step 4: context-check -->
+<!-- step 5: context-check -->
 
 # Prompt Patch - Context & Conflict Check
 
@@ -96,10 +111,10 @@ Check the existing instruction environment for alignment and conflicts.
 3. **Revise** each option based on conflicts found. If a contradiction cannot be resolved, note it as a hard constraint.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 5 --conflicts-found='...' --revisions-made='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 6 --conflicts-found='...' --revisions-made='...'" />
 Execute this command now.
 
-<!-- step 5: regressions -->
+<!-- step 6: regressions -->
 
 # Prompt Patch - Regression Analysis
 
@@ -120,14 +135,14 @@ Mitigation: [revised wording] or [accepted tradeoff: ...]
 ```
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 6 --regressions-found='...' --mitigations='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 7 --regressions-found='...' --mitigations='...'" />
 Execute this command now.
 
-<!-- step 6: pick-draft -->
+<!-- step 7: pick-draft -->
 
 # Prompt Patch - Pick Best Option & Full Draft
 
-1. **Pick the best option.** State why. Reference specific advantages over alternatives (from steps 3-5 analysis).
+1. **Pick the best option.** State why. Reference specific advantages over alternatives (from steps 4-6 analysis).
 
 2. **Write the full draft** of all prompt changes. Include:
    - Complete text of every instruction added/modified/removed
@@ -137,10 +152,10 @@ Execute this command now.
 Write the draft as it would appear in the final file -- not a summary, the actual text.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 7 --chosen-option='...' --draft-written='yes'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 8 --chosen-option='...' --draft-written='yes'" />
 Execute this command now.
 
-<!-- step 7: deterministic-check -->
+<!-- step 8: deterministic-check -->
 
 # Prompt Patch - Deterministic Failure Mode Check
 
@@ -165,10 +180,10 @@ Then list **environment requirements** (e.g., "python3 needed", "git available",
 You may assume any requirement that is true in your current environment.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 8 --deterministic-issues='...' --env-requirements='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 9 --deterministic-issues='...' --env-requirements='...'" />
 Execute this command now.
 
-<!-- step 8: non-deterministic-check -->
+<!-- step 9: non-deterministic-check -->
 
 # Prompt Patch - Non-Deterministic Error Check
 
@@ -185,16 +200,16 @@ Consider:
 For each risk identified, assess severity (low/medium/high) and revise the draft if severity >= medium.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 9 --risks-found='...' --revisions='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 10 --risks-found='...' --revisions='...'" />
 Execute this command now.
 
-<!-- step 9: top-concerns -->
+<!-- step 10: top-concerns -->
 
 # Prompt Patch - Top Concerns
 
 List your **3 top problems or concerns** about the proposed changes.
 
-Focus on points NOT already covered by the previous steps (steps 4-8). These should be novel concerns -- things this workflow might have missed.
+Focus on points NOT already covered by the previous steps (steps 5-9). These should be novel concerns -- things this workflow might have missed.
 
 For each concern:
 - **Problem**: What could go wrong?
@@ -205,10 +220,10 @@ For each concern:
 If any concern has both likelihood >= medium AND impact >= medium, revise the draft to address it before proceeding.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 10 --concerns='...' --final-revisions='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 11 --concerns='...' --final-revisions='...'" />
 Execute this command now.
 
-<!-- step 10: final -->
+<!-- step 11: final -->
 
 # Prompt Patch - Final Version
 
@@ -217,8 +232,8 @@ Write the **final version** of all prompt changes.
 This is the deliverable. Include:
 
 1. **For each file changed**: full path, and the complete change (add/modify/remove) with exact text
-2. **Environment requirements** (from step 7)
-3. **Known tradeoffs** (from steps 5, 9) -- accepted regressions or risks
+2. **Environment requirements** (from step 8)
+3. **Known tradeoffs** (from steps 6, 10) -- accepted regressions or risks
 4. **Testing suggestion**: one concrete way to verify the change works as intended
 
 Present the changes so they can be applied directly (copy-paste ready or as diffs).

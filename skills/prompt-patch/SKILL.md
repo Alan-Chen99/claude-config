@@ -1,6 +1,6 @@
 ---
 name: prompt-patch
-description: Structured 10-step workflow for making targeted prompt changes correctly. Motivation analysis, multi-option drafting, conflict/regression/failure-mode checks, and iterative revision.
+description: Structured 11-step workflow for making targeted prompt changes correctly. Brainstorming, motivation analysis, multi-option drafting, conflict/regression/failure-mode checks, and iterative revision.
 ---
 
 # Prompt Patch
