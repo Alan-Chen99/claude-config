@@ -648,6 +648,11 @@ def do_stop(args: argparse.Namespace) -> None:
     session_id = hook_input.get("session_id", "unknown")
     kill_pending(session_id)
 
+    # Already sent a "Done" for this session — don't spam.
+    if donefile_path(session_id).exists():
+        log.debug("suppressed stop notification: donefile exists (session %s)", session_id)
+        return
+
     transcript_path = hook_input.get("transcript_path", "")
 
     # Skip "done" notification if the agent was interrupted (e.g. Ctrl+C)
@@ -698,6 +703,13 @@ def do_cancel(_args: argparse.Namespace) -> None:
     hook_input = read_hook_input()
     session_id = hook_input.get("session_id", "unknown")
     kill_pending(session_id)
+    # Task-notifications (background task completions) are system-generated,
+    # not real user re-engagement. Keep the donefile so do_stop doesn't
+    # re-fire "Done" for each stale background task.
+    prompt = hook_input.get("prompt", "")
+    if prompt.lstrip().startswith("<task-notification>"):
+        log.debug("cancel: keeping donefile for task-notification (session %s)", session_id)
+        return
     try:
         donefile_path(session_id).unlink()
     except FileNotFoundError:
