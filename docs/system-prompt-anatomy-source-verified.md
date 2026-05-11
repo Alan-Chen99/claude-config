@@ -70,25 +70,38 @@ API `system[]` blocks with cache controls.
 │  system[3] dynamic) — see "API Block Structure" below.  │
 └─────────────────────────────────────────────────────────┘
 
-┌─ userContext (user message, isMeta=true) ─────────────┐
+┌─ messages[0]: deferred tools (plain string) ──────────┐
+│                                                         │
+│  <available-deferred-tools>                             │
+│    AskUserQuestion, TaskCreate, WebFetch, ...           │
+│  </available-deferred-tools>                            │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+
+┌─ messages[1]: userContext + input (content block list) ┐
 │                                                         │
 │  Memoized by getUserContext() (lodash memoize).         │
-│  Cached value prepended as messages[0] each API call.   │
+│  Cached value prepended each API call.                  │
 │  Cache cleared on /clear, /compact, settings sync.      │
 │                                                         │
+│  block[0]:                                              │
+│  <system-reminder>                                      │
+│    skills listing                                       │
+│  </system-reminder>                                     │
+│                                                         │
+│  block[1]:                                              │
 │  <system-reminder>                                      │
 │    # claudeMd                                           │
 │    Contents of ~/.claude/rules/general.md               │
 │    Contents of ~/.claude/rules/testing.md               │
 │    Contents of ./CLAUDE.md                              │
 │    # currentDate                                        │
-│    Today's date is 2026-04-17.                          │
+│    Today's date is 2026-05-11.                          │
 │  </system-reminder>                                     │
 │                                                         │
-└─────────────────────────────────────────────────────────┘
-
-┌─ User message (turn 1) ────────────────────────────────┐
-│ "explain the auth module"                              │
+│  block[N]: "explain the auth module"                    │
+│    (cached ephemeral 1h)                                │
+│                                                         │
 └─────────────────────────────────────────────────────────┘
 
 ┌─ Assistant (turn 1) ───────────────────────────────────┐

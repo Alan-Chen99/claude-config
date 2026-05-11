@@ -30,15 +30,19 @@ sent incrementally — each call receives the complete conversation state.
 │                                                  │
 └──────────────────────────────────────────────────┘
 
-┌─ User context (injected as first user message) ──┐
-│  <system-reminder>                                │
-│    CLAUDE.md contents (global → project → local)  │
-│    Today's date                                   │
-│  </system-reminder>                               │
+┌─ messages[0]: deferred tools (plain string) ─────┐
+│  <available-deferred-tools>                       │
+│    AskUserQuestion, TaskCreate, WebFetch, ...     │
+│  </available-deferred-tools>                      │
 └───────────────────────────────────────────────────┘
 
-┌─ User message ───────────────────────────────────┐
-│  "explain the auth module"                       │
+┌─ messages[1]: user context + input (block list) ─┐
+│  [0] <system-reminder> skills listing             │
+│  [1] <system-reminder>                            │
+│        # claudeMd (CLAUDE.md contents)            │
+│        # currentDate                              │
+│      </system-reminder>                           │
+│  [N] "explain the auth module"                    │
 └───────────────────────────────────────────────────┘
 
 ┌─ Assistant response ─────────────────────────────┐
@@ -164,26 +168,40 @@ When working with tool results, write down any important information...
 gitStatus: This is the git status at the start of the conversation...
 ```
 
-### User context (messages[0])
+### User context (messages[0] + messages[1])
 
-Injected as the first user message before the actual user input.
+Injected as two user messages before the actual user input.
+
+**messages[0]** — deferred tools as a plain string (not a content block list):
 
 ```
+<available-deferred-tools>
+AskUserQuestion
+TaskCreate
+WebFetch
+...
+</available-deferred-tools>
+```
+
+**messages[1]** — content block list with skills, claudeMd, and user input:
+
+```
+block[0]:
 <system-reminder>
-  deferred tools listing
+  skills listing (built-in CC skills + project skills)
 </system-reminder>
 
-<system-reminder>
-  skills listing
-</system-reminder>
-
+block[1]:
 <system-reminder>
   # claudeMd
-  Contents of ~/.claude/rules/{file}.md ...
+  {preamble: "...IMPORTANT: These instructions OVERRIDE any default behavior..."}
   Contents of {path}/CLAUDE.md ...
   # currentDate
   Today's date is {date}.
 </system-reminder>
+
+block[N]:
+{the user's message}    ← cached ephemeral 1h
 ```
 
 ### Tool results (subsequent messages)

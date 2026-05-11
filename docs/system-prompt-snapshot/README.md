@@ -1,8 +1,9 @@
 # Claude Code System Prompt Snapshots
 
-Captured: 2026-04-22
+Captured: 2026-05-11
 Version: claude-cli/2.1.87
-Mode: interactive (real pty via `capture.py`)
+Mode: interactive (real pty via `capture.py`, `--setting-sources project,local`)
+Default captures include a project CLAUDE.md.
 
 ## Files
 
@@ -40,7 +41,7 @@ The `system` array in the API request contains 4 text blocks (global cache bound
 | 0 | Billing header (`cc_version=2.1.87...`) | none | 80 |
 | 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 57 |
 | 2 | Static behavioral rules (intro through output efficiency) | global+1h | 13,211 |
-| 3 | Dynamic sections (auto memory, env info, output style, gitStatus) | none | ~13,920 |
+| 3 | Dynamic sections (auto memory, env info, output style, gitStatus) | none | ~13,914 |
 
 Total: ~27,300 chars across 4 blocks.
 
@@ -116,7 +117,7 @@ The behavioral rules and `--system-prompt` replacement logic are the same in bot
 ./capture.py --subagent
 ```
 
-`capture.py` uses expect to spawn claude with a real pty (true interactive mode), sends a canary message via haiku, then extracts the system prompt from the intercepted API request. Output goes to `capture-output/` (system.txt, request.json, summary.json) and stdout.
+`capture.py` uses expect to spawn claude with a real pty (true interactive mode) and `--setting-sources project,local` to isolate from user settings, sends a canary message, then extracts the system prompt from the intercepted API request. A placeholder CLAUDE.md is created in the temp working directory so the capture includes the claudeMd context block. Output goes to `capture-output/` (system.txt, request.json, summary.json) and stdout.
 
 ### Why expect + pty
 

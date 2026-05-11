@@ -1,8 +1,9 @@
 # What the Model Gets
 
-Everything the model receives, in order, on a fresh interactive session (no CLAUDE.md, no output style).
+Everything the model receives, in order, on a fresh interactive session with a project CLAUDE.md, no output style.
 v2.1.87. Source: `opus/default/request.json`, `sonnet/default/request.json`.
-Sonnet and Opus receive identical system prompt text except model name and knowledge cutoff.
+Capture uses `--setting-sources project,local` to isolate from user settings.
+Sonnet and Opus receive identical system prompt text except model name, knowledge cutoff, and agent type ordering in the Agent tool description.
 
 ## system[0] (80 chars, not cached)
 
@@ -60,9 +61,10 @@ IMPORTANT: Go straight to the point. Try the simplest approach first. Be extra c
 {lead with answer not reasoning, focus on decisions/milestones/errors, one sentence over three}
 ```
 
-## system[3] (13,920 chars, not cached)
+## system[3] (~13,914 chars, not cached)
 
 Dynamic sections. Recomputed per session, not globally cached.
+Opus: 13,914 chars. Sonnet: 13,921 chars (path and model name differ).
 
 ```
 # auto memory
@@ -91,6 +93,10 @@ Main branch (you will usually use this for PRs): main
 Status: {modified/untracked files}
 Recent commits: {last 5 commits}
 ```
+
+Note: auto memory section only appears when `autoMemoryEnabled` is true (the default).
+The capture uses `--setting-sources project,local` to avoid inheriting the user's
+global settings, which ensures defaults apply.
 
 ## tool desc (Agent, 7.0K desc + 1.0K schema)
 
@@ -242,11 +248,12 @@ NEVER create *.md or README unless explicitly requested.
 {input_schema: file_path, content}
 ```
 
-## user (injected by harness, 305 chars)
+## messages[0] — deferred tools (772 chars, plain string)
+
+Injected as the first user message. Plain string, not a content block list.
 
 ```
-<system-reminder>
-The following deferred tools are now available via ToolSearch:
+<available-deferred-tools>
 AskUserQuestion
 CronCreate
 CronDelete
@@ -258,17 +265,15 @@ ExitWorktree
 NotebookEdit
 RemoteTrigger
 TaskCreate
-TaskGet
-TaskList
-TaskOutput
-TaskStop
-TaskUpdate
-WebFetch
-WebSearch
-</system-reminder>
+...
+</available-deferred-tools>
 ```
 
-## user (injected by harness, ~5.5K chars)
+30 deferred tools in this capture (includes MCP tools if configured).
+
+## messages[1] — user context + input (content block list)
+
+### block[0]: skills (~1.5K chars)
 
 ```
 <system-reminder>
@@ -277,29 +282,46 @@ The following skills are available for use with the Skill tool:
 - update-config: ...
 - keybindings-help: ...
 - simplify: ...
-{... all skills from ~/.claude/skills/, project .claude/skills/, and plugins}
+{... built-in CC skills + project .claude/skills/ + plugins}
 </system-reminder>
 ```
 
-## user (injected by harness, ~306 chars without CLAUDE.md)
+~1.5K with default CC skills only. ~5.5K+ when user-level skills from
+`~/.claude/skills/` are included (requires `user` in `--setting-sources`).
+
+### block[1]: claudeMd + currentDate (~680 chars)
 
 ```
 <system-reminder>
 As you answer the user's questions, you can use the following context:
 # claudeMd
-IMPORTANT: These instructions OVERRIDE any default behavior — MUST follow exactly.
-{full CLAUDE.md text — absent in this capture}
+Codebase and user instructions are shown below. Be sure to adhere to
+these instructions. IMPORTANT: These instructions OVERRIDE any default
+behavior and you MUST follow them exactly as written.
 
+Contents of {path}/CLAUDE.md (project instructions, checked into the codebase):
+
+{full CLAUDE.md text}
 # currentDate
-Today's date is 2026-04-22.
+Today's date is 2026-05-11.
+
+      IMPORTANT: this context may or may not be relevant to your tasks.
+      You should not respond to this context unless it is highly relevant
+      to your task.
 </system-reminder>
 ```
 
-## user (actual human input, cached 1h)
+The `# claudeMd` section is absent when no CLAUDE.md exists in the project.
+The `IMPORTANT: this context may or may not be relevant` caveat always appears
+after the context sections.
+
+### block[N]: actual human input (cached 1h)
 
 ```
 {the user's message}
 ```
+
+Last block has `cache_control: { type: "ephemeral", ttl: "1h" }`.
 
 ## API parameters
 
@@ -310,6 +332,7 @@ Today's date is 2026-04-22.
   "thinking": { "type": "adaptive" },
   "context_management": { "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] },
   "output_config": { "effort": "max" },
+  "metadata": { "user_id": "<redacted>" },
   "stream": true
 }
 
@@ -319,6 +342,7 @@ Today's date is 2026-04-22.
   "thinking": { "type": "adaptive" },
   "context_management": { "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] },
   "output_config": { "effort": "high" },
+  "metadata": { "user_id": "<redacted>" },
   "stream": true
 }
 ```
