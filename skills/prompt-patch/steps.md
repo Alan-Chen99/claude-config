@@ -67,7 +67,19 @@ Define the target and generate multiple paths to reach it.
    [step] -> [step] -> [step] -> end
    ```
 
-   Options must differ in fundamental mechanism, not just parameter values. If your options form a matrix (same structure, varying one parameter), at least 2 must use a fundamentally different approach.
+   Options must differ in **temporal sequence** — the order in which observable state changes occur. "State" means external artifacts (files on disk, tool call results) or internal artifacts (chain-of-thought constructions, intermediate reasoning). A reader tracing the reasoning log should see different intermediate states at different points in time.
+
+   For non-mechanical changes, apply this test: if you wrote out what happens at each moment for two options, would the sequences diverge? If not, the options are not distinct — revise.
+
+   NOT distinct (same temporal sequence, different framing):
+   - Same steps, different prompt section targeted
+   - Same approach, one described as a loop and one as linear
+   - Same workflow, different naming
+
+   Distinct (different intermediate states over time):
+   - A builds an intermediate artifact then transforms it; B writes the final form directly
+   - A reads context first then drafts; B drafts then validates against context
+   - A uses chain-of-thought to construct a decision tree then selects; B evaluates options sequentially
 
 NEXT STEP:
 <invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 4 --target-state='...' --option-a='...' --option-b='...'" />
