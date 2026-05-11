@@ -196,8 +196,9 @@ def spawn_claude(
     env = os.environ.copy()
     env["NODE_OPTIONS"] = f"--require {INTERCEPT}"
 
-    # Run from a temp dir with its own .claude/settings.local.json so we
-    # never touch the real repo's config. git init so interactive mode works.
+    # Run from a temp dir; use --setting-sources local to isolate from
+    # user's global settings (e.g. autoMemoryEnabled: false). git init so
+    # interactive mode works.
     work_dir = tempfile.mkdtemp(prefix="capture-cwd-")
     subprocess.run(["git", "init", "-q", work_dir], capture_output=True)
     settings_dir = Path(work_dir) / ".claude"
@@ -206,6 +207,11 @@ def spawn_claude(
     if output_style is not None:
         settings["outputStyle"] = output_style
     (settings_dir / "settings.local.json").write_text(json.dumps(settings))
+
+    # Add a CLAUDE.md so the capture includes the claudeMd context block
+    (Path(work_dir) / "CLAUDE.md").write_text(
+        "# Capture Project\n\nPlaceholder CLAUDE.md for system prompt capture.\n"
+    )
 
     # Subagent mode: seed files so it looks like a real project worth exploring
     if subagent:
@@ -231,6 +237,8 @@ def spawn_claude(
                 "claude",
                 "--model",
                 model,
+                "--setting-sources",
+                "project,local",
                 *extra_args,
             ],
             env=env,
