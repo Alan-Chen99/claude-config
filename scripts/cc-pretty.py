@@ -4,11 +4,12 @@
 Usage: cc-pretty.py <session.jsonl> [--tool-max N] [--truncate-input]
                                     [--no-color] [--no-thinking]
                                     [--show-rewound] [--show-all]
+                                    [--compact-all] [--compact-leg N]
                                     [--agent]
 
-By default, rewound conversation branches are collapsed to a single marker,
-and records not presented to the model (hooks, progress, system metadata)
-are hidden.
+By default, only the last leg (after the last compaction boundary) is shown.
+Rewound conversation branches are collapsed to a single marker, and records
+not presented to the model (hooks, progress, system metadata) are hidden.
 """
 
 from __future__ import annotations
@@ -61,11 +62,15 @@ def is_model_visible(rec: Record) -> bool:
 def find_compaction_boundaries(
     records: list[tuple[Record, int]],
 ) -> list[dict]:
-    """Find indices where context compaction broke the parentUuid chain.
+    """Find indices where context compaction occurred.
 
-    A compaction boundary is where a chain record's parentUuid points to a UUID
-    not stored in the JSONL (the synthetic summary message).  Returns a list of
-    boundary dicts with section metadata.
+    Detects two compaction formats:
+      1. Legacy: a chain record's parentUuid points to a UUID not stored in
+         the JSONL (synthetic summary message).
+      2. Modern: an explicit system record with subtype "compact_boundary",
+         parentUuid=null, and compactMetadata.
+
+    Returns a list of boundary dicts with section metadata.
     """
     uuid_set: set[str] = set()
     chain_records: list[tuple[int, Record]] = []
@@ -81,13 +86,21 @@ def find_compaction_boundaries(
     if not chain_records:
         return []
 
-    # Find breaks: chain record whose parentUuid is not in uuid_set
-    # (and parent is not None/empty — those are just chain roots)
+    # Method 1 (legacy): chain record whose parentUuid is not in uuid_set
     boundaries: list[int] = []
     for i, rec in chain_records:
         parent = getattr(rec, "parentUuid", None)
         if parent and parent not in uuid_set:
             boundaries.append(i)
+
+    # Method 2 (modern): explicit compact_boundary system records
+    for i, (rec, _) in enumerate(records):
+        if (isinstance(rec, SystemRecord)
+                and rec.subtype == "compact_boundary"
+                and i not in boundaries):
+            boundaries.append(i)
+
+    boundaries.sort()
 
     if not boundaries:
         return []
@@ -119,16 +132,24 @@ def find_compaction_boundaries(
             if isinstance(r, UserRecord) and is_user_input(r)
         )
 
-        # Token count: last assistant usage in the compacted section
+        # Token count: prefer compactMetadata.preTokens (modern format),
+        # fall back to last assistant usage in the compacted section
         last_tokens = 0
-        for r in reversed(prev_records):
-            if isinstance(r, AssistantRecord) and r.message.usage:
-                u = r.message.usage
-                last_tokens = (
-                    u.input_tokens + u.cache_read_input_tokens
-                    + u.cache_creation_input_tokens
-                )
-                break
+        boundary_rec = records[boundary_idx][0]
+        compact_meta = getattr(boundary_rec, "compactMetadata", None)
+        if compact_meta is None and hasattr(boundary_rec, "__pydantic_extra__"):
+            compact_meta = (boundary_rec.__pydantic_extra__ or {}).get("compactMetadata")
+        if isinstance(compact_meta, dict) and compact_meta.get("preTokens"):
+            last_tokens = compact_meta["preTokens"]
+        else:
+            for r in reversed(prev_records):
+                if isinstance(r, AssistantRecord) and r.message.usage:
+                    u = r.message.usage
+                    last_tokens = (
+                        u.input_tokens + u.cache_read_input_tokens
+                        + u.cache_creation_input_tokens
+                    )
+                    break
 
         # Token count: first assistant usage in the NEW section (after compact)
         new_tokens = 0
@@ -206,14 +227,38 @@ def find_rewound_indices(
     if last_chain_idx is None:
         return None
 
-    # Real forks have 2+ non-progress children.  Legacy progress records
-    # share the same parentUuid as the next user record, creating false
-    # forks that are not rewinds.
-    def _non_progress_children(kids: list[int]) -> list[int]:
-        return [k for k in kids if not isinstance(records[k][0], ProgressRecord)]
+    # Build message.id index for assistant records — used to detect parallel
+    # tool calls (split normalized records from the same API response).
+    idx_to_mid: dict[int, str] = {}
+    for i, (rec, _) in enumerate(records):
+        if isinstance(rec, AssistantRecord) and rec.message.id:
+            idx_to_mid[i] = rec.message.id
 
-    if not any(len(_non_progress_children(kids)) > 1
-               for kids in parent_to_children.values()):
+    # Real forks have 2+ children that represent distinct conversation
+    # branches.  Filter out noise:
+    #   - Progress records: legacy logs chain them alongside user records
+    #   - Normalized split siblings: parallel tool calls from the same API
+    #     response share message.id with the parent; these are NOT rewinds
+    def _real_fork_children(parent_uuid: str, kids: list[int]) -> list[int]:
+        # Find the parent record's message.id (if it's an assistant record)
+        parent_mid = None
+        parent_idx = uuid_to_idx.get(parent_uuid)
+        if parent_idx is not None:
+            parent_mid = idx_to_mid.get(parent_idx)
+
+        real: list[int] = []
+        for k in kids:
+            if isinstance(records[k][0], ProgressRecord):
+                continue
+            # Child assistant record from the same API response as parent
+            # is just the next normalized split block, not a real branch
+            if parent_mid and idx_to_mid.get(k) == parent_mid:
+                continue
+            real.append(k)
+        return real
+
+    if not any(len(_real_fork_children(p, kids)) > 1
+               for p, kids in parent_to_children.items()):
         return None
 
     # Walk active chain from last record to root
@@ -232,8 +277,8 @@ def find_rewound_indices(
     # Forks where ALL children are off the active chain (e.g. parallel tool
     # calls in a section orphaned by context compaction) are not rewinds.
     rewound: set[int] = set()
-    for children in parent_to_children.values():
-        real_kids = _non_progress_children(children)
+    for parent_uid, children in parent_to_children.items():
+        real_kids = _real_fork_children(parent_uid, children)
         if len(real_kids) < 2:
             continue
         if not any(k in active for k in real_kids):
@@ -381,6 +426,18 @@ def main():
         "(hooks, progress, system metadata)",
     )
     parser.add_argument(
+        "--compact-all",
+        action="store_true",
+        help="Show all compaction legs (default: only last leg)",
+    )
+    parser.add_argument(
+        "--compact-leg",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Show only compaction leg N (1-indexed; 0 = pre-compact section)",
+    )
+    parser.add_argument(
         "--agent",
         action="store_true",
         help="Agent-friendly output: if small enough, print directly; "
@@ -427,6 +484,35 @@ def main():
         cb["idx"]: cb for cb in compaction_bounds
     }
 
+    # Determine which compact leg(s) to show.
+    # Default: last leg only.  --compact-all: all legs.  --compact-leg N: specific leg.
+    compact_hidden: set[int] = set()
+    if compaction_bounds and not args.compact_all and args.compact_leg is None:
+        # Hide everything before the last compaction boundary
+        last_boundary = compaction_bounds[-1]["idx"]
+        compact_hidden = set(range(0, last_boundary))
+    elif args.compact_leg is not None:
+        # Show only the specified leg
+        leg = args.compact_leg
+        boundary_indices = [cb["idx"] for cb in compaction_bounds]
+        # Leg 0 = before first boundary, leg 1 = after first boundary, etc.
+        leg_starts = [0] + boundary_indices
+        leg_ends = boundary_indices + [len(records)]
+        if 0 <= leg < len(leg_starts):
+            # Hide everything NOT in the specified leg
+            show_start = leg_starts[leg]
+            show_end = leg_ends[leg]
+            compact_hidden = (
+                set(range(0, show_start)) | set(range(show_end, len(records)))
+            )
+        else:
+            print(
+                f"Error: --compact-leg {leg} out of range "
+                f"(0-{len(leg_starts) - 1})",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     rewound = find_rewound_indices(records)
     rewind_markers, hidden_for_rewind, rewind_boundaries = build_rewind_info(
         records, rewound, hide_rewound=not args.show_rewound,
@@ -436,7 +522,7 @@ def main():
     if records:
         first_rec = records[0][0]
         for idx, (rec, _) in enumerate(records):
-            if idx not in hidden_for_rewind:
+            if idx not in hidden_for_rewind and idx not in compact_hidden:
                 first_rec = rec
                 break
         header = r.render_session_header(first_rec)
@@ -446,7 +532,7 @@ def main():
     # ── Render records ──────────────────────────────────────────────────
     i = 0
     while i < len(records):
-        # Compaction marker at chain break
+        # Compaction marker always shows at chain break (even when leg is hidden)
         if i in compaction_markers:
             cb = compaction_markers[i]
             print(separator())
@@ -465,6 +551,11 @@ def main():
         if i in rewind_markers:
             print(separator())
             print(r.render_rewind_marker(**rewind_markers[i]))
+
+        # Skip records hidden by compaction leg filter
+        if i in compact_hidden:
+            i += 1
+            continue
 
         # Skip rewound records
         if i in hidden_for_rewind:
@@ -486,6 +577,7 @@ def main():
             while (
                 j < len(records)
                 and j not in hidden_for_rewind
+                and j not in compact_hidden
                 and j not in rewind_boundaries
                 and j not in compaction_markers
                 and isinstance(records[j][0], AssistantRecord)
@@ -503,6 +595,7 @@ def main():
                 while (
                     j < len(records)
                     and j not in hidden_for_rewind
+                    and j not in compact_hidden
                     and j not in rewind_boundaries
                     and j not in compaction_markers
                     and isinstance(records[j][0], UserRecord)
@@ -519,6 +612,7 @@ def main():
                 while (
                     j < len(records)
                     and j not in hidden_for_rewind
+                    and j not in compact_hidden
                     and j not in rewind_boundaries
                     and j not in compaction_markers
                     and isinstance(records[j][0], UserRecord)
