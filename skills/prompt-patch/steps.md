@@ -1,5 +1,17 @@
 <!-- step 1: motivation -->
 
+# First Principles
+
+Keep in mind throughout this workflow:
+
+1. **Agents make mistakes.** Do not design for "always right." Design for "discover own mistakes" and "recover from mistakes." Verification and self-correction matter more than perfection.
+
+2. **Prompts are code.** They must work, but also be maintainable, observable, and propagate errors. Apply the same engineering standards you would to source code: clarity, testability, failure transparency.
+
+3. **Think forward from the prompt.** Prompts provide logical invariants — the agent "should" behave correctly given these instructions. When it doesn't, there is a hole in the logic. Find the hole. If your function crashes on input `9`, you don't add `if input == 9: return special_case` — you ask "this code is supposed to handle all inputs, why didn't it?" and fix the actual bug. Same with prompts: don't patch the symptom, fix the invariant that failed.
+
+4. **Someone must do it.** If a task exists, some agent in the system must own it — the human should not be in the loop for routine work. When designing workflows, every necessary action must be assigned to an agent. You cannot leave a task undone because it feels "risky" or "destructive." If an agent memory system needs stale items removed, some agent removes them. Design for safe execution, not avoidance.
+
 # Prompt Patch - Motivation
 
 Why make this change? What goes wrong if we do nothing?
