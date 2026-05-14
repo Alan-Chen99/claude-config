@@ -3,7 +3,7 @@
 Everything the model receives, in order, on a fresh interactive session with a project CLAUDE.md, no output style.
 v2.1.87. Source: `opus/default/request.json`, `sonnet/default/request.json`.
 Capture uses `--setting-sources project,local` to isolate from user settings.
-Sonnet and Opus receive identical system prompt text except model name, knowledge cutoff, and agent type ordering in the Agent tool description.
+Sonnet and Opus receive identical system prompt text except model name and knowledge cutoff.
 
 Token counts from the Anthropic count_tokens API (exact).
 
@@ -106,9 +106,9 @@ global settings, which ensures defaults apply.
 Agent: Launch a new agent to handle complex, multi-step tasks autonomously.
 
 Available agent types and the tools they have access to:
-{11 types: general-purpose(*), statusline-setup(Read,Edit), Explore, Plan,
-claude-code-guide, prose-humanizer, quality-reviewer, debugger,
-technical-writer, developer, architect}
+{5 built-in types: general-purpose(*), statusline-setup(Read,Edit), Explore,
+Plan, claude-code-guide}
+{user-defined agents from ~/.claude/agents/ are appended here if configured}
 
 When NOT to use the Agent tool:
 {specific file → Read/Glob, class definition → Glob, 2-3 known files → Read}
@@ -271,7 +271,9 @@ TaskCreate
 </available-deferred-tools>
 ```
 
-30 deferred tools in this capture (includes MCP tools if configured).
+18 built-in deferred tools + 12 MCP tools from user's cloud account in this capture.
+MCP tools are not part of the default — they come from account-level integrations
+(not controlled by `--setting-sources`).
 
 ## messages[1] — user context + input (content block list)
 
