@@ -37,6 +37,6 @@
   "has_output_style": false,
   "has_doing_tasks": true,
   "subagent_count": 0,
-  "system_tokens_approx": 6703,
-  "tools_total_tokens_approx": 8545
+  "system_tokens": 6205,
+  "tools_total_tokens": 8887
 }

@@ -18,19 +18,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-import tiktoken
+import anthropic
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CAPTURE = SCRIPT_DIR / "capture.py"
-
-# tiktoken cl100k_base → Claude API token scale factor.
-# Derived from 46 Claude Code sessions: median 1.17.
-TIKTOKEN_TO_API_SCALE = 1.17
-_enc = tiktoken.get_encoding("cl100k_base")
-
-def approx_tokens(text: str) -> int:
-    """Approximate Claude API token count for a text string."""
-    return round(len(_enc.encode(text)) * TIKTOKEN_TO_API_SCALE)
 
 CUSTOM_PROMPT = "You are a custom assistant."
 
@@ -137,9 +128,40 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
         n_subagents = len(list(sub_dst.glob("*-request.json")))
 
     # Generate summary.json (tracked) from request.json (gitignored)
+    # Token counts via the free Anthropic count_tokens API.
     data = json.loads(request_src.read_text())
     sys_blocks = [s for s in data.get("system", []) if s.get("type") == "text"]
     tools = data.get("tools", [])
+    req_model = data.get("model", "claude-opus-4-6")
+
+    def _strip_cc(obj):
+        if isinstance(obj, dict):
+            return {k: _strip_cc(v) for k, v in obj.items() if k != "cache_control"}
+        elif isinstance(obj, list):
+            return [_strip_cc(x) for x in obj]
+        return obj
+
+    client = anthropic.Anthropic()
+    _base_msg = [{"role": "user", "content": "x"}]
+    base_tokens = client.messages.count_tokens(
+        model=req_model, messages=_base_msg
+    ).input_tokens
+
+    sys_tokens = client.messages.count_tokens(
+        model=req_model, messages=_base_msg, system=_strip_cc(data.get("system", []))
+    ).input_tokens - base_tokens
+
+    tools_tokens = 0
+    if tools:
+        r_no_tools = client.messages.count_tokens(
+            model=req_model, messages=_base_msg, system=_strip_cc(data.get("system", []))
+        ).input_tokens
+        r_with_tools = client.messages.count_tokens(
+            model=req_model, messages=_base_msg,
+            system=_strip_cc(data.get("system", [])), tools=_strip_cc(tools)
+        ).input_tokens
+        tools_tokens = r_with_tools - r_no_tools
+
     deferred = []
     for msg in data.get("messages", []):
         content = msg.get("content", [])
@@ -152,25 +174,21 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
                         if line and not line.startswith("<") and not line.startswith("The"):
                             deferred.append(line)
     summary = {
-        "model": data.get("model"),
+        "model": req_model,
         "system_blocks": len(sys_blocks),
-        "system_tokens_approx": sum(approx_tokens(s["text"]) for s in sys_blocks),
+        "system_tokens": sys_tokens,
         "tools_upfront": [t["name"] for t in tools],
         "tools_upfront_count": len(tools),
         "tools_deferred": deferred,
         "tools_deferred_count": len(deferred),
-        "tools_total_tokens_approx": sum(
-            approx_tokens(t.get("description", "")) + approx_tokens(json.dumps(t.get("input_schema", {})))
-            for t in tools
-        ),
+        "tools_total_tokens": tools_tokens,
         "has_output_style": any("Output Style" in s.get("text", "") for s in sys_blocks),
         "has_doing_tasks": any("Doing tasks" in s.get("text", "") for s in sys_blocks),
         "subagent_count": n_subagents,
     }
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
-    sys_text = (out_dir / "system-prompt.md").read_text()
-    print(f"  system-prompt.md  (~{approx_tokens(sys_text):,} tokens)")
+    print(f"  system-prompt.md  ({sys_tokens:,} tokens)")
     print(f"  summary.json      ({len(tools)} upfront, {len(deferred)} deferred)")
     if n_subagents:
         print(f"  subagents/        ({n_subagents} subagent prompt(s))")

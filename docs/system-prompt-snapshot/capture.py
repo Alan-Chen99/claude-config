@@ -29,20 +29,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-import tiktoken
+import anthropic
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-
-# tiktoken cl100k_base → Claude API token scale factor.
-# Derived from 46 Claude Code sessions (>5K chars): median 1.17, stable across
-# 60-80K char system prompts. Accounts for Claude tokenizer differences and
-# structural tokens (role markers, content type markers) not present in text.
-TIKTOKEN_TO_API_SCALE = 1.17
-_enc = tiktoken.get_encoding("cl100k_base")
-
-def approx_tokens(text: str) -> int:
-    """Approximate Claude API token count for a text string."""
-    return round(len(_enc.encode(text)) * TIKTOKEN_TO_API_SCALE)
 INTERCEPT = SCRIPT_DIR / "intercept.js"
 OUT_DIR = SCRIPT_DIR / "capture-output"
 HTTP_LOGS = Path.home() / ".claude" / "http-logs"
@@ -119,10 +108,45 @@ def get_log_dirs() -> set[str]:
     return {str(p) for p in HTTP_LOGS.iterdir() if p.is_dir()}
 
 
+def _strip_cache_control(obj):
+    """Remove cache_control fields that count_tokens rejects."""
+    if isinstance(obj, dict):
+        return {k: _strip_cache_control(v) for k, v in obj.items() if k != "cache_control"}
+    elif isinstance(obj, list):
+        return [_strip_cache_control(x) for x in obj]
+    return obj
+
+
+def count_tokens(model: str, *, system=None, tools=None) -> int:
+    """Count tokens via the Anthropic API (free endpoint).
+
+    Returns the token count for the given system blocks and/or tools.
+    Uses a minimal dummy message; the returned count is for the full request.
+    """
+    client = anthropic.Anthropic()
+    kwargs = {"model": model, "messages": [{"role": "user", "content": "x"}]}
+    if system is not None:
+        kwargs["system"] = _strip_cache_control(system)
+    if tools is not None:
+        kwargs["tools"] = _strip_cache_control(tools)
+    return client.messages.count_tokens(**kwargs).input_tokens
+
+
+# Baseline tokens for a minimal request (just message "x", no system/tools).
+# Computed once per model and cached.
+_baseline_cache: dict[str, int] = {}
+
+
+def _baseline(model: str) -> int:
+    if model not in _baseline_cache:
+        _baseline_cache[model] = count_tokens(model)
+    return _baseline_cache[model]
+
+
 def find_all_requests(new_dirs: list[Path]) -> list[tuple[Path, int, bool]]:
     """Return deduplicated request.json files, preserving chronological order.
 
-    Each entry is (path, system_tokens_approx, has_tools). Deduplicates by system
+    Each entry is (path, system_tokens, has_tools). Deduplicates by system
     prompt content hash so multiple turns from the same agent collapse to one.
     """
     results = []
@@ -144,7 +168,10 @@ def find_all_requests(new_dirs: list[Path]) -> list[tuple[Path, int, bool]]:
                     continue
                 seen.add(h)
                 has_tools = len(req.get("tools", [])) > 0
-                results.append((req_path, approx_tokens(content), has_tools))
+                model = req.get("model", "claude-opus-4-6")
+                sys_blocks = req.get("system", [])
+                sys_tokens = count_tokens(model, system=sys_blocks) - _baseline(model)
+                results.append((req_path, sys_tokens, has_tools))
             except (json.JSONDecodeError, OSError):
                 continue
     return results
@@ -166,21 +193,32 @@ def extract_request(req_path: Path, out_dir: Path, file_prefix: str = "") -> dic
         req["metadata"] = {k: "<redacted>" for k in req["metadata"]}
     (out_dir / f"{file_prefix}request.json").write_text(json.dumps(req, indent=2))
 
+    model = req.get("model", "claude-opus-4-6")
+    base = _baseline(model)
+    sys_blocks = req.get("system", [])
+    tools = req.get("tools", [])
+
+    sys_tokens = count_tokens(model, system=sys_blocks) - base
+    block_tokens = [
+        count_tokens(model, system=[blk]) - base for blk in blocks
+    ]
+    tool_tokens = {
+        t["name"]: count_tokens(model, tools=[t]) - base for t in tools
+    }
+
     summary = {
         "version": next(
             (s["text"] for s in blocks if "cc_version" in s.get("text", "")), None
         ),
-        "model": req.get("model"),
+        "model": model,
         "block_count": len(blocks),
-        "total_tokens_approx": approx_tokens(content),
+        "total_tokens": sys_tokens,
         "blocks": [
-            {"index": i, "tokens_approx": approx_tokens(s["text"]), "preview": s["text"][:200]}
+            {"index": i, "tokens": block_tokens[i], "preview": s["text"][:200]}
             for i, s in enumerate(blocks)
         ],
-        "tools": [t["name"] for t in req.get("tools", [])],
-        "tool_description_tokens_approx": {
-            t["name"]: approx_tokens(t.get("description", "")) for t in req.get("tools", [])
-        },
+        "tools": [t["name"] for t in tools],
+        "tool_tokens": tool_tokens,
         "source_request": req_path.name,
     }
     (out_dir / f"{file_prefix}summary.json").write_text(json.dumps(summary, indent=2))
@@ -356,7 +394,7 @@ def main() -> None:
     n_sub = len(subagent_summaries)
     print(
         f"\n--- Captured main: {main_summary['block_count']} blocks, "
-        f"{main_summary['total_tokens_approx']} tokens (approx) (model: {main_summary.get('model')})"
+        f"{main_summary['total_tokens']} tokens (model: {main_summary.get('model')})"
         f"{f', {n_sub} subagent(s)' if subagent else ''} ---",
         file=sys.stderr,
     )
