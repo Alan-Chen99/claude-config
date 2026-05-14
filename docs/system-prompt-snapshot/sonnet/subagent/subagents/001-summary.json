@@ -2,22 +2,21 @@
   "version": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;",
   "model": "claude-haiku-4-5-20251001",
   "block_count": 3,
-  "total_chars": 3136,
   "blocks": [
     {
       "index": 0,
-      "length": 80,
-      "preview": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;"
+      "preview": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;",
+      "tokens_approx": 36
     },
     {
       "index": 1,
-      "length": 57,
-      "preview": "You are Claude Code, Anthropic's official CLI for Claude."
+      "preview": "You are Claude Code, Anthropic's official CLI for Claude.",
+      "tokens_approx": 15
     },
     {
       "index": 2,
-      "length": 2949,
-      "preview": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS"
+      "preview": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS",
+      "tokens_approx": 786
     }
   ],
   "tools": [
@@ -39,24 +38,25 @@
     "WebFetch",
     "WebSearch"
   ],
-  "tool_description_chars": {
-    "Bash": 10007,
-    "CronCreate": 2319,
-    "CronDelete": 100,
-    "CronList": 60,
-    "EnterWorktree": 1335,
-    "ExitWorktree": 1923,
-    "Glob": 371,
-    "Grep": 866,
-    "Read": 1632,
-    "RemoteTrigger": 434,
-    "Skill": 1272,
-    "TaskCreate": 2146,
-    "TaskGet": 732,
-    "TaskList": 998,
-    "TaskUpdate": 2243,
-    "WebFetch": 1479,
-    "WebSearch": 1318
-  },
-  "source_request": "003-request.json"
+  "source_request": "003-request.json",
+  "total_tokens_approx": 847,
+  "tool_description_tokens_approx": {
+    "Bash": 2624,
+    "CronCreate": 749,
+    "CronDelete": 22,
+    "CronList": 14,
+    "EnterWorktree": 367,
+    "ExitWorktree": 510,
+    "Glob": 92,
+    "Grep": 257,
+    "Read": 433,
+    "RemoteTrigger": 135,
+    "Skill": 339,
+    "TaskCreate": 518,
+    "TaskGet": 190,
+    "TaskList": 260,
+    "TaskUpdate": 622,
+    "WebFetch": 380,
+    "WebSearch": 332
+  }
 }

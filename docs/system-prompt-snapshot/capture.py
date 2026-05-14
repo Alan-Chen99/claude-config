@@ -29,7 +29,20 @@ import sys
 import tempfile
 from pathlib import Path
 
+import tiktoken
+
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+# tiktoken cl100k_base → Claude API token scale factor.
+# Derived from 46 Claude Code sessions (>5K chars): median 1.17, stable across
+# 60-80K char system prompts. Accounts for Claude tokenizer differences and
+# structural tokens (role markers, content type markers) not present in text.
+TIKTOKEN_TO_API_SCALE = 1.17
+_enc = tiktoken.get_encoding("cl100k_base")
+
+def approx_tokens(text: str) -> int:
+    """Approximate Claude API token count for a text string."""
+    return round(len(_enc.encode(text)) * TIKTOKEN_TO_API_SCALE)
 INTERCEPT = SCRIPT_DIR / "intercept.js"
 OUT_DIR = SCRIPT_DIR / "capture-output"
 HTTP_LOGS = Path.home() / ".claude" / "http-logs"
@@ -109,7 +122,7 @@ def get_log_dirs() -> set[str]:
 def find_all_requests(new_dirs: list[Path]) -> list[tuple[Path, int, bool]]:
     """Return deduplicated request.json files, preserving chronological order.
 
-    Each entry is (path, system_chars, has_tools). Deduplicates by system
+    Each entry is (path, system_tokens_approx, has_tools). Deduplicates by system
     prompt content hash so multiple turns from the same agent collapse to one.
     """
     results = []
@@ -131,7 +144,7 @@ def find_all_requests(new_dirs: list[Path]) -> list[tuple[Path, int, bool]]:
                     continue
                 seen.add(h)
                 has_tools = len(req.get("tools", [])) > 0
-                results.append((req_path, len(content), has_tools))
+                results.append((req_path, approx_tokens(content), has_tools))
             except (json.JSONDecodeError, OSError):
                 continue
     return results
@@ -159,14 +172,14 @@ def extract_request(req_path: Path, out_dir: Path, file_prefix: str = "") -> dic
         ),
         "model": req.get("model"),
         "block_count": len(blocks),
-        "total_chars": len(content),
+        "total_tokens_approx": approx_tokens(content),
         "blocks": [
-            {"index": i, "length": len(s["text"]), "preview": s["text"][:200]}
+            {"index": i, "tokens_approx": approx_tokens(s["text"]), "preview": s["text"][:200]}
             for i, s in enumerate(blocks)
         ],
         "tools": [t["name"] for t in req.get("tools", [])],
-        "tool_description_chars": {
-            t["name"]: len(t.get("description", "")) for t in req.get("tools", [])
+        "tool_description_tokens_approx": {
+            t["name"]: approx_tokens(t.get("description", "")) for t in req.get("tools", [])
         },
         "source_request": req_path.name,
     }
@@ -307,7 +320,7 @@ def main() -> None:
 
     # Select main prompt: prefer requests that have tools defined (the main
     # conversation call), falling back to largest system prompt. v2.1.87+ makes
-    # a title-generation Haiku call (~900 chars, no tools) before the main call.
+    # a title-generation Haiku call (~250 tokens, no tools) before the main call.
     # With --system-prompt the main call can be smaller than the title-gen call,
     # so size alone is not sufficient — tools presence is the reliable signal.
     main_idx = max(
@@ -343,7 +356,7 @@ def main() -> None:
     n_sub = len(subagent_summaries)
     print(
         f"\n--- Captured main: {main_summary['block_count']} blocks, "
-        f"{main_summary['total_chars']} chars (model: {main_summary.get('model')})"
+        f"{main_summary['total_tokens_approx']} tokens (approx) (model: {main_summary.get('model')})"
         f"{f', {n_sub} subagent(s)' if subagent else ''} ---",
         file=sys.stderr,
     )

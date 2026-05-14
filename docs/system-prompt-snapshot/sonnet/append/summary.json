@@ -1,7 +1,6 @@
 {
   "model": "claude-sonnet-4-6",
   "system_blocks": 4,
-  "system_chars": 27297,
   "tools_upfront": [
     "Agent",
     "Bash",
@@ -35,8 +34,9 @@
     "WebSearch"
   ],
   "tools_deferred_count": 18,
-  "tools_total_chars": 31827,
   "has_output_style": false,
   "has_doing_tasks": true,
-  "subagent_count": 0
+  "subagent_count": 0,
+  "system_tokens_approx": 6703,
+  "tools_total_tokens_approx": 8545
 }

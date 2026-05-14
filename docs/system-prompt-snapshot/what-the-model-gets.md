@@ -5,19 +5,21 @@ v2.1.87. Source: `opus/default/request.json`, `sonnet/default/request.json`.
 Capture uses `--setting-sources project,local` to isolate from user settings.
 Sonnet and Opus receive identical system prompt text except model name, knowledge cutoff, and agent type ordering in the Agent tool description.
 
-## system[0] (80 chars, not cached)
+Token counts are approximate: tiktoken cl100k_base scaled by 1.17x (median factor across 46 Claude Code sessions with >5K chars of system prompt text).
+
+## system[0] (~39 tokens, not cached)
 
 ```
 x-anthropic-billing-header: cc_version=2.1.87.7b6; cc_entrypoint=cli; cch=00000;
 ```
 
-## system[1] (57 chars, not cached)
+## system[1] (~15 tokens, not cached)
 
 ```
 You are Claude Code, Anthropic's official CLI for Claude.
 ```
 
-## system[2] (13,211 chars, cached global+1h)
+## system[2] (~3,100 tokens, cached global+1h)
 
 Static behavioral rules. Cross-org cacheable (scope: global).
 
@@ -61,10 +63,10 @@ IMPORTANT: Go straight to the point. Try the simplest approach first. Be extra c
 {lead with answer not reasoning, focus on decisions/milestones/errors, one sentence over three}
 ```
 
-## system[3] (~13,914 chars, not cached)
+## system[3] (~3,540 tokens, not cached)
 
 Dynamic sections. Recomputed per session, not globally cached.
-Opus: 13,914 chars. Sonnet: 13,921 chars (path and model name differ).
+Opus: ~3,540 tokens. Sonnet: ~3,550 tokens (path and model name differ).
 
 ```
 # auto memory
@@ -98,7 +100,7 @@ Note: auto memory section only appears when `autoMemoryEnabled` is true (the def
 The capture uses `--setting-sources project,local` to avoid inheriting the user's
 global settings, which ensures defaults apply.
 
-## tool desc (Agent, 7.0K desc + 1.0K schema)
+## tool desc (Agent, ~1,580 desc + ~300 schema tokens)
 
 ```
 Agent: Launch a new agent to handle complex, multi-step tasks autonomously.
@@ -122,7 +124,7 @@ Example usage:
 {input_schema: prompt, description, subagent_type, model, run_in_background, isolation}
 ```
 
-## tool desc (Bash, 10.0K desc + 1.5K schema)
+## tool desc (Bash, ~2,620 desc + ~430 schema tokens)
 
 ```
 Bash: Executes a given bash command and returns its output.
@@ -156,7 +158,7 @@ IMPORTANT: follow steps carefully
 {input_schema: command, description, timeout, run_in_background, dangerouslyDisableSandbox}
 ```
 
-## tool desc (Edit, 1.1K desc + 0.6K schema)
+## tool desc (Edit, ~260 desc + ~170 schema tokens)
 
 ```
 Edit: Performs exact string replacements in files.
@@ -170,7 +172,7 @@ replace_all for renaming}
 {input_schema: file_path, old_string, new_string, replace_all}
 ```
 
-## tool desc (Glob, 0.4K desc + 0.6K schema)
+## tool desc (Glob, ~90 desc + ~160 schema tokens)
 
 ```
 Glob: Fast file pattern matching tool that works with any codebase size.
@@ -178,7 +180,7 @@ Glob: Fast file pattern matching tool that works with any codebase size.
 {input_schema: pattern, path}
 ```
 
-## tool desc (Grep, 0.9K desc + 2.5K schema)
+## tool desc (Grep, ~260 desc + ~740 schema tokens)
 
 ```
 Grep: A powerful search tool built on ripgrep.
@@ -191,7 +193,7 @@ ripgrep brace escaping, multiline mode}
 {input_schema: pattern, path, glob, type, output_mode, -A, -B, -C, -i, -n, multiline, head_limit, offset}
 ```
 
-## tool desc (Read, 1.6K desc + 0.7K schema)
+## tool desc (Read, ~430 desc + ~210 schema tokens)
 
 ```
 Read: Reads a file from the local filesystem.
@@ -205,7 +207,7 @@ ALWAYS read screenshots when user provides path.
 {input_schema: file_path, offset, limit, pages}
 ```
 
-## tool desc (Skill, 1.3K desc + 0.3K schema)
+## tool desc (Skill, ~340 desc + ~110 schema tokens)
 
 ```
 Skill: Execute a skill within the main conversation.
@@ -222,7 +224,7 @@ not for built-in CLI commands, <command-name> tag = already loaded}
 {input_schema: skill, args}
 ```
 
-## tool desc (ToolSearch, 1.0K desc + 0.4K schema)
+## tool desc (ToolSearch, ~250 desc + ~130 schema tokens)
 
 ```
 ToolSearch: Fetches full schema definitions for deferred tools so they can be called.
@@ -235,7 +237,7 @@ Query forms:
 {input_schema: query, max_results}
 ```
 
-## tool desc (Write, 0.6K desc + 0.4K schema)
+## tool desc (Write, ~150 desc + ~110 schema tokens)
 
 ```
 Write: Writes a file to the local filesystem.
@@ -248,7 +250,7 @@ NEVER create *.md or README unless explicitly requested.
 {input_schema: file_path, content}
 ```
 
-## messages[0] — deferred tools (772 chars, plain string)
+## messages[0] — deferred tools (~210 tokens, plain string)
 
 Injected as the first user message. Plain string, not a content block list.
 
@@ -273,7 +275,7 @@ TaskCreate
 
 ## messages[1] — user context + input (content block list)
 
-### block[0]: skills (~1.5K chars)
+### block[0]: skills (~370 tokens)
 
 ```
 <system-reminder>
@@ -286,10 +288,10 @@ The following skills are available for use with the Skill tool:
 </system-reminder>
 ```
 
-~1.5K with default CC skills only. ~5.5K+ when user-level skills from
+~370 tokens with default CC skills only. ~1,400+ tokens when user-level skills from
 `~/.claude/skills/` are included (requires `user` in `--setting-sources`).
 
-### block[1]: claudeMd + currentDate (~680 chars)
+### block[1]: claudeMd + currentDate (~170 tokens)
 
 ```
 <system-reminder>

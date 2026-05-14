@@ -36,27 +36,29 @@ System prompt blocks are separated by `---BLOCK_SEPARATOR---` in the `.md` files
 
 The `system` array in the API request contains 4 text blocks (global cache boundary now active):
 
-| Block | Content | Cache | Chars |
+| Block | Content | Cache | ~Tokens |
 |---|---|---|---|
-| 0 | Billing header (`cc_version=2.1.87...`) | none | 80 |
-| 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 57 |
-| 2 | Static behavioral rules (intro through output efficiency) | global+1h | 13,211 |
-| 3 | Dynamic sections (auto memory, env info, output style, gitStatus) | none | ~13,914 |
+| 0 | Billing header (`cc_version=2.1.87...`) | none | 39 |
+| 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 15 |
+| 2 | Static behavioral rules (intro through output efficiency) | global+1h | 3,100 |
+| 3 | Dynamic sections (auto memory, env info, output style, gitStatus) | none | 3,540 |
 
-Total: ~27,300 chars across 4 blocks.
+Total: ~6,700 tokens across 4 blocks.
 
-Tool descriptions (git commit workflow, bash instructions, etc.) are in `tools[].description`, not in the system prompt. 9 upfront tools, 18 deferred. ~24K chars of tool descriptions + ~8K schemas = ~32K total.
+Tool descriptions (git commit workflow, bash instructions, etc.) are in `tools[].description`, not in the system prompt. 9 upfront tools, 18 deferred. ~6,100 tokens of tool descriptions + ~2,300 tokens of schemas = ~8,400 total.
+
+Token counts are approximate: tiktoken cl100k_base scaled by 1.17x (median factor across 46 Claude Code sessions).
 
 ## `--system-prompt` behavior
 
 Replaces blocks 2-3 with the custom text. gitStatus is still appended unconditionally by `appendSystemContext()` in `query.ts`. Identity block is unchanged.
 
-| Flag | Blocks | System chars | What happens |
+| Flag | Blocks | ~System tokens | What happens |
 |---|---|---|---|
-| (none) | 4 | ~27,300 | Full default prompt |
-| `--system-prompt` | 3 | ~490 | Custom text replaces blocks 2-3; gitStatus appended |
-| `--system-prompt-file` | 3 | ~490 | Identical to `--system-prompt` (file read at startup) |
-| `--append-system-prompt` | 4 | ~27,400 | Full default prompt + custom text appended after env |
+| (none) | 4 | ~6,700 | Full default prompt |
+| `--system-prompt` | 3 | ~130 | Custom text replaces blocks 2-3; gitStatus appended |
+| `--system-prompt-file` | 3 | ~130 | Identical to `--system-prompt` (file read at startup) |
+| `--append-system-prompt` | 4 | ~6,700 | Full default prompt + custom text appended after env |
 
 What `--system-prompt` removes (blocks 2-3):
 - All behavioral rules (security policy, tool usage, output efficiency, tone)
