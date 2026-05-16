@@ -24,7 +24,7 @@ Output:
 
 Prerequisites:
     The MITM proxy must be running:
-        cd scripts/intercept && node dist/proxy.js
+        cd scripts/intercept && python3 run-proxy.py
 """
 
 import hashlib

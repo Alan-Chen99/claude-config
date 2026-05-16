@@ -181,6 +181,9 @@ class InterceptAddon:
     def request(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         self._flow_start[flow.id] = time.time()
 
+    def error(self, flow: "mitmproxy.http.HTTPFlow") -> None:
+        self._flow_start.pop(flow.id, None)
+
     def response(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         if flow.request.pretty_host != TARGET_HOST:
             return
