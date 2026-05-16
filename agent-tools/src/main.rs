@@ -34,6 +34,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// pre_output script used in output styles
+    #[command(name = "pre_output.record")]
+    PreOutputRecord {
+        /// JSON argument (accepted and discarded)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 /// Resolve the claude-config repository root.
@@ -99,6 +106,14 @@ fn main() {
                 &root,
                 &root,
                 &["python3", "-m", "claude_config.cc_workflow.extract"],
+                &args,
+            );
+        }
+        Cmd::PreOutputRecord { args } => {
+            uv_run(
+                &root,
+                &root,
+                &["python3", "-m", "claude_config.pre_output.record"],
                 &args,
             );
         }

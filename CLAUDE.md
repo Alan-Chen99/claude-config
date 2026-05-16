@@ -58,10 +58,11 @@ CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module>
 
 Python package installed editable in `.venv` as `claude_config`. Contains custom (non-upstream) Python tools:
 
-| Module                          | What                                           | CLI entry point       |
-| ------------------------------- | ---------------------------------------------- | --------------------- |
-| `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`           |
-| `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract` |
+| Module                          | What                                           | CLI entry point         |
+| ------------------------------- | ---------------------------------------------- | ----------------------- |
+| `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`             |
+| `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`   |
+| `claude_config.pre_output`      | Rule-reinforcement breakpoint for output styles | `pre_output.record`     |
 
 ### `skills/copy-writing-style/`
 

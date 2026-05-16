@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """pre_output.record -- prompt engineering technique for rule reinforcement.
 
 This script does NOT record anything. The "record" framing is a prompt
