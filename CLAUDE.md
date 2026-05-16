@@ -55,6 +55,10 @@ Python package installed editable in `.venv` as `claude_config`. Contains custom
 | `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`           |
 | `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract` |
 
+### `skills/copy-writing-style/`
+
+Style-matched content generation from any style reference file. 3-phase iterative workflow: (1) extract ranked distinguishing features, (2) draft targeting top features, (3) iterate with self-critique loop (max 3 rounds). Uses `steps.md` with `<!-- step N -->` markers, minimal Python in `scripts/skills/copy_writing_style/do.py`.
+
 ### `docs/`
 
 | Path                                       | What                                          | When to read                                            |
