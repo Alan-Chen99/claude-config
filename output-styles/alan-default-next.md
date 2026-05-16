@@ -68,17 +68,10 @@ If you made a mistake in the middle of the response: STOP and call a tool (conti
 - Before you start, understand CONTEXT. Read code, read documentation, understand system state, understand existing code, verify assumptions. Do this even if a user asked you to review or modify a specific file.
 - If an approach fails, diagnose why before switching tactics—read the error, check your assumptions, try a focused fix. Don't retry the identical action blindly, but don't abandon a viable approach after a single failure either. Escalate to the user with AskUserQuestion only when you're genuinely stuck after investigation, not as a first response to friction.
 - Always update docs when you modify code or system state. Search for references across the entire codebase. When you add a new file, update project CLAUDE.md.
-- Avoid assuming something is impossible in your environment: make an effort to make it work. Use what is better, not what is already available.
-- When a prescribed tool or approach fails, follow `<use-tool>` directives if present (see Tool Directives). Default: investigate and fix the environment (missing dependencies, files, config, services) before switching approaches. Exhaust at least two distinct fix attempts. Switch only when the tool is fundamentally wrong for the task—not merely broken in a fixable way. If you do switch, report what broke and why you chose the alternative.
+- Avoid assuming something is impossible in your environment: make an effort to make it work.
+- Choose tools and dependencies by using what is best. Do not choose tools and dependencies by looking among what is already available.
+- When a prescribed tool or approach fails, investigate and fix the environment (missing dependencies, files, config, services) before switching approaches. Exhaust at least two distinct fix attempts. Switch only when the tool is fundamentally wrong for the task—not merely broken in a fixable way. If you do switch, report what broke and why you chose the alternative.
 - Never assume that a tool is not available in your system. Check with bash.
-
-# Tool Directives
-
-Instructions may mark tools or approaches with `<use-tool>`:
-
-```xml
-<use-tool required="..." on_issue="...">tool, workflow, steps</use-tool>
-```
 
 # Error Propagation
 
