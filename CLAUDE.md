@@ -41,10 +41,18 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
 
 Root resolution (no dependency on binary location):
-1. `CLAUDE_CONFIG_ROOT` env var — set this to a worktree path for testing
-2. Default: `/repos/claude-config` (this system)
+1. `CLAUDE_CONFIG_ROOT` env var
+2. Default: derived from `~/.claude/skills` symlink target (i.e. `/repos/claude-config`)
 
-Build: `cd agent-tools && cargo build --release`. Installed to `~/.local/bin/agent-tools` by `hooks/install.sh`.
+Build: `cd agent-tools && cargo build --release`. Installed as a symlink at `~/.local/bin/agent-tools` → `<repo>/agent-tools/target/release/agent-tools` by `hooks/install.sh`.
+
+**Worktrees must NEVER run `hooks/install.sh`** — the symlink must always point to the canonical repo's binary. Worktrees that install their own build will break all other sessions when the worktree is deleted.
+
+Testing from a worktree without installing:
+```bash
+cd agent-tools && cargo build --release
+CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module> [args...]
+```
 
 ### `src/claude_config/`
 

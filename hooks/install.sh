@@ -40,15 +40,20 @@ for file in "${FILES[@]}"; do
     echo "linked: $dst -> $src"
 done
 
-# Build and install agent-tools binary
+# Build and install agent-tools binary.
+# IMPORTANT: Only the canonical repo (/repos/claude-config) should install here.
+# Worktrees must NEVER install their build into ~/.local/bin — the symlink must
+# always point to the canonical repo's release binary so that all sessions share
+# a single, up-to-date binary regardless of which worktree is active.
 AGENT_TOOLS_DIR="${REPO_DIR}/agent-tools"
+AGENT_TOOLS_DST="${HOME}/.local/bin/agent-tools"
 if [ -f "${AGENT_TOOLS_DIR}/Cargo.toml" ]; then
     if command -v cargo >/dev/null 2>&1; then
         echo "building agent-tools..."
         (cd "$AGENT_TOOLS_DIR" && cargo build --release --quiet)
         mkdir -p "${HOME}/.local/bin"
-        cp -f "${AGENT_TOOLS_DIR}/target/release/agent-tools" "${HOME}/.local/bin/agent-tools"
-        echo "installed: ~/.local/bin/agent-tools"
+        ln -sf "${AGENT_TOOLS_DIR}/target/release/agent-tools" "$AGENT_TOOLS_DST"
+        echo "installed: $AGENT_TOOLS_DST -> ${AGENT_TOOLS_DIR}/target/release/agent-tools"
     else
         echo "warning: cargo not found, skipping agent-tools build"
     fi
