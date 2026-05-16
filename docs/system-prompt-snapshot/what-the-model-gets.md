@@ -1,27 +1,29 @@
 # What the Model Gets
 
 Everything the model receives, in order, on a fresh interactive session with a project CLAUDE.md, no output style.
-v2.1.87. Source: `opus/default/request.json`, `sonnet/default/request.json`.
+v2.1.143. Source: `opus/default/request.json`, `sonnet/default/request.json`.
 Capture uses `--setting-sources project,local` to isolate from user settings.
-Sonnet and Opus receive identical system prompt text except model name and knowledge cutoff.
+Sonnet and Opus receive identical system prompt text except model name and knowledge cutoff;
+the per-section token counts below differ because opus-4-7 and sonnet-4-6 use different tokenizers
+(opus runs ~38% larger on the same text).
 
 Token counts from the Anthropic count_tokens API (exact).
 
-## system[0] (38 tokens, not cached)
+## system[0] (sonnet 38 / opus 47 tokens, not cached)
 
 ```
-x-anthropic-billing-header: cc_version=2.1.87.7b6; cc_entrypoint=cli; cch=00000;
+x-anthropic-billing-header: cc_version=2.1.143.b09; cc_entrypoint=cli; cch=00000;
 ```
 
-## system[1] (15 tokens, not cached)
+## system[1] (sonnet 15 / opus 24 tokens, not cached)
 
 ```
 You are Claude Code, Anthropic's official CLI for Claude.
 ```
 
-## system[2] (2,875 tokens, cached global+1h)
+## system[2] (sonnet 2,132 / opus 3,054 tokens, cached 1h global)
 
-Static behavioral rules. Cross-org cacheable (scope: global).
+Static behavioral rules. Cross-org cacheable (`scope: global`).
 
 ```
 You are an interactive agent that helps users with software engineering tasks...
@@ -34,60 +36,66 @@ IMPORTANT: {security policy}
 IMPORTANT: {URL policy — NEVER generate or guess URLs}
 
 # System
-{7 bullets: output rendering, permissions, ! prefix for interactive commands,
-system-reminder tags, prompt injection, hooks, compression}
+{6 bullets: output rendering, permission model, system-reminder tags,
+prompt injection, hooks, context compression}
 
 # Doing tasks
-{12 bullets: software engineering framing, defer to user judgement, read before modify,
-avoid file bloat, no time estimates, diagnose before switching tactics,
-OWASP security, no extras beyond what was asked, no speculative error handling,
-no premature abstractions, no backwards-compat hacks, /help link}
-
-{kept even when output style is active — no longer removed}
+{12 bullets: software engineering framing, defer to user judgement,
+2-3 sentence response for exploratory questions, prefer editing existing files,
+OWASP security, no extras/abstractions, no speculative error handling,
+no comments by default, no WHAT comments, dev server for UI changes,
+no backwards-compat hacks, /help link}
 
 # Executing actions with care
-{reversibility/blast radius policy, 4 categories of risky actions, investigate before destroying}
+{reversibility/blast radius policy, 4 categories of risky actions,
+investigate before destroying}
 
 # Using your tools
-Do NOT use Bash when a dedicated tool is provided — CRITICAL
-{Read not cat, Edit not sed, Write not echo, Glob not find, Grep not grep}
-{TaskCreate for work tracking, Agent for exploration, Skill for slash commands,
-parallel calls when independent}
+{3 bullets: prefer dedicated tools (Read/Edit/Write) over Bash,
+TaskCreate for tracking, parallel calls when independent}
 
 # Tone and style
-{no emojis, concise, file_path:line_number references, owner/repo#123 for GH links,
+{4 bullets: no emojis, concise, file_path:line_number references,
 no colon before tool calls}
-
-# Output efficiency
-IMPORTANT: Go straight to the point. Try the simplest approach first. Be extra concise.
-{lead with answer not reasoning, focus on decisions/milestones/errors, one sentence over three}
 ```
 
-## system[3] (3,271 tokens, not cached)
+## system[3] (sonnet 4,266 / opus 5,754 tokens, cached 1h org)
 
-Dynamic sections. Recomputed per session, not globally cached.
-Opus: 3,271 tokens. Sonnet: 3,273 tokens (path and model name differ).
+NEW in v2.1.143: this block is now also cached (was uncached in v2.1.87).
+Cache scope is org-only because the block contains the user's working directory
+and other session-stable but non-global content.
 
 ```
+# Text output (does not apply to tool calls)
+{6 paragraphs replacing the old "Output efficiency" section:
+narrate at key moments (find/redirect/blocker), don't narrate internal
+deliberation, write so reader can pick up cold, end-of-turn summary 1-2 sentences,
+match response shape to task, no comments / planning docs in code}
+
+# Session-specific guidance
+{5 bullets: `! <cmd>` prefix for interactive commands,
+Agent tool guidance + Explore for >3 queries, /<skill-name> via Skill,
+/schedule offering policy (very specific anti-overuse rules),
+/ultrareview explanation}
+
 # auto memory
-{memory system path and write instructions}
+{persistent file-based memory system at /root/.claude/projects/.../memory/}
 ## Types of memory
 {user, feedback, project, reference — XML definitions with examples for each}
 ## What NOT to save in memory
 ## How to save memories
 ## When to access memories
-{MUST access memory when user explicitly asks}
 ## Before recommending from memory
 ## Memory and other forms of persistence
 
 # Environment
  - Primary working directory, git repo, platform, shell, OS
- - Model name: "Opus 4.6" / "claude-opus-4-6" (or Sonnet 4.6 / claude-sonnet-4-6)
- - Knowledge cutoff: Opus May 2025, Sonnet August 2025
+ - Model name: "Sonnet 4.6" / "claude-sonnet-4-6" (or Opus 4.7 / claude-opus-4-7)
+ - Knowledge cutoff: Sonnet August 2025, Opus May 2025
  - Model family IDs, fast mode info, Claude Code availability
 
-# Output Style: <name>                                ← only present when output style is set
-{full output style markdown content}
+# Context management
+{conversation summarization note}
 
 gitStatus: This is the git status at the start of the conversation...
 Current branch: main
@@ -100,40 +108,79 @@ Note: auto memory section only appears when `autoMemoryEnabled` is true (the def
 The capture uses `--setting-sources project,local` to avoid inheriting the user's
 global settings, which ensures defaults apply.
 
-## tool desc (Agent, 2,344 tokens)
+## Tools
+
+10 upfront tools (sent in `tools[]` without `defer_loading`) + 27 deferred tools
+(sent in `tools[]` with `defer_loading: true`). In v2.1.87 only 9 upfront were
+sent and the deferred list was a plain string user message. In v2.1.143 deferred
+tools are real tool definitions with full schemas — they just aren't loaded
+until ToolSearch is called.
+
+Removed from upfront vs v2.1.87: **Glob**, **Grep**.
+Added to upfront: **AskUserQuestion**, **ScheduleWakeup**, **ShareOnboardingGuide**.
+
+| Tool | Sonnet tokens | Opus tokens |
+|---|---:|---:|
+| Agent | 2,656 | 3,696 |
+| AskUserQuestion | 1,726 | 2,376 |
+| Bash | 3,601 | 4,998 |
+| Edit | 937 | 1,254 |
+| Read | 1,181 | 1,581 |
+| ScheduleWakeup | 1,493 | 2,084 |
+| ShareOnboardingGuide | 857 | 1,145 |
+| Skill | 929 | 1,292 |
+| ToolSearch | 882 | 1,210 |
+| Write | 770 | 1,035 |
+| **Total upfront** | **10,559** | **14,596** |
+
+## tool desc (Agent)
 
 ```
-Agent: Launch a new agent to handle complex, multi-step tasks autonomously.
+Agent: Launch a new agent to handle complex, multi-step tasks. Each agent type
+has specific capabilities and tools available to it.
 
 Available agent types and the tools they have access to:
-{5 built-in types: general-purpose(*), statusline-setup(Read,Edit), Explore,
-Plan, claude-code-guide}
+{6 built-in types: claude(*), claude-code-guide, Explore, general-purpose(*),
+Plan, statusline-setup(Read,Edit)}
 {user-defined agents from ~/.claude/agents/ are appended here if configured}
 
-When NOT to use the Agent tool:
-{specific file → Read/Glob, class definition → Glob, 2-3 known files → Read}
+When not to use:
+{specific file → Read/grep via Bash, known target → direct tool}
 
 Usage notes:
-{3-5 word description, concurrent launches, result not visible to user,
-background vs foreground, SendMessage continuation, tell agent code vs research,
-proactive use, worktree isolation}
+{short description, parallel launches, result not visible to user,
+trust but verify, background vs foreground, SendMessage continuation,
+worktree isolation, writing the prompt}
 
 Example usage:
-{2 examples: test-runner after writing code, greeting-responder}
+{2 examples: branch ship-readiness audit, second-opinion review}
 
-{input_schema: prompt, description, subagent_type, model, run_in_background, isolation}
+{input_schema: description, isolation, model, prompt, run_in_background, subagent_type}
 ```
 
-## tool desc (Bash, 3,502 tokens)
+## tool desc (AskUserQuestion) — NEW in v2.1.143
+
+```
+AskUserQuestion: Use this tool when you need to ask the user questions during
+execution. {1-4 questions, multiSelect option, preview field for visual
+comparisons (single-select only), plan mode note (don't ask if plan ready —
+use ExitPlanMode instead)}
+
+{input_schema: questions[{question, header, options[{label, description, preview}],
+multiSelect}], answers, annotations, metadata}
+```
+
+## tool desc (Bash)
 
 ```
 Bash: Executes a given bash command and returns its output.
-IMPORTANT: avoid find/grep/cat/sed/awk — use Glob/Grep/Read/Edit/Write instead
+IMPORTANT: avoid cat/head/tail/sed/awk/echo — use Read/Edit/Write instead
 
 # Instructions
 {verify parent dirs, quote paths, absolute paths, timeout up to 600s,
 run_in_background, description style, multiple commands (parallel vs &&),
-git: prefer new commits, no destructive ops, never skip hooks, no sleep}
+git: prefer new commits, no destructive ops, never skip hooks, no sleep,
+find from . not /, find -regex alternation order}
 
 # Committing changes with git
 Git Safety Protocol:
@@ -149,16 +196,15 @@ IMPORTANT: no --no-edit with rebase
 ALWAYS pass commit message via HEREDOC
 
 # Creating pull requests
-IMPORTANT: follow steps carefully
 {3-step workflow: status+diff+log+diff-from-base → analyze ALL commits+draft → branch+push+gh-pr-create}
 
 # Other common operations
 {gh api for PR comments}
 
-{input_schema: command, description, timeout, run_in_background, dangerouslyDisableSandbox}
+{input_schema: command, dangerouslyDisableSandbox, description, run_in_background, timeout}
 ```
 
-## tool desc (Edit, 938 tokens)
+## tool desc (Edit)
 
 ```
 Edit: Performs exact string replacements in files.
@@ -169,31 +215,10 @@ ALWAYS prefer editing existing files. NEVER write new files unless required.
 {preserve indentation from Read output, old_string must be unique or use replace_all,
 replace_all for renaming}
 
-{input_schema: file_path, old_string, new_string, replace_all}
+{input_schema: file_path, new_string, old_string, replace_all}
 ```
 
-## tool desc (Glob, 748 tokens)
-
-```
-Glob: Fast file pattern matching tool that works with any codebase size.
-{glob patterns, sorted by mtime, use Agent for open-ended search}
-{input_schema: pattern, path}
-```
-
-## tool desc (Grep, 1,487 tokens)
-
-```
-Grep: A powerful search tool built on ripgrep.
-
-Usage:
-ALWAYS use Grep for search. NEVER invoke grep/rg as Bash command.
-{full regex, glob/type filtering, 3 output modes (content/files_with_matches/count),
-ripgrep brace escaping, multiline mode}
-
-{input_schema: pattern, path, glob, type, output_mode, -A, -B, -C, -i, -n, multiline, head_limit, offset}
-```
-
-## tool desc (Read, 1,108 tokens)
+## tool desc (Read)
 
 ```
 Read: Reads a file from the local filesystem.
@@ -203,17 +228,48 @@ Usage:
 images (multimodal), PDFs (MUST use pages param for >10 pages, max 20),
 Jupyter notebooks, files only not dirs}
 ALWAYS read screenshots when user provides path.
+Do NOT re-read a file you just edited.
 
-{input_schema: file_path, offset, limit, pages}
+{input_schema: file_path, limit, offset, pages}
 ```
 
-## tool desc (Skill, 963 tokens)
+## tool desc (ScheduleWakeup) — NEW in v2.1.143
+
+```
+ScheduleWakeup: Schedule when to resume work in /loop dynamic mode — the user
+invoked /loop without an interval, asking you to self-pace iterations.
+
+Don't schedule short-interval wakeups to poll background work the harness
+already tracks. Schedule a long fallback (1200s+) instead, unless polling
+external state that the harness cannot notify on.
+
+Picking delaySeconds:
+{Anthropic prompt cache has 5-minute TTL — sleeping past 300s loses cache.
+Under 5 min for active polling external state; 5 min–1 hour for genuinely
+idle waits or fallback heartbeats. Don't pick exactly 300s. Default to
+1200–1800s for idle ticks.}
+
+{input_schema: delaySeconds (60–3600), prompt, reason}
+```
+
+## tool desc (ShareOnboardingGuide) — NEW in v2.1.143
+
+```
+ShareOnboardingGuide: Upload the ONBOARDING.md in the current directory and
+return a share link teammates can open in Claude Code.
+
+Modes: check (default, upload only if local file exists), update, create, delete.
+
+{input_schema: mode, short_code}
+```
+
+## tool desc (Skill)
 
 ```
 Skill: Execute a skill within the main conversation.
 
 How to invoke:
-{skill name + optional args, fully qualified names}
+{skill name + optional args, fully qualified plugin:skill names}
 
 Important:
 BLOCKING REQUIREMENT: invoke skill BEFORE generating any response about the task.
@@ -221,10 +277,10 @@ NEVER mention a skill without actually calling this tool.
 {skills listed in system-reminder, don't invoke running skills,
 not for built-in CLI commands, <command-name> tag = already loaded}
 
-{input_schema: skill, args}
+{input_schema: args, skill}
 ```
 
-## tool desc (ToolSearch, 905 tokens)
+## tool desc (ToolSearch)
 
 ```
 ToolSearch: Fetches full schema definitions for deferred tools so they can be called.
@@ -234,10 +290,10 @@ ToolSearch: Fetches full schema definitions for deferred tools so they can be ca
 Query forms:
 {"select:Read,Edit" exact, "notebook jupyter" keyword, "+slack send" name+rank}
 
-{input_schema: query, max_results}
+{input_schema: max_results, query}
 ```
 
-## tool desc (Write, 774 tokens)
+## tool desc (Write)
 
 ```
 Write: Writes a file to the local filesystem.
@@ -247,16 +303,35 @@ MUST Read first if file exists — errors if not.
 {prefer Edit for modifications, overwrites existing}
 NEVER create *.md or README unless explicitly requested.
 
-{input_schema: file_path, content}
+{input_schema: content, file_path}
 ```
 
-## messages[0] — deferred tools (plain string)
+## messages structure (changed in v2.1.143)
 
-Injected as the first user message. Plain string, not a content block list.
+Now a single `messages[0]` with multiple content blocks instead of two
+separate messages.
 
 ```
-<available-deferred-tools>
-AskUserQuestion
+messages[0].content = [
+  {type: "text", text: "<system-reminder>The following deferred tools...</system-reminder>"},  // 27 tool names listed
+  {type: "text", text: "<system-reminder>The following skills are available...</system-reminder>"},
+  {type: "text", text: "<system-reminder>... # claudeMd ... # currentDate ...</system-reminder>"},
+  {type: "text", text: "{user's actual input}", cache_control: {type: "ephemeral", ttl: "1h"}},
+]
+```
+
+In v2.1.87 the deferred-tools list was a plain string in `messages[0]`. In
+v2.1.143 it is a content block in `messages[0]`, and the deferred tools also
+appear in `tools[]` with `defer_loading: true` (full schemas, just not loaded).
+
+### content block [0]: deferred tools
+
+```
+<system-reminder>
+The following deferred tools are now available via ToolSearch. Their schemas
+are NOT loaded — calling them directly will fail with InputValidationError.
+Use ToolSearch with query "select:<name>[,<name>...]" to load tool schemas
+before calling them:
 CronCreate
 CronDelete
 CronList
@@ -264,20 +339,34 @@ EnterPlanMode
 EnterWorktree
 ExitPlanMode
 ExitWorktree
+Monitor
 NotebookEdit
+PushNotification
 RemoteTrigger
 TaskCreate
-...
-</available-deferred-tools>
+TaskGet
+TaskList
+TaskOutput
+TaskStop
+TaskUpdate
+WebFetch
+WebSearch
+mcp__claude_ai_Google_Drive__copy_file
+mcp__claude_ai_Google_Drive__create_file
+mcp__claude_ai_Google_Drive__download_file_content
+mcp__claude_ai_Google_Drive__get_file_metadata
+mcp__claude_ai_Google_Drive__get_file_permissions
+mcp__claude_ai_Google_Drive__list_recent_files
+mcp__claude_ai_Google_Drive__read_file_content
+mcp__claude_ai_Google_Drive__search_files
+</system-reminder>
 ```
 
-18 built-in deferred tools + 12 MCP tools from user's cloud account in this capture.
-MCP tools are not part of the default — they come from account-level integrations
-(not controlled by `--setting-sources`).
+20 built-in deferred tools + 7 MCP tools from the user's cloud account in
+this capture. MCP tools come from account-level integrations and are not
+controlled by `--setting-sources`.
 
-## messages[1] — user context + input (content block list)
-
-### block[0]: skills
+### content block [1]: skills
 
 ```
 <system-reminder>
@@ -290,10 +379,10 @@ The following skills are available for use with the Skill tool:
 </system-reminder>
 ```
 
-Size varies with installed skills. Grows significantly when user-level skills from
-`~/.claude/skills/` are included (requires `user` in `--setting-sources`).
+Size varies with installed skills. Grows significantly when user-level skills
+from `~/.claude/skills/` are included (requires `user` in `--setting-sources`).
 
-### block[1]: claudeMd + currentDate
+### content block [2]: claudeMd + currentDate
 
 ```
 <system-reminder>
@@ -307,7 +396,7 @@ Contents of {path}/CLAUDE.md (project instructions, checked into the codebase):
 
 {full CLAUDE.md text}
 # currentDate
-Today's date is 2026-05-11.
+Today's date is 2026-05-16.
 
       IMPORTANT: this context may or may not be relevant to your tasks.
       You should not respond to this context unless it is highly relevant
@@ -316,10 +405,8 @@ Today's date is 2026-05-11.
 ```
 
 The `# claudeMd` section is absent when no CLAUDE.md exists in the project.
-The `IMPORTANT: this context may or may not be relevant` caveat always appears
-after the context sections.
 
-### block[N]: actual human input (cached 1h)
+### content block [3]: actual human input (cached 1h)
 
 ```
 {the user's message}
@@ -330,7 +417,7 @@ Last block has `cache_control: { type: "ephemeral", ttl: "1h" }`.
 ## API parameters
 
 ```json
-// Opus
+// Opus (claude-opus-4-7)
 {
   "max_tokens": 64000,
   "thinking": { "type": "adaptive" },
@@ -340,7 +427,7 @@ Last block has `cache_control: { type: "ephemeral", ttl: "1h" }`.
   "stream": true
 }
 
-// Sonnet
+// Sonnet (claude-sonnet-4-6)
 {
   "max_tokens": 32000,
   "thinking": { "type": "adaptive" },

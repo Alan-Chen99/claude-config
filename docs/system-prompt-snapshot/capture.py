@@ -31,6 +31,7 @@ import hashlib
 import json
 import os
 import pty
+import re
 import select
 import shutil
 import subprocess
@@ -47,7 +48,16 @@ OUT_DIR = SCRIPT_DIR / "capture-output"
 
 PROXY_PORT = int(os.environ.get("INTERCEPT_PORT", "9160"))
 CA_CERT = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.pem"
-PROXY_LOG_DIR = Path.home() / ".claude" / "requests-log" / "proxy"
+
+# Token counting (count_tokens API) and child spawn happen in this parent process.
+# If parent inherits HTTPS_PROXY (e.g. running inside an intercepted Claude session),
+# anthropic SDK calls fail with TLS errors. Child claude gets HTTPS_PROXY set
+# explicitly in spawn_claude(), so unsetting in parent is safe.
+for _k in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
+    os.environ.pop(_k, None)
+# Proxy writes per-session: ~/.claude/requests-log/{session_id}/NNNN.json
+PROXY_LOG_BASE = Path.home() / ".claude" / "requests-log"
+_LOG_FILE_RE = re.compile(r"^\d+\.json$")
 
 def _pty_drain(fd: int, timeout: float) -> str:
     """Read all available pty output until timeout, preventing buffer-full blocking."""
@@ -123,19 +133,6 @@ def _baseline(model: str) -> int:
 # --- Proxy log reading ---
 
 
-def proxy_counter() -> int:
-    """Get the current log counter by scanning log directory."""
-    if not PROXY_LOG_DIR.exists():
-        return 0
-    nums = []
-    for f in PROXY_LOG_DIR.glob("*.json"):
-        try:
-            nums.append(int(f.stem))
-        except ValueError:
-            continue
-    return max(nums) if nums else 0
-
-
 def proxy_is_running() -> bool:
     import socket
 
@@ -163,19 +160,31 @@ def start_proxy() -> subprocess.Popen:
     raise RuntimeError("Proxy failed to start within 6 seconds")
 
 
-def find_new_proxy_logs(start_counter: int) -> list[Path]:
-    """Find proxy log files with counter > start_counter."""
-    if not PROXY_LOG_DIR.exists():
+def find_new_proxy_logs(start_time: float, child_pid: int) -> list[Path]:
+    """Find proxy logs after start_time whose session.pid matches child_pid.
+
+    Filtering by PID is required: concurrent Claude Code sessions also write
+    to ~/.claude/requests-log/<session_id>/, and mtime alone would mix their
+    traffic into ours.
+    """
+    if not PROXY_LOG_BASE.exists():
         return []
-    results = []
-    for f in sorted(PROXY_LOG_DIR.glob("*.json")):
-        try:
-            n = int(f.stem)
-        except ValueError:
+    matched: list[Path] = []
+    for session_dir in PROXY_LOG_BASE.iterdir():
+        if not session_dir.is_dir():
             continue
-        if n > start_counter:
-            results.append(f)
-    return results
+        for f in session_dir.glob("*.json"):
+            if not _LOG_FILE_RE.match(f.name):
+                continue
+            try:
+                if f.stat().st_mtime <= start_time:
+                    continue
+                entry = json.loads(f.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            if entry.get("session", {}).get("pid") == child_pid:
+                matched.append(f)
+    return sorted(matched, key=lambda p: p.stat().st_mtime)
 
 
 def find_all_requests_proxy(
@@ -208,7 +217,11 @@ def find_all_requests_proxy(
             if s.get("type") == "text"
         ]
         content = "\n".join(texts)
-        h = hashlib.md5(content.encode()).hexdigest()
+        # Normalize per-request variability before hashing: the billing-header
+        # block carries a `cch=<hex>;` session fingerprint that differs every
+        # request, which otherwise defeats dedup of identical prompts.
+        norm = re.sub(r"cch=[0-9a-fA-F]+;", "cch=N;", content)
+        h = hashlib.md5(norm.encode()).hexdigest()
         if h in seen:
             continue
         seen.add(h)
@@ -278,7 +291,7 @@ def spawn_claude(
     model: str = "haiku",
     output_style: str | None = None,
     subagent: str | None = None,
-) -> None:
+) -> int:
     env = os.environ.copy()
     # Prevent nested session detection
     env.pop("CLAUDECODE", None)
@@ -338,15 +351,20 @@ def spawn_claude(
         _pty_drain(fd, 5)
         os.write(fd, b"\r")
 
+        # Claude Code enables bracketed paste mode. A trailing \r in the same
+        # write gets absorbed into the paste payload instead of submitting,
+        # so write the message and the submit-Enter as separate writes.
         if subagent:
             _pty_drain(fd, 10)
-            os.write(fd, (message + "\r").encode())
-            # Wait for subagent round-trip
-            output = _pty_drain(fd, 80)
+            os.write(fd, message.encode())
+            time.sleep(0.5)
+            os.write(fd, b"\r")
+            output = _pty_drain(fd, 100)
         else:
             _pty_drain(fd, 10)
-            os.write(fd, b"say exactly: done\r")
-            # Wait for response — scan for "done" in output
+            os.write(fd, b"say exactly: done")
+            time.sleep(0.3)
+            os.write(fd, b"\r")
             output = _pty_drain(fd, 30)
 
         os.write(fd, b"/exit\r")
@@ -363,6 +381,7 @@ def spawn_claude(
         except ChildProcessError:
             pass
         shutil.rmtree(work_dir, ignore_errors=True)
+    return pid
 
 
 def main() -> None:
@@ -407,10 +426,13 @@ def main() -> None:
         print("Starting intercept proxy...", file=sys.stderr)
         proxy_proc = start_proxy()
 
-    start_counter = proxy_counter()
-    spawn_claude(extra_args, model=model, output_style=output_style, subagent=subagent)
+    # Subtract 1s to tolerate clock skew between file mtimes and our wall clock.
+    start_time = time.time() - 1
+    child_pid = spawn_claude(
+        extra_args, model=model, output_style=output_style, subagent=subagent
+    )
 
-    log_files = find_new_proxy_logs(start_counter)
+    log_files = find_new_proxy_logs(start_time, child_pid)
     if not log_files:
         print("ERROR: No API calls captured.", file=sys.stderr)
         if proxy_proc:

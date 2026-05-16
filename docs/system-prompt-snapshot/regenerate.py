@@ -12,11 +12,18 @@ Usage:
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+# Token counting must bypass any inherited MITM proxy from the parent shell.
+# capture.py is invoked as a subprocess; we strip the proxy env so it inherits
+# clean and re-sets HTTPS_PROXY only for the spawned claude child.
+for _k in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
+    os.environ.pop(_k, None)
 
 import anthropic
 
@@ -88,7 +95,7 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
             cwd=SCRIPT_DIR,
             capture_output=True,
             text=True,
-            timeout=180 if "--subagent" in capture_flags else 90,
+            timeout=240 if "--subagent" in capture_flags else 90,
         )
     except subprocess.TimeoutExpired:
         print(f"  TIMEOUT", file=sys.stderr)

@@ -1,13 +1,13 @@
 {
-  "version": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;",
+  "version": "x-anthropic-billing-header: cc_version=2.1.143.c8c; cc_entrypoint=cli; cch=3139a;",
   "model": "claude-haiku-4-5-20251001",
   "block_count": 3,
-  "total_tokens": 767,
+  "total_tokens": 820,
   "blocks": [
     {
       "index": 0,
-      "tokens": 36,
-      "preview": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;"
+      "tokens": 38,
+      "preview": "x-anthropic-billing-header: cc_version=2.1.143.c8c; cc_entrypoint=cli; cch=3139a;"
     },
     {
       "index": 1,
@@ -16,7 +16,7 @@
     },
     {
       "index": 2,
-      "tokens": 717,
+      "tokens": 768,
       "preview": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS"
     }
   ],
@@ -27,14 +27,16 @@
     "CronList",
     "EnterWorktree",
     "ExitWorktree",
-    "Glob",
-    "Grep",
+    "Monitor",
+    "PushNotification",
     "Read",
     "RemoteTrigger",
+    "ShareOnboardingGuide",
     "Skill",
     "TaskCreate",
     "TaskGet",
     "TaskList",
+    "TaskStop",
     "TaskUpdate",
     "WebFetch",
     "WebSearch",
@@ -45,27 +47,25 @@
     "mcp__claude_ai_Google_Drive__get_file_permissions",
     "mcp__claude_ai_Google_Drive__list_recent_files",
     "mcp__claude_ai_Google_Drive__read_file_content",
-    "mcp__claude_ai_Google_Drive__search_files",
-    "mcp__claude_ai_Indeed__get_company_data",
-    "mcp__claude_ai_Indeed__get_job_details",
-    "mcp__claude_ai_Indeed__get_resume",
-    "mcp__claude_ai_Indeed__search_jobs"
+    "mcp__claude_ai_Google_Drive__search_files"
   ],
   "tool_tokens": {
-    "Bash": 3503,
+    "Bash": 3669,
     "CronCreate": 1616,
     "CronDelete": 607,
     "CronList": 572,
-    "EnterWorktree": 1016,
+    "EnterWorktree": 1349,
     "ExitWorktree": 1206,
-    "Glob": 747,
-    "Grep": 1486,
-    "Read": 1107,
-    "RemoteTrigger": 809,
-    "Skill": 962,
+    "Monitor": 2285,
+    "PushNotification": 906,
+    "Read": 1184,
+    "RemoteTrigger": 867,
+    "ShareOnboardingGuide": 860,
+    "Skill": 928,
     "TaskCreate": 1204,
     "TaskGet": 785,
     "TaskList": 817,
+    "TaskStop": 658,
     "TaskUpdate": 1547,
     "WebFetch": 988,
     "WebSearch": 996,
@@ -76,11 +76,7 @@
     "mcp__claude_ai_Google_Drive__get_file_permissions": 598,
     "mcp__claude_ai_Google_Drive__list_recent_files": 776,
     "mcp__claude_ai_Google_Drive__read_file_content": 907,
-    "mcp__claude_ai_Google_Drive__search_files": 1128,
-    "mcp__claude_ai_Indeed__get_company_data": 1710,
-    "mcp__claude_ai_Indeed__get_job_details": 723,
-    "mcp__claude_ai_Indeed__get_resume": 572,
-    "mcp__claude_ai_Indeed__search_jobs": 819
+    "mcp__claude_ai_Google_Drive__search_files": 1128
   },
-  "source_request": "0062-request.json"
+  "source_request": "0004-request.json"
 }
