@@ -58,6 +58,9 @@ fn repo_root() -> PathBuf {
 
 fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[String]) -> ! {
     let mut cmd = Command::new("uv");
+    // --project already specifies the venv; inherited VIRTUAL_ENV from the
+    // shell may point to a different worktree and triggers a noisy warning.
+    cmd.env_remove("VIRTUAL_ENV");
     cmd.arg("run").arg("--project").arg(root);
     for a in python_args {
         cmd.arg(a);
