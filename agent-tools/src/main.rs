@@ -63,11 +63,21 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
+/// Derive the venv path for a project root: ~/.claude/venvs/<basename>/
+fn venv_path(root: &Path) -> PathBuf {
+    let home = env::var("HOME").expect("HOME not set");
+    let name = root
+        .file_name()
+        .unwrap_or_else(|| panic!("root {} has no basename", root.display()));
+    Path::new(&home).join(".claude/venvs").join(name)
+}
+
 fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[String]) -> ! {
     let mut cmd = Command::new("uv");
     // --project already specifies the venv; inherited VIRTUAL_ENV from the
     // shell may point to a different worktree and triggers a noisy warning.
     cmd.env_remove("VIRTUAL_ENV");
+    cmd.env("UV_PROJECT_ENVIRONMENT", venv_path(root));
     cmd.arg("run").arg("--project").arg(root);
     for a in python_args {
         cmd.arg(a);
