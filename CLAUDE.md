@@ -21,6 +21,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 
 | Directory        | What                                         | When to read                                      |
 | ---------------- | -------------------------------------------- | ------------------------------------------------- |
+| `tools/`         | Rust binaries (`agent-tools`)                | Modifying CLI wrappers, adding new commands       |
 | `skills/`        | Invocable skills (planner, deepthink, etc.)  | Using or modifying skills, adding new skills      |
 | `agents/`        | Sub-agent definitions (developer, architect) | Customizing agent behavior, understanding roles   |
 | `conventions/`   | Documentation and code quality standards     | Writing documentation, understanding coding rules |
