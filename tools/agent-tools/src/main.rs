@@ -3,8 +3,34 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "agent-tools")]
+struct Cli {
+    #[command(subcommand)]
+    command: Cmd,
+}
+
+#[derive(Subcommand)]
+enum Cmd {
+    /// Run a skill script: agent-tools skill <module.entry> [args...]
+    Skill {
+        /// Python module path (e.g. do.do, alan_coding_style.coding_style)
+        module: String,
+        /// Arguments forwarded to the skill script
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Pretty-print a Claude Code JSONL session log
+    CcPretty {
+        /// Arguments forwarded to cc-pretty.py
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+}
+
 fn repo_root() -> PathBuf {
-    // Walk up from binary location to find pyproject.toml (project root).
     if let Ok(exe) = env::current_exe() {
         let mut dir = exe.as_path();
         while let Some(parent) = dir.parent() {
@@ -14,48 +40,50 @@ fn repo_root() -> PathBuf {
             dir = parent;
         }
     }
-
-    // Fallback: ~/.claude
     let home = env::var("HOME").expect("HOME not set");
     Path::new(&home).join(".claude")
 }
 
-fn cmd_skill(args: &[String]) -> ! {
-    if args.is_empty() {
-        eprintln!("usage: agent-tools skill <module.entry> [args...]");
-        eprintln!("  e.g. agent-tools skill do.do --step 1");
-        std::process::exit(1);
-    }
-
-    let module = format!("skills.{}", &args[0]);
-    let root = repo_root();
-
+fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[String]) -> ! {
     let mut cmd = Command::new("uv");
-    cmd.arg("run");
-    cmd.arg("--project").arg(&root);
-    cmd.arg("python3").arg("-m").arg(&module);
-    cmd.args(&args[1..]);
-    cmd.current_dir(root.join("skills/scripts"));
-
+    cmd.arg("run").arg("--project").arg(root);
+    for a in python_args {
+        cmd.arg(a);
+    }
+    cmd.args(extra_args);
+    cmd.current_dir(working_dir);
     let err = cmd.exec();
     eprintln!("agent-tools: exec uv failed: {err}");
     std::process::exit(1);
 }
 
 fn main() {
-    let args: Vec<String> = env::args().skip(1).collect();
+    let cli = Cli::parse();
+    let root = repo_root();
 
-    if args.is_empty() {
-        eprintln!("usage: agent-tools <command> [args...]");
-        eprintln!("commands: skill");
-        std::process::exit(1);
-    }
-
-    match args[0].as_str() {
-        "skill" => cmd_skill(&args[1..]),
-        other => {
-            eprintln!("agent-tools: unknown command '{other}'");
-            eprintln!("commands: skill");
+    match cli.command {
+        Cmd::Skill { module, args } => {
+            let full_module = format!("skills.{module}");
+            uv_run(
+                &root,
+                &root.join("skills/scripts"),
+                &["python3", "-m", &full_module],
+                &args,
+            );
+        }
+        Cmd::CcPretty { args } => {
+            let script = root.join("scripts/cc-pretty.py");
+            let script_str = script.to_str().expect("non-UTF8 path");
+            let scripts_dir = root.join("scripts");
+            let mut cmd = Command::new("uv");
+            cmd.arg("run").arg("--project").arg(&root);
+            cmd.arg("python3").arg(script_str);
+            cmd.args(&args);
+            // cc-pretty.py imports cc_pretty_parse from same directory
+            cmd.env("PYTHONPATH", &scripts_dir);
+            cmd.current_dir(&root);
+            let err = cmd.exec();
+            eprintln!("agent-tools: exec uv failed: {err}");
             std::process::exit(1);
         }
     }
