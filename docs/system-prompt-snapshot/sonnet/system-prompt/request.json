@@ -3,7 +3,7 @@
   "messages": [
     {
       "role": "user",
-      "content": "<available-deferred-tools>\nAskUserQuestion\nCronCreate\nCronDelete\nCronList\nEnterPlanMode\nEnterWorktree\nExitPlanMode\nExitWorktree\nNotebookEdit\nRemoteTrigger\nTaskCreate\nTaskGet\nTaskList\nTaskOutput\nTaskStop\nTaskUpdate\nWebFetch\nWebSearch\nmcp__claude_ai_Google_Drive__copy_file\nmcp__claude_ai_Google_Drive__create_file\nmcp__claude_ai_Google_Drive__download_file_content\nmcp__claude_ai_Google_Drive__get_file_metadata\nmcp__claude_ai_Google_Drive__get_file_permissions\nmcp__claude_ai_Google_Drive__list_recent_files\nmcp__claude_ai_Google_Drive__read_file_content\nmcp__claude_ai_Google_Drive__search_files\n</available-deferred-tools>"
+      "content": "<available-deferred-tools>\nAskUserQuestion\nCronCreate\nCronDelete\nCronList\nEnterPlanMode\nEnterWorktree\nExitPlanMode\nExitWorktree\nNotebookEdit\nRemoteTrigger\nTaskCreate\nTaskGet\nTaskList\nTaskOutput\nTaskStop\nTaskUpdate\nWebFetch\nWebSearch\nmcp__claude_ai_Google_Drive__copy_file\nmcp__claude_ai_Google_Drive__create_file\nmcp__claude_ai_Google_Drive__download_file_content\nmcp__claude_ai_Google_Drive__get_file_metadata\nmcp__claude_ai_Google_Drive__get_file_permissions\nmcp__claude_ai_Google_Drive__list_recent_files\nmcp__claude_ai_Google_Drive__read_file_content\nmcp__claude_ai_Google_Drive__search_files\nmcp__claude_ai_Indeed__get_company_data\nmcp__claude_ai_Indeed__get_job_details\nmcp__claude_ai_Indeed__get_resume\nmcp__claude_ai_Indeed__search_jobs\n</available-deferred-tools>"
     },
     {
       "role": "user",
@@ -14,7 +14,7 @@
         },
         {
           "type": "text",
-          "text": "<system-reminder>\nAs you answer the user's questions, you can use the following context:\n# claudeMd\nCodebase and user instructions are shown below. Be sure to adhere to these instructions. IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.\n\nContents of /tmp/capture-cwd-la1rak94/CLAUDE.md (project instructions, checked into the codebase):\n\n# Capture Project\n\nPlaceholder CLAUDE.md for system prompt capture.\n# currentDate\nToday's date is 2026-05-16.\n\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\n</system-reminder>\n\n"
+          "text": "<system-reminder>\nAs you answer the user's questions, you can use the following context:\n# claudeMd\nCodebase and user instructions are shown below. Be sure to adhere to these instructions. IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.\n\nContents of /tmp/capture-cwd-3n_4re52/CLAUDE.md (project instructions, checked into the codebase):\n\n# Capture Project\n\nPlaceholder CLAUDE.md for system prompt capture.\n# currentDate\nToday's date is 2026-05-16.\n\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\n</system-reminder>\n\n"
         },
         {
           "type": "text",

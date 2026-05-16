@@ -48,7 +48,7 @@ Notes:
 
 Here is useful information about the environment you are running in:
 <env>
-Working directory: /tmp/capture-cwd-_v2xyrl5
+Working directory: /tmp/capture-cwd-fd2rtarx
 Is directory a git repo: Yes
 Platform: linux
 Shell: bash

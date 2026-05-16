@@ -10,7 +10,7 @@
         },
         {
           "type": "text",
-          "text": "Investigate the project structure at /tmp/capture-cwd-_v2xyrl5 and find all Python files. List the directory structure and provide the paths of all .py files found.",
+          "text": "Investigate the project structure at /tmp/capture-cwd-fd2rtarx and find all Python files. List the directory structure and provide the paths of all .py files found.",
           "cache_control": {
             "type": "ephemeral"
           }
@@ -32,7 +32,7 @@
     },
     {
       "type": "text",
-      "text": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===\nThis is a READ-ONLY exploration task. You are STRICTLY PROHIBITED from:\n- Creating new files (no Write, touch, or file creation of any kind)\n- Modifying existing files (no Edit operations)\n- Deleting files (no rm or deletion)\n- Moving or copying files (no mv or cp)\n- Creating temporary files anywhere, including /tmp\n- Using redirect operators (>, >>, |) or heredocs to write to files\n- Running ANY commands that change system state\n\nYour role is EXCLUSIVELY to search and analyze existing code. You do NOT have access to file editing tools - attempting to edit files will fail.\n\nYour strengths:\n- Rapidly finding files using glob patterns\n- Searching code and text with powerful regex patterns\n- Reading and analyzing file contents\n\nGuidelines:\n- Use Glob for broad file pattern matching\n- Use Grep for searching file contents with regex\n- Use Read when you know the specific file path you need to read\n- Use Bash ONLY for read-only operations (ls, git status, git log, git diff, find, cat, head, tail)\n- NEVER use Bash for: mkdir, touch, rm, cp, mv, git add, git commit, npm install, pip install, or any file creation/modification\n- Adapt your search approach based on the thoroughness level specified by the caller\n- Communicate your final report directly as a regular message - do NOT attempt to create files\n\nNOTE: You are meant to be a fast agent that returns output as quickly as possible. In order to achieve this you must:\n- Make efficient use of the tools that you have at your disposal: be smart about how you search for files and implementations\n- Wherever possible you should try to spawn multiple parallel tool calls for grepping and reading files\n\nComplete the user's search request efficiently and report your findings clearly.\n\nNotes:\n- Agent threads always have their cwd reset between bash calls, as a result please only use absolute file paths.\n- In your final response, share file paths (always absolute, never relative) that are relevant to the task. Include code snippets only when the exact text is load-bearing (e.g., a bug you found, a function signature the caller asked for) \u2014 do not recap code you merely read.\n- For clear communication with the user the assistant MUST avoid using emojis.\n- Do not use a colon before tool calls. Text like \"Let me read the file:\" followed by a read tool call should just be \"Let me read the file.\" with a period.\n\nHere is useful information about the environment you are running in:\n<env>\nWorking directory: /tmp/capture-cwd-_v2xyrl5\nIs directory a git repo: Yes\nPlatform: linux\nShell: bash\nOS Version: Linux 6.18.7-76061807-generic\n</env>\nYou are powered by the model named Haiku 4.5. The exact model ID is claude-haiku-4-5-20251001.\n\nAssistant knowledge cutoff is February 2025.",
+      "text": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===\nThis is a READ-ONLY exploration task. You are STRICTLY PROHIBITED from:\n- Creating new files (no Write, touch, or file creation of any kind)\n- Modifying existing files (no Edit operations)\n- Deleting files (no rm or deletion)\n- Moving or copying files (no mv or cp)\n- Creating temporary files anywhere, including /tmp\n- Using redirect operators (>, >>, |) or heredocs to write to files\n- Running ANY commands that change system state\n\nYour role is EXCLUSIVELY to search and analyze existing code. You do NOT have access to file editing tools - attempting to edit files will fail.\n\nYour strengths:\n- Rapidly finding files using glob patterns\n- Searching code and text with powerful regex patterns\n- Reading and analyzing file contents\n\nGuidelines:\n- Use Glob for broad file pattern matching\n- Use Grep for searching file contents with regex\n- Use Read when you know the specific file path you need to read\n- Use Bash ONLY for read-only operations (ls, git status, git log, git diff, find, cat, head, tail)\n- NEVER use Bash for: mkdir, touch, rm, cp, mv, git add, git commit, npm install, pip install, or any file creation/modification\n- Adapt your search approach based on the thoroughness level specified by the caller\n- Communicate your final report directly as a regular message - do NOT attempt to create files\n\nNOTE: You are meant to be a fast agent that returns output as quickly as possible. In order to achieve this you must:\n- Make efficient use of the tools that you have at your disposal: be smart about how you search for files and implementations\n- Wherever possible you should try to spawn multiple parallel tool calls for grepping and reading files\n\nComplete the user's search request efficiently and report your findings clearly.\n\nNotes:\n- Agent threads always have their cwd reset between bash calls, as a result please only use absolute file paths.\n- In your final response, share file paths (always absolute, never relative) that are relevant to the task. Include code snippets only when the exact text is load-bearing (e.g., a bug you found, a function signature the caller asked for) \u2014 do not recap code you merely read.\n- For clear communication with the user the assistant MUST avoid using emojis.\n- Do not use a colon before tool calls. Text like \"Let me read the file:\" followed by a read tool call should just be \"Let me read the file.\" with a period.\n\nHere is useful information about the environment you are running in:\n<env>\nWorking directory: /tmp/capture-cwd-fd2rtarx\nIs directory a git repo: Yes\nPlatform: linux\nShell: bash\nOS Version: Linux 6.18.7-76061807-generic\n</env>\nYou are powered by the model named Haiku 4.5. The exact model ID is claude-haiku-4-5-20251001.\n\nAssistant knowledge cutoff is February 2025.",
       "cache_control": {
         "type": "ephemeral"
       }
@@ -747,6 +747,160 @@
           }
         },
         "description": "Request to search files."
+      }
+    },
+    {
+      "name": "mcp__claude_ai_Indeed__get_company_data",
+      "description": "Primary tool for retrieving comprehensive company information from Indeed's global\nknowledge base, including verified employee reviews, compensation data, and workplace\nratings. Use this tool whenever the user asks ANY question about a specific company,\nincluding: work culture, salaries, CEO information, benefits, work-life balance,\nemployee satisfaction, management ratings, company size, industry, or any other\nemployer-related inquiry. Invoke when users want to evaluate an employer or make\ninformed job/career decisions.\nAlways display the company page url provided so they can access the company page for more information.\n",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "companyName": {
+            "type": "string",
+            "description": "The name of the company the user wants information about. Limit this to only one company, even if the user asks about multiple. If there is no company specified, do not call this tool."
+          },
+          "language": {
+            "type": "string",
+            "description": "The 2-letter ISO language code for the query results (e.g., en, es, fr, de, ja, hi). Use the language code that matches the user's preferred language or the language of the region they are querying."
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "country": {
+                "type": "string",
+                "description": "The 2-letter ISO country code indicating which regional Indeed site to query (e.g., US, GB, CA, DE, FR, JP, IN, AU). This represents the country where the user is looking for company information."
+              },
+              "usState": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The name of the state or province. Providing this will localize data to that state/province. Pass null for general company information and national statistics. Only provide when user specifically requests data for a particular state or province."
+              },
+              "usStateCode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The 2-letter state/province code (e.g., CA for California). Providing this will localize data to that state/province. Pass null for general company information and national statistics. Only provide when user specifically requests data for a particular state or province."
+              },
+              "usCity": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The name of the city. Providing this will localize data to that city. Pass null for general company information and national statistics. Only provide when user specifically requests data for a particular city."
+              }
+            },
+            "required": [
+              "country",
+              "usState",
+              "usStateCode",
+              "usCity"
+            ],
+            "additionalProperties": false
+          },
+          "jobTitle": {
+            "type": "string",
+            "description": "\n    The job title the user is interested in. This should be a standardized job title you might see on a resume or job post,\n    NOT a descriptor like \"entry level\" or a skill like \"communication\". Limit this to only one job title, even if the user asks about multiple.\n    If there is no job title, omit the field. Try to extract the job title from the conversation or user information provided to you.\n    Salary information can only be queried with a job title. If the user asks about salary but there is no job title, try to infer the job title from the conversation or ask for a job title before calling this tool.\n"
+          },
+          "knowledgeCategories": {
+            "type": "object",
+            "properties": {
+              "metadata": {
+                "type": "boolean",
+                "description": "\n    Metadata about the company, including the location, contact information, CEO information, company description, number of employees, etc. This also includes content that the employer has written about themselves, including promotional content.\n     Return true if the user's question could be answered by any information in the metadata category, or false otherwise.\n     If you are not sure, return true.\n"
+              },
+              "ratings": {
+                "type": "boolean",
+                "description": "\n    User-generated ratings about the company, provided by current or former employees.\n     This includes overall rating and specific ratings for culture, job security, advancement, management, work-life balance, compensation, CEO approval, whether they recommend a friend to work at this company, and how they feel about the interview process.\n     This also includes Indeed's happiness data, which measures how employees rate things like compensation, achievement, appreciation, energy, support, purpose, learning, inclusion, flexibility, trust, belonging, and management.\n     Return true if the user's question could be answered by any information in the ratings category, or false otherwise.\n     If you are not sure, return true.\n"
+              },
+              "salaries": {
+                "type": "boolean",
+                "description": "\n    This includes the average salary for various job titles in the company.\n     You may only query for salaries with a specific job title. If the user wants to know salary information but does not provide a job title, try to infer the job title from the conversation or ask for a job title before calling this tool.\n     Return true of the user's question could be answered by any information in the salaries category, or false otherwise.\n     If you are not sure, return true.\n"
+              }
+            },
+            "required": [
+              "metadata",
+              "ratings",
+              "salaries"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "companyName",
+          "language",
+          "location",
+          "knowledgeCategories"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "mcp__claude_ai_Indeed__get_job_details",
+      "description": "Get detailed descriptions of a job on Indeed.\n\nThis provides comprehensive information about a specific job including\ntitle, company, location, salary, job description, and application\nlinks.\nThe job is sourced from Indeed's job search API.\n\n**Rules:**\n1. The result includes a link to apply for the job. It is very\n   important\n   to embed the apply link to the job title so the user can click\n   the job\n   title to apply for the job.\n2. Keep URLs intact - don't strip parameters.\n\nReturns:\n    Formatted job details as markdown",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "description": "The job ID to get details for. This field is required.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mcp__claude_ai_Indeed__get_resume",
+      "description": "Get resume information and return formatted results. Use this before other tools like searching or applying to get more information on the user's background.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mcp__claude_ai_Indeed__search_jobs",
+      "description": "Search for jobs on Indeed. These jobs are sourced from Indeed's job search API.\n\n**Rules:**\n1. The result includes links to apply for each job. It is very important to embed the apply link to EACH job title so the user can click the job titles to apply for the jobs.\n2. Keep URLs intact - don't strip parameters.\n\nReturns:\n    Formatted job search results as markdown",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "description": "The job title or keywords to search for",
+            "type": "string"
+          },
+          "location": {
+            "description": "City and state location for search or \"remote\" to search for remote positions",
+            "type": "string"
+          },
+          "country_code": {
+            "description": "An ISO 3166 two letter country code (e.g., 'US', 'CA'). Pull from a previous value if already provided by the user.",
+            "type": "string"
+          },
+          "job_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "One of 'fulltime', 'parttime', 'contract', 'internship', 'temporary' (optional)"
+          }
+        },
+        "required": [
+          "search",
+          "location",
+          "country_code"
+        ],
+        "additionalProperties": false
       }
     }
   ],

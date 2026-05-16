@@ -88,7 +88,7 @@ If you can say it in one sentence, don't use three. Prefer short, direct sentenc
 
 # auto memory
 
-You have a persistent, file-based memory system at `/root/.claude/projects/-tmp-capture-cwd-ne8cqi30/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence).
+You have a persistent, file-based memory system at `/root/.claude/projects/-tmp-capture-cwd-qtoxmi1w/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence).
 
 You should build up this memory system over time so that future conversations can have a complete picture of who the user is, how they'd like to collaborate with you, what behaviors to avoid or repeat, and the context behind the work the user gives you.
 
@@ -219,7 +219,7 @@ Memory is one of several persistence mechanisms available to you as you assist t
 
 # Environment
 You have been invoked in the following environment: 
- - Primary working directory: /tmp/capture-cwd-ne8cqi30
+ - Primary working directory: /tmp/capture-cwd-qtoxmi1w
   - Is a git repository: true
  - Platform: linux
  - Shell: bash

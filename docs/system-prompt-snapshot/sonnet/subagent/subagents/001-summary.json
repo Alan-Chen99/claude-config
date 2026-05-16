@@ -2,7 +2,7 @@
   "version": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;",
   "model": "claude-haiku-4-5-20251001",
   "block_count": 3,
-  "total_tokens": 769,
+  "total_tokens": 767,
   "blocks": [
     {
       "index": 0,
@@ -16,7 +16,7 @@
     },
     {
       "index": 2,
-      "tokens": 719,
+      "tokens": 717,
       "preview": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS"
     }
   ],
@@ -45,7 +45,11 @@
     "mcp__claude_ai_Google_Drive__get_file_permissions",
     "mcp__claude_ai_Google_Drive__list_recent_files",
     "mcp__claude_ai_Google_Drive__read_file_content",
-    "mcp__claude_ai_Google_Drive__search_files"
+    "mcp__claude_ai_Google_Drive__search_files",
+    "mcp__claude_ai_Indeed__get_company_data",
+    "mcp__claude_ai_Indeed__get_job_details",
+    "mcp__claude_ai_Indeed__get_resume",
+    "mcp__claude_ai_Indeed__search_jobs"
   ],
   "tool_tokens": {
     "Bash": 3503,
@@ -72,7 +76,11 @@
     "mcp__claude_ai_Google_Drive__get_file_permissions": 598,
     "mcp__claude_ai_Google_Drive__list_recent_files": 776,
     "mcp__claude_ai_Google_Drive__read_file_content": 907,
-    "mcp__claude_ai_Google_Drive__search_files": 1128
+    "mcp__claude_ai_Google_Drive__search_files": 1128,
+    "mcp__claude_ai_Indeed__get_company_data": 1710,
+    "mcp__claude_ai_Indeed__get_job_details": 723,
+    "mcp__claude_ai_Indeed__get_resume": 572,
+    "mcp__claude_ai_Indeed__search_jobs": 819
   },
-  "source_request": "003-request.json"
+  "source_request": "0062-request.json"
 }
