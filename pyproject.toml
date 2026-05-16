@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
   "cappa>=0.31.0",
+  "mitmproxy>=12.0",
   "pip>=26.0.1",
   "pydantic>=2.12.5",
   "pytest>=9.0.2",
