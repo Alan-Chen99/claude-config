@@ -2,21 +2,22 @@
   "version": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;",
   "model": "claude-haiku-4-5-20251001",
   "block_count": 3,
+  "total_tokens": 769,
   "blocks": [
     {
       "index": 0,
-      "preview": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;",
-      "tokens": 36
+      "tokens": 36,
+      "preview": "x-anthropic-billing-header: cc_version=2.1.87.c02; cc_entrypoint=cli; cch=00000;"
     },
     {
       "index": 1,
-      "preview": "You are Claude Code, Anthropic's official CLI for Claude.",
-      "tokens": 14
+      "tokens": 14,
+      "preview": "You are Claude Code, Anthropic's official CLI for Claude."
     },
     {
       "index": 2,
-      "preview": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS",
-      "tokens": 718
+      "tokens": 719,
+      "preview": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS"
     }
   ],
   "tools": [
@@ -36,10 +37,16 @@
     "TaskList",
     "TaskUpdate",
     "WebFetch",
-    "WebSearch"
+    "WebSearch",
+    "mcp__claude_ai_Google_Drive__copy_file",
+    "mcp__claude_ai_Google_Drive__create_file",
+    "mcp__claude_ai_Google_Drive__download_file_content",
+    "mcp__claude_ai_Google_Drive__get_file_metadata",
+    "mcp__claude_ai_Google_Drive__get_file_permissions",
+    "mcp__claude_ai_Google_Drive__list_recent_files",
+    "mcp__claude_ai_Google_Drive__read_file_content",
+    "mcp__claude_ai_Google_Drive__search_files"
   ],
-  "source_request": "003-request.json",
-  "total_tokens": 768,
   "tool_tokens": {
     "Bash": 3503,
     "CronCreate": 1616,
@@ -57,6 +64,15 @@
     "TaskList": 817,
     "TaskUpdate": 1547,
     "WebFetch": 988,
-    "WebSearch": 996
-  }
+    "WebSearch": 996,
+    "mcp__claude_ai_Google_Drive__copy_file": 774,
+    "mcp__claude_ai_Google_Drive__create_file": 1173,
+    "mcp__claude_ai_Google_Drive__download_file_content": 763,
+    "mcp__claude_ai_Google_Drive__get_file_metadata": 660,
+    "mcp__claude_ai_Google_Drive__get_file_permissions": 598,
+    "mcp__claude_ai_Google_Drive__list_recent_files": 776,
+    "mcp__claude_ai_Google_Drive__read_file_content": 907,
+    "mcp__claude_ai_Google_Drive__search_files": 1128
+  },
+  "source_request": "003-request.json"
 }

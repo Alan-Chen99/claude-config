@@ -88,7 +88,7 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
             cwd=SCRIPT_DIR,
             capture_output=True,
             text=True,
-            timeout=120 if "--subagent" in capture_flags else 60,
+            timeout=180 if "--subagent" in capture_flags else 90,
         )
     except subprocess.TimeoutExpired:
         print(f"  TIMEOUT", file=sys.stderr)
