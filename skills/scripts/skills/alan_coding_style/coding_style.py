@@ -1030,9 +1030,9 @@ def format_output(
         else:
             sections_part = guidance.get("sections_arg", "")
         if sections_part:
-            next_cmd = f'python3 -m skills.alan_coding_style.coding_style --step {step + 1} --sections {sections_part} --thoughts \\"<accumulated>\\"'
+            next_cmd = f'agent-tools skill alan_coding_style.coding_style --step {step + 1} --sections {sections_part} --thoughts \\"<accumulated>\\"'
         else:
-            next_cmd = f'python3 -m skills.alan_coding_style.coding_style --step {step + 1} --thoughts \\"<accumulated>\\"'
+            next_cmd = f'agent-tools skill alan_coding_style.coding_style --step {step + 1} --thoughts \\"<accumulated>\\"'
         parts.append(render_invoke_after(InvokeAfterNode(cmd=next_cmd)))
 
     return "\n".join(parts)

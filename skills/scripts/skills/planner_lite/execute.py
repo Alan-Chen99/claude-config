@@ -18,7 +18,7 @@ from skills.lib.workflow.ast import (
 )
 
 
-MODULE_PATH = "skills.planner_lite.execute"
+MODULE_PATH = "planner_lite.execute"
 MAX_ITERATIONS = 3
 
 
@@ -157,7 +157,7 @@ def get_step_1_output(args, step_info):
     ]
 
     # Assume first milestone is "1" or "M-001" - agent will determine actual identifier
-    next_cmd = f"python3 -m {MODULE_PATH} --step 2 --state-dir {args.state_dir} --milestone 1"
+    next_cmd = f"agent-tools skill {MODULE_PATH} --step 2 --state-dir {args.state_dir} --milestone 1"
 
     return format_step_output(
         step=args.step,
@@ -239,7 +239,7 @@ def get_step_2_output(args, step_info):
         "OUTPUT: Complete implementation of all files in the milestone.",
     ]
 
-    next_cmd = f"python3 -m {MODULE_PATH} --step 3 --state-dir {args.state_dir} --milestone {args.milestone} --iteration 1"
+    next_cmd = f"agent-tools skill {MODULE_PATH} --step 3 --state-dir {args.state_dir} --milestone {args.milestone} --iteration 1"
 
     return format_step_output(
         step=args.step,
@@ -334,7 +334,7 @@ def get_step_3_output(args, step_info):
             "    Proceed to completion summary.",
         ])
         # Agent will determine the actual next milestone or step 4
-        next_cmd = f"python3 -m {MODULE_PATH} --step 4 --state-dir {args.state_dir}"
+        next_cmd = f"agent-tools skill {MODULE_PATH} --step 4 --state-dir {args.state_dir}"
     else:
         actions.extend([
             "DECISION LOGIC:",
@@ -342,7 +342,7 @@ def get_step_3_output(args, step_info):
             "  IF OVERALL = FAIL:",
             "    - Identify specific issues",
             "    - Fix the issues",
-            f"    - Invoke: python3 -m {MODULE_PATH} --step 3 --state-dir {args.state_dir} --milestone {milestone} --iteration {iteration + 1}",
+            f"    - Invoke: agent-tools skill {MODULE_PATH} --step 3 --state-dir {args.state_dir} --milestone {milestone} --iteration {iteration + 1}",
             "",
             "  IF OVERALL = PASS:",
             "    - Determine if there are more milestones",
@@ -351,9 +351,9 @@ def get_step_3_output(args, step_info):
             "    - If all complete: Invoke step 4",
         ])
         # Provide both possible paths
-        next_cmd_fail = f"python3 -m {MODULE_PATH} --step 3 --state-dir {args.state_dir} --milestone {milestone} --iteration {iteration + 1}"
-        next_cmd_pass_next = f"python3 -m {MODULE_PATH} --step 2 --state-dir {args.state_dir} --milestone <next_milestone_id>"
-        next_cmd_pass_done = f"python3 -m {MODULE_PATH} --step 4 --state-dir {args.state_dir}"
+        next_cmd_fail = f"agent-tools skill {MODULE_PATH} --step 3 --state-dir {args.state_dir} --milestone {milestone} --iteration {iteration + 1}"
+        next_cmd_pass_next = f"agent-tools skill {MODULE_PATH} --step 2 --state-dir {args.state_dir} --milestone <next_milestone_id>"
+        next_cmd_pass_done = f"agent-tools skill {MODULE_PATH} --step 4 --state-dir {args.state_dir}"
         next_cmd = f"If FAIL: {next_cmd_fail}\nIf PASS (more milestones): {next_cmd_pass_next}\nIf PASS (all complete): {next_cmd_pass_done}"
 
     return format_step_output(

@@ -10,7 +10,7 @@ workflow.
 
 ## Invocation
 
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.leon_writing_style.writing_style --step 1 --thoughts '<initial context>'" />
+<invoke cmd="agent-tools skill leon_writing_style.writing_style --step 1 --thoughts '<initial context>'" />
 
 | Argument     | Required | Description                                        |
 | ------------ | -------- | -------------------------------------------------- |

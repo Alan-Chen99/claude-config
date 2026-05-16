@@ -22,6 +22,6 @@ SHOULD: to read source code, clone using git to /tmp and checkout the exact revi
 
 ## Invocation
 
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 1" />
+<invoke cmd="agent-tools skill do.do --step 1" />
 
 Do NOT analyze or explore first. Run the script and follow its output.

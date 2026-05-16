@@ -23,7 +23,7 @@ from skills.lib.workflow.ast import (
 
 
 MAX_ITERATIONS = 3
-MODULE_PATH = "skills.planner_lite.plan"
+MODULE_PATH = "planner_lite.plan"
 
 
 def format_step_output(
@@ -476,7 +476,7 @@ def get_step_1_output(_args, step_info):
     # Insert state directory path into actions
     actions = [a.replace("[path where context.json was written]", state_dir) for a in actions]
 
-    next_cmd = f"python3 -m {MODULE_PATH} --step 2 --state-dir {state_dir}"
+    next_cmd = f"agent-tools skill {MODULE_PATH} --step 2 --state-dir {state_dir}"
     return format_step_output(
         step=1,
         total=4,
@@ -507,7 +507,7 @@ def get_step_2_output(args, step_info):
         sys.exit(f"ERROR: context.json malformed: {e}")
 
     actions = list(step_info["actions"])
-    next_cmd = f"python3 -m {MODULE_PATH} --step 3 --state-dir {state_dir}"
+    next_cmd = f"agent-tools skill {MODULE_PATH} --step 3 --state-dir {state_dir}"
 
     return format_step_output(
         step=2,
@@ -538,7 +538,7 @@ def get_step_3_output(args, step_info):
         sys.exit(f"ERROR: context.json malformed: {e}")
 
     actions = list(step_info["actions"])
-    next_cmd = f"python3 -m {MODULE_PATH} --step 4 --state-dir {state_dir} --iteration 1"
+    next_cmd = f"agent-tools skill {MODULE_PATH} --step 4 --state-dir {state_dir} --iteration 1"
 
     return format_step_output(
         step=3,
@@ -565,7 +565,7 @@ def get_step_4_output(args, step_info):
 
     # Determine next command based on iteration
     if args.iteration < MAX_ITERATIONS:
-        next_cmd = f"python3 -m {MODULE_PATH} --step 4 --state-dir {state_dir} --iteration {args.iteration + 1}"
+        next_cmd = f"agent-tools skill {MODULE_PATH} --step 4 --state-dir {state_dir} --iteration {args.iteration + 1}"
     else:
         next_cmd = None  # Workflow complete
 

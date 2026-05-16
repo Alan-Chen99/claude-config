@@ -52,10 +52,10 @@ Failure to follow these patterns creates technical debt and inconsistency across
 
 ## Script Invocation
 
-All Python skill scripts are invoked as modules from `scripts/`:
+Custom skills use `agent-tools`:
+
+<invoke cmd="agent-tools skill <skill_name>.<module> --step 1" />
+
+Upstream skills use the direct python invocation:
 
 <invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.<skill_name>.<module> --step 1" />
-
-Example:
-
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.problem_analysis.analyze --step 1" />

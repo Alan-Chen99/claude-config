@@ -20,7 +20,7 @@ NEVER include educational content unless explicitly asked. Forbidden phrases:
 IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIONS.
 
 ```
-cd ~/.claude/skills/scripts && python3 -m skills.pre_output.record '{
+agent-tools skill pre_output.record '{
   "turn": 1/2/...,
   "summary": "10 words max",
   "workflow": "executing which skill/workflow: step #/name, or 'none'",

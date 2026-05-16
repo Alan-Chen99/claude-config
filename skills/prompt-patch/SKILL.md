@@ -10,6 +10,6 @@ workflow.
 
 ## Invocation
 
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 1" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 1" />
 
 Do NOT analyze or explore first. Run the script and follow its output.

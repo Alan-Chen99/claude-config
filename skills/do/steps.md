@@ -11,7 +11,7 @@ Transform the user's request into the most actionable and verifiable form.
 <system-reminder> Verify all claims by running the code </system-reminder>
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 2 --original='verbatim' --reframed='actionable form'" />
+<invoke cmd="agent-tools skill do.do --step 2 --original='verbatim' --reframed='actionable form'" />
 Execute this command now.
 
 <!-- step 2: expectations -->
@@ -28,7 +28,7 @@ Before acting, determine a list of implicit user expectations:
 | Future work  | "Updating dependency X will be easy"                               |
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 3 --action='...' --knowledge='...' --verification='...' --future-work='...'" />
+<invoke cmd="agent-tools skill do.do --step 3 --action='...' --knowledge='...' --verification='...' --future-work='...'" />
 Execute this command now.
 
 <!-- step 3: execute -->
@@ -46,7 +46,7 @@ Execute now. Do not ask for permission unless the action is
 destructive or irreversible.
 
 NEXT STEP (after execution is complete):
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 4 --executed='brief summary of what was executed and outcome'" />
+<invoke cmd="agent-tools skill do.do --step 4 --executed='brief summary of what was executed and outcome'" />
 Execute this command now.
 
 <!-- step 4: followup -->
@@ -66,7 +66,7 @@ Then, generate mostly likely followups, if user had seen your proposed response.
 User will not be asking about anything that will be in your response.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 5 --sketch='...' --verification='...' --completeness='...' --alternatives='...' --other='...'" />
+<invoke cmd="agent-tools skill do.do --step 5 --sketch='...' --verification='...' --completeness='...' --alternatives='...' --other='...'" />
 Execute this command now.
 
 <!-- step 5: gate -->
@@ -95,7 +95,7 @@ For each followup, write the triage result inline.
 If no runnable actions: workflow complete, respond to user.
 If any runnable actions:
 
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 6 --sketch='...' --followups='followup: action/skip; ...' --runnable='action1, action2, ...'" />
+<invoke cmd="agent-tools skill do.do --step 6 --sketch='...' --followups='followup: action/skip; ...' --runnable='action1, action2, ...'" />
 Execute this command now.
 
 <!-- step 6: gate-execute -->
@@ -111,5 +111,5 @@ RULES:
 - After done, go to step 4: re-evaluate what followup user will ask with updated context
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.do.do --step 4 --executed='brief summary of gate-execute outcome'" />
+<invoke cmd="agent-tools skill do.do --step 4 --executed='brief summary of gate-execute outcome'" />
 Execute this command now.
