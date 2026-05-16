@@ -27,6 +27,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `plans/`         | Plan storage directory                       | Reviewing or executing existing plans             |
 | `output-styles/` | Output formatting styles                     | Customizing Claude's output format                |
 | `hooks/`         | ntfy notification hooks for Claude Code      | Setting up notifications, debugging hooks         |
+| `scripts/`       | Standalone scripts (intercept proxy, etc.)   | Running or modifying utility scripts              |
 | `.github/`       | GitHub workflows and config                  | Modifying CI/CD, GitHub-specific settings         |
 
 ### `docs/`

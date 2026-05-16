@@ -20,6 +20,10 @@ hooks/ntfy_hook.log
 # system-prompt-snapshot: intermediate capture output
 docs/system-prompt-snapshot/capture-output/
 
+# intercept script build output and dependencies
+scripts/intercept/dist/
+scripts/intercept/node_modules/
+
 # ralph-orchestrator
 **/.ralph/**/*.lock
 **/.ralph/current-events

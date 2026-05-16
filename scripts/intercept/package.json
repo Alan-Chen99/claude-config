@@ -1,0 +1,12 @@
+{
+  "name": "claude-intercept",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^5.4.0"
+  }
+}
