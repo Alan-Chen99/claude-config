@@ -17,8 +17,8 @@ Default captures include a project CLAUDE.md.
 | `full-api-request-flag-system-prompt.json` | Full API request with `--system-prompt`. Metadata redacted. |
 | `full-api-request-flag-system-prompt-file.json` | Full API request with `--system-prompt-file`. Metadata redacted. |
 | `full-api-request-flag-append.json` | Full API request with `--append-system-prompt`. Metadata redacted. |
-| `capture.py` | Python script that captures system prompts via expect + intercept.js |
-| `scripts/intercept/` | MITM proxy + fetch override for API call logging (see `scripts/intercept/README.md`) |
+| `capture.py` | Python script that captures system prompts via pty + MITM proxy |
+| `scripts/intercept/` | MITM proxy for API call logging (see `scripts/intercept/README.md`) |
 
 ### Subagent captures
 
@@ -119,7 +119,7 @@ The behavioral rules and `--system-prompt` replacement logic are the same in bot
 ./capture.py --subagent
 ```
 
-`capture.py` uses expect to spawn claude with a real pty (true interactive mode) and `--setting-sources project,local` to isolate from user settings, sends a canary message, then extracts the system prompt from the intercepted API request. A placeholder CLAUDE.md is created in the temp working directory so the capture includes the claudeMd context block. Output goes to `capture-output/` (system.txt, request.json, summary.json) and stdout.
+`capture.py` spawns claude with a real pty via `pty.fork()` (true interactive mode) and `--setting-sources project,local` to isolate from user settings, sends a canary message, then extracts the system prompt from the intercepted API request (via MITM proxy). A placeholder CLAUDE.md is created in the temp working directory so the capture includes the claudeMd context block. Output goes to `capture-output/` (system.txt, request.json, summary.json) and stdout.
 
 ### Why expect + pty
 

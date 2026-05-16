@@ -1,23 +1,17 @@
 # claude-intercept
 
-Intercepts Claude Code API calls and logs request/response pairs as JSON. Two modes:
-
-1. **MITM proxy** (primary) — Python/mitmproxy, works with any HTTP client including native binaries
-2. **Fetch override** (legacy) — TypeScript, in-process hook via `NODE_OPTIONS --require`
+MITM proxy that logs Claude Code API request/response pairs as JSON, organized by session.
 
 ## Setup
 
 ```bash
-cd scripts/intercept
-pip install mitmproxy    # proxy mode
-npm install && npm run build  # fetch override mode
+pip install mitmproxy  # or: uv pip install mitmproxy
 ```
 
-## Proxy mode
-
-Start the always-running MITM proxy:
+## Usage
 
 ```bash
+cd scripts/intercept
 python3 run-proxy.py              # default port 9160
 python3 run-proxy.py --port 8080  # custom port
 ```
@@ -61,29 +55,32 @@ Then:
 HTTPS_PROXY=http://127.0.0.1:9160 claude
 ```
 
-### Session tracking
+## Session resolution
 
-The proxy extracts `X-Claude-Code-Session-Id` from HTTP headers (sent by
-Claude Code on every API request) and includes it in log entries as `session_id`.
+The proxy extracts `X-Claude-Code-Session-Id` from HTTP headers and resolves
+it against `~/.claude/sessions/*.json` to obtain session metadata:
 
-## Fetch override mode (legacy)
+- `cwd` — working directory of the Claude Code session
+- `kind` — "interactive" or "headless"
+- `entrypoint` — "cli", "sdk", etc.
+- `pid` — process ID
 
-Still works for Node.js-based Claude where in-process interception is preferred:
-
-```bash
-NODE_OPTIONS="--require $(pwd)/dist/intercept.js" claude
-```
+Logs are stored per-session at `~/.claude/requests-log/{session_id}/0001.json`.
+Sessions without an ID go to `~/.claude/requests-log/unknown/`.
 
 ## Log format
-
-Proxy logs go to `~/.claude/requests-log/proxy/0001.json`, `0002.json`, etc.
-Fetch override logs go to `~/.claude/requests-log/{session-id}/001.json`, etc.
 
 ```json
 {
   "timestamp": "2026-05-15T...",
   "duration_ms": 1234,
-  "session_id": "abc-123",
+  "session": {
+    "session_id": "abc-123",
+    "cwd": "/path/to/project",
+    "kind": "interactive",
+    "entrypoint": "cli",
+    "pid": 12345
+  },
   "streaming": true,
   "request": { "model": "...", "messages": [...], "system": [...] },
   "response": {
@@ -102,8 +99,6 @@ Fetch override logs go to `~/.claude/requests-log/{session-id}/001.json`, etc.
 
 ## Architecture
 
-### Proxy mode
-
 ```
 Client ──CONNECT──▶ mitmproxy (127.0.0.1:9160)
                       │
@@ -112,11 +107,5 @@ Client ──CONNECT──▶ mitmproxy (127.0.0.1:9160)
 ```
 
 `proxy.py` is a mitmproxy addon. mitmproxy handles TLS, MITM certs, and the
-CONNECT tunnel. The addon filters for Anthropic API calls, parses SSE streams,
-and writes log entries. Python makes observability integrations (Langfuse,
-Datadog, etc.) straightforward via their well-maintained SDKs.
-
-### Fetch override mode
-
-Claude Code bundles `@anthropic-ai/sdk` inline, so OTel module hooks can't
-intercept it. `globalThis.fetch` is the only viable in-process hook.
+CONNECT tunnel. The addon filters for Anthropic API calls, resolves sessions,
+parses SSE streams, and writes log entries per-session.

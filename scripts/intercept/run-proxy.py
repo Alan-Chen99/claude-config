@@ -8,10 +8,9 @@ Usage:
 import sys
 from pathlib import Path
 
-# Import addon module for its constants
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from proxy import TARGET_HOST, LOG_BASE, get_counter
+from proxy import TARGET_HOST, LOG_BASE, get_total_count
 
 
 def main() -> None:
@@ -27,8 +26,8 @@ def main() -> None:
     print(f"intercept-proxy starting on 127.0.0.1:{port}")
     print(f"  target:  {TARGET_HOST}")
     print(f"  ca cert: {ca_cert}")
-    print(f"  logs:    {LOG_BASE}")
-    print(f"  counter: {get_counter()} (resuming)")
+    print(f"  logs:    {LOG_BASE}/{{session_id}}/")
+    print(f"  logged:  {get_total_count()} requests total")
     print()
     print("Usage:")
     print(

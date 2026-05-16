@@ -1,5 +1,10 @@
 """mitmproxy addon that logs Anthropic API request/response pairs.
 
+Resolves sessions from X-Claude-Code-Session-Id header against
+~/.claude/sessions/*.json to enrich logs with session metadata (cwd,
+entrypoint, kind). Logs are stored per-session:
+  ~/.claude/requests-log/{session_id}/NNNN.json
+
 Load with: mitmdump -s proxy.py -p 9160
 Or use the CLI wrapper: python3 run-proxy.py [--port PORT]
 """
@@ -14,8 +19,80 @@ from pathlib import Path
 from threading import Lock
 
 TARGET_HOST = "api.anthropic.com"
-LOG_BASE = Path.home() / ".claude" / "requests-log" / "proxy"
+LOG_BASE = Path.home() / ".claude" / "requests-log"
+SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 SESSION_HEADER = "x-claude-code-session-id"
+
+
+# --- Session resolution ---
+
+
+class SessionInfo:
+    __slots__ = ("session_id", "pid", "cwd", "started_at", "kind", "entrypoint")
+
+    def __init__(
+        self,
+        session_id: str,
+        pid: int | None = None,
+        cwd: str | None = None,
+        started_at: int | None = None,
+        kind: str | None = None,
+        entrypoint: str | None = None,
+    ):
+        self.session_id = session_id
+        self.pid = pid
+        self.cwd = cwd
+        self.started_at = started_at
+        self.kind = kind
+        self.entrypoint = entrypoint
+
+    def to_dict(self) -> dict:
+        d: dict = {"session_id": self.session_id}
+        if self.cwd:
+            d["cwd"] = self.cwd
+        if self.kind:
+            d["kind"] = self.kind
+        if self.entrypoint:
+            d["entrypoint"] = self.entrypoint
+        if self.pid:
+            d["pid"] = self.pid
+        return d
+
+
+_session_cache: dict[str, SessionInfo] = {}
+_session_cache_lock = Lock()
+
+
+def resolve_session(session_id: str) -> SessionInfo:
+    """Resolve a session ID to its metadata by scanning ~/.claude/sessions/."""
+    with _session_cache_lock:
+        if session_id in _session_cache:
+            return _session_cache[session_id]
+
+    # Scan session files to find the matching session
+    info = SessionInfo(session_id=session_id)
+    try:
+        for f in SESSIONS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text())
+            except (json.JSONDecodeError, OSError):
+                continue
+            if data.get("sessionId") == session_id:
+                info = SessionInfo(
+                    session_id=session_id,
+                    pid=data.get("pid"),
+                    cwd=data.get("cwd"),
+                    started_at=data.get("startedAt"),
+                    kind=data.get("kind"),
+                    entrypoint=data.get("entrypoint"),
+                )
+                break
+    except OSError:
+        pass
+
+    with _session_cache_lock:
+        _session_cache[session_id] = info
+    return info
 
 
 # --- SSE parser ---
@@ -128,42 +205,64 @@ def parse_sse_stream(raw: str) -> dict:
 
 # --- Logging ---
 
-_counter = 0
+_counters: dict[str, int] = {}
 _counter_lock = Lock()
 
 
-def _init_counter() -> None:
-    global _counter
+def _scan_counter(log_dir: Path) -> int:
+    """Scan a log directory for the highest existing counter value."""
+    if not log_dir.exists():
+        return 0
     try:
-        files = list(LOG_BASE.glob("*.json"))
-        nums = []
-        for f in files:
-            m = re.match(r"^(\d+)\.json$", f.name)
-            if m:
-                nums.append(int(m.group(1)))
-        _counter = max(nums) if nums else 0
+        return max(
+            (
+                int(m.group(1))
+                for f in log_dir.glob("*.json")
+                if (m := re.match(r"^(\d+)\.json$", f.name))
+            ),
+            default=0,
+        )
     except OSError:
-        _counter = 0
+        return 0
 
 
-def get_counter() -> int:
-    return _counter
+def get_total_count() -> int:
+    """Total logged requests across all sessions."""
+    total = 0
+    try:
+        for d in LOG_BASE.iterdir():
+            if not d.is_dir():
+                continue
+            for f in d.glob("*.json"):
+                if re.match(r"^(\d+)\.json$", f.name):
+                    total += 1
+    except OSError:
+        pass
+    return total
 
 
-def write_log(entry: dict) -> None:
-    global _counter
+def write_log(entry: dict, session_id: str | None) -> None:
+    subdir = session_id if session_id else "unknown"
+    log_dir = LOG_BASE / subdir
+    dir_key = str(log_dir)
+
     with _counter_lock:
-        LOG_BASE.mkdir(parents=True, exist_ok=True)
-        _counter += 1
-        filename = f"{_counter:04d}.json"
-        (LOG_BASE / filename).write_text(json.dumps(entry, indent=2))
+        if dir_key not in _counters:
+            _counters[dir_key] = _scan_counter(log_dir)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        _counters[dir_key] += 1
+        counter = _counters[dir_key]
+
+    filename = f"{counter:04d}.json"
+    (log_dir / filename).write_text(json.dumps(entry, indent=2))
 
 
 def log_error(context: str, err: Exception) -> None:
     try:
-        LOG_BASE.mkdir(parents=True, exist_ok=True)
+        err_dir = LOG_BASE / "_errors"
+        err_dir.mkdir(parents=True, exist_ok=True)
         msg = f"[{datetime.now(timezone.utc).isoformat()}] {context}: {err}\n"
-        with open(LOG_BASE / "errors.log", "a") as f:
+        with open(err_dir / "errors.log", "a") as f:
             f.write(msg)
     except OSError:
         pass
@@ -207,6 +306,14 @@ class InterceptAddon:
         session_id = flow.request.headers.get(SESSION_HEADER)
         timestamp = datetime.fromtimestamp(start_ms, tz=timezone.utc).isoformat()
 
+        # Resolve session metadata
+        session_meta: dict = {}
+        if session_id:
+            info = resolve_session(session_id)
+            session_meta = info.to_dict()
+        else:
+            session_meta = {}
+
         if flow.response is None:
             return
 
@@ -215,14 +322,15 @@ class InterceptAddon:
                 {
                     "timestamp": timestamp,
                     "duration_ms": duration_ms,
-                    **({"session_id": session_id} if session_id else {}),
+                    **({"session": session_meta} if session_meta else {}),
                     "streaming": streaming,
                     "error": {
                         "status": flow.response.status_code,
                         "statusText": flow.response.reason,
                     },
                     "request": body,
-                }
+                },
+                session_id,
             )
             return
 
@@ -242,13 +350,13 @@ class InterceptAddon:
             {
                 "timestamp": timestamp,
                 "duration_ms": duration_ms,
-                **({"session_id": session_id} if session_id else {}),
+                **({"session": session_meta} if session_meta else {}),
                 "streaming": streaming,
                 "request": body,
                 "response": parsed,
-            }
+            },
+            session_id,
         )
 
 
-_init_counter()
 addons = [InterceptAddon()]
