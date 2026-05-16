@@ -41,14 +41,14 @@ for file in "${FILES[@]}"; do
 done
 
 # Build and install agent-tools binary
-AGENT_TOOLS_DIR="${REPO_DIR}/tools/agent-tools"
+AGENT_TOOLS_DIR="${REPO_DIR}/agent-tools"
 if [ -f "${AGENT_TOOLS_DIR}/Cargo.toml" ]; then
     if command -v cargo >/dev/null 2>&1; then
         echo "building agent-tools..."
         (cd "$AGENT_TOOLS_DIR" && cargo build --release --quiet)
         mkdir -p "${HOME}/.local/bin"
-        ln -sf "${AGENT_TOOLS_DIR}/target/release/agent-tools" "${HOME}/.local/bin/agent-tools"
-        echo "linked: ~/.local/bin/agent-tools -> ${AGENT_TOOLS_DIR}/target/release/agent-tools"
+        cp -f "${AGENT_TOOLS_DIR}/target/release/agent-tools" "${HOME}/.local/bin/agent-tools"
+        echo "installed: ~/.local/bin/agent-tools"
     else
         echo "warning: cargo not found, skipping agent-tools build"
     fi

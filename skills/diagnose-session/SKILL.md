@@ -18,11 +18,10 @@ agent may have missed in its self-reporting (Required notes).
 
 ### Step 1: Render and read the log
 
-Run cc-pretty.py in agent mode:
+Run cc-pretty in agent mode:
 
 ```bash
-CC_PRETTY="$(dirname "$(readlink -f ~/.claude/skills)")/scripts/cc-pretty.py"
-PYTHONPATH="$(dirname "$CC_PRETTY")" python3 "$CC_PRETTY" <FILE> --agent 2>/dev/null
+agent-tools cc-pretty <FILE> --agent 2>/dev/null
 ```
 
 If the session is small, the rendered log appears directly in the Bash output.

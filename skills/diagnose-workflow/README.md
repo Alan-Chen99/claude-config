@@ -15,7 +15,7 @@ multi-agent workflows** because:
 
 ## Approach: Two-Tier Structural Extraction
 
-**Tier 1**: Main-log-only extraction via `cc_workflow_extract.py`.
+**Tier 1**: Main-log-only extraction via `agent-tools cc-workflow`.
 Parses Agent tool_use/tool_result pairs for ground-truth metrics: tokens, tool
 counts, durations, completion status. Zero compliance dependency — reads existing
 artifacts, requires no agent cooperation.

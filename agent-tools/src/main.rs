@@ -24,24 +24,29 @@ enum Cmd {
     },
     /// Pretty-print a Claude Code JSONL session log
     CcPretty {
-        /// Arguments forwarded to cc-pretty.py
+        /// Arguments forwarded to cc-pretty
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Extract sub-agent workflow summary from a session log
+    CcWorkflow {
+        /// Arguments forwarded to cc-workflow-extract
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
 }
 
+/// Resolve the claude-config repository root.
+///
+/// Priority:
+///   1. CLAUDE_CONFIG_ROOT env var (for testing in worktrees)
+///   2. Hardcoded default (system-specific)
 fn repo_root() -> PathBuf {
-    if let Ok(exe) = env::current_exe() {
-        let mut dir = exe.as_path();
-        while let Some(parent) = dir.parent() {
-            if parent.join("pyproject.toml").is_file() && parent.join("skills/scripts").is_dir() {
-                return parent.to_path_buf();
-            }
-            dir = parent;
-        }
+    if let Ok(root) = env::var("CLAUDE_CONFIG_ROOT") {
+        return PathBuf::from(root);
     }
-    let home = env::var("HOME").expect("HOME not set");
-    Path::new(&home).join(".claude")
+    // Default location — change per system
+    PathBuf::from("/repos/claude-config")
 }
 
 fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[String]) -> ! {
@@ -72,19 +77,20 @@ fn main() {
             );
         }
         Cmd::CcPretty { args } => {
-            let script = root.join("scripts/cc-pretty.py");
-            let script_str = script.to_str().expect("non-UTF8 path");
-            let scripts_dir = root.join("scripts");
-            let mut cmd = Command::new("uv");
-            cmd.arg("run").arg("--project").arg(&root);
-            cmd.arg("python3").arg(script_str);
-            cmd.args(&args);
-            // cc-pretty.py imports cc_pretty_parse from same directory
-            cmd.env("PYTHONPATH", &scripts_dir);
-            cmd.current_dir(&root);
-            let err = cmd.exec();
-            eprintln!("agent-tools: exec uv failed: {err}");
-            std::process::exit(1);
+            uv_run(
+                &root,
+                &root,
+                &["python3", "-m", "claude_config.cc_pretty.main"],
+                &args,
+            );
+        }
+        Cmd::CcWorkflow { args } => {
+            uv_run(
+                &root,
+                &root,
+                &["python3", "-m", "claude_config.cc_workflow.extract"],
+                &args,
+            );
         }
     }
 }

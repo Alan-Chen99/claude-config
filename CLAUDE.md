@@ -12,30 +12,48 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | ------------------------- | ----------------------------------------------------------- | --------------------------------------------- |
 | `README.md`               | Workflow philosophy, usage guide                            | Understanding the approach, getting started   |
 | `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After pulling/rebasing upstream changes       |
-| `pyproject.toml`          | Python project config                                       | Adding dependencies, modifying build settings |
+| `pyproject.toml`          | Python project config, entry points for cc-pretty etc.      | Adding dependencies, modifying build settings |
 | `.gitignore`              | Git ignore patterns                                         | Adding new generated/temp files to ignore     |
 | `.envrc`                  | direnv environment config                                   | Modifying shell environment for development   |
 | `settings.json`           | Claude Code user settings                                   | Modifying hooks, statusline, permissions      |
 
 ## Subdirectories
 
-| Directory        | What                                         | When to read                                      |
-| ---------------- | -------------------------------------------- | ------------------------------------------------- |
-| `tools/`         | Rust binaries (`agent-tools`)                | Modifying CLI wrappers, adding new commands       |
-| `skills/`        | Invocable skills (planner, deepthink, etc.)  | Using or modifying skills, adding new skills      |
-| `agents/`        | Sub-agent definitions (developer, architect) | Customizing agent behavior, understanding roles   |
-| `conventions/`   | Documentation and code quality standards     | Writing documentation, understanding coding rules |
-| `plans/`         | Plan storage directory                       | Reviewing or executing existing plans             |
-| `output-styles/` | Output formatting styles                     | Customizing Claude's output format                |
-| `hooks/`         | ntfy notification hooks for Claude Code      | Setting up notifications, debugging hooks         |
-| `scripts/`       | Standalone scripts (intercept proxy, etc.)   | Running or modifying utility scripts              |
-| `.github/`       | GitHub workflows and config                  | Modifying CI/CD, GitHub-specific settings         |
+| Directory          | What                                                    | When to read                                      |
+| ------------------ | ------------------------------------------------------- | ------------------------------------------------- |
+| `agent-tools/`     | Rust binary (`agent-tools`) wrapping skill/tool calls   | Modifying CLI wrappers, adding new commands       |
+| `src/claude_config/` | Python package: cc-pretty, cc-workflow, custom tools  | Modifying Python tooling, adding new tools        |
+| `skills/`          | Invocable skills (planner, deepthink, etc.)             | Using or modifying skills, adding new skills      |
+| `agents/`          | Sub-agent definitions (developer, architect)            | Customizing agent behavior, understanding roles   |
+| `conventions/`     | Documentation and code quality standards                | Writing documentation, understanding coding rules |
+| `plans/`           | Plan storage directory                                  | Reviewing or executing existing plans             |
+| `output-styles/`   | Output formatting styles                                | Customizing Claude's output format                |
+| `hooks/`           | ntfy notification hooks for Claude Code                 | Setting up notifications, debugging hooks         |
+| `scripts/`         | Standalone scripts (intercept proxy, launchers)         | Running or modifying utility scripts              |
+| `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
-### `tools/agent-tools/`
+### `agent-tools/`
 
-Rust binary wrapping skill script invocations. Instead of `cd ~/.claude/skills/scripts && python3 -m skills.<mod>`, use `agent-tools skill <mod> [args]`. Runs via `uv run` — no system Python required. Resolves project root from binary location.
+Rust binary wrapping skill script and Python tool invocations. Subcommands:
 
-Custom (non-upstream) skills use `agent-tools`; upstream skills still use `python3 -m` directly. Build: `cd tools/agent-tools && cargo build --release`. Installed to `~/.local/bin/agent-tools` by `hooks/install.sh`.
+- `agent-tools skill <mod> [args]` — run a skill script via `uv run python3 -m skills.<mod>`
+- `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs
+- `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
+
+Root resolution (no dependency on binary location):
+1. `CLAUDE_CONFIG_ROOT` env var — set this to a worktree path for testing
+2. Default: `/repos/claude-config` (this system)
+
+Build: `cd agent-tools && cargo build --release`. Installed to `~/.local/bin/agent-tools` by `hooks/install.sh`.
+
+### `src/claude_config/`
+
+Python package installed editable in `.venv` as `claude_config`. Contains custom (non-upstream) Python tools:
+
+| Module                          | What                                           | CLI entry point       |
+| ------------------------------- | ---------------------------------------------- | --------------------- |
+| `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`           |
+| `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract` |
 
 ### `docs/`
 

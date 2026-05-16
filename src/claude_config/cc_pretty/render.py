@@ -10,7 +10,7 @@ import json
 import textwrap
 from datetime import datetime
 
-from cc_pretty_parse import (
+from claude_config.cc_pretty.parse import (
     AgentProgress,
     AssistantRecord,
     BashProgress,

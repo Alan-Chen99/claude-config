@@ -28,18 +28,10 @@ not what the agent claims happened.
 
 ## Workflow
 
-### Step 1: Locate the extraction script
+### Step 1: Run structural extraction
 
 ```bash
-CC_EXTRACT="$(dirname "$(readlink -f ~/.claude/skills)")/scripts/cc_workflow_extract.py"
-```
-
-### Step 2: Run structural extraction
-
-Run the extraction script on the session file:
-
-```bash
-python3 "$CC_EXTRACT" <FILE>
+agent-tools cc-workflow <FILE>
 ```
 
 Read and present the output to the user.
@@ -52,7 +44,7 @@ and stop — this session has no sub-agent workflow to diagnose.
 If you need to reason about the data (e.g., for comparison or deeper analysis):
 
 ```bash
-python3 "$CC_EXTRACT" <FILE> --json
+agent-tools cc-workflow <FILE> --json
 ```
 
 ### Step 4: Interpret and present findings
@@ -97,13 +89,13 @@ drill into the sub-agent's internal JSONL to understand what happened:
 
 ```bash
 # Drill down into all anomalous agents (default)
-python3 "$CC_EXTRACT" <FILE> --tier2
+agent-tools cc-workflow <FILE> --tier2
 
 # Drill down into ALL agents (including healthy ones)
-python3 "$CC_EXTRACT" <FILE> --tier2 all
+agent-tools cc-workflow <FILE> --tier2 all
 
 # Drill down into a specific agent by index (1-based)
-python3 "$CC_EXTRACT" <FILE> --tier2 3
+agent-tools cc-workflow <FILE> --tier2 3
 ```
 
 The drill-down report shows per-agent:
@@ -126,7 +118,7 @@ Use Tier 2 when you need to answer:
 For quick triage of sessions with many agents:
 
 ```bash
-python3 "$CC_EXTRACT" <FILE> --anomalies-only
+agent-tools cc-workflow <FILE> --anomalies-only
 ```
 
 ### Interpreting Tier 1 output

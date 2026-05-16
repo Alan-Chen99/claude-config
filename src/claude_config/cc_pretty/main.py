@@ -1,11 +1,10 @@
-#!/home/chenxy/repos/claude-config/.venv/bin/python3
 """Pretty-print a Claude Code JSONL session log to stdout.
 
-Usage: cc-pretty.py <session.jsonl> [--tool-max N] [--truncate-input]
-                                    [--no-color] [--no-thinking]
-                                    [--show-rewound] [--show-all]
-                                    [--compact-all] [--compact-leg N]
-                                    [--agent]
+Usage: cc-pretty <session.jsonl> [--tool-max N] [--truncate-input]
+                                 [--no-color] [--no-thinking]
+                                 [--show-rewound] [--show-all]
+                                 [--compact-all] [--compact-leg N]
+                                 [--agent]
 
 By default, only the last leg (after the last compaction boundary) is shown.
 Rewound conversation branches are collapsed to a single marker, and records
@@ -19,7 +18,7 @@ import io
 import os
 import sys
 
-from cc_pretty_parse import (
+from claude_config.cc_pretty.parse import (
     AssistantRecord,
     FileHistorySnapshotRecord,
     LastPromptRecord,
@@ -31,7 +30,7 @@ from cc_pretty_parse import (
     read_jsonl,
     parse_all,
 )
-from cc_pretty_render import C, Renderer, fmt_ts, separator
+from claude_config.cc_pretty.render import C, Renderer, fmt_ts, separator
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
