@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Capture system prompts from a Claude Code interactive session.
 
+Uses the MITM proxy (scripts/intercept) to intercept API calls via
+HTTPS_PROXY. Works with both the Node.js CLI and native binary.
+
 Uses expect to spawn claude with a real pty (true interactive mode). This
 matters because the system prompt differs between interactive and -p mode
 (identity block, gitStatus appending).
@@ -18,6 +21,10 @@ Output:
     capture-output/request.json   - main API request (metadata redacted)
     capture-output/summary.json   - block structure and tool inventory
     capture-output/subagents/     - subagent prompts (when --subagent)
+
+Prerequisites:
+    The MITM proxy must be running:
+        cd scripts/intercept && node dist/proxy.js
 """
 
 import hashlib
@@ -30,9 +37,12 @@ import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-INTERCEPT = SCRIPT_DIR / "intercept.js"
+INTERCEPT_DIR = SCRIPT_DIR.parent.parent / "scripts" / "intercept"
 OUT_DIR = SCRIPT_DIR / "capture-output"
-HTTP_LOGS = Path.home() / ".claude" / "http-logs"
+
+PROXY_PORT = int(os.environ.get("INTERCEPT_PORT", "9160"))
+CA_CERT = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.pem"
+PROXY_LOG_DIR = Path.home() / ".claude" / "requests-log" / "proxy"
 
 EXPECT_SCRIPT = """\
 set timeout 25
@@ -100,40 +110,114 @@ SUBAGENT_MESSAGES = {
 }
 
 
-def get_log_dirs() -> set[str]:
-    if not HTTP_LOGS.exists():
-        return set()
-    return {str(p) for p in HTTP_LOGS.iterdir() if p.is_dir()}
+# --- Proxy communication ---
 
 
-def find_all_requests(new_dirs: list[Path]) -> list[tuple[Path, int, bool]]:
-    """Return deduplicated request.json files, preserving chronological order.
+def proxy_counter() -> int:
+    """Get the current log counter by scanning log directory."""
+    if not PROXY_LOG_DIR.exists():
+        return 0
+    nums = []
+    for f in PROXY_LOG_DIR.glob("*.json"):
+        try:
+            nums.append(int(f.stem))
+        except ValueError:
+            continue
+    return max(nums) if nums else 0
 
-    Each entry is (path, system_chars, has_tools). Deduplicates by system
-    prompt content hash so multiple turns from the same agent collapse to one.
+
+def proxy_is_running() -> bool:
+    import socket
+
+    try:
+        with socket.create_connection(("127.0.0.1", PROXY_PORT), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+def start_proxy() -> subprocess.Popen:
+    """Start the proxy as a subprocess. Returns the Popen handle."""
+    import time
+
+    proc = subprocess.Popen(
+        [sys.executable, str(INTERCEPT_DIR / "run-proxy.py")],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    for _ in range(30):
+        time.sleep(0.2)
+        if proxy_is_running():
+            return proc
+    proc.kill()
+    raise RuntimeError("Proxy failed to start within 6 seconds")
+
+
+# --- Log reading ---
+
+
+def find_new_logs(start_counter: int) -> list[Path]:
+    """Find proxy log files with counter > start_counter."""
+    if not PROXY_LOG_DIR.exists():
+        return []
+    results = []
+    for f in sorted(PROXY_LOG_DIR.glob("*.json")):
+        m = f.stem
+        try:
+            n = int(m)
+        except ValueError:
+            continue
+        if n > start_counter:
+            results.append(f)
+    return results
+
+
+def find_all_requests(
+    log_files: list[Path],
+) -> list[tuple[Path, int, bool]]:
+    """Return deduplicated requests from proxy log files.
+
+    The proxy logs contain {request: {...}, response: {...}} entries.
+    We extract the request body and write it to a temp file so
+    extract_request() can read it in the same format as before.
+
+    Each entry is (path_to_request_json, system_chars, has_tools).
+    Deduplicates by system prompt content hash.
     """
     results = []
-    seen = set()
-    # new_dirs already sorted chronologically; glob within each is alphabetical
-    # (001-request.json before 002-request.json), so iteration order = time order
-    for d in new_dirs:
-        for req_path in sorted(d.glob("*-request.json")):
-            try:
-                req = json.loads(req_path.read_text())
-                texts = [
-                    s.get("text", "")
-                    for s in req.get("system", [])
-                    if s.get("type") == "text"
-                ]
-                content = "\n".join(texts)
-                h = hashlib.md5(content.encode()).hexdigest()
-                if h in seen:
-                    continue
-                seen.add(h)
-                has_tools = len(req.get("tools", [])) > 0
-                results.append((req_path, len(content), has_tools))
-            except (json.JSONDecodeError, OSError):
-                continue
+    seen: set[str] = set()
+    tmp_dir = Path(tempfile.mkdtemp(prefix="capture-reqs-"))
+
+    for log_path in log_files:
+        try:
+            entry = json.loads(log_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        req = entry.get("request")
+        if not req or not isinstance(req, dict):
+            continue
+        if "system" not in req:
+            continue
+
+        texts = [
+            s.get("text", "")
+            for s in req.get("system", [])
+            if s.get("type") == "text"
+        ]
+        content = "\n".join(texts)
+        h = hashlib.md5(content.encode()).hexdigest()
+        if h in seen:
+            continue
+        seen.add(h)
+
+        # Write the request body to a temp file for extract_request()
+        req_path = tmp_dir / f"{log_path.stem}-request.json"
+        req_path.write_text(json.dumps(req, indent=2))
+
+        has_tools = len(req.get("tools", [])) > 0
+        results.append((req_path, len(content), has_tools))
+
     return results
 
 
@@ -194,7 +278,12 @@ def spawn_claude(
     exp_file.close()
 
     env = os.environ.copy()
-    env["NODE_OPTIONS"] = f"--require {INTERCEPT}"
+    # Route traffic through the MITM proxy
+    env["HTTPS_PROXY"] = f"http://127.0.0.1:{PROXY_PORT}"
+    env["NODE_EXTRA_CA_CERTS"] = str(CA_CERT)
+    # Node.js fetch (undici) requires --use-env-proxy to honor HTTPS_PROXY
+    existing_opts = env.get("NODE_OPTIONS", "")
+    env["NODE_OPTIONS"] = f"--use-env-proxy {existing_opts}".strip()
 
     # Run from a temp dir; use --setting-sources local to isolate from
     # user's global settings (e.g. autoMemoryEnabled: false). git init so
@@ -287,18 +376,37 @@ def main() -> None:
     if subagent and output_style is None:
         output_style = "default"
 
-    before = get_log_dirs()
-    spawn_claude(extra_args, model=model, output_style=output_style, subagent=subagent)
-    after = get_log_dirs()
+    # Ensure proxy is running
+    proxy_proc = None
+    if not proxy_is_running():
+        if not (INTERCEPT_DIR / "run-proxy.py").exists():
+            print(
+                "ERROR: run-proxy.py not found in scripts/intercept/",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print("Starting intercept proxy...", file=sys.stderr)
+        proxy_proc = start_proxy()
 
-    new_dirs = [Path(d) for d in sorted(after - before)]
-    if not new_dirs:
-        print("ERROR: No API calls captured.", file=sys.stderr)
+    start_counter = proxy_counter()
+    if start_counter < 0:
+        print("ERROR: Cannot read proxy counter.", file=sys.stderr)
         sys.exit(1)
 
-    all_reqs = find_all_requests(new_dirs)
+    spawn_claude(extra_args, model=model, output_style=output_style, subagent=subagent)
+
+    log_files = find_new_logs(start_counter)
+    if not log_files:
+        print("ERROR: No API calls captured.", file=sys.stderr)
+        if proxy_proc:
+            proxy_proc.terminate()
+        sys.exit(1)
+
+    all_reqs = find_all_requests(log_files)
     if not all_reqs:
         print("ERROR: No system prompt found in captured requests.", file=sys.stderr)
+        if proxy_proc:
+            proxy_proc.terminate()
         sys.exit(1)
 
     if OUT_DIR.exists():
@@ -333,7 +441,9 @@ def main() -> None:
                 s = extract_request(req_path, sub_dir, file_prefix=f"{prefix}-")
                 subagent_summaries.append(s)
                 sub_content = (sub_dir / f"{prefix}-system.txt").read_text()
-                print(f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}")
+                print(
+                    f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}"
+                )
     elif subagent:
         print(
             "WARNING: --subagent specified but no subagent calls captured.",
@@ -347,6 +457,10 @@ def main() -> None:
         f"{f', {n_sub} subagent(s)' if subagent else ''} ---",
         file=sys.stderr,
     )
+
+    # Leave proxy running — it's designed to be long-lived
+    # Only stop it if we started it AND the user didn't have one already
+    # (i.e., never stop it — the user manages the lifecycle)
 
 
 if __name__ == "__main__":
