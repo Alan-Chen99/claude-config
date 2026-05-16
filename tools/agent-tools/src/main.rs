@@ -3,22 +3,21 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn scripts_dir() -> PathBuf {
-    // Resolve from binary location: walk up to find skills/scripts/.
+fn repo_root() -> PathBuf {
+    // Walk up from binary location to find pyproject.toml (project root).
     if let Ok(exe) = env::current_exe() {
         let mut dir = exe.as_path();
         while let Some(parent) = dir.parent() {
-            let candidate = parent.join("skills/scripts");
-            if candidate.is_dir() {
-                return candidate;
+            if parent.join("pyproject.toml").is_file() && parent.join("skills/scripts").is_dir() {
+                return parent.to_path_buf();
             }
             dir = parent;
         }
     }
 
-    // Fallback: ~/.claude/skills/scripts
+    // Fallback: ~/.claude
     let home = env::var("HOME").expect("HOME not set");
-    Path::new(&home).join(".claude/skills/scripts")
+    Path::new(&home).join(".claude")
 }
 
 fn cmd_skill(args: &[String]) -> ! {
@@ -29,15 +28,17 @@ fn cmd_skill(args: &[String]) -> ! {
     }
 
     let module = format!("skills.{}", &args[0]);
-    let scripts = scripts_dir();
+    let root = repo_root();
 
-    let mut cmd = Command::new("python3");
-    cmd.arg("-m").arg(&module);
+    let mut cmd = Command::new("uv");
+    cmd.arg("run");
+    cmd.arg("--project").arg(&root);
+    cmd.arg("python3").arg("-m").arg(&module);
     cmd.args(&args[1..]);
-    cmd.current_dir(&scripts);
+    cmd.current_dir(root.join("skills/scripts"));
 
     let err = cmd.exec();
-    eprintln!("agent-tools: exec python3 failed: {err}");
+    eprintln!("agent-tools: exec uv failed: {err}");
     std::process::exit(1);
 }
 
