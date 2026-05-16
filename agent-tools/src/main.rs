@@ -40,13 +40,20 @@ enum Cmd {
 ///
 /// Priority:
 ///   1. CLAUDE_CONFIG_ROOT env var (for testing in worktrees)
-///   2. Hardcoded default (system-specific)
+///   2. Derived from ~/.claude/skills symlink target (parent of target)
 fn repo_root() -> PathBuf {
     if let Ok(root) = env::var("CLAUDE_CONFIG_ROOT") {
         return PathBuf::from(root);
     }
-    // Default location — change per system
-    PathBuf::from("/repos/claude-config")
+    // Derive from ~/.claude/skills symlink — its target is <repo_root>/skills
+    let claude_dir = PathBuf::from(env::var("HOME").expect("HOME not set")).join(".claude");
+    let skills_link = claude_dir.join("skills");
+    let target = std::fs::read_link(&skills_link)
+        .unwrap_or_else(|e| panic!("cannot read symlink {}: {e}", skills_link.display()));
+    target
+        .parent()
+        .unwrap_or_else(|| panic!("symlink target {} has no parent", target.display()))
+        .to_path_buf()
 }
 
 fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[String]) -> ! {
