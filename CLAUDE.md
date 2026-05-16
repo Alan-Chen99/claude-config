@@ -31,6 +31,12 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `scripts/`       | Standalone scripts (intercept proxy, etc.)   | Running or modifying utility scripts              |
 | `.github/`       | GitHub workflows and config                  | Modifying CI/CD, GitHub-specific settings         |
 
+### `tools/agent-tools/`
+
+Rust binary wrapping skill script invocations. Instead of `cd ~/.claude/skills/scripts && python3 -m skills.<mod>`, use `agent-tools skill <mod> [args]`. Runs via `uv run` — no system Python required. Resolves project root from binary location.
+
+Custom (non-upstream) skills use `agent-tools`; upstream skills still use `python3 -m` directly. Build: `cd tools/agent-tools && cargo build --release`. Installed to `~/.local/bin/agent-tools` by `hooks/install.sh`.
+
 ### `docs/`
 
 | Path                                       | What                                          | When to read                                            |
