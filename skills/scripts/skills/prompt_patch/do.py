@@ -2,18 +2,19 @@
 """
 Prompt Patch - Structured prompt change workflow.
 
-Eleven-step workflow:
-  1.  Motivation        - Why change? What breaks if we don't?
-  2.  Brainstorm        - Rapid unfiltered idea generation (10+ one-liners)
-  3.  Identify          - Target state + workflow options from brainstorm
-  4.  Draft Options     - Prompt updates per option
-  5.  Context Check     - System prompt/instructions alignment; failure points
-  6.  Regressions       - Identify regressions; revise
-  7.  Pick & Draft      - Select best option; full draft
-  8.  Deterministic     - Crash/silent-fail/impossible-to-follow checks
-  9.  Non-deterministic - Agent mistake modes
-  10. Top Concerns      - 3 problems not covered above
-  11. Final             - Write final version
+Twelve-step workflow:
+  1.  Motivation          - Why change? What breaks if we don't?
+  2.  Invariant Extraction - List invariants, status-quo trace, break point
+  3.  Brainstorm          - Rapid unfiltered idea generation (10+ one-liners)
+  4.  Identify            - Target state + workflow options from brainstorm
+  5.  Draft Options       - Prompt updates per option
+  6.  Context Check       - System prompt/instructions alignment; failure points
+  7.  Regressions         - Identify regressions; revise
+  8.  Pick & Draft        - Select best option; full draft
+  9.  Deterministic       - Crash/silent-fail/impossible-to-follow checks
+  10. Non-deterministic   - Agent mistake modes
+  11. Top Concerns        - 3 problems not covered above
+  12. Final               - Write final version
 
 All steps live in a single steps.md file, separated by `<!--step N: name-->`
 markers. This script parses the file and prints the requested step.
@@ -28,7 +29,7 @@ from pathlib import Path
 # CONFIGURATION
 # ============================================================================
 
-TOTAL_STEPS = 11
+TOTAL_STEPS = 12
 
 STEPS_FILE = Path(__file__).resolve().parent.parent.parent.parent / "prompt-patch" / "steps.md"
 
@@ -65,7 +66,7 @@ def main():
     """Entry point for prompt-patch workflow."""
     parser = argparse.ArgumentParser(
         description="Prompt Patch - Structured prompt change workflow",
-        epilog="Steps: motivation (1) -> brainstorm (2) -> identify (3) -> draft-options (4) -> context-check (5) -> regressions (6) -> pick-draft (7) -> deterministic (8) -> non-deterministic (9) -> concerns (10) -> final (11)",
+        epilog="Steps: motivation (1) -> invariant-extraction (2) -> brainstorm (3) -> identify (4) -> draft-options (5) -> context-check (6) -> regressions (7) -> pick-draft (8) -> deterministic (9) -> non-deterministic (10) -> concerns (11) -> final (12)",
     )
     parser.add_argument("--step", type=int, required=True)
 

@@ -4,13 +4,25 @@
 
 Keep in mind throughout this workflow:
 
-1. **Agents make mistakes.** Do not design for "always right." Design for "discover own mistakes" and "recover from mistakes." Verification and self-correction matter more than perfection.
+1. **Know your observability.** Claude Code conversations produce JSONL logs containing both thinking and text blocks. An agent within a conversation sees all prior thinking and text. Context compaction replaces full history with a summary — the agent loses detail. A new agent (subagent, next conversation) starts with zero prior context. Use `/cc-history` to query conversation logs when you need evidence of what actually happened.
 
-2. **Prompts are code.** They must work, but also be maintainable, observable, and propagate errors. Apply the same engineering standards you would to source code: clarity, testability, failure transparency.
+2. **Agents make mistakes.** Do not design for "always right." Design for "discover own mistakes" and "recover from mistakes." Verification and self-correction matter more than perfection.
 
-3. **Think forward from the prompt.** Prompts provide logical invariants — the agent "should" behave correctly given these instructions. When it doesn't, there is a hole in the logic. Find the hole. If your function crashes on input `9`, you don't add `if input == 9: return special_case` — you ask "this code is supposed to handle all inputs, why didn't it?" and fix the actual bug. Same with prompts: don't patch the symptom, fix the invariant that failed.
+3. **Prompts are code.** They must work, but also be maintainable, observable, and propagate errors. Apply the same engineering standards you would to source code: clarity, testability, failure transparency.
 
-4. **Someone must do it.** If a task exists, some agent in the system must own it — the human should not be in the loop for routine work. When designing workflows, every necessary action must be assigned to an agent. You cannot leave a task undone because it feels "risky" or "destructive." If an agent memory system needs stale items removed, some agent removes them. Design for safe execution, not avoidance.
+4. **Fix invariants, not symptoms.** When a prompt fails, a structural property it relied on doesn't hold. Invariants are system-level properties that hold probabilistically despite LLM stochasticity — not claims about deterministic instruction-following. Step 2 operationalizes finding the broken property. Don't add special-case rules for observed failures; restore the structural invariant.
+
+5. **Someone must do it.** If a task exists, some agent in the system must own it — the human should not be in the loop for routine work. When designing workflows, every necessary action must be assigned to an agent. You cannot leave a task undone because it feels "risky" or "destructive." If an agent memory system needs stale items removed, some agent removes them. Design for safe execution, not avoidance.
+
+6. **Permission to undo.** Every iteration's output must be safely reversible by the next agent. If agent N adds a function, agent N+1 must have the means to determine whether removing it is safe (e.g. "diff with [commit] first"). When the workflow does not provide that means, agents accumulate dead code, stale rules, and cargo-culted artifacts they are afraid to touch. Prompts must ensure each agent has the information needed to confidently undo, replace, or remove what prior agents produced.
+
+7. **Agents won't search for permission to remove.** From the agent's perspective, all existing functions look the same — there is no visible marker distinguishing "I added this 3 steps ago" from "this has existed for years." Checking `git blame` on every function is not feasible: there are too many. If the agent cannot immediately see that removal is safe, it leaves the code in place.
+
+8. **Rules need triggers, not just procedures.** A rule like "if git blame shows this function was added in the current session, it's safe to remove" looks actionable — the procedure for any single function is clear. But the rule is inert because nothing tells the agent *which* functions to check. There are hundreds of functions; the agent has no reason to run `git blame` on any particular one. The procedure is followable, the trigger is missing, so the rule fires zero times. Effective rules either apply unconditionally to a well-defined set (e.g., "all functions in this file without callers are dead code") or are triggered by a workflow step that enumerates the candidates.
+
+9. **Adding is cheap, removing is expensive.** Writing a function, argument, or if-statement costs one edit. Removing one requires searching files, checking callers, verifying no external consumers, confirming nothing in memory depends on it. Over iterations this asymmetry causes unbounded growth — each agent adds, none remove. Counteract it with safe-to-remove rules (e.g., "all code not covered by tests is safe to remove", "functions without callers in this module are dead code") and explicit review-and-prune steps. If a workflow step can add artifacts, a later step must be able to remove them with equal confidence — otherwise the workflow will not converge.
+
+10. **Prompts have no inline comments.** Source code has syntax for comments (`//`, `#`, `/* */`) that compilers and interpreters skip. Prompts have no such syntax — every character is consumed by the model. Text intended as a note to maintainers ("this section handles X", "TODO: revisit") becomes an instruction to the agent. Each prompt file must have exactly one unambiguous location for maintainer-facing documentation (e.g., a companion CLAUDE.md, a header block with a designated marker, or a separate doc file). This location must be obvious to both agents and humans reading the file. Never scatter explanatory notes, TODOs, or rationale inline within prompt text — they will be interpreted as instructions, and their intended audience (the maintainer) will not reliably find them there anyway.
 
 # Prompt Patch - Motivation
 
@@ -26,7 +38,39 @@ NEXT STEP:
 <invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 2 --problem='...' --cost='...' --success-criteria='...'" />
 Execute this command now.
 
-<!-- step 2: brainstorm -->
+<!-- step 2: invariant-extraction -->
+
+# Prompt Patch - Invariant Extraction
+
+Before brainstorming fixes, identify the structural properties the current prompt/workflow is supposed to guarantee.
+
+For changes that only reword existing text, move text between sections, or fix typos — and do not alter the logical behavior of the prompt — write "Mechanical change — no invariant analysis needed" and proceed to step 3.
+
+**Invariants are structural properties of the workflow, not claims about deterministic instruction-following.** LLMs are stochastic — an instruction influences behavior probabilistically, it does not determine it. An invariant must hold despite any single instruction being skipped or misinterpreted on a given run.
+
+1. **List invariants**: Read the target prompt/workflow. Write 3-7 structural properties it is supposed to guarantee.
+
+   Examples:
+   - "Workflow has no single point of failure — no single skipped step causes silent wrong output"
+   - "Any bug introduced has nonzero probability of discovery on subsequent tasks"
+   - "Errors from tooling propagate to the user at least 50% of the time"
+   - "Results do not depend on undocumented state"
+   - "Agent investigates all outstanding uncertainties before responding"
+
+   NOT invariants (these assume deterministic instruction-following and always fail as analysis tools):
+   - "Agent will include string X in output because instruction Y says to"
+   - "Agent reads section 3 then executes step Z"
+   - "Agent always verifies because the prompt says IMPORTANT"
+
+   A wrong instruction CAN be the structural gap — but frame it structurally: "the prompt directs toward tool X when tool Y is correct" not "agent will use tool Y because I told it to."
+
+2. **Structural gap**: What structural property is missing or broken that allows this failure to occur? Describe the gap in the system design, not a step-by-step execution trace. Think: "What would need to be true about the workflow design for this class of failure to be impossible?"
+
+NEXT STEP:
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 3 --invariants='...' --structural-gap='...'" />
+Execute this command now.
+
+<!-- step 3: brainstorm -->
 
 # Prompt Patch - Brainstorm
 
@@ -59,10 +103,10 @@ The only exception: if the change is purely mechanical (e.g., rewording a single
 Note: letters mark mechanism groups. Ideas 1/3/5 share mechanism (A), signaling convergence — ideas 7-10 were forced into underrepresented groups.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 3 --ideas='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 4 --ideas='...'" />
 Execute this command now.
 
-<!-- step 3: identify -->
+<!-- step 4: identify -->
 
 # Prompt Patch - Identify Target State & Workflows
 
@@ -71,12 +115,14 @@ Define the target and generate multiple paths to reach it.
 1. **Target result state**: Describe the exact end-state you want the agent to produce.
    (e.g., "all facts verified before inclusion", "code compiles and passes tests before response")
 
-2. **Workflow options** Build your workflow options from ideas in your brainstorm list (step 2). Select ideas from different mechanism groups. You may combine or refine ideas, but each option must trace to at least one brainstorm idea. For each, describe the sequence of tool calls / chain-of-thought / agent behavior that would produce the target state as they appear in the agent context window.
+2. **Workflow options** Build your workflow options from ideas in your brainstorm list (step 3). Select ideas from different mechanism groups. You may combine or refine ideas, but each option must trace to at least one brainstorm idea. For each, describe the sequence of tool calls / chain-of-thought / agent behavior that would produce the target state as they appear in the agent context window.
 
    Format per option:
    ```
    Option A: [name] (from brainstorm ideas #N, #M)
    [step] -> [step] -> [step] -> end
+   Structural invariants restored: [which structural properties from step 2 this option restores]
+   Structural invariants abandoned: [which properties this option does NOT restore, and why that's acceptable]
    ```
 
    Options must differ in **temporal sequence** — the order in which observable state changes occur. "State" means external artifacts (files on disk, tool call results) or internal artifacts (chain-of-thought constructions, intermediate reasoning). A reader tracing the reasoning log should see different intermediate states at different points in time.
@@ -94,14 +140,14 @@ Define the target and generate multiple paths to reach it.
    - A uses chain-of-thought to construct a decision tree then selects; B evaluates options sequentially
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 4 --target-state='...' --option-a='...' --option-b='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 5 --target-state='...' --option-a='...' --option-b='...'" />
 Execute this command now.
 
-<!-- step 4: draft-options -->
+<!-- step 5: draft-options -->
 
 # Prompt Patch - Draft Prompt Updates Per Option
 
-For EACH workflow option from step 3, write the concrete set of prompt changes needed to make the agent follow that workflow.
+For EACH workflow option from step 4, write the concrete set of prompt changes needed to make the agent follow that workflow.
 
 Per option, specify:
 
@@ -113,10 +159,10 @@ Per option, specify:
 Do NOT pick a winner yet. Write both/all options fully.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 5 --options-drafted='brief summary of each option'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 6 --options-drafted='brief summary of each option'" />
 Execute this command now.
 
-<!-- step 5: context-check -->
+<!-- step 6: context-check -->
 
 # Prompt Patch - Context & Conflict Check
 
@@ -135,10 +181,10 @@ Check the existing instruction environment for alignment and conflicts.
 3. **Revise** each option based on conflicts found. If a contradiction cannot be resolved, note it as a hard constraint.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 6 --conflicts-found='...' --revisions-made='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 7 --conflicts-found='...' --revisions-made='...'" />
 Execute this command now.
 
-<!-- step 6: regressions -->
+<!-- step 7: regressions -->
 
 # Prompt Patch - Regression Analysis
 
@@ -159,14 +205,14 @@ Mitigation: [revised wording] or [accepted tradeoff: ...]
 ```
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 7 --regressions-found='...' --mitigations='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 8 --regressions-found='...' --mitigations='...'" />
 Execute this command now.
 
-<!-- step 7: pick-draft -->
+<!-- step 8: pick-draft -->
 
 # Prompt Patch - Pick Best Option & Full Draft
 
-1. **Pick the best option.** State why. Reference specific advantages over alternatives (from steps 4-6 analysis).
+1. **Pick the best option.** State why. Reference specific advantages over alternatives (from steps 5-7 analysis).
 
 2. **Write the full draft** of all prompt changes. Include:
    - Complete text of every instruction added/modified/removed
@@ -176,10 +222,10 @@ Execute this command now.
 Write the draft as it would appear in the final file -- not a summary, the actual text.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 8 --chosen-option='...' --draft-written='yes'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 9 --chosen-option='...' --draft-written='yes'" />
 Execute this command now.
 
-<!-- step 8: deterministic-check -->
+<!-- step 9: deterministic-check -->
 
 # Prompt Patch - Deterministic Failure Mode Check
 
@@ -204,10 +250,10 @@ Then list **environment requirements** (e.g., "python3 needed", "git available",
 You may assume any requirement that is true in your current environment.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 9 --deterministic-issues='...' --env-requirements='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 10 --deterministic-issues='...' --env-requirements='...'" />
 Execute this command now.
 
-<!-- step 9: non-deterministic-check -->
+<!-- step 10: non-deterministic-check -->
 
 # Prompt Patch - Non-Deterministic Error Check
 
@@ -224,16 +270,16 @@ Consider:
 For each risk identified, assess severity (low/medium/high) and revise the draft if severity >= medium.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 10 --risks-found='...' --revisions='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 11 --risks-found='...' --revisions='...'" />
 Execute this command now.
 
-<!-- step 10: top-concerns -->
+<!-- step 11: top-concerns -->
 
 # Prompt Patch - Top Concerns
 
 List your **3 top problems or concerns** about the proposed changes.
 
-Focus on points NOT already covered by the previous steps (steps 5-9). These should be novel concerns -- things this workflow might have missed.
+Focus on points NOT already covered by the previous steps (steps 6-10). These should be novel concerns -- things this workflow might have missed.
 
 For each concern:
 - **Problem**: What could go wrong?
@@ -244,10 +290,10 @@ For each concern:
 If any concern has both likelihood >= medium AND impact >= medium, revise the draft to address it before proceeding.
 
 NEXT STEP:
-<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 11 --concerns='...' --final-revisions='...'" />
+<invoke working-dir="~/.claude/skills/scripts" cmd="python3 -m skills.prompt_patch.do --step 12 --concerns='...' --final-revisions='...'" />
 Execute this command now.
 
-<!-- step 11: final -->
+<!-- step 12: final -->
 
 # Prompt Patch - Final Version
 
@@ -256,8 +302,8 @@ Write the **final version** of all prompt changes.
 This is the deliverable. Include:
 
 1. **For each file changed**: full path, and the complete change (add/modify/remove) with exact text
-2. **Environment requirements** (from step 8)
-3. **Known tradeoffs** (from steps 6, 10) -- accepted regressions or risks
+2. **Environment requirements** (from step 9)
+3. **Known tradeoffs** (from steps 7, 11) -- accepted regressions or risks
 4. **Testing suggestion**: one concrete way to verify the change works as intended
 
 Present the changes so they can be applied directly (copy-paste ready or as diffs).
