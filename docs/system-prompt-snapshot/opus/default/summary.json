@@ -1,6 +1,7 @@
 {
   "model": "claude-opus-4-6",
   "system_blocks": 4,
+  "system_tokens": 6203,
   "tools_upfront": [
     "Agent",
     "Bash",
@@ -15,9 +16,8 @@
   "tools_upfront_count": 9,
   "tools_deferred": [],
   "tools_deferred_count": 0,
+  "tools_total_tokens": 8793,
   "has_output_style": false,
   "has_doing_tasks": true,
-  "subagent_count": 0,
-  "system_tokens": 6197,
-  "tools_total_tokens": 8793
+  "subagent_count": 0
 }

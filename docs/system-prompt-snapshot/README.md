@@ -18,7 +18,7 @@ Default captures include a project CLAUDE.md.
 | `full-api-request-flag-system-prompt-file.json` | Full API request with `--system-prompt-file`. Metadata redacted. |
 | `full-api-request-flag-append.json` | Full API request with `--append-system-prompt`. Metadata redacted. |
 | `capture.py` | Python script that captures system prompts via expect + intercept.js |
-| `intercept.js` | (Legacy, removed) Node.js `--require` script that logged API calls to files. Replaced by `scripts/intercept/`. |
+| `scripts/intercept/` | MITM proxy + fetch override for API call logging (see `scripts/intercept/README.md`) |
 
 ### Subagent captures
 

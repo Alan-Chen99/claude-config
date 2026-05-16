@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Capture system prompts from a Claude Code interactive session.
 
-Uses the MITM proxy (scripts/intercept) to intercept API calls via
+Routes API traffic through the MITM proxy (scripts/intercept/) via
 HTTPS_PROXY. Works with both the Node.js CLI and native binary.
 
-Uses expect to spawn claude with a real pty (true interactive mode). This
-matters because the system prompt differs between interactive and -p mode
-(identity block, gitStatus appending).
+Spawns Claude with a real pty via pty.fork() (true interactive mode).
+This matters because the system prompt differs between interactive
+and -p mode (identity block, gitStatus appending).
 
 Usage:
     ./capture.py                                        # default prompt
@@ -23,17 +23,20 @@ Output:
     capture-output/subagents/     - subagent prompts (when --subagent)
 
 Prerequisites:
-    The MITM proxy must be running:
+    The MITM proxy must be running (auto-started if not):
         cd scripts/intercept && python3 run-proxy.py
 """
 
 import hashlib
 import json
 import os
+import pty
+import select
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import anthropic
@@ -46,55 +49,22 @@ PROXY_PORT = int(os.environ.get("INTERCEPT_PORT", "9160"))
 CA_CERT = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.pem"
 PROXY_LOG_DIR = Path.home() / ".claude" / "requests-log" / "proxy"
 
-EXPECT_SCRIPT = """\
-set timeout 25
-# Prevent nested session detection
-set env(CLAUDECODE) ""
-unset env(CLAUDECODE)
-spawn {*}$argv
-# Accept trust dialog if it appears (new/unknown project dirs)
-sleep 2
-send "\\r"
-# Use expect (not sleep) to drain pty output and prevent buffer-full blocking
-set timeout 5
-expect {
-  timeout {}
-  eof {}
-}
-send "say exactly: done\\r"
-expect {
-  timeout { send "/exit\\r" }
-  -re {done} { send "/exit\\r" }
-}
-expect eof
-"""
-
-# Subagent mode: send a message that triggers an Agent tool call, then wait
-# long enough for the subagent's API round-trip before exiting.
-# {message} is replaced at runtime with the agent-type-specific prompt.
-EXPECT_SCRIPT_SUBAGENT = """\
-set timeout 120
-set env(CLAUDECODE) ""
-unset env(CLAUDECODE)
-spawn {{*}}$argv
-sleep 2
-send "\\r"
-# Use expect (not sleep) to consume pty output and prevent buffer-full blocking
-set timeout 5
-expect {{
-  timeout {{}}
-  eof {{}}
-}}
-send "{message}\\r"
-# Drain pty output for 70s while model + subagent run
-set timeout 70
-expect {{
-  timeout {{}}
-  eof {{}}
-}}
-send "/exit\\r"
-expect eof
-"""
+def _pty_drain(fd: int, timeout: float) -> str:
+    """Read all available pty output until timeout, preventing buffer-full blocking."""
+    buf = []
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        remaining = max(0.01, deadline - time.monotonic())
+        r, _, _ = select.select([fd], [], [], min(remaining, 0.5))
+        if r:
+            try:
+                data = os.read(fd, 4096)
+                if not data:
+                    break
+                buf.append(data.decode("utf-8", errors="replace"))
+            except OSError:
+                break
+    return "".join(buf)
 
 SUBAGENT_MESSAGES = {
     "Explore": (
@@ -112,7 +82,7 @@ SUBAGENT_MESSAGES = {
 }
 
 
-# --- Proxy communication ---
+# --- Token counting ---
 
 
 def _strip_cache_control(obj):
@@ -148,6 +118,9 @@ def _baseline(model: str) -> int:
     if model not in _baseline_cache:
         _baseline_cache[model] = count_tokens(model)
     return _baseline_cache[model]
+
+
+# --- Proxy log reading ---
 
 
 def proxy_counter() -> int:
@@ -190,18 +163,14 @@ def start_proxy() -> subprocess.Popen:
     raise RuntimeError("Proxy failed to start within 6 seconds")
 
 
-# --- Log reading ---
-
-
-def find_new_logs(start_counter: int) -> list[Path]:
+def find_new_proxy_logs(start_counter: int) -> list[Path]:
     """Find proxy log files with counter > start_counter."""
     if not PROXY_LOG_DIR.exists():
         return []
     results = []
     for f in sorted(PROXY_LOG_DIR.glob("*.json")):
-        m = f.stem
         try:
-            n = int(m)
+            n = int(f.stem)
         except ValueError:
             continue
         if n > start_counter:
@@ -209,14 +178,10 @@ def find_new_logs(start_counter: int) -> list[Path]:
     return results
 
 
-def find_all_requests(
+def find_all_requests_proxy(
     log_files: list[Path],
 ) -> list[tuple[Path, int, bool]]:
     """Return deduplicated requests from proxy log files.
-
-    The proxy logs contain {request: {...}, response: {...}} entries.
-    We extract the request body and write it to a temp file so
-    extract_request() can read it in the same format as before.
 
     Each entry is (path_to_request_json, system_tokens, has_tools).
     Deduplicates by system prompt content hash.
@@ -248,7 +213,6 @@ def find_all_requests(
             continue
         seen.add(h)
 
-        # Write the request body to a temp file for extract_request()
         req_path = tmp_dir / f"{log_path.stem}-request.json"
         req_path.write_text(json.dumps(req, indent=2))
 
@@ -315,25 +279,15 @@ def spawn_claude(
     output_style: str | None = None,
     subagent: str | None = None,
 ) -> None:
-    if subagent:
-        message = SUBAGENT_MESSAGES.get(subagent, SUBAGENT_MESSAGES["Explore"])
-        script = EXPECT_SCRIPT_SUBAGENT.format(message=message)
-    else:
-        script = EXPECT_SCRIPT
-
-    exp_file = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".exp", prefix="capture-", delete=False
-    )
-    exp_file.write(script)
-    exp_file.close()
-
     env = os.environ.copy()
-    # Route traffic through the MITM proxy
+    # Prevent nested session detection
+    env.pop("CLAUDECODE", None)
+    # Route through MITM proxy
     env["HTTPS_PROXY"] = f"http://127.0.0.1:{PROXY_PORT}"
+    # Node.js fetch (undici) ignores HTTPS_PROXY unless --use-env-proxy is set.
+    # Native binaries respect HTTPS_PROXY directly via system CA store.
+    env["NODE_OPTIONS"] = "--use-env-proxy"
     env["NODE_EXTRA_CA_CERTS"] = str(CA_CERT)
-    # Node.js fetch (undici) requires --use-env-proxy to honor HTTPS_PROXY
-    existing_opts = env.get("NODE_OPTIONS", "")
-    env["NODE_OPTIONS"] = f"--use-env-proxy {existing_opts}".strip()
 
     # Run from a temp dir; use --setting-sources local to isolate from
     # user's global settings (e.g. autoMemoryEnabled: false). git init so
@@ -364,32 +318,50 @@ def spawn_claude(
         (Path(work_dir) / "README.md").write_text("# Example Project\n")
         (Path(work_dir) / "setup.py").write_text("from setuptools import setup\n")
 
-    timeout = 130 if subagent else 35
+    if subagent:
+        message = SUBAGENT_MESSAGES.get(subagent, SUBAGENT_MESSAGES["Explore"])
+
+    cmd = ["claude", "--model", model, "--setting-sources", "project,local", *extra_args]
+    timeout_s = 130 if subagent else 60
+    deadline = time.monotonic() + timeout_s
+
+    # Use pty.fork() instead of expect. Expect's spawn loses proxy env vars
+    # because it re-execs through a shell wrapper; pty.fork + os.execvpe
+    # preserves the full environment for the child process.
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.chdir(work_dir)
+        os.execvpe(cmd[0], cmd, env)
 
     try:
-        subprocess.run(
-            [
-                "expect",
-                "-f",
-                exp_file.name,
-                "--",
-                "claude",
-                "--model",
-                model,
-                "--setting-sources",
-                "project,local",
-                *extra_args,
-            ],
-            env=env,
-            cwd=work_dir,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
+        # Accept trust dialog
+        _pty_drain(fd, 5)
+        os.write(fd, b"\r")
+
+        if subagent:
+            _pty_drain(fd, 10)
+            os.write(fd, (message + "\r").encode())
+            # Wait for subagent round-trip
+            output = _pty_drain(fd, 80)
+        else:
+            _pty_drain(fd, 10)
+            os.write(fd, b"say exactly: done\r")
+            # Wait for response — scan for "done" in output
+            output = _pty_drain(fd, 30)
+
+        os.write(fd, b"/exit\r")
+        _pty_drain(fd, 5)
+    except OSError:
         pass
     finally:
-        os.unlink(exp_file.name)
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
         shutil.rmtree(work_dir, ignore_errors=True)
 
 
@@ -430,29 +402,22 @@ def main() -> None:
     proxy_proc = None
     if not proxy_is_running():
         if not (INTERCEPT_DIR / "run-proxy.py").exists():
-            print(
-                "ERROR: run-proxy.py not found in scripts/intercept/",
-                file=sys.stderr,
-            )
+            print("ERROR: run-proxy.py not found in scripts/intercept/", file=sys.stderr)
             sys.exit(1)
         print("Starting intercept proxy...", file=sys.stderr)
         proxy_proc = start_proxy()
 
     start_counter = proxy_counter()
-    if start_counter < 0:
-        print("ERROR: Cannot read proxy counter.", file=sys.stderr)
-        sys.exit(1)
-
     spawn_claude(extra_args, model=model, output_style=output_style, subagent=subagent)
 
-    log_files = find_new_logs(start_counter)
+    log_files = find_new_proxy_logs(start_counter)
     if not log_files:
         print("ERROR: No API calls captured.", file=sys.stderr)
         if proxy_proc:
             proxy_proc.terminate()
         sys.exit(1)
 
-    all_reqs = find_all_requests(log_files)
+    all_reqs = find_all_requests_proxy(log_files)
     if not all_reqs:
         print("ERROR: No system prompt found in captured requests.", file=sys.stderr)
         if proxy_proc:
@@ -508,9 +473,6 @@ def main() -> None:
         file=sys.stderr,
     )
 
-    # Leave proxy running — it's designed to be long-lived
-    # Only stop it if we started it AND the user didn't have one already
-    # (i.e., never stop it — the user manages the lifecycle)
 
 
 if __name__ == "__main__":

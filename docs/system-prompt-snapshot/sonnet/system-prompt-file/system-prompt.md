@@ -15,5 +15,6 @@ Main branch (you will usually use this for PRs): main
 
 Status:
 ?? .claude/
+?? CLAUDE.md
 
 Recent commits:
