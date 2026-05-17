@@ -5,6 +5,8 @@ use std::process::Command;
 
 use clap::{Parser, Subcommand};
 
+mod hook_input;
+
 #[derive(Parser)]
 #[command(name = "agent-tools")]
 struct Cli {
