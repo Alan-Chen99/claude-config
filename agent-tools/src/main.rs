@@ -79,6 +79,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Count tokens via Anthropic count_tokens API: agent-tools count-tokens [--model M] [--file P] [TEXT]
+    #[command(name = "count-tokens")]
+    CountTokens {
+        /// Arguments forwarded to claude_config.count_tokens
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// List or filter live tasks for this session.
     Ps {
         #[arg(long)]
@@ -219,6 +226,14 @@ fn main() {
                         &root,
                         &root,
                         &["python3", "-m", "claude_config.pre_output.record"],
+                        &args,
+                    );
+                }
+                Cmd::CountTokens { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.count_tokens"],
                         &args,
                     );
                 }

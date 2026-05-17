@@ -42,6 +42,7 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
 - `agent-tools ntfy-hook [args]` — Claude Code notification hook (wraps `python3 -m claude_config.ntfy_hook`)
+- `agent-tools count-tokens [--model MODEL] [--file PATH] [TEXT]` — count input tokens via Anthropic `count_tokens` API (wraps `python3 -m claude_config.count_tokens`)
 
 Root resolution (no dependency on binary location):
 1. `CLAUDE_CONFIG_ROOT` env var
