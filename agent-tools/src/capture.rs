@@ -89,8 +89,7 @@ pub async fn watch_silence(
                 let _ = events::append(&dir, "silence", serde_json::json!({"stream": stream, "since_ms": gap_ms}));
             });
             warned = true;
-        }
-        if warned && cur > last_seen {
+        } else if warned && cur > last_seen {
             let dir = events_dir.clone();
             let stream = stream_name.to_string();
             tokio::task::spawn_blocking(move || {
