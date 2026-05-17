@@ -12,6 +12,7 @@ mod hook_post;
 mod hook_pre;
 mod meta;
 mod paths;
+mod ps;
 mod run;
 mod signals;
 mod wrap_task;
@@ -70,6 +71,13 @@ enum Cmd {
         /// JSON argument (accepted and discarded)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+    },
+    /// List or filter live tasks for this session.
+    Ps {
+        #[arg(long)]
+        task: Option<String>,
+        #[arg(long = "session-id")]
+        session_id: Option<String>,
     },
 }
 
@@ -157,6 +165,12 @@ fn main() {
             }
             std::process::exit(0);
         }
+        Cmd::Ps { task, session_id } => {
+            if let Err(e) = ps::run(task, session_id) {
+                eprintln!("agent-tools ps: {e:#}");
+                std::process::exit(1);
+            }
+        }
         cmd => {
             let root = repo_root();
             match cmd {
@@ -197,6 +211,7 @@ fn main() {
                 Cmd::HookPost => unreachable!(),
                 Cmd::WrapTask { .. } => unreachable!(),
                 Cmd::Run { .. } => unreachable!(),
+                Cmd::Ps { .. } => unreachable!(),
             }
         }
     }
