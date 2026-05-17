@@ -5,6 +5,18 @@ use std::process::Command;
 
 use clap::{Parser, Subcommand};
 
+mod capture;
+mod events;
+mod hook_input;
+mod hook_post;
+mod hook_pre;
+mod meta;
+mod paths;
+mod ps;
+mod run;
+mod signals;
+mod wrap_task;
+
 #[derive(Parser)]
 #[command(name = "agent-tools")]
 struct Cli {
@@ -34,12 +46,38 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Wrap a Bash/Monitor invocation (PreToolUse-rewritten target).
+    #[command(name = "wrap-task")]
+    WrapTask {
+        /// Absolute path to the task directory containing command.sh.
+        task_dir: String,
+    },
+    /// Wrap a command inside an active wrap-task (for pipeline capture).
+    Run {
+        #[arg(long)]
+        desc: Option<String>,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        cmd: Vec<String>,
+    },
+    /// PreToolUse hook for Bash and Monitor.
+    #[command(name = "hook-pre")]
+    HookPre,
+    /// PostToolUse hook for Bash and Monitor.
+    #[command(name = "hook-post")]
+    HookPost,
     /// pre_output script used in output styles
     #[command(name = "pre_output.record")]
     PreOutputRecord {
         /// JSON argument (accepted and discarded)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+    },
+    /// List or filter live tasks for this session.
+    Ps {
+        #[arg(long)]
+        task: Option<String>,
+        #[arg(long = "session-id")]
+        session_id: Option<String>,
     },
 }
 
@@ -91,41 +129,90 @@ fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[S
 
 fn main() {
     let cli = Cli::parse();
-    let root = repo_root();
 
     match cli.command {
-        Cmd::Skill { module, args } => {
-            let full_module = format!("skills.{module}");
-            uv_run(
-                &root,
-                &root.join("skills/scripts"),
-                &["python3", "-m", &full_module],
-                &args,
-            );
+        Cmd::Run { desc, cmd } => {
+            let code = tokio::runtime::Builder::new_multi_thread()
+                .enable_all().build().unwrap()
+                .block_on(run::run(desc, cmd));
+            match code {
+                Ok(c) => std::process::exit(c),
+                Err(e) => { eprintln!("agent-tools run: {e:#}"); std::process::exit(2); }
+            }
         }
-        Cmd::CcPretty { args } => {
-            uv_run(
-                &root,
-                &root,
-                &["python3", "-m", "claude_config.cc_pretty.main"],
-                &args,
-            );
+        Cmd::WrapTask { task_dir } => {
+            let code = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(wrap_task::run(std::path::PathBuf::from(task_dir)));
+            match code {
+                Ok(c) => std::process::exit(c),
+                Err(e) => { eprintln!("agent-tools wrap-task: {e:#}"); std::process::exit(1); }
+            }
         }
-        Cmd::CcWorkflow { args } => {
-            uv_run(
-                &root,
-                &root,
-                &["python3", "-m", "claude_config.cc_workflow.extract"],
-                &args,
-            );
+        Cmd::HookPre => {
+            if let Err(e) = hook_pre::run() {
+                eprintln!("agent-tools hook-pre: {e:#}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
         }
-        Cmd::PreOutputRecord { args } => {
-            uv_run(
-                &root,
-                &root,
-                &["python3", "-m", "claude_config.pre_output.record"],
-                &args,
-            );
+        Cmd::HookPost => {
+            if let Err(e) = hook_post::run() {
+                eprintln!("agent-tools hook-post: {e:#}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
+        }
+        Cmd::Ps { task, session_id } => {
+            if let Err(e) = ps::run(task, session_id) {
+                eprintln!("agent-tools ps: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        cmd => {
+            let root = repo_root();
+            match cmd {
+                Cmd::Skill { module, args } => {
+                    let full_module = format!("skills.{module}");
+                    uv_run(
+                        &root,
+                        &root.join("skills/scripts"),
+                        &["python3", "-m", &full_module],
+                        &args,
+                    );
+                }
+                Cmd::CcPretty { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.cc_pretty.main"],
+                        &args,
+                    );
+                }
+                Cmd::CcWorkflow { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.cc_workflow.extract"],
+                        &args,
+                    );
+                }
+                Cmd::PreOutputRecord { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.pre_output.record"],
+                        &args,
+                    );
+                }
+                Cmd::HookPre => unreachable!(),
+                Cmd::HookPost => unreachable!(),
+                Cmd::WrapTask { .. } => unreachable!(),
+                Cmd::Run { .. } => unreachable!(),
+                Cmd::Ps { .. } => unreachable!(),
+            }
         }
     }
 }
