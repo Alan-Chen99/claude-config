@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 cc-pretty = "claude_config.cc_pretty.main:main"
+cc-pretty-intercept = "claude_config.cc_pretty_intercept.main:main"
 cc-workflow-extract = "claude_config.cc_workflow.extract:main"
 
 [tool.uv]

@@ -40,6 +40,7 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 
 - `agent-tools skill <mod> [args]` — run a skill script via `uv run python3 -m skills.<mod>`
 - `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs
+- `agent-tools cc-pretty-intercept [args]` — pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`)
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
 - `agent-tools ntfy-hook [args]` — Claude Code notification hook (wraps `python3 -m claude_config.ntfy_hook`)
 
@@ -66,6 +67,7 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | Module                          | What                                            | CLI entry point                 |
 | ------------------------------- | ----------------------------------------------- | ------------------------------- |
 | `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`                     |
+| `claude_config.cc_pretty_intercept` | Pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`) | `cc-pretty-intercept` |
 | `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`           |
 | `claude_config.config`          | Load `/repos/claude-config/.env` into `os.environ` | (library — `from claude_config.config import load`) |
 | `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |

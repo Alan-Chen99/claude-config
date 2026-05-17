@@ -40,6 +40,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Pretty-print one MITM intercept log file (~/.claude/requests-log/<session>/NNNN.json)
+    #[command(name = "cc-pretty-intercept")]
+    CcPrettyIntercept {
+        /// Arguments forwarded to cc-pretty-intercept
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Extract sub-agent workflow summary from a session log
     CcWorkflow {
         /// Arguments forwarded to cc-workflow-extract
@@ -195,6 +202,14 @@ fn main() {
                         &root,
                         &root,
                         &["python3", "-m", "claude_config.cc_pretty.main"],
+                        &args,
+                    );
+                }
+                Cmd::CcPrettyIntercept { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.cc_pretty_intercept.main"],
                         &args,
                     );
                 }
