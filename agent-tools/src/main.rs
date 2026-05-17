@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 
 mod events;
 mod hook_input;
+mod hook_pre;
 mod meta;
 mod paths;
 
@@ -39,6 +40,9 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// PreToolUse hook for Bash and Monitor.
+    #[command(name = "hook-pre")]
+    HookPre,
     /// pre_output script used in output styles
     #[command(name = "pre_output.record")]
     PreOutputRecord {
@@ -96,41 +100,53 @@ fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[S
 
 fn main() {
     let cli = Cli::parse();
-    let root = repo_root();
 
     match cli.command {
-        Cmd::Skill { module, args } => {
-            let full_module = format!("skills.{module}");
-            uv_run(
-                &root,
-                &root.join("skills/scripts"),
-                &["python3", "-m", &full_module],
-                &args,
-            );
+        Cmd::HookPre => {
+            if let Err(e) = hook_pre::run() {
+                eprintln!("agent-tools hook-pre: {e:#}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
         }
-        Cmd::CcPretty { args } => {
-            uv_run(
-                &root,
-                &root,
-                &["python3", "-m", "claude_config.cc_pretty.main"],
-                &args,
-            );
-        }
-        Cmd::CcWorkflow { args } => {
-            uv_run(
-                &root,
-                &root,
-                &["python3", "-m", "claude_config.cc_workflow.extract"],
-                &args,
-            );
-        }
-        Cmd::PreOutputRecord { args } => {
-            uv_run(
-                &root,
-                &root,
-                &["python3", "-m", "claude_config.pre_output.record"],
-                &args,
-            );
+        cmd => {
+            let root = repo_root();
+            match cmd {
+                Cmd::Skill { module, args } => {
+                    let full_module = format!("skills.{module}");
+                    uv_run(
+                        &root,
+                        &root.join("skills/scripts"),
+                        &["python3", "-m", &full_module],
+                        &args,
+                    );
+                }
+                Cmd::CcPretty { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.cc_pretty.main"],
+                        &args,
+                    );
+                }
+                Cmd::CcWorkflow { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.cc_workflow.extract"],
+                        &args,
+                    );
+                }
+                Cmd::PreOutputRecord { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.pre_output.record"],
+                        &args,
+                    );
+                }
+                Cmd::HookPre => unreachable!(),
+            }
         }
     }
 }
