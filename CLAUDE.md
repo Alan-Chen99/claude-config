@@ -40,7 +40,6 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools skill <mod> [args]` — run a skill script via `uv run python3 -m skills.<mod>`
 - `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
-- `agent-tools pre_output.record [json]` — pre-output breakpoint used by output styles (replaces the former skill invocation)
 
 Root resolution (no dependency on binary location):
 1. `CLAUDE_CONFIG_ROOT` env var
@@ -66,7 +65,6 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | ------------------------------- | ----------------------------------------------- | ------------------------------- |
 | `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`                     |
 | `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`           |
-| `claude_config.pre_output`      | Rule-reinforcement breakpoint for output styles | `agent-tools pre_output.record` |
 
 ### `skills/copy-writing-style/`
 
