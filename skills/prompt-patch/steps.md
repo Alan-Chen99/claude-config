@@ -10,19 +10,31 @@ Keep in mind throughout this workflow:
 
 3. **Prompts are code.** They must work, but also be maintainable, observable, and propagate errors. Apply the same engineering standards you would to source code: clarity, testability, failure transparency.
 
-4. **Fix invariants, not symptoms.** When a prompt fails, a structural property it relied on doesn't hold. Invariants are system-level properties that hold probabilistically despite LLM stochasticity — not claims about deterministic instruction-following. Step 2 operationalizes finding the broken property. Don't add special-case rules for observed failures; restore the structural invariant.
+4. **Fix invariants, not symptoms.** An invariant is a structural property the workflow guarantees probabilistically despite LLM stochasticity, **paired with the enforcement mechanism that gives it teeth**. Examples illustrate the pair shape — they are not a checklist:
 
-5. **Someone must do it.** If a task exists, some agent in the system must own it — the human should not be in the loop for routine work. When designing workflows, every necessary action must be assigned to an agent. You cannot leave a task undone because it feels "risky" or "destructive." If an agent memory system needs stale items removed, some agent removes them. Design for safe execution, not avoidance.
+   - Invariant: "Workflow has no single point of failure."
+     Enforced by: "Final output must pass 3 parallel runs of the reviewer step at the same time before acceptance."
+     When violated (e.g., misleading agent memory causes the reviewer to skip a check on X): the fix targets the *enforcement mechanism* — restore the 3-parallel-reviewer guarantee — not the X that was mis-reviewed. Fixing X first masks the broken invariant; the next X′ fails the same way.
 
-6. **Permission to undo.** Every iteration's output must be safely reversible by the next agent. If agent N adds a function, agent N+1 must have the means to determine whether removing it is safe (e.g. "diff with [commit] first"). When the workflow does not provide that means, agents accumulate dead code, stale rules, and cargo-culted artifacts they are afraid to touch. Prompts must ensure each agent has the information needed to confidently undo, replace, or remove what prior agents produced.
+   - Invariant: "Iterative improvement converges — at termination, no candidate beats the chosen solution."
+     Enforced by: "Each iteration drafts ≥2 options and the prior winner is always one of them."
+     When violated: agents add new options without revisiting the prior best, divergence — fix the option-drafting step, not the latest losing candidate.
 
-7. **Agents won't search for permission to remove.** From the agent's perspective, all existing functions look the same — there is no visible marker distinguishing "I added this 3 steps ago" from "this has existed for years." Checking `git blame` on every function is not feasible: there are too many. If the agent cannot immediately see that removal is safe, it leaves the code in place.
+   Rule: when a symptom appears, identify the broken (property, enforcement) pair before patching the symptom. Step 2 operationalizes this for the target prompt you're modifying.
 
-8. **Rules need triggers, not just procedures.** A rule like "if git blame shows this function was added in the current session, it's safe to remove" looks actionable — the procedure for any single function is clear. But the rule is inert because nothing tells the agent *which* functions to check. There are hundreds of functions; the agent has no reason to run `git blame` on any particular one. The procedure is followable, the trigger is missing, so the rule fires zero times. Effective rules either apply unconditionally to a well-defined set (e.g., "all functions in this file without callers are dead code") or are triggered by a workflow step that enumerates the candidates.
+5. **TDD for prompts.** When the broken pair is a *review pair* (its enforcement mechanism is itself a check/test/review step), only fix the enforcement mechanism in this iteration. Defer fixing the things-it-reviews until a real run proves the restored review now catches them. A review "fixed" without observing it catch the failure on a real run is unverified; patching downstream symptoms on top of an unverified review masks both layers of bug. This is the prompt analogue of test-driven development: prove the test fails on the bug before fixing the code. Apply this rule ONLY if Step 2 classified the broken pair as a review pair.
 
-9. **Adding is cheap, removing is expensive.** Writing a function, argument, or if-statement costs one edit. Removing one requires searching files, checking callers, verifying no external consumers, confirming nothing in memory depends on it. Over iterations this asymmetry causes unbounded growth — each agent adds, none remove. Counteract it with safe-to-remove rules (e.g., "all code not covered by tests is safe to remove", "functions without callers in this module are dead code") and explicit review-and-prune steps. If a workflow step can add artifacts, a later step must be able to remove them with equal confidence — otherwise the workflow will not converge.
+6. **Someone must do it.** If a task exists, some agent in the system must own it — the human should not be in the loop for routine work. When designing workflows, every necessary action must be assigned to an agent. You cannot leave a task undone because it feels "risky" or "destructive." If an agent memory system needs stale items removed, some agent removes them. Design for safe execution, not avoidance.
 
-10. **Prompts have no inline comments.** Source code has syntax for comments (`//`, `#`, `/* */`) that compilers and interpreters skip. Prompts have no such syntax — every character is consumed by the model. Text intended as a note to maintainers ("this section handles X", "TODO: revisit") becomes an instruction to the agent. Each prompt file must have exactly one unambiguous location for maintainer-facing documentation (e.g., a companion CLAUDE.md, a header block with a designated marker, or a separate doc file). This location must be obvious to both agents and humans reading the file. Never scatter explanatory notes, TODOs, or rationale inline within prompt text — they will be interpreted as instructions, and their intended audience (the maintainer) will not reliably find them there anyway.
+7. **Permission to undo.** Every iteration's output must be safely reversible by the next agent. If agent N adds a function, agent N+1 must have the means to determine whether removing it is safe (e.g. "diff with [commit] first"). When the workflow does not provide that means, agents accumulate dead code, stale rules, and cargo-culted artifacts they are afraid to touch. Prompts must ensure each agent has the information needed to confidently undo, replace, or remove what prior agents produced.
+
+8. **Agents won't search for permission to remove.** From the agent's perspective, all existing functions look the same — there is no visible marker distinguishing "I added this 3 steps ago" from "this has existed for years." Checking `git blame` on every function is not feasible: there are too many. If the agent cannot immediately see that removal is safe, it leaves the code in place.
+
+9. **Rules need triggers, not just procedures.** A rule like "if git blame shows this function was added in the current session, it's safe to remove" looks actionable — the procedure for any single function is clear. But the rule is inert because nothing tells the agent *which* functions to check. There are hundreds of functions; the agent has no reason to run `git blame` on any particular one. The procedure is followable, the trigger is missing, so the rule fires zero times. Effective rules either apply unconditionally to a well-defined set (e.g., "all functions in this file without callers are dead code") or are triggered by a workflow step that enumerates the candidates.
+
+10. **Adding is cheap, removing is expensive.** Writing a function, argument, or if-statement costs one edit. Removing one requires searching files, checking callers, verifying no external consumers, confirming nothing in memory depends on it. Over iterations this asymmetry causes unbounded growth — each agent adds, none remove. Counteract it with safe-to-remove rules (e.g., "all code not covered by tests is safe to remove", "functions without callers in this module are dead code") and explicit review-and-prune steps. If a workflow step can add artifacts, a later step must be able to remove them with equal confidence — otherwise the workflow will not converge.
+
+11. **Prompts have no inline comments.** Source code has syntax for comments (`//`, `#`, `/* */`) that compilers and interpreters skip. Prompts have no such syntax — every character is consumed by the model. Text intended as a note to maintainers ("this section handles X", "TODO: revisit") becomes an instruction to the agent. Each prompt file must have exactly one unambiguous location for maintainer-facing documentation (e.g., a companion CLAUDE.md, a header block with a designated marker, or a separate doc file). This location must be obvious to both agents and humans reading the file. Never scatter explanatory notes, TODOs, or rationale inline within prompt text — they will be interpreted as instructions, and their intended audience (the maintainer) will not reliably find them there anyway.
 
 # Prompt Patch - Motivation
 
@@ -33,41 +45,65 @@ Write out:
 1. **The problem**: What specific behavior needs to change? Be concrete (quote output, describe failure mode, show example).
 2. **Cost of inaction**: What happens if no prompt change is made? Who is affected and how?
 3. **Success criteria**: How will you know the change worked? What observable difference?
+4. **Classification**: Pick one mode. This gates Step 2 behavior.
+   - `correctness` — a structural invariant is currently broken (or missing entirely; "adding a new capability" counts as correctness with structural gap = "invariant missing"). Step 2 will find the broken/missing pair.
+   - `efficiency` — all invariants hold; you are optimizing within them (tokens, time, steps). Step 2 will enumerate invariants at risk during your optimization so Step 7 can preserve them.
+   - `n/a (mechanical)` — typo, rename, or pure reordering with no behavioral change. Step 2 will short-circuit.
+
+   If uncertain, default to `correctness`; you can re-run Step 1 if Step 2 finds no broken pair.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 2 --problem='...' --cost='...' --success-criteria='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 2 --problem='...' --cost='...' --success-criteria='...' --mode='correctness|efficiency|n/a'" />
 Execute this command now.
 
 <!-- step 2: invariant-extraction -->
 
 # Prompt Patch - Invariant Extraction
 
-Before brainstorming fixes, identify the structural properties the current prompt/workflow is supposed to guarantee.
+Identify the (property, enforcement) pairs the target prompt/workflow guarantees.
 
-For changes that only reword existing text, move text between sections, or fix typos — and do not alter the logical behavior of the prompt — write "Mechanical change — no invariant analysis needed" and proceed to step 3.
+If Step 1 mode is `n/a (mechanical)` — write "Mechanical change — no invariant analysis needed" and proceed to step 3.
 
-**Invariants are structural properties of the workflow, not claims about deterministic instruction-following.** LLMs are stochastic — an instruction influences behavior probabilistically, it does not determine it. An invariant must hold despite any single instruction being skipped or misinterpreted on a given run.
+**Invariants are structural properties paired with the enforcement mechanism that holds them.** LLMs are stochastic — an instruction influences behavior probabilistically, not deterministically. The property must hold despite any single instruction being skipped or misinterpreted; the enforcement mechanism is what makes that resilience real. (See First Principle #4 for worked examples.)
 
-1. **List invariants**: Read the target prompt/workflow. Write 3-7 structural properties it is supposed to guarantee.
+1. **List invariants as (property, enforcement) pairs.** 3-7 pairs.
+
+   Format each pair:
+   - **Invariant**: `<structural property>`
+   - **Enforced by**: `<concrete artifact in the workflow — a step, a tool call, a fixed-format check>`. NOT "the agent does X" — that is a deterministic-instruction claim, not an enforcement. Enforcement must quote or reference specific text/step/tool in the target workflow, not paraphrase.
 
    Examples:
-   - "Workflow has no single point of failure — no single skipped step causes silent wrong output"
-   - "Any bug introduced has nonzero probability of discovery on subsequent tasks"
-   - "Errors from tooling propagate to the user at least 50% of the time"
-   - "Results do not depend on undocumented state"
-   - "Agent investigates all outstanding uncertainties before responding"
+   - Invariant: "Workflow has no single point of failure."
+     Enforced by: "Final output must pass 3 parallel runs of the reviewer at the same time before acceptance."
+   - Invariant: "Iterative improvement converges — no candidate beats the chosen solution at termination."
+     Enforced by: "Each iteration drafts ≥2 options and the prior winner is always one of them."
+   - Invariant: "Any bug introduced has nonzero probability of discovery on subsequent tasks."
+     Enforced by: "Each task starts with a regression-test pass over a rolling buffer of prior tasks."
+   - Invariant: "Errors from tooling propagate to the user at least 50% of the time."
+     Enforced by: "Stderr is not suppressed; commands that exit 0 with empty stdout are flagged."
 
-   NOT invariants (these assume deterministic instruction-following and always fail as analysis tools):
-   - "Agent will include string X in output because instruction Y says to"
-   - "Agent reads section 3 then executes step Z"
-   - "Agent always verifies because the prompt says IMPORTANT"
+   These examples illustrate the pair shape. Your target prompt's invariants must be specific to that prompt — do not reuse the example pairs verbatim.
 
-   A wrong instruction CAN be the structural gap — but frame it structurally: "the prompt directs toward tool X when tool Y is correct" not "agent will use tool Y because I told it to."
+   NOT invariants (deterministic-instruction claims, or properties without concrete enforcement):
+   - "Agent will include string X in output because instruction Y says to."
+   - "Agent reads section 3 then executes step Z."
+   - "Agent always verifies because the prompt says IMPORTANT."
 
-2. **Structural gap**: What structural property is missing or broken that allows this failure to occur? Describe the gap in the system design, not a step-by-step execution trace. Think: "What would need to be true about the workflow design for this class of failure to be impossible?"
+   A **review pair** is one whose enforcement mechanism is itself a check/test/review step. The TDD-for-prompts rule (First Principle #5) applies when the broken pair is a review pair.
+
+2. **Branch on Step 1 mode**:
+
+   - **correctness**: identify which pair is *currently broken* — its enforcement mechanism fails to hold the property. If the goal is to *add* a missing invariant, the broken pair is the would-be pair (its enforcement is absent). If the goal is to *remove* an over-aggressive enforcement, list the pair as it currently exists and explain in the next item why it's unwanted.
+
+   - **efficiency**: identify which pairs are *at risk* during your optimization (e.g., shorter prompt risks dropping the enforcement for pair K). These must be preserved; Step 7 regression analysis will revisit them.
+
+3. **Structural gap or risk**:
+
+   - In correctness mode: which pair is broken/missing/to-remove, and what specifically about the workflow design lets that be the case? Describe the system-design gap with reference to specific workflow elements (step names, tool calls, or quoted prompt text) — not an execution trace.
+   - In efficiency mode: for each at-risk pair, name the concrete enforcement mechanism that your optimization threatens (e.g., "Step 7 currently enforces pair K via 3-scenario regression list; collapsing Steps 6-7 would remove this enforcement").
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 3 --invariants='...' --structural-gap='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 3 --invariants='...' --structural-gap='...' --mode='correctness|efficiency'" />
 Execute this command now.
 
 <!-- step 3: brainstorm -->
