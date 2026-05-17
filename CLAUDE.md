@@ -40,9 +40,11 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 
 - `agent-tools skill <mod> [args]` — run a skill script via `uv run python3 -m skills.<mod>`
 - `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs
+- `agent-tools cc-pretty-intercept [args]` — pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`)
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
 - `agent-tools ntfy-hook [args]` — Claude Code notification hook (wraps `python3 -m claude_config.ntfy_hook`)
 - `agent-tools count-tokens [--model MODEL] [--file PATH] [TEXT]` — count input tokens via Anthropic `count_tokens` API (wraps `python3 -m claude_config.count_tokens`)
+- `agent-tools system-prompt` — print the dynamic `# Environment` section (cwd, git, platform, shell, OS). Append to a static prompt via `cc --append-system-prompt-file <(agent-tools system-prompt)` so cc still sees the env block when `--system-prompt-file` replaces the default prompt.
 
 Root resolution (no dependency on binary location):
 1. `CLAUDE_CONFIG_ROOT` env var
@@ -67,9 +69,11 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | Module                          | What                                            | CLI entry point                 |
 | ------------------------------- | ----------------------------------------------- | ------------------------------- |
 | `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`                     |
+| `claude_config.cc_pretty_intercept` | Pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`) | `cc-pretty-intercept` |
 | `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`           |
 | `claude_config.config`          | Load `/repos/claude-config/.env` into `os.environ` | (library — `from claude_config.config import load`) |
 | `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |
+| `claude_config.system_prompt`   | Print the dynamic `# Environment` block for `--system-prompt-file` workflows | `agent-tools system-prompt` |
 
 ### `skills/copy-writing-style/`
 

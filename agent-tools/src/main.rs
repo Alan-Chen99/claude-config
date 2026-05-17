@@ -40,6 +40,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Pretty-print one MITM intercept log file (~/.claude/requests-log/<session>/NNNN.json)
+    #[command(name = "cc-pretty-intercept")]
+    CcPrettyIntercept {
+        /// Arguments forwarded to cc-pretty-intercept
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Extract sub-agent workflow summary from a session log
     CcWorkflow {
         /// Arguments forwarded to cc-workflow-extract
@@ -93,6 +100,9 @@ enum Cmd {
         #[arg(long = "session-id")]
         session_id: Option<String>,
     },
+    /// Print the dynamic '# Environment' section of the system prompt.
+    #[command(name = "system-prompt")]
+    SystemPrompt,
 }
 
 /// Resolve the claude-config repository root.
@@ -205,6 +215,14 @@ fn main() {
                         &args,
                     );
                 }
+                Cmd::CcPrettyIntercept { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.cc_pretty_intercept.main"],
+                        &args,
+                    );
+                }
                 Cmd::CcWorkflow { args } => {
                     uv_run(
                         &root,
@@ -235,6 +253,16 @@ fn main() {
                         &root,
                         &["python3", "-m", "claude_config.count_tokens"],
                         &args,
+                    );
+                }
+                Cmd::SystemPrompt => {
+                    let cwd = env::current_dir()
+                        .unwrap_or_else(|e| panic!("cannot read cwd: {e}"));
+                    uv_run(
+                        &root,
+                        &cwd,
+                        &["python3", "-m", "claude_config.system_prompt"],
+                        &[],
                     );
                 }
                 Cmd::HookPre => unreachable!(),
