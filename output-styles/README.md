@@ -197,8 +197,8 @@ The custom Coding section in `alan-default`/`alan-default-next` diverges:
 ### pre_output.record
 
 The `Before response` section in the output styles invokes
-`skills.pre_output.record`. Despite the name, this script records nothing. The
-JSON argument is accepted and discarded. The mechanism:
+`agent-tools pre_output.record`. Despite the name, this script records nothing.
+The JSON argument is accepted and discarded. The mechanism:
 
 1. The output style instructs Claude to call the script before every response.
 2. The script prints a `<system-reminder>` containing behavioral rules.
@@ -209,7 +209,7 @@ This is a prompt engineering technique for rule reinforcement — the "record"
 framing gives the model a plausible reason to make the tool call. The actual
 value is the printed reminder, not any state persistence.
 
-Source: `skills/scripts/skills/pre_output/record.py`
+Source: `src/claude_config/pre_output/record.py` (wrapped by `agent-tools pre_output.record`; see `agent-tools/src/main.rs`)
 
 ### Session logs
 

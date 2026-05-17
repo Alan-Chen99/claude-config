@@ -30,9 +30,9 @@ agent-tools pre_output.record '{
 }'
 ```
 
-It is NOT wrong to decide that you are actually not ready after invoking `skills.pre_output.record`; in that case, invoke `skills.pre_output.record` again with updated information with the same "turn" arg.
+It is NOT wrong to decide that you are actually not ready after invoking `agent-tools pre_output.record`; in that case, invoke `agent-tools pre_output.record` again with updated information with the same "turn" arg.
 
-This should be the last thing you run. If you needed to call any tools (including read) afterwards, call `skills.pre_output.record` again.
+This should be the last thing you run. If you needed to call any tools (including read) afterwards, call `agent-tools pre_output.record` again.
 
 ## Response template (MUST follow)
 
