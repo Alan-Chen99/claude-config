@@ -6,6 +6,7 @@ use std::process::Command;
 use clap::{Parser, Subcommand};
 
 mod hook_input;
+mod meta;
 mod paths;
 
 #[derive(Parser)]
