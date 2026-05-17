@@ -1,9 +1,11 @@
 ---
 name: alan-coding-style
-description: Style-matched code generation and review for Alan's coding conventions. Invoke IMMEDIATELY via python script when user requests code written in Alan's style or code review against Alan's conventions. Do NOT code first - the script orchestrates the style workflow.
+description: use only if invoked by user or workflow
 ---
 
 # Alan Coding Style
+
+Style-matched code generation and review for Alan's coding conventions.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the
 workflow.

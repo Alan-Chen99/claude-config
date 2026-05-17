@@ -1,9 +1,11 @@
 ---
 name: refactor
-description: Invoke IMMEDIATELY via python script when user requests refactoring analysis, technical debt review, or code quality improvement. Do NOT explore first - the script orchestrates exploration.
+description: use only if invoked by user or workflow
 ---
 
 # Refactor
+
+Refactoring analysis, technical debt review, or code quality improvement.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the workflow.
 

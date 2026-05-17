@@ -1,9 +1,6 @@
 ---
 name: notes
-description: >-
-  Persist knowledge for future agents by writing into CLAUDE.md, README.md, or
-  conventions. Explicit invocation only. Use when user or agent says to remember,
-  persist, or record something for future conversations.
+description: use only if invoked by user or workflow
 ---
 
 # Notes

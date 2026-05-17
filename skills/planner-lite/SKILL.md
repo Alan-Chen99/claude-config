@@ -1,7 +1,11 @@
 ---
 name: planner-lite
-description: Lightweight planning and execution without subagent dispatch. Subagent-compatible alternative to full planner.
+description: use only if invoked by user or workflow
 ---
+
+# Planner Lite
+
+Lightweight planning and execution without subagent dispatch. Subagent-compatible alternative to full planner.
 
 ## Activation
 

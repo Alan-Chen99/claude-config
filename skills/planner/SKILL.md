@@ -1,7 +1,11 @@
 ---
 name: planner
-description: Interactive planning and execution for complex tasks. IMMEDIATELY invoke when user asks to use planner.
+description: use only if invoked by user or workflow
 ---
+
+# Planner
+
+Interactive planning and execution for complex tasks.
 
 ## Activation
 

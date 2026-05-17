@@ -1,6 +1,6 @@
 ---
 name: codebase-analysis
-description: Invoke IMMEDIATELY via python script when user requests codebase understanding, architecture comprehension, or repository orientation. Do NOT explore first - the script orchestrates exploration.
+description: use only if invoked by user or workflow
 ---
 
 # Codebase Analysis

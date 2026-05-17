@@ -1,9 +1,11 @@
 ---
 name: copy-writing-style
-description: "Style-matched content generation from any style reference file. Invoke IMMEDIATELY via python script when user requests content written in a specific style or style review against a reference. Do NOT write first - the script orchestrates the style workflow."
+description: use only if invoked by user or workflow
 ---
 
 # Copy Writing Style
+
+Style-matched content generation from any style reference file.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the
 workflow.

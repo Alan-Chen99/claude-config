@@ -1,9 +1,11 @@
 ---
 name: prompt-patch
-description: Structured 12-step workflow for making targeted prompt changes correctly. Invariant extraction, brainstorming, motivation analysis, multi-option drafting, conflict/regression/failure-mode checks, and iterative revision.
+description: use only if invoked by user or workflow
 ---
 
 # Prompt Patch
+
+Structured 12-step workflow for making targeted prompt changes correctly. Invariant extraction, brainstorming, motivation analysis, multi-option drafting, conflict/regression/failure-mode checks, and iterative revision.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the
 workflow.

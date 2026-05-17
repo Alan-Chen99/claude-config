@@ -1,9 +1,11 @@
 ---
 name: do
-description: Perform task by inferring user intent: no constraint list, no babysitting. Best for non-destructive and reversible tasks.
+description: use only if invoked by user or workflow
 ---
 
 # Do
+
+Perform a task by inferring user intent: no constraint list, no babysitting. Best for non-destructive and reversible tasks.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the
 workflow.

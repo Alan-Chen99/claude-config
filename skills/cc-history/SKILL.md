@@ -1,6 +1,6 @@
 ---
 name: cc-history
-description: Reference documentation for analyzing Claude Code conversation history files
+description: use only if invoked by user or workflow
 ---
 
 # Claude Code History Analysis

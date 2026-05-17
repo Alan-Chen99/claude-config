@@ -1,6 +1,6 @@
 ---
 name: diagnose-session
-description: Analyze a Claude Code conversation log to surface items the agent should have reported but didn't. Invoke with a path to a JSONL session file.
+description: use only if invoked by user or workflow
 ---
 
 # Diagnose Session

@@ -1,6 +1,6 @@
 ---
 name: problem-analysis
-description: Invoke IMMEDIATELY via python script when user requests problem analysis or root cause investigation. Do NOT explore first - the script orchestrates the investigation.
+description: use only if invoked by user or workflow
 ---
 
 # Problem Analysis

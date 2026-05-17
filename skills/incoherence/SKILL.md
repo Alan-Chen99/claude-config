@@ -1,9 +1,11 @@
 ---
 name: incoherence
-description: Detect and resolve incoherence in documentation, code, specs vs implementation.
+description: use only if invoked by user or workflow
 ---
 
 # Incoherence Detector
+
+Detect and resolve incoherence in documentation, code, specs vs implementation.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the
 workflow.

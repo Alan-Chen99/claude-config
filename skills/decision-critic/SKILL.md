@@ -1,9 +1,11 @@
 ---
 name: decision-critic
-description: Invoke IMMEDIATELY via python script to stress-test decisions and reasoning. Do NOT analyze first - the script orchestrates the critique workflow.
+description: use only if invoked by user or workflow
 ---
 
 # Decision Critic
+
+Stress-test decisions and reasoning.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the
 workflow.

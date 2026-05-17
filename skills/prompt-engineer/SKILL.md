@@ -1,9 +1,11 @@
 ---
 name: prompt-engineer
-description: Invoke IMMEDIATELY via python script when user requests prompt optimization. Do NOT analyze first - invoke this skill immediately.
+description: use only if invoked by user or workflow
 ---
 
 # Prompt Engineer
+
+Prompt optimization.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the
 workflow.

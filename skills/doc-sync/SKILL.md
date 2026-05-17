@@ -1,6 +1,6 @@
 ---
 name: doc-sync
-description: Synchronizes docs across a repository. Use when user asks to sync docs.
+description: use only if invoked by user or workflow
 ---
 
 # Doc Sync

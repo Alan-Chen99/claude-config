@@ -1,6 +1,6 @@
 ---
 name: long-bash
-description: Run a long-running bash command that may need to exceed your maximum allowed timeout.
+description: use only if invoked by user or workflow
 ---
 
 # Long-Running Bash Command

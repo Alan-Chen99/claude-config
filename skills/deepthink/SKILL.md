@@ -1,9 +1,11 @@
 ---
 name: deepthink
-description: Invoke IMMEDIATELY via python script when user requests structured reasoning for open-ended analytical questions. Do NOT explore first - the script orchestrates the thinking workflow.
+description: use only if invoked by user or workflow
 ---
 
 # DeepThink
+
+Structured reasoning for open-ended analytical questions.
 
 When this skill activates, IMMEDIATELY invoke the script. The script IS the workflow.
 

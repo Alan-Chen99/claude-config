@@ -1,6 +1,6 @@
 ---
 name: diagnose-workflow
-description: Extract structural sub-agent workflow summary from a Claude Code session log. Shows what agents ran, succeeded/failed, token usage, and anomalies — without relying on self-reporting.
+description: use only if invoked by user or workflow
 ---
 
 # Diagnose Workflow
