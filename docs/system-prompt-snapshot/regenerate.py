@@ -26,6 +26,9 @@ for _k in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
     os.environ.pop(_k, None)
 
 import anthropic
+from claude_config.config import load as _load_env
+
+_load_env()
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CAPTURE = SCRIPT_DIR / "capture.py"
@@ -148,7 +151,7 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
             return [_strip_cc(x) for x in obj]
         return obj
 
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_TOKEN_COUNT_API_KEY"])
     _base_msg = [{"role": "user", "content": "x"}]
     base_tokens = client.messages.count_tokens(
         model=req_model, messages=_base_msg

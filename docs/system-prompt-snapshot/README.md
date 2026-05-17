@@ -119,8 +119,9 @@ The behavioral rules and `--system-prompt` replacement logic are the same in bot
 ## How to re-capture
 
 ```bash
-# Make sure ANTHROPIC_API_KEY is set (used by token-counting calls)
-source .env  # or export ANTHROPIC_API_KEY=...
+# Make sure ANTHROPIC_TOKEN_COUNT_API_KEY is set in /repos/claude-config/.env
+# (loaded automatically by both scripts via claude_config.config.load()).
+# See /repos/claude-config/.env.example for the full list of expected keys.
 
 # Default prompt
 ./capture.py

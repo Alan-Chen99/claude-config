@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="${HOME}/.claude"
 
 # Directories to symlink
-DIRS=(agents conventions hooks output-styles skills)
+DIRS=(agents conventions output-styles skills)
 
 # Files to symlink
 FILES=(settings.json statusline.sh)

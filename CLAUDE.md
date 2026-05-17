@@ -17,6 +17,8 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `.envrc`                  | direnv environment config                                   | Modifying shell environment for development   |
 | `settings.json`           | Claude Code user settings                                   | Modifying hooks, statusline, permissions      |
 | `statusline.sh`           | Status line script wired up via `settings.json`             | Customizing the in-session status line        |
+| `install.sh`              | Symlinks dirs/files into `~/.claude/`, builds `agent-tools` | Installing or reinstalling the config         |
+| `.env` / `.env.example`   | Unified config (NTFY URL, OpenRouter, Anthropic token-count) | Setting up secrets — see `.env.example`       |
 
 ## Subdirectories
 
@@ -29,7 +31,6 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `conventions/`     | Documentation and code quality standards                | Writing documentation, understanding coding rules |
 | `plans/`           | Plan storage directory                                  | Reviewing or executing existing plans             |
 | `output-styles/`   | Output formatting styles                                | Customizing Claude's output format                |
-| `hooks/`           | ntfy notification hooks for Claude Code                 | Setting up notifications, debugging hooks         |
 | `scripts/`         | Standalone scripts (MITM proxy, launchers)              | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
@@ -40,6 +41,7 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools skill <mod> [args]` — run a skill script via `uv run python3 -m skills.<mod>`
 - `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
+- `agent-tools ntfy-hook [args]` — Claude Code notification hook (wraps `python3 -m claude_config.ntfy_hook`)
 
 Root resolution (no dependency on binary location):
 1. `CLAUDE_CONFIG_ROOT` env var
@@ -47,9 +49,9 @@ Root resolution (no dependency on binary location):
 
 Venv location: each project root resolves to `~/.claude/venvs/<basename>/` (set via `UV_PROJECT_ENVIRONMENT`), keeping venvs out of the source tree so host and container sessions don't fight over the same `.venv`.
 
-Build: `cd agent-tools && cargo build --release`. Installed as a symlink at `~/.local/bin/agent-tools` → `<repo>/agent-tools/target/release/agent-tools` by `hooks/install.sh`.
+Build: `cd agent-tools && cargo build --release`. Installed as a symlink at `~/.local/bin/agent-tools` → `<repo>/agent-tools/target/release/agent-tools` by `install.sh`.
 
-**Worktrees must NEVER run `hooks/install.sh`** — the symlink must always point to the canonical repo's binary. Worktrees that install their own build will break all other sessions when the worktree is deleted.
+**Worktrees must NEVER run `install.sh`** — the symlink must always point to the canonical repo's binary. Worktrees that install their own build will break all other sessions when the worktree is deleted.
 
 Testing from a worktree without installing:
 ```bash
@@ -65,6 +67,8 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | ------------------------------- | ----------------------------------------------- | ------------------------------- |
 | `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`                     |
 | `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`           |
+| `claude_config.config`          | Load `/repos/claude-config/.env` into `os.environ` | (library — `from claude_config.config import load`) |
+| `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |
 
 ### `skills/copy-writing-style/`
 

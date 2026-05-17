@@ -46,6 +46,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Claude Code ntfy notification hook
+    #[command(name = "ntfy-hook")]
+    NtfyHook {
+        /// Arguments forwarded to claude_config.ntfy_hook
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Wrap a Bash/Monitor invocation (PreToolUse-rewritten target).
     #[command(name = "wrap-task")]
     WrapTask {
@@ -196,6 +203,14 @@ fn main() {
                         &root,
                         &root,
                         &["python3", "-m", "claude_config.cc_workflow.extract"],
+                        &args,
+                    );
+                }
+                Cmd::NtfyHook { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.ntfy_hook"],
                         &args,
                     );
                 }

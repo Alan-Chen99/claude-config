@@ -41,6 +41,9 @@ import time
 from pathlib import Path
 
 import anthropic
+from claude_config.config import load as _load_env
+
+_load_env()
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 INTERCEPT_DIR = SCRIPT_DIR.parent.parent / "scripts" / "intercept"
@@ -110,7 +113,7 @@ def count_tokens(model: str, *, system=None, tools=None) -> int:
     Returns the token count for the given system blocks and/or tools.
     Uses a minimal dummy message; the returned count is for the full request.
     """
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_TOKEN_COUNT_API_KEY"])
     kwargs = {"model": model, "messages": [{"role": "user", "content": "x"}]}
     if system is not None:
         kwargs["system"] = _strip_cache_control(system)
