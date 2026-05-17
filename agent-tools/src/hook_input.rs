@@ -11,6 +11,7 @@ pub struct PreToolUseInput {
     pub tool_use_id: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct PostToolUseInput {
     pub session_id: String,
