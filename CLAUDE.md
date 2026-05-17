@@ -43,6 +43,7 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools cc-pretty-intercept [args]` — pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`)
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
 - `agent-tools ntfy-hook [args]` — Claude Code notification hook (wraps `python3 -m claude_config.ntfy_hook`)
+- `agent-tools system-prompt` — print the dynamic `# Environment` section (cwd, git, platform, shell, OS). Append to a static prompt via `cc --append-system-prompt-file <(agent-tools system-prompt)` so cc still sees the env block when `--system-prompt-file` replaces the default prompt.
 
 Root resolution (no dependency on binary location):
 1. `CLAUDE_CONFIG_ROOT` env var
@@ -71,6 +72,7 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`           |
 | `claude_config.config`          | Load `/repos/claude-config/.env` into `os.environ` | (library — `from claude_config.config import load`) |
 | `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |
+| `claude_config.system_prompt`   | Print the dynamic `# Environment` block for `--system-prompt-file` workflows | `agent-tools system-prompt` |
 
 ### `skills/copy-writing-style/`
 
