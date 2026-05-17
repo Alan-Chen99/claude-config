@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 
 mod events;
 mod hook_input;
+mod hook_post;
 mod hook_pre;
 mod meta;
 mod paths;
@@ -43,6 +44,9 @@ enum Cmd {
     /// PreToolUse hook for Bash and Monitor.
     #[command(name = "hook-pre")]
     HookPre,
+    /// PostToolUse hook for Bash and Monitor.
+    #[command(name = "hook-post")]
+    HookPost,
     /// pre_output script used in output styles
     #[command(name = "pre_output.record")]
     PreOutputRecord {
@@ -109,6 +113,13 @@ fn main() {
             }
             std::process::exit(0);
         }
+        Cmd::HookPost => {
+            if let Err(e) = hook_post::run() {
+                eprintln!("agent-tools hook-post: {e:#}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
+        }
         cmd => {
             let root = repo_root();
             match cmd {
@@ -146,6 +157,7 @@ fn main() {
                     );
                 }
                 Cmd::HookPre => unreachable!(),
+                Cmd::HookPost => unreachable!(),
             }
         }
     }
