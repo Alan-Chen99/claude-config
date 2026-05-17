@@ -5,6 +5,7 @@ use std::process::Command;
 
 use clap::{Parser, Subcommand};
 
+mod events;
 mod hook_input;
 mod meta;
 mod paths;
