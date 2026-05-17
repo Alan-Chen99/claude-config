@@ -60,3 +60,31 @@ fn count_tokens_file_not_found_propagates_loudly() {
         "expected loud file-not-found error, got stderr: {stderr}"
     );
 }
+
+#[test]
+fn count_tokens_rejects_file_plus_positional() {
+    // Use an existing path so the failure is unambiguously the mutual-exclusion
+    // check, not a missing-file error.
+    let out = Command::new(bin())
+        .arg("count-tokens")
+        .arg("--file")
+        .arg("/etc/hostname")
+        .arg("inline text")
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .expect("failed to run agent-tools count-tokens --file ... TEXT");
+
+    assert!(
+        !out.status.success(),
+        "expected non-zero exit, got 0; stdout={}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("mutually exclusive"),
+        "expected 'mutually exclusive' in stderr, got: {stderr}"
+    );
+}

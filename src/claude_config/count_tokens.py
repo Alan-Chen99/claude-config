@@ -51,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _resolve_input(parser: argparse.ArgumentParser, args: argparse.Namespace) -> str:
+    if args.text is not None and args.file is not None:
+        parser.error("--file and TEXT are mutually exclusive")
     if args.text is not None:
         return args.text
     if args.file is not None:
