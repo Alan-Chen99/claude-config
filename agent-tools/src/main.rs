@@ -11,6 +11,7 @@ mod hook_post;
 mod hook_pre;
 mod meta;
 mod paths;
+mod signals;
 
 #[derive(Parser)]
 #[command(name = "agent-tools")]
