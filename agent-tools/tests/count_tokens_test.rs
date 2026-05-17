@@ -1,0 +1,37 @@
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+
+fn bin() -> String {
+    env!("CARGO_BIN_EXE_agent-tools").to_string()
+}
+
+/// Worktree root = parent of agent-tools/ (which is CARGO_MANIFEST_DIR).
+fn worktree_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+        .to_path_buf()
+}
+
+#[test]
+fn count_tokens_help_dispatches_to_python_and_shows_flags() {
+    let out = Command::new(bin())
+        .arg("count-tokens")
+        .arg("--help")
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .expect("failed to run agent-tools count-tokens --help");
+
+    assert!(
+        out.status.success(),
+        "exit={:?} stderr={}",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("--model"), "stdout missing --model: {stdout}");
+    assert!(stdout.contains("--file"), "stdout missing --file: {stdout}");
+}
