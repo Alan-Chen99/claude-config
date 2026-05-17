@@ -64,6 +64,28 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-tools hook-pre",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-tools hook-post",
+            "timeout": 5
+          }
+        ]
       }
     ]
   },
