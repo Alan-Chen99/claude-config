@@ -12,6 +12,7 @@ mod hook_post;
 mod hook_pre;
 mod meta;
 mod paths;
+mod run;
 mod signals;
 mod wrap_task;
 
@@ -49,6 +50,13 @@ enum Cmd {
     WrapTask {
         /// Absolute path to the task directory containing command.sh.
         task_dir: String,
+    },
+    /// Wrap a command inside an active wrap-task (for pipeline capture).
+    Run {
+        #[arg(long)]
+        desc: Option<String>,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        cmd: Vec<String>,
     },
     /// PreToolUse hook for Bash and Monitor.
     #[command(name = "hook-pre")]
@@ -115,6 +123,15 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
+        Cmd::Run { desc, cmd } => {
+            let code = tokio::runtime::Builder::new_multi_thread()
+                .enable_all().build().unwrap()
+                .block_on(run::run(desc, cmd));
+            match code {
+                Ok(c) => std::process::exit(c),
+                Err(e) => { eprintln!("agent-tools run: {e:#}"); std::process::exit(2); }
+            }
+        }
         Cmd::WrapTask { task_dir } => {
             let code = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -179,6 +196,7 @@ fn main() {
                 Cmd::HookPre => unreachable!(),
                 Cmd::HookPost => unreachable!(),
                 Cmd::WrapTask { .. } => unreachable!(),
+                Cmd::Run { .. } => unreachable!(),
             }
         }
     }
