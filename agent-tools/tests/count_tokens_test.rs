@@ -88,3 +88,32 @@ fn count_tokens_rejects_file_plus_positional() {
         "expected 'mutually exclusive' in stderr, got: {stderr}"
     );
 }
+
+#[test]
+fn count_tokens_missing_api_key_fails_loudly() {
+    // NOTE: this test assumes the worktree does NOT have a populated
+    // ANTHROPIC_TOKEN_COUNT_API_KEY in its top-level .env file. In a fresh
+    // worktree, .env is gitignored and absent, so claude_config.config.load()
+    // is a no-op and os.environ remains without the key.
+    let out = Command::new(bin())
+        .arg("count-tokens")
+        .arg("hello")
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env_remove("ANTHROPIC_TOKEN_COUNT_API_KEY")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .expect("failed to run agent-tools count-tokens hello");
+
+    assert!(
+        !out.status.success(),
+        "expected non-zero exit (missing API key), got 0; stdout={}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("ANTHROPIC_TOKEN_COUNT_API_KEY"),
+        "expected stderr to name the missing key, got: {stderr}"
+    );
+}

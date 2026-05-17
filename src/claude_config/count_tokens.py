@@ -45,8 +45,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     text = _resolve_input(parser, args)
-    # API call added in a later task; for now just confirm the path executed.
-    _ = text
+
+    import os
+    import anthropic
+
+    api_key = os.environ["ANTHROPIC_TOKEN_COUNT_API_KEY"]
+    client = anthropic.Anthropic(api_key=api_key)
+    result = client.messages.count_tokens(
+        model=args.model,
+        messages=[{"role": "user", "content": text}],
+    )
+    print(result.input_tokens)
     return 0
 
 
