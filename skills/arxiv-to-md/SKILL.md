@@ -1,6 +1,6 @@
 ---
 name: arxiv-to-md
-description: use only if invoked by user or workflow
+description: Convert arXiv papers to LLM-consumable markdown.
 ---
 
 # arXiv to Markdown
