@@ -92,3 +92,32 @@ fn missing_command_sh_exits_nonzero() {
         .unwrap();
     assert!(!out.status.success());
 }
+
+#[test]
+fn unsets_mitm_intercept_env_in_child() {
+    // Mirrors /workspace/scripts/claude.sh exports: HTTPS_PROXY,
+    // NODE_EXTRA_CA_CERTS, NODE_OPTIONS — the three vars set when running
+    // claude through the MITM intercept proxy.
+    let home = tempfile::tempdir().unwrap();
+    let script = r#"
+echo "HTTPS_PROXY=[${HTTPS_PROXY-unset}]"
+echo "NODE_EXTRA_CA_CERTS=[${NODE_EXTRA_CA_CERTS-unset}]"
+echo "NODE_OPTIONS=[${NODE_OPTIONS-unset}]"
+"#;
+    let dir = seed_task(home.path(), "sid", "tuid", script);
+    let out = Command::new(bin())
+        .args(["wrap-task", dir.to_str().unwrap()])
+        .env("HOME", home.path())
+        .env("HTTPS_PROXY", "http://127.0.0.1:9160")
+        .env("NODE_EXTRA_CA_CERTS", "/root/.mitmproxy/mitmproxy-ca-cert.pem")
+        .env("NODE_OPTIONS", "--use-env-proxy")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let s = String::from_utf8_lossy(&out.stdout);
+    let expected = "\
+HTTPS_PROXY=[unset]\n\
+NODE_EXTRA_CA_CERTS=[unset]\n\
+NODE_OPTIONS=[unset]\n";
+    assert_eq!(s, expected, "child saw MITM intercept env it should not have seen");
+}

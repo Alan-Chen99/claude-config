@@ -21,13 +21,15 @@ pub async fn run(task_dir: PathBuf) -> Result<i32> {
     let stdout_path = task_dir.join("stdout");
     let stderr_path = task_dir.join("stderr");
 
-    let mut child = Command::new("bash")
-        .args(["--noprofile", "--norc"])
+    let mut cmd = Command::new("bash");
+    cmd.args(["--noprofile", "--norc"])
         .arg(&command_sh)
         .env("AGENT_TOOLS_TASK_ID", &task_dir)
         .stdin(Stdio::inherit())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    strip_mitm_proxy_env(&mut cmd);
+    let mut child = cmd
         .spawn()
         .with_context(|| "spawn bash for command.sh")?;
     let pid = child.id().context("child pid unavailable")? as i32;
@@ -108,4 +110,14 @@ pub async fn run(task_dir: PathBuf) -> Result<i32> {
     events::append(&task_dir, "task_exit", serde_json::json!({"exit_code": exit_code})).ok();
 
     Ok(exit_code)
+}
+
+/// MITM intercept env is stripped so user bash commands don't route through
+/// the Claude API intercept proxy. Mirrors the exports in
+/// `/workspace/scripts/claude.sh`.
+fn strip_mitm_proxy_env(cmd: &mut Command) {
+    const VARS: &[&str] = &["HTTPS_PROXY", "NODE_EXTRA_CA_CERTS", "NODE_OPTIONS"];
+    for v in VARS {
+        cmd.env_remove(v);
+    }
 }
