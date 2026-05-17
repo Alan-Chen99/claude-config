@@ -16,6 +16,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `.gitignore`              | Git ignore patterns                                         | Adding new generated/temp files to ignore     |
 | `.envrc`                  | direnv environment config                                   | Modifying shell environment for development   |
 | `settings.json`           | Claude Code user settings                                   | Modifying hooks, statusline, permissions      |
+| `statusline.sh`           | Status line script wired up via `settings.json`             | Customizing the in-session status line        |
 
 ## Subdirectories
 
@@ -39,10 +40,13 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools skill <mod> [args]` — run a skill script via `uv run python3 -m skills.<mod>`
 - `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
+- `agent-tools pre_output.record [json]` — pre-output breakpoint used by output styles (replaces the former skill invocation)
 
 Root resolution (no dependency on binary location):
 1. `CLAUDE_CONFIG_ROOT` env var
 2. Default: derived from `~/.claude/skills` symlink target (i.e. `/repos/claude-config`)
+
+Venv location: each project root resolves to `~/.claude/venvs/<basename>/` (set via `UV_PROJECT_ENVIRONMENT`), keeping venvs out of the source tree so host and container sessions don't fight over the same `.venv`.
 
 Build: `cd agent-tools && cargo build --release`. Installed as a symlink at `~/.local/bin/agent-tools` → `<repo>/agent-tools/target/release/agent-tools` by `hooks/install.sh`.
 
@@ -56,13 +60,13 @@ CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module>
 
 ### `src/claude_config/`
 
-Python package installed editable in `.venv` as `claude_config`. Contains custom (non-upstream) Python tools:
+Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv location" above) as `claude_config`. Contains custom (non-upstream) Python tools:
 
-| Module                          | What                                           | CLI entry point         |
-| ------------------------------- | ---------------------------------------------- | ----------------------- |
-| `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`             |
-| `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`   |
-| `claude_config.pre_output`      | Rule-reinforcement breakpoint for output styles | `pre_output.record`     |
+| Module                          | What                                            | CLI entry point                 |
+| ------------------------------- | ----------------------------------------------- | ------------------------------- |
+| `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`                     |
+| `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`           |
+| `claude_config.pre_output`      | Rule-reinforcement breakpoint for output styles | `agent-tools pre_output.record` |
 
 ### `skills/copy-writing-style/`
 
