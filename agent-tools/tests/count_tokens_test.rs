@@ -35,3 +35,28 @@ fn count_tokens_help_dispatches_to_python_and_shows_flags() {
     assert!(stdout.contains("--model"), "stdout missing --model: {stdout}");
     assert!(stdout.contains("--file"), "stdout missing --file: {stdout}");
 }
+
+#[test]
+fn count_tokens_file_not_found_propagates_loudly() {
+    let out = Command::new(bin())
+        .arg("count-tokens")
+        .arg("--file")
+        .arg("/nonexistent/path/that/should/not/exist")
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .expect("failed to run agent-tools count-tokens --file /nonexistent");
+
+    assert!(
+        !out.status.success(),
+        "expected failure, got exit=0 stdout={}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("FileNotFoundError") || stderr.contains("/nonexistent/path"),
+        "expected loud file-not-found error, got stderr: {stderr}"
+    );
+}

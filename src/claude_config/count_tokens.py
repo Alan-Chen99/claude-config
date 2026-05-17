@@ -42,9 +42,23 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
-    parser.parse_args(argv)
-    # Subsequent tasks add input resolution, mutex check, and API call here.
+    args = parser.parse_args(argv)
+
+    text = _resolve_input(parser, args)
+    # API call added in a later task; for now just confirm the path executed.
+    _ = text
     return 0
+
+
+def _resolve_input(parser: argparse.ArgumentParser, args: argparse.Namespace) -> str:
+    if args.text is not None:
+        return args.text
+    if args.file is not None:
+        with open(args.file, "r", encoding="utf-8") as f:
+            return f.read()
+    if sys.stdin.isatty():
+        parser.error("no input provided (pass TEXT, --file PATH, or pipe via stdin)")
+    return sys.stdin.read()
 
 
 if __name__ == "__main__":
