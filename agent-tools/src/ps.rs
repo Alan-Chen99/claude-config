@@ -139,16 +139,16 @@ fn write_task(buf: &mut String, m: &TaskMeta, task_dir: &Path) -> Result<()> {
         if !kids.is_empty() {
             writeln!(buf, "  children:")?;
             for c in &kids {
-                let st = if c.ended_at.is_none() && is_pid_alive(c.pid as i32) {
+                let st = if c.ended_at.is_none() && is_pid_alive(c.child_id as i32) {
                     "[running]".to_string()
                 } else {
                     format!("[exited {}]", c.exit_code.map(|e| e.to_string()).unwrap_or_else(|| "?".into()))
                 };
-                writeln!(buf, "    pid {} {}", c.pid, st)?;
+                writeln!(buf, "    pid {} {}", c.child_id, st)?;
                 if let Some(d) = &c.desc { writeln!(buf, "      desc:     {d}")?; }
                 writeln!(buf, "      cmd:      {}", c.command.join(" "))?;
-                writeln!(buf, "      stdout:   {}", task_dir.join("children").join(c.pid.to_string()).join("stdout").display())?;
-                writeln!(buf, "      stderr:   {}", task_dir.join("children").join(c.pid.to_string()).join("stderr").display())?;
+                writeln!(buf, "      stdout:   {}", task_dir.join("children").join(c.child_id.to_string()).join("stdout").display())?;
+                writeln!(buf, "      stderr:   {}", task_dir.join("children").join(c.child_id.to_string()).join("stderr").display())?;
             }
         }
     }
