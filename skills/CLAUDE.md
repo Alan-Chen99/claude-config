@@ -41,6 +41,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `do/`                 | Meta-execution pipeline (intent→reframe→execute→reflect) | Wrapping requests in structured execution |
 | `doc-sync/`           | Documentation synchronization             | Syncing docs across repos                |
 | `notes/`              | Persist knowledge into agent-facing docs     | Using `/notes` to remember things for future conversations |
+| `auto-memory/`        | On-demand drop-in for Claude Code's built-in auto-memory feature | Using `/auto-memory` when `autoMemoryEnabled: false` |
 | `leon-writing-style/` | Style-matched content generation          | Writing content matching user's style    |
 | `alan-coding-style/`  | Style-matched code generation and review  | Coding matching user's conventions       |
 | `alan-writing-style/` | Style-matched content generation           | Writing content matching user's style    |
