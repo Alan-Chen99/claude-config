@@ -15,7 +15,6 @@ mod paths;
 mod ps;
 mod run;
 mod signals;
-mod wrap_task;
 
 #[derive(Parser)]
 #[command(name = "agent-tools")]
@@ -59,12 +58,6 @@ enum Cmd {
         /// Arguments forwarded to claude_config.ntfy_hook
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
-    },
-    /// Wrap a Bash/Monitor invocation (PreToolUse-rewritten target).
-    #[command(name = "wrap-task")]
-    WrapTask {
-        /// Absolute path to the task directory containing command.sh.
-        task_dir: String,
     },
     /// Wrap a command inside an active wrap-task (for pipeline capture).
     Run {
@@ -164,17 +157,6 @@ fn main() {
                 Err(e) => { eprintln!("agent-tools run: {e:#}"); std::process::exit(2); }
             }
         }
-        Cmd::WrapTask { task_dir } => {
-            let code = tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-                .block_on(wrap_task::run(std::path::PathBuf::from(task_dir)));
-            match code {
-                Ok(c) => std::process::exit(c),
-                Err(e) => { eprintln!("agent-tools wrap-task: {e:#}"); std::process::exit(1); }
-            }
-        }
         Cmd::HookPre => {
             if let Err(e) = hook_pre::run() {
                 eprintln!("agent-tools hook-pre: {e:#}");
@@ -267,7 +249,6 @@ fn main() {
                 }
                 Cmd::HookPre => unreachable!(),
                 Cmd::HookPost => unreachable!(),
-                Cmd::WrapTask { .. } => unreachable!(),
                 Cmd::Run { .. } => unreachable!(),
                 Cmd::Ps { .. } => unreachable!(),
             }

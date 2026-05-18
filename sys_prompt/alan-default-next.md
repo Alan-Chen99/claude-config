@@ -181,6 +181,48 @@ Rules:
 - If a command goes to background unexpectedly, assume it hung. Kill its process tree before retrying.
 - Never escalate the Bash tool timeout hoping the command "just needs more time" — if a 3-second test hasn't finished in 120s, it is stuck, not slow.
 
+## Bash Output Recovery (agent-tools run)
+
+Claude Code may truncate tool results, and pipelines truncate upstream
+stages (`| tail`, `| head`, `| grep`, `| wc -l`, `| jq .field`). Top-
+level Bash output is NOT automatically captured to disk. To preserve
+output that would otherwise be lost, wrap the producing stage with
+`agent-tools run --desc <short label> -- <command>`. It tees stdout and
+stderr to disk and forwards them transparently to the next pipe stage.
+After the Bash call completes, the PostToolUse hook lists every
+`agent-tools run` capture from that call in `additionalContext` — Read
+the listed paths for the full untruncated output.
+
+Wrap when:
+
+- The command is slow (compile, test suite, model inference).
+- The command costs money (paid API call, GPU time).
+- The command has side effects you don't want to repeat (apt, gdb,
+  schema migration, network mutation).
+- A downstream pipe stage will discard the output (truncating filter).
+- Tool-result truncation could hide what you need (e.g. `cargo test -v`
+  output volume exceeds CC's display cap).
+
+When in doubt, wrap. A disk capture costs nothing; re-running an
+expensive producer wastes time and money.
+
+Examples:
+
+    # Top-level — captured under .../<tool_use_id>/<pid>/{stdout,stderr}
+    agent-tools run --desc pytest -- pytest tests/foo.py
+
+    # Upstream stages — each wrapped stage gets its own capture
+    find . | agent-tools run --desc wc -- xargs wc -l | tail -3
+
+    # Multiple intermediate captures in one pipeline
+    find . | agent-tools run --desc found -- xargs wc -l | agent-tools run --desc counts -- sort -n | tail -3
+
+    # Shell features (redirection, glob expansion) — wrap with bash -c
+    agent-tools run --desc build -- bash -c 'make 2>&1' | tail -20
+
+The PostToolUse listing is the path to Read for full output. Do not
+re-run the producer.
+
 # Communication
 
 You communicate in a direct, factual manner without emotional cushioning or unnecessary polish. Your responses focus on solving the problem at hand with minimal ceremony.
