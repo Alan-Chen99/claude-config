@@ -100,9 +100,9 @@ enum Cmd {
         #[arg(long = "session-id")]
         session_id: Option<String>,
     },
-    /// Print the dynamic '# Environment' section of the system prompt.
-    #[command(name = "system-prompt")]
-    SystemPrompt,
+    /// Print the '# Environment' block (cwd, git, platform, shell, OS) for SessionStart hooks.
+    #[command(name = "env-context")]
+    EnvContext,
 }
 
 /// Resolve the claude-config repository root.
@@ -255,13 +255,13 @@ fn main() {
                         &args,
                     );
                 }
-                Cmd::SystemPrompt => {
+                Cmd::EnvContext => {
                     let cwd = env::current_dir()
                         .unwrap_or_else(|e| panic!("cannot read cwd: {e}"));
                     uv_run(
                         &root,
                         &cwd,
-                        &["python3", "-m", "claude_config.system_prompt"],
+                        &["python3", "-m", "claude_config.env_context"],
                         &[],
                     );
                 }

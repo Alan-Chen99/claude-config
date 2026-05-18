@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Print the dynamic '# Environment' section of the system prompt.
+"""Print the '# Environment' block (cwd, git, platform, shell, OS).
 
 When cc runs with --system-prompt-file, it stops emitting the default
-'# Environment' block (cwd, git, platform, shell, OS). Append the output
-of this module via --append-system-prompt-file so cc still sees that block.
+'# Environment' block. Inject this module's output via a SessionStart hook
+returning {"hookSpecificOutput": {"hookEventName": "SessionStart",
+"additionalContext": <stdout>}} so cc still sees the block while keeping
+the system prompt itself static and fully cacheable.
 
 The output matches cc's no-model env variant (decompiled v2.1.143,
 function Yp5 in src/globals/13.js), without model-name or knowledge-cutoff
