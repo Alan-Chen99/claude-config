@@ -8,8 +8,9 @@ pub fn state_root() -> Result<PathBuf> {
     Ok(PathBuf::from(home).join(".claude/agent-tools"))
 }
 
-/// Compute task_dir from identifiers. `agent_id == None` means main-thread.
-pub fn task_dir_for(session_id: &str, agent_id: Option<&str>, task_id: &str) -> Result<PathBuf> {
+/// Compute the parent dir for `agent-tools run` captures within this tool
+/// call. `agent_id == None` means main-thread.
+pub fn parent_dir_for(session_id: &str, agent_id: Option<&str>, task_id: &str) -> Result<PathBuf> {
     let mut p = state_root()?.join(session_id);
     if let Some(a) = agent_id {
         p.push(a);
@@ -18,20 +19,20 @@ pub fn task_dir_for(session_id: &str, agent_id: Option<&str>, task_id: &str) -> 
     Ok(p)
 }
 
-/// Read AGENT_TOOLS_TASK_ID env var as an absolute path.
-pub fn task_dir_from_env() -> Result<PathBuf> {
-    let v = env::var("AGENT_TOOLS_TASK_ID")
-        .context("AGENT_TOOLS_TASK_ID is not set")?;
+/// Read AGENT_TOOLS_PARENT_DIR env var as an absolute path.
+pub fn parent_dir_from_env() -> Result<PathBuf> {
+    let v = env::var("AGENT_TOOLS_PARENT_DIR")
+        .context("AGENT_TOOLS_PARENT_DIR is not set")?;
     let p = PathBuf::from(&v);
     if !p.is_absolute() {
-        bail!("AGENT_TOOLS_TASK_ID must be an absolute path, got: {v}");
+        bail!("AGENT_TOOLS_PARENT_DIR must be an absolute path, got: {v}");
     }
     Ok(p)
 }
 
-/// Recover (session_id, Option<agent_id>, task_id) from a task_dir path
+/// Recover (session_id, Option<agent_id>, task_id) from a parent_dir path
 /// rooted at state_root().
-pub fn parse_task_dir(task_dir: &Path) -> Result<(String, Option<String>, String)> {
+pub fn parse_parent_dir(task_dir: &Path) -> Result<(String, Option<String>, String)> {
     let root = state_root()?;
     let rel = task_dir.strip_prefix(&root).with_context(|| {
         format!(
@@ -55,21 +56,21 @@ mod tests {
     #[test]
     fn builds_main_thread_path() {
         std::env::set_var("HOME", "/h");
-        let p = task_dir_for("sid", None, "tid").unwrap();
+        let p = parent_dir_for("sid", None, "tid").unwrap();
         assert_eq!(p, PathBuf::from("/h/.claude/agent-tools/sid/tid"));
     }
 
     #[test]
     fn builds_subagent_path() {
         std::env::set_var("HOME", "/h");
-        let p = task_dir_for("sid", Some("aid"), "tid").unwrap();
+        let p = parent_dir_for("sid", Some("aid"), "tid").unwrap();
         assert_eq!(p, PathBuf::from("/h/.claude/agent-tools/sid/aid/tid"));
     }
 
     #[test]
     fn parses_main_thread() {
         std::env::set_var("HOME", "/h");
-        let (s, a, t) = parse_task_dir(Path::new("/h/.claude/agent-tools/sid/tid")).unwrap();
+        let (s, a, t) = parse_parent_dir(Path::new("/h/.claude/agent-tools/sid/tid")).unwrap();
         assert_eq!(s, "sid");
         assert_eq!(a, None);
         assert_eq!(t, "tid");
@@ -78,7 +79,7 @@ mod tests {
     #[test]
     fn parses_subagent() {
         std::env::set_var("HOME", "/h");
-        let (s, a, t) = parse_task_dir(Path::new("/h/.claude/agent-tools/sid/aid/tid")).unwrap();
+        let (s, a, t) = parse_parent_dir(Path::new("/h/.claude/agent-tools/sid/aid/tid")).unwrap();
         assert_eq!(s, "sid");
         assert_eq!(a.as_deref(), Some("aid"));
         assert_eq!(t, "tid");
@@ -87,6 +88,6 @@ mod tests {
     #[test]
     fn rejects_non_state_dir() {
         std::env::set_var("HOME", "/h");
-        assert!(parse_task_dir(Path::new("/somewhere/else")).is_err());
+        assert!(parse_parent_dir(Path::new("/somewhere/else")).is_err());
     }
 }

@@ -1,60 +1,110 @@
-use std::process::{Command, Stdio};
 use std::io::Write;
+use std::process::{Command, Stdio};
 
 fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
 }
 
-#[test]
-fn main_thread_rewrite_creates_state_and_returns_updated_input() {
-    let home = tempfile::tempdir().unwrap();
-    let input = serde_json::json!({
-        "session_id": "sid-test",
-        "cwd": "/tmp",
-        "tool_name": "Bash",
-        "tool_input": {"command": "echo $((1+1))", "description": "math"},
-        "tool_use_id": "tuid-test"
-    }).to_string();
-
+fn run_hook_pre(home: &std::path::Path, input: &str) -> std::process::Output {
     let mut child = Command::new(bin())
         .arg("hook-pre")
-        .env("HOME", home.path())
+        .env("HOME", home)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child.stdin.as_mut().unwrap().write_all(input.as_bytes()).unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
     let out = child.wait_with_output().unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    out
+}
 
+/// Check that `cmd` matches the regex
+/// `^unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='[^']+'; <orig>$`
+/// without pulling in a regex dependency.
+fn assert_matches_envprefix(cmd: &str, orig: &str) {
+    let prefix = "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='";
+    assert!(
+        cmd.starts_with(prefix),
+        "missing prefix; got: {cmd}"
+    );
+    let suffix = format!("'; {orig}");
+    assert!(
+        cmd.ends_with(&suffix),
+        "missing suffix `{suffix}`; got: {cmd}"
+    );
+    let inner = &cmd[prefix.len()..cmd.len() - suffix.len()];
+    assert!(!inner.is_empty(), "empty path between quotes; got: {cmd}");
+    assert!(
+        !inner.contains('\''),
+        "path between quotes must not contain `'`; got: {cmd}"
+    );
+}
+
+#[test]
+fn bash_simple_command_is_wrapped_with_env_prefix() {
+    let home = tempfile::tempdir().unwrap();
+    let input = serde_json::json!({
+        "session_id": "sid-test",
+        "cwd": "/tmp",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi", "description": "greet"},
+        "tool_use_id": "tuid-test"
+    })
+    .to_string();
+
+    let out = run_hook_pre(home.path(), &input);
     let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(parsed["hookSpecificOutput"]["hookEventName"], "PreToolUse");
     assert_eq!(parsed["hookSpecificOutput"]["permissionDecision"], "allow");
     let new_cmd = parsed["hookSpecificOutput"]["updatedInput"]["command"]
         .as_str()
         .unwrap();
-    assert!(
-        new_cmd.starts_with("exec agent-tools wrap-task "),
-        "got: {new_cmd}"
-    );
-
-    let task_dir = home
-        .path()
-        .join(".claude/agent-tools/sid-test/tuid-test");
-    assert!(task_dir.join("meta.json").exists());
-    assert!(task_dir.join("command.sh").exists());
-    assert_eq!(
-        std::fs::read_to_string(task_dir.join("command.sh")).unwrap(),
-        "echo $((1+1))"
-    );
-
-    let task_dir_str = task_dir.to_string_lossy();
-    assert!(new_cmd.contains(task_dir_str.as_ref()), "got: {new_cmd}");
+    assert_matches_envprefix(new_cmd, "echo hi");
 }
 
 #[test]
-fn subagent_path_includes_agent_id() {
+fn main_thread_exports_session_slash_tool_use_id() {
+    let home = tempfile::tempdir().unwrap();
+    let input = serde_json::json!({
+        "session_id": "sid-test",
+        "cwd": "/tmp",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi"},
+        "tool_use_id": "tuid-test"
+    })
+    .to_string();
+
+    let out = run_hook_pre(home.path(), &input);
+    let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let new_cmd = parsed["hookSpecificOutput"]["updatedInput"]["command"]
+        .as_str()
+        .unwrap();
+
+    // Extract the path between the single quotes after AGENT_TOOLS_PARENT_DIR=.
+    let marker = "AGENT_TOOLS_PARENT_DIR='";
+    let start = new_cmd.find(marker).expect("marker present") + marker.len();
+    let rest = &new_cmd[start..];
+    let end = rest.find('\'').expect("closing quote");
+    let path = &rest[..end];
+    assert!(
+        path.ends_with("sid-test/tuid-test"),
+        "expected path to end with sid-test/tuid-test; got: {path}"
+    );
+}
+
+#[test]
+fn subagent_exports_session_slash_agent_slash_tool_use_id() {
     let home = tempfile::tempdir().unwrap();
     let input = serde_json::json!({
         "session_id": "sid-test",
@@ -63,31 +113,108 @@ fn subagent_path_includes_agent_id() {
         "tool_name": "Monitor",
         "tool_input": {"command": "tail -f /var/log/foo"},
         "tool_use_id": "tuid-2"
-    }).to_string();
+    })
+    .to_string();
 
-    let mut child = Command::new(bin())
-        .arg("hook-pre")
-        .env("HOME", home.path())
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    let out = run_hook_pre(home.path(), &input);
+    let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let new_cmd = parsed["hookSpecificOutput"]["updatedInput"]["command"]
+        .as_str()
         .unwrap();
-    child.stdin.as_mut().unwrap().write_all(input.as_bytes()).unwrap();
-    let out = child.wait_with_output().unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
 
-    let task_dir = home
+    let marker = "AGENT_TOOLS_PARENT_DIR='";
+    let start = new_cmd.find(marker).expect("marker present") + marker.len();
+    let rest = &new_cmd[start..];
+    let end = rest.find('\'').expect("closing quote");
+    let path = &rest[..end];
+    assert!(
+        path.ends_with("sid-test/agent-x/tuid-2"),
+        "expected path to end with sid-test/agent-x/tuid-2; got: {path}"
+    );
+}
+
+#[test]
+fn non_bash_non_monitor_passthrough() {
+    let home = tempfile::tempdir().unwrap();
+    let input = serde_json::json!({
+        "session_id": "sid-test",
+        "cwd": "/tmp",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-read"
+    })
+    .to_string();
+
+    let out = run_hook_pre(home.path(), &input);
+    let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(parsed["hookSpecificOutput"]["hookEventName"], "PreToolUse");
+    assert_eq!(parsed["hookSpecificOutput"]["permissionDecision"], "allow");
+    assert!(
+        parsed["hookSpecificOutput"].get("updatedInput").is_none(),
+        "passthrough must not include updatedInput; got: {parsed}"
+    );
+}
+
+#[test]
+fn hook_does_not_create_parent_dir_on_disk() {
+    let home = tempfile::tempdir().unwrap();
+    let input = serde_json::json!({
+        "session_id": "sid-test",
+        "cwd": "/tmp",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi"},
+        "tool_use_id": "tuid-lazy"
+    })
+    .to_string();
+
+    let _ = run_hook_pre(home.path(), &input);
+
+    let parent_dir = home
         .path()
-        .join(".claude/agent-tools/sid-test/agent-x/tuid-2");
-    assert!(task_dir.join("meta.json").exists());
+        .join(".claude/agent-tools/sid-test/tuid-lazy");
+    assert!(
+        !parent_dir.exists(),
+        "parent dir must not be created by hook-pre (lazy creation); exists at {}",
+        parent_dir.display()
+    );
+}
+
+#[test]
+fn single_quote_in_original_command_is_preserved_byte_for_byte() {
+    let home = tempfile::tempdir().unwrap();
+    let orig = "echo 'a\"b\\$c' | grep foo | tail -1";
+    let input = serde_json::json!({
+        "session_id": "sid-test",
+        "cwd": "/tmp",
+        "tool_name": "Bash",
+        "tool_input": {"command": orig},
+        "tool_use_id": "tuid-quote"
+    })
+    .to_string();
+
+    let out = run_hook_pre(home.path(), &input);
+    let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let new_cmd = parsed["hookSpecificOutput"]["updatedInput"]["command"]
+        .as_str()
+        .unwrap();
+
+    let separator = "; ";
+    // The original command must appear verbatim after the final `; ` between the
+    // export statement and the user's command.
+    let suffix = format!("{separator}{orig}");
+    assert!(
+        new_cmd.ends_with(&suffix),
+        "original command not preserved verbatim after `; `; got: {new_cmd}"
+    );
 }
 
 #[test]
 fn preserves_timeout_description_run_in_background_in_updated_input() {
-    // Regression: hook_pre previously emitted updatedInput with only `command`,
-    // which Claude Code uses as a full replacement (queryHelpers.ts), silently
-    // dropping timeout/description/run_in_background/dangerouslyDisableSandbox.
+    // Regression (main b279c25): hook_pre previously emitted updatedInput with
+    // only `command`, which Claude Code uses as a full replacement
+    // (queryHelpers.ts:262-272), silently dropping timeout/description/
+    // run_in_background/dangerouslyDisableSandbox. The fix clones tool_input
+    // verbatim and overwrites only `command`.
     let home = tempfile::tempdir().unwrap();
     let input = serde_json::json!({
         "session_id": "sid-test",
@@ -101,69 +228,38 @@ fn preserves_timeout_description_run_in_background_in_updated_input() {
             "dangerouslyDisableSandbox": true
         },
         "tool_use_id": "tuid-preserve"
-    }).to_string();
+    })
+    .to_string();
 
-    let mut child = Command::new(bin())
-        .arg("hook-pre")
-        .env("HOME", home.path())
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child.stdin.as_mut().unwrap().write_all(input.as_bytes()).unwrap();
-    let out = child.wait_with_output().unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
-
+    let out = run_hook_pre(home.path(), &input);
     let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let ui = &parsed["hookSpecificOutput"]["updatedInput"];
 
-    // command rewritten to the wrap-task invocation
+    // command rewritten with env prefix, original tail preserved
     let new_cmd = ui["command"].as_str().expect("command missing");
-    assert!(
-        new_cmd.starts_with("exec agent-tools wrap-task "),
-        "got: {new_cmd}"
-    );
+    assert_matches_envprefix(new_cmd, "sleep 9999");
 
-    // every other field from the original tool_input must be preserved
-    assert_eq!(ui["description"].as_str(), Some("long sleep"),
-        "description was dropped from updatedInput: {ui}");
-    assert_eq!(ui["timeout"].as_u64(), Some(5000),
-        "timeout was dropped from updatedInput: {ui}");
-    assert_eq!(ui["run_in_background"].as_bool(), Some(true),
-        "run_in_background was dropped from updatedInput: {ui}");
+    // every other field from the original tool_input must round-trip
+    assert_eq!(
+        ui["description"].as_str(),
+        Some("long sleep"),
+        "description was dropped from updatedInput: {ui}"
+    );
+    assert_eq!(
+        ui["timeout"].as_u64(),
+        Some(5000),
+        "timeout was dropped from updatedInput: {ui}"
+    );
+    assert_eq!(
+        ui["run_in_background"].as_bool(),
+        Some(true),
+        "run_in_background was dropped from updatedInput: {ui}"
+    );
     // Unknown / future fields must also pass through — the hook should not
     // enumerate fields, it should treat tool_input as opaque except for command.
-    assert_eq!(ui["dangerouslyDisableSandbox"].as_bool(), Some(true),
-        "unknown field dangerouslyDisableSandbox was dropped: {ui}");
-}
-
-#[test]
-fn command_with_special_chars_is_written_verbatim() {
-    let home = tempfile::tempdir().unwrap();
-    let weird = "echo 'a\"b\\$c\nd' | grep foo | tail -1";
-    let input = serde_json::json!({
-        "session_id": "sid-test",
-        "cwd": "/tmp",
-        "tool_name": "Bash",
-        "tool_input": {"command": weird},
-        "tool_use_id": "tuid-3"
-    }).to_string();
-
-    let mut child = Command::new(bin())
-        .arg("hook-pre")
-        .env("HOME", home.path())
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child.stdin.as_mut().unwrap().write_all(input.as_bytes()).unwrap();
-    let out = child.wait_with_output().unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
-
-    let command_sh = home
-        .path()
-        .join(".claude/agent-tools/sid-test/tuid-3/command.sh");
-    assert_eq!(std::fs::read_to_string(&command_sh).unwrap(), weird);
+    assert_eq!(
+        ui["dangerouslyDisableSandbox"].as_bool(),
+        Some(true),
+        "unknown field dangerouslyDisableSandbox was dropped: {ui}"
+    );
 }

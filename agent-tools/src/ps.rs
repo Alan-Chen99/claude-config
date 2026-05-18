@@ -7,16 +7,28 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::events::{self, Event};
-use crate::meta::{self, ChildMeta, Meta, TaskMeta};
+use crate::meta::{self, ChildMeta};
 use crate::paths;
+
+/// One captured `agent-tools run` invocation on disk.
+struct Capture {
+    agent_id: Option<String>,
+    tool_use_id: String,
+    /// Directory containing this capture's stdout/stderr/meta.json.
+    /// Layout: `<tool_use_id_dir>/<pid>/`.
+    capture_dir: PathBuf,
+    meta: ChildMeta,
+}
 
 pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Result<()> {
     let session_id = match session_override {
         Some(s) => s,
         None => {
-            let task_dir = paths::task_dir_from_env()
-                .context("AGENT_TOOLS_TASK_ID is not set; pass --session-id or run inside a wrap-task")?;
-            let (sid, _, _) = paths::parse_task_dir(&task_dir)?;
+            let parent_dir = paths::parent_dir_from_env().context(
+                "AGENT_TOOLS_PARENT_DIR is not set; pass --session-id when invoking ps \
+                 outside a Claude Code Bash tool",
+            )?;
+            let (sid, _, _) = paths::parse_parent_dir(&parent_dir)?;
             sid
         }
     };
@@ -28,36 +40,109 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
         return Ok(());
     }
 
+    let mut captures: Vec<Capture> = Vec::new();
+    collect_captures(&session_dir, &mut captures)?;
+
+    if let Some(ref t) = task_filter {
+        captures.retain(|c| &c.tool_use_id == t);
+    }
+
+    // Stable ordering: agent (None first), then tool_use_id, then start time, then pid.
+    captures.sort_by(|a, b| {
+        a.agent_id
+            .cmp(&b.agent_id)
+            .then_with(|| a.tool_use_id.cmp(&b.tool_use_id))
+            .then_with(|| {
+                a.meta
+                    .started_at
+                    .unwrap_or_else(Utc::now)
+                    .cmp(&b.meta.started_at.unwrap_or_else(Utc::now))
+            })
+            .then_with(|| a.meta.child_id.cmp(&b.meta.child_id))
+    });
+
     let mut buf = String::new();
     writeln!(buf, "session: {session_id}")?;
 
-    let mut tasks: Vec<(Option<String>, TaskMeta, PathBuf)> = Vec::new();
-    collect_tasks(&session_dir, None, &mut tasks)?;
-
-    if let Some(ref t) = task_filter {
-        tasks.retain(|(_, m, _)| &m.task_id == t);
+    if captures.is_empty() {
+        writeln!(buf, "(no state on disk)")?;
+        print!("{buf}");
+        return Ok(());
     }
-    tasks.sort_by_key(|(_, m, _)| m.started_at.unwrap_or_else(Utc::now));
 
-    let mut current_agent: Option<String> = None;
+    // Group captures by (agent_id, tool_use_id) for display.
+    let mut current_agent: Option<Option<String>> = None;
+    let mut current_tuid: Option<String> = None;
+
+    // Precompute group sizes keyed by (agent_id, tool_use_id).
+    let mut group_sizes: Vec<((Option<String>, String), usize)> = Vec::new();
+    for c in &captures {
+        let key = (c.agent_id.clone(), c.tool_use_id.clone());
+        if let Some(last) = group_sizes.last_mut() {
+            if last.0 == key {
+                last.1 += 1;
+                continue;
+            }
+        }
+        group_sizes.push((key, 1));
+    }
+    let mut group_iter = group_sizes.iter();
+
+    for c in &captures {
+        if current_agent.as_ref() != Some(&c.agent_id) {
+            current_agent = Some(c.agent_id.clone());
+            current_tuid = None;
+            let agent_label = c.agent_id.clone().unwrap_or_else(|| "_main".into());
+            writeln!(buf, "agent: {agent_label}")?;
+        }
+        if current_tuid.as_ref() != Some(&c.tool_use_id) {
+            current_tuid = Some(c.tool_use_id.clone());
+            let n = group_iter
+                .next()
+                .map(|(_, n)| *n)
+                .unwrap_or(1);
+            let plural = if n == 1 { "capture" } else { "captures" };
+            writeln!(
+                buf,
+                "  tool-use {} ({} {})",
+                c.tool_use_id, n, plural
+            )?;
+        }
+        write_capture(&mut buf, c)?;
+    }
+
+    // Chronological merge of events.jsonl across all surviving captures'
+    // tool_use_id dirs. Each tool_use_id dir owns a single events.jsonl.
+    let mut seen_tuid_dirs: Vec<PathBuf> = Vec::new();
     let mut all_events: Vec<(String, Event)> = Vec::new();
-    for (agent_id, meta, task_dir) in &tasks {
-        if agent_id != &current_agent {
-            current_agent = agent_id.clone();
-            writeln!(buf, "agent: {}", agent_id.clone().unwrap_or_else(|| "_main".into()))?;
+    for c in &captures {
+        let tuid_dir = c
+            .capture_dir
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| c.capture_dir.clone());
+        if seen_tuid_dirs.contains(&tuid_dir) {
+            continue;
         }
-        write_task(&mut buf, meta, task_dir)?;
-        if let Ok(evts) = events::read_all(task_dir) {
-            for e in evts { all_events.push((meta.task_id.clone(), e)); }
+        seen_tuid_dirs.push(tuid_dir.clone());
+        if let Ok(evts) = events::read_all(&tuid_dir) {
+            for e in evts {
+                all_events.push((c.tool_use_id.clone(), e));
+            }
         }
     }
-
     all_events.sort_by_key(|(_, e)| e.ts);
     if !all_events.is_empty() {
-        writeln!(buf, "\nevents (chronological, all tasks):")?;
+        writeln!(buf, "\nevents (chronological, all captures):")?;
         for (tid, e) in &all_events {
-            writeln!(buf, "  {}  {:<20} {:<20} {}",
-                e.ts.format("%H:%M:%S%.3f"), e.kind, tid, e.data)?;
+            writeln!(
+                buf,
+                "  {}  {:<14} {:<20} {}",
+                e.ts.format("%H:%M:%S%.3f"),
+                e.kind,
+                tid,
+                e.data
+            )?;
         }
     }
 
@@ -65,102 +150,146 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
     Ok(())
 }
 
-fn collect_tasks(
-    dir: &Path,
-    agent: Option<String>,
-    out: &mut Vec<(Option<String>, TaskMeta, PathBuf)>,
-) -> Result<()> {
-    let rd = fs::read_dir(dir)?;
-    for entry in rd {
-        let entry = entry?;
+/// Walk `<session>/[<subagent>/]<tool_use_id>/<pid>/` and accumulate captures.
+///
+/// Discrimination between subagent vs tool_use_id at the second level:
+/// a tool_use_id dir contains pid-named subdirs (numeric, parseable as `u32`);
+/// a subagent dir contains tool_use_id-named subdirs (non-numeric). See
+/// `dir_holds_pid_children`.
+fn collect_captures(session_dir: &Path, out: &mut Vec<Capture>) -> Result<()> {
+    let rd = match fs::read_dir(session_dir) {
+        Ok(r) => r,
+        Err(_) => return Ok(()),
+    };
+    for entry in rd.flatten() {
         let path = entry.path();
         if !path.is_dir() {
             continue;
         }
-        let meta_path = path.join("meta.json");
-        if meta_path.is_file() {
-            if let Ok(Meta::Task(t)) = meta::read_meta(&path) {
-                out.push((agent.clone(), t, path));
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        if dir_holds_pid_children(&path) {
+            // <session>/<tool_use_id>/<pid>/ — main-thread captures.
+            collect_pid_captures(&path, None, &name, out);
+        } else {
+            // <session>/<subagent>/<tool_use_id>/<pid>/ — subagent captures.
+            let agent_id = name;
+            let inner = match fs::read_dir(&path) {
+                Ok(r) => r,
+                Err(_) => continue,
+            };
+            for ie in inner.flatten() {
+                let tuid_path = ie.path();
+                if !tuid_path.is_dir() {
+                    continue;
+                }
+                let tuid_name = match tuid_path.file_name().and_then(|n| n.to_str()) {
+                    Some(n) => n.to_string(),
+                    None => continue,
+                };
+                if !dir_holds_pid_children(&tuid_path) {
+                    continue;
+                }
+                collect_pid_captures(&tuid_path, Some(agent_id.clone()), &tuid_name, out);
             }
-        } else if agent.is_none() {
-            let aid = path.file_name().unwrap().to_string_lossy().into_owned();
-            collect_tasks(&path, Some(aid), out)?;
         }
     }
     Ok(())
 }
 
-fn write_task(buf: &mut String, m: &TaskMeta, task_dir: &Path) -> Result<()> {
-    let live = is_live(m);
+/// Discriminator: returns true iff `dir` has at least one subdirectory whose
+/// name parses as `u32` (pid). Empty dirs return false (treated as a subagent
+/// placeholder — they contribute nothing either way).
+fn dir_holds_pid_children(dir: &Path) -> bool {
+    let rd = match fs::read_dir(dir) {
+        Ok(r) => r,
+        Err(_) => return false,
+    };
+    for entry in rd.flatten() {
+        let p = entry.path();
+        if !p.is_dir() {
+            continue;
+        }
+        if let Some(n) = p.file_name().and_then(|n| n.to_str()) {
+            if n.parse::<u32>().is_ok() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn collect_pid_captures(
+    tuid_dir: &Path,
+    agent_id: Option<String>,
+    tool_use_id: &str,
+    out: &mut Vec<Capture>,
+) {
+    let rd = match fs::read_dir(tuid_dir) {
+        Ok(r) => r,
+        Err(_) => return,
+    };
+    for entry in rd.flatten() {
+        let p = entry.path();
+        if !p.is_dir() {
+            continue;
+        }
+        let is_pid = p
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.parse::<u32>().is_ok())
+            .unwrap_or(false);
+        if !is_pid {
+            continue;
+        }
+        let m = match meta::read_meta(&p) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        out.push(Capture {
+            agent_id: agent_id.clone(),
+            tool_use_id: tool_use_id.to_string(),
+            capture_dir: p,
+            meta: m,
+        });
+    }
+}
+
+fn write_capture(buf: &mut String, c: &Capture) -> Result<()> {
+    let m = &c.meta;
+    let live = m.ended_at.is_none() && is_pid_alive(m.child_id as i32);
     let status = if live {
         "[running]".to_string()
     } else {
-        format!("[exited {}]", m.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "?".into()))
+        format!(
+            "[exited {}]",
+            m.exit_code
+                .map(|e| e.to_string())
+                .unwrap_or_else(|| "?".into())
+        )
     };
-    writeln!(buf, "\ntask {} {}", m.task_id, status)?;
+    writeln!(buf, "    pid {} {}", m.child_id, status)?;
     if let Some(d) = &m.desc {
-        writeln!(buf, "  desc:           {d}")?;
+        writeln!(buf, "      desc:    {d}")?;
     }
-    if let Some(s) = m.started_at {
-        let dur = (Utc::now() - s).num_seconds().max(0);
-        writeln!(buf, "  started:        {}  ({}s ago)", s.format("%Y-%m-%dT%H:%M:%SZ"), dur)?;
-    }
-    writeln!(buf, "  silence-warn:   {}ms", m.silence_threshold_ms)?;
-    if let Some(p) = m.pid { writeln!(buf, "  pid:            {p}")?; }
-    let cmd_path = task_dir.join("command.sh");
-    if cmd_path.is_file() {
-        let raw = fs::read_to_string(&cmd_path).unwrap_or_default();
-        let trimmed: String = raw.chars().take(120).collect();
-        writeln!(buf, "  cmd (truncated): {trimmed}")?;
-    }
-    let stdout_p = task_dir.join("stdout");
-    let stderr_p = task_dir.join("stderr");
-    writeln!(buf, "  stdout:         {}  ({} bytes)",
+    writeln!(buf, "      cmd:     {}", m.command.join(" "))?;
+    let stdout_p = c.capture_dir.join("stdout");
+    let stderr_p = c.capture_dir.join("stderr");
+    writeln!(
+        buf,
+        "      stdout:  {}  ({} bytes)",
         stdout_p.display(),
-        stdout_p.metadata().map(|m| m.len()).unwrap_or(0))?;
-    writeln!(buf, "  stderr:         {}  ({} bytes)",
+        stdout_p.metadata().map(|md| md.len()).unwrap_or(0)
+    )?;
+    writeln!(
+        buf,
+        "      stderr:  {}  ({} bytes)",
         stderr_p.display(),
-        stderr_p.metadata().map(|m| m.len()).unwrap_or(0))?;
-
-    let children_dir = task_dir.join("children");
-    if children_dir.is_dir() {
-        let mut kids: Vec<ChildMeta> = Vec::new();
-        if let Ok(rd) = fs::read_dir(&children_dir) {
-            for entry in rd.flatten() {
-                let p = entry.path();
-                if p.is_dir() {
-                    if let Ok(Meta::Child(c)) = meta::read_meta(&p) {
-                        kids.push(c);
-                    }
-                }
-            }
-        }
-        kids.sort_by_key(|c| c.started_at.unwrap_or_else(Utc::now));
-        if !kids.is_empty() {
-            writeln!(buf, "  children:")?;
-            for c in &kids {
-                let st = if c.ended_at.is_none() && is_pid_alive(c.child_id as i32) {
-                    "[running]".to_string()
-                } else {
-                    format!("[exited {}]", c.exit_code.map(|e| e.to_string()).unwrap_or_else(|| "?".into()))
-                };
-                writeln!(buf, "    pid {} {}", c.child_id, st)?;
-                if let Some(d) = &c.desc { writeln!(buf, "      desc:     {d}")?; }
-                writeln!(buf, "      cmd:      {}", c.command.join(" "))?;
-                writeln!(buf, "      stdout:   {}", task_dir.join("children").join(c.child_id.to_string()).join("stdout").display())?;
-                writeln!(buf, "      stderr:   {}", task_dir.join("children").join(c.child_id.to_string()).join("stderr").display())?;
-            }
-        }
-    }
+        stderr_p.metadata().map(|md| md.len()).unwrap_or(0)
+    )?;
     Ok(())
-}
-
-fn is_live(m: &TaskMeta) -> bool {
-    if m.ended_at.is_some() { return false; }
-    match m.pid {
-        Some(p) => is_pid_alive(p as i32),
-        None => true,
-    }
 }
 
 fn is_pid_alive(pid: i32) -> bool {
