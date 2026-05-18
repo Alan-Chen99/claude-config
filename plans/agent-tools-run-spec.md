@@ -1,42 +1,90 @@
-# agent-tools wrap-task / run — User Requirements
+# agent-tools run — User Requirements
 
-A wrapper layer for Bash and Monitor tool calls that recovers what Claude Code's current Bash tool throws away.
+A capture layer for Bash and Monitor tool calls that lets agents recover
+output Claude Code's pipeline would otherwise discard. Capture is opt-in
+per stage via `agent-tools run`; the PostToolUse hook surfaces every
+capture back to the agent so it can `Read` the disk path.
 
 ## Why
 
-Truncating pipes (`| tail -5`, `| grep`, `| wc -l`, `| jq .field`) discard upstream stdout before the Bash tool sees it.
-This causes problem if the command before the pipe is slow (e.g. compiling), cost money (e.g. api calls) or have side effects (e.g. apt, gdb).
+Truncating pipes (`| tail -5`, `| grep`, `| wc -l`, `| jq .field`) discard
+upstream stdout before the Bash tool sees it. This costs the agent when
+the upstream command is slow (e.g. compiling), expensive (e.g. paid API
+call), or has side effects (e.g. apt, gdb, schema migration). Claude
+Code's tool result can also be truncated when output exceeds its display
+cap.
 
-The fix has to live inside the shell command itself, between pipe segments.
+The fix has to live inside the shell command itself, between pipe
+segments, or wrap the whole command at top level.
 
 ## Components
 
-- **`agent-tools wrap-task`** — internal. PreToolUse hook rewrites every Bash and Monitor command to invoke wrap-task around the original. wrap-task creates per-task state, captures the top-level command's stdout/stderr, and watches for silence.
+- **`agent-tools run [--desc DESC] -- <cmd>`** — agent-facing. Insert
+  explicitly anywhere an output might be lost, e.g.
+  `find … | agent-tools run --desc wc -- xargs wc -l | tail -3`, or at
+  top level when CC may truncate the tool result. Only flag is `--desc`.
 
-- **`agent-tools run [--desc DESC] -- <cmd>`** — agent-facing. Agent inserts explicitly inside pipelines where intermediate capture is wanted, e.g. `find … | agent-tools run -- xargs wc -l | tail -3`. Only flag is `--desc`.
+  - Pass-through: forwards signals, does not buffer; argv-exec'd directly
+    (no `bash -c` wrapper).
+  - Tees stdout/stderr to a file under the parent dir (set by
+    `AGENT_TOOLS_PARENT_DIR`).
+  - Loud failure if `AGENT_TOOLS_PARENT_DIR` is not set — the PreToolUse
+    hook is responsible for setting it.
 
-  - Tries to be as pass-through as possible: forwards signals, does not buffer (add tests for this).
-  - captures stdout, stderr to a file
+- **`agent-tools hook-pre`** — PreToolUse hook (Rust subcommand wired in
+  `settings.json:70-77`). For Bash/Monitor, prepends a fixed shell prefix
+  to the user's command:
+  `unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='<path>'; <original>`
+  No state on disk; no `command.sh`, no `meta.json`, no `exec` wrapper.
+  Claude Code's native bash invocation (shell snapshot, `eval … < /dev/null`,
+  post-`cd` cwd capture) is preserved verbatim.
 
-- **`agent-tools ps [--tasks <id>] [--session-id <id>]`** — agent-facing. Default (no args): resolve to all live tasks in this session
+- **`agent-tools hook-post`** — PostToolUse hook (Rust subcommand wired
+  in `settings.json:82-89`). For Bash/Monitor, lists every
+  `agent-tools run` capture from this tool call by scanning the parent
+  dir for pid subdirs, and emits the listing in `additionalContext`.
+  Also detects and explains involuntary backgrounding
+  (`backgroundTaskId` in the tool response). Stays silent when neither
+  applies.
 
-  - Each task: detail showing task id, started time, current time, desc, agent, silence-warning threshold, child list (each: child id, desc, which subagent, pid, truncated command, stdout and stderr path + size).
-  - Over all tasks: A chronological event log (started, first byte in, first byte out, first byte after silence of <N>s, exit with code, other notable events). `--session-id` exists for cross-session diagnosis (a session-A agent inspecting session-B tasks).
-
-- **`agent-tools hook-pre`** + **`agent-tools hook-post`** — Rust subcommands invoked directly from `settings.json` as PreToolUse / PostToolUse handlers for the `Bash|Monitor` matcher. No shell or Python in the loop.
+- **`agent-tools ps [--task <id>] [--session-id <id>]`** — agent-facing.
+  Lists `agent-tools run` captures grouped by `tool_use_id` for the
+  current or specified session. Each capture: pid, desc, command,
+  stdout/stderr path + size, exit code or running status.
+  `--session-id` exists for cross-session diagnosis (a session-A agent
+  inspecting session-B captures).
 
 ## State
 
-- Lives under `~/.claude/agent-tools/<session>/<taskid>/`, `~/.claude/agent-tools/<session>/<subagent session>/<taskid>/`
-- All captured stdout/stderr is durable on disk, addressable by the absolute paths `ps` prints.
-- Content retrieval is via the agent's `Read` tool on those paths. There is no content-slicing subcommand (`--tail`, `--head`, `--grep`, etc.).
+- Lives under `~/.claude/agent-tools/<session>/[<subagent>/]<tool_use_id>/<pid>/`.
+- Each `<pid>` subdir contains `stdout`, `stderr`, `meta.json`.
+- Parent dir (`<tool_use_id>/`) is created lazily on first
+  `agent-tools run` invocation. Bash calls that don't invoke
+  `agent-tools run` leave no disk state.
+- All captured output is durable on disk, addressable by the absolute
+  paths PostToolUse and `ps` print.
+- Content retrieval is via the agent's `Read` tool on those paths. There
+  is no content-slicing subcommand (`--tail`, `--head`, `--grep`, etc.).
 
 ## Constraints
 
-- **Exactly one env var (task id)** propagated to descendants. Everything else stored in disk.
-- **Everything in Rust.** Hook entries in `settings.json` invoke Rust subcommands of `agent-tools` directly.
+- **Exactly one env var (`AGENT_TOOLS_PARENT_DIR`)** propagated to user
+  commands. Everything else stored on disk under that dir.
+- **Everything in Rust.** Hook entries in `settings.json` invoke Rust
+  subcommands of `agent-tools` directly.
 - **No truncation** of captured output. Captures grow without bound.
-- **No GC, no `clean` subcommand.** A human removes stale state from the directory manually. A persistent Monitor on a chatty log will eventually fill the disk — accepted trade-off for never losing output.
-- **No hidden magic** Runtime agents understand everything that happen easily.
-- **General & composable** Call from temporary bash or python scripts
-- **Background-compatible** Handles timeout, timeout backgrouding, monitor correctly
+- **No GC, no `clean` subcommand.** A human removes stale state from the
+  directory manually. A persistent Monitor on a chatty log will
+  eventually fill the disk — accepted trade-off for never losing
+  captured output.
+- **No hidden magic.** The PreToolUse hook only prepends `unset` and
+  `export`; CC's bash command is otherwise unmodified. Shell flags, `$0`,
+  monitor mode, aliases, and `cd` tracking all match Claude Code native
+  behavior. (Justified by `plans/wrap-task-bash-state-experiment.md`,
+  which documented the divergence under the prior wrap-task model.)
+- **General & composable.** `agent-tools run` is invokable from
+  temporary bash or python scripts inside a Bash tool call; no special
+  calling convention.
+- **Background-compatible.** PostToolUse surfaces involuntary
+  backgrounding notices (timeout, KAIROS auto-bg, user Ctrl+B)
+  independent of whether `agent-tools run` was used.

@@ -1,20 +1,17 @@
-# agent-tools run — finish prompt + post-hook delivery
+# agent-tools — Option B implementation plan
 
-Companion to `plans/agent-tools-run-spec.md`. The Rust code in
-`agent-tools/src/` is mostly implemented. Two coordinated changes remain
-before the feature delivers any user-visible value:
+This plan replaces the prior wrap-task-based approach. Drop wrap-task
+entirely; the PreToolUse hook becomes a minimal env-injection prefix.
+Top-level Bash output is no longer captured. Capture happens only when
+the agent invokes `agent-tools run`. PostToolUse lists every such
+capture so the agent can `Read` the disk path.
 
-1. `sys_prompt/alan-default-next.md` never mentions `agent-tools run`, so
-   the agent has no instruction to insert it into pipelines where upstream
-   stdout would be discarded.
-2. `agent-tools/src/hook_post.rs` only emits PostToolUse
-   `additionalContext` when a command was involuntarily backgrounded. On
-   normal Bash/Monitor completion it returns silently, so the agent never
-   learns the absolute path where wrap-task captured stdout/stderr.
-
-Both legs must land together: the prompt rule is useless without the hook
-delivering paths, and the hook output is undiscoverable without the prompt
-rule.
+Companion docs:
+- `plans/agent-tools-run-spec.md` — updated spec (Option B).
+- `plans/wrap-task-bash-state-experiment.md` — historical evidence for
+  why wrap-task's `bash <command.sh>` invocation broke shell-state
+  invariants ($-, $0, monitor, aliases, post-`cd` cwd capture). Cited
+  in Decision #1 below.
 
 ---
 
@@ -22,97 +19,111 @@ rule.
 
 | # | Decision | Options considered | Chosen | Reason |
 |---|----------|--------------------|--------|--------|
-| 1 | How does the agent learn about `agent-tools run`? | (A) always-emit hook + system-prompt decision rule; (B) reactive heuristic hook only, no prompt change | A | B's heuristic silently misses chained-with-semicolons (`make; tail`), bash-function-wrapped truncators, and tool-result-truncation cases — violates the Loud Failure rule at `alan-default-next.md:64`. A restores all four invariant pairs from the prompt-patch analysis. |
-| 2 | `additionalContext` layout | multi-line `\n`; single-line `;`-separated | single-line `;` | Existing hook output (`hook_post.rs:56-64`) has no precedent for `\n` in this field; rendering of newlines in `additionalContext` is unverified in the codebase. Single-line matches existing style and removes the rendering question. |
-| 3 | Where in `alan-default-next.md` does the rule go? | new top-level section; subsection of `# Using your tools` co-located with `## Bash Tool Timeout Behavior` | co-located, immediately after Bash Tool Timeout Behavior | Same shape (non-obvious Bash failure mode + concrete decision rule). Visually paired so the agent reads both together. |
-| 4 | Decision rule shape | wrap last stage; drop the truncator entirely; wrap upstream stage | wrap upstream stage | wrap-task already captures the last stage. Dropping the truncator forces full output into the visible result, which Claude Code may itself truncate. Wrap-upstream is the only fix that preserves both compact visible result and full disk capture. End-to-end probe (`echo "hi $(date +%s)" \| agent-tools run --desc probe -- cat \| head -1`) verified: outer captures head's output, child captures cat's output. |
-| 5 | Idempotency for Monitor streaming PostToolUse | no marker; marker file in task dir; stat capture file size > 0 before emit | marker file `.paths_emitted` | First-call wins is the simplest correct behavior. Stat-based deferral adds disk read per call; marker is at most one `fs::write` per task. If Claude Code fires PostToolUse only once per Monitor instance, marker is a no-op. |
-| 6 | "(if any)" wording vs. dynamic omission of the children-paths clause | always-emit with "(if any)"; `fs::read_dir(children/)` and omit when empty | "(if any)" with explicit `list children/` instruction | Cheaper (no read_dir per Bash call) and unambiguous. Implementer can revisit if children-line noise becomes a real problem. |
-| 7 | Include a `REDUNDANT` anti-example? | decision text only; decision text + anti-example showing top-level `agent-tools run` wrap | both | Anti-example pre-empts the medium-severity over-application regression (agent wrapping every stage "to be safe"). Cost: 2 prompt lines. |
-| 8 | Ship both changes together vs. independently? | prompt rule first; hook change first; coordinated | coordinated single landing | A prompt rule citing a path the hook never prints, or a hook printing a path the agent has no instruction to use, is dead weight on its own. The invariant is restored only when both legs land. |
-| 9 | Hook emits paths block for trivial commands (`ls`, `pwd`)? | yes (always); no (heuristic gating) | yes (always) | Heuristic gating reintroduces the silent-miss class Decision #1 rejected. Accepted token cost: ~250 bytes per call (~60 tokens). |
-| 10 | What `agent-tools run` argument is the wrapped segment? | child (segment immediately after `--`); parent (stdin source) | child | Verified by `run.rs:25-31` + `capture.rs:18-60`: `agent-tools run` spawns its argv as a child, captures the child's stdout/stderr via tee, and forwards transparently to the next pipe stage. Documented this in the prompt subsection. |
+| 1 | Drop wrap-task, fix its spawn, or keep as-is? | (A) keep, `bash <command.sh>`; (B) drop, hook prepends `unset` only; (C) keep, fix spawn to `bash -c "source <snap> && eval …"` | B | A leaves the shell-state divergence broken. C requires per-session snapshot discovery and the on-disk filename `/root/.claude/shell-snapshots/snapshot-bash-<ts>-<rand>.sh` has no clean `session_id`→filename mapping. Empirical reads of wrap-task captures across 7 days of session logs: **0** — the "always-on safety net" of A wasn't being collected on. |
+| 2 | Env var name for the parent dir | `AGENT_TOOLS_TASK_ID`, `AGENT_TOOLS_PARENT_DIR`, `CLAUDE_AGENT_TOOLS_PARENT_DIR` | `AGENT_TOOLS_PARENT_DIR` | Reflects new semantics (parent of run captures, not a wrap-task task id). Matches the `AGENT_TOOLS_` prefix already used. `CLAUDE_` prefix is noise; nothing else in this binary uses it. |
+| 3 | Directory layout under parent | `<tool_use_id>/children/<pid>/`, `<tool_use_id>/runs/<pid>/`, `<tool_use_id>/<pid>/` | `<tool_use_id>/<pid>/` | No top-level files at `<tool_use_id>/` (no command.sh, no top-level stdout/stderr), so `children/` or `runs/` is a dead nesting layer. Bare `<pid>/` subdirs are unambiguous because the parent dir is dedicated to runs. |
+| 4 | When does parent dir get created? | (eager) PreToolUse mkdirs it; (lazy) first `agent-tools run` mkdirs it | lazy | Bash calls without any `agent-tools run` produce zero disk state — matches the spec's "no top-level capture" promise. PostToolUse's existence-check on the dir then doubles as "did anything happen?" |
+| 5 | PostToolUse listing format | (a) multi-line via `\n`; (b) single-line `;`-separated | `;`-separated | Same precedent as existing `hook_post.rs:56-64` (Decision #2 in the prior plan). Rendering of `\n` in `additionalContext` is unverified in this codebase. |
+| 6 | Per-capture line format | (a) path-only; (b) `<desc> → <dir>/{stdout,stderr}`; (c) `<desc> stdout=<path> stderr=<path>` | b | `{stdout,stderr}` brace notation is shell-readable and halves the printed path length. Desc-first prefix makes the listing greppable by the agent's intent. |
+| 7 | Emit listing on success when no run happened? | always-emit "no captures"; silent | silent | Bash tool calls without runs are the common case. Emitting "no captures" on every call costs ~30 tokens × hundreds of calls for zero information. The forgotten-wrap failure mode is handled via the prompt rule, not via paths-block chrome. |
+| 8 | Keep `events.jsonl` bg log? | keep (write `backgrounded` event under parent_dir if it exists); drop | drop | No reader exists for bg events; `ps` shows `child_started`/`child_exit` for runs but no top-level lifecycle. Less state to maintain. The agent-facing notice in `additionalContext` is the only record needed. |
+| 9 | `agent-tools run` standalone (outside Bash hook) | allow (fallback to `~/.claude/agent-tools/standalone/<uuid>/`); error loudly | error loudly | Same as current `run.rs:17-23`. Standalone capture is out of scope; the agent invokes `run` inside a Bash tool, which always has the env via PreToolUse. |
+| 10 | Backwards compatibility for old `AGENT_TOOLS_TASK_ID` env / `task_dir_from_env` | preserve; rename | rename | Per project coding guidelines ("Ignore backwards compatibility unless explicitly told to maintain it"). wrap-task is being deleted; no consumers of the old env var survive. |
 
 ---
 
-## Change 1 — `sys_prompt/alan-default-next.md`
+## Change 1 — Delete `agent-tools/src/wrap_task.rs`
 
-Insert a new `## Bash Output Recovery (agent-tools wrap)` subsection
-between the current end of `## Bash Tool Timeout Behavior` (line 182, last
-bullet: "if a 3-second test hasn't finished in 120s, it is stuck, not
-slow.") and the next heading `# Communication` (line 184). Preserve the
-one-blank-line separator above and below to match existing style.
+Delete the file. From `agent-tools/src/main.rs`:
 
-Exact text to insert:
-
-```
-## Bash Output Recovery (agent-tools wrap)
-
-Every Bash and Monitor call is wrapped by `agent-tools wrap-task` via the
-PreToolUse hook. The outer command's full stdout and stderr are captured
-to disk regardless of what you see in the tool result. The PostToolUse
-hook appends the absolute capture paths to the tool result; Read those
-paths when you need the untruncated output. The wrapping is automatic —
-never invoke `agent-tools wrap-task` directly.
-
-Pipeline capture: the bash command's stdout IS the LAST stage's stdout,
-so wrap-task automatically captures the last stage with no action from
-you. Each upstream stage's output is consumed by the next stage and is
-invisible to wrap-task. If you write `<expensive-producer> |
-<truncating-filter>` (filters: `tail`, `head`, `grep`, `jq .field`, `wc`,
-`sed -n`), the producer's full output is gone — only the filter's result
-reaches wrap-task. To preserve an upstream stage's output, wrap THAT
-stage (not the last stage) with `agent-tools run`.
-
-Decision:
-
-- Top-level Bash, or pipeline where the last stage's output is what you want — wrap-task already captures it. Do NOT wrap the top-level command with `agent-tools run`; double-wrapping creates a redundant child capture.
-- Pipeline where an UPSTREAM stage's output is what you want preserved — wrap that stage with `agent-tools run --desc <short label> --`. `run` tees the wrapped stage's stdout/stderr to disk and forwards them transparently to the next pipe stage. Wrap each upstream stage independently if you want multiple intermediate captures.
-- Wrap only upstream stages whose output you actually expect to read later. Speculative wrapping just creates child-capture dirs that nobody will look at. When in doubt, leave it un-wrapped — wrap-task will still capture the last stage.
-
-"Upstream stage worth wrapping" = slow (compile, test suite), costly
-(paid API call), side-effecting (apt, gdb, network mutation), or a
-structured intermediate that a later stage consumes (find output before
-xargs, jq output before sort).
-
-Examples:
-
-    # WRONG — wc -l's counts are consumed by tail and lost
-    find . -name '*.py' | xargs wc -l | tail -3
-
-    # RIGHT — wc -l captured before tail truncates them
-    find . -name '*.py' | agent-tools run --desc wc -- xargs wc -l | tail -3
-
-    # Multiple upstream captures
-    find . | agent-tools run --desc found -- xargs wc -l | agent-tools run --desc counts -- sort -n | tail -3
-
-    # Shell features (redirection, glob expansion) — wrap with bash -c
-    agent-tools run --desc build -- bash -c 'make 2>&1' | tail -20
-
-    # REDUNDANT — wrap-task already captures top-level commands; do NOT double-wrap
-    agent-tools run --desc pytest -- pytest tests/
-
-To recover lost output, Read the `stdout` / `stderr` path listed in the
-PostToolUse additionalContext. Do not re-run the producer.
-```
+- Remove `mod wrap_task;` (line 18).
+- Remove the `Cmd::WrapTask { task_dir: String }` variant declaration
+  (lines 64-68) and its `#[command(name = "wrap-task")]` attribute.
+- Remove the `Cmd::WrapTask { task_dir } => { … wrap_task::run(…) … }`
+  dispatch arm (lines 167-177).
+- Remove the `Cmd::WrapTask { .. } => unreachable!()` arm (line 270).
 
 ---
 
-## Change 2 — `agent-tools/src/hook_post.rs`
+## Change 2 — `agent-tools/src/hook_pre.rs`
 
-Replace the body of `pub fn run()` (lines 8–74) with the version below.
-
-Behavioral diff vs. current:
-
-- Removed the early-return on missing `backgroundTaskId` (current lines 25–27).
-- `task_dir` resolution lifted out of the bg branch — runs for every Bash/Monitor call.
-- New `.paths_emitted` marker in `task_dir` suppresses repeat emission for streaming Monitor tools.
-- New single-line `paths_block` is the always-on `additionalContext`.
-- BACKGROUNDED supplement is appended to `paths_block` (with a leading space) instead of containing the old `"Captured output paths in: {task_dir}"` fragment — path list no longer duplicated.
-- Existing `events::append("backgrounded", ...)` preserved unchanged.
-- `input.agent_id.as_deref()` MUST be passed to `paths::task_dir_for` in the lifted call so subagent task dirs continue to namespace correctly under `~/.claude/agent-tools/<session>/<subagent session>/<taskid>/` (per `plans/agent-tools-run-spec.md:30`).
+Replace the body of `pub fn run()` with the version below. Drop
+`prepare_task_dir` and all of its callers — no `command.sh`, no
+`meta.json`, no `mkdir`.
 
 ```rust
+pub fn run() -> Result<()> {
+    let mut buf = String::new();
+    std::io::stdin().read_to_string(&mut buf).context("read stdin")?;
+
+    let input = match hook_input::parse_pre(&buf) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("agent-tools hook-pre: parse error: {e:#}");
+            print_allow_passthrough();
+            return Ok(());
+        }
+    };
+
+    if input.tool_name != "Bash" && input.tool_name != "Monitor" {
+        print_allow_passthrough();
+        return Ok(());
+    }
+
+    let parent_dir = paths::parent_dir_for(
+        &input.session_id,
+        input.agent_id.as_deref(),
+        &input.tool_use_id,
+    )?;
+    let quoted_dir = shell_single_quote(&parent_dir.to_string_lossy());
+    let new_command = format!(
+        "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; \
+         export AGENT_TOOLS_PARENT_DIR={quoted_dir}; \
+         {orig}",
+        orig = input.tool_input.command,
+    );
+    let out = serde_json::json!({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow",
+            "updatedInput": { "command": new_command }
+        }
+    });
+    println!("{}", serde_json::to_string(&out)?);
+    Ok(())
+}
+```
+
+Keep `print_allow_passthrough` and `shell_single_quote` (including its
+tests). Remove imports: `crate::meta::{Meta, TaskMeta}`, `std::fs`,
+`std::path::PathBuf`, `SILENCE_THRESHOLD_MS`.
+
+**Shell-quoting verification**: the hook returns
+`unset …; export AGENT_TOOLS_PARENT_DIR='<path>'; <orig>`. CC's
+pipeline wraps user commands in `eval '<…>'` and handles `'` escaping
+of embedded single quotes via `'\''`. The result evaluates back to the
+intended string. (Verified by inspection against the experiment-notes
+capture of CC's `ps -o args` output at
+`wrap-task-bash-state-experiment.md:31-36`.)
+
+---
+
+## Change 3 — `agent-tools/src/hook_post.rs`
+
+Replace `pub fn run()`. Adds listing of run captures; preserves bg
+detection. Drops the `events::append("backgrounded", …)` write (per
+Decision #8).
+
+```rust
+use anyhow::{Context, Result};
+use std::fs;
+use std::io::Read;
+use std::path::Path;
+
+use crate::hook_input;
+use crate::meta::ChildMeta;
+use crate::paths;
+
 pub fn run() -> Result<()> {
     let mut buf = String::new();
     std::io::stdin().read_to_string(&mut buf).context("read stdin")?;
@@ -129,142 +140,457 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
-    let task_dir = paths::task_dir_for(
+    let parent_dir = paths::parent_dir_for(
         &input.session_id,
         input.agent_id.as_deref(),
         &input.tool_use_id,
     )?;
 
-    // Idempotency for tools (e.g. Monitor) that may fire PostToolUse
-    // repeatedly against the same tool_use_id.
-    let marker = task_dir.join(".paths_emitted");
-    if marker.exists() {
+    let captures = list_captures(&parent_dir);
+    let bg = bg_notice(&input);
+
+    if captures.is_empty() && bg.is_none() {
         return Ok(());
     }
-    let _ = std::fs::write(&marker, b"");
 
-    let paths_block = format!(
-        "[agent-tools] captured: task_dir={td}; stdout={td}/stdout; stderr={td}/stderr; agent-tools run child captures (if any) live under {td}/children/ — one subdir per `agent-tools run` invocation, named by pid, each containing stdout and stderr. Read these paths for the full untruncated output.",
-        td = task_dir.display(),
-    );
-
-    let bg_task_id = input.tool_response.get("backgroundTaskId").and_then(|v| v.as_str());
-    let additional_context = if let Some(bg_task_id) = bg_task_id {
-        let auto = input.tool_response.get("assistantAutoBackgrounded").and_then(|v| v.as_bool()).unwrap_or(false);
-        let user = input.tool_response.get("backgroundedByUser").and_then(|v| v.as_bool()).unwrap_or(false);
-        let (cause_label, cause_for_context) = if auto {
-            ("assistant_auto", "assistant-mode auto-background (KAIROS)".to_string())
-        } else if user {
-            ("user", "user manually backgrounded (Ctrl+B)".to_string())
-        } else {
-            let limit = input.tool_input.timeout.unwrap_or(120_000);
-            ("timeout", format!("timeout ({limit}ms limit hit)"))
-        };
-        let _ = events::append(
-            &task_dir,
-            "backgrounded",
-            serde_json::json!({
-                "cause": cause_label,
-                "background_task_id": bg_task_id,
-                "timeout_ms": input.tool_input.timeout
-            }),
-        );
-        format!(
-            "{paths_block} BACKGROUNDED: Command was involuntarily backgrounded. Cause: {cause}. Process is still running (task_id: {tid}). To kill it: use TaskStop tool with task_id {tid}.",
-            paths_block = paths_block,
-            cause = cause_for_context,
-            tid = bg_task_id,
-        )
-    } else {
-        paths_block
-    };
+    let mut parts: Vec<String> = Vec::new();
+    if !captures.is_empty() {
+        let listing: Vec<String> = captures.iter().map(format_capture).collect();
+        parts.push(format!(
+            "[agent-tools] captures from this Bash call: {}",
+            listing.join("; "),
+        ));
+    }
+    if let Some(b) = bg {
+        parts.push(b);
+    }
 
     let out = serde_json::json!({
         "hookSpecificOutput": {
             "hookEventName": "PostToolUse",
-            "additionalContext": additional_context
+            "additionalContext": parts.join(" ")
         }
     });
     println!("{}", serde_json::to_string(&out)?);
     Ok(())
 }
+
+struct Capture {
+    dir: std::path::PathBuf,
+    desc: Option<String>,
+}
+
+fn list_captures(parent_dir: &Path) -> Vec<Capture> {
+    if !parent_dir.is_dir() {
+        return Vec::new();
+    }
+    let rd = match fs::read_dir(parent_dir) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    let mut out = Vec::new();
+    for entry in rd.flatten() {
+        let p = entry.path();
+        if !p.is_dir() {
+            continue;
+        }
+        let desc = fs::read_to_string(p.join("meta.json"))
+            .ok()
+            .and_then(|s| serde_json::from_str::<ChildMeta>(&s).ok())
+            .and_then(|c| c.desc);
+        out.push(Capture { dir: p, desc });
+    }
+    out.sort_by(|a, b| a.dir.cmp(&b.dir));
+    out
+}
+
+fn format_capture(c: &Capture) -> String {
+    match &c.desc {
+        Some(d) => format!("{} → {}/{{stdout,stderr}}", d, c.dir.display()),
+        None => format!("{}/{{stdout,stderr}}", c.dir.display()),
+    }
+}
+
+fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
+    let bg_task_id = input.tool_response.get("backgroundTaskId").and_then(|v| v.as_str())?;
+    let auto = input.tool_response.get("assistantAutoBackgrounded").and_then(|v| v.as_bool()).unwrap_or(false);
+    let user = input.tool_response.get("backgroundedByUser").and_then(|v| v.as_bool()).unwrap_or(false);
+    let cause = if auto {
+        "assistant-mode auto-background (KAIROS)".to_string()
+    } else if user {
+        "user manually backgrounded (Ctrl+B)".to_string()
+    } else {
+        let limit = input.tool_input.timeout.unwrap_or(120_000);
+        format!("timeout ({limit}ms limit hit)")
+    };
+    Some(format!(
+        "BACKGROUNDED: Command was involuntarily backgrounded. Cause: {cause}. \
+         Process is still running (task_id: {bg_task_id}). \
+         To kill it: use TaskStop tool with task_id {bg_task_id}."
+    ))
+}
 ```
+
+Drop the `crate::events` import — no events written from this hook anymore.
 
 ---
 
-## Change 3 — `agent-tools/tests/hook_post_test.rs`
+## Change 4 — `agent-tools/src/run.rs`
 
-Add cases covering the always-emit behavior:
+Replace `paths::task_dir_from_env()` (line 17) with the new
+`paths::parent_dir_from_env()` reading `AGENT_TOOLS_PARENT_DIR`. Drop
+the `children/` segment from the capture path. Lazily mkdir the parent
+dir on first run (Decision #4).
 
-1. Bash, no `backgroundTaskId`, exit 0 → `additionalContext` present; substring `[agent-tools] captured:`, `stdout=`, `stderr=`.
-2. Bash with `backgroundTaskId` → `additionalContext` contains both `[agent-tools] captured:` AND `BACKGROUNDED:` AND `TaskStop`.
-3. Second `hook_post::run()` against the same `task_dir` (marker pre-created) → no `additionalContext` emitted (stdout empty).
-4. Non-Bash, non-Monitor tool (e.g. `Read`) → no output.
-5. Subagent input (`agent_id` set) → emitted `task_dir` path contains the subagent-id segment.
+Specifically, replace lines 17-35 with:
 
-Update any pre-existing test that asserted the old `"Captured output paths in: {task_dir}"` fragment.
+```rust
+let parent_dir = paths::parent_dir_from_env().map_err(|_| {
+    anyhow!(
+        "AGENT_TOOLS_PARENT_DIR is not set.\n\
+         The PreToolUse hook (agent-tools hook-pre) must run before this command.\n\
+         If you see this from inside a Claude Code Bash tool, the hook is not installed."
+    )
+})?;
+std::fs::create_dir_all(&parent_dir)
+    .with_context(|| format!("mkdir {}", parent_dir.display()))?;
+
+let mut child = Command::new(&cmd[0])
+    .args(&cmd[1..])
+    .stdin(Stdio::inherit())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .with_context(|| format!("spawn {:?}", cmd))?;
+let pid = child.id().context("child pid unavailable")?;
+let child_dir = parent_dir.join(pid.to_string());
+std::fs::create_dir_all(&child_dir)
+    .with_context(|| format!("mkdir {}", child_dir.display()))?;
+```
+
+Adjust the two `ChildMeta { … }` constructors (lines 38-46 and lines
+115-124) to drop the `parent_task_dir` field (removed in Change 6).
+
+`events::append(&parent_dir, "child_started", …)` and `child_exit` calls
+keep their target as `parent_dir/events.jsonl` — semantics unchanged,
+only the variable name changes from `task_dir` to `parent_dir`.
+
+The `crate::meta::{self, ChildMeta, Meta}` import simplifies to
+`crate::meta::{self, ChildMeta}` (the `Meta` enum is removed in Change
+6).
+
+---
+
+## Change 5 — `agent-tools/src/paths.rs`
+
+Rename for new semantics. Update doc comments, error messages, and
+tests in this file (lines 51-92):
+
+- `pub fn task_dir_for(...)` → `pub fn parent_dir_for(...)`. Signature
+  and body unchanged.
+- `pub fn task_dir_from_env() -> Result<PathBuf>` →
+  `pub fn parent_dir_from_env() -> Result<PathBuf>`. Read
+  `AGENT_TOOLS_PARENT_DIR` instead of `AGENT_TOOLS_TASK_ID`. Update
+  the error message accordingly.
+- `pub fn parse_task_dir(...)` → `pub fn parse_parent_dir(...)`.
+  Signature and body unchanged.
+
+Update the unit tests at lines 56-91 to use the new names.
+
+---
+
+## Change 6 — `agent-tools/src/meta.rs`
+
+Drop the `Meta` enum and `TaskMeta` struct. Expose `ChildMeta` as the
+sole serialized type. Drop the `parent_task_dir` field from `ChildMeta`
+(unused — the child's dir location is the dir containing the meta.json).
+
+```rust
+use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChildMeta {
+    pub child_id: u32,
+    pub desc: Option<String>,
+    pub command: Vec<String>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub ended_at: Option<DateTime<Utc>>,
+    pub exit_code: Option<i32>,
+}
+
+pub fn write_meta(dir: &Path, meta: &ChildMeta) -> Result<()> {
+    fs::create_dir_all(dir).with_context(|| format!("mkdir {}", dir.display()))?;
+    let final_path = dir.join("meta.json");
+    let tmp_path = dir.join("meta.json.tmp");
+    let json = serde_json::to_vec_pretty(meta)?;
+    fs::write(&tmp_path, &json).with_context(|| format!("write {}", tmp_path.display()))?;
+    fs::rename(&tmp_path, &final_path)
+        .with_context(|| format!("rename {} -> {}", tmp_path.display(), final_path.display()))?;
+    Ok(())
+}
+
+pub fn read_meta(dir: &Path) -> Result<ChildMeta> {
+    let bytes = fs::read(dir.join("meta.json"))
+        .with_context(|| format!("read {}/meta.json", dir.display()))?;
+    Ok(serde_json::from_slice(&bytes)?)
+}
+```
+
+Update the unit tests in this file to use the simplified struct.
+
+Note: existing meta.json files on disk from prior wrap-task runs become
+unreadable (they carry the `kind: "task"` or `kind: "child"` tag that
+the new format doesn't expect). Acceptable — those files are stale and
+the user can `rm -rf ~/.claude/agent-tools/` on landing.
+
+---
+
+## Change 7 — `agent-tools/src/ps.rs`
+
+Rewrite for the new addressing model. There are no top-level tasks;
+each session dir contains tool_use_id dirs (optionally nested under a
+subagent dir), and each tool_use_id dir contains pid subdirs (the
+captures).
+
+Walk:
+
+```
+session_dir/
+  ├─ <tool_use_id>/<pid>/{stdout,stderr,meta.json}   ← main-thread captures
+  └─ <subagent_id>/<tool_use_id>/<pid>/{stdout,stderr,meta.json}   ← subagent captures
+```
+
+Detection of subagent vs tool_use_id at the second level: a tool_use_id
+dir contains pid-named subdirs (numeric); a subagent dir contains
+tool_use_id-named subdirs (non-numeric). Use this to discriminate.
+
+Output structure:
+
+```
+session: <sid>
+agent: _main
+  tool-use <tuid> (2 captures):
+    pid 12345 [exited 0]
+      desc:    pytest
+      cmd:     pytest tests/foo.py
+      stdout:  /h/.../<tuid>/12345/stdout  (4521 bytes)
+      stderr:  /h/.../<tuid>/12345/stderr  (0 bytes)
+    pid 12346 [running]
+      ...
+agent: <subagent-id>
+  tool-use <tuid2> (1 capture):
+    ...
+
+events (chronological, all captures):
+  HH:MM:SS.mmm  child_started  <tuid>  pid=12345 desc=...
+  HH:MM:SS.mmm  child_exit     <tuid>  pid=12345 exit_code=0
+```
+
+Liveness uses the existing `is_pid_alive(child_id)` check. Drop all
+`TaskMeta`-related code, the `_main` task header heuristic, and the
+`cmd (truncated): command.sh` line.
+
+`--task <id>` filter now matches `tool_use_id` (semantically same as
+before — current `TaskMeta.task_id` was always set to `tool_use_id` per
+`hook_pre.rs:62-64`).
+
+---
+
+## Change 8 — `agent-tools/src/main.rs`
+
+Remove `mod wrap_task;` (line 18), the `Cmd::WrapTask` variant
+(lines 64-68), its dispatch arm (lines 167-177), and the
+`Cmd::WrapTask { .. } => unreachable!()` arm (line 270).
+
+No other changes. `Cmd::Run`, `HookPre`, `HookPost`, `Ps` dispatches
+stay.
+
+---
+
+## Change 9 — Tests
+
+### `agent-tools/tests/hook_pre_test.rs` (new or update existing)
+
+1. **Bash with simple command**: `updatedInput.command` matches the
+   regex
+   `^unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='[^']+'; echo hi$`.
+2. **Subagent**: the exported `AGENT_TOOLS_PARENT_DIR` path contains
+   the subagent id segment between session and tool_use_id.
+3. **Non-Bash, non-Monitor (Read)**: passthrough — no rewrite, just
+   `permissionDecision: allow` with no `updatedInput`.
+4. **Command containing single quote**: the original command (after
+   the prepend's `; `) is preserved byte-for-byte; the
+   `AGENT_TOOLS_PARENT_DIR` value is itself properly quoted (no broken
+   escaping of the path).
+
+### `agent-tools/tests/hook_post_test.rs` (update existing)
+
+1. **No parent dir on disk, no bg**: no `additionalContext` emitted
+   (stdout empty after JSON parse, or no `hookSpecificOutput` present).
+2. **Parent dir exists with two pid subdirs, no bg**: `additionalContext`
+   contains `[agent-tools] captures from this Bash call:` and both
+   subdir paths joined with `; `.
+3. **`backgroundTaskId` present, no captures**: `additionalContext`
+   contains only the `BACKGROUNDED:` text.
+4. **Both captures and `backgroundTaskId`**: `additionalContext`
+   contains both segments, joined with a space.
+5. **Subagent with captures**: emitted paths contain the subagent id
+   segment.
+6. **Per-capture format**: with `meta.json { "desc": "pytest", … }` →
+   line is `pytest → <dir>/{stdout,stderr}`. Without desc → bare
+   `<dir>/{stdout,stderr}`.
+7. **Non-Bash, non-Monitor (Read)**: no output.
+
+Remove or update any pre-existing test that depended on
+`task_dir_from_env`, `AGENT_TOOLS_TASK_ID`, wrap-task's `command.sh`
+output, or the `"Captured output paths in: {task_dir}"` fragment.
+
+---
+
+## Change 10 — `sys_prompt/alan-default-next.md`
+
+Insert a new `## Bash Output Recovery (agent-tools run)` subsection
+between the current end of `## Bash Tool Timeout Behavior` (line 182,
+last bullet "if a 3-second test hasn't finished in 120s, it is stuck,
+not slow.") and the next heading `# Communication` (line 184). Preserve
+the one-blank-line separator above and below to match existing style.
+
+Exact text to insert:
+
+```
+## Bash Output Recovery (agent-tools run)
+
+Claude Code may truncate tool results, and pipelines truncate upstream
+stages (`| tail`, `| head`, `| grep`, `| wc -l`, `| jq .field`). Top-
+level Bash output is NOT automatically captured to disk. To preserve
+output that would otherwise be lost, wrap the producing stage with
+`agent-tools run --desc <short label> -- <command>`. It tees stdout and
+stderr to disk and forwards them transparently to the next pipe stage.
+After the Bash call completes, the PostToolUse hook lists every
+`agent-tools run` capture from that call in `additionalContext` — Read
+the listed paths for the full untruncated output.
+
+Wrap when:
+
+- The command is slow (compile, test suite, model inference).
+- The command costs money (paid API call, GPU time).
+- The command has side effects you don't want to repeat (apt, gdb,
+  schema migration, network mutation).
+- A downstream pipe stage will discard the output (truncating filter).
+- Tool-result truncation could hide what you need (e.g. `cargo test -v`
+  output volume exceeds CC's display cap).
+
+When in doubt, wrap. A disk capture costs nothing; re-running an
+expensive producer wastes time and money.
+
+Examples:
+
+    # Top-level — captured under .../<tool_use_id>/<pid>/{stdout,stderr}
+    agent-tools run --desc pytest -- pytest tests/foo.py
+
+    # Upstream stages — each wrapped stage gets its own capture
+    find . | agent-tools run --desc wc -- xargs wc -l | tail -3
+
+    # Multiple intermediate captures in one pipeline
+    find . | agent-tools run --desc found -- xargs wc -l | agent-tools run --desc counts -- sort -n | tail -3
+
+    # Shell features (redirection, glob expansion) — wrap with bash -c
+    agent-tools run --desc build -- bash -c 'make 2>&1' | tail -20
+
+The PostToolUse listing is the path to Read for full output. Do not
+re-run the producer.
+```
 
 ---
 
 ## Mandatory verification before commit
 
-The `agent-tools run` semantics described in the prompt were verified
-end-to-end against the existing binary in this session:
-
-```
-$ echo "hi $(date +%s)" | agent-tools run --desc probe -- cat | head -1
-hi 1779065998
-
-# Outer wrap-task capture (LAST stage = head -1):
-$ cat <task_dir>/stdout
-hi 1779065998
-
-# agent-tools run child capture (UPSTREAM stage = cat):
-$ cat <task_dir>/children/<pid>/stdout
-hi 1779065998
-```
-
-After applying the changes and rebuilding, re-run inside a Claude Code
-session to confirm the new hook output:
+After applying all changes and rebuilding:
 
 ```
 cd /root/claude-config-work/agent-tools && cargo build --release
-# inside a fresh Claude Code session:
+```
+
+In a fresh Claude Code session:
+
+```
 echo "hi $(date +%s)" | agent-tools run --desc probe -- cat | head -1
 ```
 
 Verify:
 
 1. Visible tool result contains `hi <timestamp>`.
-2. PostToolUse `additionalContext` contains `[agent-tools] captured: task_dir=...`.
-3. Read the listed `<task_dir>/stdout` → `hi <timestamp>\n` (head -1's output).
-4. List `<task_dir>/children/` → one subdir; Read its `stdout` → `hi <timestamp>\n` (cat's output, proves upstream capture).
+2. PostToolUse `additionalContext` contains
+   `[agent-tools] captures from this Bash call: probe → /…/<tool_use_id>/<pid>/{stdout,stderr}`.
+3. `Read` the listed `<dir>/stdout` → `hi <timestamp>\n` (cat's output;
+   proves capture works).
+4. Run `bash -c 'echo "$-"; echo "$0"; set -o | grep -E "monitor|onecmd"'`
+   from a Bash tool call. Confirm `$-` contains `m` (monitor) and `t`
+   (onecmd-like flags per CC's snapshot), `$0` is `bash`, and `monitor`
+   is `on`. (Proves Option B closed the I3 gap from
+   `wrap-task-bash-state-experiment.md:43-54`.)
+5. Run a Bash call with no `agent-tools run` invocation. Confirm
+   PostToolUse stays silent (no `additionalContext`) and no dir is
+   created under `~/.claude/agent-tools/<session>/<tool_use_id>/`.
 
-If any step diverges, fix the prompt text or hook code to match observed
-behavior before committing.
+If any step diverges, fix the code to match observed behavior before
+committing.
 
 ---
 
 ## Environment requirements
 
-- `agent-tools` binary at `~/.local/bin/agent-tools` (canonical install via `install.sh`; do NOT run `install.sh` from a worktree — would re-point the symlink at the worktree's build and break other sessions).
-- PreToolUse + PostToolUse hooks for `Bash|Monitor` already wired in `settings.json:70-91`. No `settings.json` change.
+- `agent-tools` binary at `~/.local/bin/agent-tools` (canonical install
+  via `install.sh`; do NOT run `install.sh` from a worktree — would
+  re-point the symlink at the worktree's build and break other
+  sessions).
+- PreToolUse + PostToolUse hooks for `Bash|Monitor` wired in
+  `settings.json:70-91`. No `settings.json` change.
 - Writable `~/.claude/agent-tools/`.
-- `cargo` to rebuild after `hook_post.rs` changes.
+- `cargo` to rebuild after Rust changes.
 
 ---
 
 ## Known tradeoffs
 
-- Every Bash/Monitor PostToolUse adds ~250 bytes of additionalContext (~60 tokens). 100-call sessions pay ~6k tokens of hook chrome. Accepted; the alternative (heuristic emit) silently misses pipeline shapes the user cares about, which violates the Loud Failure rule at `alan-default-next.md:64`.
-- The "agent-tools run child captures (if any)" clause is always present even when no `agent-tools run` was invoked. "(if any)" makes this clear in text; a follow-up can stat `children/` and omit the clause when empty.
-- `.paths_emitted` is best-effort idempotency. If the marker write fails (read-only fs, missing parent), Monitor may emit the block multiple times — preferred to silently missing emission.
-- Monitor-on-slow-producer: paths block may surface before the capture file has bytes. Agent should re-Read if an initial read returns empty. If this becomes a real workflow, defer the marker until the capture file is non-empty (`fs::metadata(stdout_path).map(|m| m.len() > 0)`).
+- **Top-level capture is gone.** If the agent runs `expensive | tail`
+  without wrapping, the upstream output is lost. The prompt rule
+  (Change 10) is the sole guard. Accepted because:
+  - Empirical: **0 reads** of wrap-task disk captures across 7 days of
+    session logs (the always-on safety net wasn't being used).
+  - The alternative (Option C: fix wrap-task spawn) requires per-
+    session snapshot discovery with no clean `session_id`→filename
+    mapping.
+- **Loud Failure principle**: a forgotten wrap produces silently
+  missing output. Mitigation: the prompt rule biases toward "when in
+  doubt, wrap." Post-landing, consider instrumenting the hook to log
+  capture-per-call frequency to measure the forgotten-wrap rate.
+- **`ps` no longer shows top-level Bash calls.** Only Bash calls that
+  invoked `agent-tools run` show up. The "all live tasks in this
+  session" wording in the spec was always more useful for long-runner
+  cases; instant Bash calls left empty entries nobody read.
+- **`backgrounded` event log dropped.** The agent-facing notice in
+  `additionalContext` is the only record; no `events.jsonl` write from
+  hook-post.
+- **Stale meta.json files** on disk from prior wrap-task runs become
+  unreadable (the new `ChildMeta` format has no `kind` tag). User
+  removes them manually with `rm -rf ~/.claude/agent-tools/` on
+  landing.
 
 ---
 
 ## Testing suggestion
 
-Run the verification probe above. For unit confidence, the 5
-`hook_post_test.rs` cases cover always-emit, marker idempotency,
-BACKGROUNDED supplement, and subagent namespacing.
+Beyond the verification probe above, the test cases in Change 9 cover:
+
+- PreToolUse rewrite shape and quoting.
+- Lazy parent-dir creation (run.rs Change 4).
+- PostToolUse silent on empty state.
+- PostToolUse listing format with and without `desc`.
+- PostToolUse BACKGROUNDED supplement, alone and combined with
+  captures.
+- Subagent namespacing in the parent dir path.
