@@ -1,8 +1,9 @@
 # auto-memory/
 
-On-demand drop-in for Claude Code's built-in auto-memory feature. Activates the
-same file-based memory protocol when `autoMemoryEnabled: false` in
-`settings.json`. Explicit invocation only.
+Drop-in for Claude Code's built-in auto-memory feature. Must load before any
+read or write of memories under `~/.claude/projects/<slug>/memory/`. Do not
+load when the system prompt already contains an "# auto memory" section
+(built-in feature is active).
 
 ## Files
 

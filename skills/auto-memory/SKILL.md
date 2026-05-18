@@ -1,13 +1,16 @@
 ---
 name: auto-memory
-description: use only if invoked by user or workflow
+description: You MUST load before reading or writing any memory under ~/.claude/projects/<slug>/memory/ (the persistent memory system). Do NOT load if your system prompt already contains an "# auto memory" section — the built-in feature is active and the protocol is already loaded.
 ---
 
 # Auto Memory
 
-Replaces the built-in auto-memory feature when `autoMemoryEnabled` is disabled
-in `settings.json`. Provides the same persistent, file-based memory system on
-demand. Content below is the auto-memory section from the default system prompt,
+Drop-in for Claude Code's built-in auto-memory feature. Loads the same
+persistent file-based memory protocol on demand when the built-in feature is
+disabled (`autoMemoryEnabled: false` in `settings.json`, or any other condition
+that strips the "# auto memory" section from the system prompt).
+
+Content below is the auto-memory section from the default system prompt,
 preserved verbatim except for the path derivation and directory-creation note
 (which differ because the built-in feature pre-creates the directory; this skill
 does not).
