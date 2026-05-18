@@ -413,41 +413,138 @@ stay.
 
 ## Change 9 — Tests
 
-### `agent-tools/tests/hook_pre_test.rs` (new or update existing)
+All 5 files under `agent-tools/tests/` reference the old wrap-task model
+and need coordinated updates with Changes 1-8. Specifics per file.
+
+### 9.1 `agent-tools/tests/wrap_task_test.rs` — DELETE
+
+Delete the file entirely (123 lines). The `wrap-task` subcommand no
+longer exists.
+
+### 9.2 `agent-tools/tests/hook_pre_test.rs` — rewrite
+
+The current file (114 lines) asserts hook_pre writes `command.sh` and
+creates the task_dir eagerly. Both behaviors are removed. Replace the
+existing tests with:
 
 1. **Bash with simple command**: `updatedInput.command` matches the
    regex
    `^unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='[^']+'; echo hi$`.
-2. **Subagent**: the exported `AGENT_TOOLS_PARENT_DIR` path contains
-   the subagent id segment between session and tool_use_id.
-3. **Non-Bash, non-Monitor (Read)**: passthrough — no rewrite, just
-   `permissionDecision: allow` with no `updatedInput`.
-4. **Command containing single quote**: the original command (after
-   the prepend's `; `) is preserved byte-for-byte; the
-   `AGENT_TOOLS_PARENT_DIR` value is itself properly quoted (no broken
-   escaping of the path).
+2. **Path encoding**: the `AGENT_TOOLS_PARENT_DIR` value ends with
+   `<session>/<tool_use_id>` when `agent_id` is absent.
+3. **Subagent**: with `agent_id` set, the exported path ends with
+   `<session>/<subagent>/<tool_use_id>`.
+4. **Non-Bash, non-Monitor (Read)**: passthrough — `permissionDecision: allow`
+   with no `updatedInput`.
+5. **No side effects on disk**: the parent dir is NOT created by
+   `hook_pre` (lazy creation per Decision #4; first `agent-tools run`
+   makes it). Assert `parent_dir.exists() == false` after the hook runs.
+6. **Single-quote in original command**: a user command containing `'`
+   is preserved byte-for-byte after the `; ` separator (CC's eval will
+   handle outer quoting).
 
-### `agent-tools/tests/hook_post_test.rs` (update existing)
+Remove all `command.sh`-related assertions (current lines 46-48, 112).
+
+### 9.3 `agent-tools/tests/hook_post_test.rs` — rewrite
+
+Existing tests (102 lines) cover only the bg case. Replace with:
 
 1. **No parent dir on disk, no bg**: no `additionalContext` emitted
-   (stdout empty after JSON parse, or no `hookSpecificOutput` present).
-2. **Parent dir exists with two pid subdirs, no bg**: `additionalContext`
-   contains `[agent-tools] captures from this Bash call:` and both
-   subdir paths joined with `; `.
+   (no `hookSpecificOutput` present in stdout, or empty stdout).
+2. **Parent dir exists with two pid subdirs (each with meta.json), no
+   bg**: `additionalContext` contains
+   `[agent-tools] captures from this Bash call:` followed by both
+   subdir paths joined with `; `. Format per capture is
+   `<desc> → <dir>/{stdout,stderr}` when meta.json has `desc`, bare
+   `<dir>/{stdout,stderr}` otherwise.
 3. **`backgroundTaskId` present, no captures**: `additionalContext`
-   contains only the `BACKGROUNDED:` text.
+   contains only the `BACKGROUNDED:` notice.
 4. **Both captures and `backgroundTaskId`**: `additionalContext`
-   contains both segments, joined with a space.
+   contains captures listing followed by a space and the `BACKGROUNDED:`
+   notice.
 5. **Subagent with captures**: emitted paths contain the subagent id
    segment.
-6. **Per-capture format**: with `meta.json { "desc": "pytest", … }` →
-   line is `pytest → <dir>/{stdout,stderr}`. Without desc → bare
-   `<dir>/{stdout,stderr}`.
+6. **Per-capture format with and without `desc`** (sub-assertions of
+   case 2, but verify both branches explicitly).
 7. **Non-Bash, non-Monitor (Read)**: no output.
 
-Remove or update any pre-existing test that depended on
-`task_dir_from_env`, `AGENT_TOOLS_TASK_ID`, wrap-task's `command.sh`
-output, or the `"Captured output paths in: {task_dir}"` fragment.
+Remove any pre-existing assertion on the
+`"Captured output paths in: {task_dir}"` fragment.
+
+### 9.4 `agent-tools/tests/run_test.rs` — update
+
+Current (103 lines) sets `AGENT_TOOLS_TASK_ID` env and writes
+`command.sh` to simulate a wrap-task'd environment. Updates:
+
+1. Rename all `AGENT_TOOLS_TASK_ID` → `AGENT_TOOLS_PARENT_DIR` (6
+   occurrences).
+2. Remove all `command.sh` write calls (1 occurrence) — `agent-tools run`
+   only needs the parent dir to exist (or not exist; it mkdirs lazily).
+3. The "loud error when env missing" test (current lines 28-32): keep
+   the test but update the asserted substring from `AGENT_TOOLS_TASK_ID`
+   to `AGENT_TOOLS_PARENT_DIR`.
+4. Add a test: `agent-tools run` lazily creates the parent dir when
+   `AGENT_TOOLS_PARENT_DIR` points to a non-existent path.
+5. Verify the child capture dir is at `<parent>/<pid>/` (no
+   `children/` segment in the path).
+
+### 9.5 `agent-tools/tests/ps_test.rs` — rewrite
+
+Current (115 lines) sets up TaskMeta on disk and asserts on the
+`agent-tools ps` output structure. `TaskMeta` no longer exists; ps now
+enumerates `<tool_use_id>/<pid>/` directly. Replace with:
+
+1. **No state on disk**: `agent-tools ps --session-id <fresh-sid>`
+   prints `session: <sid>\n(no state on disk)` and exits 0.
+2. **One tool_use_id with two captures (main thread)**: set up
+   `<session>/<tool_use_id>/<pid1>/meta.json` and same for `<pid2>`;
+   `ps --session-id <sid>` lists both under `agent: _main` showing
+   their desc, cmd, stdout, stderr paths and sizes.
+3. **Subagent capture**: set up
+   `<session>/<subagent>/<tool_use_id>/<pid>/`; ps shows it under
+   `agent: <subagent>`.
+4. **`--task <tuid>` filter**: limits output to one tool_use_id.
+5. **Events chronological merge**: events.jsonl entries from multiple
+   captures appear in chronological order in the "events" section.
+
+Drop all `AGENT_TOOLS_TASK_ID` env var usage (5 occurrences); ps now
+requires `--session-id` when not invoked inside a Bash tool (and the
+test harness isn't a Bash tool). The current `task_dir_from_env`
+fallback in `ps.rs:17` is removed in Change 7.
+
+### 9.6 `agent-tools/tests/end_to_end_test.rs` — rewrite
+
+Current single test `full_loop_hook_pre_wrap_task_run_ps` exercises:
+PreToolUse hook → wrap-task → run → ps. The wrap-task step is gone.
+
+Replace with a single test `full_loop_hook_pre_run_hook_post_ps` that:
+
+1. Invokes `agent-tools hook-pre` with a synthetic Bash PreToolUse JSON;
+   captures the rewritten command from `updatedInput.command`.
+2. `bash -c`s the rewritten command, where the user's part is
+   `agent-tools run --desc probe -- echo hi`. Verifies stdout is
+   `hi\n`.
+3. Verifies the capture file at
+   `<expected parent>/<pid>/stdout` contains `hi\n`. (The pid is
+   discoverable by listing the parent dir.)
+4. Invokes `agent-tools hook-post` with a Bash PostToolUse JSON
+   (matching session_id, tool_use_id); captures stdout.
+5. Asserts the PostToolUse `additionalContext` contains
+   `[agent-tools] captures from this Bash call: probe → <expected dir>/{stdout,stderr}`.
+6. Invokes `agent-tools ps --session-id <sid>`; asserts the capture
+   appears in the listing with `desc: probe`.
+
+### 9.7 Build/test verification
+
+After all changes:
+
+```
+cd /root/claude-config-work/agent-tools && cargo build --release && cargo test
+```
+
+Expected: clean build, all tests pass. Any failure here points back to a
+specific Change above; do not paper over with `#[ignore]` or stub
+assertions.
 
 ---
 
