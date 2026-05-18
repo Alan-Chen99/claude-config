@@ -84,6 +84,35 @@ fn user_backgrounding_emits_context() {
 }
 
 #[test]
+fn explicit_run_in_background_is_not_reported_as_timeout() {
+    // When tool_input.run_in_background == true, BashTool returns a
+    // backgroundTaskId immediately with neither assistantAutoBackgrounded nor
+    // backgroundedByUser set (BashTool.tsx:989-1000). The post-hook must
+    // recognize this as an intentional background, not a timeout.
+    let home = tempfile::tempdir().unwrap();
+    seed_task(home.path(), "sid", "tuid");
+    let (status, stdout, _stderr) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Bash",
+        "tool_input": {"command": "long-running", "run_in_background": true},
+        "tool_use_id": "tuid",
+        "tool_response": {"backgroundTaskId": "bt-rib"}
+    }));
+    assert!(status.success());
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
+    assert!(!ctx.contains("timeout"),
+        "should NOT report timeout for explicit run_in_background: {ctx}");
+    assert!(ctx.contains("bt-rib"), "context: {ctx}");
+
+    let evts = std::fs::read_to_string(
+        home.path().join(".claude/agent-tools/sid/tuid/events.jsonl")
+    ).unwrap();
+    assert!(!evts.contains("\"cause\":\"timeout\""),
+        "should not log timeout cause for explicit background: {evts}");
+}
+
+#[test]
 fn timeout_backgrounding_emits_context_with_limit() {
     let home = tempfile::tempdir().unwrap();
     seed_task(home.path(), "sid", "tuid");

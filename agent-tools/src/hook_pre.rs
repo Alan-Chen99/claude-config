@@ -27,13 +27,31 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
+    // tool_input.command is the only field we rewrite; everything else
+    // (timeout, description, run_in_background, dangerouslyDisableSandbox,
+    // future Bash/Monitor fields) must round-trip unchanged because
+    // updatedInput is a full replacement, not a merge.
+    let Some(command) = input.tool_input.get("command").and_then(|v| v.as_str()) else {
+        eprintln!(
+            "agent-tools hook-pre: tool_input.command missing or not a string; \
+             allowing original command"
+        );
+        print_allow_passthrough();
+        return Ok(());
+    };
+    let description = input
+        .tool_input
+        .get("description")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+
     let task_dir = paths::task_dir_for(
         &input.session_id,
         input.agent_id.as_deref(),
         &input.tool_use_id,
     )?;
 
-    if let Err(e) = prepare_task_dir(&task_dir, &input) {
+    if let Err(e) = prepare_task_dir(&task_dir, &input, command, description) {
         eprintln!("agent-tools hook-pre: setup failed ({e:#}); allowing original command");
         print_allow_passthrough();
         return Ok(());
@@ -41,21 +59,42 @@ pub fn run() -> Result<()> {
 
     let quoted = shell_single_quote(&task_dir.to_string_lossy());
     let new_command = format!("exec agent-tools wrap-task {quoted}");
+
+    // Clone the original tool_input verbatim and overwrite only `command`.
+    // serde_json::Value::Object preserves insertion order, so the rewritten
+    // command stays in the same position the model emitted it in.
+    let mut updated_input = input.tool_input.clone();
+    match updated_input.as_object_mut() {
+        Some(obj) => {
+            obj.insert("command".to_string(), serde_json::Value::String(new_command));
+        }
+        None => {
+            // tool_input wasn't a JSON object — can't pass-through. Build a
+            // minimal updatedInput with just command (legacy behavior).
+            updated_input = serde_json::json!({ "command": new_command });
+        }
+    }
+
     let out = serde_json::json!({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "allow",
-            "updatedInput": { "command": new_command }
+            "updatedInput": updated_input
         }
     });
     println!("{}", serde_json::to_string(&out)?);
     Ok(())
 }
 
-fn prepare_task_dir(task_dir: &PathBuf, input: &hook_input::PreToolUseInput) -> Result<()> {
+fn prepare_task_dir(
+    task_dir: &PathBuf,
+    input: &hook_input::PreToolUseInput,
+    command: &str,
+    description: Option<String>,
+) -> Result<()> {
     fs::create_dir_all(task_dir.join("children"))
         .with_context(|| format!("mkdir {}", task_dir.display()))?;
-    fs::write(task_dir.join("command.sh"), &input.tool_input.command)
+    fs::write(task_dir.join("command.sh"), command)
         .with_context(|| format!("write command.sh under {}", task_dir.display()))?;
     let meta = Meta::Task(TaskMeta {
         session_id: input.session_id.clone(),
@@ -63,7 +102,7 @@ fn prepare_task_dir(task_dir: &PathBuf, input: &hook_input::PreToolUseInput) -> 
         task_id: input.tool_use_id.clone(),
         tool: input.tool_name.clone(),
         tool_use_id: input.tool_use_id.clone(),
-        desc: input.tool_input.description.clone(),
+        desc: description,
         cwd: input.cwd.clone(),
         pid: None,
         started_at: None,
