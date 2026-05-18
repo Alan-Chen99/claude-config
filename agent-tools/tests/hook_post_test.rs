@@ -19,16 +19,35 @@ fn run_post(home: &std::path::Path, body: serde_json::Value) -> (std::process::E
     (out.status, String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
 }
 
-fn seed_task(home: &std::path::Path, session: &str, task: &str) {
-    let dir = home.join(format!(".claude/agent-tools/{session}/{task}"));
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("meta.json"), r#"{"kind":"task","session_id":"sid","agent_id":null,"task_id":"tuid","tool":"Bash","tool_use_id":"tuid","desc":null,"cwd":"/tmp","pid":1,"started_at":null,"ended_at":null,"exit_code":null,"silence_threshold_ms":30000}"#).unwrap();
+/// Compute the parent dir for captures under `home` matching `paths::parent_dir_for`.
+fn parent_dir(home: &std::path::Path, session: &str, agent: Option<&str>, tuid: &str) -> std::path::PathBuf {
+    let mut p = home.join(".claude/agent-tools").join(session);
+    if let Some(a) = agent {
+        p.push(a);
+    }
+    p.push(tuid);
+    p
+}
+
+/// Create a `<pid>/meta.json` capture directory under `parent`, with optional desc.
+fn seed_capture(parent: &std::path::Path, pid: u32, desc: Option<&str>) -> std::path::PathBuf {
+    let child = parent.join(pid.to_string());
+    std::fs::create_dir_all(&child).unwrap();
+    let desc_json = match desc {
+        Some(d) => format!("\"{d}\""),
+        None => "null".to_string(),
+    };
+    let meta = format!(
+        r#"{{"child_id":{pid},"desc":{desc_json},"command":["echo","hi"],"started_at":null,"ended_at":null,"exit_code":null}}"#
+    );
+    std::fs::write(child.join("meta.json"), meta).unwrap();
+    child
 }
 
 #[test]
-fn no_backgrounding_emits_no_additional_context() {
+fn no_parent_dir_no_bg_emits_nothing() {
     let home = tempfile::tempdir().unwrap();
-    seed_task(home.path(), "sid", "tuid");
+    // No parent dir created on disk.
     let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
         "session_id": "sid",
         "tool_name": "Bash",
@@ -46,57 +65,145 @@ fn no_backgrounding_emits_no_additional_context() {
 }
 
 #[test]
-fn assistant_auto_background_emits_context() {
+fn two_captures_no_bg_lists_them() {
     let home = tempfile::tempdir().unwrap();
-    seed_task(home.path(), "sid", "tuid");
-    let (status, stdout, _stderr) = run_post(home.path(), serde_json::json!({
+    let parent = parent_dir(home.path(), "sid", None, "tuid");
+    let dir1 = seed_capture(&parent, 100, Some("first"));
+    let dir2 = seed_capture(&parent, 200, Some("second"));
+
+    let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi"},
+        "tool_use_id": "tuid",
+        "tool_response": {}
+    }));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
+    assert!(ctx.contains("[agent-tools] captures from this Bash call:"), "ctx: {ctx}");
+
+    // Directory-sorted order: "100" sorts before "200" lexicographically.
+    let expected_first = format!("first → {}/{{stdout,stderr}}", dir1.display());
+    let expected_second = format!("second → {}/{{stdout,stderr}}", dir2.display());
+    let expected = format!(
+        "[agent-tools] captures from this Bash call: {expected_first}; {expected_second}"
+    );
+    assert_eq!(ctx, expected, "ctx: {ctx}");
+}
+
+#[test]
+fn bg_only_emits_only_bg_notice() {
+    let home = tempfile::tempdir().unwrap();
+    // No captures, but backgroundTaskId present.
+    let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Bash",
+        "tool_input": {"command": "sleep 9999", "timeout": 5000},
+        "tool_use_id": "tuid",
+        "tool_response": {"backgroundTaskId": "bt-7"}
+    }));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
+    assert!(ctx.starts_with("BACKGROUNDED:"), "ctx: {ctx}");
+    assert!(ctx.contains("bt-7"), "ctx: {ctx}");
+    assert!(ctx.contains("5000"), "ctx: {ctx}");
+    assert!(!ctx.contains("[agent-tools] captures"), "ctx: {ctx}");
+}
+
+#[test]
+fn captures_and_bg_combined() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = parent_dir(home.path(), "sid", None, "tuid");
+    let dir1 = seed_capture(&parent, 42, Some("probe"));
+
+    let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
         "session_id": "sid",
         "tool_name": "Bash",
         "tool_input": {"command": "long-running"},
         "tool_use_id": "tuid",
         "tool_response": {"backgroundTaskId": "bt-9", "assistantAutoBackgrounded": true}
     }));
-    assert!(status.success());
+    assert!(status.success(), "stderr: {stderr}");
     let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
-    assert!(ctx.contains("KAIROS") || ctx.contains("auto"), "context: {ctx}");
-    assert!(ctx.contains("bt-9"), "context: {ctx}");
 
-    let evts = std::fs::read_to_string(home.path().join(".claude/agent-tools/sid/tuid/events.jsonl")).unwrap();
-    assert!(evts.contains("\"backgrounded\""), "events: {evts}");
+    let captures_part = format!(
+        "[agent-tools] captures from this Bash call: probe → {}/{{stdout,stderr}}",
+        dir1.display()
+    );
+    assert!(ctx.starts_with(&captures_part), "ctx: {ctx}");
+    // Captures and bg notice are joined by a single space.
+    let after_captures = &ctx[captures_part.len()..];
+    assert!(after_captures.starts_with(" BACKGROUNDED:"), "after: {after_captures}");
+    assert!(ctx.contains("KAIROS"), "ctx: {ctx}");
+    assert!(ctx.contains("bt-9"), "ctx: {ctx}");
 }
 
 #[test]
-fn user_backgrounding_emits_context() {
+fn subagent_capture_paths_contain_agent_segment() {
     let home = tempfile::tempdir().unwrap();
-    seed_task(home.path(), "sid", "tuid");
-    let (status, stdout, _stderr) = run_post(home.path(), serde_json::json!({
+    let parent = parent_dir(home.path(), "sid", Some("agent-abc"), "tuid");
+    let dir1 = seed_capture(&parent, 77, Some("sub"));
+
+    let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
         "session_id": "sid",
+        "agent_id": "agent-abc",
         "tool_name": "Bash",
-        "tool_input": {"command": "long-running"},
+        "tool_input": {"command": "echo hi"},
         "tool_use_id": "tuid",
-        "tool_response": {"backgroundTaskId": "bt-1", "backgroundedByUser": true}
+        "tool_response": {}
     }));
-    assert!(status.success());
+    assert!(status.success(), "stderr: {stderr}");
     let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
-    assert!(ctx.contains("Ctrl+B") || ctx.contains("user"), "context: {ctx}");
+    assert!(ctx.contains("/agent-abc/"), "ctx: {ctx}");
+    assert!(ctx.contains(&dir1.display().to_string()), "ctx: {ctx}");
 }
 
 #[test]
-fn timeout_backgrounding_emits_context_with_limit() {
+fn per_capture_format_with_and_without_desc() {
     let home = tempfile::tempdir().unwrap();
-    seed_task(home.path(), "sid", "tuid");
-    let (status, stdout, _stderr) = run_post(home.path(), serde_json::json!({
+    let parent = parent_dir(home.path(), "sid", None, "tuid");
+    let dir_with = seed_capture(&parent, 100, Some("labeled"));
+    let dir_without = seed_capture(&parent, 200, None);
+
+    let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
         "session_id": "sid",
         "tool_name": "Bash",
-        "tool_input": {"command": "sleep 9999", "timeout": 5000},
+        "tool_input": {"command": "echo hi"},
         "tool_use_id": "tuid",
-        "tool_response": {"backgroundTaskId": "bt-2"}
+        "tool_response": {}
     }));
-    assert!(status.success());
+    assert!(status.success(), "stderr: {stderr}");
     let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
-    assert!(ctx.contains("timeout"), "context: {ctx}");
-    assert!(ctx.contains("5000"), "context: {ctx}");
+
+    // With-desc branch: "<desc> → <dir>/{stdout,stderr}"
+    let with_fragment = format!("labeled → {}/{{stdout,stderr}}", dir_with.display());
+    assert!(ctx.contains(&with_fragment), "ctx: {ctx}");
+    // Without-desc branch: bare "<dir>/{stdout,stderr}"
+    let without_fragment = format!("{}/{{stdout,stderr}}", dir_without.display());
+    assert!(ctx.contains(&without_fragment), "ctx: {ctx}");
+    // The without-desc form must NOT be prefixed by a space-arrow construct.
+    assert!(!ctx.contains(&format!("→ {without_fragment}")), "ctx: {ctx}");
+}
+
+#[test]
+fn non_bash_non_monitor_emits_nothing() {
+    let home = tempfile::tempdir().unwrap();
+    // Even with a capture present, a Read tool call should emit no output.
+    let parent = parent_dir(home.path(), "sid", None, "tuid");
+    seed_capture(&parent, 1, Some("ignored"));
+
+    let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"command": "n/a"},
+        "tool_use_id": "tuid",
+        "tool_response": {}
+    }));
+    assert!(status.success(), "stderr: {stderr}");
+    assert!(stdout.trim().is_empty(), "expected no stdout, got: {stdout}");
 }

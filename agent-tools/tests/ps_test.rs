@@ -1,115 +1,178 @@
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
 }
 
-fn seed(home: &std::path::Path, session: &str, agent: Option<&str>, task: &str, pid: u32, exit: Option<i32>) -> std::path::PathBuf {
+/// Seed a capture at `<home>/.claude/agent-tools/<session>/[<agent>/]<tuid>/<pid>/`.
+/// Writes meta.json, stdout, stderr. Returns the capture (pid) directory.
+fn seed_capture(
+    home: &Path,
+    session: &str,
+    agent: Option<&str>,
+    tuid: &str,
+    pid: u32,
+    desc: Option<&str>,
+    exit: Option<i32>,
+    stdout: &str,
+) -> PathBuf {
     let mut dir = home.join(".claude/agent-tools").join(session);
-    if let Some(a) = agent { dir.push(a); }
-    dir.push(task);
-    std::fs::create_dir_all(dir.join("children")).unwrap();
+    if let Some(a) = agent {
+        dir.push(a);
+    }
+    dir.push(tuid);
+    dir.push(pid.to_string());
+    std::fs::create_dir_all(&dir).unwrap();
     let meta = serde_json::json!({
-        "kind":"task","session_id":session,
-        "agent_id": agent,
-        "task_id":task,"tool":"Bash","tool_use_id":task,
-        "desc":format!("task {task}"),"cwd":"/tmp",
-        "pid":pid,"started_at":"2026-05-17T10:00:00Z",
+        "child_id": pid,
+        "desc": desc,
+        "command": ["echo", desc.unwrap_or("anon")],
+        "started_at": "2026-05-17T10:00:00Z",
         "ended_at": exit.map(|_| "2026-05-17T10:00:05Z"),
         "exit_code": exit,
-        "silence_threshold_ms":30000
     });
     std::fs::write(dir.join("meta.json"), serde_json::to_string_pretty(&meta).unwrap()).unwrap();
-    std::fs::write(dir.join("command.sh"), format!("echo {task}")).unwrap();
-    std::fs::write(dir.join("stdout"), format!("hello from {task}\n")).unwrap();
+    std::fs::write(dir.join("stdout"), stdout).unwrap();
     std::fs::write(dir.join("stderr"), "").unwrap();
-    std::fs::write(dir.join("events.jsonl"), format!(
-        r#"{{"ts":"2026-05-17T10:00:00Z","kind":"task_started","data":{{"pid":{pid}}}}}
-"#)).unwrap();
     dir
 }
 
-#[test]
-fn default_lists_session_tasks_resolved_from_env() {
-    let home = tempfile::tempdir().unwrap();
-    let dir = seed(home.path(), "sid", None, "tuid1", 99999, None);
-    let _ = seed(home.path(), "sid", None, "tuid2", 99999, Some(0));
+/// Write an events.jsonl line at `<home>/.claude/agent-tools/<session>/[<agent>/]<tuid>/events.jsonl`.
+fn append_event(
+    home: &Path,
+    session: &str,
+    agent: Option<&str>,
+    tuid: &str,
+    line: &str,
+) {
+    let mut dir = home.join(".claude/agent-tools").join(session);
+    if let Some(a) = agent {
+        dir.push(a);
+    }
+    dir.push(tuid);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("events.jsonl");
+    let prior = std::fs::read_to_string(&path).unwrap_or_default();
+    std::fs::write(&path, format!("{prior}{line}\n")).unwrap();
+}
 
+#[test]
+fn no_state_on_disk_prints_session_and_marker() {
+    let home = tempfile::tempdir().unwrap();
     let out = Command::new(bin())
-        .arg("ps")
+        .args(["ps", "--session-id", "sid-fresh"])
         .env("HOME", home.path())
-        .env("AGENT_TOOLS_TASK_ID", &dir)
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
     assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("tuid1"), "{s}");
-    assert!(s.contains("tuid2"), "{s}");
+    assert!(s.contains("session: sid-fresh"), "{s}");
+    assert!(s.contains("(no state on disk)"), "{s}");
+}
+
+#[test]
+fn main_thread_two_captures_under_one_tool_use_id() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture(home.path(), "sid", None, "tuid1", 11111, Some("probe-a"), Some(0), "out-a\n");
+    seed_capture(home.path(), "sid", None, "tuid1", 22222, Some("probe-b"), Some(1), "out-b\n");
+
+    let out = Command::new(bin())
+        .args(["ps", "--session-id", "sid"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("session: sid"), "{s}");
+    assert!(s.contains("agent: _main"), "{s}");
+    assert!(s.contains("tool-use tuid1 (2 captures)"), "{s}");
+    assert!(s.contains("pid 11111"), "{s}");
+    assert!(s.contains("pid 22222"), "{s}");
+    assert!(s.contains("desc:    probe-a"), "{s}");
+    assert!(s.contains("desc:    probe-b"), "{s}");
 }
 
 #[test]
-fn task_filter_only_shows_one_task() {
+fn subagent_capture_listed_under_subagent_header() {
     let home = tempfile::tempdir().unwrap();
-    let dir = seed(home.path(), "sid", None, "tuid1", 99999, None);
-    let _ = seed(home.path(), "sid", None, "tuid2", 99999, Some(0));
+    seed_capture(home.path(), "sid", Some("agent-x"), "tuid-sub", 33333, Some("sub-probe"), Some(0), "sub-out\n");
 
     let out = Command::new(bin())
-        .args(["ps", "--task", "tuid2"])
+        .args(["ps", "--session-id", "sid"])
         .env("HOME", home.path())
-        .env("AGENT_TOOLS_TASK_ID", &dir)
-        .output()
-        .unwrap();
-    assert!(out.status.success());
-    let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("tuid2"));
-    assert!(!s.contains("tuid1"));
-}
-
-#[test]
-fn cross_session_with_session_id_flag() {
-    let home = tempfile::tempdir().unwrap();
-    let dir = seed(home.path(), "sid-a", None, "tuid", 99999, None);
-    let _ = seed(home.path(), "sid-b", None, "tuid-b", 99999, None);
-    let out = Command::new(bin())
-        .args(["ps", "--session-id", "sid-b"])
-        .env("HOME", home.path())
-        .env("AGENT_TOOLS_TASK_ID", &dir)
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
     assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("tuid-b"));
-    assert!(!s.contains("session: sid-a"), "leak: {s}");
-    assert!(!s.contains("task tuid "), "leak: {s}");
+    assert!(s.contains("agent: agent-x"), "{s}");
+    assert!(s.contains("tool-use tuid-sub (1 capture)"), "{s}");
+    assert!(s.contains("pid 33333"), "{s}");
+    assert!(!s.contains("agent: _main"), "leak: {s}");
 }
 
 #[test]
-fn live_marker_uses_pid_kill_zero() {
+fn task_filter_limits_to_one_tool_use_id() {
     let home = tempfile::tempdir().unwrap();
-    let my_pid = std::process::id();
-    let dir = seed(home.path(), "sid", None, "live-task", my_pid, None);
+    seed_capture(home.path(), "sid", None, "tuid-keep", 44444, Some("keep"), Some(0), "k\n");
+    seed_capture(home.path(), "sid", None, "tuid-drop", 55555, Some("drop"), Some(0), "d\n");
+
     let out = Command::new(bin())
-        .arg("ps")
+        .args(["ps", "--session-id", "sid", "--task", "tuid-keep"])
         .env("HOME", home.path())
-        .env("AGENT_TOOLS_TASK_ID", &dir)
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("[running]") || s.contains("running"), "{s}");
+    assert!(s.contains("tuid-keep"), "{s}");
+    assert!(!s.contains("tuid-drop"), "{s}");
+    assert!(!s.contains("pid 55555"), "{s}");
 }
 
 #[test]
-fn ended_meta_shows_exit_code() {
+fn events_appear_in_chronological_order() {
     let home = tempfile::tempdir().unwrap();
-    let dir = seed(home.path(), "sid", None, "done", 1, Some(42));
+    seed_capture(home.path(), "sid", None, "tuid-evt", 66666, Some("evt"), Some(0), "e\n");
+
+    // Out-of-order writes: middle, then earliest, then latest.
+    append_event(
+        home.path(),
+        "sid",
+        None,
+        "tuid-evt",
+        r#"{"ts":"2026-05-17T10:00:02Z","kind":"middle","data":{"n":2}}"#,
+    );
+    append_event(
+        home.path(),
+        "sid",
+        None,
+        "tuid-evt",
+        r#"{"ts":"2026-05-17T10:00:01Z","kind":"first","data":{"n":1}}"#,
+    );
+    append_event(
+        home.path(),
+        "sid",
+        None,
+        "tuid-evt",
+        r#"{"ts":"2026-05-17T10:00:03Z","kind":"last","data":{"n":3}}"#,
+    );
+
     let out = Command::new(bin())
-        .arg("ps")
+        .args(["ps", "--session-id", "sid"])
         .env("HOME", home.path())
-        .env("AGENT_TOOLS_TASK_ID", &dir)
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
-    assert!(out.status.success());
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("42"), "{s}");
+    assert!(s.contains("events (chronological, all captures):"), "{s}");
+    let pos_first = s.find("first").expect("first event missing");
+    let pos_middle = s.find("middle").expect("middle event missing");
+    let pos_last = s.find("last").expect("last event missing");
+    assert!(pos_first < pos_middle, "ordering wrong: {s}");
+    assert!(pos_middle < pos_last, "ordering wrong: {s}");
 }

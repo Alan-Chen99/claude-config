@@ -6,7 +6,7 @@ use tokio::process::Command;
 
 use crate::capture;
 use crate::events;
-use crate::meta::{self, ChildMeta, Meta};
+use crate::meta::{self, ChildMeta};
 use crate::paths;
 use crate::signals;
 
@@ -14,13 +14,15 @@ pub async fn run(desc: Option<String>, cmd: Vec<String>) -> Result<i32> {
     if cmd.is_empty() {
         return Err(anyhow!("run: no command supplied after --"));
     }
-    let task_dir = paths::task_dir_from_env().map_err(|_| {
+    let parent_dir = paths::parent_dir_from_env().map_err(|_| {
         anyhow!(
-            "AGENT_TOOLS_TASK_ID is not set.\n\
-             The PreToolUse hook (agent-tools hook-pre) must wrap this Bash/Monitor call.\n\
+            "AGENT_TOOLS_PARENT_DIR is not set.\n\
+             The PreToolUse hook (agent-tools hook-pre) must run before this command.\n\
              If you see this from inside a Claude Code Bash tool, the hook is not installed."
         )
     })?;
+    std::fs::create_dir_all(&parent_dir)
+        .with_context(|| format!("mkdir {}", parent_dir.display()))?;
 
     let mut child = Command::new(&cmd[0])
         .args(&cmd[1..])
@@ -30,23 +32,22 @@ pub async fn run(desc: Option<String>, cmd: Vec<String>) -> Result<i32> {
         .spawn()
         .with_context(|| format!("spawn {:?}", cmd))?;
     let pid = child.id().context("child pid unavailable")?;
-    let child_dir = task_dir.join("children").join(pid.to_string());
+    let child_dir = parent_dir.join(pid.to_string());
     std::fs::create_dir_all(&child_dir)
         .with_context(|| format!("mkdir {}", child_dir.display()))?;
 
     let started_at = chrono::Utc::now();
-    let cm = Meta::Child(ChildMeta {
-        parent_task_dir: task_dir.to_string_lossy().into_owned(),
+    let cm = ChildMeta {
         child_id: pid,
         desc: desc.clone(),
         command: cmd.clone(),
         started_at: Some(started_at),
         ended_at: None,
         exit_code: None,
-    });
+    };
     meta::write_meta(&child_dir, &cm)?;
     events::append(
-        &task_dir,
+        &parent_dir,
         "child_started",
         serde_json::json!({
             "child_pid": pid,
@@ -112,18 +113,17 @@ pub async fn run(desc: Option<String>, cmd: Vec<String>) -> Result<i32> {
         1
     });
 
-    let cm = Meta::Child(ChildMeta {
-        parent_task_dir: task_dir.to_string_lossy().into_owned(),
+    let cm = ChildMeta {
         child_id: pid,
         desc,
         command: cmd,
         started_at: Some(started_at),
         ended_at: Some(chrono::Utc::now()),
         exit_code: Some(exit_code),
-    });
+    };
     meta::write_meta(&child_dir, &cm)?;
     events::append(
-        &task_dir,
+        &parent_dir,
         "child_exit",
         serde_json::json!({"child_pid": pid, "exit_code": exit_code}),
     )

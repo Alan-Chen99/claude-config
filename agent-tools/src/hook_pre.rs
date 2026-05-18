@@ -1,13 +1,8 @@
 use anyhow::{Context, Result};
-use std::fs;
 use std::io::Read;
-use std::path::PathBuf;
 
 use crate::hook_input;
-use crate::meta::{Meta, TaskMeta};
 use crate::paths;
-
-const SILENCE_THRESHOLD_MS: u64 = 30_000;
 
 pub fn run() -> Result<()> {
     let mut buf = String::new();
@@ -27,20 +22,18 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
-    let task_dir = paths::task_dir_for(
+    let parent_dir = paths::parent_dir_for(
         &input.session_id,
         input.agent_id.as_deref(),
         &input.tool_use_id,
     )?;
-
-    if let Err(e) = prepare_task_dir(&task_dir, &input) {
-        eprintln!("agent-tools hook-pre: setup failed ({e:#}); allowing original command");
-        print_allow_passthrough();
-        return Ok(());
-    }
-
-    let quoted = shell_single_quote(&task_dir.to_string_lossy());
-    let new_command = format!("exec agent-tools wrap-task {quoted}");
+    let quoted_dir = shell_single_quote(&parent_dir.to_string_lossy());
+    let new_command = format!(
+        "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; \
+         export AGENT_TOOLS_PARENT_DIR={quoted_dir}; \
+         {orig}",
+        orig = input.tool_input.command,
+    );
     let out = serde_json::json!({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -49,29 +42,6 @@ pub fn run() -> Result<()> {
         }
     });
     println!("{}", serde_json::to_string(&out)?);
-    Ok(())
-}
-
-fn prepare_task_dir(task_dir: &PathBuf, input: &hook_input::PreToolUseInput) -> Result<()> {
-    fs::create_dir_all(task_dir.join("children"))
-        .with_context(|| format!("mkdir {}", task_dir.display()))?;
-    fs::write(task_dir.join("command.sh"), &input.tool_input.command)
-        .with_context(|| format!("write command.sh under {}", task_dir.display()))?;
-    let meta = Meta::Task(TaskMeta {
-        session_id: input.session_id.clone(),
-        agent_id: input.agent_id.clone(),
-        task_id: input.tool_use_id.clone(),
-        tool: input.tool_name.clone(),
-        tool_use_id: input.tool_use_id.clone(),
-        desc: input.tool_input.description.clone(),
-        cwd: input.cwd.clone(),
-        pid: None,
-        started_at: None,
-        ended_at: None,
-        exit_code: None,
-        silence_threshold_ms: SILENCE_THRESHOLD_MS,
-    });
-    crate::meta::write_meta(task_dir, &meta)?;
     Ok(())
 }
 
