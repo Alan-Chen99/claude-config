@@ -51,6 +51,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `diagnose-session/`   | Post-hoc conversation log analysis        | Surfacing unreported items from session logs |
 | `diagnose-workflow/`  | Structural sub-agent workflow extraction   | Diagnosing multi-agent workflow success/failure |
 | `long-bash/`          | Long-running bash command protocol         | Running commands that may exceed 2min timeout   |
+| `git-surgery/`        | libgit2/pygit2 history rewrites without touching worktree, index, or HEAD; preserves SHA references in tracked files and commit messages | Squashing/dropping/reordering/amending commits when the worktree must survive or commit SHAs are checked in elsewhere |
 
 ## Script Invocation
 
