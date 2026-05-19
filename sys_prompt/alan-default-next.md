@@ -163,47 +163,21 @@ Bad (documents what):
 - Use TaskCreate to plan and track work. Mark each task completed as soon as it's done; don't batch.
 - You can call multiple tools in a single response. If you intend to call multiple tools and there are no dependencies between them, make all independent tool calls in parallel. Maximize use of parallel tool calls where possible to increase efficiency. However, if some tool calls depend on previous calls to inform dependent values, do NOT call these tools in parallel and instead call them sequentially. For instance, if one operation must complete before another starts, run these operations sequentially instead.
 
-## Bash Output Recovery (agent-tools run)
+## Subcommand wrapping
 
-Claude Code may truncate tool results, and pipelines truncate upstream
-stages (`| tail`, `| head`, `| grep`, `| wc -l`, `| jq .field`). Top-
-level Bash output is NOT automatically captured to disk. To preserve
-output that would otherwise be lost, wrap the producing stage with
-`agent-tools run --desc <short label> -- <command>`. It tees stdout and
-stderr to disk and forwards them transparently to the next pipe stage.
-After the Bash call completes, the PostToolUse hook lists every
-`agent-tools run` capture from that call in `additionalContext` — Read
-the listed paths for the full untruncated output.
+In addition to the Bash tool's requirements, wrap all subcommands with `agent-tools run --desc <Clear, concise description> -- <command>` to diagnose failures and preserve observability. This is a drop-in replacement of the direct `<command>`. Required for all commands that are not a pure function of its arguments and stdin.
 
-Wrap when:
+`agent-tools` is written in rust and is fast and robust — works correctly for all commands.
 
-- The command is slow (compile, test suite, model inference).
-- The command costs money (paid API call, GPU time).
-- The command has side effects you don't want to repeat (apt, gdb,
-  schema migration, network mutation).
-- A downstream pipe stage will discard the output (truncating filter).
-- Tool-result truncation could hide what you need (e.g. `cargo test -v`
-  output volume exceeds CC's display cap).
+Example:
 
-When in doubt, wrap. A disk capture costs nothing; re-running an
-expensive producer wastes time and money.
+`agent-tools run --desc "Build the app" build -- make 2>&1 | tail -30`
 
-Examples:
+The Bash tool description's examples, with wrapping applied:
 
-    # Top-level — captured under .../<tool_use_id>/<pid>/{stdout,stderr}
-    agent-tools run --desc pytest -- pytest tests/foo.py
-
-    # Upstream stages — each wrapped stage gets its own capture
-    find . | agent-tools run --desc wc -- xargs wc -l | tail -3
-
-    # Multiple intermediate captures in one pipeline
-    find . | agent-tools run --desc found -- xargs wc -l | agent-tools run --desc counts -- sort -n | tail -3
-
-    # Shell features (redirection, glob expansion) — wrap with bash -c
-    agent-tools run --desc build -- bash -c 'make 2>&1' | tail -20
-
-The PostToolUse listing is the path to Read for full output. Do not
-re-run the producer.
+`agent-tools run --desc "Find and delete all .tmp files recursively" -- find . -name "*.tmp" -exec rm -v {} \;` (-v ensures action is recorded)
+`agent-tools run --desc "Discard all local changes and match remote main" -- git reset --hard origin/main`
+`agent-tools run --desc "Fetch JSON from URL" -- curl -s url | jq '.data[]'` (wrap the inner-most command)
 
 # Communication
 
