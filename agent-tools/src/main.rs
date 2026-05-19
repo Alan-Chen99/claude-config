@@ -132,6 +132,11 @@ fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[S
     // --project already specifies the venv; inherited VIRTUAL_ENV from the
     // shell may point to a different worktree and triggers a noisy warning.
     cmd.env_remove("VIRTUAL_ENV");
+    // The MITM intercept proxy (scripts/intercept) only forwards api.anthropic.com
+    // and lacks a trusted CA path for uv's PyPI fetches. If uv needs to resolve
+    // or install packages on venv update, going through the intercept fails TLS.
+    // Strip HTTPS_PROXY so uv talks to PyPI directly.
+    cmd.env_remove("HTTPS_PROXY");
     cmd.env("UV_PROJECT_ENVIRONMENT", venv_path(root));
     cmd.arg("run").arg("--project").arg(root);
     for a in python_args {
