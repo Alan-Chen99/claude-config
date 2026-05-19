@@ -47,8 +47,11 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools env-context` — print the `# Environment` block (cwd, git, platform, shell, OS). Inject via a `SessionStart` hook returning `{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: <stdout>}}` so cc still sees the env block when `--system-prompt-file` replaces the default prompt — keeps the system prompt itself static and fully cacheable.
 
 Root resolution (no dependency on binary location):
-1. `CLAUDE_CONFIG_ROOT` env var
-2. Default: derived from `~/.claude/skills` symlink target (i.e. `/repos/claude-config`)
+1. `--root <PATH>` CLI flag (place before the subcommand for unambiguous parsing; for ad-hoc override in a worktree)
+2. `CLAUDE_CONFIG_ROOT` env var
+3. Default: derived from `~/.claude/skills` symlink target (i.e. `/repos/claude-config`)
+
+The flag is a no-op for subcommands that don't resolve the repo root (`run`, `hook-pre`, `hook-post`, `ps`).
 
 Venv location: each project root resolves to `~/.claude/venvs/<basename>/` (set via `UV_PROJECT_ENVIRONMENT`), keeping venvs out of the source tree so host and container sessions don't fight over the same `.venv`.
 

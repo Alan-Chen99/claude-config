@@ -37,12 +37,19 @@ The most common recovery path after a backgrounded multi-stage wrap is `<task-no
 
 ## Testing from a worktree
 
-Per repo-root `CLAUDE.md`: **worktrees must NEVER run `install.sh`**. Build in place:
+Per repo-root `CLAUDE.md`: **worktrees must NEVER run `install.sh`**. Build in place, then point at the worktree via env var or CLI flag:
 
 ```bash
 cd agent-tools && cargo build --release
+
+# (a) env var (persistent across multiple calls in the same shell):
 CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module> [args...]
+
+# (b) --root flag (per-invocation, takes precedence over the env var):
+./target/release/agent-tools --root /path/to/worktree skill <module> [args...]
 ```
+
+Place `--root` before the subcommand to avoid ambiguity with subcommand args (subcommands capture trailing args verbatim, so `--root` placed after a subcommand's first positional arg is forwarded to the skill instead of being parsed as the global flag). The flag is a no-op for subcommands that don't resolve the repo root (`run`, `hook-pre`, `hook-post`, `ps`).
 
 For testing hook behavior end-to-end in a worktree, copy the built binary onto a test path and invoke it directly with synthetic hook input on stdin:
 

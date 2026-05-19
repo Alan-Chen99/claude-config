@@ -19,6 +19,14 @@ mod signals;
 #[derive(Parser)]
 #[command(name = "agent-tools")]
 struct Cli {
+    /// Override the claude-config root directory (e.g., point at a worktree).
+    /// Takes precedence over CLAUDE_CONFIG_ROOT and the ~/.claude/skills symlink.
+    /// Place before the subcommand to avoid ambiguity with subcommand args
+    /// (subcommands capture trailing args verbatim). Has no effect on
+    /// subcommands that don't resolve the repo root (run, hook-pre, hook-post, ps).
+    #[arg(long, global = true, value_name = "PATH")]
+    root: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Cmd,
 }
@@ -101,9 +109,13 @@ enum Cmd {
 /// Resolve the claude-config repository root.
 ///
 /// Priority:
-///   1. CLAUDE_CONFIG_ROOT env var (for testing in worktrees)
-///   2. Derived from ~/.claude/skills symlink target (parent of target)
-fn repo_root() -> PathBuf {
+///   1. --root CLI flag (highest, for ad-hoc override in a worktree)
+///   2. CLAUDE_CONFIG_ROOT env var (persistent override, e.g. exported in a shell)
+///   3. Derived from ~/.claude/skills symlink target (parent of target)
+fn repo_root(cli_root: Option<PathBuf>) -> PathBuf {
+    if let Some(root) = cli_root {
+        return root;
+    }
     if let Ok(root) = env::var("CLAUDE_CONFIG_ROOT") {
         return PathBuf::from(root);
     }
@@ -183,7 +195,7 @@ fn main() {
             }
         }
         cmd => {
-            let root = repo_root();
+            let root = repo_root(cli.root);
             match cmd {
                 Cmd::Skill { module, args } => {
                     let full_module = format!("skills.{module}");
