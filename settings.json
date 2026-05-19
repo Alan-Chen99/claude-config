@@ -108,9 +108,12 @@
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
     "playwright-skill@playwright-skill": true,
-    "commit-commands@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": false,
     "ralph-loop@claude-plugins-official": false,
-    "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false
+    "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false,
+    "claude-md-management@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "github@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "playwright-skill": {
