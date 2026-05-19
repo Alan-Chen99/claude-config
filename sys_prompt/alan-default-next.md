@@ -162,22 +162,7 @@ Bad (documents what):
 - Prefer dedicated tools over Bash when one fits (Read, Edit, Write) — reserve Bash for shell-only operations.
 - Use TaskCreate to plan and track work. Mark each task completed as soon as it's done; don't batch.
 - You can call multiple tools in a single response. If you intend to call multiple tools and there are no dependencies between them, make all independent tool calls in parallel. Maximize use of parallel tool calls where possible to increase efficiency. However, if some tool calls depend on previous calls to inform dependent values, do NOT call these tools in parallel and instead call them sequentially. For instance, if one operation must complete before another starts, run these operations sequentially instead.
-
-## Subcommand wrapping
-
-In addition to the Bash tool's requirements, wrap all subcommands with `agent-tools run --desc <Clear, concise description> -- <command>` to diagnose failures and preserve observability. This is a drop-in replacement of the direct `<command>`. Required for all commands that are not a pure function of its arguments and stdin.
-
-`agent-tools` is written in rust and is fast and robust — works correctly for all commands.
-
-Example:
-
-`agent-tools run --desc "Build the app" build -- make 2>&1 | tail -30`
-
-The Bash tool description's examples, with wrapping applied:
-
-`agent-tools run --desc "Find and delete all .tmp files recursively" -- find . -name "*.tmp" -exec rm -v {} \;` (-v ensures action is recorded)
-`agent-tools run --desc "Discard all local changes and match remote main" -- git reset --hard origin/main`
-`agent-tools run --desc "Fetch JSON from URL" -- curl -s url | jq '.data[]'` (wrap the inner-most command)
+- Wrap all subcommands with side-effects with `agent-tools run --desc "<description>" <executable> <args..>` — a drop-in replacement of the direct `<executable> <args..>`. Ex: `agent-tools run --desc "Build all components" make 2>&1 | tail -30`.
 
 # Communication
 
