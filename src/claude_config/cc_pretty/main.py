@@ -266,10 +266,13 @@ def find_rewound_indices(
             idx_to_mid[i] = rec.message.id
 
     # Real forks have 2+ children that represent distinct conversation
-    # branches.  Filter out noise:
-    #   - Progress records: legacy logs chain them alongside user records
-    #   - Normalized split siblings: parallel tool calls from the same API
-    #     response share message.id with the parent; these are NOT rewinds
+    # branches — i.e. divergent user inputs or assistant responses.  Only
+    # UserRecord and AssistantRecord can be branches; other chain records
+    # (AttachmentRecord for hooks/skills/styles, SystemRecord for slash-command
+    # output, ProgressRecord for legacy chains) are sibling annotations that
+    # share a parent with the next chain step without representing a fork.
+    # Additional filter: normalized split siblings (parallel tool calls from
+    # the same API response) share message.id with the parent; not rewinds.
     def _real_fork_children(parent_uuid: str, kids: list[int]) -> list[int]:
         # Find the parent record's message.id (if it's an assistant record)
         parent_mid = None
@@ -279,7 +282,8 @@ def find_rewound_indices(
 
         real: list[int] = []
         for k in kids:
-            if isinstance(records[k][0], ProgressRecord):
+            rec = records[k][0]
+            if not isinstance(rec, (UserRecord, AssistantRecord)):
                 continue
             # Child assistant record from the same API response as parent
             # is just the next normalized split block, not a real branch
