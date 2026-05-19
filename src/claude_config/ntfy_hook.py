@@ -34,7 +34,7 @@ import sys
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import ProxyHandler, Request, build_opener
+from urllib.request import Request, urlopen
 
 from claude_config.config import load as _load_env
 
@@ -93,12 +93,6 @@ LLM_TIMEOUT = 15
 TRANSCRIPT_TAIL_BYTES = 16_000
 CONTEXT_MAX_CHARS = 3000
 
-# Claude Code sets HTTPS_PROXY to its mitmproxy logger; its self-signed cert
-# cannot be verified against the system CA bundle, so all HTTPS from the hook
-# subprocess fails with CERTIFICATE_VERIFY_FAILED. ntfy and OpenRouter calls
-# are not Anthropic API traffic and have no reason to go through that proxy.
-_DIRECT_OPENER = build_opener(ProxyHandler({}))
-
 
 def get_topic_url() -> str | None:
     """Return NTFY_TOPIC_URL from /repos/claude-config/.env, or None."""
@@ -133,7 +127,7 @@ def publish(topic_url: str, title: str, message: str, tags: str) -> None:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        _DIRECT_OPENER.open(req, timeout=10)
+        urlopen(req, timeout=10)
         log.info("published to %s: title=%r body=%r", base_url, title, message[:200])
     except Exception as exc:
         log.error("publish failed: %s", exc)
@@ -314,7 +308,7 @@ def generate_summary(api_key: str, context: str, hook_type: str) -> str:
     )
 
     try:
-        resp_bytes = _DIRECT_OPENER.open(req, timeout=LLM_TIMEOUT).read()
+        resp_bytes = urlopen(req, timeout=LLM_TIMEOUT).read()
     except HTTPError as exc:
         body = ""
         try:
