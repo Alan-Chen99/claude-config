@@ -8,7 +8,11 @@ Usage: cc-pretty <session.jsonl> [--tool-max N] [--truncate-input]
 
 By default, only the last leg (after the last compaction boundary) is shown.
 Rewound conversation branches are collapsed to a single marker, and records
-not presented to the model (hooks, progress, system metadata) are hidden.
+not presented to the model (raw hook execution, progress, system metadata,
+permission-mode state) are hidden.  Model-visible attachment records — most
+importantly hook_additional_context, which carries the <system-reminder> text
+emitted by SessionStart / PostToolUse / etc. hooks — are shown by default.
+Use --show-all to surface the bookkeeping records as well.
 """
 
 from __future__ import annotations
@@ -20,8 +24,10 @@ import sys
 
 from claude_config.cc_pretty.parse import (
     AssistantRecord,
+    AttachmentRecord,
     FileHistorySnapshotRecord,
     LastPromptRecord,
+    PermissionModeRecord,
     ProgressRecord,
     QueueOperationRecord,
     Record,
@@ -33,6 +39,26 @@ from claude_config.cc_pretty.parse import (
 from claude_config.cc_pretty.render import C, Renderer, fmt_ts, separator
 
 
+# Attachment subtypes whose content reaches the model (system-reminder text,
+# task/skill listings, output style, etc.).  Subtypes outside this set are
+# bookkeeping (raw hook execution, internal permission state) and stay hidden
+# unless --show-all is set.
+_MODEL_VISIBLE_ATTACHMENT_TYPES = frozenset({
+    "hook_additional_context",
+    "task_reminder",
+    "skill_listing",
+    "output_style",
+    "deferred_tools_delta",
+    "ultrathink_effort",
+    "date_change",
+    "queued_command",
+    "compact_file_reference",
+    "edited_text_file",
+    "file",
+    "nested_memory",
+})
+
+
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
@@ -41,16 +67,22 @@ def is_user_input(rec: UserRecord) -> bool:
 
 
 def is_model_visible(rec: Record) -> bool:
-    """True if this record type is sent to the model (normalizeMessagesForAPI).
+    """True if this record contributes to the model's view of the conversation.
 
-    user and assistant messages are always sent. system messages only when
-    subtype is local_command.  Everything else (progress, file-history-snapshot,
-    queue-operation, last-prompt, hooks, turn_duration, etc.) is filtered out
-    before the API call.
+    user and assistant messages are always sent.  system messages only when
+    subtype is local_command.  attachment records whose subtype reaches the
+    model (see _MODEL_VISIBLE_ATTACHMENT_TYPES) are sent — most notably
+    hook_additional_context, which carries the <system-reminder> text emitted
+    by SessionStart / PostToolUse / etc. hooks.  Bookkeeping records (progress,
+    file-history-snapshot, queue-operation, last-prompt, permission-mode,
+    raw hook_success, turn_duration, etc.) are filtered out before the API
+    call.
     """
     if isinstance(rec, (AssistantRecord, UserRecord)):
         return True
     if isinstance(rec, SystemRecord) and rec.subtype == "local_command":
+        return True
+    if isinstance(rec, AttachmentRecord) and rec.attachment.type in _MODEL_VISIBLE_ATTACHMENT_TYPES:
         return True
     return False
 
@@ -643,6 +675,19 @@ def main():
 
         elif isinstance(rec, QueueOperationRecord):
             print(r.render_queue_op(rec))
+            i += 1
+
+        elif isinstance(rec, AttachmentRecord):
+            # hook_additional_context renders as a multi-line block (with its
+            # own header), other subtypes as one-line summaries — separator
+            # only matters for the multi-line case.
+            if rec.attachment.type == "hook_additional_context":
+                print(separator())
+            print(r.render_attachment(rec, ts, lineno))
+            i += 1
+
+        elif isinstance(rec, PermissionModeRecord):
+            print(r.render_permission_mode(rec))
             i += 1
 
         else:

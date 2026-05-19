@@ -13,10 +13,12 @@ from datetime import datetime
 from claude_config.cc_pretty.parse import (
     AgentProgress,
     AssistantRecord,
+    AttachmentRecord,
     BashProgress,
     FileHistorySnapshotRecord,
     HookProgress,
     LastPromptRecord,
+    PermissionModeRecord,
     ProgressRecord,
     QueueOperationRecord,
     SystemRecord,
@@ -361,6 +363,94 @@ class Renderer:
     def render_last_prompt(self, rec: LastPromptRecord) -> str:
         preview = rec.lastPrompt[:100] + "..." if len(rec.lastPrompt) > 100 else rec.lastPrompt
         return f"{C.DIM}  ⎘ last-prompt: {preview}{C.RESET}"
+
+    def render_attachment(self, rec: AttachmentRecord, ts: str, lineno: int) -> str:
+        """Render an attachment record.
+
+        hook_additional_context gets a multi-line block (model-visible
+        system-reminder text); other subtypes get one-line summaries.
+        """
+        a = rec.attachment
+        atype = a.type
+
+        if atype == "hook_additional_context":
+            # The exact text the model received as <system-reminder>
+            content = a.content
+            if isinstance(content, list):
+                body = "\n\n".join(str(x) for x in content)
+            else:
+                body = str(content)
+            hook_label = a.hookName or a.hookEvent or "?"
+            header = (
+                f"{C.SYSTEM}┌ Additional Context{C.RESET}  "
+                f"{C.DIM}[{hook_label}]{C.RESET}  "
+                f"{C.TIMESTAMP}{ts}{C.RESET}"
+            )
+            truncated_body = trunc(body, self.tool_output_max)
+            lines = [header, ind(truncated_body, "  ")]
+            if is_truncated(body, self.tool_output_max):
+                lines.append(jq_hint(self.log_path, lineno, ".attachment.content"))
+            return "\n".join(lines)
+
+        if atype == "hook_success":
+            return (
+                f"{C.DIM}  ⊙ hook {a.hookName or '?'}: "
+                f"exit {a.exitCode}, {fmt_duration(a.durationMs)}{C.RESET}"
+            )
+
+        if atype == "hook_non_blocking_error":
+            err = trunc(a.stderr or str(a.content) or "?", 200)
+            return (
+                f"{C.ERROR}  ⊙ hook ERROR {a.hookName or '?'}: "
+                f"exit {a.exitCode}{C.RESET}\n"
+                f"    {C.DIM}{err}{C.RESET}"
+            )
+
+        if atype == "task_reminder":
+            return f"{C.DIM}  ⊞ task reminder: {a.itemCount} task(s){C.RESET}"
+
+        if atype == "skill_listing":
+            marker = "initial" if a.isInitial else "delta"
+            return (
+                f"{C.DIM}  ⊞ skill listing [{marker}]: "
+                f"{a.skillCount} skill(s){C.RESET}"
+            )
+
+        if atype == "output_style":
+            return f"{C.DIM}  ⊞ output style: {a.style}{C.RESET}"
+
+        if atype == "deferred_tools_delta":
+            parts: list[str] = []
+            if a.addedNames:
+                parts.append(f"+{len(a.addedNames)}")
+            if a.removedNames:
+                parts.append(f"-{len(a.removedNames)}")
+            if a.readdedNames:
+                parts.append(f"re-add {len(a.readdedNames)}")
+            summary = " ".join(parts) or "(no changes)"
+            return f"{C.DIM}  ⊞ deferred tools {summary}{C.RESET}"
+
+        if atype == "ultrathink_effort":
+            return f"{C.DIM}  ⊞ ultrathink effort{C.RESET}"
+
+        if atype == "command_permissions":
+            return f"{C.DIM}  ⊞ permissions: {len(a.allowedTools)} allowed{C.RESET}"
+
+        if atype == "date_change":
+            return f"{C.DIM}  ⊞ date change: {a.newDate}{C.RESET}"
+
+        if atype == "queued_command":
+            preview = trunc(a.prompt, 80)
+            return f"{C.DIM}  ⊞ queued [{a.commandMode}]: {preview}{C.RESET}"
+
+        if atype in ("file", "edited_text_file", "compact_file_reference", "nested_memory"):
+            label = a.displayPath or a.path or a.filename or "?"
+            return f"{C.DIM}  ⊞ {atype}: {label}{C.RESET}"
+
+        return f"{C.DIM}  ⊞ attachment [{atype}]{C.RESET}"
+
+    def render_permission_mode(self, rec: PermissionModeRecord) -> str:
+        return f"{C.DIM}  ⊞ permission-mode: {rec.permissionMode}{C.RESET}"
 
     # ── Session header ───────────────────────────────────────────────────
 

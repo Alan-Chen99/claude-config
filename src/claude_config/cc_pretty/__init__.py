@@ -1,7 +1,9 @@
 from claude_config.cc_pretty.parse import (
     AssistantRecord,
+    AttachmentRecord,
     FileHistorySnapshotRecord,
     LastPromptRecord,
+    PermissionModeRecord,
     ProgressRecord,
     QueueOperationRecord,
     Record,
@@ -14,9 +16,11 @@ from claude_config.cc_pretty.render import C, Renderer, fmt_ts, separator
 
 __all__ = [
     "AssistantRecord",
+    "AttachmentRecord",
     "C",
     "FileHistorySnapshotRecord",
     "LastPromptRecord",
+    "PermissionModeRecord",
     "ProgressRecord",
     "QueueOperationRecord",
     "Record",

@@ -1,10 +1,17 @@
 """Pydantic schema and parse functions for Claude Code JSONL session logs.
 
 Handles all record types found in Claude Code JSONL logs:
-  assistant, user, system, progress, file-history-snapshot, last-prompt, queue-operation
+  assistant, user, system, progress, file-history-snapshot, last-prompt,
+  queue-operation, attachment, permission-mode
 
 Content block types: thinking, text, tool_use, tool_result
 Progress data types: bash_progress, agent_progress, hook_progress
+Attachment types: hook_additional_context (model-visible system-reminder text
+  produced by SessionStart / PostToolUse / etc.), hook_success (raw hook
+  execution metadata), task_reminder, skill_listing, output_style,
+  deferred_tools_delta, command_permissions, ultrathink_effort,
+  date_change, queued_command, compact_file_reference, edited_text_file,
+  file, nested_memory, hook_non_blocking_error.
 """
 
 from __future__ import annotations
@@ -258,6 +265,73 @@ class QueueOperationRecord(_Base):
     operation: str = ""
     content: str | None = None
 
+
+# ─── Attachment payload (inner `.attachment` dict) ──────────────────────────
+# Fields vary by attachment subtype; declared permissively so any subtype
+# parses cleanly. See _MODEL_VISIBLE_ATTACHMENT_TYPES in main.py for which
+# subtypes contribute to the model's view.
+
+class AttachmentData(_Base):
+    type: str = "unknown"
+    # hook_success / hook_non_blocking_error / hook_additional_context
+    hookName: str = ""
+    hookEvent: str = ""
+    toolUseID: str = ""
+    command: str = ""
+    stdout: str = ""
+    stderr: str = ""
+    exitCode: int = 0
+    durationMs: int = 0
+    # hook_additional_context content is a list[str] (one per source hook);
+    # task_reminder / skill_listing content is a str — accept either.
+    content: Any = ""
+    # task_reminder
+    itemCount: int = 0
+    # skill_listing
+    skillCount: int = 0
+    isInitial: bool = False
+    # output_style
+    style: str = ""
+    # deferred_tools_delta
+    addedNames: list[str] = []
+    removedNames: list[str] = []
+    readdedNames: list[str] = []
+    addedLines: list[str] = []
+    pendingMcpServers: list[Any] = []
+    # command_permissions
+    allowedTools: list[str] = []
+    # date_change
+    newDate: str = ""
+    # file / edited_text_file / compact_file_reference / nested_memory
+    filename: str = ""
+    displayPath: str = ""
+    path: str = ""
+    snippet: str = ""
+    # queued_command
+    prompt: str = ""
+    commandMode: str = ""
+
+
+class AttachmentRecord(_Base):
+    type: Literal["attachment"]
+    uuid: str = ""
+    timestamp: str = ""
+    sessionId: str = ""
+    parentUuid: str | None = None
+    isSidechain: bool = False
+    attachment: AttachmentData = Field(default_factory=AttachmentData)
+    version: str = ""
+    slug: str = ""
+    cwd: str = ""
+    gitBranch: str = ""
+
+
+class PermissionModeRecord(_Base):
+    type: Literal["permission-mode"]
+    permissionMode: str = ""
+    sessionId: str = ""
+
+
 class UnknownRecord(_Base):
     """Catch-all for unrecognized record types."""
     type: str = "unknown"
@@ -266,7 +340,7 @@ class UnknownRecord(_Base):
 Record = (
     AssistantRecord | UserRecord | SystemRecord | ProgressRecord
     | FileHistorySnapshotRecord | LastPromptRecord | QueueOperationRecord
-    | UnknownRecord
+    | AttachmentRecord | PermissionModeRecord | UnknownRecord
 )
 
 _RECORD_MAP: dict[str, type[Record]] = {
@@ -277,6 +351,8 @@ _RECORD_MAP: dict[str, type[Record]] = {
     "file-history-snapshot": FileHistorySnapshotRecord,
     "last-prompt": LastPromptRecord,
     "queue-operation": QueueOperationRecord,
+    "attachment": AttachmentRecord,
+    "permission-mode": PermissionModeRecord,
 }
 
 def parse_record(raw: dict[str, Any]) -> Record:
