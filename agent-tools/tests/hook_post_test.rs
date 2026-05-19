@@ -191,21 +191,342 @@ fn per_capture_format_with_and_without_desc() {
 }
 
 #[test]
-fn non_bash_non_monitor_emits_nothing() {
+fn unmatched_tool_emits_nothing() {
+    // Edit/Write/Grep/etc. are not in the matcher set; the hook returns
+    // early. Even with a capture present, no output is emitted.
     let home = tempfile::tempdir().unwrap();
-    // Even with a capture present, a Read tool call should emit no output.
     let parent = parent_dir(home.path(), "sid", None, "tuid");
     seed_capture(&parent, 1, Some("ignored"));
 
     let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
         "session_id": "sid",
-        "tool_name": "Read",
-        "tool_input": {"command": "n/a"},
+        "tool_name": "Edit",
+        "tool_input": {"file_path": "/tmp/x"},
         "tool_use_id": "tuid",
         "tool_response": {}
     }));
     assert!(status.success(), "stderr: {stderr}");
     assert!(stdout.trim().is_empty(), "expected no stdout, got: {stdout}");
+}
+
+#[test]
+fn read_with_no_prior_bg_emits_nothing() {
+    // Read IS in the matcher set (it triggers the late-capture scan), but
+    // when there is no prior backgrounded toolu_id in scope, scan finds
+    // nothing and the hook emits no additionalContext.
+    let home = tempfile::tempdir().unwrap();
+    let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-read",
+        "tool_response": {}
+    }));
+    assert!(status.success(), "stderr: {stderr}");
+    assert!(stdout.trim().is_empty(), "expected no stdout, got: {stdout}");
+}
+
+/// Helper: append a JSONL event under <toolu_dir>/events.jsonl.
+fn append_event(
+    toolu_dir: &std::path::Path,
+    ts: chrono::DateTime<chrono::Utc>,
+    kind: &str,
+    data: serde_json::Value,
+) {
+    use std::io::Write as _;
+    std::fs::create_dir_all(toolu_dir).unwrap();
+    let path = toolu_dir.join("events.jsonl");
+    let line = serde_json::to_string(&serde_json::json!({
+        "ts": ts,
+        "kind": kind,
+        "data": data,
+    }))
+    .unwrap();
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .unwrap();
+    writeln!(f, "{line}").unwrap();
+}
+
+/// Helper: seed a finalized child (started + exited) in a prior toolu_dir.
+/// Creates the events.jsonl entries AND the <pid>/meta.json so the scan can
+/// pull the desc from either source.
+fn seed_finalized_child(toolu_dir: &std::path::Path, pid: i64, desc: &str) {
+    let started_ts = chrono::Utc::now() - chrono::Duration::seconds(30);
+    let exited_ts = chrono::Utc::now() - chrono::Duration::seconds(20);
+    append_event(
+        toolu_dir,
+        started_ts,
+        "child_started",
+        serde_json::json!({"child_pid": pid, "desc": desc, "command": ["echo", "hi"]}),
+    );
+    append_event(
+        toolu_dir,
+        exited_ts,
+        "child_exit",
+        serde_json::json!({"child_pid": pid, "exit_code": 0}),
+    );
+    let child = toolu_dir.join(pid.to_string());
+    std::fs::create_dir_all(&child).unwrap();
+    let meta = format!(
+        r#"{{"child_id":{pid},"desc":"{desc}","command":["echo","hi"],"started_at":null,"ended_at":null,"exit_code":0}}"#
+    );
+    std::fs::write(child.join("meta.json"), meta).unwrap();
+}
+
+#[test]
+fn read_surfaces_late_captures_from_prior_backgrounded_call() {
+    let home = tempfile::tempdir().unwrap();
+    let scope = home.path().join(".claude/agent-tools/sid");
+    let prior_toolu = scope.join("toolu_prior");
+    seed_finalized_child(&prior_toolu, 4242, "stage2-later");
+
+    // A Read tool call AFTER the prior backgrounded call's late wrap exited.
+    let (status, stdout, stderr) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-read",
+        "tool_response": {}
+    }));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
+    assert!(
+        ctx.contains("Late captures from prior backgrounded call toolu_prior:"),
+        "ctx: {ctx}"
+    );
+    assert!(ctx.contains("stage2-later"), "ctx: {ctx}");
+    let expected_path = format!("{}/{{stdout,stderr}}", prior_toolu.join("4242").display());
+    assert!(ctx.contains(&expected_path), "ctx: {ctx}");
+}
+
+#[test]
+fn second_hook_fire_does_not_reemit_late_capture() {
+    // Ledger dedup: once a child PID is surfaced, subsequent hooks must
+    // not list it again.
+    let home = tempfile::tempdir().unwrap();
+    let scope = home.path().join(".claude/agent-tools/sid");
+    let prior_toolu = scope.join("toolu_prior");
+    seed_finalized_child(&prior_toolu, 1111, "only-once");
+
+    let payload = serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-r1",
+        "tool_response": {}
+    });
+    let (_, stdout1, _) = run_post(home.path(), payload.clone());
+    assert!(stdout1.contains("only-once"), "first fire should emit: {stdout1}");
+
+    // Second fire with a DIFFERENT tool_use_id (so the current-call dedup
+    // doesn't mask the test). The ledger entry from the first fire should
+    // make the second fire skip the late capture.
+    let payload2 = serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-r2",
+        "tool_response": {}
+    });
+    let (_, stdout2, _) = run_post(home.path(), payload2);
+    assert!(
+        !stdout2.contains("only-once"),
+        "second fire must not re-emit: {stdout2}"
+    );
+}
+
+#[test]
+fn in_flight_child_without_exit_is_skipped() {
+    // child_started present but no child_exit yet, and the start is recent
+    // (< 5min stale threshold) → scan skips, no emission this fire.
+    let home = tempfile::tempdir().unwrap();
+    let scope = home.path().join(".claude/agent-tools/sid");
+    let prior_toolu = scope.join("toolu_prior");
+    let recent_ts = chrono::Utc::now() - chrono::Duration::seconds(10);
+    append_event(
+        &prior_toolu,
+        recent_ts,
+        "child_started",
+        serde_json::json!({"child_pid": 7777, "desc": "still-running"}),
+    );
+
+    let (_, stdout, stderr) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-r",
+        "tool_response": {}
+    }));
+    assert!(
+        !stdout.contains("Late captures"),
+        "in-flight child must not emit: {stdout} | stderr: {stderr}"
+    );
+}
+
+#[test]
+fn stale_in_flight_child_surfaces_with_unfinalized_annotation() {
+    // child_started older than 5min with no child_exit → emitted with
+    // [unfinalized] suffix, covering SIGKILL / host-shutdown cases.
+    let home = tempfile::tempdir().unwrap();
+    let scope = home.path().join(".claude/agent-tools/sid");
+    let prior_toolu = scope.join("toolu_prior");
+    let old_ts = chrono::Utc::now() - chrono::Duration::seconds(400);
+    append_event(
+        &prior_toolu,
+        old_ts,
+        "child_started",
+        serde_json::json!({"child_pid": 8888, "desc": "abandoned"}),
+    );
+
+    let (_, stdout, _) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-r",
+        "tool_response": {}
+    }));
+    assert!(stdout.contains("Late captures from prior backgrounded call toolu_prior:"), "stdout: {stdout}");
+    assert!(stdout.contains("abandoned [unfinalized]"), "stdout: {stdout}");
+}
+
+#[test]
+fn bash_call_seeds_ledger_with_its_own_pids() {
+    // The hook for a Bash call must record its captures' PIDs in the
+    // ledger under its own tool_use_id, so a later hook firing with a
+    // DIFFERENT tool_use_id does not surface them as "late captures from
+    // prior backgrounded call <this-bash>".
+    let home = tempfile::tempdir().unwrap();
+    let parent = parent_dir(home.path(), "sid", None, "tuid-bash");
+    let _dir1 = seed_capture(&parent, 555, Some("bash-cap"));
+    // Also write events.jsonl so the dir is recognized as a wrap-parent on
+    // later scans.
+    append_event(
+        &parent,
+        chrono::Utc::now() - chrono::Duration::seconds(60),
+        "child_started",
+        serde_json::json!({"child_pid": 555, "desc": "bash-cap"}),
+    );
+    append_event(
+        &parent,
+        chrono::Utc::now() - chrono::Duration::seconds(50),
+        "child_exit",
+        serde_json::json!({"child_pid": 555, "exit_code": 0}),
+    );
+
+    // First hook fire: the Bash call lists its own capture.
+    let (_, stdout1, _) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi"},
+        "tool_use_id": "tuid-bash",
+        "tool_response": {}
+    }));
+    assert!(stdout1.contains("[agent-tools] captures from this Bash call:"), "stdout1: {stdout1}");
+    assert!(stdout1.contains("bash-cap"), "stdout1: {stdout1}");
+    // The seed should have happened — the late-capture section must NOT
+    // appear for this same call.
+    assert!(!stdout1.contains("Late captures"), "stdout1: {stdout1}");
+
+    // Second hook fire under a different tool_use_id. Without seeding, the
+    // scan would now find PID 555 unsurfaced and re-emit it as a late
+    // capture from toolu_bash. With seeding, it stays silent.
+    let (_, stdout2, _) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-other",
+        "tool_response": {}
+    }));
+    assert!(
+        !stdout2.contains("Late captures"),
+        "ledger seed failed; second hook re-emitted: {stdout2}"
+    );
+}
+
+#[test]
+fn subagent_scope_isolated_from_main_thread() {
+    // A main-thread Read should NOT see captures from a subagent's prior
+    // backgrounded call, and vice versa — the per-scope ledger lives under
+    // <session>/<agent_id>/ and the scan walks only that scope.
+    let home = tempfile::tempdir().unwrap();
+    let sub_scope = home.path().join(".claude/agent-tools/sid/agent-abc");
+    let sub_toolu = sub_scope.join("toolu_sub_prior");
+    seed_finalized_child(&sub_toolu, 333, "subagent-late");
+
+    // Main-thread Read: scope is <sid>/, which contains the subagent dir
+    // "agent-abc/" but that dir has no events.jsonl directly inside, so
+    // scan_priors filters it out. Main thread sees nothing.
+    let (_, stdout_main, _) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-main",
+        "tool_response": {}
+    }));
+    assert!(
+        !stdout_main.contains("subagent-late"),
+        "main thread saw subagent capture: {stdout_main}"
+    );
+
+    // Subagent Read in its own scope: sees the late capture.
+    let (_, stdout_sub, _) = run_post(home.path(), serde_json::json!({
+        "session_id": "sid",
+        "agent_id": "agent-abc",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-sub",
+        "tool_response": {}
+    }));
+    assert!(stdout_sub.contains("subagent-late"), "stdout_sub: {stdout_sub}");
+    assert!(stdout_sub.contains("toolu_sub_prior"), "stdout_sub: {stdout_sub}");
+}
+
+#[test]
+fn parallel_hooks_emit_late_capture_at_most_once() {
+    // Two hook processes firing concurrently for different tool_use_ids
+    // must not both surface the same prior late capture. The per-scope
+    // flock around the ledger read-modify-write serializes them; one
+    // emits, the other skips.
+    let home = tempfile::tempdir().unwrap();
+    let scope = home.path().join(".claude/agent-tools/sid");
+    let prior_toolu = scope.join("toolu_prior");
+    seed_finalized_child(&prior_toolu, 9999, "race-target");
+
+    let body_a = serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-parA",
+        "tool_response": {}
+    });
+    let body_b = serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/tmp/x"},
+        "tool_use_id": "tuid-parB",
+        "tool_response": {}
+    });
+    // Spawn two hook subprocesses without waiting between them.
+    let home_path = home.path().to_path_buf();
+    let h1 = std::thread::spawn({
+        let home_path = home_path.clone();
+        move || run_post(&home_path, body_a)
+    });
+    let h2 = std::thread::spawn(move || run_post(&home_path, body_b));
+    let (_, out_a, _) = h1.join().unwrap();
+    let (_, out_b, _) = h2.join().unwrap();
+
+    let a_emits = out_a.contains("race-target");
+    let b_emits = out_b.contains("race-target");
+    assert!(
+        a_emits ^ b_emits,
+        "exactly one of the parallel hooks must emit the late capture; \
+         a_emits={a_emits} b_emits={b_emits}\nout_a: {out_a}\nout_b: {out_b}"
+    );
 }
 
 #[test]
