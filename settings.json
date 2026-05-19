@@ -90,7 +90,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|Monitor",
+        "matcher": "Bash|Monitor|Read",
         "hooks": [
           {
             "type": "command",
