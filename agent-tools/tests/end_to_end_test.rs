@@ -212,9 +212,16 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         ctx.contains("[agent-tools] captures from this Bash call:"),
         "additionalContext missing captures header; got: {ctx}"
     );
+    // End-to-end run uses the real `agent-tools run` subprocess, so meta.json
+    // is finalized with exit=0 and a real (small) duration. The bracket also
+    // carries the actual stdout byte size ("hi\n" = 3 bytes) and 0B stderr.
     assert!(
-        ctx.contains("probe → "),
-        "additionalContext missing `probe → ` fragment; got: {ctx}"
+        ctx.contains("probe [exit=0 "),
+        "additionalContext missing `probe [exit=0 ` fragment; got: {ctx}"
+    );
+    assert!(
+        ctx.contains("out=3B err=0B] → "),
+        "additionalContext missing byte-size fragment `out=3B err=0B] → `; got: {ctx}"
     );
     assert!(
         ctx.contains("{stdout,stderr}"),

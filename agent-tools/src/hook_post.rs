@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use nix::fcntl::{Flock, FlockArg};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
@@ -120,9 +120,108 @@ fn list_captures(parent_dir: &Path) -> Vec<Capture> {
 }
 
 fn format_capture(c: &Capture) -> String {
+    let details = format_details(&c.dir, false);
+    let path_frag = format!("{}/{{stdout,stderr}}", c.dir.display());
     match &c.desc {
-        Some(d) => format!("{} → {}/{{stdout,stderr}}", d, c.dir.display()),
-        None => format!("{}/{{stdout,stderr}}", c.dir.display()),
+        Some(d) => format!("{d}{details} → {path_frag}"),
+        // No-desc: details starts with a leading space; trim so the line begins
+        // with the bracket. Result: "[details] → <path>/{stdout,stderr}".
+        None => format!("{} → {path_frag}", details.trim_start()),
+    }
+}
+
+/// Format the bracket containing run details: exit code (or `unfinalized`),
+/// elapsed time, and stdout/stderr byte sizes. Returns a leading-space-prefixed
+/// string like ` [exit=0 1ms out=12B err=0B]`. Never returns empty — sizes are
+/// always available from the filesystem even when meta.json is missing.
+///
+/// `force_unfinalized` adds an `unfinalized` token when the caller (e.g.
+/// `scan_priors`) determined the process is in-flight or stale based on the
+/// events.jsonl timeline, but meta.json hasn't been updated to reflect that
+/// (e.g. SIGKILL before the parent could write the final meta).
+fn format_details(child_dir: &Path, force_unfinalized: bool) -> String {
+    let stdout_bytes = file_size(&child_dir.join("stdout"));
+    let stderr_bytes = file_size(&child_dir.join("stderr"));
+    let meta = fs::read_to_string(child_dir.join("meta.json"))
+        .ok()
+        .and_then(|s| serde_json::from_str::<ChildMeta>(&s).ok());
+
+    let mut bits: Vec<String> = Vec::new();
+    let mut emitted_unfinalized = false;
+    if let Some(m) = &meta {
+        match m.exit_code {
+            Some(code) => {
+                bits.push(format!("exit={code}"));
+                if let (Some(start), Some(end)) = (m.started_at, m.ended_at) {
+                    bits.push(format_duration(end.signed_duration_since(start)));
+                }
+            }
+            None => {
+                bits.push("unfinalized".to_string());
+                emitted_unfinalized = true;
+                if let Some(start) = m.started_at {
+                    bits.push(format!(
+                        "ran {}",
+                        format_duration(Utc::now().signed_duration_since(start)),
+                    ));
+                }
+            }
+        }
+    }
+    if force_unfinalized && !emitted_unfinalized {
+        bits.insert(0, "unfinalized".to_string());
+    }
+    bits.push(format!("out={}", format_size(stdout_bytes)));
+    bits.push(format!("err={}", format_size(stderr_bytes)));
+
+    format!(" [{}]", bits.join(" "))
+}
+
+fn file_size(path: &Path) -> u64 {
+    fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+}
+
+/// Compact human-readable duration: `850µs`, `12ms`, `3.4s`, `2m15s`, `1h30m`.
+/// Negative durations clamp to zero (callers compute `end - start` on
+/// occasionally-skewed clocks).
+fn format_duration(d: Duration) -> String {
+    let micros = d.num_microseconds().unwrap_or(i64::MAX).max(0);
+    if micros < 1_000 {
+        format!("{micros}µs")
+    } else if micros < 1_000_000 {
+        format!("{}ms", micros / 1_000)
+    } else if micros < 60_000_000 {
+        // Round to one decimal: 1.0s..59.9s.
+        let tenths = (micros + 50_000) / 100_000;
+        format!("{}.{}s", tenths / 10, tenths % 10)
+    } else {
+        let total = d.num_seconds().max(0);
+        let mins = total / 60;
+        let secs = total % 60;
+        if mins < 60 {
+            format!("{mins}m{secs}s")
+        } else {
+            let hrs = mins / 60;
+            let m = mins % 60;
+            format!("{hrs}h{m}m")
+        }
+    }
+}
+
+/// Compact byte-size: `0B`, `512B`, `4KB`, `12MB`, `1.3GB`. Uses 1024-based
+/// units (KB = 1024 B, etc.) — terse, not strictly SI.
+fn format_size(bytes: u64) -> String {
+    const KIB: u64 = 1024;
+    const MIB: u64 = KIB * 1024;
+    const GIB: u64 = MIB * 1024;
+    if bytes < KIB {
+        format!("{bytes}B")
+    } else if bytes < MIB {
+        format!("{}KB", bytes / KIB)
+    } else if bytes < GIB {
+        format!("{}MB", bytes / MIB)
+    } else {
+        format!("{:.1}GB", bytes as f64 / GIB as f64)
     }
 }
 
@@ -327,7 +426,7 @@ fn scan_priors(
             }
         }
 
-        let mut emit: Vec<(i64, String, PathBuf)> = Vec::new();
+        let mut emit: Vec<(i64, String, PathBuf, bool)> = Vec::new();
         for (pid, (ts, desc_opt)) in &started {
             if surfaced.contains(pid) {
                 continue;
@@ -346,29 +445,30 @@ fn scan_priors(
                     .and_then(|s| serde_json::from_str::<ChildMeta>(&s).ok())
                     .and_then(|c| c.desc)
             });
-            let label = match (desc, finalized) {
-                (Some(d), true) => d,
-                (Some(d), false) => format!("{d} [unfinalized]"),
-                (None, true) => "(no desc)".to_string(),
-                (None, false) => "(no desc) [unfinalized]".to_string(),
-            };
-            emit.push((*pid, label, child_dir));
+            let label = desc.unwrap_or_else(|| "(no desc)".to_string());
+            // If events.jsonl says unfinalized but meta.json was never updated
+            // (SIGKILL before final write), force the unfinalized marker inside
+            // the details bracket.
+            emit.push((*pid, label, child_dir, !finalized));
         }
 
         if emit.is_empty() {
             continue;
         }
-        emit.sort_by_key(|(pid, _, _)| *pid);
+        emit.sort_by_key(|(pid, _, _, _)| *pid);
         let listing: Vec<String> = emit
             .iter()
-            .map(|(_, label, dir)| format!("{label} → {}/{{stdout,stderr}}", dir.display()))
+            .map(|(_, label, dir, unfinalized)| {
+                let details = format_details(dir, *unfinalized);
+                format!("{label}{details} → {}/{{stdout,stderr}}", dir.display())
+            })
             .collect();
         out_lines.push(format!(
             "{LATE_CAPTURES_HEADER_PREFIX}{toolu_id}: {}",
             listing.join("; "),
         ));
         let entry = ledger.entry(toolu_id.clone()).or_default();
-        for (pid, _, _) in &emit {
+        for (pid, _, _, _) in &emit {
             if !entry.contains(pid) {
                 entry.push(*pid);
             }

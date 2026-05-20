@@ -29,7 +29,11 @@ fn parent_dir(home: &std::path::Path, session: &str, agent: Option<&str>, tuid: 
     p
 }
 
-/// Create a `<pid>/meta.json` capture directory under `parent`, with optional desc.
+/// Create a finalized `<pid>/meta.json` capture directory under `parent`, with
+/// optional desc. Production current-call captures are always finalized by the
+/// time the post-hook reads them (the agent-tools run subprocess has exited),
+/// so seed the same shape: `exit_code:0`. The unfinalized path is tested
+/// separately by `stale_in_flight_child_surfaces_with_unfinalized_annotation`.
 fn seed_capture(parent: &std::path::Path, pid: u32, desc: Option<&str>) -> std::path::PathBuf {
     let child = parent.join(pid.to_string());
     std::fs::create_dir_all(&child).unwrap();
@@ -38,7 +42,7 @@ fn seed_capture(parent: &std::path::Path, pid: u32, desc: Option<&str>) -> std::
         None => "null".to_string(),
     };
     let meta = format!(
-        r#"{{"child_id":{pid},"desc":{desc_json},"command":["echo","hi"],"started_at":null,"ended_at":null,"exit_code":null}}"#
+        r#"{{"child_id":{pid},"desc":{desc_json},"command":["echo","hi"],"started_at":null,"ended_at":null,"exit_code":0}}"#
     );
     std::fs::write(child.join("meta.json"), meta).unwrap();
     child
@@ -84,8 +88,16 @@ fn two_captures_no_bg_lists_them() {
     assert!(ctx.contains("[agent-tools] captures from this Bash call:"), "ctx: {ctx}");
 
     // Directory-sorted order: "100" sorts before "200" lexicographically.
-    let expected_first = format!("first → {}/{{stdout,stderr}}", dir1.display());
-    let expected_second = format!("second → {}/{{stdout,stderr}}", dir2.display());
+    // Per-capture details bracket carries exit code, duration (omitted here
+    // because seed_capture writes null timestamps), and out/err byte sizes.
+    let expected_first = format!(
+        "first [exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
+        dir1.display()
+    );
+    let expected_second = format!(
+        "second [exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
+        dir2.display()
+    );
     let expected = format!(
         "[agent-tools] captures from this Bash call: {expected_first}; {expected_second}"
     );
@@ -130,7 +142,7 @@ fn captures_and_bg_combined() {
     let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
 
     let captures_part = format!(
-        "[agent-tools] captures from this Bash call: probe → {}/{{stdout,stderr}}",
+        "[agent-tools] captures from this Bash call: probe [exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
         dir1.display()
     );
     assert!(ctx.starts_with(&captures_part), "ctx: {ctx}");
@@ -180,14 +192,26 @@ fn per_capture_format_with_and_without_desc() {
     let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
 
-    // With-desc branch: "<desc> → <dir>/{stdout,stderr}"
-    let with_fragment = format!("labeled → {}/{{stdout,stderr}}", dir_with.display());
+    // With-desc branch: "<desc> [details] → <dir>/{stdout,stderr}".
+    let with_fragment = format!(
+        "labeled [exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
+        dir_with.display()
+    );
     assert!(ctx.contains(&with_fragment), "ctx: {ctx}");
-    // Without-desc branch: bare "<dir>/{stdout,stderr}"
-    let without_fragment = format!("{}/{{stdout,stderr}}", dir_without.display());
+    // Without-desc branch: details bracket replaces the missing label, so the
+    // line starts directly with `[`. Result: "[details] → <dir>/{stdout,stderr}".
+    let without_fragment = format!(
+        "[exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
+        dir_without.display()
+    );
     assert!(ctx.contains(&without_fragment), "ctx: {ctx}");
-    // The without-desc form must NOT be prefixed by a space-arrow construct.
-    assert!(!ctx.contains(&format!("→ {without_fragment}")), "ctx: {ctx}");
+    // The without-desc form must NOT be preceded by a bare " → " (which would
+    // mean an empty label slot was joined with an arrow). The listing
+    // delimiter is "; " — verify that's what precedes the bracket.
+    assert!(
+        !ctx.contains(&format!(" → [exit=0 out=0B err=0B] → {}", dir_without.display())),
+        "without-desc form must not be preceded by a bare arrow; ctx: {ctx}"
+    );
 }
 
 #[test]
@@ -390,7 +414,13 @@ fn stale_in_flight_child_surfaces_with_unfinalized_annotation() {
         "tool_response": {}
     }));
     assert!(stdout.contains("Late captures from prior backgrounded call toolu_prior:"), "stdout: {stdout}");
-    assert!(stdout.contains("abandoned [unfinalized]"), "stdout: {stdout}");
+    // No meta.json is written for this test (only events.jsonl), so the
+    // details bracket has no exit/duration — just the forced unfinalized
+    // marker plus byte sizes from the missing stdout/stderr files.
+    assert!(
+        stdout.contains("abandoned [unfinalized out=0B err=0B]"),
+        "stdout: {stdout}"
+    );
 }
 
 #[test]
