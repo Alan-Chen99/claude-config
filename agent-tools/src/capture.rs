@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::Arc;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::watch;
@@ -86,14 +86,19 @@ pub async fn watch_silence(
             let stream = stream_name.to_string();
             let gap_ms = gap;
             tokio::task::spawn_blocking(move || {
-                let _ = events::append(&dir, "silence", serde_json::json!({"stream": stream, "since_ms": gap_ms}));
+                let _ = events::append(
+                    &dir,
+                    "silence",
+                    serde_json::json!({"stream": stream, "since_ms": gap_ms}),
+                );
             });
             warned = true;
         } else if warned && cur > last_seen {
             let dir = events_dir.clone();
             let stream = stream_name.to_string();
             tokio::task::spawn_blocking(move || {
-                let _ = events::append(&dir, "silence_break", serde_json::json!({"stream": stream}));
+                let _ =
+                    events::append(&dir, "silence_break", serde_json::json!({"stream": stream}));
             });
             warned = false;
         }
@@ -145,20 +150,15 @@ mod tests {
         let (forward_w, mut forward_r) = tokio::io::duplex(1024);
         let last = Arc::new(AtomicI64::new(now_unix_ms()));
 
-        let h = tokio::spawn(tee(
-            "stdout",
-            reader,
-            cap,
-            forward_w,
-            last,
-            evts_dir,
-        ));
+        let h = tokio::spawn(tee("stdout", reader, cap, forward_w, last, evts_dir));
         writer.write_all(b"forward me\n").await.unwrap();
         drop(writer);
         h.await.unwrap().unwrap();
 
         let mut got = Vec::new();
-        tokio::io::AsyncReadExt::read_to_end(&mut forward_r, &mut got).await.unwrap();
+        tokio::io::AsyncReadExt::read_to_end(&mut forward_r, &mut got)
+            .await
+            .unwrap();
         assert_eq!(got, b"forward me\n");
     }
 
@@ -194,7 +194,13 @@ mod tests {
         let last = Arc::new(AtomicI64::new(now_unix_ms() - 5000));
         let (tx, rx) = watch::channel(false);
 
-        let h = tokio::spawn(watch_silence("stdout", last.clone(), 1000, evts_dir.clone(), rx));
+        let h = tokio::spawn(watch_silence(
+            "stdout",
+            last.clone(),
+            1000,
+            evts_dir.clone(),
+            rx,
+        ));
 
         tokio::time::sleep(Duration::from_millis(1500)).await;
         let _ = tx.send(true);
@@ -202,6 +208,10 @@ mod tests {
 
         tokio::time::sleep(Duration::from_millis(100)).await;
         let evts = events::read_all(&evts_dir).unwrap();
-        assert!(evts.iter().any(|e| e.kind == "silence"), "events: {:?}", evts);
+        assert!(
+            evts.iter().any(|e| e.kind == "silence"),
+            "events: {:?}",
+            evts
+        );
     }
 }

@@ -6,7 +6,10 @@ use tokio::signal::unix::{signal, SignalKind};
 /// Spawn a tokio task that listens for SIGINT/SIGTERM/SIGHUP/SIGQUIT on this
 /// process and forwards them to `child_pid`. Returns immediately. The task
 /// runs until `cancel` is signalled.
-pub fn install_forwarding(child_pid: i32, mut cancel: tokio::sync::watch::Receiver<bool>) -> Result<()> {
+pub fn install_forwarding(
+    child_pid: i32,
+    mut cancel: tokio::sync::watch::Receiver<bool>,
+) -> Result<()> {
     let pid = Pid::from_raw(child_pid);
     let mut sigint = signal(SignalKind::interrupt())?;
     let mut sigterm = signal(SignalKind::terminate())?;

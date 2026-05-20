@@ -167,11 +167,16 @@ fn main() {
     match cli.command {
         Cmd::Run { desc, cmd } => {
             let code = tokio::runtime::Builder::new_multi_thread()
-                .enable_all().build().unwrap()
+                .enable_all()
+                .build()
+                .unwrap()
                 .block_on(run::run(desc, cmd));
             match code {
                 Ok(c) => std::process::exit(c),
-                Err(e) => { eprintln!("agent-tools run: {e:#}"); std::process::exit(2); }
+                Err(e) => {
+                    eprintln!("agent-tools run: {e:#}");
+                    std::process::exit(2);
+                }
             }
         }
         Cmd::HookPre => {
@@ -255,8 +260,7 @@ fn main() {
                     );
                 }
                 Cmd::EnvContext => {
-                    let cwd = env::current_dir()
-                        .unwrap_or_else(|e| panic!("cannot read cwd: {e}"));
+                    let cwd = env::current_dir().unwrap_or_else(|e| panic!("cannot read cwd: {e}"));
                     uv_run(
                         &root,
                         &cwd,

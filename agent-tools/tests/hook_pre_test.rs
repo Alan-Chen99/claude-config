@@ -33,11 +33,9 @@ fn run_hook_pre(home: &std::path::Path, input: &str) -> std::process::Output {
 /// `^unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='[^']+'; <orig>$`
 /// without pulling in a regex dependency.
 fn assert_matches_envprefix(cmd: &str, orig: &str) {
-    let prefix = "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='";
-    assert!(
-        cmd.starts_with(prefix),
-        "missing prefix; got: {cmd}"
-    );
+    let prefix =
+        "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='";
+    assert!(cmd.starts_with(prefix), "missing prefix; got: {cmd}");
     let suffix = format!("'; {orig}");
     assert!(
         cmd.ends_with(&suffix),
@@ -169,9 +167,7 @@ fn hook_does_not_create_parent_dir_on_disk() {
 
     let _ = run_hook_pre(home.path(), &input);
 
-    let parent_dir = home
-        .path()
-        .join(".claude/agent-tools/sid-test/tuid-lazy");
+    let parent_dir = home.path().join(".claude/agent-tools/sid-test/tuid-lazy");
     assert!(
         !parent_dir.exists(),
         "parent dir must not be created by hook-pre (lazy creation); exists at {}",

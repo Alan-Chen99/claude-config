@@ -21,8 +21,7 @@ pub fn parent_dir_for(session_id: &str, agent_id: Option<&str>, task_id: &str) -
 
 /// Read AGENT_TOOLS_PARENT_DIR env var as an absolute path.
 pub fn parent_dir_from_env() -> Result<PathBuf> {
-    let v = env::var("AGENT_TOOLS_PARENT_DIR")
-        .context("AGENT_TOOLS_PARENT_DIR is not set")?;
+    let v = env::var("AGENT_TOOLS_PARENT_DIR").context("AGENT_TOOLS_PARENT_DIR is not set")?;
     let p = PathBuf::from(&v);
     if !p.is_absolute() {
         bail!("AGENT_TOOLS_PARENT_DIR must be an absolute path, got: {v}");
@@ -41,7 +40,10 @@ pub fn parse_parent_dir(task_dir: &Path) -> Result<(String, Option<String>, Stri
             root.display()
         )
     })?;
-    let parts: Vec<_> = rel.components().map(|c| c.as_os_str().to_string_lossy().to_string()).collect();
+    let parts: Vec<_> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().to_string())
+        .collect();
     match parts.as_slice() {
         [sid, tid] => Ok((sid.clone(), None, tid.clone())),
         [sid, aid, tid] => Ok((sid.clone(), Some(aid.clone()), tid.clone())),

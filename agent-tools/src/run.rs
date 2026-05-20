@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use std::process::Stdio;
-use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
+use std::sync::Arc;
 use tokio::process::Command;
 
 use crate::capture;
@@ -108,7 +108,9 @@ pub async fn run(desc: Option<String>, cmd: Vec<String>) -> Result<i32> {
         #[cfg(unix)]
         {
             use std::os::unix::process::ExitStatusExt;
-            if let Some(sig) = status.signal() { return 128 + sig; }
+            if let Some(sig) = status.signal() {
+                return 128 + sig;
+            }
         }
         1
     });

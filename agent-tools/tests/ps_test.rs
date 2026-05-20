@@ -32,20 +32,18 @@ fn seed_capture(
         "ended_at": exit.map(|_| "2026-05-17T10:00:05Z"),
         "exit_code": exit,
     });
-    std::fs::write(dir.join("meta.json"), serde_json::to_string_pretty(&meta).unwrap()).unwrap();
+    std::fs::write(
+        dir.join("meta.json"),
+        serde_json::to_string_pretty(&meta).unwrap(),
+    )
+    .unwrap();
     std::fs::write(dir.join("stdout"), stdout).unwrap();
     std::fs::write(dir.join("stderr"), "").unwrap();
     dir
 }
 
 /// Write an events.jsonl line at `<home>/.claude/agent-tools/<session>/[<agent>/]<tuid>/events.jsonl`.
-fn append_event(
-    home: &Path,
-    session: &str,
-    agent: Option<&str>,
-    tuid: &str,
-    line: &str,
-) {
+fn append_event(home: &Path, session: &str, agent: Option<&str>, tuid: &str, line: &str) {
     let mut dir = home.join(".claude/agent-tools").join(session);
     if let Some(a) = agent {
         dir.push(a);
@@ -66,7 +64,11 @@ fn no_state_on_disk_prints_session_and_marker() {
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("session: sid-fresh"), "{s}");
     assert!(s.contains("(no state on disk)"), "{s}");
@@ -75,8 +77,26 @@ fn no_state_on_disk_prints_session_and_marker() {
 #[test]
 fn main_thread_two_captures_under_one_tool_use_id() {
     let home = tempfile::tempdir().unwrap();
-    seed_capture(home.path(), "sid", None, "tuid1", 11111, Some("probe-a"), Some(0), "out-a\n");
-    seed_capture(home.path(), "sid", None, "tuid1", 22222, Some("probe-b"), Some(1), "out-b\n");
+    seed_capture(
+        home.path(),
+        "sid",
+        None,
+        "tuid1",
+        11111,
+        Some("probe-a"),
+        Some(0),
+        "out-a\n",
+    );
+    seed_capture(
+        home.path(),
+        "sid",
+        None,
+        "tuid1",
+        22222,
+        Some("probe-b"),
+        Some(1),
+        "out-b\n",
+    );
 
     let out = Command::new(bin())
         .args(["ps", "--session-id", "sid"])
@@ -84,7 +104,11 @@ fn main_thread_two_captures_under_one_tool_use_id() {
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("session: sid"), "{s}");
     assert!(s.contains("agent: _main"), "{s}");
@@ -98,7 +122,16 @@ fn main_thread_two_captures_under_one_tool_use_id() {
 #[test]
 fn subagent_capture_listed_under_subagent_header() {
     let home = tempfile::tempdir().unwrap();
-    seed_capture(home.path(), "sid", Some("agent-x"), "tuid-sub", 33333, Some("sub-probe"), Some(0), "sub-out\n");
+    seed_capture(
+        home.path(),
+        "sid",
+        Some("agent-x"),
+        "tuid-sub",
+        33333,
+        Some("sub-probe"),
+        Some(0),
+        "sub-out\n",
+    );
 
     let out = Command::new(bin())
         .args(["ps", "--session-id", "sid"])
@@ -106,7 +139,11 @@ fn subagent_capture_listed_under_subagent_header() {
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("agent: agent-x"), "{s}");
     assert!(s.contains("tool-use tuid-sub (1 capture)"), "{s}");
@@ -117,8 +154,26 @@ fn subagent_capture_listed_under_subagent_header() {
 #[test]
 fn task_filter_limits_to_one_tool_use_id() {
     let home = tempfile::tempdir().unwrap();
-    seed_capture(home.path(), "sid", None, "tuid-keep", 44444, Some("keep"), Some(0), "k\n");
-    seed_capture(home.path(), "sid", None, "tuid-drop", 55555, Some("drop"), Some(0), "d\n");
+    seed_capture(
+        home.path(),
+        "sid",
+        None,
+        "tuid-keep",
+        44444,
+        Some("keep"),
+        Some(0),
+        "k\n",
+    );
+    seed_capture(
+        home.path(),
+        "sid",
+        None,
+        "tuid-drop",
+        55555,
+        Some("drop"),
+        Some(0),
+        "d\n",
+    );
 
     let out = Command::new(bin())
         .args(["ps", "--session-id", "sid", "--task", "tuid-keep"])
@@ -126,7 +181,11 @@ fn task_filter_limits_to_one_tool_use_id() {
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("tuid-keep"), "{s}");
     assert!(!s.contains("tuid-drop"), "{s}");
@@ -136,7 +195,16 @@ fn task_filter_limits_to_one_tool_use_id() {
 #[test]
 fn events_appear_in_chronological_order() {
     let home = tempfile::tempdir().unwrap();
-    seed_capture(home.path(), "sid", None, "tuid-evt", 66666, Some("evt"), Some(0), "e\n");
+    seed_capture(
+        home.path(),
+        "sid",
+        None,
+        "tuid-evt",
+        66666,
+        Some("evt"),
+        Some(0),
+        "e\n",
+    );
 
     // Out-of-order writes: middle, then earliest, then latest.
     append_event(
@@ -167,7 +235,11 @@ fn events_appear_in_chronological_order() {
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("events (chronological, all captures):"), "{s}");
     let pos_first = s.find("first").expect("first event missing");

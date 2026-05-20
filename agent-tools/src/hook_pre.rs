@@ -6,7 +6,9 @@ use crate::paths;
 
 pub fn run() -> Result<()> {
     let mut buf = String::new();
-    std::io::stdin().read_to_string(&mut buf).context("read stdin")?;
+    std::io::stdin()
+        .read_to_string(&mut buf)
+        .context("read stdin")?;
 
     let input = match hook_input::parse_pre(&buf) {
         Ok(p) => p,
@@ -54,7 +56,10 @@ pub fn run() -> Result<()> {
     let mut updated_input = input.tool_input.clone();
     match updated_input.as_object_mut() {
         Some(obj) => {
-            obj.insert("command".to_string(), serde_json::Value::String(new_command));
+            obj.insert(
+                "command".to_string(),
+                serde_json::Value::String(new_command),
+            );
         }
         None => {
             // tool_input wasn't a JSON object — fall back to minimal updatedInput.

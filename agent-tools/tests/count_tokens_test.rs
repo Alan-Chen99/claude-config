@@ -32,7 +32,10 @@ fn count_tokens_help_dispatches_to_python_and_shows_flags() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("--model"), "stdout missing --model: {stdout}");
+    assert!(
+        stdout.contains("--model"),
+        "stdout missing --model: {stdout}"
+    );
     assert!(stdout.contains("--file"), "stdout missing --file: {stdout}");
 }
 

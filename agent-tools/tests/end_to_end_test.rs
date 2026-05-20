@@ -41,11 +41,7 @@ fn full_loop_hook_pre_run_hook_post_ps() {
     let home = tempfile::tempdir().unwrap();
     let sid = "sid-e2e";
     let tuid = "tuid-e2e";
-    let expected_parent: PathBuf = home
-        .path()
-        .join(".claude/agent-tools")
-        .join(sid)
-        .join(tuid);
+    let expected_parent: PathBuf = home.path().join(".claude/agent-tools").join(sid).join(tuid);
 
     let path_with_bin = format!(
         "{}:{}",
@@ -153,11 +149,7 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         pid_dirs
     );
     let pid_dir = &pid_dirs[0];
-    let pid_name = pid_dir
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .into_owned();
+    let pid_name = pid_dir.file_name().unwrap().to_string_lossy().into_owned();
     assert!(
         pid_name.chars().all(|c| c.is_ascii_digit()),
         "pid subdir name must be numeric; got {pid_name}"
@@ -167,7 +159,8 @@ fn full_loop_hook_pre_run_hook_post_ps() {
     assert_eq!(captured_stdout, "hi\n", "captured stdout mismatch");
 
     let meta_bytes = std::fs::read(pid_dir.join("meta.json")).unwrap();
-    let meta: ChildMeta = serde_json::from_slice(&meta_bytes).expect("meta.json parses as ChildMeta");
+    let meta: ChildMeta =
+        serde_json::from_slice(&meta_bytes).expect("meta.json parses as ChildMeta");
     assert_eq!(
         meta.desc.as_deref(),
         Some("probe"),

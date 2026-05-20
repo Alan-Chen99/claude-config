@@ -97,16 +97,9 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
         }
         if current_tuid.as_ref() != Some(&c.tool_use_id) {
             current_tuid = Some(c.tool_use_id.clone());
-            let n = group_iter
-                .next()
-                .map(|(_, n)| *n)
-                .unwrap_or(1);
+            let n = group_iter.next().map(|(_, n)| *n).unwrap_or(1);
             let plural = if n == 1 { "capture" } else { "captures" };
-            writeln!(
-                buf,
-                "  tool-use {} ({} {})",
-                c.tool_use_id, n, plural
-            )?;
+            writeln!(buf, "  tool-use {} ({} {})", c.tool_use_id, n, plural)?;
         }
         write_capture(&mut buf, c)?;
     }

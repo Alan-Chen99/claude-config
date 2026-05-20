@@ -26,7 +26,9 @@ type Ledger = BTreeMap<String, Vec<i64>>;
 
 pub fn run() -> Result<()> {
     let mut buf = String::new();
-    std::io::stdin().read_to_string(&mut buf).context("read stdin")?;
+    std::io::stdin()
+        .read_to_string(&mut buf)
+        .context("read stdin")?;
 
     let input = match hook_input::parse_post(&buf) {
         Ok(p) => p,
@@ -226,7 +228,10 @@ fn format_size(bytes: u64) -> String {
 }
 
 fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
-    let bg_task_id = input.tool_response.get("backgroundTaskId").and_then(|v| v.as_str())?;
+    let bg_task_id = input
+        .tool_response
+        .get("backgroundTaskId")
+        .and_then(|v| v.as_str())?;
     let auto = input
         .tool_response
         .get("assistantAutoBackgrounded")
@@ -361,11 +366,7 @@ fn write_ledger_atomic(path: &Path, ledger: &Ledger) -> Result<()> {
 /// directly inside, distinguishing them from agent-id subdirs in main-thread
 /// scope) and emit one line per prior toolu_id that has new finalized
 /// children. Mutates `ledger` to record what was emitted.
-fn scan_priors(
-    scope: &Path,
-    current_toolu_id: &str,
-    ledger: &mut Ledger,
-) -> Vec<String> {
+fn scan_priors(scope: &Path, current_toolu_id: &str, ledger: &mut Ledger) -> Vec<String> {
     let rd = match fs::read_dir(scope) {
         Ok(r) => r,
         Err(_) => return Vec::new(),
