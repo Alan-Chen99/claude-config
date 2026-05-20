@@ -102,6 +102,7 @@ fn count_tokens_missing_api_key_fails_loudly() {
         .arg("count-tokens")
         .arg("hello")
         .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("PYTHON_DOTENV_DISABLED", "1")
         .env_remove("ANTHROPIC_TOKEN_COUNT_API_KEY")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

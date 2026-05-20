@@ -11,6 +11,7 @@ mod hook_input;
 mod hook_post;
 mod hook_pre;
 mod meta;
+mod opencode;
 mod paths;
 mod ps;
 mod run;
@@ -104,6 +105,12 @@ enum Cmd {
     /// Print the '# Environment' block (cwd, git, platform, shell, OS) for SessionStart hooks.
     #[command(name = "env-context")]
     EnvContext,
+    /// Launch opencode with claude-config .env mappings.
+    Opencode {
+        /// Arguments forwarded to opencode
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 /// Resolve the claude-config repository root.
@@ -268,6 +275,7 @@ fn main() {
                         &[],
                     );
                 }
+                Cmd::Opencode { args } => opencode::run(&root, &args),
                 Cmd::HookPre => unreachable!(),
                 Cmd::HookPost => unreachable!(),
                 Cmd::Run { .. } => unreachable!(),
