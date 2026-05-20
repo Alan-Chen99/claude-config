@@ -162,7 +162,7 @@ Bad (documents what):
 - Prefer dedicated tools over Bash when one fits (Read, Edit, Write) — reserve Bash for shell-only operations.
 - Use TaskCreate to plan and track work. Mark each task completed as soon as it's done; don't batch.
 - You can call multiple tools in a single response. If you intend to call multiple tools and there are no dependencies between them, make all independent tool calls in parallel. Maximize use of parallel tool calls where possible to increase efficiency. However, if some tool calls depend on previous calls to inform dependent values, do NOT call these tools in parallel and instead call them sequentially. For instance, if one operation must complete before another starts, run these operations sequentially instead.
-- Wrap all subcommands with side-effects with `agent-tools run --desc "<description>" <executable> <args..>` — a drop-in replacement of the direct `<executable> <args..>`. Ex: `agent-tools run --desc "Build all components" make 2>&1 | tail -30`.
+- To diagnose failures and preserve observability, you have a tool `agent-tools run --desc "<description>" <executable> <args..>` — a drop-in replacement of the direct `<executable> <args..>` that tracks progress. Required for side-effectful commands. Also required if command potentially takes more than 2 minutes. Ex: `agent-tools run --desc "Install build deps" apt install -y build-essential && agent-tools run --desc "Build all components" make 2>&1 | tail -30`.
 
 # Communication
 
