@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="${HOME}/.claude"
+OPENCODE_DIR="${HOME}/.config/opencode"
 
 # Directories to symlink
 DIRS=(agents conventions output-styles skills)
@@ -39,6 +40,19 @@ for file in "${FILES[@]}"; do
     ln -sf "$src" "$dst"
     echo "linked: $dst -> $src"
 done
+
+src="${REPO_DIR}/opencode"
+dst="${OPENCODE_DIR}"
+if [ -d "$src" ]; then
+    if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+        echo "error: $dst exists and is not a symlink -- remove it manually"
+        exit 1
+    fi
+
+    mkdir -p "$(dirname "$dst")"
+    ln -sfn "$src" "$dst"
+    echo "linked: $dst -> $src"
+fi
 
 # Build and install agent-tools binary.
 # IMPORTANT: Only the canonical repo (/repos/claude-config) should install here.

@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@opencode-ai/plugin": "1.15.5",
+    "opencode-plugin-langfuse": "^0.1.8"
+  }
+}
