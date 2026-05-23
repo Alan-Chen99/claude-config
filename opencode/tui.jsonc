@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "keybinds": {
+    // ctrl+e -> open external editor (was <leader>e = ctrl+x e)
+    "editor_open": "ctrl+e",
+    // end -> end of line in input (was ctrl+e, now freed for editor_open)
+    "input_line_end": "end",
+    // free end key from "go to end of input buffer" so input_line_end can claim it
+    "input_buffer_end": "none",
+    // drop end from "navigate to last message" (was "ctrl+alt+g,end")
+    // "messages_last": "ctrl+alt+g",
+  },
+}
