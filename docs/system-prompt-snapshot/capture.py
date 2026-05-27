@@ -13,7 +13,9 @@ Usage:
     ./capture.py --system-prompt "custom prompt"        # with --system-prompt
     ./capture.py --system-prompt-file /path/to/file     # with --system-prompt-file
     ./capture.py --append-system-prompt "extra"         # with --append-system-prompt
-    ./capture.py --subagent                             # also capture subagent prompts
+    ./capture.py --subagent                             # capture Explore + general-purpose
+    ./capture.py --subagent general-purpose             # capture only general-purpose
+    ./capture.py --subagent Explore,general-purpose     # comma-separated list
 
 Output:
     stdout: system prompt text (blocks joined by ---BLOCK_SEPARATOR---)
@@ -81,18 +83,31 @@ def _pty_drain(fd: int, timeout: float) -> str:
 
 SUBAGENT_MESSAGES = {
     "Explore": (
-        "I need you to spawn a subagent. Call the Agent tool with "
-        "subagent_type Explore and have it investigate the project structure "
-        "and find all Python files. You MUST use the Agent tool for this, "
-        "not Glob or Grep directly."
+        "Call the Agent tool with subagent_type Explore and have it "
+        "investigate the project structure and find all Python files. "
+        "You MUST use the Agent tool, not Glob or Grep directly."
     ),
     "general-purpose": (
-        "I need you to spawn a subagent. Call the Agent tool with "
-        "subagent_type general-purpose and have it research what programming "
-        "languages and frameworks are used in this project. You MUST use the "
-        "Agent tool, not Glob or Grep directly."
+        "Call the Agent tool with subagent_type general-purpose and have it "
+        "research what programming languages and frameworks are used in this "
+        "project. You MUST use the Agent tool, not Glob or Grep directly."
     ),
 }
+
+# When --subagent is passed without a name, run this set in one session.
+DEFAULT_SUBAGENTS: tuple[str, ...] = ("Explore", "general-purpose")
+
+
+def build_subagent_message(names: list[str]) -> str:
+    if len(names) == 1:
+        return f"I need you to spawn a subagent. {SUBAGENT_MESSAGES[names[0]]}"
+    bullets = "\n\n".join(
+        f"{i + 1}. {SUBAGENT_MESSAGES[n]}" for i, n in enumerate(names)
+    )
+    return (
+        "I need you to spawn subagents in sequence. Run them one at a time, "
+        "waiting for each to finish before starting the next.\n\n" + bullets
+    )
 
 
 # --- Token counting ---
@@ -293,7 +308,7 @@ def spawn_claude(
     extra_args: list[str],
     model: str = "haiku",
     output_style: str | None = None,
-    subagent: str | None = None,
+    subagents: list[str] | None = None,
 ) -> int:
     env = os.environ.copy()
     # Prevent nested session detection
@@ -323,7 +338,7 @@ def spawn_claude(
     )
 
     # Subagent mode: seed files so it looks like a real project worth exploring
-    if subagent:
+    if subagents:
         src = Path(work_dir) / "src"
         src.mkdir()
         for name in ["main.py", "utils.py", "config.py", "models.py", "api.py"]:
@@ -334,11 +349,24 @@ def spawn_claude(
         (Path(work_dir) / "README.md").write_text("# Example Project\n")
         (Path(work_dir) / "setup.py").write_text("from setuptools import setup\n")
 
-    if subagent:
-        message = SUBAGENT_MESSAGES.get(subagent, SUBAGENT_MESSAGES["Explore"])
+    # Mirror any user-global agent overrides as project-local agents so they
+    # are loaded under --setting-sources project,local (which excludes user
+    # settings). Lets us test a user-global agent override without dragging in
+    # the user's hooks, statusline, ntfy config, etc.
+    user_agents_dir = Path.home() / ".claude" / "agents"
+    if subagents and user_agents_dir.is_dir():
+        project_agents_dir = settings_dir / "agents"
+        project_agents_dir.mkdir(exist_ok=True)
+        for name in subagents:
+            override = user_agents_dir / f"{name}.md"
+            if override.exists():
+                shutil.copy(override, project_agents_dir / f"{name}.md")
+
+    if subagents:
+        message = build_subagent_message(subagents)
 
     cmd = ["claude", "--model", model, "--setting-sources", "project,local", *extra_args]
-    timeout_s = 130 if subagent else 60
+    timeout_s = (130 + 90 * (len(subagents) - 1)) if subagents else 60
     deadline = time.monotonic() + timeout_s
 
     # Use pty.fork() instead of expect. Expect's spawn loses proxy env vars
@@ -357,12 +385,12 @@ def spawn_claude(
         # Claude Code enables bracketed paste mode. A trailing \r in the same
         # write gets absorbed into the paste payload instead of submitting,
         # so write the message and the submit-Enter as separate writes.
-        if subagent:
+        if subagents:
             _pty_drain(fd, 10)
             os.write(fd, message.encode())
             time.sleep(0.5)
             os.write(fd, b"\r")
-            output = _pty_drain(fd, 100)
+            output = _pty_drain(fd, timeout_s - 20)
         else:
             _pty_drain(fd, 10)
             os.write(fd, b"say exactly: done")
@@ -403,21 +431,22 @@ def main() -> None:
         output_style = extra_args[idx + 1]
         extra_args = extra_args[:idx] + extra_args[idx + 2:]
 
-    subagent: str | None = None
+    subagents: list[str] | None = None
     if "--subagent" in extra_args:
         idx = extra_args.index("--subagent")
-        # Optional agent type follows --subagent (default: Explore)
+        # Optional value follows --subagent: a single agent name or a
+        # comma-separated list. Bare --subagent runs DEFAULT_SUBAGENTS.
         if idx + 1 < len(extra_args) and not extra_args[idx + 1].startswith("-"):
-            subagent = extra_args[idx + 1]
+            subagents = [n.strip() for n in extra_args[idx + 1].split(",") if n.strip()]
             extra_args = extra_args[:idx] + extra_args[idx + 2:]
         else:
-            subagent = "Explore"
+            subagents = list(DEFAULT_SUBAGENTS)
             extra_args = extra_args[:idx] + extra_args[idx + 1:]
 
     # Subagent mode: force "default" output style to avoid output-style hooks
     # (e.g. pre_output.record) that add Bash tool calls before the Agent call,
     # which block on permission prompts that nobody answers.
-    if subagent and output_style is None:
+    if subagents and output_style is None:
         output_style = "default"
 
     # Ensure proxy is running
@@ -432,7 +461,7 @@ def main() -> None:
     # Subtract 1s to tolerate clock skew between file mtimes and our wall clock.
     start_time = time.time() - 1
     child_pid = spawn_claude(
-        extra_args, model=model, output_style=output_style, subagent=subagent
+        extra_args, model=model, output_style=output_style, subagents=subagents
     )
 
     log_files = find_new_proxy_logs(start_time, child_pid)
@@ -469,7 +498,7 @@ def main() -> None:
     # Extract subagent prompts (everything except the main prompt)
     subagent_summaries = []
     other_reqs = [r for i, r in enumerate(all_reqs) if i != main_idx]
-    if subagent and other_reqs:
+    if subagents and other_reqs:
         # Filter out preflight/title-gen calls: keep only requests with tools
         # (subagents always have tools) or substantial system prompts (> 2K)
         sub_reqs = [(p, sz) for p, sz, ht in other_reqs if ht or sz > 2000]
@@ -484,7 +513,7 @@ def main() -> None:
                 print(
                     f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}"
                 )
-    elif subagent:
+    elif subagents:
         print(
             "WARNING: --subagent specified but no subagent calls captured.",
             file=sys.stderr,
@@ -494,7 +523,7 @@ def main() -> None:
     print(
         f"\n--- Captured main: {main_summary['block_count']} blocks, "
         f"{main_summary['total_tokens']} tokens (model: {main_summary.get('model')})"
-        f"{f', {n_sub} subagent(s)' if subagent else ''} ---",
+        f"{f', {n_sub} subagent(s)' if subagents else ''} ---",
         file=sys.stderr,
     )
 
