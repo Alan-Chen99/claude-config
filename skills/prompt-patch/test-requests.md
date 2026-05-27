@@ -132,7 +132,16 @@ them.
 
 Pairs the current "Before response" mechanism guarantees. Focus is on
 the *relationships between steps*, not on the existence of any single
-field.
+field. Each pair below is the end-state of a sketch test: a naive
+"artifact-exists" framing of the same property was considered first
+(e.g., for I1: "the response contains an `uncertainties` field");
+the sketch test asked "what naive Step 4 option satisfies that
+framing while losing the property?" (a Step 4 option that emits the
+field once at end of reply, with no fix loop); the framing was then
+re-stated as the relationship that rejects that option (commit
+*before* rule print *with* re-record loop). The same sketch-test
+pass was applied to I2-I5. The "Mode = efficiency" subsection below
+re-uses the sketch-test reasoning to score risk per pair.
 
 - **I1 — Every uncertainty the agent identifies is either fixed or
   carried into the response.**
@@ -904,13 +913,18 @@ These observations are about the *workflow*, not the example.
   6 had no hard constraint to reject them on. The strong invariants
   are about *relationships between steps* (commit→rules ordering,
   restart loop, no-work-savings from under-reporting) rather than
-  about the existence of any single artifact. The `steps.md` prompt
-  for Step 2 currently illustrates the pair shape but does not push
-  the agent to look for *relationship invariants*. Consider whether
-  the Step 2 prompt should ask "what relationships between agent
-  steps does the current mechanism guarantee?" as a separate axis
-  from "what artifacts must exist?" — but verify that's general,
-  not just an artifact of this example.
+  about the existence of any single artifact. **Addressed:** the
+  Step 2 prompt now names the failure mode (artifact-existence
+  claims) explicitly and requires a sketch-test pass per pair —
+  imagine a Step 4 option that minimally emits the named artifact;
+  if the property silently breaks, re-state the pair as the
+  relationship the artifact was supposed to enforce. Verified by a
+  fresh subagent run on this same task: 5/5 final pairs were
+  relationship-typed; the agent showed its sketch-test work for
+  each pair explicitly. Remaining open question: whether the
+  sketch-test framing degrades on prompts where the relationship is
+  genuinely simple (no loop, no asymmetric ordering) — needs a
+  second example to verify.
 
 - **Linear options are the failure mode for Step 4 on
   loop-containing mechanisms.** If the mechanism being optimized

@@ -64,7 +64,9 @@ Identify the (property, enforcement) pairs the target prompt/workflow guarantees
 
 If Step 1 mode is `n/a (mechanical)` — write "Mechanical change — no invariant analysis needed" and proceed to step 3.
 
-**Invariants are structural properties paired with the enforcement mechanism that holds them.** LLMs are stochastic — an instruction influences behavior probabilistically, not deterministically. The property must hold despite any single instruction being skipped or misinterpreted; the enforcement mechanism is what makes that resilience real. (See First Principle #4 for worked examples.)
+**Invariants are structural properties paired with the enforcement mechanism that holds them.** LLMs are stochastic — instructions influence behavior probabilistically, not deterministically; the enforcement mechanism is what makes the property real.
+
+**Useful invariants reject Step 4 design options; useless ones don't.** The common failure mode is *artifact-existence claims* ("a block appears in the response", "a tool call happens before reply", "the schema is defined in one place"); any Step 4 option that emits the named artifact passes the check, including options that emit the artifact in a position or context where it no longer enforces anything. Useful invariants describe *relationships between steps* — orderings ("commit written before rules reach context"), feedback loops ("violation found at checkpoint triggers restart"), asymmetric incentives ("no work-savings from under-reporting because the work is already done by the time the check fires"), dependency chains. After writing each pair, run the **sketch test**: imagine a Step 4 option that minimally emits the named artifact / makes the named tool call but otherwise behaves naively. If your sketch satisfies the pair while the underlying property silently breaks, the pair is artifact-existence — re-state it as the relationship the artifact was supposed to enforce, then re-run the sketch test on the new pair. (See First Principle #4 for worked examples.)
 
 1. **List invariants as (property, enforcement) pairs.** 3-7 pairs.
 
