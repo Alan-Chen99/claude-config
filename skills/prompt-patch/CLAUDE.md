@@ -8,6 +8,6 @@ Structured prompt change workflow. Script-based 12-step pipeline.
 | ------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `SKILL.md`         | Skill invocation                                                                                | Using this skill                                   |
 | `steps.md`         | All step prompts, separated by `<!-- step N: name -->`                                          | Editing step instructions                          |
-| `test-requests.md` | Generic rubric for evaluating prompt-patch workflow runs + a test task with a brief answer key. After editing `steps.md`, run the workflow on the test task and score against the rubric. The rubric is generic; the answer key is task-specific. **Do not copy answer-key content into `steps.md`.** | Editing `steps.md`; verifying a change does not regress |
+| `test-requests.md` | Worked example of the full 12-step workflow on one concrete task; shape-of-output reference. Re-run on its example task after editing `steps.md` and replace the transcript. **Do not copy content from this file into `steps.md` — it would overfit the prompts to the example.** | Editing `steps.md`; checking that an edit actually changes behavior |
 
 Python code: `scripts/skills/prompt_patch/do.py`
