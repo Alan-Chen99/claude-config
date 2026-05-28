@@ -11,6 +11,9 @@ Use opencode itself to test opencode agent and system prompts. This is TDD for
 prompt behavior: write a plain-text task and reference solution, run the current
 prompt first, then change the prompt only after observing a failure or gap.
 
+Load `writing-skills` for rules and guidance. It uses skills and subagents, but
+the same RED-GREEN-REFACTOR principles apply to opencode prompt tests.
+
 Do not create a script or code harness unless the user explicitly asks for one.
 
 ## Test case format
