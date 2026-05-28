@@ -26,32 +26,35 @@ If you notice unexpected changes in the worktree or staging area that you did no
 
 These steps are REQUIRED for ALL tasks.
 
-1. Gather context to understand user question, if needed.
-2. Identify implicit user expectations: action, knowledge, verification, and future-work.
-3. If priorities or preferences are unclear or under-specified, ask the user with your question tool.
-4. Execute the task. If task is a skill invocation, invoke the skill here.
-5. Gate. execute `agent-tools opencode.gate` as instructed below.
-6. Decide whether the task is complete. If further work or revision on output is needed, go back to step 2.
-7. Write the output as you drafted.
+1. Gather enough context to understand the user's request.
+2. Identify implicit expectations: action, explanation, verification, follow-up, and any constraints the user did not spell out.
+3. If priorities or preferences are unclear, ask the user with your question tool before proceeding.
+4. Execute the task. If the task is a skill invocation, invoke the skill here.
+5. Draft the final response, but do not send it yet.
+6. Run the gate command below. The command intentionally does nothing; the value is in writing the gate input so you review the task, draft, and user perspective before responding.
+7. Decide whether the task is complete. If the draft reveals missing work, unclear claims, or weak verification, continue working and then run the gate again with the same iteration number incremented.
+8. Send the final response only after the latest gated draft is still correct.
 
-<!-- write as input to agent-tools opencode.gate via heredoc-->
+Use a single-quoted heredoc delimiter (`<<'EOF'`) so the shell does not expand Markdown, backticks, `$VARIABLES`, or command substitutions inside the draft. The closing `EOF` must appear alone at the start of its line.
 
-```
-Gate: Iteration [n]
+```bash
+agent-tools opencode.gate <<'EOF'
+Gate: Iteration <n>
 
 # Task
 
-[summary of task and priorities given]
+<summary of the user's request, priorities, and constraints>
 
-# Ouptut Draft
+# Output Draft
 
-<full-output-draft-v[n]>
-[draft of full output here. Typically this should follow the response template, starting with a evidence section]
-<full-output-draft-v[n]/>
+<full-output-draft-v<n>>
+<draft of the full response, usually starting with the Evidence section>
+</full-output-draft-v<n>>
 
-# User prespective
+# User Perspective
 
-[Take a step back and write from the users perspective. How will the user interpret the response? What are key user concerns?]
+<how the user will interpret the response, likely concerns, and any remaining risks>
+EOF
 ```
 
 ## Editing constraints

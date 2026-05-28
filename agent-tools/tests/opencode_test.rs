@@ -1,7 +1,8 @@
 use std::fs;
+use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
@@ -88,4 +89,34 @@ printf 'args=%s\n' "$*"
         stdout.contains("args=--model test/model prompt text"),
         "stdout: {stdout}"
     );
+}
+
+#[test]
+fn opencode_gate_accepts_heredoc_input_and_does_nothing() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut child = Command::new(bin())
+        .arg("opencode.gate")
+        .env("HOME", tmp.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"Gate: Iteration 1\n\n# Task\nTest\n")
+        .unwrap();
+
+    let out = child.wait_with_output().unwrap();
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "");
+    assert_eq!(String::from_utf8_lossy(&out.stderr), "");
 }

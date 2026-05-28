@@ -88,6 +88,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// No-op prompt gate used by opencode agent instructions
+    #[command(name = "opencode.gate")]
+    OpencodeGate {
+        /// Arguments accepted and discarded
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Count tokens via Anthropic count_tokens API: agent-tools count-tokens [--model M] [--file P] [TEXT]
     #[command(name = "count-tokens")]
     CountTokens {
@@ -206,6 +213,7 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        Cmd::OpencodeGate { args: _ } => std::process::exit(0),
         cmd => {
             let root = repo_root(cli.root);
             match cmd {
@@ -280,6 +288,7 @@ fn main() {
                 Cmd::HookPost => unreachable!(),
                 Cmd::Run { .. } => unreachable!(),
                 Cmd::Ps { .. } => unreachable!(),
+                Cmd::OpencodeGate { .. } => unreachable!(),
             }
         }
     }
