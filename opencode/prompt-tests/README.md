@@ -69,3 +69,11 @@ worktree being tested.
 
 Commit the plain-text case files and concise baseline notes. Do not commit raw
 JSON result logs unless the user explicitly asks for archival output.
+
+## Optional reviewer
+
+For semantic review of an existing case, use the `prompt-test-reviewer` opencode agent when available. It runs the case's `run.md`, inspects the raw JSON transcript, and returns `PASS`, `FAIL`, or `INCONCLUSIVE` against `reference-solution.md`.
+
+Use the reviewer when pass/fail depends on tool calls, intermediate assistant text, provenance evidence, or `agent-tools opencode.gate` drafts. Final-answer-only review is not enough for those cases.
+
+Do not ask the reviewer to edit prompts or baselines unless explicitly requested. Keep raw JSON outputs out of git unless explicitly requested.

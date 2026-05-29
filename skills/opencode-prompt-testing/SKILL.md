@@ -44,6 +44,14 @@ Do not commit raw JSON outputs by default. Summarize useful failures in
 6. Rerun the same command and compare again.
 7. Commit the prompt test files with the prompt change.
 
+## Reviewer workflow
+
+When the user asks to review, verify, or judge an existing prompt-test case, use the `prompt-test-reviewer` opencode agent if available.
+
+Use it especially when a case depends on tool calls, intermediate reasoning, provenance evidence, or `agent-tools opencode.gate` drafts. Final-answer-only review is not enough for those cases.
+
+The reviewer should receive one case directory, run that case's `run.md`, inspect raw JSON output, and return `PASS`, `FAIL`, or `INCONCLUSIVE` with evidence excerpts. Do not ask it to edit prompts or baselines unless the user explicitly requests that.
+
 ## Command pattern
 
 Use inline config so worktree prompt files are tested directly, without relying
