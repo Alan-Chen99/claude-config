@@ -118,6 +118,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Pretty-print an opencode session
+    #[command(name = "opencode-pretty")]
+    OpencodePretty {
+        /// Arguments forwarded to opencode-pretty
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 /// Resolve the claude-config repository root.
@@ -284,6 +291,14 @@ fn main() {
                     );
                 }
                 Cmd::Opencode { args } => opencode::run(&root, &args),
+                Cmd::OpencodePretty { args } => {
+                    uv_run(
+                        &root,
+                        &root,
+                        &["python3", "-m", "claude_config.opencode_pretty.main"],
+                        &args,
+                    );
+                }
                 Cmd::HookPre => unreachable!(),
                 Cmd::HookPost => unreachable!(),
                 Cmd::Run { .. } => unreachable!(),

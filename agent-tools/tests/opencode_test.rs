@@ -9,6 +9,98 @@ fn bin() -> String {
 }
 
 #[test]
+fn help_lists_opencode_pretty_subcommand() {
+    let out = Command::new(bin()).arg("--help").output().unwrap();
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("opencode-pretty"),
+        "stdout: {stdout}"
+    );
+}
+
+#[test]
+fn opencode_pretty_dispatches_to_python_module_and_forwards_args() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("repo");
+    let bindir = tmp.path().join("bin");
+    fs::create_dir_all(&root).unwrap();
+    fs::create_dir_all(&bindir).unwrap();
+
+    let fake_uv = bindir.join("uv");
+    fs::write(
+        &fake_uv,
+        r#"#!/usr/bin/env bash
+set -euo pipefail
+printf 'cwd=%s\n' "$PWD"
+printf 'args=%s\n' "$*"
+"#,
+    )
+    .unwrap();
+    let mut perms = fs::metadata(&fake_uv).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&fake_uv, perms).unwrap();
+
+    let path = format!(
+        "{}:{}",
+        bindir.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+
+    let out = Command::new(bin())
+        .arg("--root")
+        .arg(PathBuf::from(&root))
+        .arg("opencode-pretty")
+        .args([
+            "session-123",
+            "--tool-max",
+            "10",
+            "--truncate-input",
+            "100",
+            "--no-color",
+            "--no-thinking",
+            "--agent",
+            "subagent",
+        ])
+        .env("PATH", path)
+        .output()
+        .unwrap();
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains(&format!("cwd={}", root.display())),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!("run --project {}", root.display())),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("python3 -m claude_config.opencode_pretty.main"),
+        "stdout: {stdout}"
+    );
+    assert!(stdout.contains("session-123"), "stdout: {stdout}");
+    assert!(stdout.contains("--tool-max 10"), "stdout: {stdout}");
+    assert!(
+        stdout.contains("--truncate-input 100"),
+        "stdout: {stdout}"
+    );
+    assert!(stdout.contains("--no-color"), "stdout: {stdout}");
+    assert!(stdout.contains("--no-thinking"), "stdout: {stdout}");
+    assert!(stdout.contains("--agent subagent"), "stdout: {stdout}");
+}
+
+#[test]
 fn opencode_loads_prefixed_langfuse_env_and_forwards_args() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().join("repo");
