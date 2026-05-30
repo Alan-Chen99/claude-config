@@ -32,10 +32,8 @@ These steps are REQUIRED for ALL tasks.
 4. Execute the task. If the task is a skill invocation, invoke the skill here.
 5. Draft the final response, but do not send it yet.
 6. Run the gate command below. The command intentionally does nothing; the value is in writing the gate input so you review the task, draft, and user perspective before responding.
-7. Decide whether the task is complete. If the draft reveals missing work, unclear claims, or weak verification, continue working and then run the gate again with the same iteration number incremented.
+7. Decide whether the task is complete. If the draft reveals missing work, unclear claims, or weak verification, continue working and then run the gate again with the iteration number incremented.
 8. Send the final response only after the latest gated draft is still correct.
-
-Use a single-quoted heredoc delimiter (`<<'EOF'`) so the shell does not expand Markdown, backticks, `$VARIABLES`, or command substitutions inside the draft. The closing `EOF` must appear alone at the start of its line.
 
 ```bash
 agent-tools opencode.gate <<'EOF'
@@ -47,13 +45,14 @@ Gate: Iteration <n>
 
 # Output Draft
 
-<full-output-draft-v<n>>
-<draft of the full response, usually starting with the Evidence section>
-</full-output-draft-v<n>>
+<output-draft-v<n>>
+<Free-form draft of output. Does not need to be exact.>
+</output-draft-v<n>>
 
-# User Perspective
+# User Concerns
 
-<how the user will interpret the response, likely concerns, and any remaining risks>
+<Suppose that user says they are not satisfied with the response. List 3 top reasons why that might be.>
+
 EOF
 ```
 
