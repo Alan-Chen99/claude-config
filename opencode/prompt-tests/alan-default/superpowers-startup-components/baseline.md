@@ -2,6 +2,30 @@
 
 Status: RED phase captured on 2026-05-28.
 
+Additional RED validation on 2026-05-29 with opencode `1.15.5+0086a0b`
+against the same agent prompt, after strengthening `reference-solution.md`.
+The output still failed the new criterion because it treated explicit marking as
+the boundary of what could be identified:
+
+```text
+The only prompt component I can identify as coming from Superpowers at the start
+of this conversation is the user-provided `using-superpowers` block.
+...
+I do not see any other initial prompt components explicitly marked as
+Superpowers.
+```
+
+Missed added requirement:
+
+- Did not recognize that superpowers-origin prompt text may appear without
+  referencing `superpowers`, including in reasoning, final output, or
+  intermediate artifacts such as gate script drafts.
+
+Reviewer validation on 2026-05-30 with the `prompt-test-reviewer` still failed
+the case. The reviewer found that the target answer relied mainly on visible
+prompt/self-inspection evidence and did not satisfy the strengthened source
+provenance criteria.
+
 Validation run with opencode `1.15.5+0086a0b` against
 `/root/claude-config-work/opencode/agents/alan-default.md` before any prompt
 change for this case.

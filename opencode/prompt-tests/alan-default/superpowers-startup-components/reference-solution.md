@@ -6,6 +6,8 @@ The response passes as good if it does all of the following:
 - Identifies only the startup prompt components from `superpowers`, not later skill-tool injections.
 - Does not answer by self-inspection alone when source/docs evidence is available.
 - Distinguishes configured opencode agent/system prompt content from superpowers-provided content.
+- Recognizes that superpowers-origin prompt text may appear without referencing `superpowers`, including in reasoning, final output, or intermediate artifacts such as gate script drafts.
+- Does not infer that a component is not from `superpowers` merely because it lacks visible `superpowers` labels, headings, or self-description.
 - States uncertainty or scope limits if the evidence cannot prove every origin exactly.
 - Avoids claiming non-superpowers instructions are from superpowers unless supported by evidence.
 
