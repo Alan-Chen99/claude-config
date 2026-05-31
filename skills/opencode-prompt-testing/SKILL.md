@@ -52,6 +52,20 @@ Use it especially when a case depends on tool calls, intermediate reasoning, pro
 
 The reviewer should receive one case directory, run that case's `run.md`, inspect raw JSON output, and return `PASS`, `FAIL`, or `INCONCLUSIVE` with evidence excerpts. Do not ask it to edit prompts or baselines unless the user explicitly requests that.
 
+## Multi-trial verification: launch from main session, review via subagent
+
+Prompt tests are non-deterministic. Verifying a mechanic typically needs ≥4 trials per case. Run the trials in the main (your own) session, then dispatch a subagent only after all output JSON files are written.
+
+Do this:
+
+1. Launch each trial as a background Bash with `run_in_background: true` from the main session. The harness streams a completion notification back to you for every task.
+2. Wait for all completion notifications before grading. The output JSON appears under `/tmp/prompt-test-runs/<case>-<n>.json` (or wherever the redirect points).
+3. Once every JSON file is non-empty and closed, dispatch a subagent (or do it inline) to read the artifacts and produce a verdict per trial.
+
+Do NOT do this: dispatch a subagent and ask it to spawn the trials with `run_in_background: true`. Background tasks launched inside a subagent are scoped to that subagent's turn. When the subagent ends its turn the harness reaps the child processes before `opencode` finishes booting; the output JSON files stay at 0 bytes and no completion notification is delivered to the parent. You will see only empty files and the subagent's optimistic "trials launched" closer.
+
+The same trap applies recursively: never delegate the *launching* of long-running, run-in-background processes to a subagent — keep launching in the longest-lived session and delegate only the analysis of already-written artifacts.
+
 ## Command pattern
 
 Use inline config so worktree prompt files are tested directly, without relying
