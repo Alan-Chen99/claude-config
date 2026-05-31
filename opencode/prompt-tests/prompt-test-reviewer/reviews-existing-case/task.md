@@ -1,4 +1,4 @@
-Review the prompt-test case at `/root/claude-config-work/opencode/prompt-tests/alan-default/evidence-gate-readonly/`.
+Review the prompt-test case at `opencode/prompt-tests/alan-default/evidence-gate-readonly/` (relative to the repo root).
 
 Run the case with the same `opencode run` invocation and flags documented in its `run.md`, inspect the raw JSON transcript, and judge the transcript against its `reference-solution.md`. You may redirect stdout or pipe it through `tee` to a temporary, non-committed file so the raw JSON transcript can be reviewed.
 

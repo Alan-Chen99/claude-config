@@ -1,17 +1,20 @@
 # Run: reviews-existing-case
 
-This case runs `/root/claude-config-work/opencode/agents/prompt-test-reviewer.md` as a temporary opencode agent named `prompt-test-reviewer`.
+This case runs `opencode/agents/prompt-test-reviewer.md` (in the worktree under
+test) as a temporary opencode agent named `prompt-test-reviewer`.
 
-Run from `/root/claude-config-work`:
+`REPO` resolves to the worktree the case lives in. Run from anywhere inside
+the worktree:
 
 ```bash
+REPO="$(git rev-parse --show-toplevel)"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \
 OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "agent": {
     "prompt-test-reviewer": {
       "mode": "primary",
-      "prompt": "{file:/root/claude-config-work/opencode/agents/prompt-test-reviewer.md}",
+      "prompt": "{file:'"$REPO"'/opencode/agents/prompt-test-reviewer.md}",
       "permission": {
         "read": "allow",
         "glob": "allow",
@@ -23,8 +26,9 @@ OPENCODE_CONFIG_CONTENT='{
     }
   }
 }' \
-opencode run --agent prompt-test-reviewer --format json --dir /root/claude-config-work \
-  < /root/claude-config-work/opencode/prompt-tests/prompt-test-reviewer/reviews-existing-case/task.md
+opencode run --agent prompt-test-reviewer --format json --dir "$REPO" \
+  < "$REPO/opencode/prompt-tests/prompt-test-reviewer/reviews-existing-case/task.md"
 ```
 
-Compare the reviewer response to `reference-solution.md`. Do not commit raw JSON outputs; summarize useful failures in `baseline.md`.
+Compare the reviewer response to `reference-solution.md`. Do not commit raw
+JSON outputs; summarize useful failures in `baseline.md`.

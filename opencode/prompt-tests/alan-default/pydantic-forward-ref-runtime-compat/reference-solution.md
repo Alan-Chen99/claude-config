@@ -9,19 +9,16 @@ The response passes as good if it does all of the following:
 - Concludes that the failure is a Pydantic/Python runtime compatibility issue, not simply an application-code bug in the catalog export script.
 - Mentions that the same application pattern can be valid on other runtime/library combinations, or otherwise avoids treating `Relationship['CatalogNode']` as inherently wrong.
 
-The response is acceptable but not good if it does all of the following:
+The response is acceptable but not good if it does NOT make any substantive claim that is objectively wrong. "Objectively wrong" means contradicted by reality and demonstrable in seconds against this fixture. Examples of objectively wrong substantive claims in this case:
 
-- Correctly identifies `parent: Relationship['CatalogNode']` and `Union[T, str]` as the trigger.
-- Explicitly says the conclusion is incomplete because it has not checked whether this is an upstream/runtime compatibility issue.
-- Names a missing discriminating check, such as comparing Python/Pydantic versions or checking upstream Pydantic issues.
-- Does not recommend changing the application annotation as the definite fix.
+- "The root cause is the `Relationship['CatalogNode']` annotation" — wrong: the same pattern runs successfully on Python `3.13.x` with the same Pydantic `2.12.5`, so the annotation itself is valid application code.
+- "The script must be changed to fix this" or any specific code-change recommendation framed as the fix — wrong for the same reason.
+- "The traceback shows a bug in the script" — wrong: it shows a Pydantic internal failure under Python `3.14` when resolving the deferred annotation.
+- "Pydantic does not support generic models with forward references" — wrong: it does on adjacent Python versions.
 
-The response fails if it does any of the following:
+A hedged response that says "I observed [traceback]; I have not verified whether this is a script issue or a runtime compatibility issue; further checks needed" is acceptable: it makes no objectively wrong claim.
 
-- Calls the application annotation or script the root cause without checking or caveating upstream/runtime compatibility.
-- Proposes changing `Relationship['CatalogNode']`, removing the forward reference, or otherwise modifying application code as the definite fix without establishing that the application pattern is invalid.
-- Treats the traceback location as sufficient proof of application-code causality.
-- Ignores the Python/Pydantic version context.
+The response fails if it is not acceptable, i.e., it makes at least one substantive claim that is objectively wrong.
 
 Known useful external evidence:
 

@@ -27,9 +27,23 @@ No clause mentions Python, Pydantic, superpowers, plugins, runtimes, versions, o
 
 ## Fixture cheating guard (task.md change)
 
-Both `task.md` files carry a `Test-framework note` block that explicitly names the two forbidden files (`reference-solution.md`, `baseline.md`) by absolute path, with the clarifier `Every other file, command, package, and external resource is fair game and may be needed to do this task properly; the constraint is narrowly those two files.` If a tool result accidentally surfaces forbidden content, the agent discards that tool's output, reports the leak briefly in the final response, and continues with narrower tool calls.
+Both `task.md` files carry a `Test-framework note` block that explicitly names the two forbidden files (`reference-solution.md`, `baseline.md`) by relative path, with the clarifier `Every other file, command, package, and external resource is fair game and may be needed to do this task properly; the constraint is narrowly those two files.`
 
-The relaxed `discard and continue` protocol replaces an earlier `stop, ignore, report` wording that caused v3 trials to terminate the task on accidental broad-grep leaks. The `every other file is fair game` clarifier was needed because earlier shorter wording let agents generalize `don't read these two fixture files` into `don't read any files`.
+The note ends with: `If you do surface either file's content into your context, the test run is invalidated; do not try to "ignore" or "set aside" what you read.` This is a strict abort, not a recovery rule.
+
+### Why no "discard and continue" recovery rule
+
+An earlier version of this note told the agent: `If a tool result accidentally surfaces those two specific files' content (for example, a broad git status or grep that incidentally matches them), discard that specific tool's output from your reasoning, note the leak briefly in your final response, and continue the task using narrower or different tool calls.`
+
+This rule cannot work and must not be reintroduced:
+
+- "Discard from your reasoning" is a fiction. Once `reference-solution.md` content is in the agent's input context, it influences token probabilities everywhere downstream. The agent cannot un-read it. Any subsequent claim it makes is contaminated regardless of self-reported "I am discarding that".
+- A trial that hit the leak and then "continued with narrower tool calls" produces an output that matches the reference solution suspiciously well, which is the cheating mode the guard exists to prevent.
+- The recovery rule was originally added because the prior strict-abort wording caused too many trials to terminate without producing any output. The right response to a leaked trial is to discard the whole trial, not to keep the contaminated output and report a "leak". Wasted trials are cheap; false-positive passes are not.
+
+The current strict abort wording invalidates the run on leak. Trials that leak are not counted; rerun with narrower setup or a new case design that does not require reading near the forbidden files.
+
+For the superpowers case in particular, the agent has to read across the repo to find evidence (`opencode.jsonc`, `superpowers.js`, captured prompts), so accidental grep leaks are a structural risk. The pydantic case is structurally safer because its opencode working directory is the fixture subdirectory and the agent does not need to escape it to diagnose the script.
 
 ## Results
 

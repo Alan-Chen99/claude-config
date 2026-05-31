@@ -26,13 +26,13 @@ the case. The reviewer found that the target answer relied mainly on visible
 prompt/self-inspection evidence and did not satisfy the strengthened source
 provenance criteria.
 
-Validation run with opencode `1.15.5+0086a0b` against
-`/root/claude-config-work/opencode/agents/alan-default.md` before any prompt
-change for this case.
+Validation runs the agent prompt under test from the worktree (`REPO`) the case
+lives in.
 
 Command:
 
 ```bash
+REPO="$(git rev-parse --show-toplevel)"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
@@ -41,7 +41,7 @@ OPENCODE_DISABLE_PROJECT_CONFIG=1 OPENCODE_CONFIG_CONTENT='{
   "agent": {
     "prompt-test": {
       "mode": "primary",
-      "prompt": "{file:/root/claude-config-work/opencode/agents/alan-default.md}",
+      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default.md}",
       "permission": {
         "read": "allow",
         "glob": "allow",
@@ -52,7 +52,7 @@ OPENCODE_DISABLE_PROJECT_CONFIG=1 OPENCODE_CONFIG_CONTENT='{
       }
     }
   }
-}' opencode run --agent prompt-test --format json --dir /root/claude-config-work < /root/claude-config-work/opencode/prompt-tests/alan-default/superpowers-startup-components/task.md
+}' opencode run --agent prompt-test --format json --dir "$REPO" < "$REPO/opencode/prompt-tests/alan-default/superpowers-startup-components/task.md"
 ```
 
 Observed failure excerpt:
@@ -76,7 +76,7 @@ Missed requirements from `reference-solution.md`:
 
 When running this case, record:
 
-- Date and opencode version.
+- Date, the worktree path, the commit under test, and opencode version.
 - Agent prompt path under test.
 - Exact command from `run.md`, including any `--model` override.
 - Concise output excerpt showing whether source/docs evidence was used.

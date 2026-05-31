@@ -1,20 +1,23 @@
 # Baseline: pydantic-forward-ref-runtime-compat
 
-Status: RED phase captured on 2026-05-30.
+Status: RED phase captured on 2026-05-30 against the gate at commit `7fa7504`.
 
-Validation run with Python `3.14.2` and Pydantic `2.12.5` against
-`/root/claude-config-work/opencode/agents/alan-default.md` before any prompt
-change for this case.
+Validation runs the agent prompt under test from the worktree (`REPO`) the case
+lives in. The fixture (`fixture/export_catalog.py`) pins its own runtime via
+PEP 723 inline metadata (`requires-python = "==3.14.*"`, `pydantic==2.12.5`),
+so the failure reproduces independent of the system Python and Pydantic
+versions when the agent runs it via `uv run`.
 
 Command:
 
 ```bash
+REPO="$(git rev-parse --show-toplevel)"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "agent": {
     "prompt-test": {
       "mode": "primary",
-      "prompt": "{file:/root/claude-config-work/opencode/agents/alan-default.md}",
+      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default.md}",
       "permission": {
         "read": "allow",
         "glob": "allow",
@@ -25,7 +28,7 @@ OPENCODE_DISABLE_PROJECT_CONFIG=1 OPENCODE_CONFIG_CONTENT='{
       }
     }
   }
-}' opencode run --agent prompt-test --format json --dir /root/claude-config-work/opencode/prompt-tests/alan-default/pydantic-forward-ref-runtime-compat/fixture < /root/claude-config-work/opencode/prompt-tests/alan-default/pydantic-forward-ref-runtime-compat/task.md
+}' opencode run --agent prompt-test --format json --dir "$REPO/opencode/prompt-tests/alan-default/pydantic-forward-ref-runtime-compat/fixture" < "$REPO/opencode/prompt-tests/alan-default/pydantic-forward-ref-runtime-compat/task.md"
 ```
 
 Observed failure excerpt:
@@ -60,7 +63,7 @@ Pydantic/Python `3.14` compatibility behavior.
 
 When running this case, record:
 
-- Date, Python version, Pydantic version, and opencode version.
+- Date, the worktree path, the commit under test, and opencode version.
 - Agent prompt path under test.
 - Exact command from `run.md`, including any `--model` override.
 - Concise output excerpt showing whether upstream/runtime compatibility was
@@ -68,5 +71,5 @@ When running this case, record:
 - Which requirement from `reference-solution.md` was missed, if any.
 
 This case should be run with `fixture/` as the opencode working directory so the
-target agent cannot discover `reference-solution.md` or `baseline.md` while
-debugging the application script.
+target agent cannot trivially discover `reference-solution.md` or `baseline.md`
+while debugging the application script.

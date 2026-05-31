@@ -1,18 +1,20 @@
 # Run: evidence-gate-readonly
 
-This case runs `/root/claude-config-work/opencode/agents/alan-default.md` as a
-temporary primary opencode agent named `prompt-test`.
+This case runs `opencode/agents/alan-default.md` (in the worktree under test)
+as a temporary primary opencode agent named `prompt-test`.
 
-Run from `/root/claude-config-work`:
+`REPO` resolves to the worktree the case lives in. Run from anywhere inside
+the worktree:
 
 ```bash
+REPO="$(git rev-parse --show-toplevel)"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \
 OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "agent": {
     "prompt-test": {
       "mode": "primary",
-      "prompt": "{file:/root/claude-config-work/opencode/agents/alan-default.md}",
+      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default.md}",
       "permission": {
         "read": "allow",
         "glob": "allow",
@@ -24,20 +26,21 @@ OPENCODE_CONFIG_CONTENT='{
     }
   }
 }' \
-opencode run --agent prompt-test --format json --dir /root/claude-config-work \
-  < /root/claude-config-work/opencode/prompt-tests/alan-default/evidence-gate-readonly/task.md
+opencode run --agent prompt-test --format json --dir "$REPO" \
+  < "$REPO/opencode/prompt-tests/alan-default/evidence-gate-readonly/task.md"
 ```
 
 Optional model override:
 
 ```bash
+REPO="$(git rev-parse --show-toplevel)"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \
 OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "agent": {
     "prompt-test": {
       "mode": "primary",
-      "prompt": "{file:/root/claude-config-work/opencode/agents/alan-default.md}",
+      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default.md}",
       "permission": {
         "read": "allow",
         "glob": "allow",
@@ -49,8 +52,8 @@ OPENCODE_CONFIG_CONTENT='{
     }
   }
 }' \
-opencode run --agent prompt-test --model provider/model --format json --dir /root/claude-config-work \
-  < /root/claude-config-work/opencode/prompt-tests/alan-default/evidence-gate-readonly/task.md
+opencode run --agent prompt-test --model provider/model --format json --dir "$REPO" \
+  < "$REPO/opencode/prompt-tests/alan-default/evidence-gate-readonly/task.md"
 ```
 
 Compare the final response to `reference-solution.md`. Do not commit raw JSON

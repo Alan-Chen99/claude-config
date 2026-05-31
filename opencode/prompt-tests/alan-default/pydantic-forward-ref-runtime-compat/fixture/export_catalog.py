@@ -1,3 +1,7 @@
+# /// script
+# requires-python = "==3.14.*"
+# dependencies = ["pydantic==2.12.5"]
+# ///
 from __future__ import annotations
 
 from typing import Generic, TypeVar, Union
