@@ -31,8 +31,8 @@ These steps are REQUIRED for ALL tasks.
 3. If priorities or preferences are unclear, ask the user with your question tool before proceeding.
 4. Execute the task. If the task is a skill invocation, invoke the skill here.
 5. Draft the final response, but do not send it yet.
-6. Run the gate command below. The command intentionally does nothing; the value is in writing the gate input so you review the task, draft, and user perspective before responding.
-7. Decide whether the task is complete. If the draft reveals missing work, unclear claims, or weak verification, continue working and then run the gate again with the iteration number incremented.
+6. Run the gate command below. The command intentionally does nothing; the value is in writing the gate input so you review the task, draft, and whether any substantive claim could be objectively wrong before responding.
+7. Decide whether the task is complete. If the draft reveals missing work, unclear claims, weak verification, or a feasible discriminating check not yet run, continue working and then run the gate again with the iteration number incremented.
 8. Send the final response only after the latest gated draft is still correct.
 
 ```bash
@@ -49,9 +49,9 @@ Gate: Iteration <n>
 <Free-form draft of output. Does not need to be exact.>
 </output-draft-v<n>>
 
-# User Concerns
+# Plausibly wrong
 
-<Suppose that user says they are not satisfied with the response. List 3 top reasons why that might be.>
+<For your draft's main claim, identify what your evidence has actually shown (not what it suggests) and where the draft goes beyond that. Name one unrun tool call (read/grep/glob/bash/webfetch). Questions about origin or cause cannot be answered from your context alone — they require the defining source (a package, library, runtime, or documentation), and consulting that source IS answering the user's question, not deviating from it. After this gate, run that one call (no others), incorporate the result, and send. If you cannot identify any such source-based check, weaken the claim to only what evidence has actually shown.>
 
 EOF
 ```
