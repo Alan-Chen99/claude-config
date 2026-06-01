@@ -62,14 +62,65 @@ class C:
 
 # ─── Text helpers ────────────────────────────────────────────────────────────
 
+_NEXT_STEP_NEEDLE = "NEXT STEP"
+_NEXT_STEP_PAD = 200
+_NEXT_STEP_MERGE_GAP = 100
+
+
+def _merge_windows(
+    windows: list[tuple[int, int]], gap: int = 0
+) -> list[tuple[int, int]]:
+    """Merge a sorted list of (lo, hi) windows when the gap between them is <= gap."""
+    merged: list[tuple[int, int]] = []
+    for lo, hi in sorted(windows):
+        if merged and lo - merged[-1][1] <= gap:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], hi))
+        else:
+            merged.append((lo, hi))
+    return merged
+
+
 def trunc(s: str, maxlen: int) -> str:
     if len(s) <= maxlen:
         return s
-    # Show beginning and end so tail directives (NEXT STEP, etc.) survive
     head = maxlen * 2 // 3
     tail = maxlen - head
-    omitted = len(s) - head - tail
-    return s[:head] + f" ... [{omitted} more chars] ... " + s[-tail:]
+    n = len(s)
+
+    # Structural windows: head [0:head) and tail [n-tail:n).
+    structural: list[tuple[int, int]] = [(0, head), (n - tail, n)]
+
+    # Find every NEXT STEP occurrence and expand into a candidate window.
+    # Merge close NEXT STEP candidates together (but NOT yet with head/tail).
+    ns_candidates: list[tuple[int, int]] = []
+    start = 0
+    while True:
+        idx = s.find(_NEXT_STEP_NEEDLE, start)
+        if idx == -1:
+            break
+        w_lo = max(0, idx - _NEXT_STEP_PAD)
+        w_hi = min(n, idx + len(_NEXT_STEP_NEEDLE) + _NEXT_STEP_PAD)
+        ns_candidates.append((w_lo, w_hi))
+        start = idx + len(_NEXT_STEP_NEEDLE)
+    ns_merged = _merge_windows(ns_candidates, gap=_NEXT_STEP_MERGE_GAP)
+
+    # Combine all windows and merge by overlap only (gap=0), so structural
+    # head/tail windows never merge with each other just because maxlen is small.
+    all_windows = _merge_windows(structural + ns_merged, gap=0)
+
+    # Stitch the output: window text, then gap marker, then next window.
+    parts: list[str] = []
+    cursor = 0
+    for lo, hi in all_windows:
+        if cursor < lo:
+            omitted = lo - cursor
+            parts.append(f" ... [{omitted} more chars] ... ")
+        parts.append(s[lo:hi])
+        cursor = hi
+    if cursor < n:
+        omitted = n - cursor
+        parts.append(f" ... [{omitted} more chars] ... ")
+    return "".join(parts)
 
 
 def is_truncated(s: str, maxlen: int) -> bool:
