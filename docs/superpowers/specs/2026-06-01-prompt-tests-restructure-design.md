@@ -347,8 +347,11 @@ head-overlap, tail-overlap, isolated mid-text, and multi-occurrence merge.
 
 ## opencode-pretty drill-down hint
 
-File: `src/claude_config/opencode_pretty/main.py` and the shared `Renderer`
-class in `src/claude_config/cc_pretty/render.py`.
+File: `src/claude_config/opencode_pretty/main.py`.
+
+opencode-pretty has its own render functions (it does *not* use cc-pretty's
+`Renderer` class — only the leaf helpers like `trunc`, `is_truncated`, `ind`).
+So the change is local to opencode-pretty.
 
 Two additions:
 
@@ -356,17 +359,18 @@ Two additions:
    one message from the same `opencode export <session>` JSON without applying
    truncation. Session id is already resolved before the render call; message
    id is available on each message during render.
-2. **A hint emitted under any truncated block.** Replace the existing
-   `jq_hint(log_path, lineno, jq_path)` calls in `_render_tool_use`,
-   `_render_tool_result`, and `_render_context_text` with a `hint_emitter`
-   callable passed into `Renderer`. cc-pretty wires `jq_hint`; opencode-pretty
-   wires `opencode_hint(session_id, message_id)`:
+2. **A hint emitted under any truncated block.** Add a new
+   `opencode_hint(session_id, message_id)` helper in `opencode_pretty/main.py`
+   and call it from every site that currently emits one of the
+   `[tool output truncated to N chars]` / `[tool error truncated to N chars]`
+   lines (and any equivalent text-truncation site). The hint looks like:
 
    ```
        # agent-tools opencode-pretty <session-id> --message <message-id> --full
    ```
 
-cc-pretty's existing `jq_hint` for Claude Code JSONL is unchanged.
+cc-pretty's existing `jq_hint` for Claude Code JSONL is unchanged; nothing in
+`render.py` is restructured for this drill-down work.
 
 Tests: feed a fixture export with deliberately long content into
 opencode-pretty, assert the rendered output contains the new hint with the
