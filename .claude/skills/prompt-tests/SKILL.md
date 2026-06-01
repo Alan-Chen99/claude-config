@@ -35,8 +35,8 @@ Historical baselines from the opencode era are at
 1. **Pick a case.** Read `task.md` and `reference-solution.md` under
    `prompt-tests/general/<case>/`.
 
-2. **Run the test once.** Choose the per-runner recipe below. Capture the
-   session log under `/tmp/`.
+2. **Run the test once from a scratch cwd under `/tmp`.** Choose the
+   per-runner recipe below. Capture the session log under `/tmp/`.
 
 3. **Dispatch one grader subagent per session log.** One subagent per session
    — no parallel-grader launching. The grader's brief:
@@ -61,6 +61,31 @@ Historical baselines from the opencode era are at
 Trial count is task-dependent. Run once first; iterate only if the result is
 ambiguous or `acceptable`.
 
+## Scratch cwd isolation (load-bearing)
+
+Every tested-agent trial MUST run with its current working directory outside
+this repository, under a fresh `/tmp/prompt-test-...` directory. This applies
+to opencode, Claude Code, and any other harness.
+
+Rationale: harnesses can auto-load nearby instruction files such as
+`CLAUDE.md`/`AGENTS.md` from the current working tree or from files the agent
+reads. `prompt-tests/CLAUDE.md` intentionally contains grader-facing case
+summaries and assumption posture. If a tested agent sees it, the run is
+contaminated even if the agent did not explicitly read `reference-solution.md`.
+
+Rules:
+
+- Create a fresh scratch directory, e.g. `SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"`.
+- Run the harness process from that scratch directory.
+- For opencode, also set `--dir "$SCRATCH"`.
+- Copy only task-visible fixture files into the scratch directory. Do not copy
+  `reference-solution.md`, `prompt-tests/CLAUDE.md`, or any grader-only docs.
+- Use absolute `$REPO/...` paths for harness plumbing such as the agent prompt
+  file and `task.md` stdin.
+- If the harness has a flag/env var to disable project instruction loading, use
+  it. For opencode, set `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1` in addition to
+  `OPENCODE_DISABLE_PROJECT_CONFIG=1`.
+
 ## Runner recipes
 
 ### opencode
@@ -71,7 +96,9 @@ running a test under an existing agent prompt (e.g., `opencode/agents/alan-defau
 ```bash
 REPO="$(git rev-parse --show-toplevel)"
 CASE="prompt-tests/general/superpowers-startup-components"
+SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \
+OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
 OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"],
@@ -83,12 +110,13 @@ OPENCODE_CONFIG_CONTENT='{
     }
   }
 }' \
-opencode run --agent prompt-test --format json --dir "$REPO" \
+opencode run --agent prompt-test --format json --dir "$SCRATCH" \
   < "$REPO/$CASE/task.md" | tee "/tmp/$(basename $CASE)-$(date +%s).jsonl"
 ```
 
-For cases that need a restricted working directory (e.g., pydantic fixture),
-point `--dir` at the fixture directory instead of `$REPO`.
+For cases that need files in the tested agent's cwd, copy only the fixture
+contents into the scratch directory before running. Do not point `--dir` into
+the repository.
 
 Example for the pydantic case:
 
@@ -96,18 +124,36 @@ Example for the pydantic case:
 # pydantic fixture-confined run:
 REPO="$(git rev-parse --show-toplevel)"
 CASE="prompt-tests/general/pydantic-forward-ref-runtime-compat"
+SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
+cp -a "$REPO/$CASE/fixture/." "$SCRATCH/"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \
+OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
 OPENCODE_CONFIG_CONTENT='{ ... same as above ... }' \
-opencode run --agent prompt-test --format json --dir "$REPO/$CASE/fixture" \
+opencode run --agent prompt-test --format json --dir "$SCRATCH" \
   < "$REPO/$CASE/task.md" | tee "/tmp/$(basename $CASE)-$(date +%s).jsonl"
 ```
 
 ### Claude Code
 
 Headless invocation with `claude --print` (or `claude` with stdin piping)
-captures a JSONL session log via the standard transcript location. Adapt to
-the local Claude Code version's flags. Capture the session log path printed
-at exit, or pull it from `~/.claude/projects/<slug>/<session>.jsonl`.
+captures a JSONL session log via the standard transcript location. Run it from
+a fresh scratch cwd, copying only task-visible fixtures first if needed:
+
+```bash
+REPO="$(git rev-parse --show-toplevel)"
+CASE="prompt-tests/general/pydantic-forward-ref-runtime-compat"
+SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
+cp -a "$REPO/$CASE/fixture/." "$SCRATCH/"  # only if the case has a fixture
+(
+  cd "$SCRATCH"
+  claude --print < "$REPO/$CASE/task.md"
+)
+```
+
+Adapt to the local Claude Code version's flags. Capture the session log path
+printed at exit, or pull it from `~/.claude/projects/<slug>/<session>.jsonl`.
+For any other harness, use the same pattern: scratch cwd under `/tmp`, fixtures
+copied in, grader-only files left in the repo.
 
 ## Pitfalls
 

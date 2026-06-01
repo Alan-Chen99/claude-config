@@ -3,6 +3,20 @@
 Runner-neutral prompt evaluation cases. See `.claude/skills/prompt-tests`
 for how to run, grade, and interpret results.
 
+## Harness isolation
+
+Run tested agents from a fresh `/tmp/prompt-test-...` cwd, never from this
+repository or any directory under `prompt-tests/`. Copy only task-visible
+fixture files into that scratch directory. Keep `reference-solution.md`, this
+`CLAUDE.md`, and other grader-only docs out of the tested agent's cwd.
+
+Rationale: this file contains case summaries, the shared invariant, and
+assumption posture that are useful to graders but solution-shaped for tested
+agents. Some harnesses auto-load nearby instruction files such as
+`CLAUDE.md`/`AGENTS.md` from the cwd or from files the agent reads. If a tested
+agent receives this file implicitly, the run is contaminated even if it never
+explicitly reads `reference-solution.md`.
+
 ## Cases
 
 All cases below test the same invariant — call it **correctness**:
