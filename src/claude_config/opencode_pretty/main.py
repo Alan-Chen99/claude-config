@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -37,6 +37,8 @@ class RenderOptions:
     truncate_input: bool = False
     no_color: bool = False
     show_thinking: bool = True
+    message_id: str | None = None  # if set, render only this part id
+    full: bool = False              # if True, render without truncation
 
 
 def parse_export_stdout(stdout: str) -> dict[str, Any]:
@@ -76,6 +78,9 @@ def fetch_export(session_id: str) -> dict[str, Any]:
 
 def render_export(export: dict[str, Any], options: RenderOptions | None = None) -> str:
     options = options or RenderOptions()
+    if options.full:
+        # Disable truncation by using a huge tool_max.
+        options = replace(options, tool_max=10**9)
     if options.no_color:
         C.disable()
 
@@ -157,6 +162,10 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--no-color", action="store_true")
     parser.add_argument("--no-thinking", action="store_true")
     parser.add_argument("--agent", action="store_true")
+    parser.add_argument("--message", dest="message_id", default=None,
+                        help="If set, render only the part with this id.")
+    parser.add_argument("--full", action="store_true",
+                        help="Disable truncation. Useful with --message.")
     args = parser.parse_args(argv)
 
     options = RenderOptions(
@@ -164,6 +173,8 @@ def main(argv: list[str] | None = None) -> None:
         truncate_input=args.truncate_input,
         no_color=args.no_color or args.agent,
         show_thinking=not args.no_thinking,
+        message_id=args.message_id,
+        full=args.full,
     )
     output = render_export(fetch_export(args.session_id), options)
     if args.agent:
@@ -188,7 +199,11 @@ def _render_message(message: dict[str, Any], options: RenderOptions, session_id:
     if ts:
         header += f" {C.TIMESTAMP}{ts}{C.RESET}"
     body = _render_parts(_parts(message), options, session_id)
-    return header if not body else f"{header}\n{body}"
+    if not body:
+        if options.message_id:
+            return ""
+        return header
+    return f"{header}\n{body}"
 
 
 def _parts(message: dict[str, Any]) -> list[dict[str, Any]]:
@@ -203,6 +218,8 @@ def _parts(message: dict[str, Any]) -> list[dict[str, Any]]:
 def _render_parts(parts: list[dict[str, Any]], options: RenderOptions, session_id: str) -> str:
     rendered: list[str] = []
     for part in parts:
+        if options.message_id and part.get("id") != options.message_id:
+            continue
         typ = part.get("type")
         if typ == "text":
             text = _part_text(part)

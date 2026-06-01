@@ -265,3 +265,21 @@ def test_render_export_does_not_emit_hint_when_nothing_truncated() -> None:
     )
 
     assert "--message" not in rendered
+
+
+def test_render_export_message_full_mode_returns_only_one_message_untruncated() -> None:
+    export = sample_export()
+    tool_state = export["messages"][1]["parts"][3]["state"]
+    tool_state["output"] = "y" * 2000
+    part_id = export["messages"][1]["parts"][3]["id"]
+
+    rendered = render_export(
+        export,
+        RenderOptions(no_color=True, message_id=part_id, full=True),
+    )
+
+    # The full untruncated output appears.
+    assert "y" * 2000 in rendered
+    # The user message ("please inspect this") is NOT included — only the
+    # requested message is rendered.
+    assert "please inspect this" not in rendered
