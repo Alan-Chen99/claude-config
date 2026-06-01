@@ -1,7 +1,14 @@
 # opencode prompt-test reviewer - Design
 
-Status: approved
+Status: historical; superseded for prompt-test harness execution by the current
+`prompt-tests` skill scratch-cwd and contamination policy
 Date: 2026-05-29
+
+Current policy note: do not reuse repo-root runner instructions from this design
+as tested-agent harness guidance. Tested-agent prompt-test trials now run from a
+fresh `/tmp/prompt-test-...` cwd. Any tested-agent access to `**/prompt-tests/**`
+from a `claude-config` worktree, hidden criteria, grader-only docs, or prior
+results invalidates the run and requires rerun; it is not a semantic fail.
 
 ## Purpose
 
@@ -62,7 +69,9 @@ Input:
 Responsibilities:
 
 - Read `task.md`, `reference-solution.md`, and `run.md`.
-- Execute the documented `opencode run --format json` command from the repo root.
+- Historical behavior: execute the documented `opencode run --format json`
+  command from the repo root. Current tested-agent harnesses must instead use
+  the scratch-cwd policy in the `prompt-tests` skill.
 - Store raw JSON output under an ignored temporary location such as `/tmp` or a
   repo-local ignored temp path.
 - Parse enough of the transcript to identify final answer text, tool calls,

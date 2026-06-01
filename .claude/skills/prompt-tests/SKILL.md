@@ -1,6 +1,6 @@
 ---
 name: prompt-tests
-description: Use when running, grading, or iterating any case under prompt-tests/. Covers running the test, capturing the session log, dispatching a grader subagent, and applying pass/acceptable/fail rules. Required for any prompt-evaluation work in this repo.
+description: Use when running, grading, or iterating any case under prompt-tests/. Covers prompt-evaluation work in this repo, including contamination checks and pass/acceptable/fail/invalid outcomes.
 ---
 
 # prompt-tests
@@ -20,8 +20,8 @@ this rule.** Final-answer-only review does not satisfy it either.
 
 Each case under `prompt-tests/general/<case>/` contains:
 
-- `task.md` — exact prompt sent to the agent through stdin. Includes a
-  fixture-guard note naming sibling files the agent must not read.
+- `task.md` — exact prompt sent to the tested agent through stdin. It must be
+  clean task text, with no test-framework anti-cheating note.
 - `reference-solution.md` — semantic pass / acceptable / fail criteria.
 - `fixture/` (optional) — runnable artifacts the agent needs. Pinned at the
   fixture level (e.g., PEP 723 inline metadata for Python).
@@ -43,18 +43,22 @@ Historical baselines from the opencode era are at
 
    > Read the session log with `agent-tools cc-pretty` (Claude Code JSONL) or
    > `agent-tools opencode-pretty` (opencode session), **including all
-   > thinking blocks**. Run `/diagnose-session` over the log. Compare the
+   > thinking blocks**. Run `/diagnose-session` over the log. First check for
+   > cheating/contamination using the rules in this skill. If contaminated,
+   > return `invalid` and do not grade semantic quality. Otherwise compare the
    > transcript to `reference-solution.md` semantically. Return:
-   > - **Verdict**: `pass` / `acceptable` / `fail`.
+   > - **Verdict**: `pass` / `acceptable` / `fail` / `invalid`.
    > - **Reasoning** grounded in transcript quotes (final answer, tool calls,
    >   thinking blocks).
    > - **Full diagnose-session report** inlined.
 
-4. **Aggregate in the parent.** Apply pass/acceptable/fail rules:
+4. **Aggregate in the parent.** Apply outcome rules:
    - `pass` → pass.
    - `fail` → fail.
    - `acceptable` → run again. If a pattern emerges where every run is
      acceptable (never `pass`), call it `fail`. Parent's judgment.
+   - `invalid` → discard the run and rerun from a clean scratch cwd. It is not
+     a semantic fail.
    - Outstanding problematic behavior in the diagnose-session report can
      override `pass` → `fail`. Parent decides severity in context of the task.
 
@@ -85,6 +89,30 @@ Rules:
 - If the harness has a flag/env var to disable project instruction loading, use
   it. For opencode, set `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1` in addition to
   `OPENCODE_DISABLE_PROJECT_CONFIG=1`.
+
+## Cheating and contamination detection (grader-only)
+
+The tested agent must not receive anti-cheating instructions in `task.md`.
+Cheating detection belongs to graders and harness maintainers, not the agent
+being tested.
+
+Mark a run `invalid` and demand a rerun if the tested-agent transcript shows any
+of these, whether intentional, accidental, or auto-loaded:
+
+- Any read/list/glob/grep/search/bash/tool action touching a path matching
+  `**/prompt-tests/**` from any git worktree of `claude-config`, including
+  `/root/claude-config-work/prompt-tests/...` and `/repos/claude-config/...`.
+- Any explicit or implicit access to `reference-solution.md`,
+  `prompt-tests/CLAUDE.md`, grader prompts, baselines, or other grader-only
+  prompt-test files.
+- Any auto-loaded instruction content from `prompt-tests/CLAUDE.md` or nearby
+  `CLAUDE.md`/`AGENTS.md` files under a prompt-test directory.
+- Any other action whose purpose or effect is to inspect hidden test criteria,
+  expected answers, grader-only docs, or prior test results for the same case.
+
+Do not count this as `fail`: contamination means the run no longer measures the
+agent's behavior on the task. Discard the run and rerun with a clean scratch cwd
+and corrected harness isolation.
 
 ## Runner recipes
 

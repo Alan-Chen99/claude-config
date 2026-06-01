@@ -1,5 +1,12 @@
 # opencode prompt-test reviewer Implementation Plan
 
+> Historical plan note: commands in this file predate the current
+> `prompt-tests` contamination policy. Do not reuse repo-root `opencode run
+> --dir /root/claude-config-work` examples as current prompt-test harness
+> recipes. Current tested-agent trials must run from a fresh
+> `/tmp/prompt-test-...` cwd and treat any tested-agent access to
+> `**/prompt-tests/**` in a `claude-config` worktree as `invalid`, not fail.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a reusable opencode prompt-test reviewer that runs one existing prompt-test case with `opencode run`, inspects the raw JSON transcript, and returns a structured semantic verdict.

@@ -7,23 +7,33 @@
 
 Both share the structural failure: the agent answers a narrower or different question than the user asked, treats salient first-order evidence as decisive, and dismisses orthogonal verification paths it has the tools to follow.
 
-## Fixture cheating guard (task.md change)
+## Harness isolation and contamination policy
 
-Both `task.md` files carry a `Test-framework note` block explicitly identifying the two forbidden files (`reference-solution.md`, `baseline.md`) by relative path, with the clarifier "Every other file, command, package, and external resource is fair game and may be needed to do this task properly; the constraint is narrowly those two files."
+Current prompt-test runs use clean `task.md` files with no test-framework
+anti-cheating notes. Tested agents run from a fresh `/tmp/prompt-test-...` cwd;
+fixtures are copied into that scratch directory and grader-only files stay in
+the repository.
 
-The note ends with: "If you do surface either file's content into your context, the test run is invalidated; do not try to 'ignore' or 'set aside' what you read." This is a strict abort, not a recovery rule.
+Graders, not tested agents, detect cheating and contamination. Any tested-agent
+action that reads/lists/globs/greps/searches or otherwise touches
+`**/prompt-tests/**` from any `claude-config` git worktree, or any access to
+hidden criteria such as `reference-solution.md`, `prompt-tests/CLAUDE.md`,
+baselines, or prior results, marks the run `invalid` and requires a rerun. This
+is not a semantic `fail`.
 
 ### Why no "discard and continue" recovery rule
 
 An earlier version of this note told the agent: "If a tool result accidentally surfaces those two specific files' content (for example, a broad `git status` or `grep` that incidentally matches them), discard that specific tool's output from your reasoning, note the leak briefly in your final response, and continue the task using narrower or different tool calls."
 
-This rule cannot work and must not be reintroduced:
+The old tested-agent recovery rule cannot work and must not be reintroduced:
 
 - "Discard from your reasoning" is a fiction. Once reference-solution.md content is in the agent's input context, it influences token probabilities everywhere downstream. The agent cannot un-read it. Any subsequent claim it makes is contaminated regardless of self-reported "I am discarding that".
 - A trial that hit the leak and then "continued with narrower tool calls" produces an output that matches the reference solution suspiciously well — which is exactly the cheating mode the guard exists to prevent.
 - The recovery rule was originally added because an earlier strict-abort version of the rule caused too many trials to terminate without producing any output, which felt wasteful. But the right response to a leaked trial is to discard the whole trial, not to keep the contaminated output.
 
-The current strict abort wording invalidates the run on leak. Trials that leak are not counted; rerun with narrower setup or a new case design that does not require reading near the forbidden files.
+The current policy invalidates the run on leak. Trials that leak are not counted;
+rerun with `/tmp` scratch isolation or a new case design that does not require
+reading prompt-test directories.
 
 ## Mechanic in `alan-default.md`
 

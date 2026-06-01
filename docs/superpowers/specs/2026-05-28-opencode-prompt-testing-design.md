@@ -94,13 +94,17 @@ file under test:
 The command passes the test task with stdin:
 
 ```bash
+REPO="$(git rev-parse --show-toplevel)"
+CASE="opencode/prompt-tests/alan-default/evidence-gate-readonly"
+SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \
+OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
 OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "agent": {
     "prompt-test": {
       "mode": "primary",
-      "prompt": "{file:/root/claude-config-work/opencode/agents/alan-default.md}",
+      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default.md}",
       "permission": {
         "read": "allow",
         "glob": "allow",
@@ -112,13 +116,18 @@ OPENCODE_CONFIG_CONTENT='{
     }
   }
 }' \
-opencode run --agent prompt-test --format json --dir /root/claude-config-work \
-  < opencode/prompt-tests/alan-default/evidence-gate-readonly/task.md
+opencode run --agent prompt-test --format json --dir "$SCRATCH" \
+  < "$REPO/$CASE/task.md"
 ```
 
 `OPENCODE_DISABLE_PROJECT_CONFIG=1` keeps the run isolated from local project
 defaults when the temporary config should be authoritative. The test may omit it
 when intentionally testing merged project config.
+
+Run prompt tests from a fresh `/tmp/prompt-test-...` cwd and keep grader-only
+files out of that directory. If the transcript shows the tested agent touching
+`**/prompt-tests/**` in any `claude-config` worktree, discard the run as
+`invalid` and rerun rather than scoring it pass/fail.
 
 For opencode `1.15.5+0086a0b`, use object-shaped per-agent permission in the
 temporary config. A string permission such as `"permission": "allow"` is

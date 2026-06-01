@@ -23,15 +23,24 @@ The history of v1-v15 is preserved at the bottom for reference. Key takeaway fro
 
 ## This round: v1' to v8
 
-Each iteration is a single-mechanic change to `alan-default.md` plus task.md fixture-guard updates. Each clause is justified by a specific failure mode observed in earlier trials.
+Each iteration is a single-mechanic change to `alan-default.md` plus prompt-test
+harness isolation updates. Each clause is justified by a specific failure mode
+observed in earlier trials.
 
-### Fixture-level cheating guard
+### Harness-level contamination guard
 
-A `Test-framework note` was added to both `task.md` files identifying `reference-solution.md` and `baseline.md` by absolute path with "do not read or list those two specific files. Every other file, command, package, and external resource is fair game." If a tool result accidentally surfaces the forbidden files, the agent discards that output, reports the leak in the final response, and continues with narrower scope.
+Current prompt-test cases do not put anti-cheating notes in `task.md`. Tested
+agents run from fresh `/tmp/prompt-test-...` cwd directories, with only
+task-visible fixture files copied in. Graders check for contamination.
 
-Initial wording ("stop, ignore, report" — abort) caused v3 trials to terminate the task on accidental broad-grep leaks; relaxed to "discard the tool's output, note the leak, continue with narrower scope" so the trial can recover.
+Any tested-agent action touching `**/prompt-tests/**` from any `claude-config`
+git worktree, or any other access to hidden criteria, reference solutions,
+grader-only docs, baselines, or prior results for the case, marks the run
+`invalid` and requires a rerun. This is not a semantic `fail`.
 
-The "every other file is fair game" clarifier was needed because earlier wording let agents generalize "don't read fixture files" into "don't read any files".
+Earlier task-level guards and "discard then continue" recovery wording are
+historical only. They leaked grader policy into the tested-agent prompt and
+could not make a contaminated run clean again.
 
 ### v1': rename + falsification framing
 
