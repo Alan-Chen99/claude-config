@@ -169,12 +169,8 @@ Repo-local skill, not installed system-wide (no symlink from `install.sh`).
 Tracked in git; `.gitignore` already allows it (only `/.claude/worktrees` is
 ignored).
 
-Discovery assumption: Claude Code picks up project-local skills from
-`.claude/skills/<name>/SKILL.md` automatically when working in the repo, the
-same way it picks up `.claude/agents/`. If this assumption is wrong at
-implementation time, the fallback is to keep the file location and add a
-loader entry in `settings.json` rather than promote the skill into the
-system-wide `skills/` tree.
+Claude Code auto-loads skills from `.claude/skills/<name>/SKILL.md` when
+running in the project, verified in the decompiled CLI source.
 
 ### Frontmatter
 
