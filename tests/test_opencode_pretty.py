@@ -234,3 +234,34 @@ def test_emit_agent_output_writes_chunks_when_output_exceeds_bash_limit(
     assert "line1" in chunk_paths[0].read_text()
 
     shutil.rmtree(chunk_dir)
+
+
+def test_render_export_emits_drill_down_hint_under_truncated_output() -> None:
+    export = sample_export()
+    tool_state = export["messages"][1]["parts"][3]["state"]
+    tool_state["output"] = "y" * 200
+    part_id = export["messages"][1]["parts"][3]["id"]
+    session_id = export["info"]["id"]
+
+    rendered = render_export(
+        export,
+        RenderOptions(no_color=True, tool_max=20),
+    )
+
+    expected = (
+        f"agent-tools opencode-pretty {session_id} --message {part_id} --full"
+    )
+    assert expected in rendered
+
+
+def test_render_export_does_not_emit_hint_when_nothing_truncated() -> None:
+    export = sample_export()
+    tool_state = export["messages"][1]["parts"][3]["state"]
+    tool_state["output"] = "short output"
+
+    rendered = render_export(
+        export,
+        RenderOptions(no_color=True, tool_max=4000),
+    )
+
+    assert "--message" not in rendered

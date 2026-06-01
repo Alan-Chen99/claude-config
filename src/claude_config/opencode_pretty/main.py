@@ -24,6 +24,13 @@ from claude_config.cc_pretty.render import (
 )
 
 
+def opencode_hint(session_id: str, message_id: str) -> str:
+    return (
+        f"{C.HINT}    # agent-tools opencode-pretty {session_id} "
+        f"--message {message_id} --full{C.RESET}"
+    )
+
+
 @dataclass(frozen=True)
 class RenderOptions:
     tool_max: int = 4000
@@ -91,7 +98,7 @@ def render_export(export: dict[str, Any], options: RenderOptions | None = None) 
     lines.append(separator())
 
     for message in _messages(export):
-        rendered = _render_message(message, options)
+        rendered = _render_message(message, options, session_id)
         if rendered:
             lines.append(rendered)
             lines.append(separator())
@@ -172,7 +179,7 @@ def _messages(export: dict[str, Any]) -> list[dict[str, Any]]:
     return [msg for msg in messages if isinstance(msg, dict)]
 
 
-def _render_message(message: dict[str, Any], options: RenderOptions) -> str:
+def _render_message(message: dict[str, Any], options: RenderOptions, session_id: str) -> str:
     info = _info(message)
     role = str(info.get("role") or message.get("role") or message.get("type") or "message").upper()
     ts = _format_time(_get_time(info, "created"))
@@ -180,7 +187,7 @@ def _render_message(message: dict[str, Any], options: RenderOptions) -> str:
     header = f"{color}{role}{C.RESET}"
     if ts:
         header += f" {C.TIMESTAMP}{ts}{C.RESET}"
-    body = _render_parts(_parts(message), options)
+    body = _render_parts(_parts(message), options, session_id)
     return header if not body else f"{header}\n{body}"
 
 
@@ -193,7 +200,7 @@ def _parts(message: dict[str, Any]) -> list[dict[str, Any]]:
     return [part for part in parts if isinstance(part, dict)]
 
 
-def _render_parts(parts: list[dict[str, Any]], options: RenderOptions) -> str:
+def _render_parts(parts: list[dict[str, Any]], options: RenderOptions, session_id: str) -> str:
     rendered: list[str] = []
     for part in parts:
         typ = part.get("type")
@@ -204,7 +211,7 @@ def _render_parts(parts: list[dict[str, Any]], options: RenderOptions) -> str:
         elif typ in {"reasoning", "thinking"}:
             rendered.append(_render_reasoning(part, options))
         elif typ in {"tool", "tool-call", "tool_use"}:
-            rendered.append(_render_tool(part, options))
+            rendered.append(_render_tool(part, options, session_id))
         elif typ in {"step-start", "step-finish"}:
             continue
     return "\n".join(item for item in rendered if item)
@@ -219,7 +226,7 @@ def _render_reasoning(part: dict[str, Any], options: RenderOptions) -> str:
     return f"{C.THINKING}  reasoning{C.RESET}\n{ind(text, '    ')}"
 
 
-def _render_tool(part: dict[str, Any], options: RenderOptions) -> str:
+def _render_tool(part: dict[str, Any], options: RenderOptions, session_id: str) -> str:
     state = part.get("state") if isinstance(part.get("state"), dict) else {}
     name = str(part.get("name") or part.get("tool") or "tool")
     call_id = str(part.get("callID") or part.get("call_id") or part.get("id") or "")
@@ -235,10 +242,11 @@ def _render_tool(part: dict[str, Any], options: RenderOptions) -> str:
     if state_title:
         lines.append(ind(str(state_title), "    "))
     if "input" in state or "input" in part:
-        input_text = fmt_tool_input(state.get("input", part.get("input")))
-        if options.truncate_input:
-            input_text = trunc(input_text, options.tool_max)
+        raw_input = fmt_tool_input(state.get("input", part.get("input")))
+        input_text = trunc(raw_input, options.tool_max) if options.truncate_input else raw_input
         lines.append(ind(input_text, "    "))
+        if options.truncate_input and is_truncated(raw_input, options.tool_max):
+            lines.append(opencode_hint(session_id, part.get("id", "")))
     if state.get("status") == "error" and "error" in state:
         error = _stringify(state["error"])
         rendered_error = trunc(error, options.tool_max)
@@ -246,6 +254,7 @@ def _render_tool(part: dict[str, Any], options: RenderOptions) -> str:
         lines.append(ind(rendered_error, "    "))
         if is_truncated(error, options.tool_max):
             lines.append(f"{C.HINT}    [tool error truncated to {options.tool_max} chars]{C.RESET}")
+            lines.append(opencode_hint(session_id, part.get("id", "")))
     elif "output" in state or "output" in part:
         output = _stringify(state.get("output", part.get("output")))
         rendered_output = trunc(output, options.tool_max)
@@ -253,6 +262,7 @@ def _render_tool(part: dict[str, Any], options: RenderOptions) -> str:
         lines.append(ind(rendered_output, "    "))
         if is_truncated(output, options.tool_max):
             lines.append(f"{C.HINT}    [tool output truncated to {options.tool_max} chars]{C.RESET}")
+            lines.append(opencode_hint(session_id, part.get("id", "")))
     return "\n".join(lines)
 
 
