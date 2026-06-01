@@ -7,8 +7,8 @@ The verbose iteration log lives untracked at `notes/superpowers-prompt-test-iter
 ## Files in this commit
 
 - `opencode/agents/alan-default.md` — three coordinated changes implementing the single mechanic.
-- `opencode/prompt-tests/alan-default/pydantic-forward-ref-runtime-compat/task.md` — fixture cheating guard.
-- `opencode/prompt-tests/alan-default/superpowers-startup-components/task.md` — fixture cheating guard.
+- `prompt-tests/general/pydantic-forward-ref-runtime-compat/task.md` — fixture cheating guard.
+- `prompt-tests/general/superpowers-startup-components/task.md` — fixture cheating guard.
 - `notes/superpowers-prompt-test-progress.md` — this note.
 
 ## Final mechanic (v10)

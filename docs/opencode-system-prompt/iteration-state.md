@@ -2,8 +2,8 @@
 
 ## Test cases retained
 
-- `opencode/prompt-tests/alan-default/superpowers-startup-components/` — original RED test.
-- `opencode/prompt-tests/alan-default/pydantic-forward-ref-runtime-compat/` — added in `58588ca`. RED at baseline against the gate from `7fa7504`.
+- `prompt-tests/general/superpowers-startup-components/` — original RED test.
+- `prompt-tests/general/pydantic-forward-ref-runtime-compat/` — added in `58588ca`. RED at baseline against the gate from `7fa7504`.
 
 Both share the structural failure: the agent answers a narrower or different question than the user asked, treats salient first-order evidence as decisive, and dismisses orthogonal verification paths it has the tools to follow.
 
