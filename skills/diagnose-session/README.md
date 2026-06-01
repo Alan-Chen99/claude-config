@@ -36,6 +36,9 @@ Findings are organized by detectability confidence:
 
 ## Limitations
 
+- Supports both Claude Code JSONL and opencode session exports. Pick the
+  matching renderer (`agent-tools cc-pretty` vs `agent-tools opencode-pretty`)
+  per Step 1 of the SKILL.
 - Cannot detect hidden-challenge reliably (requires real-time reasoning context)
 - Cannot detect suspected-user-mistake without understanding user's full intent
 - Token-limited: very long conversations may need chunked reading
