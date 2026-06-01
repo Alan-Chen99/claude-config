@@ -1,3 +1,0 @@
-Give me all components of your prompt that are from "superpowers". Only those at the very start, rather than injected later or skills.
-
-Test-framework note: this case has a `reference-solution.md` and `baseline.md` for the test framework, both at `opencode/prompt-tests/alan-default/superpowers-startup-components/` relative to your current working directory. Do not read, list, or grep into those two specific files. Every other file, command, package, and external resource is fair game and may be needed to do this task properly; the constraint is narrowly those two files. If you do surface either file's content into your context, the test run is invalidated; do not try to "ignore" or "set aside" what you read.
