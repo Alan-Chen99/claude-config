@@ -24,12 +24,14 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 
 | Directory          | What                                                    | When to read                                      |
 | ------------------ | ------------------------------------------------------- | ------------------------------------------------- |
+| `.claude/`         | Repo-local Claude Code config (incl. project-local skills) | Adding repo-local skills, settings, hooks       |
 | `agent-tools/`     | Rust binary (`agent-tools`) wrapping skill/tool calls   | Modifying CLI wrappers, adding new commands       |
 | `src/claude_config/` | Python package: cc-pretty, cc-workflow, custom tools  | Modifying Python tooling, adding new tools        |
 | `skills/`          | Invocable skills (planner, deepthink, etc.)             | Using or modifying skills, adding new skills      |
 | `agents/`          | Sub-agent definitions (developer, architect)            | Customizing agent behavior, understanding roles   |
 | `conventions/`     | Documentation and code quality standards                | Writing documentation, understanding coding rules |
 | `plans/`           | Plan storage directory                                  | Reviewing or executing existing plans             |
+| `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
 | `output-styles/`   | Output formatting styles                                | Customizing Claude's output format                |
 | `scripts/`         | Standalone scripts (MITM proxy, launchers)              | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
@@ -89,6 +91,7 @@ Style-matched content generation from any style reference file. 3-phase iterativ
 
 | Path                                       | What                                          | When to read                                            |
 | ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------- |
+| `opencode-system-prompt/`                  | opencode-specific system prompt notes, iteration history, and historical baselines | Investigating opencode prompt behavior or RED-phase test history |
 | `system-prompt-anatomy.md`                 | Simplified overview of system prompt assembly | Quick orientation, understanding prompt structure       |
 | `system-prompt-anatomy-source-verified.md` | Detailed anatomy with function references     | Debugging context loading, source-level understanding   |
 | `system-prompt-snapshot/`                  | Captured system prompts and full API requests | Comparing prompt versions, understanding API parameters |
