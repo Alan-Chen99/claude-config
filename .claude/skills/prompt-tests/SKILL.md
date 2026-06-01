@@ -9,6 +9,17 @@ Runner-neutral workflow for evaluating agent prompts using cases under
 `prompt-tests/general/<case>/`. Works for opencode agents, Claude Code, or any
 other runner that can be driven from a shell with stdin/stdout.
 
+## Required methodology: TDD for prompts
+
+**REQUIRED SUB-SKILL:** Always load `superpowers:writing-skills` before
+iterating on any prompt evaluated here — even when the artifact under test is
+not a skill (system prompts, agent prompts, runner configs, sub-agent
+definitions, etc.). The RED → GREEN → REFACTOR cycle and the Iron Law ("no
+edit without a failing test first") apply to all prompt iteration, not just
+skill authoring. Run the failing case first to capture the baseline (RED),
+then change the prompt (GREEN), then re-run affected cases to confirm no
+regression (REFACTOR). No exceptions for "small tweaks" or "obvious fixes".
+
 ## Grader rule (load-bearing)
 
 A grader MUST read all thinking blocks (typically with `agent-tools cc-pretty`
