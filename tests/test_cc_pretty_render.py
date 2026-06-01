@@ -13,7 +13,7 @@ def test_trunc_long_string_without_next_step_uses_head_tail() -> None:
     # Head 60 chars + omission + tail 30 chars (approx — exact split is
     # 2/3 head, 1/3 tail; the assertions below check the structure only).
     assert out.startswith("A")
-    assert out.endswith("C" * 10)
+    assert out.endswith("C" * 30)  # tail = maxlen - head = 90 - 60 = 30
     assert "more chars" in out
     assert "NEXT STEP" not in out  # control: no NEXT STEP in input
 

@@ -90,6 +90,18 @@ opencode run --agent prompt-test --format json --dir "$REPO" \
 For cases that need a restricted working directory (e.g., pydantic fixture),
 point `--dir` at the fixture directory instead of `$REPO`.
 
+Example for the pydantic case:
+
+```bash
+# pydantic fixture-confined run:
+REPO="$(git rev-parse --show-toplevel)"
+CASE="prompt-tests/general/pydantic-forward-ref-runtime-compat"
+OPENCODE_DISABLE_PROJECT_CONFIG=1 \
+OPENCODE_CONFIG_CONTENT='{ ... same as above ... }' \
+opencode run --agent prompt-test --format json --dir "$REPO/$CASE/fixture" \
+  < "$REPO/$CASE/task.md" | tee "/tmp/$(basename $CASE)-$(date +%s).jsonl"
+```
+
 ### Claude Code
 
 Headless invocation with `claude --print` (or `claude` with stdin piping)

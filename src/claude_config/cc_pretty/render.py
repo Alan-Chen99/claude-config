@@ -81,6 +81,12 @@ def _merge_windows(
 
 
 def trunc(s: str, maxlen: int) -> str:
+    """Truncate ``s`` to approximately ``maxlen`` chars using a head+tail strategy.
+
+    If ``NEXT STEP`` appears in mid-text, a ±200-char window around each
+    occurrence is preserved. Output may exceed ``maxlen`` when NEXT STEP
+    windows are present.
+    """
     if len(s) <= maxlen:
         return s
     head = maxlen * 2 // 3

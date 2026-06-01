@@ -283,3 +283,43 @@ def test_render_export_message_full_mode_returns_only_one_message_untruncated() 
     # The user message ("please inspect this") is NOT included — only the
     # requested message is rendered.
     assert "please inspect this" not in rendered
+
+
+def test_render_export_emits_drill_down_hint_under_truncated_error() -> None:
+    export = sample_export()
+    tool_state = export["messages"][1]["parts"][3]["state"]
+    tool_state["status"] = "error"
+    tool_state["error"] = "z" * 200
+    # Make sure no output is also present so we exercise the error branch.
+    tool_state.pop("output", None)
+    part_id = export["messages"][1]["parts"][3]["id"]
+    session_id = export["info"]["id"]
+
+    rendered = render_export(
+        export,
+        RenderOptions(no_color=True, tool_max=20),
+    )
+
+    expected = (
+        f"agent-tools opencode-pretty {session_id} --message {part_id} --full"
+    )
+    assert expected in rendered
+    assert "tool error truncated" in rendered
+
+
+def test_render_export_emits_drill_down_hint_under_truncated_input() -> None:
+    export = sample_export()
+    tool_state = export["messages"][1]["parts"][3]["state"]
+    tool_state["input"] = {"prompt": "w" * 200}
+    part_id = export["messages"][1]["parts"][3]["id"]
+    session_id = export["info"]["id"]
+
+    rendered = render_export(
+        export,
+        RenderOptions(no_color=True, tool_max=20, truncate_input=True),
+    )
+
+    expected = (
+        f"agent-tools opencode-pretty {session_id} --message {part_id} --full"
+    )
+    assert expected in rendered
