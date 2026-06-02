@@ -164,7 +164,7 @@ Include these in the Required notes section:
 - tool issue: suboptimal environment setup, skills, tools, or poor instructions related to these
 - context waste: information you read that have low relevance, or are repeated many times
 - unexpected change: any changes made that were not expected at the start of the task
-- unmet expectation: any explicit or workflow-inherited expected artifact/checkpoint that was not produced, including labels, classifications, or other intermediate outputs requested by a skill, tool, or script
+- unmet expectation: any explicit or workflow-inherited expected artifact/checkpoint that you did not produce, including labels, classifications, or other intermediate outputs requested by a skill, tool, or script, even if a later step or instruction told you to return only a compressed result
 
 The Required notes section must exist, but can have no items if none is applicable.
 
