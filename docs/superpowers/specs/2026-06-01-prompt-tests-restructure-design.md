@@ -94,11 +94,8 @@ docs/
 
 A case under `prompt-tests/general/<case>/` is runner-neutral and contains:
 
-- `task.md` — the exact prompt sent to the agent through stdin. Includes a
-  generic fixture-guard note that names sibling files by description rather
-  than absolute path. Example wording: "this case has a `reference-solution.md`
-  in this test directory; do not read, list, or grep into that file. Every
-  other file, command, package, and external resource is fair game."
+- `task.md` — the exact prompt sent to the agent through stdin. It contains
+  only clean task text, with no test-framework anti-cheating note.
 - `reference-solution.md` — semantic pass/acceptable/fail criteria.
 - `fixture/` — optional subdirectory with runnable artifacts the agent needs.
   Pinned at the fixture level (e.g., PEP 723 inline metadata for Python).
@@ -109,12 +106,9 @@ the opencode-only era are preserved under `docs/opencode-system-prompt/baselines
 
 ### task.md migration
 
-Both kept cases currently contain a fixture-guard note that names
-`baseline.md` and a stale path under `opencode/prompt-tests/...`. Migration
-rewrites the note to the generic phrasing above — naming only
-`reference-solution.md`, not `baseline.md`, and referring to "this test
-directory" rather than an absolute path. The rest of each `task.md` body
-(the actual user-facing task) is preserved verbatim.
+Both kept cases now preserve only the actual user-facing task. Cheating and
+contamination detection is grader-only so the tested agent does not receive
+solution-shaped hints about hidden files.
 
 ## prompt-tests/CLAUDE.md
 
@@ -177,7 +171,7 @@ running in the project, verified in the decompiled CLI source.
 ```yaml
 ---
 name: prompt-tests
-description: Use when running, grading, or iterating any case under prompt-tests/. Covers running the test, capturing the session log, dispatching a grader subagent, and applying pass/acceptable/fail rules. Required for any prompt-evaluation work in this repo.
+description: Use when running, grading, or iterating any case under prompt-tests/. Covers prompt-evaluation work in this repo, including contamination checks and pass/acceptable/fail/invalid outcomes.
 ---
 ```
 
@@ -203,15 +197,18 @@ This description is auto-activation-eligible: it triggers when an agent enters
      The grader's brief:
      > Read the session log with `agent-tools cc-pretty` (Claude Code JSONL)
      > or `agent-tools opencode-pretty` (opencode session), including all
-     > thinking blocks. Run `/diagnose-session` over the log. Compare to
-     > `reference-solution.md`. Return a verdict (`pass` / `acceptable` /
-     > `fail`) with reasoning grounded in transcript quotes, plus the full
-     > diagnose-session report inlined.
-   - Apply pass/acceptable/fail rules in the parent:
-     - `pass` → pass.
-     - `fail` → fail.
-     - `acceptable` → run again. If a pattern emerges where every run is
-       acceptable, call it fail. Parent's judgment.
+      > thinking blocks. Run `/diagnose-session` over the log. First check for
+      > contamination; return `invalid` and do not grade semantic quality if the
+      > run is contaminated. Otherwise compare to `reference-solution.md` and
+      > return a verdict (`pass` / `acceptable` / `fail`) with reasoning
+      > grounded in transcript quotes, plus the full diagnose-session report
+      > inlined.
+    - Apply outcome rules in the parent:
+      - `pass` → pass.
+      - `fail` → fail.
+      - `acceptable` → run again. If a pattern emerges where every run is
+        acceptable, call it fail. Parent's judgment.
+      - `invalid` → discard the run and rerun from a clean scratch cwd.
      - Outstanding problematic behavior from the diagnose-session report can
        override `pass` → `fail`. Parent decides severity in context of the task.
 
@@ -392,8 +389,9 @@ un-truncated block.
    `agent-tools cc-pretty` or `agent-tools opencode-pretty`. Runs
    `/diagnose-session`. Compares to `reference-solution.md`. Returns verdict +
    reasoning + full diagnose-session report inlined.
-6. Parent aggregates verdicts. Applies pass/acceptable/fail rules. If
-   `acceptable`, parent may issue further trials.
+6. Parent aggregates verdicts. Applies outcome rules. If `acceptable`, parent
+   may issue further trials. If `invalid`, parent discards the run and reruns
+   from a clean scratch cwd.
 
 ## Error handling
 
@@ -408,9 +406,11 @@ un-truncated block.
 - Truncated session log (opencode export incomplete, JSONL cut off): grader
   reports as a diagnose-session finding under "tool issue" or "context waste"
   depending on what the truncation looks like.
-- Fixture leak (agent reads `reference-solution.md` despite the guard): grader
-  flags as fail. Skill instructs parent to consider whether the guard wording
-  in `task.md` needs strengthening.
+- Contamination leak (tested agent reads `reference-solution.md`, touches
+  `**/prompt-tests/**` in a `claude-config` worktree, or accesses hidden
+  grader-only criteria): grader returns `invalid`. Parent discards the run and
+  reruns from a clean scratch cwd; this is not a semantic `fail` and must not be
+  addressed by adding guard wording to `task.md`.
 
 ## Testing
 

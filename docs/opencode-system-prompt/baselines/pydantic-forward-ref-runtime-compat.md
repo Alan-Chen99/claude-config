@@ -5,6 +5,11 @@ and JSON-config snippets below are opencode-specific. Preserved here as
 evidence of the RED-phase failure mode the runner-neutral test was designed
 around.
 
+Current policy supersedes these commands for new runs: use the `prompt-tests`
+skill, run tested agents from a fresh `/tmp/prompt-test-...` cwd, and discard as
+`invalid` any tested-agent access to `**/prompt-tests/**` from a `claude-config`
+worktree. Do not treat such contamination as pass/fail.
+
 ---
 
 # Baseline: pydantic-forward-ref-runtime-compat

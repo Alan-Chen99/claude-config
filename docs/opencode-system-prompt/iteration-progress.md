@@ -7,8 +7,8 @@ The verbose iteration log lives untracked at `notes/superpowers-prompt-test-iter
 ## Files in this commit
 
 - `opencode/agents/alan-default.md` — three coordinated changes implementing the single mechanic.
-- `prompt-tests/general/pydantic-forward-ref-runtime-compat/task.md` — fixture cheating guard.
-- `prompt-tests/general/superpowers-startup-components/task.md` — fixture cheating guard.
+- `prompt-tests/general/pydantic-forward-ref-runtime-compat/task.md` — clean task prompt.
+- `prompt-tests/general/superpowers-startup-components/task.md` — clean task prompt.
 - `notes/superpowers-prompt-test-progress.md` — this note.
 
 ## Final mechanic (v10)
@@ -27,25 +27,33 @@ Three text touchpoints in `alan-default.md`'s "Doing tasks" section, all naming 
 
 No clause mentions Python, Pydantic, superpowers, plugins, runtimes, versions, origin, label, or any other content visibly tied to these two tests. The `package, library, runtime, or documentation` enumeration is exercised by both tests (superpowers package source for super; alternate runtime for pyd) and is generic enough to apply to any "what is X from / what caused Y" question.
 
-## Fixture cheating guard (task.md change)
+## Harness isolation and contamination policy
 
-Both `task.md` files carry a `Test-framework note` block that explicitly names the two forbidden files (`reference-solution.md`, `baseline.md`) by relative path, with the clarifier `Every other file, command, package, and external resource is fair game and may be needed to do this task properly; the constraint is narrowly those two files.`
-
-The note ends with: `If you do surface either file's content into your context, the test run is invalidated; do not try to "ignore" or "set aside" what you read.` This is a strict abort, not a recovery rule.
+Current prompt-test cases keep `task.md` as clean task text. Tested agents do not
+receive anti-cheating instructions. Harnesses run tested agents from fresh
+`/tmp/prompt-test-...` cwd directories and copy only task-visible fixtures into
+that scratch directory.
 
 ### Why no "discard and continue" recovery rule
 
 An earlier version of this note told the agent: `If a tool result accidentally surfaces those two specific files' content (for example, a broad git status or grep that incidentally matches them), discard that specific tool's output from your reasoning, note the leak briefly in your final response, and continue the task using narrower or different tool calls.`
 
-This rule cannot work and must not be reintroduced:
+The old tested-agent recovery rule cannot work and must not be reintroduced:
 
 - "Discard from your reasoning" is a fiction. Once `reference-solution.md` content is in the agent's input context, it influences token probabilities everywhere downstream. The agent cannot un-read it. Any subsequent claim it makes is contaminated regardless of self-reported "I am discarding that".
 - A trial that hit the leak and then "continued with narrower tool calls" produces an output that matches the reference solution suspiciously well, which is the cheating mode the guard exists to prevent.
 - The recovery rule was originally added because the prior strict-abort wording caused too many trials to terminate without producing any output. The right response to a leaked trial is to discard the whole trial, not to keep the contaminated output and report a "leak". Wasted trials are cheap; false-positive passes are not.
 
-The current strict abort wording invalidates the run on leak. Trials that leak are not counted; rerun with narrower setup or a new case design that does not require reading near the forbidden files.
+The current grader-only policy marks contaminated runs `invalid`, not `fail`.
+Any tested-agent action touching `**/prompt-tests/**` from a `claude-config`
+worktree, or any access to hidden criteria, reference solutions, grader-only
+docs, baselines, or prior results for the case, requires discarding the run and
+rerunning with corrected isolation.
 
-For the superpowers case in particular, the agent has to read across the repo to find evidence (`opencode.jsonc`, `superpowers.js`, captured prompts), so accidental grep leaks are a structural risk. The pydantic case is structurally safer because its opencode working directory is the fixture subdirectory and the agent does not need to escape it to diagnose the script.
+For the superpowers case in particular, repo-root reads can accidentally leak
+prompt-test docs, so current harnesses use `/tmp` scratch cwd and graders reject
+any prompt-test directory access. The pydantic case copies only the fixture into
+scratch and does not need to read prompt-test directories to diagnose the script.
 
 ## Results
 
