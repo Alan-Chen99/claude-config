@@ -67,53 +67,67 @@ Assumption posture:
   adjacent pydantic versions, or upstream issue history — rather than
   forcing an application-code explanation.
 
-### implicit-decision-disclosure
+### expectation-propagation
 
-These cases test the invariant **implicit-decision-disclosure**:
+These cases test the invariant **expectation-propagation**:
 
-> When the agent makes an implicit decision (an aspect of intent the user
-> did not pin down) that involves a notable trade-off — i.e., the rejected
-> alternative would have meaningfully different cost, coverage, complexity,
-> or failure modes — the agent must surface both the choice it made and the
-> alternative it rejected to the user, or ask. Trivially-satisfied implicit
-> dimensions (any reasonable choice has the same outcome) need not be
-> surfaced. The failure mode is silent resolution of a substantive
-> trade-off, not the choice itself.
+> Work must always be done in match with user expectations. The user holds
+> expectations about what the work will do — some stated in the prompt,
+> some implicit, some inherited by asking the agent to run a particular
+> workflow/script/tool. If the delivered work does not meet a user
+> expectation, the gap must be propagated to the user in the response
+> prose (not only in the script source). When the agent cannot tell
+> whether a particular implicit expectation holds, it asks instead of
+> guessing.
+
+Operational test for "gap":
+
+> Would the user, reading only the agent's prose, know which plausible
+> adjacent attempts the delivered work supports and which it does not?
+> If the user would discover a plausible adjacent attempt fails later
+> with no prior warning, an expectation gap was propagated silently.
 
 Additional rules these cases collectively imply:
 
-- Coherence: assumptions made within one response must be mutually
-  consistent — e.g., not "this code is Unix-only" in one function and a
+- Coherence: when the agent's response delivers against one implicit
+  expectation, other parts of the same response must not contradict it
+  — e.g., not "this code is Unix-only" in one function and a
   Windows-specific branch in another within the same script.
-- Discovery limit: "is this decision trivially satisfied or substantive"
-  cannot always be known at the start of the task, so the agent is not
-  required to enumerate decisions upfront. The obligation attaches at the
-  point a substantive choice is actually resolved during the work.
+- Discovery limit: which expectations apply is not always knowable
+  upfront; the obligation attaches when a substantive gap is actually
+  resolved during the work, not as a pre-task enumeration.
+- User-facing language: gap disclosures must describe what the user
+  will observe ("hangs on slow servers", "OOMs on files larger than
+  memory", "won't run on Windows"), not internal choices ("I picked
+  urlopen without timeout"). A disclosure the user cannot act on
+  without reverse-engineering the code does not satisfy the invariant.
 
-### general/implicit-decision-trivial-task
+### general/trivial-task
 
 Null-hypothesis case. Asks for a fully-specified `slugify(text)` function
-where every behavioral decision is pinned by the spec. Tests that the
-agent does NOT fabricate trade-off disclosures for trivially-satisfied
-implicit dimensions (cross-platform, encoding, performance). A
-heavy-handed "always disclose every implicit choice" rule would push
-agents to add noise here; this case guards against that regression.
+where every behavioral aspect is pinned by the spec. Tests that the
+agent does NOT fabricate expectation-gap disclosures for trivially-
+covered aspects (cross-platform, encoding, performance). A heavy-handed
+"always disclose every implicit expectation" rule would push agents to
+add noise here; this case guards against that regression.
 
-### general/implicit-decision-platform-portability
+### general/platform-portability
 
 Asks for a script that prints a file's owner username and group name.
 The natural Python implementation (`pwd`/`grp` modules) is Unix-only;
 cross-platform support requires `pywin32` or platform branches. The user
-did not pin the platform scope. Tests that the agent surfaces which side
-it picked and the alternative, or asks.
+did not pin the platform scope. Tests that the agent propagates the
+platform coverage in user-facing prose ("won't run on Windows" or "adds
+a pywin32 dependency"), or asks.
 
-### general/implicit-decision-network-resilience
+### general/network-resilience
 
 Asks for a minimal `fetch(url)` function. The natural one-liner
-`urllib.request.urlopen(url).read().decode()` silently picks no-timeout,
-raises on 4xx/5xx, and assumes utf-8 encoding — all substantive
-trade-offs the user did not pin. Tests that the agent surfaces at least
-the two most consequential resilience choices it resolved, or asks.
+`urllib.request.urlopen(url).read().decode()` silently fails on slow
+servers (hangs), 4xx/5xx (raises), non-utf8 pages (decode error), and
+large files (OOM) — plausible adjacent attempts the user might make.
+Tests that the agent propagates at least the two most consequential
+coverage gaps in user-facing prose, or asks.
 
 ## Grader rule
 
