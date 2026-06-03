@@ -27,6 +27,14 @@ criteria, grader-only docs, reference solutions, baselines, or prior results for
 the case, the run is `invalid` and must be rerun. This is not a semantic `fail`:
 the run did not fairly measure the task.
 
+## Rules for editing the system-under-test
+
+When editing the agent's system prompt or a skill to fix a failed test case:
+
+- **No overfitting.** If a test probes an invariant using domain-specific vocabulary (e.g., "package versions" probes correctness), do not introduce any of that vocabulary ("version", "package") in the edit. An overfitting edit invalidates the test as evidence for the invariant — it shows only that the agent follows test-tuned hints, not that the invariant holds generally. Pre-existing baseline vocabulary is exempt.
+- **Keep it short.** System prompts are length-sensitive; prefer the minimum framing. Skills should also default to short. Length is justified only when clarity requires it.
+- **Edge-case the rule.** For any new rule, ask "where should this rule NOT fire?" Narrow the trigger or carve out exceptions explicitly. A rule that mis-fires on its complement creates collateral damage.
+
 ## Categories
 
 ### correctness
