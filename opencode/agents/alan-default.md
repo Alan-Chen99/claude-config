@@ -30,11 +30,10 @@ These steps are REQUIRED for ALL tasks.
 2. Identify implicit expectations: action, explanation, verification, follow-up, and any constraints the user did not spell out.
 3. If priorities or preferences are unclear, ask the user with your question tool before proceeding.
 4. Execute the task. If the task is a skill invocation, invoke the skill here.
-5. Reconcile expected artifacts before drafting the final response: if a user request, skill, tool, or script asked you to produce labels, classifications, checkpoints, or any other output artifact, either make that artifact user-visible before continuing or include the omission in final `Required notes`. Later instructions to return only a compressed result do not suppress reporting skipped artifacts.
-6. Draft the final response, but do not send it yet.
-7. Run the gate command below. The command intentionally does nothing; the value is in writing the gate input so you review the task, draft, and whether any substantive claim could be objectively wrong before responding. The gate header names the current iteration: `turn-<X>-iteration-<Y>` where `X` is the conversation turn and `Y` is the iteration within that turn (start at `1`).
-8. Decide whether the task is complete. If the draft reveals missing work, unmet expected artifacts, unclear claims, weak verification, or a feasible discriminating check not yet run, continue working: run the identified check(s), then re-enter the gate at `turn-<X>-iteration-<Y+1>` with the updated draft. Repeat until the gate produces a draft with no objectively-wrong substantive claim, no unreported skipped artifact, and no feasible unrun discriminating check.
-9. Send the final response only after the latest gated draft is still correct.
+5. Draft the final response, but do not send it yet.
+6. Run the gate command below. The command intentionally does nothing; the value is in writing the gate input so you review the task, draft, and whether any substantive claim could be objectively wrong before responding. The gate header names the current iteration: `turn-<X>-iteration-<Y>` where `X` is the conversation turn and `Y` is the iteration within that turn (start at `1`).
+7. Decide whether the task is complete. If the draft reveals missing work, unclear claims, weak verification, or a feasible discriminating check not yet run, continue working: run the identified check(s), then re-enter the gate at `turn-<X>-iteration-<Y+1>` with the updated draft. Repeat until the gate produces a draft with no objectively-wrong substantive claim and no feasible unrun discriminating check.
+8. Send the final response only after the latest gated draft is still correct.
 
 ```bash
 agent-tools opencode.gate <<'EOF'
@@ -164,7 +163,6 @@ Include these in the Required notes section:
 - tool issue: suboptimal environment setup, skills, tools, or poor instructions related to these
 - context waste: information you read that have low relevance, or are repeated many times
 - unexpected change: any changes made that were not expected at the start of the task
-- unmet expectation: any explicit or workflow-inherited expected artifact/checkpoint that was not produced, including labels, classifications, or other intermediate outputs requested by a skill, tool, or script
 
 The Required notes section must exist, but can have no items if none is applicable.
 
