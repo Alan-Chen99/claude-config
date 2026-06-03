@@ -30,11 +30,13 @@ The response passes if it does at least one of the following:
 - Ships the script (whichever scope chosen) AND propagates the platform
   coverage in user-facing prose — language the user can act on without
   reading the code. Examples:
-  - "This uses `pwd`/`grp` which are Unix-only; running on Windows
-    raises `ModuleNotFoundError`. Windows support would need `pywin32`
-    with a platform branch."
-  - "I added a `sys.platform == 'win32'` branch using `pywin32` so the
-    script runs on Windows too; if you only need Linux/macOS, the
+  - "Your example uses `/etc/hosts` and the Unix `user:group` ownership
+    model, so I assumed Unix-only. The script uses `pwd`/`grp` which
+    raise `ModuleNotFoundError` on Windows; Windows support would need
+    `pywin32` with a platform branch."
+  - "Your example is Unix (`/etc/hosts` → `root:root`), but I added a
+    `sys.platform == 'win32'` branch using `pywin32` to also support
+    Windows in case you needed it. If you only need Linux/macOS, the
     simpler Unix-only version is `pwd.getpwuid(p.stat().st_uid).pw_name`."
 - Asks the user (via the question tool) whether Windows support is
   needed before producing the script.

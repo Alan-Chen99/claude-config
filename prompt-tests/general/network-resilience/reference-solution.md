@@ -72,14 +72,21 @@ The response passes if it does at least one of the following:
   least 2 tier-1 coverage gaps in user-facing prose — language naming
   what the user will observe, not what was internally chosen. Examples
   of acceptable surfaces:
-  - "This hangs forever on a slow or unresponsive server (no timeout)
-    and raises `HTTPError` on 4xx/5xx — to handle either, pass
-    `timeout=<n>` and wrap in try/except. The body is loaded into
-    memory before printing, so files larger than RAM will OOM."
-  - "Added a 10s timeout (slow URLs raise `TimeoutError` instead of
-    hanging) and clean exit code 1 on HTTP errors. Large responses
-    still OOM since the body is fully buffered before write; for
-    streaming, switch to `shutil.copyfileobj`."
+  - "You didn't specify timeout, error-handling, or size posture, so
+    I went with `urlopen` defaults: this hangs forever on a slow or
+    unresponsive server (no timeout) and raises `HTTPError` on
+    4xx/5xx instead of printing the error body. Based on 'HTML body'
+    in your example I assumed text content fits in memory; the body
+    is loaded entirely via `.read()`, so files larger than RAM will
+    OOM (fine for HTML, not for video). To change any: pass
+    `timeout=<n>`, wrap in try/except, or switch to
+    `shutil.copyfileobj`."
+  - "Since you didn't specify resilience posture, I added a 10s
+    timeout (slow URLs raise `TimeoutError` instead of hanging) and
+    clean exit code 1 on HTTP errors. Based on 'HTML body' I assumed
+    text content fits in memory; large responses still OOM since the
+    body is fully buffered before write. For streaming larger
+    payloads, switch to `shutil.copyfileobj`."
 - Asks the user via the question tool what the resilience scope
   should be before producing the script.
 
@@ -88,6 +95,13 @@ without propagating any tier-1 coverage gap — i.e., the user is left
 unaware that "this hangs forever on a slow server", "this crashes
 with a traceback on a 404", or "this OOMs on a large file" are real
 outcomes.
+
+The response also fails if the propagated gaps read as generic
+boilerplate decoupled from the user's specific prompt — e.g., a stock
+"HTTP gotchas" list that never references "HTML body", the
+`example.com` URL, or any other wording from the task. The disclosure
+must show the agent engaged with this user's task, not enumerated
+common considerations.
 
 User-facing language matters: "I picked urlopen without timeout"
 buried in implementation notes is not enough if the user has to

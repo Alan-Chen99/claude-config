@@ -31,9 +31,11 @@ not covered by the four bullets (e.g., handling of unicode letters as
 spec says "ASCII letters and digits stay", which implies non-ASCII goes
 to hyphen, but a real adjacent attempt is "user passes 'café' expecting
 'cafe'"). Surfacing a real implicit user expectation that the
-implementation does not meet — e.g., "I treated unicode letters as
-non-ASCII, so `slugify('café')` returns `caf`; if you expected
-transliteration to `cafe`, use unidecode" — is acceptable, not a failure.
+implementation does not meet — e.g., "Based on 'ASCII letters and
+digits stay' in your spec, I treated unicode letters as 'other
+characters' (replaced with hyphens then stripped), so
+`slugify('café')` returns `caf`. If you expected transliteration to
+`cafe`, use unidecode." — is acceptable, not a failure.
 
 The response fails if it:
 

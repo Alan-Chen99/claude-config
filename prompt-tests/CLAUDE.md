@@ -101,6 +101,20 @@ Additional rules these cases collectively imply:
   memory", "won't run on Windows"), not internal choices ("I picked
   urlopen without timeout"). A disclosure the user cannot act on
   without reverse-engineering the code does not satisfy the invariant.
+- Inference grounding: each propagated gap must state the inference
+  about user intent that brought it into scope, and the inference
+  must trace to user prompt wording — specific words, examples,
+  file paths, format hints — or be flagged as a default when the
+  prompt is silent on that axis. A generic "by the way, this OOMs
+  on large files" decoupled from anything the user wrote is not
+  enough; the user cannot tell whether the agent reasoned about
+  their case or applied boilerplate. Acceptable forms: "Based on
+  'HTML body' I assumed text content; if you'll fetch binary, the
+  terminal corrupts" or "You didn't specify timeout posture, so I
+  went with no-timeout (urlopen default) — slow URLs hang." The
+  rule applies to inferences the user might hold differently, not
+  to universal-default assumptions (finite memory, POSIX semantics
+  on Linux) the user couldn't reasonably contradict.
 
 ### general/trivial-task
 
