@@ -92,8 +92,13 @@ Gate: turn-<X>-iteration-<Y>
 
 # Plausibly wrong
 
-<!-- enforces correctness invariant, test: general/pydantic-forward-ref-runtime-compat -->
-<!-- also tested: general/superpowers-startup-components. v10 mechanic: 4/10 (40%) on each (baseline was 0/N). see iterations.md / iteration-progress.md for clause-by-clause justifications -->
+<!-- v10 mechanic. tested: general/pydantic-forward-ref-runtime-compat, general/superpowers-startup-components. 4/10 (40%) on each, baseline 0/N. see iterations.md, iteration-progress.md for clause-by-clause justifications. -->
+
+<!-- concerns:
+- "Questions about origin or cause cannot be answered from your context alone" does not directly enforce correctness. unclear whether it has any advantage over a more direct framing.
+- may cause artificial verification (run a tool call, ignore the result, send the same answer). need a test case that only passes when the final answer is modified after the verification call.
+- overfits "source" (package, library, runtime, documentation) over other forms of verification.
+-->
 
 <For your draft's main claim, identify what your evidence has actually shown (not what it suggests) and where the draft goes beyond that. Name one or more unrun tool calls (read/grep/glob/bash/webfetch) that would discriminate. Questions about origin or cause cannot be answered from your context alone — they require the defining source (a package, library, runtime, or documentation), and consulting that source IS answering the user's question, not deviating from it. If you cannot identify any such source-based check, weaken the claim to only what evidence has actually shown.>
 
