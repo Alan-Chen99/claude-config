@@ -30,14 +30,10 @@ These steps are REQUIRED for ALL tasks.
 2. Identify implicit expectations: action, explanation, verification, follow-up, and any constraints the user did not spell out.
 3. If priorities or preferences are unclear, ask the user with your question tool before proceeding.
 4. Execute the task. If the task is a skill invocation, invoke the skill here.
-5. Before drafting the final response, reconcile expected artifacts, cross-references, and unverified interpretations. All three reach the user via the draft body or `Required notes` — not only via the gate body, which the user does not see.
-   - Expected artifacts: if a user request, skill, tool, or script asked you to produce labels, classifications, checkpoints, or any other output artifact, either make that artifact user-visible in the draft or include the omission in final `Required notes`.
-   - Cross-references: if you proposed or made a change to a value, string, or identifier, search the workspace for other places referencing it. Use grep/glob across all file types — not only files matching the language of the change, since docs, configs, READMEs, and other-language files often assert or describe the same fact. Also read any files explicitly pointed to from the file you changed (e.g., `See README.md` in a docstring or comment). Name what you found in the draft. Locating only the file the user named, or grepping only the same language, is not searching for cross-references; if you did not search this way, search now or file the unsearched scope as `unverified interpretation` in `Required notes`.
-   - Substantive interpretations: if you resolved an ambiguity about scope, ownership, or intent that the task did not pin down (which related files to touch, what scope of "fix"/"refactor"/"replace"/"update" applies, whose responsibility a task is, what default to use), surface the interpretation and the alternative you rejected as `unverified interpretation` in `Required notes`, even when you believe the choice is self-evident from the user's wording — "self-evident" is itself an interpretation.
-   Later instructions to return only a compressed result do not suppress reporting any of the above.
+5. Reconcile expected artifacts before drafting the final response: if a user request, skill, tool, or script asked you to produce labels, classifications, checkpoints, or any other output artifact, either make that artifact user-visible before continuing or include the omission in final `Required notes`. Later instructions to return only a compressed result do not suppress reporting skipped artifacts.
 6. Draft the final response, but do not send it yet.
 7. Run the gate command below. The command intentionally does nothing; the value is in writing the gate input so you review the task, draft, and whether any substantive claim could be objectively wrong before responding. The gate header names the current iteration: `turn-<X>-iteration-<Y>` where `X` is the conversation turn and `Y` is the iteration within that turn (start at `1`).
-8. Decide whether the task is complete. If the draft reveals missing work, unmet expected artifacts, unreported unverifiable scope or interpretation choices, unclear claims, weak verification, or a feasible discriminating check not yet run, continue working: run the identified check(s), then re-enter the gate at `turn-<X>-iteration-<Y+1>` with the updated draft. Repeat until the gate produces a draft with no objectively-wrong substantive claim, no unreported skipped artifact, no unreported unverifiable choice, and no feasible unrun discriminating check.
+8. Decide whether the task is complete. If the draft reveals missing work, unmet expected artifacts, unclear claims, weak verification, or a feasible discriminating check not yet run, continue working: run the identified check(s), then re-enter the gate at `turn-<X>-iteration-<Y+1>` with the updated draft. Repeat until the gate produces a draft with no objectively-wrong substantive claim, no unreported skipped artifact, and no feasible unrun discriminating check.
 9. Send the final response only after the latest gated draft is still correct.
 
 ```bash
@@ -57,10 +53,6 @@ Gate: turn-<X>-iteration-<Y>
 # Plausibly wrong
 
 <For your draft's main claim, identify what your evidence has actually shown (not what it suggests) and where the draft goes beyond that. Name one or more unrun tool calls (read/grep/glob/bash/webfetch) that would discriminate. Questions about origin or cause cannot be answered from your context alone — they require the defining source (a package, library, runtime, or documentation), and consulting that source IS answering the user's question, not deviating from it. If you cannot identify any such source-based check, weaken the claim to only what evidence has actually shown.>
-
-# Unverified scope and intent
-
-<Restate the cross-reference search results and substantive interpretation choices from step 5. The user only sees the draft body and `Required notes`, not this gate body — so if the draft does not already surface these in user-visible sections, revise the draft now and re-enter the gate at iteration `Y+1`. Before classifying a question as unverifiable, name the source you would consult to resolve it (script source, library docs, file contents, prior conversation) and either consult it or state why you cannot.>
 
 EOF
 ```
@@ -173,7 +165,6 @@ Include these in the Required notes section:
 - context waste: information you read that have low relevance, or are repeated many times
 - unexpected change: any changes made that were not expected at the start of the task
 - unmet expectation: any explicit or workflow-inherited expected artifact/checkpoint that you did not produce, including labels, classifications, or other intermediate outputs requested by a skill, tool, or script, even if a later step or instruction told you to return only a compressed result
-- unverified interpretation: any substantive interpretation of user or workflow intent — scope of the change, which related files to touch, whose responsibility a task is, defaults chosen when the user did not specify — that you could not verify from available context, paired with the alternative you considered. File this even when you believe the choice is self-evident from the user's wording, because "self-evident" is itself an interpretation
 
 The Required notes section must exist, but can have no items if none is applicable.
 
