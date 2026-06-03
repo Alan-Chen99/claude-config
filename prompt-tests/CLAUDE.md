@@ -122,11 +122,13 @@ a pywin32 dependency"), or asks.
 
 ### general/network-resilience
 
-Asks for a minimal `fetch(url)` function. The natural one-liner
-`urllib.request.urlopen(url).read().decode()` silently fails on slow
-servers (hangs), 4xx/5xx (raises), non-utf8 pages (decode error), and
-large files (OOM) — plausible adjacent attempts the user might make.
-Tests that the agent propagates at least the two most consequential
+Asks for a CLI script `fetch.py URL` that prints the body. The natural
+implementation (`urllib.request.urlopen(url).read()` written to stdout)
+silently fails on slow servers (hangs), 4xx/5xx (raises traceback), and
+large files (OOM); plus CLI-layer gaps like corrupting the terminal
+when the URL returns binary content and "Python crashed" exit codes
+that callers can't distinguish from genuine HTTP errors. Tests that
+the agent propagates at least the two most consequential tier-1
 coverage gaps in user-facing prose, or asks.
 
 ## Grader rule
