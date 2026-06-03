@@ -91,7 +91,7 @@ Style-matched content generation from any style reference file. 3-phase iterativ
 
 | Path                                       | What                                          | When to read                                            |
 | ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------- |
-| `opencode-system-prompt/`                  | opencode-specific system prompt notes, iteration history, and historical baselines | Investigating opencode prompt behavior or RED-phase test history |
+| `opencode-system-prompt/`                  | opencode prompt notes: `alan-default.md` per-delta annotation (`alan-default-commentary.md`), iteration history, historical baselines | Investigating opencode prompt behavior, `alan-default.md` deltas vs upstream `gpt.txt`, or RED-phase test history |
 | `system-prompt-anatomy.md`                 | Simplified overview of system prompt assembly | Quick orientation, understanding prompt structure       |
 | `system-prompt-anatomy-source-verified.md` | Detailed anatomy with function references     | Debugging context loading, source-level understanding   |
 | `system-prompt-snapshot/`                  | Captured system prompts and full API requests | Comparing prompt versions, understanding API parameters |

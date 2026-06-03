@@ -1,3 +1,8 @@
+---
+# annotated mirror of opencode/agents/alan-default.md
+# update this file when alan-default.md changes
+---
+
 <!--
 this file mirrors opencode/agents/alan-default.md with inline intent comments for each delta from upstream gpt.txt.
 
