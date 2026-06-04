@@ -12,18 +12,20 @@ All trials run with opencode under `--pure` (plugin-off) at n=1 per case
 per version; grades reflect grader-only criteria in each case's
 `reference-solution.md`.
 
-## Current state (v11)
+## Current state (v12)
 
-Body section `## Expectation propagation` in `alan-default.md`: states
-the invariant in user-perspective language, defines "plausible adjacent
-attempt" without gating on prompt wording, requires user-action +
-observable-outcome phrasing, includes cross-domain examples (debugging,
-refactoring) to teach the framing without lifting test vocabulary.
+Body section `## Expectation propagation` in `alan-default.md`: shortened
+form (174 words, down from v11's 252) adopted from the A18 ablation
+variant. P1 keeps the load-bearing pair "must" + "framed as" identified
+by the ablation below; P2 and P3 use the shortened transition-prose
+forms. Validated at n=3 platform-portability (2/3 strong-PASS, matches
+v11 baseline) + n=1 trivial-task (PASS) + n=1 network-resilience
+(ACCEPTABLE).
 
-Gate section `# Expectation propagation` in the gate command: "what is
-the biggest violation, list one case, is it acceptable?". Adversarial
-framing forces self-critique; acceptability clause provides honest
-escape for fully-specified tasks.
+Gate section `# Expectation propagation` in the gate command: unchanged
+from v10. "What is the biggest violation, list one case, is it
+acceptable?". Adversarial framing forces self-critique; acceptability
+clause provides honest escape for fully-specified tasks.
 
 ## Results
 
@@ -180,6 +182,154 @@ analog. Possible next directions (not attempted):
 - Pre-draft user-emulator: enumerate plausible attempts before drafting.
 - Verifier subagent: independent grading of coverage on the final draft.
 - Tighter wording requiring verbatim user-observable phrase match.
+
+## Concise rewording experiment (rejected; mechanism nailed by ablation)
+
+Tested a ~31% shorter rewording of the body section (173 vs 252 words),
+then ran a 16-trial ablation on `platform-portability` to localize the
+failure. v11 baseline itself is non-deterministic on this case (2/3 strong
+disclosure across n=3), so the analysis uses a strict same-criterion
+parent grading (PASS = names "Windows" AND uses observable verb like "will
+fail" / "raises ModuleNotFoundError"; FAIL = no platform mention OR only
+implementation-feature framing like "unavailable" / "not installed").
+
+trivial-task and network-resilience are unchanged by the rewording (PASS,
+ACCEPTABLE at n=1, matching v11); the analysis below focuses on
+platform-portability where the rewording's effect is visible.
+
+### Ablation table (platform-portability)
+
+| Variant                                       | Body words | Trials                                                                                                                | Strong PASS |
+| --------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- | ----------- |
+| V (v11 verbose, full)                         | 252        | `ses_16e9023b8ffelC6z91yZfp1oph`, `ses_16e90171bffeV1WwI1mm1lr4I3`, `ses_16e900948ffeeLCP50C6ocLcFC`                  | 2/3         |
+| C (concise, full)                             | 173        | `ses_16ea6ace9ffer8NH0c2Ghrh3Zt`, `ses_16ea3f556ffeqKWEghSO13YO34`                                                    | 0/2         |
+| A3 (V P1 + C P2/P3)                           | 210        | `ses_16e8ffa91ffeL1xwpLGi1NvBYt`, `ses_16e8fee1fffevtdLLiuF38dnqa`                                                    | 2/2         |
+| A4 (C P1 + V P2/P3)                           | 215        | `ses_16e8fdf14ffeJddOpyqpfy6LKm`, `ses_16e8fd27affeFllt56f5vB5whT`                                                    | 0/2         |
+| A2 (V minus "explicit"/"explicitly" ×3)       | 249        | `ses_16e8977feffeqA6E0QAQwJ8f6X`, `ses_16e896b44ffegAqF3DU5bIE5GR`, `ses_16e895eb3ffe5lgrt3vh6JRED2`                  | 3/3         |
+| A5 (V minus "framed as")                      | 251        | `ses_16e86c862ffe5fxzswFNsAo4rm`, `ses_16e86b8bdffeKTaL72wPySrr36`                                                    | 2/2         |
+| A9 (V minus "must" → descriptive "names")     | 251        | `ses_16e86a8aeffeAy6HYtzmk8tVYs`, `ses_16e869b79ffe3tACtG5CViMzM8`                                                    | 1/2         |
+| A13 (C P1 + {"The invariant:", "must", "framed as"} restored + V P2/P3) | 219 | `ses_16e82087bffeERjCkKoGKaV743`, `ses_16e81fadaffeTjGwcb0KIM8XoS`, `ses_16e81ec87ffeI9aZjC7hYuaCqs` | 2/3 |
+| A14 (C P1 + only "framed as" restored + V P2/P3) | 216 | `ses_16e7eb869ffeXbnNjb8Dx6DDo4`, `ses_16e7eaa61ffeWbk7gAVLEFYxX7`, `ses_16e7e99b4ffeiCUmAc2iEU1crL` | 1/3 |
+| A15 (C P1 + only "must" restored + V P2/P3) | 215 | `ses_16e7e7fd6ffeXZf7nbpuO7X4zN`, `ses_16e7d313fffejhYXYmWeiEOq7n`, `ses_16e7d23eaffe6NwrmLk4xLckfa` | 1/3 |
+| A16 (C P1 + only "The invariant:" label restored + V P2/P3) | 215 | `ses_16e79d8bcffei7rhPJ5GjxAN9S`, `ses_16e79ca3dffeff8vP00OvnwOKA`, `ses_16e79b7e7ffeCILXPVQcowv6Rq` | 0/3 |
+| A17 (C P1 + "must" AND "framed as" restored, no label + V P2/P3) | 216 | `ses_16e76f792ffeizbsCyHvN5WFBW`, `ses_16e76e64fffe348cc7DDuGwz3x`, `ses_16e76d44dffeqDOqZyp8DYE12m` | 2/3 |
+
+### Findings
+
+1. **Paragraph isolation.** A3 (verbose P1, concise P2 and P3) preserves
+   strong-PASS rate at 2/2; A4 (concise P1, verbose P2 and P3) regresses
+   to 0/2. P1 is the load-bearing paragraph. P2 (cross-domain examples)
+   and P3 (bounds + ask escape) tolerate compression.
+
+2. **Single-variable ablation within P1 does not reproduce the regression.**
+   Three targeted removals from V P1 each held strong-PASS rate at or near
+   verbose-baseline:
+   - "explicit" / "explicitly" intensifier repetition (3 occurrences): A2,
+     3/3. Not the culprit.
+   - "framed as" framing-instruction prefix: A5, 2/2. Not the culprit
+     alone.
+   - "must" modal force (re-graded as descriptive "names" for grammatical
+     correctness): A9, 1/2. Possibly weakens but does not collapse.
+
+3. **Additive rescue isolates two load-bearing phrases.**
+   Restoring structural cues to concise P1 increases strong-PASS rate:
+   - 0 cues (C, A4): 0/4 strong-PASS (0%)
+   - "The invariant:" label alone (A16): 0/3 (0%) — no observable rescue
+   - "framed as" alone (A14): 1/3 (33%)
+   - "must" alone (A15): 1/3 (33%)
+   - "must" + "framed as" together (A17, no label): 2/3 (67%)
+   - all three "label" + "must" + "framed as" (A13): 2/3 (67%)
+   - V (all structural cues + "explicit" + ALL-CAPS NOT + active voice
+     + setup expansion): 2/3 (67%)
+   
+   The single-cue rates are roughly additive: 33% (framed as) + 33%
+   (must) + 0% (label) ≈ 66%, matching the trio's 67%. A17 (the pair
+   without the label) hits the same 67%, confirming the label is
+   decorative — strong-PASS is fully explained by the {must, framed as}
+   pair.
+   
+   Adding cues beyond the pair — the label, ALL-CAPS NOT, "explicit"
+   intensifiers, active-voice agent, setup expansion — does not raise
+   the rate further at this measurement precision (A17, A13, V all at
+   67%). The behavior saturates at the pair. Removing cues below 1
+   collapses the rate to 0%. This pins the load on two specific phrases
+   — "framed as" as a framing-instruction prefix and "must" as a modal.
+
+   Mechanistically, "framed as" directly instructs the agent on HOW to
+   write the disclosure ("frame this thing as X, not as Y"), and "must"
+   imposes normative force on the act of naming. Both are
+   disclosure-shaping cues — they appear in the same sentence and
+   each independently raises the probability that the agent writes
+   user-observable framing in the final response. The "The invariant:"
+   label is a META-signal ("what follows is a rule") that does not
+   contain disclosure-shaping semantics; without other cues to enforce,
+   the meta-signal alone carries no behavioral weight.
+
+4. **Mechanism: compound effect, not single clause.** C P1 stacks ≥6
+   simultaneous compressions over V P1:
+   - Setup expansion ("the user will probably try things with it" + "A
+     plausible adjacent attempt is something a typical user would
+     reasonably try") collapsed to one clause.
+   - Voice shift: active "you didn't explicitly warn" → passive "fails
+     silently" (agent disappears as subject).
+   - Drop "The invariant:" structural label.
+   - Drop "must" modal.
+   - Drop "framed as" framing instruction.
+   - Drop "explicit" / "explicitly" ×3.
+   - Drop ALL-CAPS "NOT" in "does NOT support".
+   - "What the user does" → "what they do" (pronoun substitution).
+   
+   Any one of these removed from V P1 is tolerable (A2, A5, A9 all hold
+   PASS ≥1/2). All of them removed together (A4 = C P1 + V P2/P3) drops
+   strong-PASS to 0/2. The mechanism is redundant overlapping cues:
+   imperative force ("must"), structural anchor ("The invariant:"),
+   framing instruction ("framed as"), capitalization ("NOT"), active-voice
+   agent ("you didn't … warn"), and setup narrative each independently
+   point the agent at user-observable framing. Compression preserves
+   meaning but removes redundancy; without enough overlapping cues, the
+   agent's gate paragraph still identifies the adjacent attempt in
+   user-observable form but the final response downgrades to
+   implementation-feature framing (visible in concise n=2 and A4n2 — the
+   gate found "would see ModuleNotFoundError" but the final shipped
+   "pwd/grp are unavailable").
+
+5. **Variance caveat.** V3 (verbose v11) FAILed at n=1. The v11
+   documented PASS in the prior iteration log was n=1 lucky on this case.
+   With n=3 the verbose baseline is 67% strong-PASS, not 100%. C and A4
+   at n=2 with 0% strong-PASS still distinguish cleanly from V at 67%,
+   but a future iteration that wants to claim a wording change is
+   neutral on this case should run n≥3 per arm.
+
+### Adopted form (v12 / A18)
+
+The body section in `alan-default.md` has been rewritten to A18 = A17 P1
+(concise P1 with "must" + "framed as" restored) + concise P2 + concise
+P3. 174 words, 31% shorter than v11. Validation:
+- n=3 platform-portability: 2/3 strong-PASS (`ses_16e628bbdffeEE1jRZGqDvMWhq`,
+  `ses_16e627c95ffeiRSo3HE7G1KLjX`, `ses_16e626a7effe8W2N6ZRDVZCtBW`)
+- n=1 trivial-task PASS (`ses_16e625040ffeKLfU5d0JF3XzDP`): clean,
+  no fabricated disclosures.
+- n=1 network-resilience ACCEPTABLE (`ses_16e623d5effed7NeFHUzc7P3ou`):
+  1 tier-1 gap (HTTP error → traceback), matches v11.
+
+### Notes on what this ablation does and does not show
+
+The strong-PASS rate on platform-portability is fully explained by the
+{"must", "framed as"} pair in this measurement setup. Subtracting either
+drops the rate ~33 percentage points; subtracting both drops it to 0;
+other clauses' contribution at n=3 is below measurement noise. That
+makes those two phrases the most economical way to preserve current
+test behavior under compression — not a claim about whether any other
+wording is "needed" in an absolute sense.
+
+These three test cases were written to drive iteration on this specific
+prompt, not as ground truth for what the invariant requires. Words that
+drop out without regressing here may still be doing work on cases not
+in this suite (e.g., other implicit-expectation failure modes), and
+words that survive may be over-represented because the suite weights
+the specific failures they target. Future shortening should treat the
+test pass-rate as one signal among several, not as proof that the
+removed phrasing was redundant.
 
 ## Prior history (v1-v6, reverted)
 

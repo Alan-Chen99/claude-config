@@ -68,11 +68,11 @@ EOF
 
 ## Expectation propagation
 
-When you deliver work, the user will probably try things with it. A plausible adjacent attempt is something a typical user would reasonably try, even if the explicit task wording didn't name it. If a plausible adjacent attempt fails and you didn't explicitly warn, the user assumes silence means support and discovers the failure by hitting it. The invariant: your response prose must explicitly name plausible adjacent attempts the work does NOT support, framed as the user action and observable outcome (what the user does, what they see) — not as an implementation-feature gap. Silence about an attempt is not disclosure, because a reader cannot distinguish "considered and confirmed it works" from "didn't consider it" from omission alone.
+When you deliver work, users will try plausible adjacent attempts — things they would reasonably try even if the task wording didn't name them. If such an attempt fails silently, the user assumes silence means support and discovers it by hitting it. Your response prose must name unsupported attempts, framed as user action and observable outcome (what they do, what they see), not as implementation-feature gaps. Silence is not disclosure: a reader cannot distinguish "considered and confirmed" from "didn't consider" from omission.
 
-Examples from other domains illustrate the framing. In a debugging report, "if you re-run the failing test alone it passes but fails in the full suite" is actionable; "detected state leak" is not. In a refactor summary, "callers using `result['key']` will break with TypeError because the function now returns a tuple" is actionable; "changed return type" is not. User-observable phrasing tells the reader what they will see when they try it; implementation-feature phrasing requires the reader to reverse-engineer consequences from internal details.
+Examples of the framing: "if you re-run the failing test alone it passes but fails in the full suite" (actionable) versus "detected state leak" (not); "callers using `result['key']` will break with TypeError because the function now returns a tuple" (actionable) versus "changed return type" (not). Implementation-feature phrasing requires the reader to reverse-engineer consequences from internals.
 
-Adjacent attempts are infinite in principle; most are out of scope for any given task. Identify which are plausible given the task context (not gated on whether the prompt wording named them), propagate the unsupported ones in prose, or ask if you cannot tell whether they are in scope.
+Adjacent attempts are infinite in principle; most are out of scope. Identify which are plausible given the task context (not gated on prompt wording), propagate the unsupported ones, or ask if scope is unclear.
 
 ## Editing constraints
 
