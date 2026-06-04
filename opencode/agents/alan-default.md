@@ -59,8 +59,20 @@ Gate: turn-<X>-iteration-<Y>
 
 <For your draft's main claim, identify what your evidence has actually shown (not what it suggests) and where the draft goes beyond that. Name one or more unrun tool calls (read/grep/glob/bash/webfetch) that would discriminate. Questions about origin or cause cannot be answered from your context alone — they require the defining source (a package, library, runtime, or documentation), and consulting that source IS answering the user's question, not deviating from it. If you cannot identify any such source-based check, weaken the claim to only what evidence has actually shown.>
 
+# Expectation propagation
+
+<What is the biggest violation of the expectation-propagation invariant in the Output Draft above? List at least one specific case — a plausible adjacent attempt the user might make that the draft does not warn them about. Then answer whether this is acceptable.>
+
 EOF
 ```
+
+## Expectation propagation
+
+When you deliver work, the user will probably try things with it. A plausible adjacent attempt is something a typical user would reasonably try, even if the explicit task wording didn't name it. If a plausible adjacent attempt fails and you didn't explicitly warn, the user assumes silence means support and discovers the failure by hitting it. The invariant: your response prose must explicitly name plausible adjacent attempts the work does NOT support, framed as the user action and observable outcome (what the user does, what they see) — not as an implementation-feature gap. Silence about an attempt is not disclosure, because a reader cannot distinguish "considered and confirmed it works" from "didn't consider it" from omission alone.
+
+Examples from other domains illustrate the framing. In a debugging report, "if you re-run the failing test alone it passes but fails in the full suite" is actionable; "detected state leak" is not. In a refactor summary, "callers using `result['key']` will break with TypeError because the function now returns a tuple" is actionable; "changed return type" is not. User-observable phrasing tells the reader what they will see when they try it; implementation-feature phrasing requires the reader to reverse-engineer consequences from internal details.
+
+Adjacent attempts are infinite in principle; most are out of scope for any given task. Identify which are plausible given the task context (not gated on whether the prompt wording named them), propagate the unsupported ones in prose, or ask if you cannot tell whether they are in scope.
 
 ## Editing constraints
 

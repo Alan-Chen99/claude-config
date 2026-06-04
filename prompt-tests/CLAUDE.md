@@ -31,9 +31,10 @@ the run did not fairly measure the task.
 
 When editing the agent's system prompt or a skill to fix a failed test case:
 
-- **No overfitting.** If a test probes an invariant using domain-specific vocabulary (e.g., "package versions" probes correctness), do not introduce any of that vocabulary ("version", "package") in the edit. An overfitting edit invalidates the test as evidence for the invariant — it shows only that the agent follows test-tuned hints, not that the invariant holds generally. Pre-existing baseline vocabulary is exempt.
+- **No overfitting.** An edit overfits when it biases the agent toward test-passing behavior via test-specific signal. Vectors include: (a) vocabulary lifted from `task.md` or `reference-solution.md` (e.g., "version", "package" for a correctness test about versions); (b) category framings whose members map to a test's failure modes (e.g., listing "OS / dependencies / permissions" as enumeration categories when the test probes OS portability); (c) concrete examples that mirror test scenarios (e.g., "hangs on slow servers" when the test probes network resilience). An overfit edit invalidates the test as evidence for the invariant — it shows only that the agent follows test-tuned hints, not that the invariant holds generally. Pre-existing baseline vocabulary is exempt.
 - **Keep it short.** System prompts are length-sensitive; prefer the minimum framing. Skills should also default to short. Length is justified only when clarity requires it.
 - **Edge-case the rule.** For any new rule, ask "where should this rule NOT fire?" Narrow the trigger or carve out exceptions explicitly. A rule that mis-fires on its complement creates collateral damage.
+- **Implicit guidance justification.** When an edit adds enforcement guidance longer than the invariant it enforces, the guidance must be justified by a prerequisite experiment showing the agent cannot derive the guidance on its own. The experiment: start from the prior prompt (the version before any enforcement edits), add only the invariant text as a labeled section in the prompt body and a labeled gate section asking the agent to write a paragraph on whether the invariant is satisfied for the Output Draft. Run on the failing cases and read the transcripts. Targeted enforcement is justified only for what the agent did NOT surface on its own; pre-specifying categories or framings the agent would have derived itself is wasted prompt length and a vector for overfitting (per the rule above). The experiment is itself not a fix — it does not ask for revision — but it is a prerequisite to determining what (if anything) to enforce.
 
 ## Categories
 
@@ -71,21 +72,36 @@ Assumption posture:
 
 These cases test the invariant **expectation-propagation**:
 
-> Work must always be done in match with user expectations. The user holds
-> expectations about what the work will do — some stated in the prompt,
-> some implicit, some inherited by asking the agent to run a particular
-> workflow/script/tool. If the delivered work does not meet a user
-> expectation, the gap must be propagated to the user in the response
-> prose (not only in the script source). When the agent cannot tell
-> whether a particular implicit expectation holds, it asks instead of
-> guessing.
-
-Operational test for "gap":
-
-> Would the user, reading only the agent's prose, know which plausible
-> adjacent attempts the delivered work supports and which it does not?
-> If the user would discover a plausible adjacent attempt fails later
-> with no prior warning, an expectation gap was propagated silently.
+> When the agent delivers work, the user will probably try things with
+> it. A plausible adjacent attempt is something a typical user would
+> reasonably try, even if the explicit task wording didn't name it. If
+> a plausible adjacent attempt fails and the agent didn't explicitly
+> warn, the user assumes silence means support and discovers the
+> failure by hitting it. The invariant: the agent's response prose
+> must explicitly name plausible adjacent attempts the work does NOT
+> support, framed as the user action and its observable outcome (what
+> the user does, what they see) — not as an implementation-feature
+> gap. Silence about an attempt is not disclosure, because a reader
+> cannot distinguish "agent considered it and confirmed it works"
+> from "agent didn't consider it" from omission alone.
+>
+> Examples from other domains illustrate the framing. In a debugging
+> report, "if you re-run the failing test alone it passes but fails
+> in the full suite" is actionable for the user; "detected state
+> leak" is not. In a refactor summary, "callers using `result['key']`
+> will break with TypeError because the function now returns a tuple"
+> is actionable; "changed return type" is not. The user-observable
+> phrasing tells the reader what they will see when they try it; the
+> implementation-feature phrasing requires the reader to reverse-
+> engineer consequences from internal details.
+>
+> Adjacent attempts are infinite in principle (a fetch script could
+> mutate a database, brick a router, leak memory, etc.); most are out
+> of scope for any given task. The agent identifies which adjacent
+> attempts are plausible given the task context — not from a pre-baked
+> list, and not gated on whether the prompt wording named them — and
+> either propagates the unsupported ones in prose, or asks when it
+> cannot tell whether they are in scope.
 
 Additional rules these cases collectively imply:
 
