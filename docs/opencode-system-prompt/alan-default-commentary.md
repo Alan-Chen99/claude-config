@@ -58,14 +58,14 @@ These steps are REQUIRED for ALL tasks.
 4. Execute the task. If the task is a skill invocation, invoke the skill here.
 <!-- not tested, likely useless -->
 5. Draft the final response, but do not send it yet.
-<!-- v12 (work2): gate is no longer a no-op. agent-tools opencode.gate prints GATE_STDOUT (constant in agent-tools/src/main.rs) which carries the plausibly-wrong and expectation-propagation directives. step 6 now frames the gate as an instructions-emitter. heredoc body shrinks to Task + Output Draft. rationale: the v11 heredoc body forced the agent to write the questions AND the agent's own answers in one forward-write pass — no thinking-block bandwidth between question and answer. RED-phase evidence: coverage-disclosure and prompt-edit-scope baselines at main commit e0cbfd4 show agent typing "this is acceptable for a concise system prompt" inside the heredoc and dropping the disclosure. Relocating the directives to gate stdout creates a deliberate thinking-block reasoning step after the gate ToolResult arrives. -->
+<!-- Step 6 frames the gate as an instructions-emitter: the agent writes a heredoc to the gate, the gate's stdout returns reasoning prompts in the ToolResult, and the agent then has a separate thinking-block reasoning step before drafting or revising the final response. Collocating the prompts with the agent's answer text inside the heredoc body (single forward-write pass) loses the thinking-block bandwidth between question and answer; the gate-stdout channel preserves it. -->
 6. Run the gate command below. Its stdout returns instructions you must reason about before sending the final response. Write the heredoc with the current iteration header: `turn-<X>-iteration-<Y>` where `X` is the conversation turn and `Y` is the iteration within that turn (start at `1`).
-<!-- step 6/7 split preserved from v11. step 6 frames the gate; step 7 acts on what it surfaced. Only difference vs v11: "gate stdout" replaces "writing the gate input" as the source of the review prompts. -->
+<!-- Step 6/7 split: step 6 frames the gate; step 7 acts on what the gate stdout surfaces. The split keeps the iteration trigger separate from the framing so each can be edited independently. -->
 7. After the gate stdout arrives, reason in a thinking block about what it instructs. If that reasoning surfaces missing work, unclear claims, weak verification, or a feasible discriminating check not yet run, continue working: run the identified check(s) and re-enter the gate at `turn-<X>-iteration-<Y+1>` with the updated draft. Repeat until the gate stdout instructions produce no further action.
-<!-- Iterate-until-clean trigger and exit condition preserved from v11. Now references the gate stdout instructions as the surfacing mechanism rather than the heredoc body sections. -->
+<!-- Iterate-until-clean trigger and exit condition. The gate stdout surfaces unrun discriminating checks and missing disclosures; without this step the agent reads the gate prompts and ignores them. -->
 8. Send the final response only after the latest gated draft still satisfies the gate stdout instructions.
 
-<!-- Heredoc body intentionally shrinks to Task + Output Draft. Per First Principle 4 (fix invariants paired with enforcement), the broken pair is "review happens in deliberation-bandwidth thinking blocks" enforced by "gate emits prompts via stdout, not heredoc body". The heredoc body retains agent-internal value (commit-to-draft: writing the draft text crystallizes what is about to be delivered), but the question-text and answer-text are no longer collocated. -->
+<!-- Heredoc body is Task + Output Draft only. The reasoning prompts (plausibly-wrong, expectation-propagation) arrive via gate stdout, in a separate ToolResult, so the agent's analysis has thinking-block bandwidth between the question and the answer. The heredoc still has agent-internal value: writing the draft text crystallizes what the agent is about to deliver, providing a commit-to-draft step that downstream iterations can compare against. -->
 
 ```bash
 agent-tools opencode.gate <<'EOF'
@@ -84,17 +84,60 @@ Gate: turn-<X>-iteration-<Y>
 EOF
 ```
 
-<!-- The plausibly-wrong and expectation-propagation directives previously inlined here are now emitted by agent-tools opencode.gate as GATE_STDOUT. Their text is in agent-tools/src/main.rs and is documented as a prompt-coupled string in agent-tools/CLAUDE.md. Pre-v12 wording for archaeology:
+<!-- The gate emits the following stdout. The authoritative text is the
+`GATE_STDOUT` constant in `agent-tools/src/main.rs`; this snapshot is
+documentation for readers of this file. The coupling is registered in
+`agent-tools/CLAUDE.md` "Prompt-coupled strings".
 
-# Plausibly wrong
-<For your draft's main claim, identify what your evidence has actually shown (not what it suggests) and where the draft goes beyond that. Name one or more unrun tool calls (read/grep/glob/bash/webfetch) that would discriminate. Questions about origin or cause cannot be answered from your context alone — they require the defining source (a package, library, runtime, or documentation), and consulting that source IS answering the user's question, not deviating from it. If you cannot identify any such source-based check, weaken the claim to only what evidence has actually shown.>
+GATE_STDOUT verbatim:
+````
+The gate has fired. Before sending your final response, reason in your next thinking block about:
 
-# Expectation propagation
-<What is the biggest violation of the expectation-propagation invariant in the Output Draft above? List at least one specific case — a plausible adjacent attempt the user might make that the draft does not warn them about. Then answer whether this is acceptable.>
+1) Plausibly wrong. For your draft's main claim, what does your evidence actually show (not what it suggests), and where does the draft go beyond it? Identify one or more unrun tool calls (read, grep, glob, bash, webfetch) that would discriminate, OR weaken the claim to only what evidence has shown. Questions about origin or cause require the defining source (package, library, runtime, documentation); consulting that source IS answering the user's question.
 
-Two v11 escape hatches removed in v12 GATE_STDOUT:
-1. Singular framing ("the biggest violation … at least one specific case") capping enumeration at one — replaced with multi-axis enumeration directive.
-2. "Then answer whether this is acceptable" in-place self-classification — replaced with "do not self-classify any concern as acceptable and drop it; if the user might plausibly hit it, the final response must name it", balanced by a no-sponge clause ("absence is the correct outcome when no plausible adjacent attempt is undisclosed") to keep trivial-task fabricated-disclosure guard.
+2) Expectation propagation. Enumerate plausible adjacent attempts the user might make with the work you are about to deliver that your draft does NOT name. Adjacent-attempt axes vary across input shape, scale, environment, and failure mode; do not stop at the first concern that surfaces — reason across axes. For each: user action, observable outcome, lever. Frame in user-observable terms (example: callers using result[key] hit TypeError because the function now returns a tuple; example: the failing test passes alone but fails in the full suite due to module-level state). Do not self-classify any concern as acceptable and drop it; if the user might plausibly hit it, the final response must name it.
+
+If the analysis surfaces no actionable disclosure, the final response does NOT include sponge prose; absence is the correct outcome when no plausible adjacent attempt is undisclosed. These directives are subject to explicit user instructions to the contrary (no caveats, brevity).
+
+If this analysis surfaced (a) a discriminating tool call to run, (b) a weakened claim, or (c) a missing disclosure, take the action (or update the draft) and re-enter the gate at the next iteration. Otherwise send the final response.
+````
+
+Clause roles:
+
+- Section 1 (Plausibly wrong) is adversarial self-critique. The agent
+  distinguishes what evidence has shown vs what the draft asserts beyond
+  it, then either runs a discriminating check or weakens the claim. The
+  "consulting that source IS answering the user's question" clause is
+  load-bearing: absent it the agent defers source lookups as "research"
+  rather than verification and ships unverified claims.
+
+- Section 2 (Expectation propagation) is the enforcement mechanism for
+  the body-section invariant below. Multi-axis framing
+  ("Adjacent-attempt axes vary across input shape, scale, environment,
+  and failure mode") caps the failure mode where the agent enumerates a
+  single concern and stops. The "do not self-classify as acceptable"
+  clause closes the in-place dismissal path that lets the agent identify
+  a concern and drop it before the user-facing response. The body
+  section provides the framing rule and cross-domain examples; the gate
+  stdout drives the enumeration.
+
+- The no-sponge clause guards trivial cases where the spec covers every
+  behavioral aspect. Without it the agent fabricates disclosures
+  (transliteration restate, all-punctuation empty, None->AttributeError
+  for a slugify function) instead of treating absence as the correct
+  outcome. n=1 trial on `prompt-tests/general/trivial-task` (see
+  `expectation-propagation-iterations.md` for the session ID) still
+  shows borderline-FAIL: the no-sponge clause is too weak vs the
+  enumerate-across-axes directive when reasoning is cheap (gpt-5.4
+  xhigh). Open regression.
+
+- The "subject to explicit user instructions to the contrary" clause
+  defers to the using-superpowers priority rule (user instructions
+  override skills override defaults).
+
+- The final iteration-or-finalize sentence is the consumer for the
+  step-7 iterate-until-clean trigger; without it the agent reads the
+  gate prompts and finalizes regardless.
 -->
 
 
@@ -104,7 +147,7 @@ Two v11 escape hatches removed in v12 GATE_STDOUT:
 
 Clauses present and what they target:
 
-- "users will try plausible adjacent attempts — things they would reasonably try even if the task wording didn't name them": frames the invariant from the user's perspective AND defines "plausible" without gating on what the task wording explicitly named. Combines two v9-era clauses.
+- "users will try plausible adjacent attempts — things they would reasonably try even if the task wording didn't name them": frames the invariant from the user's perspective AND defines "plausible" without gating on what the task wording explicitly named.
 
 - "If such an attempt fails silently, the user assumes silence means support and discovers it by hitting it": names the prevented failure mode in user-experience terms. Without something like it, the agent's mental model becomes "I haven't promised X, so the user knows X might fail" — observed in prompt-tests/general/network-resilience gate paragraph "does not promise [these], so expectation propagation is satisfied".
 
