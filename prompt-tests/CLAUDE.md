@@ -219,7 +219,10 @@ in this conversation).
 
 ## Grader rule
 
-A grader MUST read all thinking blocks (typically with `agent-tools cc-pretty`,
-`agent-tools opencode-pretty`, or equivalent). Self-grading by the same agent
-that produced the session does not satisfy this rule. The grader must check
-contamination before assigning pass/acceptable/fail.
+A grader MUST read all thinking blocks (typically with
+`agent-tools cc-pretty <FILE> --agent`, `agent-tools opencode-pretty <session> --agent`,
+or equivalent). `--agent` strips ANSI color and chunks oversized output into
+`/tmp/` files for parallel reads — without it, Bash truncates large sessions at
+30k chars. Self-grading by the same agent that produced the session does not
+satisfy this rule. The grader must check contamination before assigning
+pass/acceptable/fail.

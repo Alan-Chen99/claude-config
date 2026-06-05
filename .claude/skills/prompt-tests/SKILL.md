@@ -52,9 +52,12 @@ Historical baselines from the opencode era are at
 3. **Dispatch one grader subagent per session log.** One subagent per session
    — no parallel-grader launching. The grader's brief:
 
-   > Read the session log with `agent-tools cc-pretty` (Claude Code JSONL) or
-   > `agent-tools opencode-pretty` (opencode session), **including all
-   > thinking blocks**. Run `/diagnose-session` over the log. First check for
+   > Read the session log with `agent-tools cc-pretty <FILE> --agent` (Claude
+   > Code JSONL) or `agent-tools opencode-pretty <session> --agent` (opencode
+   > session), **including all thinking blocks**. `--agent` strips ANSI color
+   > and chunks oversized output into `/tmp/` files for parallel reads instead
+   > of letting Bash truncate at 30k chars — read every chunk file it lists.
+   > Run `/diagnose-session` over the log. First check for
    > cheating/contamination using the rules in this skill. If contaminated,
    > return `invalid` and do not grade semantic quality. Otherwise compare the
    > transcript to `reference-solution.md` semantically. Return:
@@ -223,10 +226,13 @@ copied in, grader-only files left in the repo.
   longest-lived session (typically the parent / main session).
 - **Reading the rendered log is not optional.** A grader that only reads the
   final answer text cannot satisfy the grader rule above.
-- **`agent-tools opencode-pretty` chunks large sessions.** Read every chunk
-  file it lists in `/tmp/`. Use the printed drill-down hint
-  (`agent-tools opencode-pretty <session> --message <id> --full`) to recover
-  any single message in full.
+- **Pass `--agent` to `agent-tools opencode-pretty` (and `cc-pretty`).** Without
+  it, the rendered log writes straight to stdout and Bash truncates large
+  sessions at 30k chars. With `--agent`, the tool strips ANSI color and, when
+  the output exceeds the Bash limit, writes chunk files under `/tmp/` and
+  prints their paths — read every chunk file it lists. Use the printed
+  drill-down hint (`agent-tools opencode-pretty <session> --message <id> --full`)
+  to recover any single message in full.
 - **Don't commit raw JSON session logs.** Keep them under `/tmp/`. Summarize
   failure modes in commit messages or, if persistent, in
   `docs/opencode-system-prompt/baselines/`.

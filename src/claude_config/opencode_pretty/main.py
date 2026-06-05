@@ -161,7 +161,13 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--truncate-input", action="store_true")
     parser.add_argument("--no-color", action="store_true")
     parser.add_argument("--no-thinking", action="store_true")
-    parser.add_argument("--agent", action="store_true")
+    parser.add_argument(
+        "--agent",
+        action="store_true",
+        help="Agent-friendly output: if small enough, print directly; "
+        "otherwise write chunk files to /tmp and print paths for parallel reads. "
+        "Implies --no-color.",
+    )
     parser.add_argument("--message", dest="message_id", default=None,
                         help="If set, render only the part with this id.")
     parser.add_argument("--full", action="store_true",
