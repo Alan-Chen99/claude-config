@@ -132,20 +132,42 @@ and corrected harness isolation.
 See `skills/opencode-subcommand` for the full recipe. The minimal pattern for
 running a test under an existing agent prompt (e.g., `opencode/agents/alan-default.md`):
 
+#### Plugin policy (load-bearing)
+
+Run the tested agent with **no plugins loaded** (`"plugin": []`) by default.
+Superpowers in particular injects a `brainstorming` skill whose HARD-GATE
+blocks all implementation tasks pending design approval; on cases like
+`coverage-disclosure` and `network-resilience` this produces a pre-disclosure
+failure (the agent never reaches the artifact-delivery step the test grades),
+so the test measures plugin behavior rather than the agent prompt's behavior.
+See `docs/opencode-system-prompt/baselines/coverage-disclosure.md`
+Configuration 1 for the verbatim failure.
+
+Opt in to plugins only for cases that specifically exercise plugin behavior.
+The only such case currently is `general/superpowers-startup-components`, which
+asks the agent to identify superpowers-origin prompt components and therefore
+requires the plugin loaded. Add to the plugin list for that case:
+
+```json
+"plugin": ["superpowers@git+https://github.com/obra/superpowers.git"]
+```
+
+#### Default recipe
+
 ```bash
 REPO="$(git rev-parse --show-toplevel)"
-CASE="prompt-tests/general/superpowers-startup-components"
+CASE="prompt-tests/general/network-resilience"
 SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \
 OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
 OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"],
+  "plugin": [],
   "agent": {
     "prompt-test": {
       "mode": "primary",
       "prompt": "{file:'"$REPO"'/opencode/agents/alan-default.md}",
-      "permission": {"read":"allow","glob":"allow","grep":"allow","list":"allow","bash":"allow","edit":"deny"}
+      "permission": {"read":"allow","glob":"allow","grep":"allow","list":"allow","bash":"allow","edit":"allow","write":"allow"}
     }
   }
 }' \
