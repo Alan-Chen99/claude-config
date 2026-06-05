@@ -29,7 +29,7 @@ truncated block.
 
 **If input is an opencode session (id or export):**
 ```bash
-agent-tools opencode-pretty <session-id-or-file>
+agent-tools opencode-pretty <session-id-or-file> --agent
 ```
 Drill-down hint for omitted content appears as
 `# agent-tools opencode-pretty <session-id> --message <message-id> --full`
