@@ -5,6 +5,21 @@ use std::process::Command;
 
 use clap::{Parser, Subcommand};
 
+/// Printed to stdout by `agent-tools opencode.gate`. Coupled to
+/// `opencode/agents/alan-default.md` step 6/7 wording — see agent-tools CLAUDE.md
+/// "Prompt-coupled strings" table.
+const GATE_STDOUT: &str = "\
+The gate has fired. Before sending your final response, reason in your next thinking block about:
+
+1) Plausibly wrong. For your draft's main claim, what does your evidence actually show (not what it suggests), and where does the draft go beyond it? Identify one or more unrun tool calls (read, grep, glob, bash, webfetch) that would discriminate, OR weaken the claim to only what evidence has shown. Questions about origin or cause require the defining source (package, library, runtime, documentation); consulting that source IS answering the user's question.
+
+2) Expectation propagation. Enumerate plausible adjacent attempts the user might make with the work you are about to deliver that your draft does NOT name. Adjacent-attempt axes vary across input shape, scale, environment, and failure mode; do not stop at the first concern that surfaces — reason across axes. For each: user action, observable outcome, lever. Frame in user-observable terms (example: callers using result[key] hit TypeError because the function now returns a tuple; example: the failing test passes alone but fails in the full suite due to module-level state). Do not self-classify any concern as acceptable and drop it; if the user might plausibly hit it, the final response must name it.
+
+If the analysis surfaces no actionable disclosure, the final response does NOT include sponge prose; absence is the correct outcome when no plausible adjacent attempt is undisclosed. These directives are subject to explicit user instructions to the contrary (no caveats, brevity).
+
+If this analysis surfaced (a) a discriminating tool call to run, (b) a weakened claim, or (c) a missing disclosure, take the action (or update the draft) and re-enter the gate at the next iteration. Otherwise send the final response.
+";
+
 mod capture;
 mod events;
 mod hook_input;
@@ -220,7 +235,10 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        Cmd::OpencodeGate { args: _ } => std::process::exit(0),
+        Cmd::OpencodeGate { args: _ } => {
+            print!("{GATE_STDOUT}");
+            std::process::exit(0);
+        }
         cmd => {
             let root = repo_root(cli.root);
             match cmd {

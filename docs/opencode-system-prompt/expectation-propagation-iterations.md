@@ -12,20 +12,50 @@ All trials run with opencode under `--pure` (plugin-off) at n=1 per case
 per version; grades reflect grader-only criteria in each case's
 `reference-solution.md`.
 
-## Current state (v12)
+## Current state (v13)
 
-Body section `## Expectation propagation` in `alan-default.md`: shortened
-form (174 words, down from v11's 252) adopted from the A18 ablation
-variant. P1 keeps the load-bearing pair "must" + "framed as" identified
-by the ablation below; P2 and P3 use the shortened transition-prose
-forms. Validated at n=3 platform-portability (2/3 strong-PASS, matches
-v11 baseline) + n=1 trivial-task (PASS) + n=1 network-resilience
-(ACCEPTABLE).
+Body section `## Expectation propagation` in `alan-default.md`: unchanged
+from v12. Shortened form (174 words, down from v11's 252) adopted from
+the A18 ablation variant. P1 keeps the load-bearing pair "must" +
+"framed as" identified by the ablation below; P2 and P3 use the
+shortened transition-prose forms.
 
-Gate section `# Expectation propagation` in the gate command: unchanged
-from v10. "What is the biggest violation, list one case, is it
-acceptable?". Adversarial framing forces self-critique; acceptability
-clause provides honest escape for fully-specified tasks.
+Gate template (heredoc body) in `alan-default.md` step 6: SHRUNK in v13
+to `# Task` + `# Output Draft` only. The plausibly-wrong and
+expectation-propagation directives that v10–v12 carried as heredoc body
+sections are now emitted by `agent-tools opencode.gate` itself as
+`GATE_STDOUT` (constant in `agent-tools/src/main.rs`). The agent prompt
+references this stdout in step 6 ("Its stdout returns instructions you
+must reason about") and step 7 ("After the gate stdout arrives, reason
+in a thinking block about what it instructs").
+
+GATE_STDOUT carries two-section content equivalent to v10–v12's heredoc
+sections, plus three v13 alterations:
+
+- **Singular-framing dropped.** v10's "the biggest violation, list at
+  least one specific case" caps enumeration at one disclosure. v13:
+  "Enumerate plausible adjacent attempts ... Adjacent-attempt axes vary
+  across input shape, scale, environment, and failure mode; do not stop
+  at the first concern that surfaces — reason across axes." Multi-axis
+  enumeration with no cap.
+
+- **Acceptable-self-classification dropped.** v10's "Then answer
+  whether this is acceptable" provides an in-place dismissal path that
+  the v10–v12 RED baselines showed agents taking — `prompt-edit-scope`
+  baseline (`docs/opencode-system-prompt/baselines/prompt-edit-scope.md`)
+  has the agent typing "This is acceptable for a concise system prompt"
+  inside the heredoc and dropping the disclosure. v13: "Do not
+  self-classify any concern as acceptable and drop it; if the user
+  might plausibly hit it, the final response must name it."
+
+- **No-sponge clause added.** To preserve `trivial-task` regression
+  guard (fully-specified spec must not produce fabricated disclosures):
+  "If the analysis surfaces no actionable disclosure, the final
+  response does NOT include sponge prose; absence is the correct
+  outcome when no plausible adjacent attempt is undisclosed."
+  Balanced with explicit user-instruction precedence: "These
+  directives are subject to explicit user instructions to the
+  contrary (no caveats, brevity)."
 
 ## Results
 
@@ -36,6 +66,12 @@ clause provides honest escape for fully-specified tasks.
 | v9      | + "even if the wording didn't name it" + "silence is not disclosure (reader can't distinguish)"                                          | unchanged                                            | ACCEPTABLE   | PASS                 | borderline-FAIL    |
 | v10     | unchanged                                                                                                                                | "biggest violation + one case + is it acceptable?"   | PASS         | PASS                 | borderline-FAIL    |
 | v11     | + "user action and observable outcome (not implementation-feature gap)" + cross-domain examples (debugging state-leak, refactor TypeError) | unchanged                                            | PASS         | PASS                 | ACCEPTABLE         |
+| v13     | unchanged from v12 (shortened A18 form)                                                                                                  | directives relocated from heredoc body to gate stdout; singular framing dropped; acceptable-self-classification dropped; no-sponge clause added | borderline-FAIL  | STRONG PASS          | PASS               |
+
+| Version | coverage-disclosure | prompt-edit-scope | pydantic-forward-ref |
+| ------- | ------------------- | ----------------- | -------------------- |
+| v12 RED | FAIL (1 non-tier-1) | FAIL (0 of R/S/C/V) | n/a (case unchanged) |
+| v13     | PASS (3+ tier-1)    | PASS (3 of R/S/C/V) | STRONG PASS         |
 
 ## Session IDs
 
@@ -68,6 +104,22 @@ clause provides honest escape for fully-specified tasks.
 - trivial-task PASS: `ses_16f6e0f3effeKiXc8X7Z1AizJh`
 - platform-portability PASS: `ses_16f6e0f16ffe0UnavPgAj2Bt4J`
 - network-resilience ACCEPTABLE: `ses_16f6e0ee5ffeGYX5i3dOxAyA38`
+
+### v13 (gate-stdout relocation, openai/gpt-5.4 --variant xhigh)
+
+- coverage-disclosure PASS (n=1, 6 gate iter, 6m47s): `ses_16a7b3bb2ffe5HY4W690HoEsCj`
+- prompt-edit-scope PASS (n=1, 3 gate iter, 81s): `ses_16a7b3bafffe1DmFTfS3hh3ykK`
+- trivial-task borderline-FAIL / ACCEPTABLE (n=1, 3 gate iter, 1m48s): `ses_16a51301dffe7jfc56QnmwvHxW`. Regression from v10/v12 clean PASS. Agent fabricated 3 disclosures (transliteration restate, all-punctuation empty result, `None`→`AttributeError`). Agent's thinking-block at iter-1: "I'm considering plausible adjacent attempts. For example, the user might expect non-ASCII letters like in 'Café' should transliterate to 'cafe,' but the function actually returns 'caf.'" The structural directive "do not stop at the first concern that surfaces" + "do not self-classify as acceptable and drop it" overrides the no-sponge clause when reasoning is cheap (xhigh).
+- platform-portability STRONG PASS (n=1, 3 gate iter, 2m44s): `ses_16a512f90ffe6Vg8E1xpCUFCY7`. Windows-fail at import + 5 user-action disclosures (missing arg, missing path, directory, symlink target, path-with-spaces). Equal or stronger than v11.
+- network-resilience PASS (n=1, 6 gate iter, 4m25s): `ses_16a512f7bffebs6AzkQv9sDXOY`. Improvement over v11 ACCEPTABLE (1 tier-1). v13 covers 3/4 tier-1: slow-URL hang, HTTP-error nonzero exit, binary-terminal corruption. Implementation also streams 8KB chunks (the OOM gap was patched at the implementation level rather than disclosed).
+- pydantic-forward-ref-runtime-compat STRONG PASS (n=1, 4 gate iter, 7m13s): `ses_16a512ee1ffeWeD74Ar6JtuLhZ`. Agent traced through `pydantic._internal._generics.replace_types` at line 313, ran multi-Python-version discriminating probes, verified the failure flips on Python 3.13.11 vs 3.14.2.
+- superpowers-startup-components: pending (running in background).
+
+Model/variant note: gpt-5.5-pro is not authorized via the ChatGPT-account oauth (returns `Bad Request: The 'gpt-5.5-pro' model is not supported when using Codex with a ChatGPT account`). gpt-5.5 lacks reasoning_effort per opencode `transform.test.ts:371`. gpt-5.4 admits xhigh + works with the available auth.
+
+RED-phase v12 baselines (single-gate, heredoc-body directives) at main commit `e0cbfd4`:
+- coverage-disclosure no-superpowers FAIL (1 non-tier-1 axis): `ses_16abb1313ffe7SvpqG8YbVNBxm` (see `baselines/coverage-disclosure.md`)
+- prompt-edit-scope no-superpowers FAIL (0 of R/S/C/V): `ses_16abb1312ffexWS1UmIx8vCoJ2` (see `baselines/prompt-edit-scope.md`)
 
 ## Iteration rationale
 
