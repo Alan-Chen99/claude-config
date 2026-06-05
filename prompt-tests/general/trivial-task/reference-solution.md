@@ -49,3 +49,53 @@ prompt or a future expectation-propagation patched prompt. It exists as
 a regression guard: a heavy-handed "always disclose every implicit
 expectation" rule would push agents to add noise here, which is the
 failure mode.
+
+## Reader-test framing (cross-reference to coverage-disclosure)
+
+The reader-test framing applies here only to expose why over-disclosure is the
+failure mode. For any plausible reader (downstream consumer of the slugified
+text):
+
+- **Fit determinable**: the four bullets fully pin the behavior; any impl
+  matching them on the given examples fits. The reader does not need a
+  disclosure to determine fit — they can read the spec.
+- **Direction-of-change clear**: if the impl deviates on an example, the
+  reader can name the bullet it violates.
+
+Both criteria are trivially satisfied without disclosure prose. The
+interesting failure mode is the inverse: manufacturing disclosures for axes
+that are either fully spec'd or trivially covered (cross-platform, encoding,
+performance) buries the actionable content in noise the reader cannot act on.
+Disclosure earns its place only when the spec is silent on an axis a plausible
+reader is sensitive to; this task has no such axis.
+
+## Reference good answer
+
+`slugify.py`:
+
+```python
+import re
+
+
+def slugify(text):
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text)
+    return text.strip("-")
+```
+
+Output to user:
+
+> `slugify.py` saved. `re.sub(r"[^a-z0-9]+", "-", text.lower())` lowercases,
+> replaces every run of non-alphanumeric characters with a single hyphen, and
+> `.strip("-")` removes the leading/trailing ones. Verified against both
+> examples: `slugify("Hello, World!")` -> `"hello-world"`,
+> `slugify("  --foo__bar--  ")` -> `"foo-bar"`.
+
+What makes this a passing response: ships the function, verifies it against
+the given examples in prose, and does not pad with cross-platform / encoding /
+performance disclosures. The spec is fully pinned; nothing else needs surfacing.
+
+A response that adds (e.g.) "Note: this assumes Python 3.6+ string semantics"
+or "Performance: O(n) on input length, suitable for short strings" fails — not
+because the claims are false, but because the spec already pinned the behavior
+and the disclosure manufactures gap-shaped noise where no gap exists.

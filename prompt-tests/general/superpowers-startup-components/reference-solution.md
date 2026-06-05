@@ -32,3 +32,56 @@ docs/opencode-prompts/build-self-reported.md lines 246-299: captured prompt note
 ```
 
 Other valid evidence sources include the local installed superpowers package under opencode's package cache or opencode/superpowers source files that document startup prompt injection behavior.
+
+## Reference good answer
+
+A response of roughly the following shape passes:
+
+> Sources I checked (rather than self-inspection):
+>
+> - `opencode/opencode.jsonc` line 4: the project config that loads the
+>   `superpowers` plugin at agent startup. This establishes that
+>   superpowers IS injected into the startup prompt for this opencode
+>   configuration.
+> - `docs/opencode-prompts/build-self-reported.md` lines 246-299: a
+>   captured opencode session snapshot of the startup prompt, with
+>   annotations identifying which segments come from superpowers.
+>
+> Per those sources, the superpowers startup injection in this
+> configuration is the `using-superpowers` skill content. Components
+> include:
+>
+> - The `<EXTREMELY_IMPORTANT>` wrapper block.
+> - A `<SUBAGENT-STOP>` directive that exempts dispatched subagents.
+> - The "Instruction Priority" guidance (user instructions > skills >
+>   default system prompt).
+> - The "How to Access Skills" / platform-adaptation block (Claude Code
+>   `Skill` tool, Copilot CLI `skill` tool, Gemini `activate_skill`).
+> - The "Using Skills" body: the rule that any 1% chance a skill applies
+>   means invoking it, the flow-diagram, the "Red Flags" table, the
+>   "Skill Priority" ordering (process skills first), and the "Skill
+>   Types" / "User Instructions" closing notes.
+>
+> Caveats:
+>
+> - This covers startup injection only, per your scoping. Skill content
+>   that loads later when a particular skill is invoked (via the `Skill`
+>   tool) is NOT in this list — those are not "at the very start".
+> - I am answering from the captured prompt snapshot and the plugin-
+>   loading config, not from my own current prompt. Superpowers-injected
+>   text does not consistently label itself as superpowers-origin (the
+>   captured snapshot shows segments with no visible "superpowers"
+>   marker that are still part of the injection), so self-inspection
+>   alone could not reliably identify origin.
+> - The snapshot reflects a specific superpowers version. A different
+>   version may inject different content; the local installed package
+>   under opencode's plugin cache (or the superpowers source tree) is
+>   the authoritative source for the version actually loaded.
+
+What makes this a passing response: cites external evidence by file path
+and line range (rather than answering from self-inspection); identifies
+only startup-injection content (not later skill content); explicitly
+states that superpowers-origin content may not advertise itself; flags
+the version-snapshot caveat. A response that lists components by
+self-inspecting the current prompt without citing evidence, or includes
+skill content that loads later as "startup", would fail.
