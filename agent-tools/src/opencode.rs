@@ -10,6 +10,9 @@ const LANGFUSE_ENV: [(&str, &str); 3] = [
     ("OPENCODE_LANGFUSE_BASE_URL", "LANGFUSE_BASEURL"),
 ];
 
+const GIT_AUTHOR_NAME: &str = "opencode";
+const GIT_AUTHOR_EMAIL: &str = "opencode@users.noreply.github.com";
+
 pub fn run(root: &Path, args: &[String]) -> ! {
     let env_file = parse_env_file(&root.join(".env"));
     let mut cmd = Command::new("opencode");
@@ -21,6 +24,11 @@ pub fn run(root: &Path, args: &[String]) -> ! {
             cmd.env(target, value);
         }
     }
+
+    cmd.env("GIT_AUTHOR_NAME", GIT_AUTHOR_NAME);
+    cmd.env("GIT_AUTHOR_EMAIL", GIT_AUTHOR_EMAIL);
+    cmd.env("GIT_COMMITTER_NAME", GIT_AUTHOR_NAME);
+    cmd.env("GIT_COMMITTER_EMAIL", GIT_AUTHOR_EMAIL);
 
     cmd.args(args);
     let err = cmd.exec();

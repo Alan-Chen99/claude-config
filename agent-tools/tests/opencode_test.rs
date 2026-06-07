@@ -18,10 +18,7 @@ fn help_lists_opencode_pretty_subcommand() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(
-        stdout.contains("opencode-pretty"),
-        "stdout: {stdout}"
-    );
+    assert!(stdout.contains("opencode-pretty"), "stdout: {stdout}");
 }
 
 #[test]
@@ -91,10 +88,7 @@ printf 'args=%s\n' "$*"
     );
     assert!(stdout.contains("session-123"), "stdout: {stdout}");
     assert!(stdout.contains("--tool-max 10"), "stdout: {stdout}");
-    assert!(
-        stdout.contains("--truncate-input 100"),
-        "stdout: {stdout}"
-    );
+    assert!(stdout.contains("--truncate-input 100"), "stdout: {stdout}");
     assert!(stdout.contains("--no-color"), "stdout: {stdout}");
     assert!(stdout.contains("--no-thinking"), "stdout: {stdout}");
     assert!(stdout.contains("--agent subagent"), "stdout: {stdout}");
@@ -129,6 +123,10 @@ printf 'public=%s\n' "${LANGFUSE_PUBLIC_KEY-}"
 printf 'baseurl=%s\n' "${LANGFUSE_BASEURL-}"
 printf 'base_url=%s\n' "${LANGFUSE_BASE_URL-unset}"
 printf 'extra=%s\n' "${LANGFUSE_EXTRA-unset}"
+printf 'author_name=%s\n' "${GIT_AUTHOR_NAME-}"
+printf 'author_email=%s\n' "${GIT_AUTHOR_EMAIL-}"
+printf 'committer_name=%s\n' "${GIT_COMMITTER_NAME-}"
+printf 'committer_email=%s\n' "${GIT_COMMITTER_EMAIL-}"
 printf 'args=%s\n' "$*"
 "#,
     )
@@ -177,6 +175,19 @@ printf 'args=%s\n' "$*"
     );
     assert!(stdout.contains("base_url=unset"), "stdout: {stdout}");
     assert!(stdout.contains("extra=unset"), "stdout: {stdout}");
+    assert!(stdout.contains("author_name=opencode"), "stdout: {stdout}");
+    assert!(
+        stdout.contains("author_email=opencode@users.noreply.github.com"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("committer_name=opencode"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("committer_email=opencode@users.noreply.github.com"),
+        "stdout: {stdout}"
+    );
     assert!(
         stdout.contains("args=--model test/model prompt text"),
         "stdout: {stdout}"
@@ -184,7 +195,7 @@ printf 'args=%s\n' "$*"
 }
 
 #[test]
-fn opencode_gate_accepts_heredoc_input_and_does_nothing() {
+fn opencode_gate_accepts_heredoc_input_and_prints_instructions() {
     let tmp = tempfile::tempdir().unwrap();
     let mut child = Command::new(bin())
         .arg("opencode.gate")
@@ -209,6 +220,11 @@ fn opencode_gate_accepts_heredoc_input_and_does_nothing() {
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert_eq!(String::from_utf8_lossy(&out.stdout), "");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("The gate has fired"), "stdout: {stdout}");
+    assert!(
+        stdout.contains("Expectation propagation"),
+        "stdout: {stdout}"
+    );
     assert_eq!(String::from_utf8_lossy(&out.stderr), "");
 }
