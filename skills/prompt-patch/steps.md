@@ -53,7 +53,20 @@ Write out:
    If uncertain, default to `correctness`; you can re-run Step 1 if Step 2 finds no broken pair.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 2 --problem='...' --cost='...' --success-criteria='...' --mode='correctness|efficiency|n/a'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 2 <<'EOF'
+## problem
+...
+
+## cost
+...
+
+## success-criteria
+...
+
+## mode
+correctness|efficiency|n/a
+EOF
+" />
 Execute this command now.
 
 <!-- step 2: invariant-extraction -->
@@ -105,7 +118,17 @@ If Step 1 mode is `n/a (mechanical)` — write "Mechanical change — no invaria
    - In efficiency mode: for each at-risk pair, name the concrete enforcement mechanism that your optimization threatens (e.g., "Step 7 currently enforces pair K via 3-scenario regression list; collapsing Steps 6-7 would remove this enforcement").
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 3 --invariants='...' --structural-gap='...' --mode='correctness|efficiency'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 3 <<'EOF'
+## invariants
+...
+
+## structural-gap
+...
+
+## mode
+correctness|efficiency
+EOF
+" />
 Execute this command now.
 
 <!-- step 3: brainstorm -->
@@ -141,7 +164,11 @@ The only exception: if the change is purely mechanical (e.g., rewording a single
 Note: letters mark mechanism groups. Ideas 1/3/5 share mechanism (A), signaling convergence — ideas 7-10 were forced into underrepresented groups.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 4 --ideas='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 4 <<'EOF'
+## ideas
+...
+EOF
+" />
 Execute this command now.
 
 <!-- step 4: identify -->
@@ -178,7 +205,17 @@ Define the target and generate multiple paths to reach it.
    - A uses chain-of-thought to construct a decision tree then selects; B evaluates options sequentially
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 5 --target-state='...' --option-a='...' --option-b='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 5 <<'EOF'
+## target-state
+...
+
+## option-a
+...
+
+## option-b
+...
+EOF
+" />
 Execute this command now.
 
 <!-- step 5: draft-options -->
@@ -197,7 +234,11 @@ Per option, specify:
 Do NOT pick a winner yet. Write both/all options fully.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 6 --options-drafted='brief summary of each option'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 6 <<'EOF'
+## options-drafted
+brief summary of each option
+EOF
+" />
 Execute this command now.
 
 <!-- step 6: context-check -->
@@ -219,7 +260,14 @@ Check the existing instruction environment for alignment and conflicts.
 3. **Revise** each option based on conflicts found. If a contradiction cannot be resolved, note it as a hard constraint.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 7 --conflicts-found='...' --revisions-made='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 7 <<'EOF'
+## conflicts-found
+...
+
+## revisions-made
+...
+EOF
+" />
 Execute this command now.
 
 <!-- step 7: regressions -->
@@ -243,7 +291,14 @@ Mitigation: [revised wording] or [accepted tradeoff: ...]
 ```
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 8 --regressions-found='...' --mitigations='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 8 <<'EOF'
+## regressions-found
+...
+
+## mitigations
+...
+EOF
+" />
 Execute this command now.
 
 <!-- step 8: pick-draft -->
@@ -260,7 +315,14 @@ Execute this command now.
 Write the draft as it would appear in the final file -- not a summary, the actual text.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 9 --chosen-option='...' --draft-written='yes'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 9 <<'EOF'
+## chosen-option
+...
+
+## draft-written
+yes
+EOF
+" />
 Execute this command now.
 
 <!-- step 9: deterministic-check -->
@@ -288,7 +350,14 @@ Then list **environment requirements** (e.g., "python3 needed", "git available",
 You may assume any requirement that is true in your current environment.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 10 --deterministic-issues='...' --env-requirements='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 10 <<'EOF'
+## deterministic-issues
+...
+
+## env-requirements
+...
+EOF
+" />
 Execute this command now.
 
 <!-- step 10: non-deterministic-check -->
@@ -308,7 +377,14 @@ Consider:
 For each risk identified, assess severity (low/medium/high) and revise the draft if severity >= medium.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 11 --risks-found='...' --revisions='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 11 <<'EOF'
+## risks-found
+...
+
+## revisions
+...
+EOF
+" />
 Execute this command now.
 
 <!-- step 11: top-concerns -->
@@ -328,7 +404,14 @@ For each concern:
 If any concern has both likelihood >= medium AND impact >= medium, revise the draft to address it before proceeding.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 12 --concerns='...' --final-revisions='...'" />
+<invoke cmd="agent-tools skill prompt_patch.do --step 12 <<'EOF'
+## concerns
+...
+
+## final-revisions
+...
+EOF
+" />
 Execute this command now.
 
 <!-- step 12: final -->
