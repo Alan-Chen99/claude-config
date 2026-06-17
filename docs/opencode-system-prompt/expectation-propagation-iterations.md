@@ -20,13 +20,13 @@ the A18 ablation variant. P1 keeps the load-bearing pair "must" +
 "framed as" identified by the ablation below; P2 and P3 use the
 shortened transition-prose forms.
 
-Gate template (heredoc body) in `alan-default.md` step 6: SHRUNK in v13
+Gate template (heredoc body) in `alan-default.md` step 5: SHRUNK in v13
 to `# Task` + `# Output Draft` only. The plausibly-wrong and
 expectation-propagation directives that v10–v12 carried as heredoc body
 sections are now emitted by `agent-tools opencode.gate` itself as
 `GATE_STDOUT` (constant in `agent-tools/src/main.rs`). The agent prompt
-references this stdout in step 6 ("Its stdout returns instructions you
-must reason about") and step 7 ("After the gate stdout arrives, reason
+references this stdout in step 5 ("Its stdout returns instructions you
+must reason about") and step 6 ("After the gate stdout arrives, reason
 in a thinking block about what it instructs").
 
 GATE_STDOUT carries two-section content equivalent to v10–v12's heredoc

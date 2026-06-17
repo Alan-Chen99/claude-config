@@ -6,7 +6,7 @@ use std::process::Command;
 use clap::{Parser, Subcommand};
 
 /// Printed to stdout by `agent-tools opencode.gate`. Coupled to
-/// `opencode/agents/alan-default.md` step 6/7 wording — see agent-tools CLAUDE.md
+/// `opencode/agents/alan-default.md` step 5/6 wording — see agent-tools CLAUDE.md
 /// "Prompt-coupled strings" table.
 const GATE_STDOUT: &str = "\
 The gate has fired. Before sending your final response, reason in your next thinking block about:
