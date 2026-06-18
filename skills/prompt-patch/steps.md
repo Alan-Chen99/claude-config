@@ -329,7 +329,9 @@ Execute this command now.
 
 # Prompt Patch - Deterministic Failure Mode Check
 
-Review your draft for failure modes that will reliably break:
+A "Deterministic Failure Mode" is one where a failure still occurs even if agent appears to follow instructions perfectly.
+
+Review your draft for failure modes including but not limited to:
 
 1. **Commands that may crash or not run** in the runtime environment of the prompt:
    - Missing binaries, wrong paths, permission issues
@@ -344,10 +346,16 @@ Review your draft for failure modes that will reliably break:
    - How to check X is not specified
    - X is ambiguous or subjective without a decision procedure
 
+4. **Underspecified spec**
+   - Possible things agent may do at a point in timeline that you consider "wrong/worse" than your inteneded behavior but is a better or equally resonable thing to do given the prompt and context they have at the point
+
+5. **Missing context**
+   - Your planned timeline does not provide a particular piece of context, or provide it too late -- agent must have the context at the point they need it
+
 For each issue found: **revise the draft**.
 
-Then list **environment requirements** (e.g., "python3 needed", "git available", "internet access").
-You may assume any requirement that is true in your current environment.
+Then list **prompt assumptions** (e.g., "python3 needed", "git available", "internet access", "Task is not review-only").
+You may assume any requirement that is true in your current environment and task assumptions aligned with user goals and is clearly checkable from query.
 
 NEXT STEP:
 <invoke cmd="agent-tools skill prompt_patch.do --step 10 <<'EOF'
