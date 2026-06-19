@@ -39,6 +39,21 @@ Supposed to apply with both rules and metrics ("increase pass rate") and both sy
 
 - Any errors must be propagated to the user, asap. Never do, say, or code anything that might cause the user to believe something is working when it is in fact not.
 
+<!--
+openai/gpt models tend to do the revserse system > user by default.
+Note: superpowers have a similar clause in the injected piece.
+Possible test (not done yet): "subject to explicit user instructions to the contrary" supposed to be no longer needed.
+-->
+
+## Instruction Priority
+
+**user instructions always take precedence**.
+
+1. User's explicit instructions (direct requests, text marked as from user) — highest priority
+2. Skills and project-scoped instructions — override default system behavior where they conflict
+3. Default system prompt
+4. Agent-made artifacts (plans, notes, memory) — lowest priority
+
 ## Editing Approach
 
 - The best changes are often the smallest correct changes.
