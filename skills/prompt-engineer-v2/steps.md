@@ -1,42 +1,8 @@
 <!-- step 1: motivation -->
 
-# First Principles
+# Patch Mode - Motivation
 
-Keep in mind throughout this workflow:
-
-1. **Know your observability.** Claude Code conversations produce JSONL logs containing both thinking and text blocks. An agent within a conversation sees all prior thinking and text. Context compaction replaces full history with a summary — the agent loses detail. A new agent (subagent, next conversation) starts with zero prior context. Use `/cc-history` to query conversation logs when you need evidence of what actually happened.
-
-2. **Agents make mistakes.** Do not design for "always right." Design for "discover own mistakes" and "recover from mistakes." Verification and self-correction matter more than perfection.
-
-3. **Prompts are code.** They must work, but also be maintainable, observable, and propagate errors. Apply the same engineering standards you would to source code: clarity, testability, failure transparency.
-
-4. **Fix invariants, not symptoms.** An invariant is a structural property the workflow guarantees probabilistically despite LLM stochasticity, **paired with the enforcement mechanism that gives it teeth**. Examples illustrate the pair shape — they are not a checklist:
-
-   - Invariant: "Workflow has no single point of failure."
-     Enforced by: "Final output must pass 3 parallel runs of the reviewer step at the same time before acceptance."
-     When violated (e.g., misleading agent memory causes the reviewer to skip a check on X): the fix targets the *enforcement mechanism* — restore the 3-parallel-reviewer guarantee — not the X that was mis-reviewed. Fixing X first masks the broken invariant; the next X′ fails the same way.
-
-   - Invariant: "Iterative improvement converges — at termination, no candidate beats the chosen solution."
-     Enforced by: "Each iteration drafts ≥2 options and the prior winner is always one of them."
-     When violated: agents add new options without revisiting the prior best, divergence — fix the option-drafting step, not the latest losing candidate.
-
-   Rule: when a symptom appears, identify the broken (property, enforcement) pair before patching the symptom. Step 2 operationalizes this for the target prompt you're modifying.
-
-5. **TDD for prompts.** When the broken pair is a *review pair* (its enforcement mechanism is itself a check/test/review step), only fix the enforcement mechanism in this iteration. Defer fixing the things-it-reviews until a real run proves the restored review now catches them. A review "fixed" without observing it catch the failure on a real run is unverified; patching downstream symptoms on top of an unverified review masks both layers of bug. This is the prompt analogue of test-driven development: prove the test fails on the bug before fixing the code. Apply this rule ONLY if Step 2 classified the broken pair as a review pair.
-
-6. **Someone must do it.** If a task exists, some agent in the system must own it — the human should not be in the loop for routine work. When designing workflows, every necessary action must be assigned to an agent. You cannot leave a task undone because it feels "risky" or "destructive." If an agent memory system needs stale items removed, some agent removes them. Design for safe execution, not avoidance.
-
-7. **Permission to undo.** Every iteration's output must be safely reversible by the next agent. If agent N adds a function, agent N+1 must have the means to determine whether removing it is safe (e.g. "diff with [commit] first"). When the workflow does not provide that means, agents accumulate dead code, stale rules, and cargo-culted artifacts they are afraid to touch. Prompts must ensure each agent has the information needed to confidently undo, replace, or remove what prior agents produced.
-
-8. **Agents won't search for permission to remove.** From the agent's perspective, all existing functions look the same — there is no visible marker distinguishing "I added this 3 steps ago" from "this has existed for years." Checking `git blame` on every function is not feasible: there are too many. If the agent cannot immediately see that removal is safe, it leaves the code in place.
-
-9. **Rules need triggers, not just procedures.** A rule like "if git blame shows this function was added in the current session, it's safe to remove" looks actionable — the procedure for any single function is clear. But the rule is inert because nothing tells the agent *which* functions to check. There are hundreds of functions; the agent has no reason to run `git blame` on any particular one. The procedure is followable, the trigger is missing, so the rule fires zero times. Effective rules either apply unconditionally to a well-defined set (e.g., "all functions in this file without callers are dead code") or are triggered by a workflow step that enumerates the candidates.
-
-10. **Adding is cheap, removing is expensive.** Writing a function, argument, or if-statement costs one edit. Removing one requires searching files, checking callers, verifying no external consumers, confirming nothing in memory depends on it. Over iterations this asymmetry causes unbounded growth — each agent adds, none remove. Counteract it with safe-to-remove rules (e.g., "all code not covered by tests is safe to remove", "functions without callers in this module are dead code") and explicit review-and-prune steps. If a workflow step can add artifacts, a later step must be able to remove them with equal confidence — otherwise the workflow will not converge.
-
-11. **Prompts have no inline comments.** Source code has syntax for comments (`//`, `#`, `/* */`) that compilers and interpreters skip. Prompts have no such syntax — every character is consumed by the model. Text intended as a note to maintainers ("this section handles X", "TODO: revisit") becomes an instruction to the agent. Each prompt file must have exactly one unambiguous location for maintainer-facing documentation (e.g., a companion CLAUDE.md, a header block with a designated marker, or a separate doc file). This location must be obvious to both agents and humans reading the file. Never scatter explanatory notes, TODOs, or rationale inline within prompt text — they will be interpreted as instructions, and their intended audience (the maintainer) will not reliably find them there anyway.
-
-# Prompt Patch - Motivation
+The principles to keep in mind for this work live in this skill's `SKILL.md` (autoloaded). Re-read them now if they are not fresh in your context. The steps below operationalize the "fix invariants, not symptoms" rule against the specific prompt you are modifying.
 
 Why make this change? What goes wrong if we do nothing?
 
@@ -53,7 +19,7 @@ Write out:
    If uncertain, default to `correctness`; you can re-run Step 1 if Step 2 finds no broken pair.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 2 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 2 <<'EOF'
 ## problem
 ...
 
@@ -71,7 +37,7 @@ Execute this command now.
 
 <!-- step 2: invariant-extraction -->
 
-# Prompt Patch - Invariant Extraction
+# Patch Mode - Invariant Extraction
 
 Identify the (property, enforcement) pairs the target prompt/workflow guarantees.
 
@@ -118,7 +84,7 @@ If Step 1 mode is `n/a (mechanical)` — write "Mechanical change — no invaria
    - In efficiency mode: for each at-risk pair, name the concrete enforcement mechanism that your optimization threatens (e.g., "Step 7 currently enforces pair K via 3-scenario regression list; collapsing Steps 6-7 would remove this enforcement").
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 3 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 3 <<'EOF'
 ## invariants
 ...
 
@@ -133,7 +99,7 @@ Execute this command now.
 
 <!-- step 3: brainstorm -->
 
-# Prompt Patch - Brainstorm
+# Patch Mode - Brainstorm
 
 Before designing workflow options, generate a rapid, unfiltered list of ideas.
 
@@ -164,7 +130,7 @@ The only exception: if the change is purely mechanical (e.g., rewording a single
 Note: letters mark mechanism groups. Ideas 1/3/5 share mechanism (A), signaling convergence — ideas 7-10 were forced into underrepresented groups.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 4 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 4 <<'EOF'
 ## ideas
 ...
 EOF
@@ -173,7 +139,7 @@ Execute this command now.
 
 <!-- step 4: identify -->
 
-# Prompt Patch - Identify Target State & Workflows
+# Patch Mode - Identify Target State & Workflows
 
 Define the target and generate multiple paths to reach it.
 
@@ -205,7 +171,7 @@ Define the target and generate multiple paths to reach it.
    - A uses chain-of-thought to construct a decision tree then selects; B evaluates options sequentially
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 5 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 5 <<'EOF'
 ## target-state
 ...
 
@@ -220,7 +186,7 @@ Execute this command now.
 
 <!-- step 5: draft-options -->
 
-# Prompt Patch - Draft Prompt Updates Per Option
+# Patch Mode - Draft Prompt Updates Per Option
 
 For EACH workflow option from step 4, write the concrete set of prompt changes needed to make the agent follow that workflow.
 
@@ -234,7 +200,7 @@ Per option, specify:
 Do NOT pick a winner yet. Write both/all options fully.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 6 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 6 <<'EOF'
 ## options-drafted
 brief summary of each option
 EOF
@@ -243,7 +209,7 @@ Execute this command now.
 
 <!-- step 6: context-check -->
 
-# Prompt Patch - Context & Conflict Check
+# Patch Mode - Context & Conflict Check
 
 Check the existing instruction environment for alignment and conflicts.
 
@@ -260,7 +226,7 @@ Check the existing instruction environment for alignment and conflicts.
 3. **Revise** each option based on conflicts found. If a contradiction cannot be resolved, note it as a hard constraint.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 7 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 7 <<'EOF'
 ## conflicts-found
 ...
 
@@ -272,7 +238,7 @@ Execute this command now.
 
 <!-- step 7: regressions -->
 
-# Prompt Patch - Regression Analysis
+# Patch Mode - Regression Analysis
 
 Your prompt changes will affect ALL invocations, not just the case you are optimizing for.
 
@@ -291,7 +257,7 @@ Mitigation: [revised wording] or [accepted tradeoff: ...]
 ```
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 8 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 8 <<'EOF'
 ## regressions-found
 ...
 
@@ -303,7 +269,7 @@ Execute this command now.
 
 <!-- step 8: pick-draft -->
 
-# Prompt Patch - Pick Best Option & Full Draft
+# Patch Mode - Pick Best Option & Full Draft
 
 1. **Pick the best option.** State why. Reference specific advantages over alternatives (from steps 5-7 analysis).
 
@@ -315,7 +281,7 @@ Execute this command now.
 Write the draft as it would appear in the final file -- not a summary, the actual text.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 9 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 9 <<'EOF'
 ## chosen-option
 ...
 
@@ -327,7 +293,7 @@ Execute this command now.
 
 <!-- step 9: deterministic-check -->
 
-# Prompt Patch - Deterministic Failure Mode Check
+# Patch Mode - Deterministic Failure Mode Check
 
 A "Deterministic Failure Mode" is one where a failure still occurs even if agent appears to follow instructions perfectly.
 
@@ -358,7 +324,7 @@ Then list **prompt assumptions** (e.g., "python3 needed", "git available", "inte
 You may assume any requirement that is true in your current environment and task assumptions aligned with user goals and is clearly checkable from query.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 10 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 10 <<'EOF'
 ## deterministic-issues
 ...
 
@@ -370,7 +336,7 @@ Execute this command now.
 
 <!-- step 10: non-deterministic-check -->
 
-# Prompt Patch - Non-Deterministic Error Check
+# Patch Mode - Non-Deterministic Error Check
 
 What mistakes may the agent make even with correct instructions?
 
@@ -385,7 +351,7 @@ Consider:
 For each risk identified, assess severity (low/medium/high) and revise the draft if severity >= medium.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 11 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 11 <<'EOF'
 ## risks-found
 ...
 
@@ -397,7 +363,7 @@ Execute this command now.
 
 <!-- step 11: top-concerns -->
 
-# Prompt Patch - Top Concerns
+# Patch Mode - Top Concerns
 
 List your **3 top problems or concerns** about the proposed changes.
 
@@ -412,7 +378,7 @@ For each concern:
 If any concern has both likelihood >= medium AND impact >= medium, revise the draft to address it before proceeding.
 
 NEXT STEP:
-<invoke cmd="agent-tools skill prompt_patch.do --step 12 <<'EOF'
+<invoke cmd="agent-tools skill prompt_engineer_v2.do --step 12 <<'EOF'
 ## concerns
 ...
 
@@ -424,7 +390,7 @@ Execute this command now.
 
 <!-- step 12: final -->
 
-# Prompt Patch - Final Version
+# Patch Mode - Final Version
 
 Write the **final version** of all prompt changes.
 

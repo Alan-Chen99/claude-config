@@ -36,7 +36,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `deepthink/`          | Structured reasoning for open questions   | Analytical questions without frameworks  |
 | `codebase-analysis/`  | Systematic codebase exploration           | Repository architecture review           |
 | `prompt-engineer/`    | Prompt optimization and engineering       | Improving agent prompts                  |
-| `prompt-patch/`          | Structured 12-step prompt change workflow; `test-requests.md` captures a worked-example transcript of one run | Targeted prompt modifications with checks; editing the workflow itself |
+| `prompt-engineer-v2/`    | Autoloading prompt-engineering context (principles + suggestions) with an optional 12-step "patch mode" script for difficult prompt edits; `test-requests.md` captures a worked-example transcript of one patch-mode run | Whenever working on prompts/instructions/agent definitions (autoload); editing the principles, the patch-mode workflow, or its example transcript |
 | `incoherence/`        | Consistency detection                     | Finding spec/implementation mismatches   |
 | `do/`                 | Meta-execution pipeline (intent→reframe→execute→reflect) | Wrapping requests in structured execution |
 | `doc-sync/`           | Documentation synchronization             | Syncing docs across repos                |
