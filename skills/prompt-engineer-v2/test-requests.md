@@ -1,8 +1,8 @@
 <!--
-This file is documentation for maintainers of the `prompt-patch` skill.
-It captures one full run of the 12-step workflow on a concrete example
-task, so that anyone editing `steps.md` can see the *shape* of output
-each step is expected to produce.
+This file is documentation for maintainers of the `prompt-engineer-v2`
+skill's patch mode. It captures one full run of the 12-step workflow on
+a concrete example task, so that anyone editing `steps.md` can see the
+*shape* of output each step is expected to produce.
 
 DO NOT copy phrasing, framings, invariants, options, or conclusions from
 this file into `steps.md`. The steps.md prompts should be general; the
@@ -17,9 +17,9 @@ actually changed the shape of the output you wanted to change.
 
 # Test Requests
 
-A worked example of the prompt-patch workflow, as documentation for
-people editing this skill. The example task is small enough to fit in
-one file but exercises every step.
+A worked example of the prompt-engineer-v2 patch-mode workflow, as
+documentation for people editing this skill. The example task is small
+enough to fit in one file but exercises every step.
 
 ## How to use this file
 
@@ -124,7 +124,7 @@ invariants that the optimization puts at risk so Step 7 can preserve
 them.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 2 --mode=efficiency …`
+> `agent-tools skill prompt_engineer_v2.do --step 2 --mode=efficiency …`
 
 ---
 
@@ -213,7 +213,7 @@ I1 and I2 are the load-bearing pairs. Step 4 must reject any option
 that fails to preserve them.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 3 --invariants=… --mode=efficiency`
+> `agent-tools skill prompt_engineer_v2.do --step 3 --invariants=… --mode=efficiency`
 
 ---
 
@@ -263,7 +263,7 @@ T is over-represented; further T variants suppressed. H, S, E, R, N
 all have at least one idea. Convergence acceptable.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 4 --ideas=…`
+> `agent-tools skill prompt_engineer_v2.do --step 4 --ideas=…`
 
 ---
 
@@ -379,7 +379,7 @@ all three. Distinct.
 A is the only option that structurally preserves both I1 and I2.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 5 --target-state=… --option-a=… --option-b=… --option-c=…`
+> `agent-tools skill prompt_engineer_v2.do --step 5 --target-state=… --option-a=… --option-b=… --option-c=…`
 
 ---
 
@@ -463,7 +463,7 @@ rules as a `<system-reminder>`. Replace lines 204–221 with a short
 inline block requirement, no rule text.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 6 --options-drafted=…`
+> `agent-tools skill prompt_engineer_v2.do --step 6 --options-drafted=…`
 
 ---
 
@@ -492,7 +492,7 @@ meets this.
   dependency.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 7 --conflicts-found=… --revisions-made=…`
+> `agent-tools skill prompt_engineer_v2.do --step 7 --conflicts-found=… --revisions-made=…`
 
 ---
 
@@ -567,7 +567,7 @@ Revisions baked into the final draft (Step 8):
 - Keep `<system-reminder>` tags inside the heredoc.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 8 --regressions-found=… --mitigations=…`
+> `agent-tools skill prompt_engineer_v2.do --step 8 --regressions-found=… --mitigations=…`
 
 ---
 
@@ -667,7 +667,7 @@ at step 1.
 No other changes inside `sys_prompt/alan-default-next.md`.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 9 --chosen-option=A --draft-written=yes`
+> `agent-tools skill prompt_engineer_v2.do --step 9 --chosen-option=A --draft-written=yes`
 
 ---
 
@@ -691,7 +691,7 @@ on Linux/macOS/WSL). No new dependencies; the change *removes*
 `agent-tools` and `claude_config.pre_output` requirements.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 10 --deterministic-issues=none --env-requirements=bash`
+> `agent-tools skill prompt_engineer_v2.do --step 10 --deterministic-issues=none --env-requirements=bash`
 
 ---
 
@@ -729,7 +729,7 @@ All medium-and-above risks have mitigations in the draft. No
 further revisions.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 11 --risks-found=… --revisions=none`
+> `agent-tools skill prompt_engineer_v2.do --step 11 --risks-found=… --revisions=none`
 
 ---
 
@@ -766,7 +766,7 @@ that is not already addressed. Concern 1 is the closest call —
 flagged in testing.
 
 > NEXT STEP:
-> `agent-tools skill prompt_patch.do --step 12 --concerns=… --final-revisions=none`
+> `agent-tools skill prompt_engineer_v2.do --step 12 --concerns=… --final-revisions=none`
 
 ---
 

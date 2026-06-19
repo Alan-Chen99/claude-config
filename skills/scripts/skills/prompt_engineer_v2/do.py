@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Prompt Patch - Structured prompt change workflow.
+Prompt Engineer v2 — patch mode: structured prompt change workflow.
 
 Twelve-step workflow:
   1.  Motivation          - Why change? What breaks if we don't?
@@ -31,7 +31,7 @@ from pathlib import Path
 
 TOTAL_STEPS = 12
 
-STEPS_FILE = Path(__file__).resolve().parent.parent.parent.parent / "prompt-patch" / "steps.md"
+STEPS_FILE = Path(__file__).resolve().parent.parent.parent.parent / "prompt-engineer-v2" / "steps.md"
 
 SEPARATOR = re.compile(r"^<!--\s*step\s+(\d+):\s*(.+?)\s*-->$", re.MULTILINE)
 
@@ -63,9 +63,9 @@ def parse_steps(text: str) -> dict[int, str]:
 
 
 def main():
-    """Entry point for prompt-patch workflow."""
+    """Entry point for the prompt-engineer-v2 patch-mode workflow."""
     parser = argparse.ArgumentParser(
-        description="Prompt Patch - Structured prompt change workflow",
+        description="Prompt Engineer v2 (patch mode) - Structured prompt change workflow",
         epilog="Steps: motivation (1) -> invariant-extraction (2) -> brainstorm (3) -> identify (4) -> draft-options (5) -> context-check (6) -> regressions (7) -> pick-draft (8) -> deterministic (9) -> non-deterministic (10) -> concerns (11) -> final (12)",
     )
     parser.add_argument("--step", type=int, required=True)
