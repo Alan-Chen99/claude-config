@@ -1,4 +1,6 @@
 ---
+model: openai/gpt-5.5
+variant: xhigh
 # intent commentary on each delta from upstream gpt.txt:
 #   docs/opencode-system-prompt/alan-default-commentary.md
 # keep that file in sync when editing this one.
