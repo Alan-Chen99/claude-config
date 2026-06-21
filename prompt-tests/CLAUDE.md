@@ -36,6 +36,15 @@ When grading: if a session's transcript shows the agent blocked by
 the artifact-delivery step the case grades, the run is **misconfigured**, not
 fail — rerun with `"plugin": []`.
 
+## Model/variant fidelity
+
+For opencode runs using inline config with `"prompt": "{file:...}"`, agent-file
+frontmatter is not applied. Set the intended `model` and `variant` directly in
+`OPENCODE_CONFIG_CONTENT` and verify the rendered header with
+`agent-tools opencode-pretty <session-id> --agent`. For `alan-default`, use
+`openai/gpt-5.5/xhigh`. A run intended to test xhigh behavior but showing
+`openai/gpt-5.5/default` is harness-misconfigured for any xhigh-specific claim.
+
 ## Contamination policy
 
 Cheating and contamination checks are grader-only. If a tested-agent transcript
@@ -44,6 +53,21 @@ from any git worktree of `claude-config`, or any other access to hidden test
 criteria, grader-only docs, reference solutions, baselines, or prior results for
 the case, the run is `invalid` and must be rerun. This is not a semantic `fail`:
 the run did not fairly measure the task.
+
+## Trial logging
+
+Every trial — pass, fail, or invalid — gets a record at
+`docs/opencode-system-prompt/trials/<YYYY-MM-DD>-<case>-<descriptor>.md`. The
+record names the session/log id, the verdict, why the verdict follows, and the
+supporting transcript quotes (thinking-block reasoning, final prose, tool/
+timeline points). Do not append all trials to a single growing iteration log:
+one file grows past the point where readers can locate any specific trial.
+
+For a `fail` verdict, the record must pinpoint either an action point ("agent
+should not have done X here") or an omission point ("agent should have
+considered Y here") inside the transcript. If no such point exists after
+reading the trace, label the prompt or grader as deterministically wrong in
+that record rather than blaming stochastic agent behavior.
 
 ## Rules for editing the system-under-test
 
