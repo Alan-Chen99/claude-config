@@ -185,6 +185,8 @@ OPENCODE_CONFIG_CONTENT='{
   "agent": {
     "prompt-test": {
       "mode": "primary",
+      "model": "openai/gpt-5.5",
+      "variant": "xhigh",
       "prompt": "{file:'"$REPO"'/opencode/agents/alan-default.md}",
       "permission": {"read":"allow","glob":"allow","grep":"allow","list":"allow","bash":"allow","edit":"allow","write":"allow"}
     }
@@ -258,5 +260,13 @@ copied in, grader-only files left in the repo.
   drill-down hint (`agent-tools opencode-pretty <session> --message <id> --full`)
   to recover any single message in full.
 - **Don't commit raw JSON session logs.** Keep them under `/tmp/`. Summarize
-  failure modes in commit messages or, if persistent, in
-  `docs/opencode-system-prompt/baselines/`.
+  the trial in a record at `docs/opencode-system-prompt/trials/<YYYY-MM-DD>-<case>-<descriptor>.md`
+  per the trial-logging rule in `prompt-tests/CLAUDE.md`. Do not append to a
+  single growing iteration log.
+- **Set model and variant in the config block, not the agent file frontmatter.**
+  When the recipe uses `"prompt": "{file:...}"`, opencode does not apply the
+  agent file's frontmatter. Set `model` and `variant` (e.g.
+  `openai/gpt-5.5` and `xhigh` for `alan-default`) inside the agent block of
+  `OPENCODE_CONFIG_CONTENT`, then verify with
+  `agent-tools opencode-pretty <session> --agent`. See `prompt-tests/CLAUDE.md`
+  ("Model/variant fidelity") for the failure mode.
