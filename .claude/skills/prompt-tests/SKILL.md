@@ -133,7 +133,7 @@ and corrected harness isolation.
 ### opencode
 
 See `skills/opencode-subcommand` for the full recipe. The minimal pattern for
-running a test under an existing agent prompt (e.g., `opencode/agents/alan-default.md`):
+running a test under an existing agent prompt (e.g., `opencode/agents/alan-default-ids.md`):
 
 #### Plugin policy (load-bearing)
 
@@ -169,7 +169,7 @@ Rebuild the worktree binary whenever `agent-tools/src/main.rs` (or any prompt-co
 cd "$REPO/agent-tools" && cargo build --release
 ```
 
-Do not fall back to the system binary for opencode prompt tests. `alan-default` calls `agent-tools opencode.gate`, so a missing worktree binary means the run does not exercise the worktree prompt-coupled code.
+Do not fall back to the system binary for opencode prompt tests. `alan-default-ids` calls `agent-tools opencode.gate`, so a missing worktree binary means the run does not exercise the worktree prompt-coupled code.
 
 #### Default recipe
 
@@ -191,7 +191,7 @@ OPENCODE_CONFIG_CONTENT='{
       "mode": "primary",
       "model": "openai/gpt-5.5",
       "variant": "xhigh",
-      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default.md}",
+      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default-ids.md}",
       "permission": {"read":"allow","glob":"allow","grep":"allow","list":"allow","bash":"allow","edit":"allow","write":"allow"}
     }
   }

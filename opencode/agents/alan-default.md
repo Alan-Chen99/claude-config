@@ -1,9 +1,9 @@
 ---
 model: openai/gpt-5.5
 variant: xhigh
-# intent commentary on each delta from upstream codex gpt-5.5 base_instructions:
+# legacy unlabelled variant; intent commentary now mirrors alan-default-ids.md:
 #   docs/opencode-system-prompt/alan-default-commentary.md
-# keep that file in sync when editing this one.
+# update alan-default-ids.md and the commentary for the default prompt going forward.
 ---
 
 You are OpenCode. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.

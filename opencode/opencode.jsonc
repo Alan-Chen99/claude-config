@@ -7,7 +7,7 @@
   "experimental": {
     "openTelemetry": true,
   },
-  "default_agent": "alan-default",
+  "default_agent": "alan-default-ids",
   "logLevel": "DEBUG",
   "permission": "allow",
 }
