@@ -35,14 +35,6 @@ mod signals;
 #[derive(Parser)]
 #[command(name = "agent-tools")]
 struct Cli {
-    /// Override the claude-config root directory (e.g., point at a worktree).
-    /// Takes precedence over CLAUDE_CONFIG_ROOT and the ~/.claude/skills symlink.
-    /// Place before the subcommand to avoid ambiguity with subcommand args
-    /// (subcommands capture trailing args verbatim). Has no effect on
-    /// subcommands that don't resolve the repo root (run, hook-pre, hook-post, ps).
-    #[arg(long, global = true, value_name = "PATH")]
-    root: Option<PathBuf>,
-
     #[command(subcommand)]
     command: Cmd,
 }
@@ -142,28 +134,88 @@ enum Cmd {
     },
 }
 
-/// Resolve the claude-config repository root.
+/// Resolve the claude-config repository root from the binary's build root.
 ///
-/// Priority:
-///   1. --root CLI flag (highest, for ad-hoc override in a worktree)
-///   2. CLAUDE_CONFIG_ROOT env var (persistent override, e.g. exported in a shell)
-///   3. Derived from ~/.claude/skills symlink target (parent of target)
-fn repo_root(cli_root: Option<PathBuf>) -> PathBuf {
-    if let Some(root) = cli_root {
-        return root;
+/// `CLAUDE_CONFIG_ROOT` is an assertion, not an override: if present it must
+/// match this binary's compiled root. When running a worktree build distinct
+/// from the installed default, it must be present so test harnesses fail loudly
+/// instead of silently exercising a stale binary/root pairing.
+fn repo_root() -> PathBuf {
+    let build_root = canonicalize_root(compiled_root(), "compiled claude-config root");
+
+    if let Some(env_root) = env::var_os("CLAUDE_CONFIG_ROOT") {
+        let env_root_raw = PathBuf::from(env_root);
+        let env_root = canonicalize_root(&env_root_raw, "CLAUDE_CONFIG_ROOT");
+        if env_root != build_root {
+            root_error(format!(
+                "CLAUDE_CONFIG_ROOT does not match this agent-tools binary\n  binary root: {}\n  CLAUDE_CONFIG_ROOT: {}\nRebuild or invoke the agent-tools binary from the matching checkout.",
+                build_root.display(),
+                env_root.display()
+            ));
+        }
+        return build_root;
     }
-    if let Ok(root) = env::var("CLAUDE_CONFIG_ROOT") {
-        return PathBuf::from(root);
+
+    let default_root = installed_default_root().unwrap_or_else(|err| {
+        root_error(format!(
+            "CLAUDE_CONFIG_ROOT is unset and the installed default root could not be determined: {err}\n  binary root: {}\nSet CLAUDE_CONFIG_ROOT={} when running this binary from a worktree.",
+            build_root.display(),
+            build_root.display()
+        ));
+    });
+    let default_root = canonicalize_root(&default_root, "default ~/.claude/skills root");
+
+    if default_root != build_root {
+        root_error(format!(
+            "CLAUDE_CONFIG_ROOT is required for this non-default agent-tools binary\n  binary root: {}\n  default root: {}\nSet CLAUDE_CONFIG_ROOT={} and retry.",
+            build_root.display(),
+            default_root.display(),
+            build_root.display()
+        ));
     }
-    // Derive from ~/.claude/skills symlink — its target is <repo_root>/skills
-    let claude_dir = PathBuf::from(env::var("HOME").expect("HOME not set")).join(".claude");
+
+    build_root
+}
+
+fn compiled_root() -> &'static Path {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+}
+
+fn installed_default_root() -> Result<PathBuf, String> {
+    let home = env::var_os("HOME").ok_or_else(|| "HOME not set".to_string())?;
+    let claude_dir = PathBuf::from(home).join(".claude");
     let skills_link = claude_dir.join("skills");
     let target = std::fs::read_link(&skills_link)
-        .unwrap_or_else(|e| panic!("cannot read symlink {}: {e}", skills_link.display()));
-    target
+        .map_err(|e| format!("cannot read symlink {}: {e}", skills_link.display()))?;
+    let target = if target.is_absolute() {
+        target
+    } else {
+        skills_link
+            .parent()
+            .expect("skills symlink has a parent")
+            .join(target)
+    };
+    let root = target
         .parent()
-        .unwrap_or_else(|| panic!("symlink target {} has no parent", target.display()))
-        .to_path_buf()
+        .ok_or_else(|| format!("symlink target {} has no parent", target.display()))?;
+    Ok(root.to_path_buf())
+}
+
+fn canonicalize_root(path: impl AsRef<Path>, label: &str) -> PathBuf {
+    let path = path.as_ref();
+    std::fs::canonicalize(path).unwrap_or_else(|e| {
+        root_error(format!(
+            "cannot canonicalize {label} {}: {e}",
+            path.display()
+        ));
+    })
+}
+
+fn root_error(message: String) -> ! {
+    eprintln!("agent-tools: {message}");
+    std::process::exit(2);
 }
 
 /// Derive the venv path for a project root: ~/.claude/venvs/<basename>/
@@ -199,6 +251,7 @@ fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[S
 
 fn main() {
     let cli = Cli::parse();
+    let root = repo_root();
 
     match cli.command {
         Cmd::Run { desc, cmd } => {
@@ -239,90 +292,87 @@ fn main() {
             print!("{GATE_STDOUT}");
             std::process::exit(0);
         }
-        cmd => {
-            let root = repo_root(cli.root);
-            match cmd {
-                Cmd::Skill { module, args } => {
-                    let full_module = format!("skills.{module}");
-                    uv_run(
-                        &root,
-                        &root.join("skills/scripts"),
-                        &["python3", "-m", &full_module],
-                        &args,
-                    );
-                }
-                Cmd::CcPretty { args } => {
-                    uv_run(
-                        &root,
-                        &root,
-                        &["python3", "-m", "claude_config.cc_pretty.main"],
-                        &args,
-                    );
-                }
-                Cmd::CcPrettyIntercept { args } => {
-                    uv_run(
-                        &root,
-                        &root,
-                        &["python3", "-m", "claude_config.cc_pretty_intercept.main"],
-                        &args,
-                    );
-                }
-                Cmd::CcWorkflow { args } => {
-                    uv_run(
-                        &root,
-                        &root,
-                        &["python3", "-m", "claude_config.cc_workflow.extract"],
-                        &args,
-                    );
-                }
-                Cmd::NtfyHook { args } => {
-                    uv_run(
-                        &root,
-                        &root,
-                        &["python3", "-m", "claude_config.ntfy_hook"],
-                        &args,
-                    );
-                }
-                Cmd::PreOutputRecord { args } => {
-                    uv_run(
-                        &root,
-                        &root,
-                        &["python3", "-m", "claude_config.pre_output.record"],
-                        &args,
-                    );
-                }
-                Cmd::CountTokens { args } => {
-                    uv_run(
-                        &root,
-                        &root,
-                        &["python3", "-m", "claude_config.count_tokens"],
-                        &args,
-                    );
-                }
-                Cmd::EnvContext => {
-                    let cwd = env::current_dir().unwrap_or_else(|e| panic!("cannot read cwd: {e}"));
-                    uv_run(
-                        &root,
-                        &cwd,
-                        &["python3", "-m", "claude_config.env_context"],
-                        &[],
-                    );
-                }
-                Cmd::Opencode { args } => opencode::run(&root, &args),
-                Cmd::OpencodePretty { args } => {
-                    uv_run(
-                        &root,
-                        &root,
-                        &["python3", "-m", "claude_config.opencode_pretty.main"],
-                        &args,
-                    );
-                }
-                Cmd::HookPre => unreachable!(),
-                Cmd::HookPost => unreachable!(),
-                Cmd::Run { .. } => unreachable!(),
-                Cmd::Ps { .. } => unreachable!(),
-                Cmd::OpencodeGate { .. } => unreachable!(),
+        cmd => match cmd {
+            Cmd::Skill { module, args } => {
+                let full_module = format!("skills.{module}");
+                uv_run(
+                    &root,
+                    &root.join("skills/scripts"),
+                    &["python3", "-m", &full_module],
+                    &args,
+                );
             }
-        }
+            Cmd::CcPretty { args } => {
+                uv_run(
+                    &root,
+                    &root,
+                    &["python3", "-m", "claude_config.cc_pretty.main"],
+                    &args,
+                );
+            }
+            Cmd::CcPrettyIntercept { args } => {
+                uv_run(
+                    &root,
+                    &root,
+                    &["python3", "-m", "claude_config.cc_pretty_intercept.main"],
+                    &args,
+                );
+            }
+            Cmd::CcWorkflow { args } => {
+                uv_run(
+                    &root,
+                    &root,
+                    &["python3", "-m", "claude_config.cc_workflow.extract"],
+                    &args,
+                );
+            }
+            Cmd::NtfyHook { args } => {
+                uv_run(
+                    &root,
+                    &root,
+                    &["python3", "-m", "claude_config.ntfy_hook"],
+                    &args,
+                );
+            }
+            Cmd::PreOutputRecord { args } => {
+                uv_run(
+                    &root,
+                    &root,
+                    &["python3", "-m", "claude_config.pre_output.record"],
+                    &args,
+                );
+            }
+            Cmd::CountTokens { args } => {
+                uv_run(
+                    &root,
+                    &root,
+                    &["python3", "-m", "claude_config.count_tokens"],
+                    &args,
+                );
+            }
+            Cmd::EnvContext => {
+                let cwd = env::current_dir().unwrap_or_else(|e| panic!("cannot read cwd: {e}"));
+                uv_run(
+                    &root,
+                    &cwd,
+                    &["python3", "-m", "claude_config.env_context"],
+                    &[],
+                );
+            }
+            Cmd::Opencode { args } => opencode::run(&root, &args),
+            Cmd::OpencodePretty { args } => {
+                uv_run(
+                    &root,
+                    &root,
+                    &["python3", "-m", "claude_config.opencode_pretty.main"],
+                    &args,
+                );
+            }
+            Cmd::HookPre => unreachable!(),
+            Cmd::HookPost => unreachable!(),
+            Cmd::Run { .. } => unreachable!(),
+            Cmd::Ps { .. } => unreachable!(),
+            Cmd::OpencodeGate { .. } => unreachable!(),
+        },
     }
 }

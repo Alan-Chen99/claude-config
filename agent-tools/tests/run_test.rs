@@ -5,6 +5,19 @@ fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
 }
 
+fn worktree_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+        .to_path_buf()
+}
+
+fn agent_tools() -> Command {
+    let mut command = Command::new(bin());
+    command.env("CLAUDE_CONFIG_ROOT", worktree_root());
+    command
+}
+
 fn make_task(home: &std::path::Path) -> PathBuf {
     let dir = home.join(".claude/agent-tools/sid/tuid");
     std::fs::create_dir_all(&dir).unwrap();
@@ -14,7 +27,7 @@ fn make_task(home: &std::path::Path) -> PathBuf {
 #[test]
 fn errors_when_env_not_set() {
     let home = tempfile::tempdir().unwrap();
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args(["run", "--", "echo", "hi"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
@@ -28,7 +41,7 @@ fn errors_when_env_not_set() {
 fn captures_child_stdout_and_forwards() {
     let home = tempfile::tempdir().unwrap();
     let parent_dir = make_task(home.path());
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args([
             "run",
             "--",
@@ -77,7 +90,7 @@ fn lazily_creates_parent_dir_when_missing() {
         !parent_dir.exists(),
         "precondition: parent dir must not exist"
     );
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args(["run", "--", "bash", "-c", "echo lazy"])
         .env("HOME", home.path())
         .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
@@ -113,7 +126,7 @@ fn forwards_stdin_to_child() {
     let parent_dir = make_task(home.path());
     use std::io::Write;
     use std::process::Stdio;
-    let mut c = Command::new(bin())
+    let mut c = agent_tools()
         .args(["run", "--", "cat"])
         .env("HOME", home.path())
         .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
@@ -133,7 +146,7 @@ fn forwards_stdin_to_child() {
 fn propagates_exit_code() {
     let home = tempfile::tempdir().unwrap();
     let parent_dir = make_task(home.path());
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args(["run", "--", "bash", "-c", "exit 7"])
         .env("HOME", home.path())
         .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
@@ -146,7 +159,7 @@ fn propagates_exit_code() {
 fn records_child_started_and_child_exit_in_parent_events() {
     let home = tempfile::tempdir().unwrap();
     let parent_dir = make_task(home.path());
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args([
             "run",
             "--desc",

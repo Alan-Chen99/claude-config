@@ -51,12 +51,12 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools opencode-pretty <session-id> [args]` — pretty-print an opencode session.
 - `agent-tools opencode.gate` — prompt gate used by opencode agent instructions; accepts stdin/heredoc input, prints gate instructions to stdout, and exits successfully.
 
-Root resolution (no dependency on binary location):
-1. `--root <PATH>` CLI flag (place before the subcommand for unambiguous parsing; for ad-hoc override in a worktree)
-2. `CLAUDE_CONFIG_ROOT` env var
-3. Default: derived from `~/.claude/skills` symlink target (i.e. `/repos/claude-config`)
+Root resolution:
+1. The binary's compile-time root is authoritative: parent of `CARGO_MANIFEST_DIR` when `agent-tools` was built.
+2. `CLAUDE_CONFIG_ROOT` is an assertion, not an override. If set, it must canonicalize to the compile-time root or `agent-tools` exits non-zero.
+3. If the compile-time root differs from the installed default root derived from `~/.claude/skills`, `CLAUDE_CONFIG_ROOT` must be set to the compile-time root or `agent-tools` exits non-zero.
 
-The flag is a no-op for subcommands that don't resolve the repo root (`run`, `hook-pre`, `hook-post`, `ps`, `opencode.gate`). It applies to subcommands that need the repo root for config or Python project/module resolution, including `opencode` and `opencode-pretty`.
+There is no `--root` override. This applies to all subcommands, including `run`, `hook-pre`, `hook-post`, `ps`, and `opencode.gate`, so wrong-worktree prompt tests fail loudly instead of silently exercising another checkout's binary or gate text.
 
 Venv location: each project root resolves to `~/.claude/venvs/<basename>/` (set via `UV_PROJECT_ENVIRONMENT`), keeping venvs out of the source tree so host and container sessions don't fight over the same `.venv`.
 

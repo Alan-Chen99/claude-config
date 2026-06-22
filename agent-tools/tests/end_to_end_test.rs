@@ -36,6 +36,13 @@ fn bin_dir() -> PathBuf {
         .to_path_buf()
 }
 
+fn worktree_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+        .to_path_buf()
+}
+
 #[test]
 fn full_loop_hook_pre_run_hook_post_ps() {
     let home = tempfile::tempdir().unwrap();
@@ -65,6 +72,7 @@ fn full_loop_hook_pre_run_hook_post_ps() {
             .arg("hook-pre")
             .env("HOME", home.path())
             .env("PATH", &path_with_bin)
+            .env("CLAUDE_CONFIG_ROOT", worktree_root())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -114,6 +122,7 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         .args(["-c", &rewritten])
         .env("HOME", home.path())
         .env("PATH", &path_with_bin)
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
         .output()
         .unwrap();
     assert!(
@@ -181,6 +190,7 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         .arg("hook-post")
         .env("HOME", home.path())
         .env("PATH", &path_with_bin)
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -228,6 +238,7 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         .arg(sid)
         .env("HOME", home.path())
         .env("PATH", &path_with_bin)
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();

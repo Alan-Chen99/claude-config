@@ -1,12 +1,26 @@
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
 }
 
+fn worktree_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+        .to_path_buf()
+}
+
+fn agent_tools() -> Command {
+    let mut command = Command::new(bin());
+    command.env("CLAUDE_CONFIG_ROOT", worktree_root());
+    command
+}
+
 fn run_hook_pre(home: &std::path::Path, input: &str) -> std::process::Output {
-    let mut child = Command::new(bin())
+    let mut child = agent_tools()
         .arg("hook-pre")
         .env("HOME", home)
         .stdin(Stdio::piped())

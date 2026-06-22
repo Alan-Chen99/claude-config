@@ -5,6 +5,19 @@ fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
 }
 
+fn worktree_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+        .to_path_buf()
+}
+
+fn agent_tools() -> Command {
+    let mut command = Command::new(bin());
+    command.env("CLAUDE_CONFIG_ROOT", worktree_root());
+    command
+}
+
 /// Seed a capture at `<home>/.claude/agent-tools/<session>/[<agent>/]<tuid>/<pid>/`.
 /// Writes meta.json, stdout, stderr. Returns the capture (pid) directory.
 fn seed_capture(
@@ -58,7 +71,7 @@ fn append_event(home: &Path, session: &str, agent: Option<&str>, tuid: &str, lin
 #[test]
 fn no_state_on_disk_prints_session_and_marker() {
     let home = tempfile::tempdir().unwrap();
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args(["ps", "--session-id", "sid-fresh"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
@@ -98,7 +111,7 @@ fn main_thread_two_captures_under_one_tool_use_id() {
         "out-b\n",
     );
 
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args(["ps", "--session-id", "sid"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
@@ -133,7 +146,7 @@ fn subagent_capture_listed_under_subagent_header() {
         "sub-out\n",
     );
 
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args(["ps", "--session-id", "sid"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
@@ -175,7 +188,7 @@ fn task_filter_limits_to_one_tool_use_id() {
         "d\n",
     );
 
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args(["ps", "--session-id", "sid", "--task", "tuid-keep"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
@@ -229,7 +242,7 @@ fn events_appear_in_chronological_order() {
         r#"{"ts":"2026-05-17T10:00:03Z","kind":"last","data":{"n":3}}"#,
     );
 
-    let out = Command::new(bin())
+    let out = agent_tools()
         .args(["ps", "--session-id", "sid"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")

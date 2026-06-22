@@ -1,15 +1,29 @@
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
 }
 
+fn worktree_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+        .to_path_buf()
+}
+
+fn agent_tools() -> Command {
+    let mut command = Command::new(bin());
+    command.env("CLAUDE_CONFIG_ROOT", worktree_root());
+    command
+}
+
 fn run_post(
     home: &std::path::Path,
     body: serde_json::Value,
 ) -> (std::process::ExitStatus, String, String) {
-    let mut c = Command::new(bin())
+    let mut c = agent_tools()
         .arg("hook-post")
         .env("HOME", home)
         .stdin(Stdio::piped())

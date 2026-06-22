@@ -157,9 +157,11 @@ requires the plugin loaded. Add to the plugin list for that case:
 
 #### Worktree `agent-tools` binary (load-bearing for any prompt that calls `agent-tools`)
 
-The default recipe always prepends the worktree's `agent-tools/target/release` directory to `PATH`. `agent-tools opencode.gate` (and any other agent-tools subcommand reachable from the agent prompt) carries strings baked into the binary at build time, including the GATE_STDOUT constant in `agent-tools/src/main.rs`. The system binary at `~/.local/bin/agent-tools` resolves to the canonical repo (`/repos/claude-config`) per the install.sh rule; changes made in a worktree never reach it. Without the PATH override, the test agent invokes the canonical binary and your worktree GATE_STDOUT edit is silently invisible — the prompt change appears tested, but the gate the agent actually sees is the unchanged one.
+The default recipe always prepends the worktree's `agent-tools/target/release` directory to `PATH` and sets `CLAUDE_CONFIG_ROOT=$REPO`. `agent-tools opencode.gate` (and any other agent-tools subcommand reachable from the agent prompt) carries strings baked into the binary at build time, including the GATE_STDOUT constant in `agent-tools/src/main.rs`. The system binary at `~/.local/bin/agent-tools` resolves to the canonical repo (`/repos/claude-config`) per the install.sh rule; changes made in a worktree never reach it. Without the PATH override, the test agent invokes the canonical binary and your worktree GATE_STDOUT edit is silently invisible — the prompt change appears tested, but the gate the agent actually sees is the unchanged one.
 
-The override is invisible to the tested agent's observable surface: `PATH` is a process env var, not a directory or file. The agent does not read `$PATH` in normal operation; even if it did (`which agent-tools` or `echo $PATH`), the worktree path identifies the worktree but does not reveal which prompt clause is under test or what answer is being graded — unlike directory-based isolation, where a fixture file's contents can leak the test goal. Worktree-name-based information leakage is bounded to "this is being run from a worktree", which the agent should already assume during any prompt-test run.
+`CLAUDE_CONFIG_ROOT` is an assertion, not an override. Worktree-built `agent-tools` refuses to run unless the env var canonicalizes to the same root the binary was built from. This turns wrong-worktree and stale-binary prompt tests into setup failures instead of silent false confidence.
+
+The override is invisible to the tested agent's observable surface: `PATH` and `CLAUDE_CONFIG_ROOT` are process env vars, not directories or files. The agent does not read them in normal operation; even if it did (`which agent-tools` or inspecting env), the worktree path identifies the worktree but does not reveal which prompt clause is under test or what answer is being graded — unlike directory-based isolation, where a fixture file's contents can leak the test goal. Worktree-name-based information leakage is bounded to "this is being run from a worktree", which the agent should already assume during any prompt-test run.
 
 Rebuild the worktree binary whenever `agent-tools/src/main.rs` (or any prompt-coupled constant) changes:
 
@@ -167,7 +169,7 @@ Rebuild the worktree binary whenever `agent-tools/src/main.rs` (or any prompt-co
 cd "$REPO/agent-tools" && cargo build --release
 ```
 
-The conditional `[ -x ... ]` check in the recipe below falls back to the system binary when no worktree build exists, so the same recipe works for prompt-tests that don't touch agent-tools.
+Do not fall back to the system binary for opencode prompt tests. `alan-default` calls `agent-tools opencode.gate`, so a missing worktree binary means the run does not exercise the worktree prompt-coupled code.
 
 #### Default recipe
 
@@ -176,7 +178,9 @@ REPO="$(git rev-parse --show-toplevel)"
 CASE="prompt-tests/general/network-resilience"
 SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
 WORKTREE_BIN="$REPO/agent-tools/target/release"
-[ -x "$WORKTREE_BIN/agent-tools" ] && export PATH="$WORKTREE_BIN:$PATH"
+test -x "$WORKTREE_BIN/agent-tools"
+export PATH="$WORKTREE_BIN:$PATH"
+export CLAUDE_CONFIG_ROOT="$REPO"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \
 OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
 OPENCODE_CONFIG_CONTENT='{
@@ -199,10 +203,10 @@ opencode run --agent prompt-test --format json --dir "$SCRATCH" \
 Verify the agent will receive the worktree GATE_STDOUT before running tests:
 
 ```bash
-"$WORKTREE_BIN/agent-tools" opencode.gate < /dev/null | head -5
+CLAUDE_CONFIG_ROOT="$REPO" "$WORKTREE_BIN/agent-tools" opencode.gate < /dev/null | head -5
 ```
 
-If the printed text doesn't reflect your edit, the rebuild step is the most likely culprit.
+If the command fails or the printed text doesn't reflect your edit, rebuild the worktree binary before running the prompt test.
 
 For cases that need files in the tested agent's cwd, copy only the fixture
 contents into the scratch directory before running. Do not point `--dir` into

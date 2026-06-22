@@ -8,6 +8,13 @@ fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
 }
 
+fn worktree_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+        .to_path_buf()
+}
+
 #[test]
 fn help_lists_opencode_pretty_subcommand() {
     let out = Command::new(bin()).arg("--help").output().unwrap();
@@ -24,9 +31,8 @@ fn help_lists_opencode_pretty_subcommand() {
 #[test]
 fn opencode_pretty_dispatches_to_python_module_and_forwards_args() {
     let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().join("repo");
+    let root = worktree_root();
     let bindir = tmp.path().join("bin");
-    fs::create_dir_all(&root).unwrap();
     fs::create_dir_all(&bindir).unwrap();
 
     let fake_uv = bindir.join("uv");
@@ -50,8 +56,6 @@ printf 'args=%s\n' "$*"
     );
 
     let out = Command::new(bin())
-        .arg("--root")
-        .arg(PathBuf::from(&root))
         .arg("opencode-pretty")
         .args([
             "session-123",
@@ -64,6 +68,7 @@ printf 'args=%s\n' "$*"
             "--agent",
             "subagent",
         ])
+        .env("CLAUDE_CONFIG_ROOT", &root)
         .env("PATH", path)
         .output()
         .unwrap();
@@ -97,21 +102,9 @@ printf 'args=%s\n' "$*"
 #[test]
 fn opencode_loads_prefixed_langfuse_env_and_forwards_args() {
     let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().join("repo");
+    let root = worktree_root();
     let bindir = tmp.path().join("bin");
-    fs::create_dir_all(&root).unwrap();
     fs::create_dir_all(&bindir).unwrap();
-
-    fs::write(
-        root.join(".env"),
-        r#"
-OPENCODE_LANGFUSE_SECRET_KEY="secret from env"
-OPENCODE_LANGFUSE_PUBLIC_KEY="public from env"
-OPENCODE_LANGFUSE_BASE_URL="https://langfuse.example"
-OPENCODE_LANGFUSE_EXTRA="must not be stripped"
-"#,
-    )
-    .unwrap();
 
     let fake_opencode = bindir.join("opencode");
     fs::write(
@@ -142,11 +135,14 @@ printf 'args=%s\n' "$*"
     );
 
     let out = Command::new(bin())
-        .arg("--root")
-        .arg(PathBuf::from(&root))
         .arg("opencode")
         .args(["--model", "test/model", "prompt text"])
+        .env("CLAUDE_CONFIG_ROOT", &root)
         .env("PATH", path)
+        .env("OPENCODE_LANGFUSE_SECRET_KEY", "secret from env")
+        .env("OPENCODE_LANGFUSE_PUBLIC_KEY", "public from env")
+        .env("OPENCODE_LANGFUSE_BASE_URL", "https://langfuse.example")
+        .env("OPENCODE_LANGFUSE_EXTRA", "must not be stripped")
         .env_remove("LANGFUSE_SECRET_KEY")
         .env_remove("LANGFUSE_PUBLIC_KEY")
         .env_remove("LANGFUSE_BASEURL")
@@ -200,6 +196,7 @@ fn opencode_gate_accepts_heredoc_input_and_prints_instructions() {
     let mut child = Command::new(bin())
         .arg("opencode.gate")
         .env("HOME", tmp.path())
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -227,4 +224,92 @@ fn opencode_gate_accepts_heredoc_input_and_prints_instructions() {
         "stdout: {stdout}"
     );
     assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+}
+
+#[test]
+fn opencode_gate_rejects_missing_root_assertion_when_default_is_unavailable() {
+    let tmp = tempfile::tempdir().unwrap();
+    let out = Command::new(bin())
+        .arg("opencode.gate")
+        .env("HOME", tmp.path())
+        .env_remove("CLAUDE_CONFIG_ROOT")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert!(!out.status.success(), "expected failure");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("CLAUDE_CONFIG_ROOT is unset"),
+        "stderr: {stderr}"
+    );
+}
+
+#[test]
+fn opencode_gate_allows_unset_root_assertion_when_default_matches_binary() {
+    let tmp = tempfile::tempdir().unwrap();
+    let claude_dir = tmp.path().join(".claude");
+    fs::create_dir_all(&claude_dir).unwrap();
+    std::os::unix::fs::symlink(worktree_root().join("skills"), claude_dir.join("skills")).unwrap();
+
+    let out = Command::new(bin())
+        .arg("opencode.gate")
+        .env("HOME", tmp.path())
+        .env_remove("CLAUDE_CONFIG_ROOT")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("The gate has fired"), "stdout: {stdout}");
+}
+
+#[test]
+fn opencode_gate_rejects_mismatched_root_assertion() {
+    let tmp = tempfile::tempdir().unwrap();
+    let out = Command::new(bin())
+        .arg("opencode.gate")
+        .env("CLAUDE_CONFIG_ROOT", tmp.path())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert!(!out.status.success(), "expected failure");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("does not match this agent-tools binary"),
+        "stderr: {stderr}"
+    );
+}
+
+#[test]
+fn root_flag_is_rejected() {
+    let out = Command::new(bin())
+        .arg("--root")
+        .arg(worktree_root())
+        .arg("opencode.gate")
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+
+    assert!(!out.status.success(), "expected failure");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("unexpected argument '--root'"),
+        "stderr: {stderr}"
+    );
 }
