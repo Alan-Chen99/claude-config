@@ -179,14 +179,22 @@ Possible test (not done yet): "subject to explicit user instructions to the cont
 
 (R060) These steps are REQUIRED for ALL tasks.
 
-1. (R061) Gather enough context to understand the user's request.
-<!-- i dont think this acutally happens? -->
+<!--
+R061 reworded 2026-06-22 after diagnosing the "diagnose-summarize" failure mode where the agent stays cwd-local even when PROMPT.md names a prior loop at the same goal. Sessions ses_10f36948effeXWQ1dEPYPeuEdZ, ses_10efa3cd5ffeL6p9p6JZs9nwvo, and baseline ses_10ee37d78ffeB41v6n4vGb3SeB all failed to open /root/claude-config-work/ despite PROMPT.md saying "older loop didnt resolve... we will work on the same task." The original wording "Gather enough context to understand the user's request" got evaluated against the literal task verb ("status") which was satisfiable from cwd, so the older worktree never entered scope. Naming "the user's underlying question, not just the literal task verb" forces the agent to ladder up to the inferred question before scoping reads.
+
+Ablation: an initial fix proposed a new step R060.5 plus G1 (verb examples) and G2 (PROMPT.md/referenced-files/prior-context naming) — tested in ses_10edb95f5ffe7x0xKjV7nzIo13 with 5 older-worktree reads. Two ablation runs against the same workspace (tag ep-loop4 checked out at /tmp/ep-loop4-test) showed the long form was over-engineered: ses_10eaa0cf0ffedvjVGgMNbVKlmM (R060.5 main only, no G1/G2) got 12 older-worktree reads, and ses_10ea9972affeQNGnU8EomAY3JR (this minimal R061 reword, no R060.5 at all) got 10 reads plus the richest diagnosis — it found the ep-loop4 tag, recovered PROMPT.md from git history, and surfaced the work-vs-ep-loop4 state confusion. The minimal change won on every axis (behavioral coverage, structural minimality, no rule-list renumbering, less overfitted wording).
+
+Side effect observed: the words "underlying question" in any of the variants trip the prompt-engineer-v2 skill auto-load heuristic. Harmless on the tested case but a vector to watch when this rule fires on tasks that look like meta-cognition.
+
+See trial 2026-06-22-prompt-as-data-question-first.md for the full A/B + ablation record.
+-->
+1. (R061) Gather enough context to answer the user's underlying question, not just the literal task verb.
 2. (R062) Identify implicit expectations: action, explanation, verification, follow-up, and any constraints the user did not spell out.
 <!-- placed as default to observe behavior. likely not used reliably. may remove later -->
 3. (R063) If priorities or preferences are unclear, ask the user with your question tool before proceeding.
 <!-- this may confict with superpowers? -->
 4. (R064) Execute the main portion of the task. If the task is a skill invocation, invoke the skill here.
-<!-- Step 5 frames the gate as an instructions-emitter: the agent writes a heredoc to the gate, the gate's stdout returns reasoning prompts in the ToolResult, and the agent then has a separate thinking-block reasoning step before drafting or revising the final response. Collocating the prompts with the agent's answer text inside the heredoc body (single forward-write pass) loses the thinking-block bandwidth between question and answer; the gate-stdout channel preserves it. -->
+<!-- Step 4 frames the gate as an instructions-emitter: the agent writes a heredoc to the gate, the gate's stdout returns reasoning prompts in the ToolResult, and the agent then has a separate thinking-block reasoning step before drafting or revising the final response. Collocating the prompts with the agent's answer text inside the heredoc body (single forward-write pass) loses the thinking-block bandwidth between question and answer; the gate-stdout channel preserves it. -->
 
 5. (R065) Run the gate command below. Its stdout returns instructions you must reason about before sending the final response. Write the heredoc with the current iteration header: `turn-<X>-iteration-<Y>` where `X` is the conversation turn and `Y` is the iteration within that turn (start at `1`). If user explicitly included a `[quick]` tag with no other assigned meaning, skip the gate.
 <!-- Step 5/6 split: step 5 frames the gate; step 6 acts on what the gate stdout surfaces. The split keeps the iteration trigger separate from the framing so each can be edited independently. -->
