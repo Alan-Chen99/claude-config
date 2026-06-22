@@ -184,9 +184,11 @@ R061 reworded 2026-06-22 after diagnosing the "diagnose-summarize" failure mode 
 
 Ablation: an initial fix proposed a new step R060.5 plus G1 (verb examples) and G2 (PROMPT.md/referenced-files/prior-context naming) — tested in ses_10edb95f5ffe7x0xKjV7nzIo13 with 5 older-worktree reads. Two ablation runs against the same workspace (tag ep-loop4 checked out at /tmp/ep-loop4-test) showed the long form was over-engineered: ses_10eaa0cf0ffedvjVGgMNbVKlmM (R060.5 main only, no G1/G2) got 12 older-worktree reads, and ses_10ea9972affeQNGnU8EomAY3JR (this minimal R061 reword, no R060.5 at all) got 10 reads plus the richest diagnosis — it found the ep-loop4 tag, recovered PROMPT.md from git history, and surfaced the work-vs-ep-loop4 state confusion. The minimal change won on every axis (behavioral coverage, structural minimality, no rule-list renumbering, less overfitted wording).
 
-Side effect observed: the words "underlying question" in any of the variants trip the prompt-engineer-v2 skill auto-load heuristic. Harmless on the tested case but a vector to watch when this rule fires on tasks that look like meta-cognition.
+Over-trigger check: the reword is a no-op for imperative-concrete tasks (rename, fix, add) and for skill invocations — skill-loading timing is byte-identical between baseline (no fix) and Variant D on the same task, both load skills at T1/T2 before any context gathering. R064 still bounds the work scope. Untested: tightly-scoped imperative edits.
 
-See trial 2026-06-22-prompt-as-data-question-first.md for the full A/B + ablation record.
+Earlier draft of the trial doc claimed "underlying question" triggers `prompt-engineer-v2` auto-load. That was wrong: baseline also auto-loads it on this task (the trigger is the task surface "PROMPT.md/workflow/diagnose", not R061's wording). Corrected in the trial doc.
+
+See trial 2026-06-22-prompt-as-data-question-first.md for the full A/B + ablation + over-trigger record.
 -->
 1. (R061) Gather enough context to answer the user's underlying question, not just the literal task verb.
 2. (R062) Identify implicit expectations: action, explanation, verification, follow-up, and any constraints the user did not spell out.

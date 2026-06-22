@@ -90,11 +90,15 @@ Session IDs:
    claimed R060.5-G2's case-specific wording carried the work. The ablation
    shows the bare main-body rewording is enough. Variant A overshot.
 
-5. **Side effect (uniform across A, B, D): "underlying question" trips
-   prompt-engineer-v2 auto-load.** All three variants loaded the
-   `prompt-engineer-v2` skill at tool call 2 because the wording matches its
-   trigger heuristic. Harmless on the tested case; a vector to watch when
-   future rules use meta-cognitive vocabulary.
+5. **`prompt-engineer-v2` auto-load is baseline behavior, not caused by
+   the rule wording.** Earlier draft of this trial claimed variants A/B/D
+   triggered `prompt-engineer-v2` because of the words "underlying question".
+   Baseline `ses_10ee37d78ffeB41v6n4vGb3SeB` (no R061 reword) ALSO loaded
+   `prompt-engineer-v2` at tool call 2, on the same task. The trigger is
+   the task surface ("PROMPT.md", "workflow", "diagnose"), not anything in
+   R061 itself. The earlier "uniform side effect of meta-cognitive wording"
+   claim was a false-attribution mistake from not running the baseline
+   comparison on this dimension.
 
 6. **Variant D's reasoning is visible in opencode-pretty.** Reasoning
    summaries like *"**Investigating Git log discrepancies**"* and
@@ -102,6 +106,50 @@ Session IDs:
    about encrypted reasoning blocking inspection was wrong — it was a
    SQLite-query-side mistake; `opencode-pretty <session-id>` surfaces the
    summaries.
+
+## Over-trigger analysis
+
+Question: does *"Gather enough context to answer the user's underlying
+question, not just the literal task verb"* over-fire on task types where
+the literal verb already matches user intent — e.g., debugging, skill
+invocations, tightly-scoped imperative edits?
+
+Partition by verb type:
+
+| Verb type | Literal vs underlying | Expected R061 effect |
+|---|---|---|
+| Evaluative (summarize, diagnose, review, "is X working") | diverge — literal is "produce X-shape artifact"; underlying is "tell me what to do about X" | fires usefully (the case the fix targets) |
+| Imperative concrete (fix bug, rename foo to bar, add button) | aligned — literal verb IS the underlying intent | ≈ no-op |
+| Skill invocation ("use skill Y on Z") | aligned — invoking the skill IS how to answer | ≈ no-op (empirically verified — see below) |
+| Debugging ("why does X fail") | aligned — context-gathering IS the answer | ≈ no-op; reinforces what the agent should do |
+
+Empirical evidence on skill-invocation timing: baseline
+`ses_10ee37d78ffeB41v6n4vGb3SeB` and variant D `ses_10ea9972affeQNGnU8EomAY3JR`
+have identical opening sequences:
+
+```
+[T1] skill: diagnose-workflow
+[T2] skill: prompt-engineer-v2
+[T3] read PROMPT.md  (baseline)  /  todowrite (D)
+[T4] read build.yml
+```
+
+Skills load at T1/T2 in both. The R061 reword does not insert pre-skill
+context gathering, does not displace the skill-first pattern, and does not
+delay skill execution. For this task the timing is preserved.
+
+Untested: tightly-scoped imperative edits ("rename `foo` to `bar` in
+`src/lib.rs`"). Analytically should be a no-op because literal and
+underlying align, but no A/B run measured it. Worth a single-case follow-up
+if over-trigger becomes a real complaint.
+
+Bounding effect of surrounding rules: R064 ("Execute the main portion of
+the task. If the task is a skill invocation, invoke the skill here.")
+remains intact and constrains the scope of work to the requested task even
+when R061's "underlying question" framing fires. The two rules together
+define a corridor: gather enough to answer, then execute the requested
+task — not "execute a broader task because the underlying question is
+broader."
 
 ## Conclusion and applied changes
 
