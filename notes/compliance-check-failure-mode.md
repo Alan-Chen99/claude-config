@@ -189,3 +189,14 @@ This forms a clean diagnostic test for the model's introspection.
 - `/tmp/diag-verdict-task.md` — terminate clean yes/no
 - `/tmp/diag-continue-task.md` — if-continue verdict
 - `/tmp/diag-fixpoint-task.md` — fixpoint-before-budget verdict
+
+## Formalization (post-investigation)
+
+Further debugging after the runs above surfaced that `min` as deployed in many variants was not the intended minimum baseline (e.g., `/tmp/min-agent.md` omitted R020/R055/R070, making it an impoverished prompt rather than a methodologically valid minimum — confound F8 applies). The experiments that depended on that wrong-min variant were discarded.
+
+The intended `min` is now formalized in-tree:
+
+- `opencode/agents/min.md` — R020, R050–R055 instruction priority, R070 plausible-user expectation (+ R070-G1), E030–E035 label scheme, task-loop with gate.
+- `agent-tools min.gate` (emits `MIN_GATE_STDOUT` from `agent-tools/src/main.rs`) — pointer-style reminder list with R060 umbrella (consider mistakes), R060-G1..G5 pointing at R070 and the "problems CAUSED BY your framing" warning from variant I.
+
+Coupling between the agent body and the gate stdout is documented in `agent-tools/CLAUDE.md` "Prompt-coupled strings". Future variant work on the diagnostic baseline should edit these files directly (and rebuild `agent-tools`) rather than re-creating `/tmp/min-*.md` scratch files.

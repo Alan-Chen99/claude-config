@@ -1,4 +1,5 @@
 use std::env;
+use std::io;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -18,6 +19,30 @@ The gate has fired. Before sending your final response, reason in your next thin
 If the analysis surfaces no actionable disclosure, the final response does NOT include sponge prose; absence is the correct outcome when no plausible adjacent attempt is undisclosed. These directives are subject to explicit user instructions to the contrary (no caveats, brevity).
 
 If this analysis surfaced (a) a discriminating tool call to run, (b) a weakened claim, or (c) a missing disclosure, take the action (or update the draft) and re-enter the gate at the next iteration. Otherwise send the final response.
+";
+
+/// Printed to stdout by `agent-tools min.gate`. Coupled to
+/// `opencode/agents/min.md` step 5/6 wording AND to the body rule R070
+/// (plausible-user expectation) which G3/G5 point at — see agent-tools
+/// CLAUDE.md "Prompt-coupled strings" table.
+///
+/// The min gate is the deliberately-thin counterpart to `opencode.gate`. It
+/// numbers the umbrella rule (R060 — consider mistakes) and uses
+/// pointer-style guidance: items reference rules defined in the agent
+/// prompt body rather than restating them, so the gate is a reminder list
+/// rather than a complete checklist. Restructured by variant BB of the
+/// compliance-check failure-mode investigation (see
+/// `notes/compliance-check-failure-mode.md`).
+const MIN_GATE_STDOUT: &str = "\
+(R060) Consider any mistakes or problems you may have made — across the work you did, the draft output, and your identification of the task and user motivations — and take further action or revise accordingly. The items below are reminders to check specific rules; they are not a complete checklist.
+
+(R060-G1) Insufficient verification or overconfidence is a mistake.
+(R060-G2) An omission — something you failed to do or surface — is a mistake, not only an incorrect action.
+(R060-G3) Check R070: would your draft create a downstream problem for any plausible user who might ask this question?
+(R060-G4) WARNING: a common failure point is noticing problems INSIDE your chosen frame but missing problems CAUSED BY your framing. What concrete things might your draft fail to address because you framed the task one way rather than another? Name those.
+(R060-G5) Check R070-G1: did you state your interpretation clearly so a user with a different goal can notice and follow up?
+
+If this surfaced new work or a revision, do it and re-enter the gate at the next iteration. Otherwise send the final response.
 ";
 
 mod capture;
@@ -98,6 +123,14 @@ enum Cmd {
     /// No-op prompt gate used by opencode agent instructions
     #[command(name = "opencode.gate")]
     OpencodeGate {
+        /// Arguments accepted and discarded
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// No-op prompt gate used by the diagnostic `min` agent.
+    /// Thinner counterpart to `opencode.gate`; see MIN_GATE_STDOUT.
+    #[command(name = "min.gate")]
+    MinGate {
         /// Arguments accepted and discarded
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -218,6 +251,16 @@ fn root_error(message: String) -> ! {
     std::process::exit(2);
 }
 
+/// Drain stdin into the void. Mirrors `cat > /dev/null` from the original
+/// shell gate (`gate-frame.sh`). Required so the heredoc input the prompt
+/// instructs the agent to send actually has a reader; without it, the gate
+/// binary races to exit before the caller finishes writing and the caller
+/// observes EPIPE (see opencode_test.rs heredoc tests under full-suite
+/// parallel load).
+fn drain_stdin() {
+    let _ = io::copy(&mut io::stdin().lock(), &mut io::sink());
+}
+
 /// Derive the venv path for a project root: ~/.claude/venvs/<basename>/
 fn venv_path(root: &Path) -> PathBuf {
     let home = env::var("HOME").expect("HOME not set");
@@ -289,7 +332,13 @@ fn main() {
             }
         }
         Cmd::OpencodeGate { args: _ } => {
+            drain_stdin();
             print!("{GATE_STDOUT}");
+            std::process::exit(0);
+        }
+        Cmd::MinGate { args: _ } => {
+            drain_stdin();
+            print!("{MIN_GATE_STDOUT}");
             std::process::exit(0);
         }
         cmd => match cmd {
@@ -373,6 +422,7 @@ fn main() {
             Cmd::Run { .. } => unreachable!(),
             Cmd::Ps { .. } => unreachable!(),
             Cmd::OpencodeGate { .. } => unreachable!(),
+            Cmd::MinGate { .. } => unreachable!(),
         },
     }
 }
