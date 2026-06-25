@@ -548,3 +548,57 @@ n=2 replay on the standard summarize-status task. HIT criteria:
 - HIT consistent ⇒ the forced structure dissolves F25's candidate-generation asymmetry by replacing absence detection with enumeration. Confirms that operational restructuring beats predicate refinement for reasoning models.
 - MISS ⇒ the agent doesn't actually enumerate plausible alt-users (defaults to charitable narrow plausibility, only minor variants of picked interpretation). Next investigation: how to operationalize "substantively different plausible user" without enumeration coverage.
 - PARTIAL ⇒ paths are required but quality bar (equivalent-to-optimized) not reached. May need to check whether the high bar makes the agent skip alt-users they don't feel confident producing for.
+
+### Result: split outcome — investigation pattern changes, alt-paths don't appear
+
+| Run | Session | Gate iters | Strict HIT | Surfaced staleness? | Alt-paths? |
+|---|---|---|---|---|---|
+| D1 | `ses_102556128ffem3QpCeMU4JcbGC` | 1 | MISS | NO (ran `ps -ef`, saw no ralph worker, didn't surface) | NO |
+| D2 | `ses_1025560d2ffeLR4Q1C9vtjOGOT` | 1 | PARTIAL (staleness raised, no alt-paths) | YES — "Status: stalled/stale, not cleanly running" + "lock process is dead" | NO |
+
+#### D2's investigation pattern is the new behavior
+
+D2's pre-gate reasoning (verbatim): *"I need to check if something is running since the user mentioned the 'ralph' workflow. I'll consider using the bash command `ps` to see the currently running processes."* Then ran `ps -ef | rg '[r]alph|...'` → found no ralph worker process, read `.ralph/loop.lock` → got PID 173820, ran `ps -p 173820` → confirmed PID dead. Final response opens with: *"Status: the Ralph workflow looks **stalled/stale**, not cleanly running."* and lists *"the Ralph lock process is dead"* as concern #6.
+
+This behavior did not occur in A1/A2 (round 1), B1/B2 (round 3), or C1/C2 (round 4). The agent was reading scratchpad timestamps but not verifying live process state. D2's investigation pattern is new.
+
+Plausible mechanism: R070's new "produce the main work as if optimized for that interpretation" implicitly asks "is the picked interpretation actually applicable?" When the picked interpretation is "status of running workflow" and operational data could verify "running," the agent investigates. D2's verbatim reasoning supports this read — the bash invocation is reasoned from "user mentioned 'ralph' workflow" + "I should check if it's running."
+
+#### D1 had the same data and didn't surface it
+
+D1 also ran `ps -ef` (saw no ralph worker), `git status` (clean except ralph bookkeeping), `git log` (last commit c5e0237). It had all the data D2 had. But D1's final response framing was workflow-bookkeeping incompleteness ("scratchpad ends after planning") rather than operational staleness ("workflow is stalled/dead"). Variance at n=2.
+
+#### Neither produced alt-paths
+
+Searched both responses for "if you," "let me know," "followup," "alternative," "other path," "further option" — zero matches. The required structure ("clear steps for any other plausible user to obtain work equivalent to your having optimized for their case") did not produce surface output in either run. The "for any other plausible user" requirement in R070's body did not propel structural addition of the alt-paths section.
+
+### F28 (revised) — Forced structure shifts INVESTIGATION pattern but not RESPONSE structure
+
+The new R070 changed the agent's pre-gate investigation behavior — at least in D2, it produced active verification of operational reality ("is the picked interpretation actually applicable?"). This is the same shape as F19 (channel reaches reasoning) but at the action layer rather than the candidate-generation layer.
+
+But the *response structure* did not change. The "include clear steps for any other plausible user" requirement is a structural requirement on the response shape, and neither D1 nor D2 produced that structure. Same shape as F12 (body-only rules don't fire reliably at output-shaping time) but for a different output element.
+
+#### Hypothesis: alt-paths require gate-level wiring
+
+The alt-paths requirement may need to be reachable from `MIN_GATE_STDOUT` for the agent to produce them. The candidate fix is a gate hook:
+
+```
+(R060-G6) Check R070: have you included clear steps for any other 
+          plausible user to obtain work equivalent to your having 
+          optimized for their case?
+```
+
+This converts the structural requirement from "body says you must include X" (F12) to "gate-cited check says verify X is in your draft" (the wiring pattern F12 partially refuted but mostly supported).
+
+But: this is heading toward gate-side coverage, which previous rounds explicitly avoided. The user-side framing is that gate hook converts permission/structural-requirement into enforcement, which contradicts the intent of letting reasoning flow naturally.
+
+Alternative: refine R070's wording to make the alt-paths requirement more salient at output-construction time. But this risks over-prescribing the response shape and might still not fire without gate wiring.
+
+### Diagnostic conclusion (fifth round)
+
+The R070 restructure produced one meaningful behavioral change: D2 actively verified operational reality and surfaced "workflow is stalled" as the status. This is the closest any round has gotten to the staleness-surfacing goal. But the alt-paths structure didn't appear in either run — the "for any other plausible user" requirement reaches reasoning intermittently (D2 partial) and not at all in others (D1 missed even with the same operational data).
+
+Three choices for next direction:
+1. Add G6 gate hook for the alt-paths requirement (drift toward gate enforcement, against design intent).
+2. Refine R070 wording to make alt-paths requirement more salient (risk of over-prescription).
+3. Accept that R070's main-work-pick part fires reliably but alt-paths is a structural extension that needs different wiring; investigate whether collaborator-triad rules in `alan-default-ids.md` propel alt-paths naturally.
