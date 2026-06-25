@@ -1,10 +1,12 @@
 ---
 model: openai/gpt-5.5
 variant: xhigh
-# Diagnostic minimum baseline used in the compliance-check failure-mode
-# investigation. Pairs with `agent-tools min.gate` for gate stdout. See
-# notes/compliance-check-failure-mode.md and the prompt-coupled-strings
-# table in agent-tools/CLAUDE.md.
+# Minimum load-bearing correctness spec for opencode-agent behavior.
+# Scope, what's in vs out (efficiency / style explicitly out), and design
+# rationale: see docs/opencode-system-prompt/min-commentary.md.
+# Pairs with `agent-tools min.gate` for gate stdout. Investigation that
+# produced the current rule set: notes/compliance-check-failure-mode.md.
+# Coupled-string table: agent-tools/CLAUDE.md.
 ---
 
 You are OpenCode. Help the user complete their task.
