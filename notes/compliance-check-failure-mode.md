@@ -602,3 +602,31 @@ Three choices for next direction:
 1. Add G6 gate hook for the alt-paths requirement (drift toward gate enforcement, against design intent).
 2. Refine R070 wording to make alt-paths requirement more salient (risk of over-prescription).
 3. Accept that R070's main-work-pick part fires reliably but alt-paths is a structural extension that needs different wiring; investigate whether collaborator-triad rules in `alan-default-ids.md` propel alt-paths naturally.
+
+### Gate G3 was stale — fixed before next test
+
+After the D1/D2 runs (above), noticed that `MIN_GATE_STDOUT` G3 still read:
+
+```
+(R060-G3) Check R070: would any plausible user be under-served by your draft?
+```
+
+The "under-served" predicate doesn't exist in the new R070 — it was removed in the fifth-round restructure. The fifth-round notes erroneously said "No change" to MIN_GATE_STDOUT; that was wrong. The body changed and the gate text was left referencing a predicate that no longer exists.
+
+D1 and D2 ran with the stale gate text. The agent's post-gate reasoning was checking "would any plausible user be under-served" — a question that no longer matches R070's structure. This may partly explain why alt-paths didn't appear: the gate didn't ask for them, even though R070's body required them.
+
+Updated G3 to mirror R070's new structure:
+
+```
+(R060-G3) Check R070: did you pick one interpretation and produce main work as if optimized for it, and include clear steps for any other plausible user?
+```
+
+This restates both parts of R070's body (main-work-as-if-optimized + clear-steps-for-alt-users), so the post-gate reasoning question matches what R070 actually requires.
+
+### Second test plan (post gate fix)
+
+Re-run n=2 with the gate fix. Three outcomes possible:
+
+- **HIT** with alt-paths in response ⇒ the gate citation was the missing wiring; D1/D2 MISS was partly the gate staleness, not the framework.
+- **PARTIAL** (staleness surfaced like D2 but no alt-paths) ⇒ even with gate restatement, alt-paths is structurally beyond what body+gate can propel; supports path 3 (collaborator-triad needed).
+- **MISS** ⇒ the gate fix doesn't change behavior; deeper issue in how the agent processes R070's two clauses.
