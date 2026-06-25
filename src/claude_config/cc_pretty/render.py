@@ -182,16 +182,42 @@ def fmt_duration(ms: int | float) -> str:
 
 
 def separator() -> str:
-    return f"{C.SEPARATOR}{'─' * 80}{C.RESET}"
+    # Form feed: 1 token vs 10 for 80× ─. Renders as a horizontal rule in
+    # Emacs page-break-lines-mode; in plain terminals it appears as ^L or
+    # a small glyph but still serves as a visible turn boundary.
+    return f"{C.SEPARATOR}\f{C.RESET}"
 
 
 def ind(text: str, prefix: str = "  ") -> str:
     return textwrap.indent(text, prefix)
 
 
-def jq_hint(log_path: str, lineno: int, jq_path: str) -> str:
-    cmd = f"sed -n '{lineno}p' {log_path} | jq -r '{jq_path}'"
-    return f"{C.HINT}    # {cmd}{C.RESET}"
+def fmt_ref(lineno: int, block_idx: int = 0) -> str:
+    """Compact JSONL back-reference: `@L<n>` (or `@L<n>[i]` for non-zero block).
+
+    Block index is omitted when 0 — single-block records are the common case
+    and the bracket adds noise. The legend printed at the top of the output
+    explains the recovery recipe; per-occurrence refs carry only the
+    coordinates.
+    """
+    if block_idx:
+        return f"@L{lineno}[{block_idx}]"
+    return f"@L{lineno}"
+
+
+def render_legend(log_path: str) -> str:
+    """One-line legend explaining how to recover content from `@L<n>` refs.
+
+    Printed once at the top of the output so per-block recovery hints (the
+    old `# sed -n 'Np' ... | jq -r '...'` lines) can be omitted entirely.
+    """
+    return (
+        f"{C.HINT}# refs '@L<n>[i]' point at line n, content block i (default 0). "
+        f"Recover: sed -n '<n>p' {log_path} | jq -r '<jq>' — "
+        f"jq is .message.content[i].input for ▶ tool calls, "
+        f".content for ◀ result, .text for ◀ context, "
+        f".attachment.content for Additional Context.{C.RESET}"
+    )
 
 
 # ─── Usage formatting ───────────────────────────────────────────────────────
@@ -216,12 +242,20 @@ class Renderer:
     """Stateful renderer that tracks tool_use IDs to correlate results with names."""
 
     def __init__(self, log_path: str, tool_output_max: int,
-                 tool_input_max: int, show_thinking: bool = True):
+                 tool_input_max: int, show_thinking: bool = True,
+                 show_usage: bool = False):
         self.log_path = log_path
         self.tool_output_max = tool_output_max
         self.tool_input_max = tool_input_max
         self.show_thinking = show_thinking
+        # Per-turn usage block (`[in:.. out:.. cached:.. cache_create:..]`) is
+        # ~26 tok per assistant turn and rarely relevant to a reader; opt-in
+        # via --show-usage when debugging cache-hit or cost regressions.
+        self.show_usage = show_usage
         self._tool_id_to_name: dict[str, str] = {}
+        # Dedup state: repeat-suppress `⊞ output style: <s>` while value
+        # is unchanged. The first occurrence is always emitted.
+        self._last_output_style: str | None = None
 
     # ── Content block renderers ──────────────────────────────────────────
 
@@ -241,11 +275,9 @@ class Renderer:
         if block.id:
             self._tool_id_to_name[block.id] = block.name
 
-        id_suffix = f"  {C.DIM}({block.id}){C.RESET}" if block.id else ""
-        lines = [f"{C.TOOL}  ▶ {block.name}{C.RESET}{id_suffix}"]
+        ref = fmt_ref(lineno, block_idx)
+        lines = [f"{C.TOOL}  ▶ {block.name}{C.RESET}  {C.DIM}{ref}{C.RESET}"]
         lines.append(ind(trunc(inp_str, self.tool_input_max), "    "))
-        if is_truncated(inp_str, self.tool_input_max):
-            lines.append(jq_hint(self.log_path, lineno, f".message.content[{block_idx}].input"))
         return "\n".join(lines)
 
     def _render_tool_result(self, block: ToolResultBlock, lineno: int, block_idx: int,
@@ -257,7 +289,6 @@ class Renderer:
         label = f"✗ error{name_suffix}" if block.is_error else f"◀ result{name_suffix}"
 
         content = block.content
-        any_truncated = False
 
         if isinstance(content, list):
             parts = []
@@ -265,22 +296,18 @@ class Renderer:
                 if sub.get("type") == "text":
                     t = sub.get("text", "")
                     parts.append(trunc(t, self.tool_output_max))
-                    if is_truncated(t, self.tool_output_max):
-                        any_truncated = True
                 else:
                     s = str(sub)
                     parts.append(trunc(s, self.tool_output_max))
-                    if is_truncated(s, self.tool_output_max):
-                        any_truncated = True
             body = "\n".join(parts)
         else:
             body = trunc(content, self.tool_output_max)
-            any_truncated = is_truncated(content, self.tool_output_max)
 
-        jq_path = f".message.content[{block_idx}].content"
-        lines = [f"{label_color}  {label}{C.RESET}", ind(body, "    ")]
-        if any_truncated:
-            lines.append(jq_hint(self.log_path, lineno, jq_path))
+        ref = fmt_ref(lineno, block_idx)
+        lines = [
+            f"{label_color}  {label}{C.RESET}  {C.DIM}{ref}{C.RESET}",
+            ind(body, "    "),
+        ]
 
         if isinstance(tur, ToolUseResultDict):
             if tur.stderr:
@@ -291,10 +318,11 @@ class Renderer:
         return "\n".join(lines)
 
     def _render_context_text(self, text: str, lineno: int, block_idx: int) -> str:
-        lines = [f"{C.RESULT}  ◀ context{C.RESET}", ind(trunc(text, self.tool_output_max), "    ")]
-        if is_truncated(text, self.tool_output_max):
-            lines.append(jq_hint(self.log_path, lineno, f".message.content[{block_idx}].text"))
-        return "\n".join(lines)
+        ref = fmt_ref(lineno, block_idx)
+        return "\n".join([
+            f"{C.RESULT}  ◀ context{C.RESET}  {C.DIM}{ref}{C.RESET}",
+            ind(trunc(text, self.tool_output_max), "    "),
+        ])
 
     # ── Turn renderers ───────────────────────────────────────────────────
 
@@ -319,15 +347,12 @@ class Renderer:
     def render_assistant_turn(self, records: list[tuple[AssistantRecord, int]], ts: str) -> str:
         usage: Usage | None = None
         model = ""
-        stop_reason = ""
 
         for rec, _ in records:
             if rec.message.usage and not usage:
                 usage = rec.message.usage
             if rec.message.model and not model:
                 model = rec.message.model
-            if rec.message.stop_reason and not stop_reason:
-                stop_reason = rec.message.stop_reason
 
         model_tag = ""
         if model == "<synthetic>":
@@ -335,12 +360,12 @@ class Renderer:
         elif model:
             model_tag = f"  {C.DIM}[{model}]{C.RESET}"
 
-        stop_tag = ""
-        if stop_reason and stop_reason != "end_turn":
-            stop_tag = f"  {C.DIM}stop:{stop_reason}{C.RESET}"
-
-        lines = [f"{C.ASSISTANT}┌ Assistant{C.RESET}{model_tag}  {C.TIMESTAMP}{ts}{C.RESET}{stop_tag}"]
-        if usage:
+        # stop_reason is intentionally not surfaced — for stop:tool_use the
+        # next ▶ line carries the same signal, and the other stop reasons
+        # (refusal, max_tokens, pause_turn) show as visible body content
+        # (refusal text, truncated output) anyway.
+        lines = [f"{C.ASSISTANT}┌ Assistant{C.RESET}{model_tag}  {C.TIMESTAMP}{ts}{C.RESET}"]
+        if usage and self.show_usage:
             lines[0] += f"  {C.DIM}[{fmt_usage(usage)}]{C.RESET}"
 
         for rec, lineno in records:
@@ -421,14 +446,19 @@ class Renderer:
         preview = rec.lastPrompt[:100] + "..." if len(rec.lastPrompt) > 100 else rec.lastPrompt
         return f"{C.DIM}  ⎘ last-prompt: {preview}{C.RESET}"
 
-    def render_attachment(self, rec: AttachmentRecord, ts: str, lineno: int) -> str:
+    def render_attachment(self, rec: AttachmentRecord, ts: str, lineno: int) -> str | None:
         """Render an attachment record.
 
         hook_additional_context gets a multi-line block (model-visible
         system-reminder text); other subtypes get one-line summaries.
+
+        Returns None when the attachment is suppressed (e.g. an unchanged
+        `output_style` repeat). Callers must guard their `print()` on the
+        returned value.
         """
         a = rec.attachment
         atype = a.type
+        ref = fmt_ref(lineno)
 
         if atype == "hook_additional_context":
             # The exact text the model received as <system-reminder>
@@ -441,13 +471,11 @@ class Renderer:
             header = (
                 f"{C.SYSTEM}┌ Additional Context{C.RESET}  "
                 f"{C.DIM}[{hook_label}]{C.RESET}  "
-                f"{C.TIMESTAMP}{ts}{C.RESET}"
+                f"{C.TIMESTAMP}{ts}{C.RESET}  "
+                f"{C.DIM}{ref}{C.RESET}"
             )
             truncated_body = trunc(body, self.tool_output_max)
-            lines = [header, ind(truncated_body, "  ")]
-            if is_truncated(body, self.tool_output_max):
-                lines.append(jq_hint(self.log_path, lineno, ".attachment.content"))
-            return "\n".join(lines)
+            return "\n".join([header, ind(truncated_body, "  ")])
 
         if atype == "hook_success":
             return (
@@ -474,6 +502,9 @@ class Renderer:
             )
 
         if atype == "output_style":
+            if a.style == self._last_output_style:
+                return None
+            self._last_output_style = a.style
             return f"{C.DIM}  ⊞ output style: {a.style}{C.RESET}"
 
         if atype == "deferred_tools_delta":
@@ -525,9 +556,11 @@ class Renderer:
             header_parts.append(f"v{version}")
         if cwd:
             header_parts.append(f"cwd: {cwd}")
+        lines: list[str] = []
         if header_parts:
-            return f"{C.DIM}{'  '.join(header_parts)}{C.RESET}"
-        return None
+            lines.append(f"{C.DIM}{'  '.join(header_parts)}{C.RESET}")
+        lines.append(render_legend(self.log_path))
+        return "\n".join(lines)
 
     def render_rewind_marker(
         self, count: int, first_ts: str, last_ts: str,
@@ -537,7 +570,7 @@ class Renderer:
         turns = f"{n_user} user, {n_assistant} assistant"
         status = f"{count} records hidden" if hidden else f"{count} records shown above"
         return (
-            f"{C.REWIND}{'─' * 30} ⟲ rewind {'─' * 30}{C.RESET}\n"
+            f"{C.REWIND}\f⟲ rewind{C.RESET}\n"
             f"{C.DIM}  {turns}  {time_range}  ({status}){C.RESET}"
         )
 
@@ -551,7 +584,7 @@ class Renderer:
             f"{prev_first_ts}\u2013{prev_last_ts}"
             if prev_first_ts != prev_last_ts else prev_first_ts
         )
-        header = f"{C.SYSTEM}{'─' * 26} ⟐ compacted {'─' * 26}{C.RESET}"
+        header = f"{C.SYSTEM}\f⟐ compacted{C.RESET}"
         prev_summary = (
             f"  section {section_num}: "
             f"{prev_n_user} user, {prev_n_assistant} assistant  "

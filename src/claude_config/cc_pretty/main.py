@@ -450,6 +450,13 @@ def main():
         help="Collapse thinking blocks to single-line summary",
     )
     parser.add_argument(
+        "--show-usage",
+        action="store_true",
+        help="Show per-turn usage block "
+        "(in/out/cached/cache_create tokens). Hidden by default — opt in "
+        "when debugging cache-hit rates or cost regressions.",
+    )
+    parser.add_argument(
         "--show-rewound",
         action="store_true",
         help="Show rewound conversation branches (hidden by default)",
@@ -505,6 +512,7 @@ def main():
         tool_output_max=args.tool_max,
         tool_input_max=tool_input_max,
         show_thinking=not args.no_thinking,
+        show_usage=args.show_usage,
     )
 
     # In agent mode, capture stdout so we can split if needed
@@ -684,10 +692,13 @@ def main():
         elif isinstance(rec, AttachmentRecord):
             # hook_additional_context renders as a multi-line block (with its
             # own header), other subtypes as one-line summaries — separator
-            # only matters for the multi-line case.
-            if rec.attachment.type == "hook_additional_context":
-                print(separator())
-            print(r.render_attachment(rec, ts, lineno))
+            # only matters for the multi-line case. Renderer returns None
+            # for suppressed attachments (e.g. unchanged output_style repeats).
+            rendered = r.render_attachment(rec, ts, lineno)
+            if rendered is not None:
+                if rec.attachment.type == "hook_additional_context":
+                    print(separator())
+                print(rendered)
             i += 1
 
         elif isinstance(rec, PermissionModeRecord):

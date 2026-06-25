@@ -19,7 +19,8 @@ workflow.
   workflow-dropout signals are visible in the rendered log without
   grep-the-raw-JSONL bypass.
 - `opencode-pretty` emits a drill-down hint under any truncated block, mirroring
-  the role `jq_hint` plays for `cc-pretty`.
+  the role the `@L<n>[i]` back-reference + top-of-file legend play for
+  `cc-pretty`.
 
 ## Non-goals
 
@@ -366,8 +367,9 @@ Two additions:
        # agent-tools opencode-pretty <session-id> --message <message-id> --full
    ```
 
-cc-pretty's existing `jq_hint` for Claude Code JSONL is unchanged; nothing in
-`render.py` is restructured for this drill-down work.
+cc-pretty's drill-down mechanism for Claude Code JSONL (legend at the top of
+the output + per-block `@L<n>[i]` back-references) is unchanged by this spec;
+nothing in `render.py` is restructured for this drill-down work.
 
 Tests: feed a fixture export with deliberately long content into
 opencode-pretty, assert the rendered output contains the new hint with the
