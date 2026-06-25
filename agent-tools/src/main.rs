@@ -38,7 +38,7 @@ const MIN_GATE_STDOUT: &str = "\
 
 (R060-G1) Insufficient verification or overconfidence is a mistake.
 (R060-G2) An omission — something you failed to do or surface — is a mistake, not only an incorrect action.
-(R060-G3) Check R070: did you pick one interpretation and produce main work as if optimized for it, and include clear steps for any other plausible user?
+(R060-G3) Check R070: if your chosen interpretation is wrong, would the user be able to cleanly reject your work without doing difficult verification or judgment? If not, make rejection cheaper.
 (R060-G4) WARNING: a common failure point is noticing problems INSIDE your chosen frame but missing problems CAUSED BY your framing. What concrete things might your draft fail to address because you framed the task one way rather than another? Name those.
 (R060-G5) Check R090 — what are implicit work assigned to user?
 
