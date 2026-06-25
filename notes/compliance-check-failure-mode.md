@@ -395,3 +395,77 @@ This is the predicted outcome of the "MISS" branch in the test plan: hypothesis 
 2. **Stop chasing this failure inside `min.md`.** The remaining gap (silent scope choice + 4-PROMPT.md-items axis) is frame-choice, which is structurally out of `min.md`'s scope per `min-commentary.md`'s design boundary. Adding more rules to `min.md` to chase this failure would be coverage-driven and against the design ethos.
 
 3. **Move the experiment forward to `alan-default-ids.md`.** If the goal is to make a production agent surface scope/frame concerns, the collaborator-triad layer is where the work is. Run the same fixture against `alan-default-ids.md` (which already has R001/R061/R011) to confirm the diagnostic split: `min.md` floor ⇒ within-frame self-criticism only; `alan-default-ids.md` ⇒ frame-choice reachable.
+
+## Fourth round: candidate-generation asymmetry and missing-context surfacing (2026-06-25)
+
+Re-reading the post-patch B1 trace (`ses_1029fd5d0ffeEhoQlaOpDCzXEA`) revealed that the previous-round conclusion ("frame-deference ceiling reached, move to alan-default-ids.md") over-claimed. The failure here is finer-grained and within `min.md`'s scope to address.
+
+### Diagnostic refinement
+
+B1's reasoning between gate iterations contains four raw observations: (a) "running" might not reflect last event, (b) no current process evident, (c) workflow stalled, (d) last log 2026-06-23. Then it pivots: *"The user inquires about key problems, so I should highlight that the last scratchpad ended mid-iteration and lacks evidence of completion."* The raw observations do not transfer to the final response. Instead, within-frame proxies do (hedging "running" → "in-progress" and "scratchpad does not record completion").
+
+So the failure isn't "agent doesn't reach user-side reasoning" or "agent doesn't notice staleness" — both refuted by the trace. The failure is at the **candidate-generation step inside R060-G3 / R070's under-served check**:
+
+- The under-served check fires (F19/F23 already confirmed).
+- Agent identifies one under-serving candidate (wrong-content: "running" is misleading).
+- Fixes via hedging.
+- Discharges check.
+- Does NOT generate a separate candidate "user lacks key context I observed (the 2-day staleness)."
+
+Two interpretive narrowings explain this:
+
+1. **"Problem" → workflow-defect.** The task asks for "key problems / concerns" of the workflow. The agent's "problem" category gets scoped to "things wrong with the workflow." Staleness isn't a workflow defect (workflows can stall; the workflow itself didn't malfunction). So staleness fails the "is this a problem to highlight?" filter under this narrowed reading.
+
+2. **"Under-served" → wrong-content.** The agent's natural operationalization is "would my content be wrong for the user?" → wrong-content candidates. The orthogonal sub-class "would the user lack key context my draft doesn't include?" → missing-context candidates — is asymmetrically harder to generate. The check exits after the first wrong-content fix.
+
+Together: agent observes relevant context (staleness), classifies it as outside "problem" (not a workflow defect), and the under-served check doesn't reach "raise this as missing context" because the check exits on wrong-content.
+
+### Documentation correction (R070-G1)
+
+Three doc-confusion items found and corrected:
+
+1. **Commentary intent annotation** mis-described G1 as "greenlights focusing on one plausible user, while requiring active disclosure of choices." G1 is **permission only** — it overrides the default conservative behavior ("do the intersection of plausible interpretations") by permitting the agent to pick one. G1 does not enforce any specific disclosure mechanism.
+
+2. **Commentary mirror line** for G1's body was stale — still quoted the pre-patch text ("state what you produced clearly ... intervene if your interpretation differs") despite the body in `min.md` having been patched in the third round. The commentary mirror is supposed to track `min.md` 1:1.
+
+3. **Patched body wording** for G1 ("state both what you produced and what you set aside") leaked requirement-style framing into what should be permission. Reverted to pure-permission form.
+
+Disclosure obligations live in R070's body (via gate G3 under-served check) and, with this round's addition, in R070-G2 — not in G1.
+
+### Findings (fourth round)
+
+#### F24 — Compression-before-highlight loses raw observations
+The agent's reasoning between observation and final response includes a "what to highlight" filter. Raw observations get compressed into within-frame consequences before reaching the filter. The compression makes the raw observation no longer available for direct surfacing — even when the observation itself is the key user-relevant fact.
+
+#### F25 — Under-served check exits asymmetrically on wrong-content vs missing-context
+Wrong-content under-serving candidates ("would my draft give them wrong info?") are easier to generate than missing-context candidates ("would my draft fail to give them info they need?"). Wrong-content candidates have a specific item to check; missing-context candidates require reasoning about absence. The under-served check tends to exit after the first wrong-content fix, before exploring missing-context candidates.
+
+#### F26 — R070-G1 is permission, not requirement
+G1's job is to override the default "do the intersection of plausible interpretations" by permitting a single-interpretation behavior. It does not enforce disclosure. Prior commentary and patched body wording mis-described it as requiring something. Disclosure of under-serving plausible users is handled by R070 body (via gate G3) and R070-G2.
+
+### Rule update applied
+
+`opencode/agents/min.md`:
+- R070-G1 reverted to pure-permission form (removes "state both X and Y" requirement-flavored wording).
+- R070-G2 added as **guidance** (G-prefix, not R-prefix) — it greenlights a default-not-allowed behavior (going beyond the literal question), the same shape as G1 (which greenlights single-interpretation). Body: "It is fine to go beyond the literal question. When you observe relevant information the user may not have, surface it — organized so a reader who does not need it can skip past it."
+
+`agent-tools/src/main.rs` `MIN_GATE_STDOUT`:
+- **No change on first try.** A gate hook would convert G2 from guidance into enforcement, which contradicts the design intent. First test is whether guidance alone changes response structure. If MISS, the second-try addition would be a G6 gate pointer.
+
+`docs/opencode-system-prompt/min-commentary.md`:
+- R070-G1 mirror line synced to current body; intent annotation rewritten to describe G1 as pure permission with the pre-G1 default named ("do the intersection of plausible interpretations").
+- R070-G2 added with intent annotation citing F24/F25 and noting the parallel structure with G1 (both greenlight default-not-allowed behavior).
+
+### Test plan (n=2 against patched min)
+
+The test observes **response structure change**: under guidance-only R070-G2 (no gate enforcement), does the agent's response start to include beyond-literal-question surfacing?
+
+- **HIT** = response structure changes to include skippably-organized surfacing of relevant observed information the user may not have. For this fixture, the strongest candidates are: workflow has been idle ~2 days, last activity 2026-06-23, the 4 PROMPT.md starting suggestions were not engaged, the workflow's null-guard check is unmonitored.
+- **PARTIAL HIT** = response structure changes to add some beyond-literal content but does not catch the strongest candidates above.
+- **MISS** = no structural change; concerns stay within within-frame-fixes only (as B1 did).
+
+### Open questions / hypotheses to disambiguate
+
+- HIT consistent ⇒ guidance alone is enough; F12 (body-only rules don't fire reliably) is less universal than prior rounds suggested, possibly because guidance-shaped rules are processed differently from requirement-shaped ones.
+- MISS ⇒ either guidance doesn't reach reasoning without gate hook (F12 applies to guidance too), OR the wording isn't strong enough as guidance. Second try: add G6 → R070-G2 gate hook.
+- Variance ⇒ guidance is right but doesn't fire reliably at n=2; n=4 needed.
