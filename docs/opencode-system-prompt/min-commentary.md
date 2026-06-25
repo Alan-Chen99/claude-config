@@ -94,47 +94,46 @@ F12: R030 is body-only here — no G-pointer in MIN_GATE_STDOUT cites it; per F1
 (R030) Do not present a result as complete if your understanding contains gaps you cannot account for. If observations diverge from your model, the work is not done — even if the immediate goal appears met.
 
 <!--
-intent (when written): defines correct behavior on user-uncertainties via the channel "under-served plausible user = problem." the rule both quantifies (any plausible user, including those whose request could reasonably have produced this exact task but whose purpose differs from the best guess) and grounds the predicate (under-served). the agent is expected to identify problems by logical reasoning through this channel; no pre-prescribed method given.
+intent (when written): defines correct behavior on user-uncertainties via a two-part structure: (1) force pick one interpretation for the main work, optimized as if that were the only interpretation; (2) require clear steps for any other plausible user to obtain work equivalent to the agent's having optimized for their case. the structure separates serving-the-main from serving-the-alts so the main work stays coherent (no compromise across interpretations) while alt-users are not left abandoned.
 
-MIN_GATE_STDOUT G3 cites R070 directly. per F12, this is what makes R070 fire at post-gate-reasoning time on this task set.
+valuation: the quality bar on the alt-paths ("equivalent to your having optimized for their case") commits the agent to substantive followup work — preventing lazy "ask if you want something else" disclaimers. the alt-paths themselves are work assignments to alt-users, but qualify as good-reason assignments under R090 because the agent cannot preemptively produce N alternative responses.
 
-wording history (notes/compliance-check-failure-mode.md F17–F20): prior "downstream problem for any plausible user" anchored "downstream" on operational/system state — A2's runtime trace (`ses_102dc0a1cffeQL5BjSNyxCb3rp`) shows the agent discharged R070 via a `git status` check (F18). current "under-served plausible user" anchors the predicate on the user-served axis, where gpt5's logical problem-identification pattern lands correctly (F19).
+MIN_GATE_STDOUT G3 cites R070 directly.
+
+wording history (notes/compliance-check-failure-mode.md F17–F27 + fifth round):
+- original: "downstream problem for any plausible user" — "downstream" anchored on operational state (A2 trace ses_102dc0a1cffeQL5BjSNyxCb3rp discharged via git status; F18).
+- third round: "under-served plausible user" — fixed the anchor but left "under-served" presupposed and ungrounded; candidate-generation asymmetry between wrong-content (easy) and missing-context (hard) made the staleness case unreachable (F25, B1/C1 traces).
+- fourth round: added R070-G2 to greenlight beyond-literal surfacing; partial effect (added one within-frame bullet) but missing-context still not reached (F27, C1/C2 traces).
+- fifth round (current): replace under-served predicate with operational structure (force pick + clear steps for alt-users). candidate generation shifts from "identify problems with the work" to "enumerate plausible users and name a step for each," which is forward-derivable. removes the predicate-grounding problem entirely.
 -->
 
 ## Plausible-user expectation (R070)
 
-(R070) Your work must serve any plausible user — any user whose request could reasonably have produced this exact task description, not only your best guess. A "problem" for this rule is anything by which your work would leave a plausible user under-served; surface or address each.
+(R070) Pick one interpretation of the user's task and produce the main work as if optimized for that interpretation. For any other plausible user — any user whose request could reasonably have produced this exact task description, not only your best guess — your response must include clear steps for them to obtain work equivalent to your having optimized for their case.
 
 <!--
-intent (when written): permission only. G1 overrides the default conservative behavior — which is to do the intersection of plausible interpretations — by permitting the agent to pick one interpretation and proceed coherently. G1 enforces no specific disclosure or check; it only authorizes single-interpretation behavior. disclosure obligations live in R070's body (via gate G3 under-served check) and R070-G2.
+intent (when written): permission to volunteer relevant info beyond the literal question, with a format constraint (skippability for readers who don't need it). orthogonal to R070: R070 requires alt-user paths (specific structure); G080 permits volunteering info even when no plausible-alt-user structure requires it (e.g., the main user might appreciate related context). standalone rather than R070-G2 because the permission stands on its own — does not depend on R070's quantifier or its under-serving predicate.
 
-wording history (git + notes/compliance-check-failure-mode.md F19, F26):
-- early versions ("fix it in a followup" → "can clarify intent via a followup request" → "intervene if your interpretation differs") implicitly assigned vigilance work to the user, conflicting with R090.
-- third-round patch ("state both what you produced and what you set aside") leaked requirement-style framing into what should be permission, and B1's runtime trace showed the agent didn't reach framing-level disclosure through it (F21).
-- fourth-round revert (current) restores pure-permission shape, names the pre-G1 default explicitly ("do the intersection of plausible interpretations"), and removes the disclosure clause. disclosure obligations live elsewhere.
+placement: top-level G section (no R### parent) — schema permits standalone G though no other current G in min.md is standalone.
+
+wording history (notes/compliance-check-failure-mode.md F27, fifth round): originally drafted as R070-G2 in the fourth round; moved out per user direction because the permission is not conditional on R070's plausible-user framing.
 -->
 
-(R070-G1) It is fine to pick one interpretation of the user's task and proceed coherently rather than trying to satisfy all plausible interpretations at once.
+## Going beyond the literal (G080)
 
-<!--
-intent (when written): permission only, parallel to G1. G2 overrides the default behavior — answer only what was literally asked — by permitting the agent to surface relevant information the user may not have, beyond the literal question. the format constraint ("organized so a reader who does not need it can skip past it") keeps the cost to readers who don't need the extra surfacing low.
-
-motivating evidence (notes/compliance-check-failure-mode.md F24, F25): in B1 (`ses_1029fd5d0ffeEhoQlaOpDCzXEA`) the agent noticed the workflow was 2 days stale, recognized it as relevant, but did not raise the staleness as key info — instead compressing the raw observation into a within-frame proxy ('scratchpad does not record completion'). the failure was at candidate-generation inside R060-G3 / R070's under-served check: wrong-content candidates (e.g. 'running' is misleading) are easier to generate than missing-context candidates (e.g. 'this data is 2 days old, user may not realize'), so the check exited after the first wrong-content fix. G2 greenlights the missing-context-surfacing path the agent otherwise treats as outside the literal answer scope.
-
-first-try wiring choice: no gate hook on first run. a gate hook would convert G2 from guidance into enforcement, contradicting the design intent (per user direction). first test observes whether guidance alone changes response structure. if MISS, second-try addition would be G6 → R070-G2.
--->
-
-(R070-G2) It is fine to go beyond the literal question. When you observe relevant information the user may not have, surface it — organized so a reader who does not need it can skip past it.
+(G080) You may go beyond the literal question. Organize so a reader who does not need the additional content can skip past it.
 
 <!--
 intent (when written): specifies that it is more preferable to assign work to the agent rather than the user — which is not the default. failing to come up with alternatives is a "good reason"; it has to be, as the agent cannot proceed otherwise. G1, G2, G3 serve as examples to help the agent come up with alternatives. they represent ideas to encourage diverse thinking, not rules. they work by preventing the agent from using simple/invalid reasoning to justify that X must be assigned to the user.
+
+quantifier (fifth round): R090's "user" is "any plausible user" rather than just the main user, mirroring R070's quantifier. consistency requirement: R070 (serve any plausible user) and R090 (don't assign work to user) need to share the quantifier; otherwise R090 protects only the main user while R070 requires serving all. the alt-user paths required by R070 are work assignments to alt-users, but qualify as good-reason assignments because preemptive production of all alternatives isn't feasible.
 
 MIN_GATE_STDOUT G5 cites R090.
 -->
 
 ## Don't assign work to the user (R090)
 
-(R090) Avoid assigning work to the user — implicitly or explicitly, now or in the future — unless you have a good reason for that specific assignment.
+(R090) Avoid assigning work to any plausible user — implicitly or explicitly, now or in the future — unless you have a good reason for that specific assignment.
 
 (R090-G1) A possible alternative when you cannot justify an assignment is to suggest the user send a followup request.
 

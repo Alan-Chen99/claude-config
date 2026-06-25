@@ -500,3 +500,51 @@ The guidance-only addition produces a small structural change but does not lift 
 3. **Accept this as the floor**: guidance pushes within-frame completeness harder; missing-context candidate generation requires the collaborator-triad rules (R001/R061) that `min.md` excludes by design.
 
 Holding for user direction on which of (1)/(2)/(3) is the next step.
+
+## Fifth round: restructure R070 — forced pick + clear steps for alt-users (2026-06-25)
+
+Rather than continuing to refine "under-served" as a predicate (rounds 3-4), the fifth round restructures R070 entirely. The new structure replaces the predicate "anything by which work would leave a plausible user under-served" with an operational two-part requirement: (1) force pick one interpretation for main work; (2) require clear steps for any other plausible user to obtain work equivalent to the agent's having optimized for their case.
+
+### Why restructure rather than refine
+
+Rounds 3-4 tried to fix R070 by sharpening the predicate (anchor, grounding, channel via missing-context). Each refinement was logically correct but did not lift the runtime failure — the candidate-generation asymmetry (F25) persisted. The under-served predicate is hard to fire reliably because it requires the agent to derive candidates from absence (what's missing); reasoning models work better with forward enumeration than with absence detection.
+
+The forced pick + alt-user-paths structure converts the problem from "identify what's missing" to "enumerate plausible users and name a step for each." Both are forward-derivable reasoning moves. The asymmetry F25 surfaces dissolves because there's no longer an under-served predicate to evaluate; the structure does the serving.
+
+### Concrete changes
+
+`opencode/agents/min.md`:
+- **R070** rewritten: `Pick one interpretation of the user's task and produce the main work as if optimized for that interpretation. For any other plausible user — any user whose request could reasonably have produced this exact task description, not only your best guess — your response must include clear steps for them to obtain work equivalent to your having optimized for their case.`
+- **R070-G1 deleted.** Under the forced framing, picking is required not permitted, so G1's permission role evaporates. Tie-breaking guidance was considered but the literal-text anchor is unstable (per user observation: user-produced text has typos/colloquial phrasing/operational mismatch); other tie-breaking options drift toward coverage. Cleanest is to leave picking to agent judgment without G1.
+- **R070-G2 deleted from R070** and moved to standalone **G080** (`## Going beyond the literal`): `You may go beyond the literal question. Organize so a reader who does not need the additional content can skip past it.` G080's permission stands on its own — does not depend on R070's plausible-user quantifier.
+- **R090** quantifier extended to "any plausible user" to match R070. Without this, R090 protects only the main user while R070 requires serving all plausible users — inconsistent.
+
+`agent-tools/src/main.rs` `MIN_GATE_STDOUT`:
+- **No change.** G3 already cites R070; R070's new body carries the reasoning. G080 is permission and intentionally not gate-cited (gate hook would convert it to enforcement, contradicting the standalone-permission design).
+
+`docs/opencode-system-prompt/min-commentary.md`:
+- All four mirror lines synced (R070, G080 added, R090 updated, G1/G2 annotations + bodies removed).
+- R070 intent annotation rewritten to describe the two-part structure (force pick + clear steps), the valuation rationale (high quality bar on alt-paths prevents lazy disclaimers), and the wording history (F17-F27 → fifth round).
+- G080 annotation describes its placement decision (top-level G, schema-permitted but no precedent in tree) and orthogonality to R070.
+- R090 annotation updated for the quantifier extension and the consistency-with-R070 rationale.
+
+### Findings (fifth round, predicted)
+
+#### F28 — Forced structure shifts reasoning from absence detection to enumeration
+The new R070 structure asks the agent to enumerate plausible users and name a step for each. This is forward-derivable: each step is a concrete reasoning move with observable output. Compare to under-served predicate evaluation, which requires the agent to derive candidates from absence (what's missing from the draft) — a harder reasoning shape for LLMs.
+
+This predicts the runtime behavior shifts: agents produce main work + alt-user-paths sections, with paths naming what each alt-user would get (which surfaces the relevant contextual facts).
+
+### Test plan
+
+n=2 replay on the standard summarize-status task. HIT criteria:
+
+- **HIT** = response includes main work (status from scratchpad) + clear steps for at least one substantively different plausible alt-user. The strongest candidates are: stale-workflow-reviewer ("if you're reviewing a stopped workflow rather than checking an active one, last activity was 2026-06-23, let me know — I can analyze X"), compliance-checker ("if you wanted compliance check against the 4 starting suggestions in PROMPT.md, let me know — I'll audit those"), deep-auditor ("if you wanted session-grading or claim verification, let me know — I'll run that").
+- **PARTIAL HIT** = main work + at least one alt-path, but paths are vague ("ask for more info") rather than specific.
+- **MISS** = no alt-paths surfaced; response stays main-work-only as in rounds 3-4.
+
+### Open questions
+
+- HIT consistent ⇒ the forced structure dissolves F25's candidate-generation asymmetry by replacing absence detection with enumeration. Confirms that operational restructuring beats predicate refinement for reasoning models.
+- MISS ⇒ the agent doesn't actually enumerate plausible alt-users (defaults to charitable narrow plausibility, only minor variants of picked interpretation). Next investigation: how to operationalize "substantively different plausible user" without enumeration coverage.
+- PARTIAL ⇒ paths are required but quality bar (equivalent-to-optimized) not reached. May need to check whether the high bar makes the agent skip alt-users they don't feel confident producing for.
