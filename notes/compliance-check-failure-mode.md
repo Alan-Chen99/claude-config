@@ -344,6 +344,54 @@ n=2 replay on the standard summarize-status task against patched `min`. HIT crit
 
 ### Key files (third-round additions)
 
-- `/tmp/min-status-check/config.json` — inline-config harness file
+- `/tmp/min-status-check/config.json` — inline-config harness file (pre-patch replay)
 - `/tmp/min-status-check/A{1,2}.{json,pretty,err}` — pre-patch replay (current min, 0/2 HIT)
-- Post-patch replay sessions will be cached after running the patched-min n=2 test.
+- `/tmp/min-r070-patched/config.json` — inline-config harness file (post-patch replay; identical except for the patched `min.md` body)
+- `/tmp/min-r070-patched/B{1,2}.{json,pretty,err}` — post-patch replay sessions
+
+### Post-patch result: 0/2 strict HIT; partial engagement on B1 only
+
+| Run | Session | Gate iters | HIT |
+|---|---|---|---|
+| B1 | `ses_1029fd5d0ffeEhoQlaOpDCzXEA` | 2 | PARTIAL (within-frame only) |
+| B2 | `ses_1029fd59cffeLNXAAI0cwm35Po` | 1 | MISS |
+
+#### B1 — partial engagement, within-frame
+
+B1 ran two gate iterations. The second iteration was triggered by under-served-anchored reasoning: between gate-result and second-gate-call, the agent reasoned (verbatim): *"It seems like the status indicating 'running' might not reflect the last event properly since there's no current process evident. The workflow looks stalled since the last log from 6/23 shows limited activity. The user inquires about key problems, so I should highlight that the last scratchpad ended mid-iteration and lacks evidence of completion."* The revision changed "running" → "in-progress task; no scratchpad evidence the next step was run."
+
+This is the user-served reasoning pattern firing correctly — the agent identified a way a plausible user would be under-served (false "running" claim) and revised. But the candidate landed in the workflow-state-accuracy class, not scope-choice or user-suggestion-axis. The final response still does not:
+- disclose scope choice (no statement of "I read scratchpad + adjacent; did not audit referenced sessions or re-grade transcripts")
+- name any of the 4 PROMPT.md alternative suggestions
+- surface effort-axis or purpose-axis under-served candidates
+
+#### B2 — single iteration, silent gate engagement
+
+B2 ran one gate iteration. No visible reasoning between gate-result and final response (consistent with F11 silent heredoc-construction). Final response identical in structure to A1/A2: workflow-state-status concerns only.
+
+### Findings (post-patch)
+
+#### F21 — Patch fires within-frame, does not reach frame-choice layer
+The "under-served plausible user" channel does land in the agent's reasoning (B1 demonstrates explicit invocation: identifies under-served candidate, revises draft). But the candidates the agent generates through this channel are **bounded by the agent's operative frame**. B1's frame was "what status is the workflow in?"; the under-served candidates it generated were workflow-state-accuracy candidates ("running" vs "in-progress"). Scope-choice candidates ("did I pick the right axis?") and user-suggestion-axis candidates ("did the workflow address the 4 starting suggestions?") were not generated — those would require frame-counterfactual reasoning, which `min.md`'s rule set does not propel.
+
+This confirms the structural ceiling identified in F3 / F16: within-frame self-criticism reliable; frame-choice self-criticism not.
+
+#### F22 — Variance between runs is large at n=2
+B1 ran 2 gate iterations with visible reasoning; B2 ran 1 with silent gate engagement. Same prompt, same agent body, same gate stdout. The patch's effect is real but stochastic at this n. n=2 is sufficient to confirm 0/2 strict HIT but insufficient to characterize the partial-engagement rate.
+
+#### F23 — F19 (gpt5 reasons through definitional channels) is empirically supported
+B1's reasoning between gate iterations explicitly engages "user inquires about key problems, so I should highlight…" — routing through the user-served channel. F19's prediction (gpt5's natural logical pattern routes through the rule definition) holds; the limit is what the agent's operative frame permits as candidates, not whether the channel itself is reached.
+
+### Diagnostic conclusion for this round
+
+The patch is **logically correct and behaviorally non-null** (B1 demonstrates fire), but **does not lift the structural floor**. `min.md`'s minimum-spec scope explicitly excludes the collaborator-triad rules (R001 collaborate-on-goal, R061 underlying-question, R011 don't-drift-to-easy-answer) that would propel frame-questioning per F16. Further wording fixes inside `min.md` are unlikely to reach the scope-choice / user-suggestion-axis failure on this fixture, because the failure is frame-deference and the rules that propel reframing live in `alan-default-ids.md`, not `min.md`.
+
+This is the predicted outcome of the "MISS" branch in the test plan: hypothesis (1) channel-correct-but-not-reaching is refuted (B1 reaches it), hypothesis (2) frame-deference-blocks-generation is supported (B1 engages but stays in-frame).
+
+### Implications
+
+1. **Keep the patch.** R070's new wording is logically correct under the minimal-rules ethos: it grounds "problem" via "under-served plausible user," removes the mis-anchored "downstream" noun, and shifts R070-G1 from implicit-user-vigilance to active-disclosure. None of this is failure-coverage; all of it is alignment between rule body and stated intent. B1 demonstrates the channel does fire when it can.
+
+2. **Stop chasing this failure inside `min.md`.** The remaining gap (silent scope choice + 4-PROMPT.md-items axis) is frame-choice, which is structurally out of `min.md`'s scope per `min-commentary.md`'s design boundary. Adding more rules to `min.md` to chase this failure would be coverage-driven and against the design ethos.
+
+3. **Move the experiment forward to `alan-default-ids.md`.** If the goal is to make a production agent surface scope/frame concerns, the collaborator-triad layer is where the work is. Run the same fixture against `alan-default-ids.md` (which already has R001/R061/R011) to confirm the diagnostic split: `min.md` floor ⇒ within-frame self-criticism only; `alan-default-ids.md` ⇒ frame-choice reachable.
