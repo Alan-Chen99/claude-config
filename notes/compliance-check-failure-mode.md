@@ -630,3 +630,43 @@ Re-run n=2 with the gate fix. Three outcomes possible:
 - **HIT** with alt-paths in response ⇒ the gate citation was the missing wiring; D1/D2 MISS was partly the gate staleness, not the framework.
 - **PARTIAL** (staleness surfaced like D2 but no alt-paths) ⇒ even with gate restatement, alt-paths is structurally beyond what body+gate can propel; supports path 3 (collaborator-triad needed).
 - **MISS** ⇒ the gate fix doesn't change behavior; deeper issue in how the agent processes R070's two clauses.
+
+### Result: 0/2 strict HIT, but agent now actively CONSIDERS alt-paths and chooses against
+
+| Run | Session | Gate iters | Strict HIT | Alt-paths considered in reasoning? | Alt-paths in response? |
+|---|---|---|---|---|---|
+| E1 | `ses_10249c31cffe7JGOuW0lTzXef6` | 1 | MISS | YES (verbatim: "I might want to include that it's being read from the scratchpad only ... they might be looking for the actual running process status ... phrase it as 'if you want,' rather than assigning it") | NO (intended to include scope clarification, didn't write it — compression) |
+| E2 | `ses_10249c2c0ffe5tw5guo1cCyLBe` | 1 | MISS | YES (verbatim: "I could mention that 'running' the process means I can't access logs ... I realize I don't need to assign work right now ... I just want to keep things concise") | NO (explicit rejection: chose concision over inclusion) |
+
+#### The gate sync changed the engagement layer, not the output
+
+Both E1 and E2's pre-final reasoning blocks engage with the alt-paths question directly. E1 considers: scope disclosure ("being read from the scratchpad only"), alt-user identification ("might be looking for the actual running process status"), and followup-invitation form ("phrase it as 'if you want'"). E2 considers: missing-context disclosure ("'running' means I can't access logs"), R090 check ("I don't need to assign work right now"), and concision tradeoff ("keep things concise"). Both then ship final responses without any of this — structurally identical to D1/D2/C1/C2/B1/B2.
+
+So the gate-synced G3 succeeds at making the agent reason about alt-paths but fails at making the agent include them. Two distinct rejection patterns:
+
+- **E1: compression-before-output (F24 redux).** Considered including the scope clarification, didn't write it. The "what to highlight" filter compressed the intended addition out before the final response.
+- **E2: active rejection via R070/R090 perceived conflict.** Explicitly chose concision and explicitly invoked R090 ("don't need to assign work right now") to discharge the alt-paths consideration. R070's required alt-paths and R090's no-work-assignment read as conflicting; agent picks R090.
+
+#### F29 — Gate G3 sync moves engagement up one layer but reveals deeper conflict
+
+Pre-gate-sync (D1/D2): agent doesn't visibly engage alt-paths concept at all.
+Post-gate-sync (E1/E2): agent visibly engages alt-paths concept in reasoning, then either compresses it out or actively rejects it for concision/R090-conflict reasons.
+
+The wiring fix moved the failure surface from "candidate not generated" to "candidate generated but rejected." Real progress, but doesn't reach the desired output structure.
+
+#### F30 — Perceived R070/R090 conflict
+
+E2's verbatim reasoning: *"I realize I don't need to assign work right now. I just want to keep things concise."*
+
+The agent reads R070's "include clear steps for any other plausible user" as a form of work-assignment to that user (alt-user has to evaluate "do I want X" and follow up). R090's "avoid assigning work" then conflicts. The agent resolves by deprioritizing R070's alt-paths requirement.
+
+Commentary on R090 already states alt-path followups qualify as "good reason" assignments — but commentary isn't rule body. The agent's reasoning doesn't see the resolution; they perceive the rules as conflicting and choose R090.
+
+This is the next surface to address. Options:
+- Explicit reconciliation language in R070 or R090 body: "Alt-path followups invited under R070 are good-reason assignments under R090."
+- Rephrase R070's alt-paths in non-assignment language ("offer routes" rather than "include clear steps"?).
+- Accept that under the floor's two-rule conflict, agents default to R090 — alt-paths inclusion requires production-level rules that resolve the conflict explicitly.
+
+### Diagnostic conclusion (fifth-round, post-gate-sync)
+
+Gate sync moved D1/D2's "no consideration" pattern to E1/E2's "consider but reject" pattern. The alt-paths structure still doesn't appear. The next failure surface is the R070/R090 perceived conflict that pushes the agent to discharge alt-paths consideration via R090's no-work-assignment rule. Holding for direction.
