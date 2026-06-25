@@ -40,7 +40,7 @@ const MIN_GATE_STDOUT: &str = "\
 (R060-G2) An omission — something you failed to do or surface — is a mistake, not only an incorrect action.
 (R060-G3) Check R070: would your draft create a downstream problem for any plausible user who might ask this question?
 (R060-G4) WARNING: a common failure point is noticing problems INSIDE your chosen frame but missing problems CAUSED BY your framing. What concrete things might your draft fail to address because you framed the task one way rather than another? Name those.
-(R060-G5) Check R070-G1: did you state your interpretation clearly so a user with a different goal can notice and follow up?
+(R060-G5) Check R090 — what are implicit work assigned to user?
 
 If this surfaced new work or a revision, do it and re-enter the gate at the next iteration. Otherwise send the final response.
 ";

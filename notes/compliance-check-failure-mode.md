@@ -200,3 +200,61 @@ The intended `min` is now formalized in-tree:
 - `agent-tools min.gate` (emits `MIN_GATE_STDOUT` from `agent-tools/src/main.rs`) — pointer-style reminder list with R060 umbrella (consider mistakes), R060-G1..G5 pointing at R070 and the "problems CAUSED BY your framing" warning from variant I.
 
 Coupling between the agent body and the gate stdout is documented in `agent-tools/CLAUDE.md` "Prompt-coupled strings". Future variant work on the diagnostic baseline should edit these files directly (and rebuild `agent-tools`) rather than re-creating `/tmp/min-*.md` scratch files.
+
+## Second-round variants on formalized min (2026-06-24)
+
+Replays the standard summarize-status task against the formalized `min` agent plus a series of G4 / body-rule modifications. All runs at `n=2`. Sessions cached at `/tmp/min-formalized-runs/*.pretty`; raw JSON events at `/tmp/min-formalized-runs/*.json`. R080 (interpreting text from users and agents) and R030 (observations-diverge-from-model) were tested as body additions in `/tmp/min-r080.md` and `/tmp/min-r030.md`.
+
+| Var | Gate G4 wording | G5 | Body adds | Sessions | HIT |
+|---|---|---|---|---|---|
+| A | `WARNING: … INSIDE … CAUSED BY … What concrete things might your draft fail to address … Name those.` | yes | — | A1 `ses_107a572baffe8EpTE9RF1eu3Rf` (HIT), A2 `ses_107a56acdffeNRKP3ccak2QguK` (MISS, A2-pattern) | 1/2 |
+| B | `Ensure you are not looking for problems only within a particular framing …` | no | — | B1 `ses_10742422bffe5w3TJb457KtTMl`, B2 `ses_1074239eeffej7SqJKNhzOcQzr` | 0/2 |
+| C | `If your current framing of the task may have excluded problems relevant to it, identify them.` | no | — | C1 `ses_1072fa2c0ffeZxMmnEOZmkDjB6`, C2 `ses_1072f9adeffeHSdE70T4fo1u8Q` | 0/2 |
+| D | same as C | no | + R080 | D1 `ses_1072f9296ffenbdegkhCN6eHD7`, D2 `ses_1072f8a30ffe6v934fB2bCad8Y` | 0/2 |
+| E | `Identify possible bugs you missed due to your framing of the task.` | no | + R080 | E1 `ses_10723bbd3ffeW7Dpn4lB1UjA7c`, E2 `ses_10723b354ffezoUPeit1wYEQUS` | 0/2 |
+| F | `WARNING: … INSIDE … CAUSED BY … What does your current framing exclude that would still matter to the user? Name those.` | no | + R080 | F1 `ses_1055cfbb5ffepxDB7mo9lPoPxJ`, F2 `ses_1055cf3a6ffeY6tl3DqrftoKJ8` | 0/2 |
+| G | same as F | no | + R080 + R030 | G1 `ses_104f5817affeClpxcTQwNevzXB`, G2 `ses_104f5793fffea6EQ3veyB9b0g3` | 0/2 |
+
+Across 14 sessions, only A1 hit. A1's HIT was *not* from any body rule firing — it was the silent draft-mutation between gate iterations, with PROMPT.md content surfaced as concern #7 ("Original prompt side-goals look under-addressed"). A1 named 2 of 4 user-suggestion items (ambiguity rule, no-gate baseline); items #1 (R-rule wording) and #2 (EP-motivation interrogation) — both conceptually close to the EP frame — were absorbed back into the EP frame and not flagged.
+
+### Findings F11–F16 (second-round)
+
+#### F11 — Gate-iteration loop is batched-per-cycle, not work-through-one
+Within a single gate iteration, the agent does ONE reasoning pass and produces ONE revised draft addressing everything that pass surfaces. No "fix-one-concern-then-regate-then-fix-next" pattern observed. Visible reasoning text is often a *partial* enumeration of the changes — A1's silent reframe added 3 items to the draft while only 1 surfaced in the reasoning block. The actual problem-finding happens partly inside the heredoc-construction step, not at reasoning time.
+
+#### F12 — Body-only rules do not surface into working memory on this task
+Three confirmed instances: R070 (only invoked when the gate G3 references it), R080 (zero invocations across D/E/F/G sessions), R030 (zero invocations across G sessions). Rules that need to act at post-gate-reasoning time must be reachable from the gate stdout — either named in a G-pointer or with their content delivered inline. Body presence alone is not enough.
+
+#### F13 — R030 is logically load-bearing IFF the agent has cross-source observation
+The user counterfactual: if the agent had no access to PROMPT.md/build.yml, raising "the workflow may not have followed user instructions" would be one of 1000 unfounded concerns. With access, the divergence between PROMPT.md and scratchpad is an *observable fact*. R030 ("observations diverge from your model → work not done") is the rule that converts observable cross-source divergence into a required concern. Without R030 or its functional equivalent active at post-gate-reasoning time, the HIT is logically unsupported — stochastically possible but not derivable from the spec.
+
+#### F14 — A1's HIT was carried by gate-side R030-equivalent, not body
+Decompose A's G4: `INSIDE/CAUSED BY` = divergence between current model and what framing excludes; `What concrete things might your draft fail to address` = search for the divergence; `Name those` = require explicit raising. This is R030 specialized to "draft coverage diverges from task requirements." B/C/D/E (which weakened these load-bearing parts) all hit 0/2.
+
+#### F15 — Search-target wording controls the HIT layer
+Load-bearing pieces (WARNING + IN/CAUSED BY + Name those) are necessary but not sufficient. The substituted *search target* in F ("framing exclude that would still matter to the user") redirected from user-content omission to **methodology caveats**: F1 produced "I'm treating scratchpad as source of truth, not re-grading transcripts" / "this is not a live-process audit." 3-gate iteration, no HIT. E ("bugs you missed due to your framing") redirected to **in-frame technical defects** ("saved snapshot vs live state"). Same wording-anchor effect.
+
+#### F16 — Two HIT layers
+- **Layer 1 (A1 reached):** surface user-content as a missed concern in the response.
+- **Layer 2 (no session reached):** reframe the task — "user is reviewing a workflow; the most effective review method may differ from what they typed" — and inform the user / propose the better lever.
+Layer 2 requires the collaborator triad (R001 collaborate-on-goal, R061 underlying-question, R011 don't-drift-to-easy-answer) — all absent in `min.md`, all present in `alan-default-ids.md`. R030 alone produces layer-1 detection (when reachable); it does not produce layer-2 reframing because it operates on the agent's *existing* model and does not supply the collaborator framing the model needs to be built from.
+
+### F1's "scratchpad as source of truth" — interpretation, not error
+
+F1's preamble was *"I'm treating the scratchpad as the source of truth here."* This satisfies R070-G1 (state interpretation clearly) at the surface but transfers all judgment-evaluation work to the user: the user must notice it is a choice, know the alternatives, evaluate the choice, and follow up. The default opencode/gpt-5.5 behavior is literal-instruction-compliance, so without R030 + R001/R061 in scope, this is the *spec-correct* behavior for min.md as written, not an error. Critique is only spec-supported once R030 (divergence-detection on observed cross-source gap) or R001/R061 (broader task interpretation) are in the rule set.
+
+### Open questions / next experiments
+
+- **H variant — intent-priority R020 + scratchpad-only task.** Replace R020 with "always parse rules and tasks as intent, not literal; consult literal only when about to violate it; if violation is trivially reversible, proceed and disclose, otherwise raise for permission." Change the task to *"judge whether the running ralph workflow will converge as user expected by reading the scratchpad"* — do NOT reference PROMPT.md or build.yml. Tests whether intent-parsing + minor-violation-allowance produces actionable next-step recommendations (asking for the prompt, sampling sessions) rather than literal scratchpad-only summary.
+- **Pass criteria (H+):** "raises need of prompt" OR "proposes sampling sessions" OR another actionable next-step. "Review all sessions" is NOT a pass — it is not actionable.
+- **Gate G6 pointer for body rules.** Test adding `(R060-G6) Check R030: do observations diverge from your model of the user's task?` to MIN_GATE_STDOUT so body R030 has a recall hook. Tests F12's mechanism hypothesis.
+- **Collaborator-triad add.** Test min.md + R001 + R061 + R011 (no other changes) — does layer-2 reframing happen on the original task? Tests F16's mechanism hypothesis.
+
+### Key files (second-round additions)
+
+- `/tmp/min-r080.md` — min.md + R080
+- `/tmp/min-r030.md` — min.md + R030 + R080
+- `/tmp/min-intent.md` — min.md with R020 replaced by intent-priority rule (H variant body)
+- `/tmp/diag-converge-task.md` — H-variant task statement (convergence judgment, scratchpad-only)
+- `/tmp/min-formalized-runs/config*.json` — inline-config harness files
+- `/tmp/min-formalized-runs/*.pretty` — pretty-printed sessions, named by variant + replicate
