@@ -469,3 +469,34 @@ The test observes **response structure change**: under guidance-only R070-G2 (no
 - HIT consistent ⇒ guidance alone is enough; F12 (body-only rules don't fire reliably) is less universal than prior rounds suggested, possibly because guidance-shaped rules are processed differently from requirement-shaped ones.
 - MISS ⇒ either guidance doesn't reach reasoning without gate hook (F12 applies to guidance too), OR the wording isn't strong enough as guidance. Second try: add G6 → R070-G2 gate hook.
 - Variance ⇒ guidance is right but doesn't fire reliably at n=2; n=4 needed.
+
+### Post-patch result (guidance-only): 0/2 strict HIT, both add one within-frame bullet
+
+| Run | Session | Gate iters | Strict HIT | Structural change vs B1/B2 |
+|---|---|---|---|---|
+| C1 | `ses_102747d71ffexyOnGc0NXr6CB0` | 2 | MISS | added "current iteration is incomplete — no verification, ending commit, closure, or event publication" |
+| C2 | `ses_102747cf6ffehaA7kpOwgQ3srH` | 1 | MISS | added "process status concern: no TASK_SUMMARY.md / summarizer output yet" |
+
+Strict HIT criteria not reached: no surfacing of "workflow has been idle ~2 days," "last activity 2026-06-23," "4 PROMPT.md starting suggestions were not engaged," or "null-guard check is unmonitored."
+
+Response structure DID change slightly: both runs added one new bullet versus the third-round B1/B2. C1's new bullet was generated in the second gate iteration; C2's was generated in the single iteration. Both new bullets are within the workflow-state-completeness frame — what the workflow's own bookkeeping shows is missing (no ending commit, no TASK_SUMMARY.md) — not the missing-context-for-user frame (what facts about the situation the user reading this draft might not already have).
+
+C2's tool calls explicitly read `events.jsonl` and saw `"ts":"2026-06-23T04:02:13"` as the last entry. The staleness observation was in the agent's tool-result context. It did not propagate to the response.
+
+### F27 — Guidance fires but candidate generation stays frame-bounded
+
+R070-G2 as guidance is reaching the agent's reasoning (C1's second gate iteration is explicitly triggered by under-served reasoning around incompleteness, and both runs produce a structurally new bullet). This partially refutes the universal form of F12: body-only guidance can reach post-gate reasoning, at least sometimes.
+
+But the candidates it generates remain bounded by the agent's operative frame. "Beyond the literal question" gets interpreted as "more thorough within-frame coverage" (workflow's own completion criteria) rather than "raise observed-but-user-might-not-know context." The asymmetry F25 identified — wrong-content easy, missing-context hard — persists; G2 expands the wrong-content/within-frame candidate pool by one bullet rather than opening the missing-context candidate pool.
+
+Same shape as F21 (third-round patch): the channel fires, but candidate generation is frame-bounded.
+
+### Diagnostic conclusion (fourth-round)
+
+The guidance-only addition produces a small structural change but does not lift the candidate-generation asymmetry on this fixture. The choice now is between:
+
+1. **Second-try wiring fix**: add G6 → R070-G2 gate hook. Tests whether the candidate-pool bottleneck is reachable via gate-level citation rather than body-level guidance.
+2. **Refine G2 body**: make "relevant information the user may not have" more specific (e.g., "context observable in your tool results but not in the user's apparent picture"). Risks coverage-style framing.
+3. **Accept this as the floor**: guidance pushes within-frame completeness harder; missing-context candidate generation requires the collaborator-triad rules (R001/R061) that `min.md` excludes by design.
+
+Holding for user direction on which of (1)/(2)/(3) is the next step.
