@@ -258,3 +258,92 @@ F1's preamble was *"I'm treating the scratchpad as the source of truth here."* T
 - `/tmp/diag-converge-task.md` — H-variant task statement (convergence judgment, scratchpad-only)
 - `/tmp/min-formalized-runs/config*.json` — inline-config harness files
 - `/tmp/min-formalized-runs/*.pretty` — pretty-printed sessions, named by variant + replicate
+
+## Third round: problem-channel via under-served plausible user (2026-06-25)
+
+Status-check replay against the formalized `min` agent and gate, with the worktree binary on PATH (the canonical `/repos/claude-config/agent-tools` no longer has `min.gate` — diverged from the worktree). Sessions cached at `/tmp/min-status-check/`.
+
+### Status: current min (R070 with "downstream problem") still 0/2 HIT
+
+| Run | Session | Gate iters | HIT |
+|---|---|---|---|
+| A1 | `ses_102dc0a81fferYaSs5Ir9nUZDR` | 1 | MISS |
+| A2 | `ses_102dc0a1cffeQL5BjSNyxCb3rp` | 1 | MISS |
+
+Confirms F1 reproduces under the formalized `min` baseline.
+
+### Logical re-derivation: which rules should fire on this fixture?
+
+The task statement *"summarize status of running ralph workflow PROMPT.md + build.yml by reading scratchpad — what are the key problems / concerns?"* admits a valid scope-restricted reading: scratchpad as primary source, PROMPT.md/build.yml as context for understanding the workflow. Under this reading:
+
+- **R030 does not apply.** Within scope (scratchpad-derived view), the agent's model has no unaccounted gaps. The 4 PROMPT.md user-suggestions are read-as-data, not absorbed into the model. R030's "observations diverge from your model" antecedent is false. Prior framing in this notes file ("R030 catches via cross-source divergence") conflated *agent saw X* with *agent's model should be consistent with X*; the rule's antecedent is task-scoped, not data-scoped (F17 below).
+
+- **R070 does apply.** Plausible users sit on at least two axes: an **effort axis** (scratchpad-only → audit referenced sessions → re-grade transcripts) and a **purpose axis** (evaluate workflow against PROMPT.md objectives vs. monitor null guard vs. decide whether to redirect). A draft that picks one point silently and ships under-serves users at other plausible points. R070's correctness condition is violated; the rule should fire.
+
+### Why R070 doesn't fire in the runtime trace
+
+A2's final reasoning, verbatim: *"I've checked the git status, and there doesn't seem to be any downstream issues to worry about."*
+
+GPT-5 is a logical creature — A2 is executing "identify problem → check realization" correctly. Twice, even (also: *"considering 'running' to indicate a process I might not fully understand"*). The pattern fires. What fails is the *anchor* of "problem":
+
+- "Downstream problem" anchors on engineering/operational consequences (downstream code, downstream pipeline, downstream commits).
+- The "for any plausible user" qualifier comes after the noun and loses the anchor competition.
+- Agent reasons "is there a [operational] problem?" → checks via `git status` → answer "no" → discharges R070.
+
+The reasoning machinery is sound; the predicate is mis-grounded.
+
+### The channel: define "problem" via under-served plausible user
+
+The agent is trying to identify problems. It needs a *channel* — a definition of what counts as a problem — anchored on the user-served axis. Currently `min.md` presupposes "problem" (R060 umbrella, R070 body) without grounding it; the agent fills the definition with whatever's natural, which lands on operational/code problems.
+
+Minimal channel: a problem is **anything by which the work would leave a plausible user under-served**. Properties:
+- Anchors on user-served axis (gap between agent output and user purpose-fit).
+- Doesn't enumerate problem types — agent generates candidates through the channel via natural logical reasoning.
+- No risk/stakes framing — works for local no-stakes workflow as well as high-stakes.
+- Definition lives inline in R070, the rule that uses it. No sibling rule extraction.
+
+### Findings (third round)
+
+#### F17 — R030's antecedent is task-scoped, not data-scoped
+Whether R030 fires depends on what the agent's model is supposed to contain, which depends on the task's scope. Reading PROMPT.md as out-of-scope context (scratchpad-primary task) keeps PROMPT.md observations from being "model observations" — no divergence, R030 silent. F13's "R030 converts cross-source observable divergence into a required concern" only holds when the cross-source material is in-scope for the model.
+
+#### F18 — Anchor mis-grounding propagates through valid reasoning chains
+The "downstream" anchor lands on operational state in A2's runtime trace. The risk-identification pattern itself works correctly; the predicate's anchor is wrong. Fixing the anchor (via "under-served plausible user") lets the same pattern reach user-served-axis problems without changing the reasoning machinery.
+
+#### F19 — GPT-5 reasons logically through definitional channels
+When the rule defines what counts as a problem, gpt5's natural "identify problems → check" pattern routes through the definition. The rule doesn't need to prescribe enumeration ("name 2 users") or risk-framing ("biggest risk") — it needs to ground the predicate so the logical chain lands on the right axis. Consistent with `min-commentary.md`'s "minimal logical premises" design principle.
+
+#### F20 — Coverage-driven fixes are wrong for both gpt5 and min.md
+Earlier this round, fix proposals SF4 ("include user-raised items") and SF5 ("counterfactual user") and the R040 sibling-rule extraction for "quality" were coverage-driven — phrased to catch the specific A2 trace, not to state independent logical correctness conditions. For a reasoning-based model, adding patches doesn't make reasoning better; it gives more premises to reason wrong over. The correct move is to update existing rule bodies inline so the predicate is correctly anchored, not to add sibling rules or coverage clauses. Recorded as a methodology correction for future variant work.
+
+### Rule update applied
+
+`opencode/agents/min.md`:
+- R070 body rewritten: defines plausible user inline, defines "problem" via under-served, states action (surface or address).
+- R070-G1 rewritten: "state both what you produced and what you set aside" — converts silent scope choice into explicit surface; closes prior G1's implicit-vigilance-assignment-to-user conflict with R090.
+
+`agent-tools/src/main.rs` `MIN_GATE_STDOUT`:
+- G3 updated: "Check R070: would any plausible user be under-served by your draft?" — removes the "downstream" anchor; mirrors new R070 body.
+
+Annotations in `docs/opencode-system-prompt/min-commentary.md` updated for both rules.
+
+### Test plan
+
+n=2 replay on the standard summarize-status task against patched `min`. HIT criteria under the new framing (broader than prior "surfaces 4 PROMPT.md items"):
+
+- **HIT** = draft surfaces at least one user-served-axis concern: silent scope choice, effort-point disclosure, alternative-frame consideration, or specific user-suggestion items from PROMPT.md.
+- **PARTIAL HIT** = draft does active disclosure of scope choice ("I read scratchpad + adjacent; did not audit referenced sessions") without explicitly framing it as a concern.
+- **MISS** = no engagement with user-served axis; concerns stay within-work / workflow-state / operational.
+
+### Open questions / next experiments
+
+- If HIT: SF1 (G6→R030 wiring) remains a candidate for tasks where R030 *does* apply (broader scope readings). Test on those fixtures separately.
+- If MISS: the anchor fix didn't reach. Two sub-hypotheses to disambiguate:
+  1. Channel correct but body rule not reaching reasoning at decision time (F12 wiring residue) — gate text would need more than citation.
+  2. Channel correct but frame-deference (F3 / F16 layer 2) blocks gpt5 from generating user-served candidates when its operative frame is workflow-internal — structural ceiling reached for `min.md`.
+
+### Key files (third-round additions)
+
+- `/tmp/min-status-check/config.json` — inline-config harness file
+- `/tmp/min-status-check/A{1,2}.{json,pretty,err}` — pre-patch replay (current min, 0/2 HIT)
+- Post-patch replay sessions will be cached after running the patched-min n=2 test.

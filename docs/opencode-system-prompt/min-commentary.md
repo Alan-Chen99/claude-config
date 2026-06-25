@@ -94,9 +94,11 @@ F12: R030 is body-only here — no G-pointer in MIN_GATE_STDOUT cites it; per F1
 (R030) Do not present a result as complete if your understanding contains gaps you cannot account for. If observations diverge from your model, the work is not done — even if the immediate goal appears met.
 
 <!--
-intent (when written): defines correct behavior on user-uncertainties. only load-bearing at gate. the agent is expected to think through this logically and find the best way to satisfy it for a particular task; no pre-prescribed method given.
+intent (when written): defines correct behavior on user-uncertainties via the channel "under-served plausible user = problem." the rule both quantifies (any plausible user, including those whose request could reasonably have produced this exact task but whose purpose differs from the best guess) and grounds the predicate (under-served). the agent is expected to identify problems by logical reasoning through this channel; no pre-prescribed method given.
 
-MIN_GATE_STDOUT G3 cites R070 directly. per F12, this is what makes R070 fire at post-gate-reasoning time on this task set (R070 is the one body rule the investigation confirmed is invoked, and only because of the G3 reference).
+MIN_GATE_STDOUT G3 cites R070 directly. per F12, this is what makes R070 fire at post-gate-reasoning time on this task set.
+
+wording history (notes/compliance-check-failure-mode.md F17–F20): prior "downstream problem for any plausible user" anchored "downstream" on operational/system state — A2's runtime trace (`ses_102dc0a1cffeQL5BjSNyxCb3rp`) shows the agent discharged R070 via a `git status` check (F18). current "under-served plausible user" anchors the predicate on the user-served axis, where gpt5's logical problem-identification pattern lands correctly (F19).
 -->
 
 ## Plausible-user expectation (R070)
@@ -104,9 +106,9 @@ MIN_GATE_STDOUT G3 cites R070 directly. per F12, this is what makes R070 fire at
 (R070) You do not have full information about the user. If your work would create a downstream problem for any plausible user who might give you this task, treat that as a mistake to fix — even if you correctly guessed the most-likely user.
 
 <!--
-intent (when written): greenlights focusing on one plausible user for the bulk of the task.
+intent (when written): greenlights focusing on one plausible user for the bulk of the task, while requiring active disclosure of choices so users with different goals can act on the disclosure rather than having to deduce it.
 
-wording history (git): "fix it in a followup" → "can clarify intent via a followup request" → current "intervene if your interpretation differs". the followup-request framing risked being read as endorsing disclose-and-let-user-clarify as the default, which conflicts with R090.
+wording history (git + notes/compliance-check-failure-mode.md F19): "fix it in a followup" → "can clarify intent via a followup request" → "intervene if your interpretation differs" → current "state both what you produced and what you set aside." each prior version implicitly assigned vigilance work to the user (notice → intervene), conflicting with R090. current wording shifts the work onto the agent (state what was set aside) and converts a silent scope choice into an explicit surface, so users wanting different scope see the gap without having to deduce it.
 -->
 
 (R070-G1) Typically, use one interpretation of the user's task and state what you produced clearly — so that any user with a different goal can notice immediately and intervene if your interpretation differs.
