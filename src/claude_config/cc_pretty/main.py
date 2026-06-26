@@ -14,6 +14,10 @@ permission-mode state) are hidden.  Model-visible attachment records — most
 importantly hook_additional_context, which carries the <system-reminder> text
 emitted by SessionStart / PostToolUse / etc. hooks — are shown by default.
 Use --show-all to surface the bookkeeping records as well.
+
+This module also exposes :func:`add_shared_args` and :func:`run_pipeline` so
+other front-ends (e.g. opencode-pretty) can wire the same CLI surface and
+rendering loop on top of a different data source.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ import argparse
 import io
 import os
 import sys
+from dataclasses import dataclass
 
 from claude_config.cc_pretty.parse import (
     AssistantRecord,
@@ -434,19 +439,23 @@ def build_rewind_info(
     return rewind_markers, hidden_indices, rewind_boundaries
 
 
-# ─── Main ────────────────────────────────────────────────────────────────────
+# ─── Shared CLI surface ──────────────────────────────────────────────────────
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Pretty-print Claude Code JSONL session logs",
-    )
-    parser.add_argument("file", help="Path to .jsonl session file")
+def add_shared_args(parser: argparse.ArgumentParser, *, default_tool_max: int = 200) -> None:
+    """Attach the cc-pretty / opencode-pretty shared options to ``parser``.
+
+    Front-ends still own the positional argument(s) that point at the data
+    source (a JSONL path for cc-pretty, a session ID for opencode-pretty),
+    but the rendering controls and leg/rewind filters are identical so they
+    live here. ``default_tool_max`` lets front-ends pick a different default
+    truncation budget without redefining the argument.
+    """
     parser.add_argument(
         "--tool-max",
         type=int,
-        default=200,
-        help="Max chars for tool output (default: 200). "
+        default=default_tool_max,
+        help=f"Max chars for tool output (default: {default_tool_max}). "
         "Tool input is shown in full unless --truncate-input is set.",
     )
     parser.add_argument(
@@ -513,25 +522,51 @@ def main():
         "--validate-only",
         action="store_true",
         help="Parse all records through pydantic schema without rendering; "
-        "exit 1 on errors",
+        "exit 1 on errors (cc-pretty only — opencode-pretty validates eagerly).",
     )
-    args = parser.parse_args()
+
+
+@dataclass(frozen=True)
+class PipelineInput:
+    """Inputs to :func:`run_pipeline`.
+
+    ``records``: pre-parsed records keyed by a synthetic line/index number.
+    ``log_path``: shown in the legend at the top so readers know what to grep.
+    ``args``: the argparse Namespace populated by :func:`add_shared_args`.
+    ``agent_chunk_prefix``: filename stem for ``--agent`` chunk files.
+    ``rewound``: pre-computed rewound indices. When set (even to an empty
+        set), the parent-fork auto-detector is skipped — the caller is
+        asserting it already knows what's rewound. opencode-pretty does this
+        because opencode messages legitimately share parents (multiple
+        assistant steps under one user prompt), which the auto-detector
+        would flag as a fork.
+    """
+
+    records: list[tuple[Record, int]]
+    log_path: str
+    args: argparse.Namespace
+    agent_chunk_prefix: str = "cc-pretty"
+    rewound: set[int] | None = None
+
+
+def run_pipeline(inp: PipelineInput) -> None:
+    """Render ``inp.records`` through the shared Renderer to stdout.
+
+    Both cc-pretty and opencode-pretty call this after producing a list of
+    pydantic Records from their respective data source. All filtering
+    (compaction legs, rewinds, --chat-only, --show-all) and grouping
+    (consecutive AssistantRecords, contiguous tool-result UserRecords) lives
+    here so the two front-ends stay in sync.
+    """
+    args = inp.args
+    records = inp.records
 
     if args.no_color or args.agent:
         C.disable()
 
-    raw_records = read_jsonl(args.file)
-    records, errors = parse_all(raw_records)
-
-    if args.validate_only:
-        total = len(raw_records)
-        ok = total - errors
-        print(f"{ok}/{total} records parsed OK, {errors} errors", file=sys.stderr)
-        sys.exit(1 if errors else 0)
-
     tool_input_max = args.tool_max if args.truncate_input else sys.maxsize
     r = Renderer(
-        args.file,
+        inp.log_path,
         tool_output_max=args.tool_max,
         tool_input_max=tool_input_max,
         show_thinking=not args.no_thinking,
@@ -539,7 +574,6 @@ def main():
         chat_only=args.chat_only,
     )
 
-    # In agent mode, capture stdout so we can split if needed
     saved_stdout = None
     if args.agent:
         saved_stdout = sys.stdout
@@ -551,22 +585,16 @@ def main():
         cb["idx"]: cb for cb in compaction_bounds
     }
 
-    # Determine which compact leg(s) to show.
-    # Default: last leg only.  --compact-all: all legs.  --compact-leg N: specific leg.
     compact_hidden: set[int] = set()
     if compaction_bounds and not args.compact_all and args.compact_leg is None:
-        # Hide everything before the last compaction boundary
         last_boundary = compaction_bounds[-1]["idx"]
         compact_hidden = set(range(0, last_boundary))
     elif args.compact_leg is not None:
-        # Show only the specified leg
         leg = args.compact_leg
         boundary_indices = [cb["idx"] for cb in compaction_bounds]
-        # Leg 0 = before first boundary, leg 1 = after first boundary, etc.
         leg_starts = [0] + boundary_indices
         leg_ends = boundary_indices + [len(records)]
         if 0 <= leg < len(leg_starts):
-            # Hide everything NOT in the specified leg
             show_start = leg_starts[leg]
             show_end = leg_ends[leg]
             compact_hidden = (
@@ -580,7 +608,13 @@ def main():
             )
             sys.exit(1)
 
-    rewound = find_rewound_indices(records)
+    # If the caller supplied a rewound set, trust it; the parent-fork
+    # auto-detector would mis-flag opencode's shared-parent assistant chain
+    # (many steps under one user prompt) as forks otherwise.
+    if inp.rewound is not None:
+        rewound: set[int] | None = inp.rewound or None
+    else:
+        rewound = find_rewound_indices(records)
     rewind_markers, hidden_for_rewind, rewind_boundaries = build_rewind_info(
         records, rewound, hide_rewound=not args.show_rewound,
     )
@@ -599,7 +633,6 @@ def main():
     # ── Render records ──────────────────────────────────────────────────
     i = 0
     while i < len(records):
-        # Compaction marker always shows at chain break (even when leg is hidden)
         if i in compaction_markers:
             cb = compaction_markers[i]
             print(separator())
@@ -614,31 +647,22 @@ def main():
                 tokens_after=cb["tokens_after"],
             ))
 
-        # Rewind marker at block boundary
         if i in rewind_markers:
             print(separator())
             print(r.render_rewind_marker(**rewind_markers[i]))
 
-        # Skip records hidden by compaction leg filter
         if i in compact_hidden:
             i += 1
             continue
-
-        # Skip rewound records
         if i in hidden_for_rewind:
             i += 1
             continue
 
         rec, lineno = records[i]
 
-        # Hide non-model content unless --show-all
         if not args.show_all and not is_model_visible(rec):
             i += 1
             continue
-
-        # --chat-only drops everything that isn't a user prompt or assistant
-        # message. Assistant turns are kept here and filtered inside the
-        # renderer (returns None when only tool_use blocks remain).
         if args.chat_only and not is_chat_visible(rec):
             i += 1
             continue
@@ -723,10 +747,6 @@ def main():
             i += 1
 
         elif isinstance(rec, AttachmentRecord):
-            # hook_additional_context renders as a multi-line block (with its
-            # own header), other subtypes as one-line summaries — separator
-            # only matters for the multi-line case. Renderer returns None
-            # for suppressed attachments (e.g. unchanged output_style repeats).
             rendered = r.render_attachment(rec, ts, lineno)
             if rendered is not None:
                 if rec.attachment.type == "hook_additional_context":
@@ -742,16 +762,30 @@ def main():
             print(f"{C.DIM}  [unknown record: {rec.type}]{C.RESET}")
             i += 1
 
+    # A rewind block that runs to the end of the record stream has its
+    # marker keyed at i == len(records), which the main loop never
+    # iterates over. Flush it here. (Compaction boundaries never sit at
+    # len(records) — there's always at least the boundary record itself
+    # past that index — so they don't need the same flush.)
+    tail = len(records)
+    if tail in rewind_markers:
+        print(separator())
+        print(r.render_rewind_marker(**rewind_markers[tail]))
+
     print(separator())
 
     if args.agent:
         output = sys.stdout.getvalue()
         sys.stdout = saved_stdout
-        _emit_agent_output(output, args.file)
+        emit_agent_output(output, inp.agent_chunk_prefix)
 
 
-def _emit_agent_output(output: str, file_path: str) -> None:
-    """Print directly if output fits in Bash, otherwise write chunk files."""
+def emit_agent_output(output: str, chunk_prefix: str) -> None:
+    """Print directly if output fits in Bash, otherwise write chunk files.
+
+    ``chunk_prefix`` is the filename stem used for /tmp/<prefix>-N.txt chunks
+    so cc-pretty and opencode-pretty produce distinguishable artifacts.
+    """
     bash_limit = int(os.environ.get('BASH_MAX_OUTPUT_LENGTH', '30000')) * 4 // 5
     if len(output) <= bash_limit:
         sys.stdout.write(output)
@@ -764,7 +798,7 @@ def _emit_agent_output(output: str, file_path: str) -> None:
     chunk_chars = min(read_max_tokens * 2, 200_000)
 
     lines = output.split('\n')
-    chunks: list[tuple[list[str], int]] = []  # (lines, start_lineno)
+    chunks: list[tuple[list[str], int]] = []
     current: list[str] = []
     current_size = 0
     chunk_start = 1
@@ -781,10 +815,9 @@ def _emit_agent_output(output: str, file_path: str) -> None:
     if current:
         chunks.append((current, chunk_start))
 
-    session_id = os.path.basename(file_path).replace('.jsonl', '')[:8]
     infos: list[tuple[str, int, int, int]] = []
     for i, (chunk_lines, start) in enumerate(chunks, 1):
-        path = f'/tmp/cc-pretty-{session_id}-{i}.txt'
+        path = f'/tmp/{chunk_prefix}-{i}.txt'
         content = '\n'.join(chunk_lines)
         with open(path, 'w') as f:
             f.write(content)
@@ -796,6 +829,35 @@ def _emit_agent_output(output: str, file_path: str) -> None:
     print(f"Read all {n} files in parallel:")
     for path, chars, start, end in infos:
         print(f"  {path} ({chars:,} chars, lines {start}-{end})")
+
+
+# ─── cc-pretty entry point ───────────────────────────────────────────────────
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Pretty-print Claude Code JSONL session logs",
+    )
+    parser.add_argument("file", help="Path to .jsonl session file")
+    add_shared_args(parser, default_tool_max=200)
+    args = parser.parse_args()
+
+    raw_records = read_jsonl(args.file)
+    records, errors = parse_all(raw_records)
+
+    if args.validate_only:
+        total = len(raw_records)
+        ok = total - errors
+        print(f"{ok}/{total} records parsed OK, {errors} errors", file=sys.stderr)
+        sys.exit(1 if errors else 0)
+
+    session_id = os.path.basename(args.file).replace('.jsonl', '')[:8]
+    run_pipeline(PipelineInput(
+        records=records,
+        log_path=args.file,
+        args=args,
+        agent_chunk_prefix=f"cc-pretty-{session_id}",
+    ))
 
 
 if __name__ == "__main__":

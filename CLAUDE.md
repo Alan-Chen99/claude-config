@@ -48,7 +48,7 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools count-tokens [--model MODEL] [--file PATH] [TEXT]` — count input tokens via Anthropic `count_tokens` API (wraps `python3 -m claude_config.count_tokens`)
 - `agent-tools env-context` — print the `# Environment` block (cwd, git, platform, shell, OS). Inject via a `SessionStart` hook returning `{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: <stdout>}}` so cc still sees the env block when `--system-prompt-file` replaces the default prompt — keeps the system prompt itself static and fully cacheable.
 - `agent-tools opencode [args]` — launch `opencode` with repo `.env` loaded for the opencode Langfuse plugin: maps `OPENCODE_LANGFUSE_SECRET_KEY`, `OPENCODE_LANGFUSE_PUBLIC_KEY`, and `OPENCODE_LANGFUSE_BASE_URL` to the unprefixed vars expected by the plugin (`LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_BASEURL`), sets git author/committer env to `opencode`, then forwards args to `opencode`.
-- `agent-tools opencode-pretty <session-id> [args]` — pretty-print an opencode session.
+- `agent-tools opencode-pretty <session-id> [args]` — pretty-print an opencode session. Mirrors `cc-pretty`'s CLI surface (`--tool-max`, `--truncate-input`, `--no-thinking`, `--show-usage`, `--show-rewound`, `--show-all`, `--chat-only`, `--compact-all`, `--compact-leg`, `--agent`, `--validate-only`) and reuses cc-pretty's rendering pipeline. Compaction boundaries (user message with a `compaction` part) become Claude-Code-style `compact_boundary` system records. An uncleaned `session.info.revert` is surfaced via the rewind marker — opencode normally deletes the abandoned tail on the next prompt, so only revert states caught before that prompt show up here.
 - `agent-tools opencode.gate` — prompt gate used by opencode agent instructions; accepts stdin/heredoc input, prints gate instructions to stdout, and exits successfully.
 
 Root resolution:
@@ -79,6 +79,7 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`                     |
 | `claude_config.cc_pretty_intercept` | Pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`) | `cc-pretty-intercept` |
 | `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`           |
+| `claude_config.opencode_pretty` | Pretty-print an `opencode export` session — reuses cc-pretty's renderer and CLI flags via the shared pipeline; the local `convert.py` flattens opencode's part-based messages into cc-pretty records | `opencode-pretty`               |
 | `claude_config.config`          | Load `/repos/claude-config/.env` into `os.environ` | (library — `from claude_config.config import load`) |
 | `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |
 | `claude_config.env_context`     | Print the `# Environment` block for SessionStart hooks under `--system-prompt-file` workflows | `agent-tools env-context` |

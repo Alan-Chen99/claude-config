@@ -210,7 +210,19 @@ def render_legend(log_path: str) -> str:
 
     Printed once at the top of the output so per-block recovery hints (the
     old `# sed -n 'Np' ... | jq -r '...'` lines) can be omitted entirely.
+
+    For ``log_path`` of the form ``opencode://<session_id>`` (used by
+    opencode-pretty), the recovery recipe points at ``opencode export``
+    instead of cc's sed+jq combo — ``@L<n>`` then refers to the 1-based
+    index into ``.messages`` and ``[i]`` to the index into ``.parts``.
     """
+    if log_path.startswith("opencode://"):
+        session_id = log_path[len("opencode://"):]
+        return (
+            f"{C.HINT}# refs '@L<n>[i]' point at message n (1-based), part i (default 0). "
+            f"Recover: opencode export {session_id} "
+            f"| jq '.messages[<n-1>].parts[<i>]'.{C.RESET}"
+        )
     return (
         f"{C.HINT}# refs '@L<n>[i]' point at line n, content block i (default 0). "
         f"Recover: sed -n '<n>p' {log_path} | jq -r '<jq>' — "

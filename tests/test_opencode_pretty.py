@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+import argparse
+import io
 import subprocess
-import shutil
-import uuid
-from pathlib import Path
+import sys
+from contextlib import redirect_stdout
 
 import pytest
 
+from claude_config.cc_pretty.main import (
+    PipelineInput,
+    add_shared_args,
+    run_pipeline,
+)
+from claude_config.opencode_pretty.convert import export_to_records
 from claude_config.opencode_pretty.main import (
-    RenderOptions,
-    emit_agent_output,
     fetch_export,
     parse_export_stdout,
-    render_export,
 )
 
 
@@ -31,6 +35,7 @@ def sample_export() -> dict:
             {
                 "info": {
                     "role": "user",
+                    "id": "msg_001_user",
                     "time": {"created": 1_700_000_000_123},
                     "providerID": "anthropic",
                     "modelID": "claude-sonnet-4",
@@ -42,10 +47,17 @@ def sample_export() -> dict:
             {
                 "info": {
                     "role": "assistant",
+                    "id": "msg_002_asst",
+                    "parentID": "msg_001_user",
                     "time": {"created": 1_700_000_001_456},
                     "providerID": "anthropic",
                     "modelID": "claude-sonnet-4",
-                    "tokens": {"input": 10, "output": 20},
+                    "tokens": {
+                        "input": 10,
+                        "output": 20,
+                        "reasoning": 0,
+                        "cache": {"read": 5, "write": 0},
+                    },
                     "finish": "tool_calls",
                 },
                 "parts": [
@@ -54,7 +66,7 @@ def sample_export() -> dict:
                     {"type": "text", "text": "I will inspect it."},
                     {
                         "type": "tool",
-                        "name": "read",
+                        "tool": "read",
                         "id": "prt_part_123",
                         "callID": "call_abc",
                         "state": {
@@ -62,7 +74,10 @@ def sample_export() -> dict:
                             "title": "Read /tmp/example.txt",
                             "input": {"filePath": "/tmp/example.txt"},
                             "output": "file contents here",
-                            "time": {"start": 1_700_000_001_000, "end": 1_700_000_001_250},
+                            "time": {
+                                "start": 1_700_000_001_000,
+                                "end": 1_700_000_001_250,
+                            },
                         },
                     },
                     {"type": "step-finish"},
@@ -73,9 +88,41 @@ def sample_export() -> dict:
     }
 
 
+def make_args(**overrides) -> argparse.Namespace:
+    """Build a fully populated args Namespace for the shared pipeline.
+
+    Front-ends always go through ``add_shared_args``; tests do the same so
+    new flags surface as test failures rather than AttributeErrors.
+    """
+    parser = argparse.ArgumentParser()
+    add_shared_args(parser, default_tool_max=4000)
+    args = parser.parse_args([])
+    for key, value in overrides.items():
+        setattr(args, key, value)
+    return args
+
+
+def render(export: dict, **arg_overrides) -> str:
+    """Run the full pipeline against ``export`` and return the captured stdout."""
+    records, meta = export_to_records(export)
+    args = make_args(no_color=True, **arg_overrides)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        run_pipeline(PipelineInput(
+            records=records,
+            log_path=f"opencode://{meta['session_id']}",
+            args=args,
+            agent_chunk_prefix="opencode-pretty-test",
+            rewound=meta.get("rewound_indices") or set(),
+        ))
+    return buf.getvalue()
+
+
+# ─── parse_export_stdout ────────────────────────────────────────────────────
+
+
 def test_parse_export_stdout_skips_status_prefix_before_json() -> None:
     parsed = parse_export_stdout('opencode export\nloading session...\n{"id":"ses_1"}')
-
     assert parsed == {"id": "ses_1"}
 
 
@@ -84,113 +131,36 @@ def test_parse_export_stdout_raises_when_no_json_object_exists() -> None:
         parse_export_stdout("opencode export\nloading session...")
 
 
-def test_parse_export_stdout_raises_for_truncated_json_instead_of_nested_object() -> None:
+def test_parse_export_stdout_raises_for_truncated_json() -> None:
     truncated = 'status prefix\n{"info":{"id":"ses_1"},"messages":[{"info":{"role":"user"}}'
-
     with pytest.raises(ValueError, match="invalid JSON"):
         parse_export_stdout(truncated)
 
 
-def test_render_export_includes_session_messages_reasoning_and_tool_details() -> None:
-    output = render_export(sample_export(), RenderOptions(no_color=True))
-
-    assert "Session ses_1234567890abcdef" in output
-    assert "Parser work" in output
-    assert "parser-work" in output
-    assert "1.15.5+0086a0b" in output
-    assert "/root/claude-config-work2" in output
-    assert "openai/gpt-5.5/xhigh" in output
-    assert "{'id': 'gpt-5.5'" not in output
-    assert "22:13:20" in output
-    assert "USER" in output
-    assert "please inspect this" in output
-    assert "ASSISTANT" in output
-    assert "I will inspect it." in output
-    assert "reasoning" in output
-    assert "I should inspect the file first." in output
-    assert "read" in output
-    assert "call_abc" in output
-    assert "prt_part_123" not in output
-    assert "completed" in output
-    assert "250ms" in output
-    assert "Read /tmp/example.txt" in output
-    assert "filePath: /tmp/example.txt" in output
-    assert "file contents here" in output
-    assert "ignore me" not in output
-    assert "step-start" not in output
-    assert "step-finish" not in output
+# ─── fetch_export ────────────────────────────────────────────────────────────
 
 
-def test_render_export_includes_error_tool_state_body() -> None:
-    export = sample_export()
-    tool_part = export["messages"][1]["parts"][3]
-    tool_part["state"] = {
-        "status": "error",
-        "input": {"filePath": "/tmp/missing.txt"},
-        "error": "File not found: /tmp/missing.txt",
-    }
-
-    output = render_export(export, RenderOptions(no_color=True))
-
-    assert "error" in output
-    assert "File not found: /tmp/missing.txt" in output
-
-
-def test_render_export_hides_reasoning_body_when_show_thinking_false() -> None:
-    output = render_export(sample_export(), RenderOptions(no_color=True, show_thinking=False))
-
-    assert "reasoning hidden" in output
-    assert "I should inspect the file first." not in output
-
-
-def test_render_export_truncates_tool_output_and_input_only_when_requested() -> None:
-    export = sample_export()
-    tool_state = export["messages"][1]["parts"][3]["state"]
-    tool_state["input"] = {"prompt": "x" * 30}
-    tool_state["output"] = "y" * 30
-
-    untruncated_input = render_export(
-        export,
-        RenderOptions(no_color=True, tool_max=10, truncate_input=False),
-    )
-    truncated_input = render_export(
-        export,
-        RenderOptions(no_color=True, tool_max=10, truncate_input=True),
-    )
-
-    assert "more chars" in untruncated_input
-    assert "x" * 30 in untruncated_input
-    assert "x" * 30 not in truncated_input
-
-
-def test_fetch_export_redirects_stdout_to_file_and_captures_stderr(
+def test_fetch_export_runs_opencode_and_returns_parsed_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls = []
-    stdout_was_writable = False
+    captured = []
 
     def fake_run(*args, **kwargs):
-        nonlocal stdout_was_writable
-        calls.append((args, kwargs))
+        captured.append((args, kwargs))
         stdout = kwargs["stdout"]
-        stdout_was_writable = stdout.writable()
         stdout.write('{"id":"ses_1"}')
         stdout.flush()
         return subprocess.CompletedProcess(args[0], 0, stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-
     assert fetch_export("ses_1") == {"id": "ses_1"}
-    assert len(calls) == 1
-    args, kwargs = calls[0]
+    (args, kwargs), = captured
     assert args == (["opencode", "export", "ses_1"],)
-    assert kwargs["text"] is True
     assert kwargs["stderr"] == subprocess.PIPE
     assert kwargs["check"] is False
-    assert stdout_was_writable
 
 
-def test_fetch_export_exits_with_nonzero_status_and_prints_stderr(
+def test_fetch_export_propagates_nonzero_exit_and_stderr(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -198,128 +168,218 @@ def test_fetch_export_exits_with_nonzero_status_and_prints_stderr(
         return subprocess.CompletedProcess(args[0], 17, stderr="missing session\n")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-
     with pytest.raises(SystemExit) as exc:
         fetch_export("missing")
-
     assert exc.value.code == 17
     assert capsys.readouterr().err == "missing session\n"
 
 
-def test_emit_agent_output_writes_chunks_when_output_exceeds_bash_limit(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    monkeypatch.setenv("BASH_MAX_OUTPUT_LENGTH", "10")
-    monkeypatch.setenv("CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS", "5")
-    monkeypatch.chdir(tmp_path)
-
-    output = "line1\nline2\nline3\nline4"
-    session_id = "ses_" + uuid.uuid4().hex
-    prefix = session_id[:8]
-
-    emit_agent_output(output, session_id)
+# ─── export_to_records ──────────────────────────────────────────────────────
 
 
-    rendered = capsys.readouterr().out
-    assert "Rendered" in rendered
-    chunk_paths = [Path(line.split()[0]) for line in rendered.splitlines() if line.startswith("  /tmp/")]
-    assert len(chunk_paths) >= 2
-    chunk_dir = chunk_paths[0].parent
-    assert chunk_dir.parent == Path("/tmp")
-    assert chunk_dir.name.startswith(f"opencode-pretty-{prefix}-")
-    assert [path.name for path in chunk_paths] == [f"chunk-{idx}.txt" for idx in range(1, len(chunk_paths) + 1)]
-    assert all(path.parent == chunk_dir for path in chunk_paths)
-    assert "line1" in chunk_paths[0].read_text()
-
-    shutil.rmtree(chunk_dir)
+def test_export_to_records_emits_user_assistant_and_tool_result_records() -> None:
+    records, meta = export_to_records(sample_export())
+    # 1 user + 1 assistant + 1 synthetic tool-result UserRecord = 3 records.
+    assert len(records) == 3
+    assert meta["session_id"] == "ses_1234567890abcdef"
+    assert meta["title"] == "Parser work"
+    assert meta["model"] == "openai/gpt-5.5/xhigh"
+    assert meta["rewound_indices"] == set()
 
 
-def test_render_export_emits_drill_down_hint_under_truncated_output() -> None:
+def test_export_to_records_drops_synthetic_step_markers() -> None:
+    output = render(sample_export(), no_thinking=True, truncate_input=True)
+    assert "step-start" not in output
+    assert "step-finish" not in output
+
+
+def test_render_pipeline_shows_session_header_and_model_label() -> None:
+    output = render(sample_export(), no_thinking=True)
+    assert "ses_1234" in output
+    assert "parser-work" in output
+    assert "1.15.5+0086a0b" in output
+    assert "/root/claude-config-work2" in output
+    # The assistant turn header tags the model that produced THAT turn,
+    # not the session default — assistant has providerID/modelID directly.
+    assert "anthropic/claude-sonnet-4" in output
+
+
+def test_render_pipeline_renders_reasoning_text_and_tool_call() -> None:
+    output = render(sample_export(), tool_max=1000, truncate_input=True)
+    assert "I should inspect the file first." in output
+    assert "I will inspect it." in output
+    assert "▶ read" in output
+    assert "filePath: /tmp/example.txt" in output
+    assert "◀ result" in output
+    assert "file contents here" in output
+
+
+def test_render_pipeline_collapses_thinking_under_no_thinking() -> None:
+    output = render(sample_export(), no_thinking=True, tool_max=1000, truncate_input=True)
+    assert "[thinking:" in output
+    assert "I should inspect the file first." not in output
+
+
+def test_render_pipeline_error_tool_state_surfaces_error_text() -> None:
     export = sample_export()
-    tool_state = export["messages"][1]["parts"][3]["state"]
-    tool_state["output"] = "y" * 200
-    part_id = export["messages"][1]["parts"][3]["id"]
-    session_id = export["info"]["id"]
-
-    rendered = render_export(
-        export,
-        RenderOptions(no_color=True, tool_max=20),
-    )
-
-    expected = (
-        f"agent-tools opencode-pretty {session_id} --message {part_id} --full"
-    )
-    assert expected in rendered
+    tool_part = export["messages"][1]["parts"][3]
+    tool_part["state"] = {
+        "status": "error",
+        "input": {"filePath": "/tmp/missing.txt"},
+        "error": "File not found: /tmp/missing.txt",
+    }
+    output = render(export, tool_max=1000, truncate_input=True)
+    assert "error" in output
+    assert "File not found: /tmp/missing.txt" in output
 
 
-def test_render_export_does_not_emit_hint_when_nothing_truncated() -> None:
+def test_render_pipeline_chat_only_drops_tool_io_but_keeps_text_and_thinking() -> None:
+    output = render(sample_export(), chat_only=True, tool_max=1000, truncate_input=True)
+    assert "please inspect this" in output
+    assert "I will inspect it." in output
+    # Tool call line and result line should both be gone under chat-only.
+    assert "▶ read" not in output
+    assert "◀ result" not in output
+    assert "file contents here" not in output
+
+
+def test_render_pipeline_truncate_input_respects_tool_max() -> None:
     export = sample_export()
-    tool_state = export["messages"][1]["parts"][3]["state"]
-    tool_state["output"] = "short output"
-
-    rendered = render_export(
-        export,
-        RenderOptions(no_color=True, tool_max=4000),
-    )
-
-    assert "--message" not in rendered
+    export["messages"][1]["parts"][3]["state"]["input"] = {"prompt": "x" * 200}
+    untruncated = render(export, tool_max=20, truncate_input=False)
+    truncated = render(export, tool_max=20, truncate_input=True)
+    assert "x" * 200 in untruncated
+    assert "x" * 200 not in truncated
+    assert "more chars" in truncated
 
 
-def test_render_export_message_full_mode_returns_only_one_message_untruncated() -> None:
+# ─── Compaction detection ───────────────────────────────────────────────────
+
+
+def _add_compaction(export: dict) -> dict:
+    """Insert a compaction user msg + summary assistant msg after position 1."""
+    msgs = export["messages"]
+    ses_id = export["info"]["id"]
+    compact_user = {
+        "info": {
+            "role": "user",
+            "id": "msg_003_compactuser",  # > both msg_001_user and msg_002_asst
+            "sessionID": ses_id,
+            "agent": "compaction",
+            "model": {"providerID": "openai", "modelID": "gpt-5.5"},
+            "time": {"created": 1_700_000_002_000},
+        },
+        "parts": [{
+            "id": "prt_compact",
+            "type": "compaction",
+            "auto": False,
+            "overflow": False,
+        }],
+    }
+    compact_asst = {
+        "info": {
+            "role": "assistant",
+            "id": "msg_004_compactasst",
+            "parentID": "msg_003_compactuser",
+            "sessionID": ses_id,
+            "summary": True,
+            "modelID": "gpt-5.5",
+            "providerID": "openai",
+            "tokens": {"input": 50, "output": 5, "reasoning": 0,
+                       "cache": {"read": 0, "write": 0}},
+            "time": {"created": 1_700_000_002_500},
+        },
+        "parts": [{"type": "text", "text": "## Goal\n- Test compaction"}],
+    }
+    follow_user = {
+        "info": {
+            "role": "user",
+            "id": "msg_005_follow",
+            "sessionID": ses_id,
+            "time": {"created": 1_700_000_003_000},
+        },
+        "parts": [{"type": "text", "text": "post-compact prompt"}],
+    }
+    export = {**export, "messages": msgs + [compact_user, compact_asst, follow_user]}
+    return export
+
+
+def test_compaction_marker_appears_at_compaction_boundary() -> None:
+    output = render(_add_compaction(sample_export()))
+    assert "⟐ compacted" in output
+    assert "section 1" in output
+
+
+def test_compaction_default_hides_pre_compact_leg() -> None:
+    output = render(_add_compaction(sample_export()))
+    # The first user prompt sits in the pre-compact leg and should be hidden.
+    assert "please inspect this" not in output
+    # Post-compact content is visible.
+    assert "post-compact prompt" in output
+
+
+def test_compaction_all_shows_every_leg() -> None:
+    output = render(_add_compaction(sample_export()), compact_all=True)
+    assert "please inspect this" in output
+    assert "post-compact prompt" in output
+
+
+def test_compaction_leg_zero_shows_only_pre_compact_section() -> None:
+    output = render(_add_compaction(sample_export()), compact_leg=0)
+    assert "please inspect this" in output
+    assert "post-compact prompt" not in output
+
+
+# ─── Rewind / revert ────────────────────────────────────────────────────────
+
+
+def test_revert_with_no_part_id_marks_target_and_after_as_rewound() -> None:
     export = sample_export()
-    tool_state = export["messages"][1]["parts"][3]["state"]
-    tool_state["output"] = "y" * 2000
-    part_id = export["messages"][1]["parts"][3]["id"]
-
-    rendered = render_export(
-        export,
-        RenderOptions(no_color=True, message_id=part_id, full=True),
-    )
-
-    # The full untruncated output appears.
-    assert "y" * 2000 in rendered
-    # The user message ("please inspect this") is NOT included — only the
-    # requested message is rendered.
-    assert "please inspect this" not in rendered
+    # Revert to msg_001_user (no partID). msg_001_user and everything after are
+    # rewound; nothing remains because msg_001_user is the very first message.
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export)
+    assert "⟲ rewind" in output
+    assert "please inspect this" not in output
 
 
-def test_render_export_emits_drill_down_hint_under_truncated_error() -> None:
+def test_revert_with_part_id_keeps_target_message_visible() -> None:
     export = sample_export()
-    tool_state = export["messages"][1]["parts"][3]["state"]
-    tool_state["status"] = "error"
-    tool_state["error"] = "z" * 200
-    # Make sure no output is also present so we exercise the error branch.
-    tool_state.pop("output", None)
-    part_id = export["messages"][1]["parts"][3]["id"]
-    session_id = export["info"]["id"]
-
-    rendered = render_export(
-        export,
-        RenderOptions(no_color=True, tool_max=20),
-    )
-
-    expected = (
-        f"agent-tools opencode-pretty {session_id} --message {part_id} --full"
-    )
-    assert expected in rendered
-    assert "tool error truncated" in rendered
+    # With partID, the boundary message itself stays — only later messages
+    # are rewound. msg_002_asst > msg_001_user so it's rewound; user stays.
+    export["info"]["revert"] = {
+        "messageID": "msg_001_user",
+        "partID": "prt_any",
+    }
+    output = render(export)
+    assert "⟲ rewind" in output
+    assert "please inspect this" in output
+    assert "I will inspect it." not in output
 
 
-def test_render_export_emits_drill_down_hint_under_truncated_input() -> None:
+def test_no_revert_state_produces_no_rewind_marker() -> None:
+    output = render(sample_export())
+    assert "⟲ rewind" not in output
+
+
+def test_show_rewound_displays_rewound_records() -> None:
     export = sample_export()
-    tool_state = export["messages"][1]["parts"][3]["state"]
-    tool_state["input"] = {"prompt": "w" * 200}
-    part_id = export["messages"][1]["parts"][3]["id"]
-    session_id = export["info"]["id"]
+    export["info"]["revert"] = {"messageID": "msg_002_asst", "partID": "prt_x"}
+    # msg_002_asst == cutoff (kept under partID semantics), so nothing is
+    # actually rewound — flip the cutoff one earlier and test the visible path.
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export, show_rewound=True)
+    assert "⟲ rewind" in output
+    # Under --show-rewound, the rewound content is included.
+    assert "please inspect this" in output
 
-    rendered = render_export(
-        export,
-        RenderOptions(no_color=True, tool_max=20, truncate_input=True),
-    )
 
-    expected = (
-        f"agent-tools opencode-pretty {session_id} --message {part_id} --full"
-    )
-    assert expected in rendered
+# ─── Legend ─────────────────────────────────────────────────────────────────
+
+
+def test_legend_emits_opencode_recovery_hint_for_opencode_log_path() -> None:
+    output = render(sample_export())
+    assert "opencode export ses_1234567890abcdef" in output
+    assert "jq" in output
+    # The Claude-Code-specific recovery wording must not leak through.
+    assert "sed -n" not in output
