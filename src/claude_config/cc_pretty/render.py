@@ -243,7 +243,7 @@ class Renderer:
 
     def __init__(self, log_path: str, tool_output_max: int,
                  tool_input_max: int, show_thinking: bool = True,
-                 show_usage: bool = False):
+                 show_usage: bool = False, chat_only: bool = False):
         self.log_path = log_path
         self.tool_output_max = tool_output_max
         self.tool_input_max = tool_input_max
@@ -252,6 +252,10 @@ class Renderer:
         # ~26 tok per assistant turn and rarely relevant to a reader; opt-in
         # via --show-usage when debugging cache-hit or cost regressions.
         self.show_usage = show_usage
+        # --chat-only: skip tool_use blocks inside assistant turns; turns
+        # composed solely of tool_use blocks render as None and are dropped
+        # by the caller.
+        self.chat_only = chat_only
         self._tool_id_to_name: dict[str, str] = {}
         # Dedup state: repeat-suppress `⊞ output style: <s>` while value
         # is unchanged. The first occurrence is always emitted.
@@ -344,7 +348,9 @@ class Renderer:
                     lines.append(self._render_context_text(block.text, lineno, bi))
         return "\n".join(lines)
 
-    def render_assistant_turn(self, records: list[tuple[AssistantRecord, int]], ts: str) -> str:
+    def render_assistant_turn(
+        self, records: list[tuple[AssistantRecord, int]], ts: str,
+    ) -> str | None:
         usage: Usage | None = None
         model = ""
 
@@ -364,23 +370,31 @@ class Renderer:
         # next ▶ line carries the same signal, and the other stop reasons
         # (refusal, max_tokens, pause_turn) show as visible body content
         # (refusal text, truncated output) anyway.
-        lines = [f"{C.ASSISTANT}┌ Assistant{C.RESET}{model_tag}  {C.TIMESTAMP}{ts}{C.RESET}"]
+        header = f"{C.ASSISTANT}┌ Assistant{C.RESET}{model_tag}  {C.TIMESTAMP}{ts}{C.RESET}"
         if usage and self.show_usage:
-            lines[0] += f"  {C.DIM}[{fmt_usage(usage)}]{C.RESET}"
+            header += f"  {C.DIM}[{fmt_usage(usage)}]{C.RESET}"
 
+        body: list[str] = []
         for rec, lineno in records:
             for bi, block in enumerate(rec.message.content_blocks()):
                 if isinstance(block, ThinkingBlock):
                     if self.show_thinking:
-                        lines.append(self._render_thinking(block))
+                        body.append(self._render_thinking(block))
                     else:
-                        lines.append(f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}")
+                        body.append(f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}")
                 elif isinstance(block, TextBlock):
-                    lines.append(ind(block.text, "  "))
+                    body.append(ind(block.text, "  "))
                 elif isinstance(block, ToolUseBlock):
-                    lines.append(self._render_tool_use(block, lineno, bi))
+                    if self.chat_only:
+                        continue
+                    body.append(self._render_tool_use(block, lineno, bi))
 
-        return "\n".join(lines)
+        # Chat-only drops turns that produced no visible content (e.g. an
+        # assistant turn composed solely of tool_use blocks).
+        if self.chat_only and not body:
+            return None
+
+        return "\n".join([header, *body])
 
     def render_system(self, rec: SystemRecord, ts: str) -> str:
         if rec.subtype == "turn_duration":

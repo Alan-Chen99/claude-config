@@ -3,6 +3,7 @@
 Usage: cc-pretty <session.jsonl> [--tool-max N] [--truncate-input]
                                  [--no-color] [--no-thinking]
                                  [--show-rewound] [--show-all]
+                                 [--chat-only]
                                  [--compact-all] [--compact-leg N]
                                  [--agent]
 
@@ -64,6 +65,21 @@ _MODEL_VISIBLE_ATTACHMENT_TYPES = frozenset({
 
 def is_user_input(rec: UserRecord) -> bool:
     return isinstance(rec.message.content, str)
+
+
+def is_chat_visible(rec: Record) -> bool:
+    """True if rec is a user prompt or an assistant message.
+
+    Used by --chat-only to drop tool-call/result traffic, system records,
+    attachments, progress, etc. — leaving only the human-readable
+    user↔assistant exchange. Assistant turns that contain only tool_use
+    blocks are filtered later in the renderer (returns None).
+    """
+    if isinstance(rec, AssistantRecord):
+        return True
+    if isinstance(rec, UserRecord) and is_user_input(rec):
+        return True
+    return False
 
 
 def is_model_visible(rec: Record) -> bool:
@@ -468,6 +484,13 @@ def main():
         "(hooks, progress, system metadata)",
     )
     parser.add_argument(
+        "--chat-only",
+        action="store_true",
+        help="Show only user prompts and assistant messages — drop tool "
+        "calls, tool results, system records, and attachments. Assistant "
+        "turns that contain only tool_use blocks are skipped entirely.",
+    )
+    parser.add_argument(
         "--compact-all",
         action="store_true",
         help="Show all compaction legs (default: only last leg)",
@@ -513,6 +536,7 @@ def main():
         tool_input_max=tool_input_max,
         show_thinking=not args.no_thinking,
         show_usage=args.show_usage,
+        chat_only=args.chat_only,
     )
 
     # In agent mode, capture stdout so we can split if needed
@@ -612,6 +636,13 @@ def main():
             i += 1
             continue
 
+        # --chat-only drops everything that isn't a user prompt or assistant
+        # message. Assistant turns are kept here and filtered inside the
+        # renderer (returns None when only tool_use blocks remain).
+        if args.chat_only and not is_chat_visible(rec):
+            i += 1
+            continue
+
         ts = fmt_ts(getattr(rec, "timestamp", ""))
 
         if isinstance(rec, AssistantRecord):
@@ -627,8 +658,10 @@ def main():
             ):
                 group.append(records[j])  # type: ignore
                 j += 1
-            print(separator())
-            print(r.render_assistant_turn(group, ts))
+            rendered = r.render_assistant_turn(group, ts)
+            if rendered is not None:
+                print(separator())
+                print(rendered)
             i = j
 
         elif isinstance(rec, UserRecord):
