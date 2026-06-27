@@ -8,20 +8,20 @@ Investigation of a persistent failure-shape: when asked to summarize the status 
 
 ### What the task actually is
 
-The agent receives a task it may interpret on the wrong axis (frame, scope, depth, ...). It produces output. The user reads, starting from a default expectation that their instructions are being honored and that the agent has done what the work would require — they have no prior reason to assume otherwise. The investigation's task: make it possible for the user to detect mismatch and ramp up cheaply, given that the agent cannot reliably do the detection itself.
+The agent receives a task whose *frame* (problem statement; what work to actually do) is ambiguous. The agent must pin one frame and produce work for it — enumerating frames and doing work for each is infeasible. The user reads the output, starting from a default expectation that their problem statement is being honored. The investigation's task: design the agent's output so that, *if* the agent's pinned frame differs from the user's intended one, the user notices cheaply and can redirect — without relying on the agent reliably self-correcting toward the user's frame.
 
 ### What we should not expect the agent to do
 
-Under the unreliability of specific-axis discovery (F31 below):
+Under the two infeasibilities of F31:
 
-- Reliably surface that a specific user-relevant defect exists when the user has not pointed at it. The agent has the data but no principled ranking over candidate defect-predicates. Discovery is reasoning-luck-dependent, not designable.
-- Reliably model the user's implicit expectations about what should be checked. Implicit expectations are open-ended; the agent cannot enumerate them.
+- Do work for all plausible problem statements / frames. The space is open and combinatorial; enumeration + per-frame work is infeasible.
+- Reliably self-correct toward an unpicked frame (R030-style raise-anyway from within a pinned frame). May fire on a given run; not designable.
+- Reliably model the user's implicit expectations about what should be checked. Implicit expectations are user-specific and open-ended; the agent cannot enumerate them.
 - Reliably reframe the literal task into the right underlying question. R061 (in `alan-default-ids.md`, not `min.md`) primes for this, but only probabilistically; the triad shifts the distribution, it does not install determinacy.
-- Enumerate plausible alt-interpretations exhaustively. The space is open.
 
 ### Key gap (after round 6)
 
-Specific-axis discovery is structurally unreliable. The achievable design is **cheap iteration support**: communicate where the agent stopped on its chosen axis, so the user (who knows their axis) can clarify cheaply. Variant F (round 6, applied) provides this for the effort axis on the fixture. The gap is irreducible — no rule can make single-turn specific-axis discovery reliable. Future rounds should expect to refine the disclosure shape and ceiling-raising (collaborator triad), not chase reliability.
+Self-correction within a pinned frame is structurally unreliable; coverage of all plausible frames is infeasible. The achievable design is **transparency about the pinned frame**: communicate which problem statement the agent chose to optimize for, so the user (who knows their intended problem statement) can clarify cheaply. Alt-frames serve a signal function (let user notice mismatch), not a coverage function (agent does not owe work for each). Variant F (round 6, applied) provides this on the fixture. The gap is irreducible — no rule can install reliable single-turn self-correction. Future rounds should refine the disclosure shape and ceiling-raising (collaborator triad), not chase reliability.
 
 ### Things future rounds should not bother trying
 
@@ -31,8 +31,18 @@ Collected so we don't re-chase. Each is rejected on different grounds:
 - **Enumerate alt-interpretations in the rule body.** The space is open; any enumeration is partial; partial enumeration biases the agent's attention without solving the discovery problem.
 - **Model implicit user expectations.** Implicit expectations are user-specific and open-ended; the agent cannot reliably do this. Trying produces overengineered rules that don't generalize.
 - **Add a single specific predicate that "should always be checked."** Generalizes F20 to the meta-level: privileging any specific predicate (compliance, operational state, design soundness, ...) picks a winner without justification; the user's actual axis may be a different one.
-- **Design a "discovery" mechanism.** Per F31, this is structurally unreliable. The temptation to make it reliable returns every round; it is wrong every round.
+- **Design a reliable "self-correction" or "frame-discovery" mechanism.** Per F31, both directions are structurally blocked (enumeration infeasible; in-frame self-correction only probabilistic). The temptation to make it reliable returns every round; it is wrong every round.
 - **Use the observed fixture's failure shape as the target.** Per the "hindsight of bug existing" hazard: the bug surface for the next investigation round will be different. Designing for THIS bug overfits.
+
+## How we got here (conceptual timeline)
+
+Per-round outcomes are in the "Round summary" table; this is the diagnosis-level evolution.
+
+- **R1–2 (mis-anchored predicate).** Hypothesis: the check-for-problems predicate is anchored to the wrong noun ("downstream issues"). 0/2 then 1/14 hit. Anchor patches fired within-frame at best. F1–F16 surfaced.
+- **R3–4 (ground the predicate; add guidance).** Hypothesis: rule body must ground the predicate inline (under-served), and a guidance subclause can prompt going-beyond-literal. Within-frame completeness bullets appeared; nothing lifted to frame-choice. F17/F19 articulated.
+- **R5 (forced-pick + alt-paths).** Hypothesis: pinning is required, not optional; the rule should force one frame and offer alt-paths for plausible users. D2 verified operational state via `ps`; alt-paths candidate not generated. *Pinning was the load-bearing move; alt-paths language was still wrong.*
+- **R5b (gate sync; F30 surfaces).** After G3 caught up to R070, alt-paths got *considered in reasoning then rejected*. R070 said *"include clear steps for **them** to obtain work"* — language predicated work on the alt-user, so R090 read it as work-assignment-to-plausible-user and suppressed.
+- **R6 (reframing; variant F applied).** Discarded the original *"agent should consider more frames"* hypothesis after recognizing **"frame" ≡ "problem statement"**: enumeration + per-frame work is infeasible, so the agent cannot be asked to cover all frames. Pinning was right; alt-paths must be **signal**, not **work**. Variant F R070 rewritten as cheap-rejection — pin one interpretation, write work such that a misinterpretation is cheaply rejectable. F30 dissolved as side-effect (no more work-assignment language). F31 articulated: transparency is the substitute for both infeasibilities (cover-all and reliably-self-correct); also subsumes the rejection of the R030-style raise-anyway hope from rounds 2–4. F32 separates the universal predicate (cheap-rejection) from the fixture-specific axis (effort, here). F33 names the two independent uncertainty axes on this fixture (literal-language scope + effort). F34 names variant F's residual cost (the generic-user translation cost) as a target for future iterations.
 
 ## Fixture
 
@@ -95,8 +105,22 @@ Collected so we don't re-chase. Each is rejected on different grounds:
 
 ### Discoverability (added round 6)
 
-- **F31** — Specific-axis discovery is structurally unreliable. The agent has the data in context (e.g., PROMPT.md items) but no principled ranking over candidate predicates (compliance check vs operational health vs design soundness vs verification adequacy vs conclusion validity vs ...). Without a rule-driven trigger that privileges one predicate, the agent's choice is reasoning-luck-dependent. Past partial-hits (D2 surfacing staleness in round 5; variant F running `ps` in round 6) are consistent with luck-based discovery, not with a designable mechanism. Design implication: the achievable target is cheap iteration support, not single-turn discovery; design temptations to "just add this one check" fall under F20 at the bug-checking layer.
-- **F32** — Effort axis is fixture-specific, not universal. On analysis/diagnosis tasks (this fixture's class), depth/breadth-of-work is the dominant axis the user is uncertain about. On other task classes — highly-specified actions, style choices, approach choices, irreversible operations — different axes dominate, and "more effort" is not necessarily even monotonically preferred. Variant F's R070 wording deliberately keeps the axis abstract ("interpret correctly"); the agent derives the task-specific axis from context. The cheap-rejection predicate is what's universal; the effort framing is one application.
+- **F31** — The substitute for self-correction is transparency. Two infeasibilities push the design toward cheap rejection: **(a)** enumerating frames and doing work for each is infeasible — "frame" ≡ "problem statement"; the space is open, work combinatorial. **(b)** Within a pinned frame, R030-style raising of contradictions toward an unpicked frame *can* fire on a given run but is only probabilistic, not designable; past partial-hits (D2's operational verification in round 5; variant F's spontaneous `ps` in round 6) are consistent with (b) firing on luck, not with a designable mechanism. Both close the same way: pin one frame, produce main work for it, and surface the chosen + alt-frames as a **signal pool** so the user notices mismatch and redirects cheaply. Alt-frames serve transparency, not coverage. Design temptations to "just add this one check" fall under F20 at the bug-checking layer.
+  - *Origin.* F31 crystallized from rejecting the early hope that R030 (or some R030-style rule) would surface the `PROMPT.md`-vs-scratchpad contradiction unprompted. F17 first found R030 silent on this fixture (the "observations diverge from your model" antecedent is false because `PROMPT.md` is read-as-data, not absorbed into the model). Rounds 2–4 then tried rule-body rewordings intended to make a raise-anyway behavior fire when "the data contradicts the user's likely intent"; all failed the same way. F31 names this failure as **structural, not a wording problem**: any rule that asks the agent to raise contradictions toward an unpicked frame is asking for behavior that the agent cannot reliably produce. (b) above is the general form of this claim.
+- **F32** — Effort axis is fixture-specific, not universal. On analysis/diagnosis tasks (this fixture's class), depth/breadth-of-work is the dominant axis the user is uncertain about. On this fixture the effort axis has at least three named values, with intermediates:
+  1. **scratchpad-only** — read scratchpad, report problems written there.
+  2. **scratchpad + `PROMPT.md`** — also cross-check user-supplied starting suggestions for compliance.
+  3. **scratchpad + audit-all-sessions** — also verify operational state, completeness, drift across the full session history.
+
+  The prompt does not specify which; the agent must pin one. Picking the maximum is *not* the right default — auditing all sessions is much larger than the literal task, and the user pays latency + cost regardless of fit. The right effort level is underdetermined from the prompt alone; that underdetermination is what variant F's transparency surfaces. On other task classes — highly-specified actions, style choices, approach choices, irreversible operations — different axes dominate, and "more effort" is not necessarily even monotonically preferred. Variant F's R070 wording deliberately keeps the axis abstract ("interpret correctly"); the agent derives the task-specific axis from context. The cheap-rejection predicate is what's universal; the effort framing is one application.
+
+- **F33** — Two independent uncertainty axes on this fixture. The agent's uncertainty splits into two structurally distinct dimensions:
+  - **(a) Literal-language scope.** How to read the scope words in *"by reading scratchpad — what are the key problems / concerns?"*: is `by reading scratchpad` a scope restriction (problems-*in*-scratchpad) or an evidence base (problems-*about-this-workflow*, found by-and-beyond reading scratchpad)? A direct diagnostic probe asking the agent to articulate its interpretation revealed it had taken the scope-restriction reading; F17 captured this finding.
+  - **(b) Effort.** Within a pinned scope reading, how much work to do (F32's three levels and intermediates).
+
+  The two axes are independent: pinning the scope reading does not fix the effort question, and vice versa. A complete transparency design must surface choices on **both** axes; surfacing only one leaves the other silent.
+
+- **F34** — Generic-user translation cost is variant F's residual. R070's *"any other plausible user"* framing surfaces alt-interpretations abstractly. The actual user reading the response has to translate from *"what some other plausible user might want"* into *"am I one of those plausible users, or do I want something else?"* — paying a cognitive cost of self-identifying among generic abstractions before they can decide whether to redirect. This is **progress** over the round-5-and-earlier state (no choice surfaced at all), but the residual cost is a target for future iterations — the design intent is that *we can do better* than asking the user to interpret themselves as a generic plausible user. Possible directions (open, not chosen): name the chosen frame more concretely; surface specific named alt-frames rather than the generic abstraction; offer redirect affordances tied to concrete alternatives.
 
 ## Round summary
 
