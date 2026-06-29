@@ -22,25 +22,29 @@ If this analysis surfaced (a) a discriminating tool call to run, (b) a weakened 
 ";
 
 /// Printed to stdout by `agent-tools min.gate`. Coupled to
-/// `opencode/agents/min.md` step 5/6 wording AND to the body rule R070
-/// (plausible-user expectation) which G3/G5 point at — see agent-tools
-/// CLAUDE.md "Prompt-coupled strings" table.
+/// `opencode/agents/min.md` step 4/5/6 wording AND to the body rules
+/// R002 (big-picture optimization target) / R043 (cheap-rejection
+/// transparency) / R090 (no implicit work-assignment) which G1/G4/G6
+/// point at — see agent-tools CLAUDE.md "Prompt-coupled strings" table.
 ///
 /// The min gate is the deliberately-thin counterpart to `opencode.gate`. It
 /// numbers the umbrella rule (R060 — consider mistakes) and uses
 /// pointer-style guidance: items reference rules defined in the agent
 /// prompt body rather than restating them, so the gate is a reminder list
-/// rather than a complete checklist. Restructured by variant BB of the
+/// rather than a complete checklist. Reframed in round 7 of the
 /// compliance-check failure-mode investigation (see
-/// `notes/compliance-check-failure-mode.md`).
+/// `notes/compliance-check-failure-mode.md`): cites moved from
+/// G3→R070 / G5→R090 to G1→R002 / G4→R043 / G6→R090 after R070/G080
+/// were dissolved into the big-picture optimization target.
 const MIN_GATE_STDOUT: &str = "\
 (R060) Consider any mistakes or problems you may have made — across the work you did, the draft output, and your identification of the task and user motivations — and take further action or revise accordingly. The items below are reminders to check specific rules; they are not a complete checklist.
 
-(R060-G1) Insufficient verification or overconfidence is a mistake.
-(R060-G2) An omission — something you failed to do or surface — is a mistake, not only an incorrect action.
-(R060-G3) Check R070: if your chosen interpretation is wrong, would the user be able to cleanly reject your work without doing difficult verification or judgment? If not, make rejection cheaper.
-(R060-G4) WARNING: a common failure point is noticing problems INSIDE your chosen frame but missing problems CAUSED BY your framing. What concrete things might your draft fail to address because you framed the task one way rather than another? Name those.
-(R060-G5) Check R090 — what are implicit work assigned to user?
+(R060-G1) Check the big picture you identified. If it is smaller than the codebase you are working on, it's almost certainly too small: what you do has a broader impact.
+(R060-G2) Insufficient verification or overconfidence is a mistake.
+(R060-G3) An omission — something you failed to do or surface — is a mistake, not only an incorrect action.
+(R060-G4) Check R043: if your chosen interpretation is wrong, would the user be able to cleanly reject your work without doing difficult verification or judgment? If not, make rejection cheaper.
+(R060-G5) WARNING: a common failure point is noticing problems INSIDE your chosen frame but missing problems CAUSED BY your framing. What concrete things might your draft fail to address because you framed the task one way rather than another? Name those.
+(R060-G6) Check R090 — what are implicit work assigned to user?
 
 If this surfaced new work or a revision, do it and re-enter the gate at the next iteration. Otherwise send the final response.
 ";
