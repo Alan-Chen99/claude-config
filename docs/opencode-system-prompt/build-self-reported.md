@@ -1,5 +1,13 @@
 # Current OpenCode Session Prompt Outline
 
+> **OUTDATED (as of 2026-06-30).** Captured against an earlier opencode session
+> and not refreshed for round-7 changes to `opencode/agents/alan-default-ids.md`
+> (R001/R002 optimization-target, R041-R049 uncertainty taxonomy, deleted R500
+> expectation-propagation, deleted R400 autonomy block, 6-step Doing-tasks
+> list, new R060 gate stdout). The available-agent-types enumeration also
+> reflects the pre-deletion `alan-default.md`. Re-capture from a live opencode
+> session before relying on this file for current prompt assembly.
+
 Everything the model receives, in order, for this OpenCode session as visible in
 the current conversation context. This is an outline, not a raw API capture.
 Unknown or non-exact text is marked with `{...}`. Token counts, API parameters,

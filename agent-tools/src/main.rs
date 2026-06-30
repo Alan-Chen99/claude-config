@@ -7,18 +7,20 @@ use std::process::Command;
 use clap::{Parser, Subcommand};
 
 /// Printed to stdout by `agent-tools opencode.gate`. Coupled to
-/// `opencode/agents/alan-default.md` step 5/6 wording — see agent-tools CLAUDE.md
+/// `opencode/agents/alan-default-ids.md` step 4/5 wording — see agent-tools CLAUDE.md
 /// "Prompt-coupled strings" table.
 const GATE_STDOUT: &str = "\
-The gate has fired. Before sending your final response, reason in your next thinking block about:
+(R060) Consider any mistakes or problems you may have made — across the work you did, the draft output, and your identification of the task and user motivations — and take further action or revise accordingly. The items below are reminders to check specific rules; they are not a complete checklist.
 
-1) Plausibly wrong. For your draft's main claim, what does your evidence actually show (not what it suggests), and where does the draft go beyond it? Identify one or more unrun tool calls (read, grep, glob, bash, webfetch) that would discriminate, OR weaken the claim to only what evidence has shown. Questions about origin or cause require the defining source (package, library, runtime, documentation); consulting that source IS answering the user's question.
+(R060-G1) Check the big picture you identified. If it is smaller than the codebase you are working on, it's almost certainly too small: what you do has a broader impact.
+(R060-G2) Insufficient verification or overconfidence is a mistake.
+(R060-G3) An omission — something you failed to do or surface — is a mistake, not only an incorrect action.
+(R060-G4) Check R043: if your chosen interpretation is wrong, would the user be able to cleanly reject your work without doing difficult verification or judgment? If not, make rejection cheaper.
+(R060-G5) WARNING: a common failure point is noticing problems INSIDE your chosen frame but missing problems CAUSED BY your framing. What concrete things might your draft fail to address because you framed the task one way rather than another? Name those.
+(R060-G6) Check R090 — what are implicit work assigned to user?
+(R060-G7) For your draft's main claim, what does your evidence actually show (not what it suggests), and where does the draft go beyond it? Identify one or more unrun tool calls (read, grep, glob, bash, webfetch) that would discriminate, OR weaken the claim to only what evidence has shown.
 
-2) Expectation propagation. Enumerate plausible adjacent attempts the user might make with the work you are about to deliver that your draft does NOT name. Adjacent-attempt axes vary across input shape, scale, environment, and failure mode; do not stop at the first concern that surfaces — reason across axes. For each: user action, observable outcome, lever. Frame in user-observable terms (example: callers using result[key] hit TypeError because the function now returns a tuple; example: the failing test passes alone but fails in the full suite due to module-level state). Do not self-classify any concern as acceptable and drop it; if the user might plausibly hit it, the final response must name it.
-
-If the analysis surfaces no actionable disclosure, the final response does NOT include sponge prose; absence is the correct outcome when no plausible adjacent attempt is undisclosed. These directives are subject to explicit user instructions to the contrary (no caveats, brevity).
-
-If this analysis surfaced (a) a discriminating tool call to run, (b) a weakened claim, or (c) a missing disclosure, take the action (or update the draft) and re-enter the gate at the next iteration. Otherwise send the final response.
+If this surfaced new work or a revision, do it and re-enter the gate at the next version. Otherwise send the final response.
 ";
 
 /// Printed to stdout by `agent-tools min.gate`. Coupled to
@@ -46,7 +48,7 @@ const MIN_GATE_STDOUT: &str = "\
 (R060-G5) WARNING: a common failure point is noticing problems INSIDE your chosen frame but missing problems CAUSED BY your framing. What concrete things might your draft fail to address because you framed the task one way rather than another? Name those.
 (R060-G6) Check R090 — what are implicit work assigned to user?
 
-If this surfaced new work or a revision, do it and re-enter the gate at the next iteration. Otherwise send the final response.
+If this surfaced new work or a revision, do it and re-enter the gate at the next version. Otherwise send the final response.
 ";
 
 mod capture;
