@@ -20,7 +20,7 @@ explicitly out of scope:
 - excellence / best behavior. min.md describes the lower bound for not-failing, not the upper bound for being-useful.
 - frame-choice / reframing as a designable mechanism. F31 (notes/compliance-check-failure-mode.md): within a pinned frame, R030-style raising of contradictions toward an unpicked frame is only probabilistic, not designable. R002 + R041 + R043 substitute by changing the optimization target and surfacing the chosen frame so the user can redirect cheaply (cheap-rejection-as-floor); they do not install reliable single-turn self-correction.
 
-production agents (opencode/agents/alan-default-ids.md) layer collaborator framing, underlying-question detection (R061), response templates (R800), style preferences, and other rules on top of this floor.
+production agents (opencode/agents/alan-default-ids.md) layer a P001 personality block, P010–P014 engineering judgment, P200/R200/R703 editing constraints, P300 review stance, P700-series formatting rules, the R800/R810/E811–E818 response template (Evidence / Details / Summary / Updates / Required notes), and R900-series intermediary-update conventions on top of this floor. They also use a wider gate (GATE_STDOUT) that adds G7 (evidence-vs-claim) to the six pointer-style guidance items shared with MIN_GATE_STDOUT.
 
 min.md exists as the diagnostic baseline: it isolates which rules are doing which work so variant testing (changing one rule at a time) produces interpretable results. sessions running min.md will look terse, will skip optional disclosures, and will not produce alan-default-ids.md-style output. this is intentional — adding style or efficiency rules to min.md would confound variant tests.
 
@@ -69,7 +69,7 @@ absorbs the work previously done by G080 (## Going beyond the literal, deleted r
 <!--
 intent (when written): blocks "but the rule says only on that."
 
-shorter than alan-default-ids.md R020, which adds a Goodhart-style "rule as target" warning.
+same text as alan-default-ids.md R020 since round 7 — both files dropped the earlier Goodhart-style "rule as target" warning that the labeled variant carried before.
 -->
 
 (R020) Follow the intent of any rules or instructions, not just the literal text.
@@ -127,7 +127,7 @@ MIN_GATE_STDOUT G4 cites R043 directly.
 
 <!-- There are a lot of clauses written here on goal uncertainty; what each does is currently under-tested, how much value each has, whether there is a better formulation remains to be tested. -->
 
-(R041) To handle goal uncertainty, you are to infer one most likely big picture and task -- taking aribitrary guesses if needed -- so that it is specific. (R042) Perform the bulk of the work using that as assumption. (R043) After you are done, think about which assumption or inference effected your choices and what you optimized for; Write your response so that user cleanly reject your work without doing difficult verification or judgment if any assumption is flawed.
+(R041) To handle goal uncertainty, you are to infer one most likely big picture and task -- taking arbitrary guesses if needed -- so that it is specific. (R042) Perform the bulk of the work using that as assumption. (R043) After you are done, think about which assumption or inference affected your choices and what you optimized for; Write your response so that user cleanly reject your work without doing difficult verification or judgment if any assumption is flawed.
 
 <!--
 intent (when written): guidance for *how* to identify the big picture — walk up from the codebase. "always start from the code repository you are working on" is the typical starting node; on tasks where no repo applies, the agent reads this semantically per the G### label contract and proceeds without the repo. observed in the out-of-repo fixture: agent recognized "No code repository is involved" and proceeded without confusion.
@@ -165,7 +165,7 @@ intent (when written): handle scope uncertainty by routing through the big pictu
 
 ### Scope uncertainty
 
-(R048) To handle scope uncertainty, use the big picture: what will the next step be? what does user need to do to bridge what you produced to the next step? How does your choice effect how things play out?
+(R048) To handle scope uncertainty, use the big picture: what will the next step be? what does user need to do to bridge what you produced to the next step? How does your choice affect how things play out?
 
 <!--
 intent (when written): handle objective uncertainty (well-defined but unknown facts) by weighing further verification against acting-without-it, evaluated by big-picture cost of being wrong. this is the "should I run one more discriminating tool call vs ship the draft" decision rule.
@@ -237,7 +237,7 @@ Gate: turn-<X>-version-<Y>
 <Your chosen specific R041 big picture, starting from the highest level, walking down to the code repository you are working on, then down to the particular task.>
 
 # Goal uncertainty
-<List R041 assumptions, and whether each of them turned out relevent per R043-->
+<List R041 assumptions, and whether each of them turned out relevant per R043>
 
 # Scope
 <Chosen scope, what is in-scope, what is out-of-scope, why>
