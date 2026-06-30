@@ -67,8 +67,7 @@ OPENCODE_CONFIG_CONTENT='{
 ```
 
 The `'"$REPO"'` segments switch from single-quote to double-quote and back so
-the shell expands `$REPO` while the rest of the JSON literal stays intact. Use
-`alan-default.md` only when intentionally running the legacy unlabelled variant.
+the shell expands `$REPO` while the rest of the JSON literal stays intact.
 
 ## Plugin loading
 
