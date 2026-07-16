@@ -24,13 +24,16 @@ production agents (opencode/agents/alan-default-ids.md) layer a P001 personality
 
 min.md exists as the diagnostic baseline: it isolates which rules are doing which work so variant testing (changing one rule at a time) produces interpretable results. sessions running min.md will look terse, will skip optional disclosures, and will not produce alan-default-ids.md-style output. this is intentional — adding style or efficiency rules to min.md would confound variant tests.
 
-investigation that produced this rule set: notes/compliance-check-failure-mode.md (rounds 1–7; F1–F40). gate-coupling table: agent-tools/CLAUDE.md.
+investigation that produced this rule set: notes/compliance-check-failure-mode.md (rounds 1–7 for adopted rules; F1–F40 for adoption-level findings). round 8 (baseline probe on the round-8 V5 fixture) and round 9 (R910 diagnostic-instrument probes) added F41–F61 as investigation-level findings — none of the round-9 rule variants were adopted, but they produced concrete design lessons (see "Explored and rejected" below). gate-coupling table: agent-tools/CLAUDE.md.
 
 how to add or change a rule:
 - add when a real test case shows the agent failing in a way the current rules do not catch, AND the new rule supports "deviation = failure" argument from observation alone, AND it is not duplicative or contradictory.
 - do not add for style, efficiency, aesthetic improvement, or "nice to have" behavior — those belong in the production prompt.
 - do not extract predicates into sibling rules just to ground them — update the original rule body inline. F20 in notes; the R040 mistake.
 - prefer replacing an agent's optimization target (positive predicate, e.g. R002) over layering constraints on top of a default target. F36/F37 in notes: constraint-layering has unbounded re-shrinkage axes; positive-target replacement dissolves the shrinkage problem.
+- a rule's effect can diverge from its stated purpose through wording-alignment side effects. F53/F60 in notes: R910 v4's purpose sentence was telemetry-flavored ("help the system detect problematic instructions") but its body wording ("rules or instructions") created a broad-scope enumeration mission whose side effect was operational — reading task-embedded content without engaging with caveats. Before adopting a new rule, ask: does the rule's text control the exact behavior, or does an interaction between two wording choices produce the behavior? If the latter, the rule is fragile to normal maintenance edits (E7 broke v4's effect with a one-word change) and its stated purpose does not match its measured effect.
+- a diagnostic-instrument rule (e.g., "list which rules you applied") is not purely observational. F59/F60 in notes: R910's per-commentary enumeration turned out not to be the operational-effect driver, but the interpersonal helping frame in the purpose sentence turned out to gate whether task-embedded caveats get treated as instructions. Adding observability text can shift what the agent classifies as "instruction" without any explicit rule change. If a rule is intended to be purely diagnostic, its wording still needs the wording-alignment check above.
+- "instruction" is not defined in the E030 label taxonomy and is used without definition across R020, R050, R055. F57 in notes: the agent does not carry a stable model of what counts as an instruction — the enumeration scope is decided per-list by wording context. Rules that use the word "instruction" inherit this ambiguity. If a new rule needs precise scope over "what to attend to," it should either name the categories (R###, G###, user directive, task-embedded imperative) explicitly or bind to a defined subset.
 -->
 
 ---
@@ -70,6 +73,8 @@ absorbs the work previously done by G080 (## Going beyond the literal, deleted r
 intent (when written): blocks "but the rule says only on that."
 
 same text as alan-default-ids.md R020 since round 7 — both files dropped the earlier Goodhart-style "rule as target" warning that the labeled variant carried before.
+
+round-9 observation (F57/F60): the "rules or instructions" wording carries an undefined scope for "instruction." Empirically the agent decides on-the-fly what qualifies. Not repaired here because R020's own intent (follow-intent-over-literal) is orthogonal to the instruction-scope question. But: any future rule that uses "instruction" as a scope term inherits this ambiguity, and any rule whose body wording invites broad enumeration ("rules or instructions", "directives", "constraints") can produce operational side effects through the wording alignment described in the front-matter "how to add or change" guidance.
 -->
 
 (R020) Follow the intent of any rules or instructions, not just the literal text.
@@ -257,3 +262,45 @@ intent (when written): Comes from codex prompt. Clear diagnostic to see what age
 
 - (E900) Intermediary updates go to the `commentary` channel.
 - (G900) You treat messages to the user while you are working as a place to think out loud in a calm, companionable way. You casually explain what you are doing and why in one or two sentences.
+
+<!--
+This section documents rules tested during round-9 investigation but NOT adopted into min.md. It is kept because the investigation produced concrete design lessons that apply to future rule authoring, and because "why is R910 not in min.md" is a natural question given the investigation trail.
+-->
+
+## Explored and rejected: R910 (round 9, not adopted)
+
+Round 9 tested an intermediary-updates rule that would require the agent to enumerate rules or instructions applied per commentary. The rule was motivated by two meta-hypotheses: (a) rule overinterpretation — text not authored as rules may still be interpreted as rules; (b) invisible influences — the investigator cannot see all of what shapes agent behavior. R910 was proposed as a diagnostic instrument to surface applied rules in the commentary channel.
+
+Twelve variants were tested against the round-8 V5 fixture (`ses_0b77802f7ffeesGb2f7iwwAdkA` was the pre-R910 baseline). Session IDs recorded in `notes/compliance-check-failure-mode.md` round-9 timeline row.
+
+Concrete findings:
+
+- **R910 has operational effects, not only observational** (F47, F53, F60). Adding R910 v4 (purpose sentence + `rules or instructions` body) increased reads into `/root/claude-config-work/` at 4-7 tool calls versus baseline's 0. R910 was intended as telemetry; it changed exploration behavior.
+
+- **The mechanism is a wording-alignment side effect, not the rule's stated purpose** (F53). Ablation across purpose × body (2×2, n=8) plus mechanism probes E6, E7, E8 showed the effect appears only when purpose and body both carry broad scope ("instructions" mentioned in both). One-word purpose edit (E7: "instruction"→"rule") eliminates the effect. The rule's stated purpose ("help detect problematic instructions") is not what does the operational work.
+
+- **Per-commentary enumeration timing is not the driver** (F59). E9 moved R910 to end-of-task-only. F46 reads still occurred (n=2: 0, 5). The mechanism is upstream in the broad-body wording, not in the emission cadence.
+
+- **Purpose framing depth gates caveat-as-instruction classification when reads happen** (F60). E10 stripped the interpersonal helping framing ("sometimes users or the system are not aware… you help by telling…") to a minimal "log which rules or instructions you honored." When E10 produces reads (n=3: 3, 6, 0), the agent explicitly cites the PROMPT.md line-9 caveat as an instruction it honored (`<user: old loop invalid/idea-only>` or `<PROMPT.md says older-loop evidence is idea-only>`) and reads with scope qualification (*"sample only enough to see if it contains a missed architecture, not to re-litigate every trial"*). v4a with the full interpersonal frame does the same reads but does NOT cite the caveat and reads without qualification. Interpersonal helping frame suppresses caveat-as-instruction classification.
+
+- **"Instruction" is empirically not stably defined** (F57). Across 10 R910 variants (498 rules-applied entries categorized), the agent's enumeration scope varied: narrow-body wording ("rules") enumerated formal R### rules plus skill-directory guidance and no user-prompt content; broad-body wording ("rules or instructions") added user-directive fragments (11-17% of entries) and occasionally task-embedded caveats. The agent decides per-list, per-wording-context, what qualifies. The E030 label taxonomy defines R/E/G/P; "instruction" is used without definition.
+
+- **F46 baseline is an attention-loss failure, not an interpretation failure** (F55). The pre-R910 round-8 V5 session's reasoning at msg[09.01] shows the agent correctly interpreted the PROMPT.md line-9 caveat ("previous loop idea is invalid, so it's worth inspecting") and named the older worktree as a candidate, then lost attention to it as other read candidates won the priority contest. R910 v4's effect is coincidental attention-preservation via broad-scope enumeration, not a targeted fix for the attention-loss root cause.
+
+Why R910 is not adopted:
+
+1. **Stated purpose ≠ measured effect** (F53). The rule's text describes helping the system detect problematic instructions. The agent doesn't detect anything problematic; it just reads because of a wording-alignment side effect the rule's text does not describe.
+
+2. **Mechanism is fragile to normal maintenance edits** (F53). E7 shows swapping one word ("instruction"→"rule") in the purpose sentence eliminates the effect. Any future maintainer could break the behavior without knowing what they broke.
+
+3. **The behavior we get is not the reasoning we want** (F60). v4a produces reads without engaging with the caveat. If the caveat were legitimate (protecting against corrupted evidence), v4a would still cause the read — false positive with no reasoning path to detect it.
+
+4. **Root failure (F55 attention loss) is not addressed by any R910 variant** or by R920 (E8, direct base-rate rule). R910 v4 helps F46 as a side effect of a generic mechanism; R920 helps F46 by direct instruction for one specific case. Neither addresses the general attention-loss pattern.
+
+5. **E10-shape (broad body + stripped purpose) is the closest defensible R910 candidate** but has not been generalized across fixtures and does not address F55 either. It preserves caveat-instruction interpretation while producing reads, which is qualitatively better than v4a, but the variance in whether reads happen at all is comparable to v4 (n=3: 3, 6, 0).
+
+Related work that DID inform min.md unchanged rules:
+
+- The instruction-observability question is unresolved. If it needs to be re-approached, the design guidance in the front-matter "how to add or change a rule" bullets on wording-alignment side effects, diagnostic-instrument non-neutrality, and the undefined "instruction" scope should shape any new attempt.
+
+- Gate-level machinery that can detect specific omissions (not just general "omission is a mistake" pointer text) is a plausible direction for the F55 root cause, but no design or probe was attempted in round 9.
