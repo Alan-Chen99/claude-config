@@ -595,10 +595,11 @@ Note: E9 does still emit progress commentary text (~20 messages with prose comme
 
 - E10 session `ses_0936ea525ffe0iZz7wJzXReKE2`: 10 commentaries, **3 F46 reads.**
 - E10-rep session `ses_09365969affeibt2s1ejNpELx0`: 17 commentaries, **6 F46 reads.**
+- E10-r3 session `ses_09359400fffe3qte0OCp0w3mS7`: 9 commentaries, **0 F46 reads.** Did not inspect `f67e923:PROMPT.md` at all — never entered the trigger chain.
 
-Aggregate F46 = {3, 6}, mean 4.5. Comparable to v4a/v4b range. The interpersonal helping frame in R910 v4's purpose is not what drives read frequency.
+Aggregate F46 = {3, 6, 0} at n=3, mean 3.0. Variance dominates: whether the agent decides to inspect `f67e923:PROMPT.md` (the F56 trigger event) is not controlled by purpose framing. The interpersonal helping frame in R910 v4's purpose does not gate read frequency.
 
-**But the qualitative behavior differs from v4a**. In both E10 sessions, the agent explicitly cites the PROMPT.md caveat in the rules-applied list at the read-decision message and reads with scope qualification:
+**But the qualitative behavior differs from v4a when reads do happen.** In both E10 sessions that produced reads (E10 r1, r2), the agent explicitly cites the PROMPT.md caveat in the rules-applied list at the read-decision message and reads with scope qualification. E10-r3 didn't read and didn't emit any caveat citation — consistent with the caveat citation being emitted only when the read decision is being made, not as a standing "reminder":
 
 - E10 msg[15] commentary: *"One more context pass: I'm checking the older loop only for idea-level patterns, not as valid evidence, because the reset prompt itself names it but explicitly says opencode-era experiments are invalid under the current codex-based prompt."* rules applied: `R044, R045, prompt-engineer-v2:research conclusions must be falsifiable, <PROMPT.md says older-loop evidence is idea-only>`
 - E10-rep msg[??] commentary: *"I'll sample the old-loop context referenced by PROMPT.md only enough to see whether it contains a missed architecture, not to re-litigate every trial."* rules applied: `R044, R045, prompt-engineer-v2:avoid overfitting to the case at hand, <user: old loop invalid/idea-only>`
@@ -619,7 +620,7 @@ This is the **user's original meta-hypothesis becoming visible**: things that ar
 | E7 (n=1) | mentions "rules" | `rules or instructions` | mismatch | full framing | {0} | yes — explicitly honors caveat |
 | v4 (n=2) | mentions "instructions" | `rules or instructions` | coherent | full framing | {7, 4} | **no** — reads without engagement |
 | E6 (n=1) | generic ("rules or instructions") | `rules or instructions` | coherent | medium framing | {8} | no — reads without engagement |
-| E10 (n=2) | minimal ("log which…") | `rules or instructions` | coherent | **stripped** | {3, 6} | **yes** — reads with qualification |
+| E10 (n=3) | minimal ("log which…") | `rules or instructions` | coherent | **stripped** | {3, 6, 0} | **yes when reads happen** — no citation when no reads (E10-r3) |
 | E9 (n=2) | v4 purpose | `rules or instructions` | coherent | full framing (end-of-task) | {0, 5} | at end-of-task list only |
 | E8 (n=1) | N/A (R920 direct) | N/A | — | — | {10} | R920 caveat-eval explicitly reasoned |
 
@@ -627,10 +628,11 @@ Read together: **Broad-scope body ("rules or instructions") is necessary for F46
 
 #### What is durably known now
 
-1. **The R910 v4 F46 effect has two components**: (a) whether reads happen at all, controlled primarily by broad-scope body wording; (b) whether the caveat gets engaged during reads, controlled by purpose framing depth.
-2. **The interpersonal helping frame ("sometimes users or the system are not aware…") specifically suppresses caveat-as-instruction classification.** This is the meta-hypothesis of "rule overinterpretation" made empirically visible: some framings enlarge the instruction class to include task-embedded caveats; others suppress it.
+1. **The R910 v4 F46 effect has two components**: (a) whether reads happen at all, controlled primarily by broad-scope body wording but variance-dominated at n=2-3; (b) *given* reads happen, whether the caveat gets engaged, controlled by purpose framing depth.
+2. **The interpersonal helping frame ("sometimes users or the system are not aware…") specifically suppresses caveat-as-instruction classification when reads happen.** This is the meta-hypothesis of "rule overinterpretation" made empirically visible: some framings enlarge the instruction class to include task-embedded caveats; others suppress it. Scope: applies to the read-decision message specifically, not to global reasoning.
 3. **Per-commentary enumeration is not the mechanism.** E9 (end-of-task R910) still produces F46 reads in one of two trials, with the same trigger chain as v4a.
-4. **E10 (broad body + minimal purpose) is closer to F55 baseline behavior than v4 is.** E10 does the reads (v4a's operational effect) but preserves caveat-instruction interpretation. Neither E10 nor any other variant tested addresses the underlying F55 attention-loss pattern.
+4. **E10 (broad body + minimal purpose) is closer to F55 baseline behavior than v4 is.** E10 sometimes does the reads (v4a's operational effect) and when it does, preserves caveat-instruction interpretation. Sometimes E10 doesn't read at all (E10-r3), also matching F55. Neither E10 nor any other variant tested addresses the underlying F55 attention-loss pattern — E10 just shifts the read-decision behavior to be more "correct" when it fires.
+5. **What we still can't explain**: what causes the agent to inspect `f67e923:PROMPT.md` in some runs and not others under the same R910 wording. This is the upstream variance dominator, and no probe controls it. GPT-5 reasoning summaries don't decompose it.
 
 #### Still unresolved
 
