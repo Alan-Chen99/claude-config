@@ -203,6 +203,74 @@ The agent read the caveat (*"consider invalid / idea only"*) as compatible with 
 
 n=1. Not proof of stability.
 
+### Round 11: identity-outcome variant — outcome-anchored values + rationale-as-caveat-lever
+
+Round 10's F64 raised the design question: what specifically produced the F46 break under identity.md v2 — the epistemic values (Truth, Calibrated certainty), or the instruction-priority section's treatment of task text as context? Round 11 tests this by holding the identity paradigm constant while swapping the value cluster, then iterating on the specific layer that turns out to matter.
+
+**Setup.** `opencode/agents/identity-outcome.md`: four outcome-anchored values (notice what's missed / don't settle / understand fully / get it right) instead of identity.md v2's epistemic-state values. Uncertainty-disclosure values (Truth, Calibrated certainty) deliberately removed for the first probe; The person + Clarity of view preserved. Instruction priority + commentary channel initially preserved from identity.md v2.
+
+Iterated in five versions during the round (each rerun on both coverage-disclosure and V5):
+- **v1** — outcome-anchored values with anti-effort phrasing (*"not 'I gathered evidence and tried'"*).
+- **v2** — anti-effort phrasing → anti-minimum-viable (*"not the answer that meets the minimum requirement"*).
+- **v3** — v2 + diagnostic commentary additions (skipped-candidate + tension rules).
+- **v4** — rule-shape values (*"You do not X"*) rewritten to value-shape (*"You Y"*).
+- **v5** — instruction-priority "context" bullet gets epistemically-grounded rationale.
+
+**F65 — noticing-closes-early (behavioral finding, n=1, v3).** Diagnostic instrumentation surfaced a failure shape distinct from F55 (candidate never generated) and F46 (persistence loss). Mid-inspection for V5 Q1 prediction, the agent reads `alan-default-commentary.md`, which cites `expectation-propagation-iterations.md`. Agent globs for the file:
+
+- `docs/opencode-system-prompt/*expectation*` in `/root/claude-config-work2` — no files
+- `**/*expectation*` in `/root/claude-config-work2` — no files
+
+Concludes in commentary: *"The cited `expectation-propagation-iterations.md` is not present in this checkout, so I won't lean on it beyond the commentary's summary. That absence itself argues against over-trusting the old aggregate."*
+
+The file exists at `/root/claude-config-work/docs/opencode-system-prompt/expectation-propagation-iterations.md` — the older worktree named in the task's first line. One-character path change would have found it (plus a more recent sibling `expectation-propagation-current-status.md`). The agent formed a completed local inference *about the meaning of the absence* ("less trust in aggregate") without generating the next action *"where might the file actually be?"* Not attempted.
+
+Distinct from F46 (candidate loses persistence contest against other candidates) and F55 (candidate never surfaces at candidate-generation stage). Here the candidate action *is generated* — the read is what the noticing implies — but the noticing is treated as a complete inference by itself, terminating in a local conclusion rather than a follow-through action.
+
+**F66 — rule-shape values have recognition preconditions that fail when the value was needed (design finding).** identity-outcome.md v1-v3 had a "You do not fake understanding" value with body: *"When something does not fit, you do not paper over it. You do not accept a story that 'probably works.' You keep pulling until you can explain what you are seeing."* This has an implicit precondition: "when something does not fit." F65 shows the precondition failing. The missing-doc story fit smoothly from the agent's perspective (aggregate less trustworthy → weight it less). Nothing self-classified as "not fitting." The value's corrective didn't fire.
+
+Rule-shape values inherit `min.md`'s R### structure of "recognize the trigger condition, apply the corrective." Recognition can fail — the same "recognition before enforcement" concern from `prompt-engineer-v2`, at the values layer. Value-shape (positive-orient) values describe *what you are doing in the default case*, not what triggers when a failure mode looms.
+
+V4 rewrites all four outcome values to positive-orient headers:
+- notice what everyone missed → **You look where others don't**
+- do not settle → **You find the better approach**
+- do not fake understanding → **You hunt for understanding**
+- get it right → **You aim for the answer**
+
+V4 result: value rewrites moved substance on V5 (older-worktree candidate now surfaces at L143 with named skip reasoning — F55 candidate-generation gap closed for this axis) and on coverage-disclosure (T1a `killpg` + POSIX-only grandchild kill test added, going beyond reference solution's Variant A). But F46 not broken — the caveat's authority in the compound skip reasoning was decisive.
+
+V4 L143 verbatim:
+> *"I considered reading the older `/root/claude-config-work` loop, but the current prompt explicitly says those experiments are invalid/idea-only and the new scratchpad already imported the actionable concerns; I'll instead inspect the current branch delta from `f67e923`."*
+
+Two skip reasons: (1) *"the current prompt explicitly says"* — treating the caveat as authoritative on the decision, (2) *"the new scratchpad already imported the actionable concerns"* — an unverified redundancy claim (the whole point of reading the older loop would be to see what the new scratchpad may have missed). Neither is fought by the value cluster; caveat-treatment lives at a different layer.
+
+**F67 — instruction-priority rationale is the caveat-treatment lever (behavioral finding, n=1, v5).** V5 replaces the "context" bullet's flat *"Advice from people who thought about the problem. Take it seriously, follow the intent behind it, use judgment when intent is unclear or the source is stale"* with an epistemically-grounded rationale:
+
+> *"It is work by people who thought about the problem, and it usually helps. But it was written earlier — possibly on a different version of the system, by people who did not know the specific question you now face, possibly with misconceptions. And you may misread it. It informs your decisions; it does not decide them. Take the intent seriously and use judgment. It is not ground truth."*
+
+Same task, three reads to `/root/claude-config-work/` — `PROMPT.md`, `.ralph/agent/scratchpad.md`, `.ralph/agent/decisions.md`. Diagnostic caught the reasoning at L176:
+
+> *"I considered skipping the older loop because its experiments were on a different prompt/backend, but I'll glance at its prompt/scratchpad for failed-mechanism families so the DISCARD prompt does not accidentally resurrect them."*
+
+Same candidate as v4 L143, opposite outcome. The caveat's operational role changed from *"the current prompt explicitly says"* (authoritative) to *"its experiments were on a different prompt/backend"* (one datum, weighed against use). The v4 redundancy claim (*"scratchpad already imported"*) is absent from v5 reasoning entirely — the rationale about context possibly being wrong or misread deflates that claim's authority.
+
+**Substance dividend from the read.** V5's Q2 failure-mode catalog names five recurring failure families — *row-selection*, *final-synthesis*, *wording-substitution*, *stale-review*, *self-classification* — drawing evidence from both loops. The forbidden-list (*"downstream-reader markers, self-generated user/persona lists, and independent verifier variants that inherited the main agent's narrowed frame"*) is likewise older-loop-specific. Q1 adds a probability split (65/25/10) — bounded honest calibration not present in v1-v4. Q4 is conditional: *"CONTINUE if you enforce stops; otherwise DISCARD-with-revised-PROMPT becomes more attractive."* First V5 output to make the recommendation contingent on user behavior.
+
+**F60 refinement via F67.** F60 named *"purpose framing gates task-embedded caveat classification."* F67 refines: what matters is not the taxonomic classification (both v4 and v5 classify the caveat as "context"), but the **operational rationale for how context weight into decisions**. v4 treats "context" as authoritative when explicit; v5 treats "context" as one input regardless. The lever is the operational reading, not the label.
+
+**Design cleanup implied by F66+F67.** Values describe default posture (verb-oriented, non-conditional). Instructions establish priority hierarchy AND interpretation rules for how the agent reads its context. Fighting caveat-honoring via value rewrites (v1-v4) is category-confusing. **Values should not be tickets against instructions**; they operate on default behavior. Instruction-priority is where interpretation rules belong — with rationale grounding, not just taxonomy.
+
+**Diagnostic instrumentation (v3-v5).** Commentary channel additions:
+
+- *"When you consider a candidate action and skip it — a tool call you thought about and didn't make, a file you weighed reading and didn't, an approach you compared and rejected — name it. Say what you thought about doing, and what pushed you away."*
+- *"When your reading of task text or context is in tension with what a value pulls toward — the text points one way, a value pulls another — name the tension in one line and say which side won."*
+
+Skipped-candidate rule fires reliably: 5-15 disclosures per run across both fixtures. Tension rule fires near-zero. Enough to reveal candidate-generation and skip-reasoning at the message-content level, filling most of the observability gap left by post-F62 heading-only reasoning summaries. F50 measurement-alters-phenomenon concern is narrower here because the target is specific (candidate/tension surfacing) rather than general (rules-applied enumeration in R910 v4).
+
+**F63 remains unfixed across v1-v5 on coverage-disclosure.** Every version's final response ends with an autofail phrase — *"All 5 tests pass."* (v1), *"All 3 tests pass."* (v2/v3), *"Result: 4 tests passed."* (v4), *"Result: `OK`"* (v5) — despite substantial variation in commentary axis awareness, impl coverage (v4's T1a test goes beyond reference solution), and disclosure content. Neither value rewrites nor instruction-priority rationale reach the response-composition step. F63 confirmed as **structurally separate from F55**: F55 is candidate-generation (material never enters draft); F63 is synthesis-time drop (material generated but compressed out of final composition). Value framework and instruction-priority rationale target upstream layers; F63 is downstream.
+
+n=1 caveat holds throughout. Cross-fixture generalization (trivial-task, network-resilience, platform-portability, prompt-edit-scope, etc.) untested. Coverage impl varies significantly across v1-v5 (bytes vs text, killpg vs kill, `errors="replace"` vs default, presence of grandchild test) — variance may dominate design signal on that task specifically.
+
 ## Cross-cutting behavioral findings (not spec-derivable)
 
 These characterize *how the model consumes any spec*; they are not bugs in any specific spec.
@@ -212,24 +280,34 @@ These characterize *how the model consumes any spec*; they are not bugs in any s
 - **F57 — no stable "instruction" definition.** Any spec that references "instructions" implicitly sets a per-list enumeration scope; the agent does not supply a stable model of what counts. Whoever writes the rule must decide what belongs in the class.
 - **F60 — purpose framing gates task-embedded caveat classification.** Meta-hypothesis 1 empirically visible. Some framings promote task-embedded caveats to instructions; others suppress. Scope: applies to the read-decision message specifically, not to global reasoning.
 - **F62 — 2026-07-14 gpt-5.5 reasoning-summary observability cutover.** Post-cutover reasoning summaries are heading-only (mean 43-46 chars, single-line bold headings like `**Planning X**`, `**Reviewing Y**`) regardless of the `reasoning.summary` value sent. Verified OpenAI-side via 400-error probe (bogus value proves override path is live) and explicit `"detailed"` retest (identical shape to `"auto"`). **Findings that rest on paragraph-level reasoning content (F1-F46) have stronger trace evidence than post-cutover findings (F47-F64).** Not necessarily wrong post-cutover, but the internal-reasoning content that would have distinguished mechanisms is now missing.
+- **F65 — noticing-closes-early.** A candidate-action shape distinct from F46 (persistence) and F55 (candidate never generated): the agent notices missing referenced material, forms a completed local inference about the meaning of the absence, and closes the observation without generating the trivially-cheap follow-through (searching adjacent named locations). Named in round-11 v3.
+- **F66 — rule-shape values have recognition preconditions.** Anti-framed values ("You do not X") inherit `min.md`'s R### structure of "recognize the trigger, apply the corrective" and fail when trigger recognition fails. Positive-orient values ("You Y") describe default posture and don't require trigger recognition. Named in round-11 v4.
+- **F67 — instruction-priority rationale is the caveat-treatment lever.** Fighting caveat-honoring via value rewrites is category-confusing; caveat interpretation lives at the instruction-priority layer. An epistemically-grounded rationale for the "context" clause (context possibly written earlier, on different system, by someone who didn't know your question, possibly with misconceptions, possibly misread by you; informs but does not decide) shifts caveat's operational role from authoritative-when-explicit to one-input-among-others. Named in round-11 v5.
 
 ## Current state
 
 - **min.md** — round-7 R002 stack + uncertainty taxonomy applied and committed. R910 v4 applied in work3 but **not committed** (F50: behavior can't be predicted from text). R920 not committed (overfitted).
 - **identity.md** — committed as a separate agent. Parallel track. n=1 on each of V5 and coverage-disclosure.
+- **identity-outcome.md** — round-11 variant, current state is v5 (positive-orient values + context-rationale + skipped-candidate/tension diagnostic). F46 breaks under v5 on V5 fixture; F63 persists across v1-v5 on coverage-disclosure. n=1 per version.
 - **Reference files** — `/root/claude-config-work2/PROMPT.md`, `/workspace/ralph/build.yml`.
 - **Known unfixed:**
-  - **F55 attention loss** on both min.md and identity.md (F63 shows values framework does not fix it on concrete-artifact tasks).
+  - **F55 attention loss** at candidate-generation on both min.md and identity.md (identity-outcome.md v4+ moves this axis on V5 but F63 shows F55-shape / synthesis-time compression persists on concrete-artifact tasks).
   - **F57 "instruction" scope instability** — any spec that references "instructions" inherits it.
-  - **F60 caveat classification depending on framing** — R910 v4's non-engagement mechanism, identity.md's engagement mechanism — both are framing-dependent, not stably specified.
+  - **F60 caveat classification depending on framing** — refined by F67: the lever is operational rationale for how context weight into decisions, not taxonomic label.
+  - **F63 synthesis-time compression** on coverage-disclosure — separate layer from value framework or instruction-priority rationale; response-composition step drops material that upstream values successfully generated.
+  - **F65 noticing-closes-early** — noticing terminates in completed local inference rather than follow-through action; observed once at v3, not directly targeted by v4/v5.
 
 ## Open
 
 - **Trust/subagent projection (round 8).** Logical projection from V5's *"don't test any more prompt-only changes"*; not experimentally verified. On typical subagent-consuming tasks, expected to reproduce.
 - **F55 remedy.** Two plausible directions: (a) a gate with session-specific state that can detect what specifically was omitted (current gate is static R060 + G1-G6 and cannot); (b) a commentary→final propagation surface for candidate actions.
-- **F64 stability.** identity.md v2 caveat engagement is n=1. Replicate + cross-fixture generalization untested.
+- **F63 remedy.** Value framework and instruction-priority rationale don't reach the response-composition step. Plausible directions: (a) an explicit gate step that enumerates named context sources vs. touched, forcing surfacing before composition; (b) a final-response contract that binds specific commentary lines to specific final-response bullets, closing the compression gap.
+- **F64/F67 stability.** identity.md v2 and identity-outcome.md v5 both break F46 on V5 at n=1. Replicate + cross-fixture generalization untested for both.
+- **F65 remedy.** Untargeted so far. Plausible directions: value that specifically wires noticing→acting (e.g., *"when you notice missing referenced evidence, you look adjacent"*), or a rule/gate that names it explicitly.
+- **F66 pattern extension.** Applying value-shape principle to `identity.md` v2 (Understanding/Truth are already positive-orient there) and to `min.md`'s R### rules (which are structurally rule-shape by design; the identity paradigm was the alternative) not investigated.
 - **R002 stability on genuinely-ambiguous big-picture tasks.** Round 7 fixture was standard "summarize status"; big picture was inferable. On tasks where big-picture inference is itself hard, R002 may over-fire or misinfer. Not tested.
-- **Whether identity v2 helps or hurts on other prompt-tests** (`trivial-task`, `network-resilience`, `platform-portability`, etc.). Not tested.
+- **Cross-fixture generalization of identity-outcome.md v5** (`trivial-task`, `network-resilience`, `platform-portability`, `prompt-edit-scope`, etc.) — not tested.
+- **Coverage impl variance across v1-v5.** Every version produces a different impl on the same task. Attributable to design shifts vs to task-run variance is untestable at n=1 per version.
 
 ## Methodology (brief)
 
@@ -243,9 +321,11 @@ These characterize *how the model consumes any spec*; they are not bugs in any s
 ## Key artifacts
 
 - `opencode/agents/min.md` — round-7 R002 stack, R910 v4 uncommitted
-- `opencode/agents/identity.md` — round-10 values framework
+- `opencode/agents/identity.md` — round-10 values framework (epistemic-state values)
+- `opencode/agents/identity-outcome.md` — round-11 variant (outcome-anchored values, positive-orient, context-rationale, skipped-candidate/tension diagnostic in commentary)
 - `agent-tools/src/main.rs` `MIN_GATE_STDOUT` — G1-G6 gate text
 - `docs/opencode-system-prompt/min-commentary.md` — 1:1 annotated mirror of min.md
+- `docs/opencode-system-prompt/trials/2026-07-17-coverage-disclosure-identity-outcome-v{1,2,3,4,5}.md` — per-version trial records for round-11 coverage-disclosure runs
 
 ## Consolidated F-labels (for external references)
 
@@ -271,3 +351,13 @@ Session anchors for load-bearing quotes (used inline above):
 - E10 (purpose-stripped) `ses_0936ea525ffe0iZz7wJzXReKE2`
 - identity.md v2 on V5 `ses_092991899ffe2Vh0pJB4EvvdMl`
 - identity.md v2 on coverage-disclosure `ses_092993d5bffeaSpwuDzKGR29Yu`
+- identity-outcome.md v1 on V5 `ses_091b05c17ffeHHsJRjOTNLlmir`
+- identity-outcome.md v1 on coverage-disclosure `ses_091b05c5bffeiniuWauRB3c8vI`
+- identity-outcome.md v2 on V5 `ses_0918fb215ffeeJh93HsNkwEu9M`
+- identity-outcome.md v2 on coverage-disclosure `ses_0918fb286ffexOFQ2rjiJ5HTdN`
+- identity-outcome.md v3 on V5 (F65 noticing-closes-early) `ses_0917e219cffexTMjwfwRqKPUca`
+- identity-outcome.md v3 on coverage-disclosure `ses_0917e21c0ffeN5WWyAQBS7FX32`
+- identity-outcome.md v4 on V5 (compound skip at L143) `ses_09155ec3cffefDHEph540ALETB`
+- identity-outcome.md v4 on coverage-disclosure (T1a impl+test added) `ses_09155eda4ffelOJA0493ZFu6Yh`
+- identity-outcome.md v5 on V5 (F67 F46 breaks, three reads to older worktree) `ses_0914654d3ffe9vpfOCRaJaN0GC`
+- identity-outcome.md v5 on coverage-disclosure `ses_091465514ffeGZJw7DD2K5h2YT`
