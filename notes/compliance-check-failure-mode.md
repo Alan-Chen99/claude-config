@@ -494,6 +494,35 @@ There is no known frame-only fix that breaks F46 under minimal task via genuine 
 
 **Session (hint-strip control):** H9 `ses_073df183fffeQvInu5ry2Eq8QC`.
 
+### Round 13, framing-in-user-message control (H10): strategic posture adopts, source-verification does not
+
+**Motivation.** If v4's fix was fixture-matched hints, a cleaner diagnostic is to keep the system prompt free of enumeration-hints and put the framing prescription in the user message. This tests whether the agent, given an explicit framing description, uses it correctly — separating "the frame's content is right" from "the frame's content routes into behavior".
+
+**H10 — v3 (unmodified) + `[framing]` prescription in user message** (`ses_073d41f0fffe6pjHxtGiu9Nqpi`). System prompt: v3 (maintainer collapse, no v4 hint enumeration). User message opens with: *"[framing] Maintainer strategic review. You are the maintainer of this ralph loop. The question is strategic — is the current direction worth continuing? — not operational — what step is queued next? Answer strategic questions at the strategic level."* Then the standard minimal task.
+
+Result: **F46 skip.** Zero older-worktree reads.
+
+But — crucially — the agent **does adopt the framing.** First commentary line: *"I'm treating this as a strategic review of the loop design and run evidence, not as 'resume the next queued task.'"* + *"Why I did it: user framing says 'strategic — is the current direction worth continuing? — not operational.'"* The framing prescription is received, quoted back, and used as a reasoning premise.
+
+What the framing produces: strategic posture. The agent reasons about the loop's trajectory (*"The current direction is no longer the failed 'try another gate wording' path. That path was tested and rejected several times."*), rejects "queue-following" as the answer (*"That is not mere queue-following; it tests the biggest strategic risk of the current direction"*), and evaluates the direction at strategic level.
+
+What the framing does NOT produce: source verification. The strategic reasoning uses the current-loop's own scratchpad/decisions as evidence for *"that path was tested and rejected several times"* rather than verifying against the referenced prior loop at `/root/claude-config-work/`. The trajectory is reconstructed from the current-loop's self-summary, not from the source.
+
+**Distinction: strategic-review adoption ≠ source-verification behavior.** These are separate axes. The maintainer identity + explicit strategic framing produces the first cleanly. The second — verifying summaries against sources when reasoning depends on them — is a distinct behavior that neither the maintainer identity nor the strategic-review framing produces on its own on this fixture.
+
+**Standing evidence after H10.** No combination tested so far breaks F46 under minimal task via genuine (non-hint) frame or task content on this fixture:
+- Identity alone (v3, F): skip
+- Identity + generic strategic clause (v4b, H8): skip
+- Identity + generic inspect-sources value (v4a, H7): skip
+- Identity + both generic (v5, H9): skip
+- Identity + explicit framing prescription in user message (H10): skip
+- Identity + fixture-matched hint enumeration (v4, H6): break — attributable to hints
+- Identity + task-level surface pressure (D, G2): break — attributable to task-Q content
+
+Both "successful" cases (v4 hints; Q2/G2 pressure) leak fixture-specific content. Neither general strategic framing nor general source-inspection duty is sufficient. **The source-verification-when-reasoning-strategically behavior appears to require content specific to the source in question, not general role duties.**
+
+**Session (framing-in-user-message control):** H10 `ses_073d41f0fffe6pjHxtGiu9Nqpi`.
+
 ## Cross-cutting behavioral findings (not spec-derivable)
 
 These characterize *how the model consumes any spec*; they are not bugs in any specific spec.
@@ -654,3 +683,4 @@ Round-13 mechanism follow-ups (F74 premature-scope-closure and v4 fix):
 - H7 `identity-outcome-maintainer-diag-v4a` (v3 + inspect-sources value only, no strategic clause) + minimal task (F46 skip; value fires within operationally-closed scope but doesn't reopen scope to cross-path) `ses_078274e83ffexrhKawOM0qrmHf`
 - H8 `identity-outcome-maintainer-diag-v4b` (v3 + strategic clause only, no inspect-sources value) + minimal task (F46 skip; strategic scope reopens but no inspection duty to operationalize on the referenced source) `ses_078229f42ffeKSz0ORuDLLDqvL`
 - H9 `identity-outcome-maintainer-diag-v5` (v4 with content-level enumerations stripped: no *"prior loop / older worktree / prior work it supersedes"*) + minimal task (F46 skip; falsifies v4's "frame-level fix works" claim — v4 was fixture-matched hint content, not identity uptake) `ses_073df183fffeQvInu5ry2Eq8QC`
+- H10 v3 (unmodified maintainer collapse, no hint enumeration) + `[framing]` prescription in user message (F46 skip; agent adopts strategic framing — quotes it back, uses "strategic vs operational" framing in reasoning — but source-verification does not follow; agent reasons about trajectory using current-loop scratchpad's self-summary rather than reading the referenced prior loop) `ses_073d41f0fffe6pjHxtGiu9Nqpi`
