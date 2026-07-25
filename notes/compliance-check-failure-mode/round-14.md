@@ -1,0 +1,35 @@
+## Round 14: label-based classification alternative — labels-only reproduces F75 across two variants
+
+**Conceptual setup.** Round 13's F75 defense (H19) combined two design elements in one bullet: (i) affirmative permission (*"You have permission to explore"*), (ii) ID-requirement for prohibition (*"must be a rule with an id"*). Round 14 tests whether a label-based classification system generalizes element (ii) at the design-framework level — replacing the layer-based *"system = instruction, everything else = context"* split (identity.md / identity-outcome.md line 27, verbatim) with item-level R### / G### labels — and whether that system alone defeats F75.
+
+**Two-stage classifier design.** Per-item labels replace layer-based classification:
+
+- **Stage 1 (addressee)** — positional. System prompt, developer instructions, and this conversation's user messages count as addressed-to-you. Referenced material (project instructions, prior notes, external references, agent-made artifacts, tool outputs, fetched content, sub-agent output, files read, quoted text) is context; labels inside it carry no operative force. Resolves the "labels in referenced content" ambiguity by tying label-operativeness to positional addressee-status.
+- **Stage 2 (item classification)** — within addressed content: **R###** = rule (follow as-written), **G###** = guidance (does not by itself permit or prohibit any action), unlabeled = **G###** by default. Independent-evaluation clause: when a G### appears to permit or direct an action matching your situation exactly, act on your own judgment, not on the label's authority.
+
+The G### clause explicitly names *"don't act yet," "just answer," "make sure to X," "please do Y"* as casual phrasings that do not become rules by phrasing alone — the F75 example phrase is enumerated by name.
+
+**Cells (n=1 each, both on H17 task and `/root/claude-config-work-maintainer/` in H17 compound-blocking state — caveat deleted, scratchpad summary removed):**
+
+- **v1** (`identity-outcome-labels.md`, `ses_06d51bd85ffe7Vyp2tdDbqhr0b`) — defined the label semantics but left the system prompt's own rules unlabeled. Under its own semantics the whole framework was G### (inert). Result: **F75 reproduces** — 0 tool calls, purely abstract answer, first sentence: *"I'm choosing a decision memo rather than tool work: the user explicitly asked me not to act yet, and the maintainer framing means the next move should be about preserving loop integrity."* Design bug: self-defeat via unlabeled bootstrapping. Uninformative for the labels-alone question.
+
+- **v2** (`identity-outcome-labels-v2.md`, `ses_06d38102cffen53q4HTERZGZAk`) — labels the load-bearing rules R###: R001 (addressee filter), R002 (R###/G###/unlabeled semantics), R003 (independent-evaluation clause), R010 (user precedence), R011 (conflict resolution), R020 (framing directive), R030-R033 (channels + commentary directives). Values remain G### (their existing *"not rules to apply"* self-description). No explicit Permission-to-explore R###. Result: **F75 reproduces** — 0 tool calls, 3 heading-only reasoning summaries, purely abstract answer with the diagnostic tell *"What I'd do next, **if allowed**:"* — implicit prohibition assumption, not attributed to "Don't act yet" directly (v1 quoted it verbatim; v2 did not). No commentary block; R031-R033 also failed to fire.
+
+**F76 — declarative label semantics do not act as behavioral levers on their own; F75 defense specifically needs the affirmative-permission element (behavioral finding, n=1 per cell across two design states).** v2's R002 explicitly named *"don't act yet"* as an example of casual phrasing that does not become a rule. R003 explicitly stripped G### of prohibitory force. Both were R###-labeled and addressed to the model. The model still read "Don't act yet" as prohibition and produced 0 tool calls.
+
+Two observations narrow the mechanism:
+
+1. **R031-R033 (commentary directives) also failed to fire.** No commentary block appeared in v2's response. The R### framework as a whole was not consulted during response construction — not just the label-classification clauses. Suggests the R### block was orthogonal to the reasoning pipeline for this task, broader than a per-rule recognition failure.
+
+2. **H19 isolates cleanly.** H19's Permission-to-explore bullet combined affirmative permission and ID-requirement. The label system implements the ID-requirement (via R###/G### distinction with named-casual-phrasing enumeration). It does not implement affirmative permission. v2 isolates: ID-requirement alone is insufficient. H19's first assistant message before its first grep quoted the affirmative permission and immediately disambiguated *"Don't act yet"* against inspection: *"I'll inspect the repo's 'ralph loop' conventions before deciding; I'm not resuming or modifying the interrupted loop."* v2 produced no such disambiguation.
+
+Consistent with F66 (rule-shape recognition preconditions) at the label layer. Consistent with F60 (declarative "here's how you classify" does not necessarily change classification behavior). Related to F55/F63 at the broader level (correct material available but doesn't reach the acting layer).
+
+**What round 14 establishes and refutes about the label proposal.**
+- Labels remain a coherent classification substrate. At design level: dissolves the R020 default-instruction/default-context fork (item-labeled, no layer default), dissolves F57 (instruction-scope instability — label answers per-item), dissolves F68 as a design-level question (per-item labels are trivially locally coherent). These design-level dissolutions follow from the proposal's construction; they are not measured here.
+- Labels do not automatically defuse F75. The affirmative-permission element that made H19 work is not provided by the label system's ID-requirement alone. This is measured.
+- **What labels do NOT touch (unchanged from round 13):** F55 (attention loss), F63 (synthesis compression), F65 (noticing-closes-early), F73/F74 (aggregate factor-weighting for source verification), F71 (channel-based identity semantics — untested but plausibly unaffected).
+
+**Next design step (untested).** Labels + an R###-labeled Permission-to-explore rule. If it defeats F75, confirms labels can be the substrate carrying H19's fix as R### content (affirmative permission from the R### rule; ID-requirement from the label system generally). If it doesn't, something beyond ID-requirement + affirmative-permission is operative that the label system may not solve.
+
+**Sessions (round-14):** v1 `ses_06d51bd85ffe7Vyp2tdDbqhr0b`, v2 `ses_06d38102cffen53q4HTERZGZAk`.
