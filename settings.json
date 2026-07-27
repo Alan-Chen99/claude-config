@@ -1,5 +1,6 @@
 {
   "cleanupPeriodDays": 36500,
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -132,7 +133,9 @@
   "outputStyle": "alan-default-next",
   "effortLevel": "high",
   "showClearContextOnPlanAccept": true,
+  "tui": "default",
   "autoMemoryEnabled": false,
   "showThinkingSummaries": true,
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark"
 }
