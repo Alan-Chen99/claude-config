@@ -179,3 +179,97 @@ fn records_child_started_and_child_exit_in_parent_events() {
     assert!(evts.contains("\"child_exit\""), "events: {evts}");
     assert!(evts.contains("compute things"), "events: {evts}");
 }
+
+// Default: --desc and full argv are visible in /proc/self/cmdline
+// (clarity for general debugging). PR_SET_NAME/`comm` is set to a
+// truncated hint so `ps -o comm=` still identifies the wrapper.
+#[test]
+fn default_leaves_argv_visible_and_sets_comm() {
+    if !cfg!(target_os = "linux") {
+        return;
+    }
+    let home = tempfile::tempdir().unwrap();
+    let parent_dir = make_task(home.path());
+    let out = agent_tools()
+        .args([
+            "run",
+            "--desc",
+            "compute-things",
+            "--",
+            "bash",
+            "-c",
+            "cat /proc/$PPID/cmdline; echo; echo COMM=$(cat /proc/$PPID/comm)",
+        ])
+        .env("HOME", home.path())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    // Default keeps the descriptive argv intact.
+    assert!(
+        stdout.contains("compute-things"),
+        "default should leave --desc visible in /proc/self/cmdline: {stdout}"
+    );
+    assert!(
+        stdout.contains("--desc"),
+        "default should leave '--desc' visible in /proc/self/cmdline: {stdout}"
+    );
+    // comm slot is set to a hint derived from desc (15-byte cap).
+    assert!(
+        stdout.contains("COMM=at:compute-thin"),
+        "expected comm slot set from --desc hint: {stdout}"
+    );
+}
+
+// Round-19 F88 regression guard for the opt-in path: with
+// `--hide-cmdline`, `--desc` and the wrapped command line must NOT
+// appear in /proc/self/cmdline while the wrapper runs. Used for
+// probe / contamination-sensitive work.
+#[test]
+fn hide_cmdline_hides_desc_and_argv_from_proc_self_cmdline() {
+    if !cfg!(target_os = "linux") {
+        return;
+    }
+    let home = tempfile::tempdir().unwrap();
+    let parent_dir = make_task(home.path());
+    let out = agent_tools()
+        .args([
+            "run",
+            "--hide-cmdline",
+            "--desc",
+            "F88-SECRET-CANARY-STRING",
+            "--",
+            "bash",
+            "-c",
+            "cat /proc/$PPID/cmdline; echo; echo 'ARGS='; ps -o args= -p $PPID",
+        ])
+        .env("HOME", home.path())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !stdout.contains("F88-SECRET-CANARY-STRING"),
+        "--desc leaked into /proc/self/cmdline under --hide-cmdline: {stdout}"
+    );
+    assert!(
+        !stdout.contains("--desc"),
+        "'--desc' argv token leaked into /proc/self/cmdline under --hide-cmdline: {stdout}"
+    );
+    // meta.json (the intended observability channel) still records the desc.
+    let child_dirs: Vec<_> = std::fs::read_dir(&parent_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .collect();
+    let meta = child_dirs
+        .iter()
+        .find_map(|d| std::fs::read_to_string(d.path().join("meta.json")).ok())
+        .expect("expected a child meta.json");
+    assert!(
+        meta.contains("F88-SECRET-CANARY-STRING"),
+        "desc must remain in meta.json (the intended observability channel): {meta}"
+    );
+}

@@ -128,6 +128,36 @@ Do not count this as `fail`: contamination means the run no longer measures the
 agent's behavior on the task. Discard the run and rerun with a clean scratch cwd
 and corrected harness isolation.
 
+### System-prompt contamination (harness-side)
+
+Beyond agent-visible cheating, opencode has three harness-side channels
+that inject content into the system prompt. See
+`skills/opencode-subcommand/SKILL.md` "System-prompt contamination"
+section for the full inventory (C1 `{file:PATH}` frontmatter leak, C2
+`agent-tools run --desc` argv leak, C3 CLAUDE.md/AGENTS.md/CONTEXT.md
+injection). For probe/eval work, the load-bearing hardening:
+
+- Any spec loaded via `{file:PATH}` MUST have its YAML frontmatter
+  stripped or must have no `#` comments referencing rounds, probes,
+  hypotheses, or prior outcomes. Verify per file with
+  `scripts/strip-frontmatter.py --check <spec>.md` (exit 1 if any
+  markers remain). Create clean variants with
+  `scripts/strip-frontmatter.py <spec>.md` — writes a sibling
+  `<spec>-clean.md`.
+- For probe wraps, pass `agent-tools run --hide-cmdline --desc ...` so
+  the description and wrapped argv do not leak via `/proc/*/cmdline`
+  (F88 fix; regression guard in
+  `tests/run_test.rs::hide_cmdline_hides_desc_and_argv_from_proc_self_cmdline`).
+  The hide is opt-in — without the flag, argv is visible for
+  debugging clarity but the desc is still recoverable via `ps aux`
+  by a peer test-agent. Older installed binaries do not recognize the
+  flag — rebuild in place if `agent-tools run --hide-cmdline --help`
+  errors.
+- The default opencode recipe in the "Runner recipes" section below
+  sets `OPENCODE_DISABLE_PROJECT_CONFIG=1` and
+  `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1`; keep both for any probe
+  harness derived from it.
+
 ## Runner recipes
 
 ### opencode

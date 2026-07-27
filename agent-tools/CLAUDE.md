@@ -14,6 +14,44 @@ These strings are emitted by `agent-tools` and quoted verbatim in the system pro
 | `main.rs::GATE_STDOUT` (printed by `agent-tools opencode.gate`)                                  | `opencode/agents/alan-default-ids.md`, step 4 ("gate stdout returns instructions") and step 5 ("reason in a thinking block about what it instructs") of the Doing-tasks list; G1 reinforces R002 (big-picture target), G4 cites R043 (cheap-rejection transparency), G6 cites R090 (no implicit work-assignment), G7 stands alone (evidence-vs-claim), all rules defined in the same agent body | The agent prompt references "gate stdout" without quoting it. If GATE_STDOUT were emptied or removed, the agent prompt would still direct the agent to "follow nothing" — silently no-ops the R060 mistake-check. Pointer-style: items reference rules in the agent body rather than restating them. If the body's R002, R043, or R090 is renumbered or removed, the matching G silently loses its referent. The closing sentence ("re-enter the gate at the next version") is the consumer for the step-5 iterate-until-clean trigger; the body's heredoc uses `turn-<X>-version-<Y>` tags that share this vocabulary. Edit both sides together; rebuild `agent-tools` so the binary actually emits the new text. |
 | `main.rs::MIN_GATE_STDOUT` (printed by `agent-tools min.gate`)                                   | `opencode/agents/min.md`, step 4/5/6 wording; G1 reinforces R002 (big-picture target), G4 cites R043 (cheap-rejection transparency), G6 cites R090 (no implicit work-assignment), all defined in the same agent body | Diagnostic baseline counterpart to GATE_STDOUT — identical text minus G7 (the evidence-vs-claim check). Pointer-style: items reference rules in the agent body rather than restating them, so the gate is a reminder list rather than a complete checklist. If the body's R002, R043, or R090 is renumbered or removed, the matching G silently loses its referent. Edit both sides together; rebuild `agent-tools`. Cite layout was G3→R070 / G5→R090 before round 7 of the failure-mode investigation. |
 
+## Process identity: `comm` (default) vs `--hide-cmdline` (opt-in)
+
+`run.rs` exposes two knobs on how the wrapper appears to peer
+processes.
+
+**Default** — `procname::set_comm(desc-or-cmd[0])`. Sets the kernel
+`comm` slot (15-byte cap, `ps -o comm=`, `/proc/*/comm`) to
+`at:<hint>` where hint is `--desc` if given, else the wrapped
+command. Argv (`/proc/*/cmdline`, `ps aux`, `ps -o args=`) is
+untouched. Clarity for general debugging is the priority.
+
+**Opt-in** — `agent-tools run --hide-cmdline ...` calls
+`procname::hide_cmdline("agent-tools: <exe>")`. Zeros the argv
+memory region and writes the new title in place. Peer processes
+reading `ps aux` or `/proc/*/cmdline` cannot recover `--desc` or the
+wrapped command line. `comm` is set to match. Use for probe /
+contamination-sensitive work only.
+
+Regardless of the flag, `desc` remains in `meta.json` for the intended
+observability path (`agent-tools ps`, late-capture surfacing); the
+argv memory is not it.
+
+Mechanism (hide path): `/proc/self/stat` fields 48/49 (`arg_start`,
+`arg_end`) name the exact virtual-memory range the kernel serves as
+`/proc/self/cmdline`. That range is in the wrapper's own address
+space; a straight `write_bytes` + `copy_nonoverlapping` is enough.
+No `prctl(PR_SET_MM, ...)` or CAP_SYS_RESOURCE needed. See
+`src/procname.rs` for the full derivation. Regression guards in
+`tests/run_test.rs`:
+`default_leaves_argv_visible_and_sets_comm` and
+`hide_cmdline_hides_desc_and_argv_from_proc_self_cmdline`.
+
+Named in round 19 of the compliance-check failure-mode investigation
+(F88): E-k3-nodontact quoted `agent-tools run --desc "E-k3-v8: Kimi
+K3 + v8 + H17"` verbatim from `ps aux` (all runs pre-fix had the
+leak; the hide fix now exists but is behind a flag so we do not lose
+debugging clarity on non-probe work).
+
 ## Late-capture surfacing
 
 `hook_post.rs` fires after Bash, Monitor, **and** Read tool calls. On every fire it does two things under a per-scope flock:

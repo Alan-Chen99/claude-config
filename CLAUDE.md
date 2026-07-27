@@ -33,7 +33,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `plans/`           | Plan storage directory                                  | Reviewing or executing existing plans             |
 | `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
 | `output-styles/`   | Output formatting styles                                | Customizing Claude's output format                |
-| `scripts/`         | Standalone scripts (MITM proxy, launchers)              | Running or modifying utility scripts              |
+| `scripts/`         | Standalone scripts (MITM proxy, launchers, `reasoning-probe.py`) | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
 ### `agent-tools/`

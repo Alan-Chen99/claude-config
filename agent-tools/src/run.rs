@@ -10,10 +10,29 @@ use crate::meta::{self, ChildMeta};
 use crate::paths;
 use crate::signals;
 
-pub async fn run(desc: Option<String>, cmd: Vec<String>) -> Result<i32> {
+pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> Result<i32> {
     if cmd.is_empty() {
         return Err(anyhow!("run: no command supplied after --"));
     }
+
+    // Default: set a helpful process title (`comm`) so `ps -o comm=`
+    // shows what this wrapper is running without hiding the full argv.
+    // Clarity is the priority for general debugging.
+    //
+    // Opt-in: --hide-cmdline additionally overwrites /proc/self/cmdline
+    // so peer processes reading `ps aux` cannot recover the `--desc`
+    // string or the wrapped command line. Round-19 F88 named the leak:
+    // E-k3-nodontact quoted verbatim `agent-tools run --desc E-k3-v8:
+    // Kimi K3 + v8 + H17` from `ps aux`. `desc` remains available in
+    // meta.json for the intended observability path regardless of this
+    // flag; only the argv memory changes.
+    let comm_hint = desc.as_deref().unwrap_or(&cmd[0]);
+    if hide_cmdline {
+        crate::procname::hide_cmdline(&format!("agent-tools: {}", cmd[0]));
+    } else {
+        crate::procname::set_comm(comm_hint);
+    }
+
     let parent_dir = paths::parent_dir_from_env().map_err(|_| {
         anyhow!(
             "AGENT_TOOLS_PARENT_DIR is not set.\n\
