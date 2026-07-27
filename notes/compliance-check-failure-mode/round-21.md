@@ -202,6 +202,45 @@ Round-20 named F90 as "frontmatter meta-narrative operates as behavioral instruc
 - **F76** — SURVIVES + strengthened. Above-floor test confirms labels are structurally inert.
 - **F75-interpret** — Under clean specs, various criterion designs (Efix-v1 through v6) do defeat F75-interpret on gpt-5.5/xhigh. The round-16 characterization of "systematic broad-default bias survives criterion reframing" was contamination-driven. Interpretation is more malleable than round-16 read it.
 
+## Per-round contamination audit (added post-round-21)
+
+Round-19 Phase-6 characterized contamination severity in Categories A/B/C but only inventoried round-13+ specs. Round-21's findings — particularly that Efix-v1..v6 all contradict, even v1 which had one of the weakest Category-A frontmatters — expose the Category B/C classification as under-tight. Below is a per-round status table with the actual load path and frontmatter category verified this round.
+
+| Rounds | Findings | Load path | Frontmatter category | Contamination status |
+|---|---|---|---|---|
+| **1-7** | F1-F13, F17, F20; R070/R090/R002 stack | Committed `opencode/agents/min.md` → `agent.load()` via `config/agent.ts:105-130` → gray-matter strips frontmatter (round-19 Phase-1 verified) | Category B in file, stripped at load | **CLEAN** (verified strip; assumed disk-load path) |
+| **8-10** | F30-F64 on V5 fixture + identity.md | Committed `opencode/agents/identity.md` — same disk-load path | Category B, stripped at load | **CLEAN** (same assumption) |
+| **11** | F65-F67 on identity-outcome.md v1-v5 | Committed `opencode/agents/identity-outcome.md`, iterated in-place | Category B, stripped at load | **CLEAN** (same assumption; v1-v5 were sequential in-place edits of the committed file) |
+| **12** | F68/F69 on min-N* + diag-v1 cells | `/root/experiment-materials/*.md` via `{file:...}` inline config | `min-N4v2/N5v2/N6/noG1/*-diag-v1.md` = **verbatim min.md frontmatter (Category C — 7 lines of design/investigation-trail comments)**; `identity-outcome-diag-v1.md` = **Category B**; **`identity-outcome-v4-diag-v1.md` = Category A** (frontmatter explicitly states *"Baseline expectation: F46 skip (matches v4 result on V5 fixture). If F46 breaks here, diag-v1 is not neutral."*) | **PARTIALLY CONTAMINATED / not re-run.** N4v2/N5v2/N6/N4/N5 low-severity Category-C; N1 (v4-diag-v1) is Category A and matches the F79/F80 profile |
+| **13** | F70-F75 on maintainer-diag-v{1..5} | `{file:...}` inline config | Round-19 called v1-v5 Category B; verified this round — v1/v2/v3 are **Category B** (design intent only); **v4 and v5 are effectively Category A**: v4 enumerates added clauses; v5 states *"v4 named specific reference types … which defeated the test — any agent following the explicit hint would break F46 whether or not it had adopted the maintainer identity"* (mechanism claim + prior-outcome content) | **CONTAMINATED risk not verified.** v4/v5-associated cells (H6-H16) especially exposed. Not stripped, not re-run |
+| **14-19** | F75-F89 | `{file:...}` inline config | Category A | **CONTAMINATED** in original runs; **stripped in rounds 20-21**; contradictions documented in round-20 + round-21 |
+| **20-21** | F90 + all contradictions | `{file:...}` inline config on `-clean.md` variants | Frontmatter stripped | **CLEAN** |
+
+**Load-bearing risks:**
+
+1. **Rounds 1-11 CLEAN status rests on two premises:** (a) gray-matter actually strips frontmatter at `agent.load()` (verified round-19); (b) all rounds-1-11 invocations used the disk-load path (agent-name-only, not inline config). Premise (b) is not verified — if any round-1-11 probe used `{file:...}` inline config as a one-off, that measurement would be contaminated with the min.md/identity.md/identity-outcome.md frontmatter (Category B — one-liner references only, so effect probably small per round-19 categorization, but not zero given round-21 findings).
+
+2. **Round-12 N1 (identity-outcome-v4-diag-v1 + diag-v1 on V5 fixture, F46 skip result)** rests on a Category-A frontmatter that states the expected outcome directly. Under F90, "expected outcome stated" is the strongest priming pattern. **N1's F46 skip may be contamination-driven** in exactly the F79/F80 shape — spec frontmatter said "expect skip," agent enacted skip. F68 (coherence-prerequisite) partially rests on N1/N3 as neutrality controls; N3 (min.md + diag-v1) is Category B/C. If N1 is contamination-driven, F68's incoherent-additions-get-filtered characterization has a hole.
+
+3. **Round-13 v4/v5 (H6-H16 cells, F74 mechanism)** rest on Category-A-adjacent frontmatters. F74a (operational scope-closure), F74b (residual skip under strategic framing), and the compound-blocking model (H13/H16) all rest on measurements where the spec frontmatter enumerated the mechanism under test. Under F90, this is exactly the "v_{N-1} failed because X" narrative that caused F79/F80 contradictions. **F74a/F74b findings may be contamination-driven.** The v3-associated cells (F71/F72/F73) are on Category-B specs — lower-risk but not zero-risk.
+
+4. **Category-B-effect not tightly bounded.** Round-21's Efix-v1 (Category-A but weakest frontmatter of the series — just *"v1 workflow attempt"* without prior outcome enumeration) contradicts by 11 tool calls. This suggests the F90 effect activates on generic *"Investigation trail: notes/compliance-check-failure-mode.md (round-N)"* references alone, not just on hypothesis-stating frontmatters. **Round-12/13 findings on Category-B specs are at meaningful risk**, contrary to round-19's characterization.
+
+**Consequential:** The most exposed prior findings that have NOT been re-verified under clean spec:
+
+- **Round 12 N1** (F68 coherence-prerequisite): Category-A frontmatter, F46-skip result matches F90-CONTAM shape. High risk.
+- **Round 13 H6-H16** (F74a/F74b): v4/v5 are Category-A-adjacent; F74's two-mechanism decomposition rests on measurements with mechanism-under-test named in frontmatter. High risk.
+- **Round 13 A-G maintainer cells** (F71/F72/F73): Category-B v1/v2/v3; F73's three-factor structure (surface pressure + maintainer collapse + authorship scope) rests on cross-cell comparisons. Moderate risk.
+- **Round 12 N2/N4v2/N5v2/N6** (F69 rationale-vs-frame mechanism split, N6 anti-additive anomaly): Category-B/C. Moderate-low risk but not verified.
+
+**Recommended follow-up (priority order):**
+
+1. Strip Category-A-adjacent round-13 v4/v5 frontmatters; re-run H6/H9/H10/H11/H12/H13/H16 clean. Load-bearing for F74.
+2. Strip Category-A round-12 v4-diag-v1 (N1 cell); re-run against V5 fixture. Load-bearing for F68.
+3. Strip round-13 v1/v2/v3 maintainer frontmatters; re-run G1/G2/G3/G4 clean. Load-bearing for F73.
+4. Round-12 N2/N4v2/N5v2/N6 min-N* re-runs. Lower priority given Category-C-adjacent status.
+5. Spot-check rounds 8-11 by confirming from session logs whether invocations used disk-load or inline config. If any used inline config, targeted re-runs needed.
+
 ## Open (carried into round 22)
 
 **Cross-model replication of F90 and cross-model contradictions.**
