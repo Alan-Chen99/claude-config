@@ -16,6 +16,82 @@ Distinction to keep separate throughout:
 
 Round-by-round detail lives under [`compliance-check-failure-mode/`](./compliance-check-failure-mode/) — one file per round. This main file keeps only cross-cutting findings, current state, open questions, and pointers.
 
+## Investigation status (as of round 22)
+
+22 rounds of probing across two fixtures (`work2/` V5 task; `work-maintainer/` round-13+ maintainer paradigm) with three main spec families (`min.md`, `identity.md`, `identity-outcome.md` + many diagnostic variants). Rounds 19-22 discovered that inline-config `{file:PATH}` invocations inlined YAML frontmatter — including probe-hypothesis and prior-outcome commentary — into the system prompt (F87b), and on `gpt-5.5/xhigh` that frontmatter enacts described behavior (F90). This retroactively invalidates most spec-mechanism findings from rounds 13-18 and cascades through rounds 12-13 as well.
+
+**Solid findings (survive scrutiny, load-bearing):**
+
+| Finding | Rounds | What it establishes |
+|---|---|---|
+| **F31 impossibility theorem** | 1-7 (crystallized) | Two things the agent cannot reliably do (enumerate frames; in-frame self-correction). Design-level; no measurement dependency. Substitute is transparency about the pinned frame. |
+| **F62 Codex-backend policy (not API cutover)** | 18-corrected 2026-07-27 | `chatgpt.com/backend-api/codex/responses` reduces reasoning summaries to headings; `api.openai.com/v1/responses` returns paragraphs. Wire-level paired capture. Retroactive scope fix; `OPENCODE_AUTH_CONTENT` mitigation available. |
+| **F87b frontmatter leak (`{file:PATH}`)** | 19 | opencode `substitute()` at `variable.ts:44-88` inlines raw file contents including YAML frontmatter into system prompt. Verified in source + reproduction via K3 verbatim quote. |
+| **F88 argv leak (`--desc`)** | 19 | `agent-tools run --desc` puts probe description in `/proc/*/cmdline`. Verified via reasoning quote. Opt-in `--hide-cmdline` fix deployed. |
+| **F90 frontmatter as behavioral instruction on gpt-5.5/xhigh** | 20-22 | ~30 same-config clean-vs-contam cell pairs; direction consistent. "v_{N-1} failed because X" narratives suppress inspection; task-adjacent permission dominates; predictive hypotheses are variable-direction. Effect size 0 → 15-63 tool calls on many cells. |
+| **F85 parse-time translation on reasoning models** | 18 | DeepSeek R1 verbatim reasoning: *"I am not to act yet (i.e., not to call functions at this point)"* in first four sentences. Wire-clean via `/tmp/reasoning-probe.py` frontmatter strip. Qwen3-thinking replicates pattern. |
+| **F86 model-default divergence** | 18 | Kimi K3 defaults narrow (confirmed via H17-notools discriminator: unambiguous "Do not use any tools" produces 0 tool calls). R1/Qwen default broad. gpt-5.5 broad-default claim contradicted by F90; K3/R1/Qwen divergence stands. |
+| **F76 labels are structurally inert** | 14, 20, 21 | Above-floor H18 test: labels-v2 (11 tools) ≈ framing baseline (13 tools). Multiple independent evidence points on gpt-5.5. |
+| **F78 E17 F75-behavior on gpt-5.5** | 16, 21 | Diagnostic derives correct F/P listing (inspection explicitly Permitted) but agent still produces 0 tool calls. Sole surviving F75-behavior evidence on gpt-5.5/xhigh at spec/task level. |
+| **Round-22 simpler-story hypothesis** | 22 | On `work-maintainer/` fixture: maintainer-identity system prompt + decision task → prior-loop inspection under clean spec, without needing fixture-matched hints or explicit strategic framing. H9 (63 tools) + H6 (51 tools) + N1 (45 tools) support it directly; G1-G4 + Run F clean re-runs pending. |
+
+**Contradicted / retired (contamination-driven, empirical basis dead):**
+
+| Finding | Retired in | What was wrong |
+|---|---|---|
+| F68 empirical (N1 neutrality control) | R22 | Frontmatter *"Baseline expectation: F46 skip"* enacted the outcome. Clean N1 = F46 break. Framework's design-level architecture (R020 fork) survives as prior; empirical evidence dead. |
+| F74 core claim (H9 falsifies v4 hints) | R22 | Frontmatter *"any agent following the explicit hint would break F46"* primed skip. Clean H9 = 63 tools / F46 break. Generic frame content DOES drive inspection. |
+| F79 v1/v4/v5/v7 passive-trigger regression | R20/R21 | Contamination uniformly suppressed tool calls across the whole passive-trigger axis. Clean = 15-34 tools per cell. |
+| F80 broad-default for gpt-5.5/xhigh | R20 | Clean v8 = 19 tools. Retained scope: R1/Qwen per F85 reasoning traces. |
+| F84 mechanism claim | R21 | Only trailing no-op gate provides late-stage consolidation (25 tools). Text-producing intermediate mandates (spacetool/commentaryspace/bashcomment) actually re-block (0-1 tools). |
+| F81 unblock mechanism | R20 | Reframed as depth modulator; nothing to unblock. |
+| F77 for v2/v3 escalated variants | R21 | Anti-avoidance (16 tools) and certainty audit (20 tools) DO shift interpretation under clean spec. Base accuracy still 0. Threshold effect, not binary. |
+| F78 pick-step-elimination structural claim | R21 | Efix-v1/v2/v4/v5/v6 all defeat F75-interpret under clean spec (11-22 tools each). Various criterion designs work; elimination not required. |
+| Efix-v6 as F75-behavior evidence | R21 | Was 0/skip; clean = 18 tools. Round-16's two-pillar F75-behavior support reduces to one pillar (E17). |
+
+**At cascading risk (untested, likely to cascade):**
+
+| Finding | Evidence rests on | Risk |
+|---|---|---|
+| F72 worker/author asymmetry | Run F (v3, Category B) skip | HIGH — sibling v5 clean = 63/break |
+| F73 three-factor decomposition | G1/G2/G3/G4 (v1/v3 Category B) skips | HIGH — same maintainer-diag chain |
+| F74a premature scope closure | Run F self-report | HIGH — self-report likely contamination-primed |
+| F74b residual skip under strategic framing | H10-H16 (all v3 Category B) | HIGH — same spec family |
+| F68 rest | N3/N4/N5/N4v2/N5v2/N6 (min-N* Category B/C) | MODERATE — Category C weaker but round-21 shows Category B ≠ risk-free |
+| F66 rule-shape values | identity.md v2 measurements | UNKNOWN — round 10 spec disk-loaded (clean via gray-matter) but not re-verified |
+| F67 rationale-as-caveat-lever | identity-outcome.md v5 measurements | UNKNOWN — same status as F66 |
+| F55 attention loss | rounds 8-11 baseline | UNKNOWN — never re-examined under clean-spec framing |
+
+**Unknown / genuinely open:**
+
+- **Cross-model.** All spec-level findings are gpt-5.5/xhigh n=1. Claude Sonnet/Opus completely untested throughout 22 rounds. K3, R1, Qwen3-thinking probed only for F85/F86.
+- **Cross-fixture generalization.** Round-22's "maintainer identity + decision task drives inspection" hypothesis is on `work-maintainer/` only. V5 fixture original F46 observation (rounds 8-10) may itself re-examine under clean spec.
+- **F75-behavior E17 defense.** The E18 combined intervention (E17 diagnostic + inspection-duty task-message clause) is untested. If it defeats F75-behavior, the sole surviving F75-behavior evidence is defeasible.
+- **F55 attention-loss re-examination.** F55 was named early and never re-verified after F87b/F90 discovery. May be a contamination artifact.
+- **Production spec impact.** No round-8+ finding has produced a committed spec change. `opencode/agents/{min,identity,identity-outcome}.md` are still the round-7/10/11 versions. Whether any round-13+ refinement should be adopted in production is unclear until clean re-runs confirm it holds.
+
+**Working production specs:**
+- `opencode/agents/min.md` — round-7 R002 stack + G1-G6 gate via `agent-tools min.gate`. Committed. This is the diagnostic-minimum baseline.
+- `opencode/agents/identity.md` — round-10 values framework (Understanding, Truth, Calibrated certainty, etc.). Committed as parallel track.
+- `opencode/agents/identity-outcome.md` — round-11 outcome-anchored variant. Committed as parallel track.
+- **Downstream operational spec:** `opencode/agents/alan-default-ids.md` (annotated delta against codex `base_instructions`) — this is what actually runs day-to-day.
+
+**Prioritized next steps:**
+
+1. **Round-13 v1/v2/v3 clean re-runs (Category B strip + G1-G4 + Run F/C/E + H10-H16).** Load-bearing for F72/F73/F74a/F74b cascade. If they all break under clean spec, round-13 story reduces to the round-22 "simpler hypothesis." ~10-14 cells.
+2. **Round-12 N3/N4/N5/N4v2/N5v2/N6 clean re-runs.** Load-bearing for F68 empirical rebuild. ~6 cells.
+3. **n=2/n=3 replication of load-bearing round-20-22 contradictions** (F80/F79/F74/F68). Direction claims established but magnitude stability untested.
+4. **Cross-model spot checks.** Claude Sonnet/Opus on H17 + clean framing.md (F75 baseline). K3/R1/Qwen on Efix-v7 (F78 pick-step). Would test whether F90 replicates or if gpt-5.5-specific.
+5. **F55/F65/F66/F67 re-examination.** Whether earlier findings (rounds 8-11) survive with the round-22 simpler-story hypothesis in mind. Requires re-running V5 fixture under clean-frontmatter conditions.
+6. **Production impact assessment.** Which if any post-round-7 refinement should be baked into `opencode/agents/*.md`? Currently: none. Round-22 result suggests identity-outcome.md maintainer variants may work under clean spec but that's not production-ready.
+
+**Meta-lessons from the investigation:**
+
+- **Inline-config `{file:PATH}` is a hostile substrate for spec probing.** Any comment intended as investigator-only ends up as system-prompt instruction. The right pattern is disk-load via `.opencode/agents/*.md` (gray-matter strips) or explicit inline JSON with frontmatter fields promoted out of the file body.
+- **On gpt-5.5/xhigh, meta-narrative operates as behavioral instruction.** Whatever the investigator writes about "we hypothesize X" or "prior cell showed Y" is enacted. Design implication for future probes: no probe descriptions in the loaded artifact.
+- **n=1 with load-bearing narrative claims is dangerous.** Round-13's H9 falsification was n=1 and quoted as the reason to conclude "generic frame doesn't work"; the whole downstream H10-H16 chain rested on that one measurement. Multi-round n=1 sequences that quote each other's results compound the risk.
+- **Design-level architecture claims (F31 impossibility theorem, R020 fork, F76 label-inertness structural claim) are more robust than mechanism-level empirical claims.** Two of the three surviving high-confidence findings on gpt-5.5 are design-level rather than empirical.
+
 ## The impossibility theorem (F31)
 
 Two things the agent cannot reliably do, no matter how the spec is written:
