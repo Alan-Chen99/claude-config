@@ -1,3 +1,11 @@
+> ⚠ **Round-20 contamination advisory (added retroactively; content below unmodified).** All round-17 v1-v8 specs (`framing-ambig-authored-v{1..8}.md`) carry Category-A frontmatter of shape *"v_{N-1} failed because X, v_N tests Y"*. Per round-20 F90, this narrative form causally suppresses inspection on gpt-5.5/xhigh. Round-20 same-day controls (same model / task / fixture / spec, only frontmatter differs):
+>
+> - **F79 v7: CONTRADICTED.** Clean v7 → 34 tool calls with visible workflow + who/when/what/why template applied to grounded evidence. Contam v7 → 0 tool calls with "won't run tools" verbatim (round-17-v7 pattern reproduced). Passive "responsibility on the agent" trigger is not the failure mechanism; the frontmatter narrative is.
+> - **F80 v8: CONTRADICTED for gpt-5.5/xhigh.** Clean v8 → 19 tool calls, workflow applied to scratchpad handoff after grounded inspection. Contam v8 → 0 tool calls, workflow applied to user prompt, "recommend-inspection-then-delegate" evasion pattern. The "workflow-fires-visible but F75-behavior residue persists" description is a contamination artifact. F80 retained scope: reasoning models (R1, Qwen-thinking) per F85.
+> - **v1/v4/v5 not re-run.** Some may still show passive-trigger regression; v7 (the load-bearing case) does not.
+>
+> **F75-behavior two-layer decomposition** (this round's claim that v3/v6/v8 fix interpretation but not behavior) is likely overturned. Under clean spec, the workflow's derived interpretation *does* govern the tool-call decision. **H1/H2 phrase-bisect** should be re-run with clean spec to determine whether the "Don't act yet"-as-sole-trigger claim holds under clean conditions. See `./round-19.md` (F87b), `./round-20.md` (F79/F80 detail + F90 controlled matrix), `../compliance-check-failure-mode.md` (F79 ⚠ CONTRADICTED, F80 ⚠ CONTRADICTED, F90 new).
+
 # Round 17 — Spec-level defense of F75-interpret; F75-behavior bisected to phrase-level prior
 
 Continues from round 16 (which closed as open pending round 17). Round 16 Phase 7 established that E17's task-message diagnostic defeats F75-interpret via motivation → forbidden/permitted derivation with pick-step elimination; F75-behavior remained at diagnostic-only level. Round-17 continuation targets named in round-16 included:
