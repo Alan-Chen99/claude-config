@@ -215,13 +215,19 @@ def render_legend(log_path: str) -> str:
     opencode-pretty), the recovery recipe points at ``opencode export``
     instead of cc's sed+jq combo — ``@L<n>`` then refers to the 1-based
     index into ``.messages`` and ``[i]`` to the index into ``.parts``.
+
+    ``opencode export`` truncates its stdout at ~64KB when writing to a
+    pipe, so the recipe redirects to a file first and runs ``jq`` against
+    the file — a bare ``opencode export ... | jq ...`` silently loses
+    everything past the first pipe buffer and errors with "Unfinished
+    string at EOF" on any part beyond that boundary.
     """
     if log_path.startswith("opencode://"):
         session_id = log_path[len("opencode://"):]
         return (
             f"{C.HINT}# refs '@L<n>[i]' point at message n (1-based), part i (default 0). "
-            f"Recover: opencode export {session_id} "
-            f"| jq '.messages[<n-1>].parts[<i>]'.{C.RESET}"
+            f"Recover: opencode export {session_id} > /tmp/oc-{session_id}.json "
+            f"&& jq '.messages[<n-1>].parts[<i>]' /tmp/oc-{session_id}.json{C.RESET}"
         )
     return (
         f"{C.HINT}# refs '@L<n>[i]' point at line n, content block i (default 0). "

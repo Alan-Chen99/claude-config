@@ -29,12 +29,22 @@ truncated block.
 
 **If input is an opencode session (id or export):**
 ```bash
-agent-tools opencode-pretty <session-id-or-file> --agent
+agent-tools opencode-pretty <session-id> --agent
+# or from a saved export:
+agent-tools opencode-pretty <session-id> --from-file <export.json> --agent
 ```
-Drill-down hint for omitted content appears as
-`# agent-tools opencode-pretty <session-id> --message <message-id> --full`
-under the truncated block. Run that command to re-render the single message
-in full.
+Truncated blocks carry an `@L<n>[i]` back-reference (message n, 1-based;
+part i, default 0). A single legend at the top of the output prints the
+drill-down recipe:
+
+```
+opencode export <session-id> > /tmp/oc-<session-id>.json \
+  && jq '.messages[<n-1>].parts[<i>]' /tmp/oc-<session-id>.json
+```
+
+The file redirect is required — `opencode export` truncates its stdout at
+~64KB when piped, so `opencode export … | jq …` silently loses everything
+past the first pipe buffer.
 
 For both: if the session is small, the rendered log appears directly in the
 Bash output. If large, the script writes chunk files to `/tmp` and prints
@@ -42,8 +52,9 @@ their paths — read all listed files in parallel using the Read tool.
 
 Thinking blocks (`╭─ thinking ─` markers) and full tool input are always
 shown (critical for diagnosis — many findings appear only in thinking
-blocks). When you encounter a truncated block whose contents matter, follow
-the drill-down hint printed under it.
+blocks). When you encounter a truncated block whose contents matter, apply
+the recipe printed in the top-of-output legend against its `@L<n>[i]`
+back-reference.
 
 ### Step 2: Construct the timeline
 
