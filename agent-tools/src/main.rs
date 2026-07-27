@@ -59,6 +59,7 @@ mod hook_pre;
 mod meta;
 mod opencode;
 mod paths;
+mod procname;
 mod ps;
 mod run;
 mod signals;
@@ -110,6 +111,14 @@ enum Cmd {
     Run {
         #[arg(long)]
         desc: Option<String>,
+        /// Overwrite /proc/self/cmdline to hide --desc and the wrapped
+        /// command from peer processes reading `ps aux` /
+        /// `/proc/*/cmdline`. Opt-in because the default cmdline is
+        /// load-bearing for debugging; only enable for probe /
+        /// contamination-sensitive work. See agent-tools CLAUDE.md
+        /// "`--desc` argv hiding (F88)".
+        #[arg(long)]
+        hide_cmdline: bool,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         cmd: Vec<String>,
     },
@@ -303,12 +312,12 @@ fn main() {
     let root = repo_root();
 
     match cli.command {
-        Cmd::Run { desc, cmd } => {
+        Cmd::Run { desc, hide_cmdline, cmd } => {
             let code = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run::run(desc, cmd));
+                .block_on(run::run(desc, hide_cmdline, cmd));
             match code {
                 Ok(c) => std::process::exit(c),
                 Err(e) => {
