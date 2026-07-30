@@ -40,6 +40,7 @@ A log of **validated findings** from probing opencode agent prompts on the `work
 - **F76 — declarative labels are behaviorally inert.** Above-floor H18 test on gpt-5.5/xhigh clean spec: labels-v2 (11 tools) ≈ framing baseline (13 tools). Label-based classification systems (R### = rule, G### = guidance) do not by themselves defeat interpretation-level failures on F75-vulnerable tasks; any label-based design must pair with affirmative content that does the interpretation work. Round 14; strengthened round 21 via above-floor lift-off.
 - **F78 — spec-level pick-step designs (Efix family) defeat F75-interpret under clean spec.** 5 of 6 non-v7 Efix cells on gpt-5.5/xhigh clean spec: v1=11, v2=16, v4=22, v5=18, v6=18 tool_use vs contaminated 0. Various criterion designs (constraint enumeration, three-scope spectrum, imperative language, named-tools, invert-default) work. Round-16's "elimination beats criterion-fixing" reading was a contamination artifact for 5 of 6 cells. Round 21.
 - **F78 — E17 task-message diagnostic defeats F75-interpret without spec change.** *"why did the writer write this at this time? → forbidden = what motivation targets, permitted = everything else, anti-category-bundling rule"* fires purely at task-message level. Under clean spec: 0 tool_use despite explicitly permitting inspection in derived F/P split — sole surviving F75-behavior evidence on gpt-5.5/xhigh at task-message level. Rounds 16, 21.
+- **F91 — task-side role establishment produces editor-frame alignment without spec changes.** `V5-plan-task-v3.md` (goal=work-for-end-users + required End-user model section + plan-review framing + interpretation-output structure) on identity + identity-outcome (frontmatter-clean, maintainer fixture) produces 6A + 1A-tilt on both cells across a 7-item rubric. Editor-frame (PROMPT.md as external artifact to revise, not as self-instructions) is the aligned interpretation for compliance-check essentials; task-level content activates it without spec revision. Author-frame is a further axis but not required. n=1 per cell. Round 25.
 
 ## Contamination cleanup summary
 
@@ -81,6 +82,7 @@ Each round file is a self-contained record. Load only what you need.
 | 22 | [`round-22.md`](./compliance-check-failure-mode/round-22.md) | N1/H6/H9 clean re-runs. Directional contradictions on crossing axis. Write-up magnitudes corrected R24. |
 | 23 | [`round-23.md`](./compliance-check-failure-mode/round-23.md) | Runs C/E/F re-runs. **Retracted R24** — model version confound (contam gpt-5.4 vs clean gpt-5.5); "F72 contradicted" and "F74a contradicted" claims not supported by data. |
 | 24 | [`round-24.md`](./compliance-check-failure-mode/round-24.md) | Audit. R22/R23 magnitude claims corrected; R23 retracted; F46 semantic drift documented. No new probes. |
+| 25 | [`round-25.md`](./compliance-check-failure-mode/round-25.md) | Leg-2 fully-specified-task iteration on identity + identity-outcome. 8 task variants tested. F91 named; `V5-plan-task-v3.md` is leg-2 candidate. |
 
 ## Open work
 
@@ -90,3 +92,5 @@ Each round file is a self-contained record. Load only what you need.
 - **n=2/n=3 replication of R20-R22 directional contradictions** (F80/F79/F74/F68). Direction claims established, magnitudes not.
 - **Cross-model spot checks.** Claude Sonnet/Opus on F75 baseline. K3/R1/Qwen on F78 Efix-v7. Would test whether F76/F78/F90 replicate or are gpt-5.5-specific.
 - **F87b upstream fix** (opencode-side `substitute()` defensive strip on markdown). Not addressed.
+- **F91 replication + R25h ablation.** n=2 on identity + identity-outcome; ablate whether "work-for" vs "released-to" or the required End-user model section is load-bearing. n=1 tests hold both changes together.
+- **R25 rubric refinements.** Item 5 (read past worktree) is a result-indicator only: not crossing is suspicious but not dispositive. Author-frame vs editor-frame is a separate axis not required for compliance-check essentials. Upgrade either if a later plan fails in ways that trace to them.
