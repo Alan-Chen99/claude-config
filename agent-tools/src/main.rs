@@ -285,7 +285,23 @@ fn venv_path(root: &Path) -> PathBuf {
     Path::new(&home).join(".claude/venvs").join(name)
 }
 
-fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[String]) -> ! {
+/// Exec `uv run --project <root> <python_args...> <extra_args...>`.
+///
+/// The child inherits the caller's cwd so relative-path arguments the user
+/// passes on the command line (e.g. `agent-tools count-tokens --file foo.txt`)
+/// resolve against where the user actually invoked agent-tools, not the
+/// claude-config repo root. `uv --project` locates the venv, so cwd never
+/// needs to move to `root` for uv itself.
+///
+/// `extra_pythonpath` is prepended to `PYTHONPATH` for cases like
+/// `agent-tools skill <mod>` where `python3 -m skills.<mod>` needs
+/// `<root>/skills/scripts` on `sys.path` for module resolution.
+fn uv_run(
+    root: &Path,
+    extra_pythonpath: Option<&Path>,
+    python_args: &[&str],
+    extra_args: &[String],
+) -> ! {
     let mut cmd = Command::new("uv");
     // --project already specifies the venv; inherited VIRTUAL_ENV from the
     // shell may point to a different worktree and triggers a noisy warning.
@@ -296,12 +312,21 @@ fn uv_run(root: &Path, working_dir: &Path, python_args: &[&str], extra_args: &[S
     // Strip HTTPS_PROXY so uv talks to PyPI directly.
     cmd.env_remove("HTTPS_PROXY");
     cmd.env("UV_PROJECT_ENVIRONMENT", venv_path(root));
+    if let Some(extra) = extra_pythonpath {
+        let mut combined = extra.as_os_str().to_owned();
+        if let Some(existing) = env::var_os("PYTHONPATH") {
+            if !existing.is_empty() {
+                combined.push(":");
+                combined.push(&existing);
+            }
+        }
+        cmd.env("PYTHONPATH", combined);
+    }
     cmd.arg("run").arg("--project").arg(root);
     for a in python_args {
         cmd.arg(a);
     }
     cmd.args(extra_args);
-    cmd.current_dir(working_dir);
     let err = cmd.exec();
     eprintln!("agent-tools: exec uv failed: {err}");
     std::process::exit(1);
@@ -359,9 +384,10 @@ fn main() {
         cmd => match cmd {
             Cmd::Skill { module, args } => {
                 let full_module = format!("skills.{module}");
+                let skills_scripts = root.join("skills/scripts");
                 uv_run(
                     &root,
-                    &root.join("skills/scripts"),
+                    Some(&skills_scripts),
                     &["python3", "-m", &full_module],
                     &args,
                 );
@@ -369,7 +395,7 @@ fn main() {
             Cmd::CcPretty { args } => {
                 uv_run(
                     &root,
-                    &root,
+                    None,
                     &["python3", "-m", "claude_config.cc_pretty.main"],
                     &args,
                 );
@@ -377,7 +403,7 @@ fn main() {
             Cmd::CcPrettyIntercept { args } => {
                 uv_run(
                     &root,
-                    &root,
+                    None,
                     &["python3", "-m", "claude_config.cc_pretty_intercept.main"],
                     &args,
                 );
@@ -385,7 +411,7 @@ fn main() {
             Cmd::CcWorkflow { args } => {
                 uv_run(
                     &root,
-                    &root,
+                    None,
                     &["python3", "-m", "claude_config.cc_workflow.extract"],
                     &args,
                 );
@@ -393,7 +419,7 @@ fn main() {
             Cmd::NtfyHook { args } => {
                 uv_run(
                     &root,
-                    &root,
+                    None,
                     &["python3", "-m", "claude_config.ntfy_hook"],
                     &args,
                 );
@@ -401,7 +427,7 @@ fn main() {
             Cmd::PreOutputRecord { args } => {
                 uv_run(
                     &root,
-                    &root,
+                    None,
                     &["python3", "-m", "claude_config.pre_output.record"],
                     &args,
                 );
@@ -409,16 +435,15 @@ fn main() {
             Cmd::CountTokens { args } => {
                 uv_run(
                     &root,
-                    &root,
+                    None,
                     &["python3", "-m", "claude_config.count_tokens"],
                     &args,
                 );
             }
             Cmd::EnvContext => {
-                let cwd = env::current_dir().unwrap_or_else(|e| panic!("cannot read cwd: {e}"));
                 uv_run(
                     &root,
-                    &cwd,
+                    None,
                     &["python3", "-m", "claude_config.env_context"],
                     &[],
                 );
@@ -427,7 +452,7 @@ fn main() {
             Cmd::OpencodePretty { args } => {
                 uv_run(
                     &root,
-                    &root,
+                    None,
                     &["python3", "-m", "claude_config.opencode_pretty.main"],
                     &args,
                 );
