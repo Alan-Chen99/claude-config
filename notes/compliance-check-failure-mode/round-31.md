@@ -1,5 +1,7 @@
 # Round 31 — Old-worktree crossing audit across R29/R30 corpus (10 cells)
 
+> **SUPERSEDED — see [`round-32.md`](./round-32.md).** R32 is a review-of-R31 pass that re-derived every mechanism claim from raw session content and found 4-5 load-bearing over-reads (F95 both endpoints, F98 on E0, L1740 "canonical origin", plus specific R31 line-number mappings that were stale across the F97 6-marker list). R32 preserves R31's taxonomy shapes (F93 5 patterns, F94 flow types) but corrects the mechanism attributions and switches to `@L<n>[i]` message-part refs (stable across pretty-print pagination) instead of raw line numbers. R31 content below is left as historical record — do not cite from R31 for load-bearing claims; use R32.
+
 > **Direct predecessor: [`round-30.md`](./round-30.md).** R30 established the R30 kimi 2×2 + gpt-5.5 E-series + R29 P9 corpus but did not audit whether cells crossed to `/root/claude-config-work/` (the pre-fixture-fix loop-1 worktree on branch `expectation-propagation`, HEAD `0c3e2d8`). Round 31 audits all 10 cells session-by-session, tracing (a) decision-to-cross timeline, (b) content-flow chains from crossing to output, (c) meta-understanding surfacing, (d) mis-attributions. Load-bearing correction: R30's own characterizations of "crossed lightly / negligible flow" were wrong for at least two cells — paraphrase leaks and campaign-integrity meta-frames were missed.
 
 ## Methodology
