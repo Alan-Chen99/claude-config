@@ -18,11 +18,11 @@ invariants.
 1. **One focus per artifact.** Focus is one natural-language sentence stated at
    the top. Same log may produce multiple artifacts under different foci.
 2. **Facts only, and prefer positive over negative descriptions.** Describe
-   what each part IS ("agent reads `ep_check.py`; grep for `unsupported`") or
-   what it programmatically ISN'T via a concrete regex-negative ("no match for
-   `/codex-based|opencode-based|superseded/`"). Do not classify relevance
-   ("unrelated to focus"), do not claim causation ("informed the rewrite"), do
-   not draw conclusions ("suggests", "indicates", "confirms", "load-bearing",
+   what each part IS ("agent reads `<file>`; grep for `<token>` across
+   `<dir>`") or what it programmatically ISN'T via a concrete regex-negative
+   ("no match for `/<regex>/`"). Do not classify relevance ("unrelated to
+   focus"), do not claim causation ("informed the rewrite"), do not draw
+   conclusions ("suggests", "indicates", "confirms", "load-bearing",
    "critical"). Reader traces relevance and causation from the recorded events.
 
    **The "not X" trap.** Phrases like *"not a read of the focus path"* or
@@ -30,11 +30,11 @@ invariants.
    inherit the relevance classification from the focus. If you're tempted to
    write "not Y" where Y names focus-relevance, either (a) drop the negation
    and describe positively what the payload IS ("this is the content of
-   `prompt-tests/CLAUDE.md` displayed as a sed tool_result; the string
-   `/X/prompt-tests/...` appears inside the file's own text"), or (b) replace
-   with a concrete programmatic regex-negative ("no match for
-   `/^  filePath: X/` in this turn's tool_use payloads"). A regex-negative is
-   a fact anyone can rerun; a relevance-negative is a judgment.
+   `<some-file>` displayed as a sed tool_result; the string `<focus-token>`
+   appears inside the file's own text"), or (b) replace with a concrete
+   programmatic regex-negative ("no match for `/^  filePath: <regex>/` in
+   this turn's tool_use payloads"). A regex-negative is a fact anyone can
+   rerun; a relevance-negative is a judgment.
 3. **Complete coverage.** Every span of every session appears in the artifact.
    A span may be rendered at any precision — verbatim quote, short description,
    regex-negative note, or `<N turns, brief factual descriptor>` range marker —
@@ -124,11 +124,12 @@ caps tool_use inputs, `--no-thinking` omits reasoning.
 opencode export <session-id> > /tmp/sess-<id>.json
 ```
 
-**Note on `opencode export` output**: the file begins with a status line like
-`Exporting session: <id>` before the JSON body. Strip it with
-`tail -n +2 /tmp/sess-<id>.json > /tmp/sess-<id>-clean.json` (or
-`sed -i '1d'`) before jq'ing. The redirect to file is required — `opencode
-export | jq` truncates at ~64KB.
+**Note on `opencode export` output**: `opencode export` prints
+`Exporting session: <id>` to **stderr** and pure JSON to stdout, so a plain
+`> file` redirect gives a clean JSON file — do NOT `tail -n +2` it (that
+strips the opening `{`). Only strip if you used `2>&1` and merged stderr in.
+The redirect to file is required — `opencode export | jq` truncates at
+~64KB.
 
 **Reference convention**: `@L<n>[i]` where `n` is 1-based message index and
 `i` is 0-based part index. Map to jq: `.messages[<n-1>].parts[<i>]`. Refs are
@@ -177,7 +178,7 @@ jq '.messages[7].parts[] | select(.type=="reasoning") | .text' /tmp/sess-<id>-cl
 jq '.messages[4].parts[] | select(.type=="tool") | {tool, input: .state.input}' /tmp/sess-<id>-clean.json
 
 # Every tool_use path across the session that matches a regex
-jq -r '.messages[] | .parts[] | select(.type=="tool") | .state.input | (.filePath // .command // empty)' /tmp/sess-<id>-clean.json | grep -nE '/root/claude-config-work[^-]'
+jq -r '.messages[] | .parts[] | select(.type=="tool") | .state.input | (.filePath // .command // empty)' /tmp/sess-<id>-clean.json | grep -nE '<focus-regex>'
 
 # Reasoning token count per assistant turn (for F62 heading-only handling)
 jq '.messages[] | select(.info.role=="assistant") | {id: .info.id, reasoning_tokens: .info.tokens.reasoning}' /tmp/sess-<id>-clean.json
@@ -219,6 +220,8 @@ otherwise.
 Default: `<caller-specified-dir>/<top-slug>__<focus-slug>.md`.
 
 For batch use in this repo: `notes/compliance-check-failure-mode/experiments/`.
-Top-slug is a short human name for the session or session-hierarchy
-(`kimi-no2-broken`, `dispatch-3-main-plus-subagents`); focus-slug is 2–4
-dash-separated words (`old-worktree-reads`, `hedge-language-usage`).
+Top-slug is a short human name for the session or session-hierarchy (model +
+variant + condition tag, or `dispatch-N-main-plus-subagents` for hierarchies);
+focus-slug is 2–4 dash-separated words naming the focus. Example filenames:
+`gpt55-xhigh-baseline__prompt-md-rewrite.md`,
+`dispatch-3-main-plus-subagents__crossing-motivation.md`.
