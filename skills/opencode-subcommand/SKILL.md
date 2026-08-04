@@ -396,6 +396,103 @@ Minimal repro on the **Codex backend** (heading-only reasoning): omit
 the `OPENCODE_AUTH_CONTENT` override; opencode falls through to the
 stored OAuth.
 
+## Continuing and forking sessions
+
+Two forms of resumption; three forms of fork; one form of revert. Get these
+wrong and probe results silently contaminate the parent session or measure
+the wrong branch.
+
+### CLI: `--session $ID` alone appends to parent — use `--fork` for probes
+
+```bash
+opencode run --session ses_xxx < followup.md            # appends to parent
+opencode run --session ses_xxx --fork < followup.md     # forks; parent untouched
+```
+
+`--fork` is **required** to create a new session. Without it, `--session $ID`
+mutates the parent's transcript in place — silently invalidating any future
+re-fork or re-audit of that session. R37 methodological note: R35's
+`run-followup-mot2.sh` omitted `--fork`, likely mutating the parent E-series
+sessions.
+
+Rule for probe scripts: **always pass `--fork` when `--session` is set**, or
+explicitly document why parent mutation is intentional.
+
+CLI `--fork` does full-session fork (all messages kept). To rewind and fork
+at a specific message, use HTTP (below).
+
+### HTTP: `POST /session/:sid/fork` with `{messageID}` rewinds and forks
+
+The CLI has no message-truncating fork. Use the HTTP API:
+
+```bash
+# 1. Start the HTTP server on the same DB
+opencode serve --port 4096 --hostname 127.0.0.1 > /tmp/oc-serve.log 2>&1 &
+sleep 4
+
+# 2. Enumerate messages to find the rewind target's messageID
+opencode export ses_xxx 2>/dev/null | \
+  jq -r '.messages | to_entries[] | "L\(.key+1) id=\(.value.info.id) role=\(.value.info.role) parts=\(.value.parts|length)"'
+
+# 3. Fork at a chosen messageID (drops that message and everything after)
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{"messageID":"msg_xxx"}' \
+  http://127.0.0.1:4096/session/ses_xxx/fork | jq
+# → returns Session.Info with a new .id
+
+# 4. Continue the fork via CLI (or HTTP /session/:sid/message)
+opencode run --session <new-sid> < probe.md
+```
+
+Semantics from `packages/opencode/src/session/session.ts:677`:
+
+```typescript
+for (const msg of msgs) {
+  if (input.messageID && msg.info.id >= input.messageID) break
+  ...
+}
+```
+
+The messageID and everything after are dropped. Passing no `messageID` in the
+payload gives full-session fork (same as CLI `--fork`).
+
+**Do NOT `tail -n +2` on `opencode export` stdout.** The *"Exporting session:
+…"* line is on stderr; stripping the first stdout line removes the JSON's
+opening `{`. Use `2>/dev/null` to drop stderr; leave stdout alone.
+
+### HTTP: `POST /session/:sid/revert` mutates in place (destructive)
+
+`revert` marks the session for rewind on next prompt; the abandoned tail is
+permanently dropped by `cleanup()` at the next prompt turn. Payload:
+`{"messageID": "msg_xxx", "partID": "prt_xxx"?}`.
+
+`POST /session/:sid/unrevert` restores. Cannot restore after `cleanup` fires
+(next prompt).
+
+**For probes: use fork, not revert.** Fork preserves the parent; revert is
+one-way and only useful for interactive TUI rewind.
+
+### R37 P5 recipe (rewind-fork + inject probe at pre-decision points)
+
+```bash
+opencode serve --port 4096 --hostname 127.0.0.1 > /tmp/oc-serve.log 2>&1 &
+sleep 4
+
+for label_msgid in "L6|msg_a..." "L12|msg_b..." "L14|msg_c..."; do
+  IFS='|' read -r label msgid <<< "$label_msgid"
+  new_sid=$(curl -s -X POST -H 'Content-Type: application/json' \
+    -d "{\"messageID\":\"$msgid\"}" \
+    http://127.0.0.1:4096/session/$PARENT/fork | jq -r .id)
+
+  # Re-supply agent config since fork is a new session
+  export OPENCODE_CONFIG_CONTENT='{"$schema":"...","agent":{...}}'
+  opencode run --agent my-agent --session "$new_sid" --format json \
+    --dir "$WORKDIR" < probe.md > "$OUT/$label-stdout.jsonl"
+done
+
+kill %1  # stop the server
+```
+
 ## Common pitfalls
 
 - **JSON gotchas.** `OPENCODE_CONFIG_CONTENT` is a JSON literal inside a
