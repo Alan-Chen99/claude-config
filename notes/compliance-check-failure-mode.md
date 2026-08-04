@@ -80,7 +80,7 @@ Probed whether value #2 (frame-questioning) fires on precval variants, then mult
 - **F103 (n=6) — reframed by R37 F119.** 6/6 *"did not consider" / "cannot reconstruct"* on 4 motivations = absence-from-emitted-trace, not absence-from-consideration. F101 caveat scope-mismatch: surface form retired by R37 N2; design-level observation stands.
 - **Superseded.** R29 Shape 2 originally attributed to value #2 suppression → R32 F97 traces to value #5 (precval). R31 mechanism attributions replaced by R32 re-derivations.
 
-### S7 — Wire-level model diff and pivot to raw-evidence artifacts (R34-R37)
+### S7 — Wire-level model diff and pivot to raw-evidence artifacts (R34-R39)
 
 Instrumented F62 to capture wire-level diff of opencode → gpt-5.5 vs → kimi-k3. Diagnosed R30-R35 as re-mining sessions and stacking attribution errors; pivoted to raw-evidence timeline artifacts via a new `session-timeline` skill; rewind-fork probe then discriminated candidate-generation from in-flight weighing.
 
@@ -91,6 +91,8 @@ Instrumented F62 to capture wire-level diff of opencode → gpt-5.5 vs → kimi-
 - **F116 — P1 "never on shortlist" self-report contradicted by P5 rewind-fork.** Old-worktree paths ARE in candidate set at all 3 pre-decision rewind points (E0 × L6/L12/L14 via HTTP `POST /session/:sid/fork` with `{messageID}`), dropped invisibly with stable reasons (L9 caveat + adequacy + contamination cost). R37.
 - **F118 — target-framing inherited from task-message @L1, stable from L6.** @L14[2] preamble is articulation not decision. R37.
 - **F119 — reframes R33 F103 + R34 F104.** gpt-5.5 non-crossing is task-message inheritance, not in-flight decision or verbosity. Composite mechanism: candidate-set includes pointer; invisible weighing under inherited target drops it. Retirement: candidate-generation-gate hypothesis. R37 also adds F113 (kimi L5 pointer+relevance-signal not imperative, 4/4 *"for context"*), F114 (4/4 kimi scope older-loop identity BEFORE firing).
+- **F120 (retired by R39).** R38 abstract "text scope" rule ineffective; R39 concrete-drift rule fires. See F121.
+- **F121 — concrete intent-drift rule shifts justification layer; verdict layer target-inherited (F119) unchanged.** R39 replaces R38 abstract rule with named same-author-same-commit criterion + 4 enumerated drift patterns (mandate-slot / status label / decision-record Reasoning / cross-worktree). Effects: (a) baseline reads in-cwd trial records + `test_ep_check.py` + reference-solution that R38 dropped (verified via git blame: all cited-together with scratchpad entries in same commit); (b) all 3 P5 rewinds abandon "already summarized" coverage-claim on old-worktree, replaced by drift-language or rule's fallback verbatim (*"I am not claiming coverage from it and accepting not reading it"*); (c) L12 model applies drift check to its own scratchpad mandate-slot (READ, with *"concern blocks are not faithful substitutes"*) and decisions Reasoning (READ, with *"Decision reasoning is not a source summary"*); (d) model absorbs rule into rewritten PROMPT.md for next worker. Old-worktree verdict unchanged (still drop) — confirms F119's verdict-layer / justification-layer separation. Three-layer refined mechanism: verdict (task-message-inherited, spec-rule-immune) / justification (concrete-anchored rules displace habits) / emission (F62). R39.
 
 ## Round index
 
@@ -118,6 +120,8 @@ Each round file is a self-contained record. Load only what you need. Entries bel
 | 35 | [`35`](./compliance-check-failure-mode/round-35.md) + [`experiments/`](./compliance-check-failure-mode/experiments/) | Pivot: separate raw-evidence layer (`session-timeline` skill) from interpretive layer. |
 | 36 | [`36`](./compliance-check-failure-mode/round-36.md) | Harden skill (5 overfit-example edits + stderr fix); build kimi × 4 evidence corpus. |
 | 37 | [`37`](./compliance-check-failure-mode/round-37.md) | Interpret R36 corpus + gpt-5.5 P1 self-report and P5 rewind-fork probes. |
+| 38 | [`38`](./compliance-check-failure-mode/round-38.md) | Test spec-level "text scope is what the text states" rule via P5 rewind-fork at 3 pre-decision points; null result. |
+| 39 | [`39`](./compliance-check-failure-mode/round-39.md) | Test concrete intent-drift rule (same-author-same-commit criterion + 4 enumerated drift patterns); baseline reads previously-dropped in-cwd sources, P5 drop-reasons abandon false-coverage claim (verdict unchanged per F119). |
 
 ## Open work
 

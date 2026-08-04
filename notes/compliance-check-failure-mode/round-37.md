@@ -208,6 +208,10 @@ messageID payload. Fork session IDs (retained for reproducibility):
 Outputs at `/tmp/r37-p1/p5-{L6,L12,L14}-stdout.jsonl` (JSON candidate-set
 responses, 27-32 candidates each).
 
+Verbatim old-worktree drop-reasons (both P1 Q1/Q2 and P5 candidate-set entries,
+6+3 probe points) collected in
+[`experiments/gpt55-r37__old-worktree-drop-reasons.md`](./experiments/gpt55-r37__old-worktree-drop-reasons.md).
+
 ### F117 — Old-worktree paths ARE on the candidate list at all 3 pre-decision points
 
 At each rewind, both `/root/claude-config-work/PROMPT.md` and
