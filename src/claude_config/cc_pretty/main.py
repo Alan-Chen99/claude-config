@@ -1,11 +1,15 @@
 """Pretty-print a Claude Code JSONL session log to stdout.
 
 Usage: cc-pretty <session.jsonl> [--tool-max N] [--truncate-input]
-                                 [--no-color] [--no-thinking]
+                                 [--color | --no-color] [--no-thinking]
                                  [--show-rewound] [--show-all]
                                  [--chat-only]
                                  [--compact-all] [--compact-leg N]
                                  [--agent]
+
+Color output is auto-detected: on when stdout is a TTY, off when piped or
+when NO_COLOR is set (https://no-color.org). --color forces it on (e.g.
+piping to `less -R`), --no-color forces it off.
 
 By default, only the last leg (after the last compaction boundary) is shown.
 Rewound conversation branches are collapsed to a single marker, and records
@@ -463,7 +467,19 @@ def add_shared_args(parser: argparse.ArgumentParser, *, default_tool_max: int = 
         action="store_true",
         help="Also truncate tool input to --tool-max chars (full by default)",
     )
-    parser.add_argument("--no-color", action="store_true", help="Disable ANSI colors")
+    color_group = parser.add_mutually_exclusive_group()
+    color_group.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable ANSI colors (default: auto-detect — colors on for "
+        "TTYs, off when piped or when NO_COLOR is set)",
+    )
+    color_group.add_argument(
+        "--color",
+        action="store_true",
+        help="Force ANSI colors even when stdout is not a TTY (e.g. piping "
+        "to `less -R`)",
+    )
     parser.add_argument(
         "--no-progress",
         action="store_true",
@@ -526,6 +542,23 @@ def add_shared_args(parser: argparse.ArgumentParser, *, default_tool_max: int = 
     )
 
 
+def detect_color(args: argparse.Namespace) -> bool:
+    """Resolve whether to emit ANSI colors.
+
+    Precedence: --no-color > --color > NO_COLOR env (present and non-empty,
+    per https://no-color.org) > stdout TTY detection. Applied centrally in
+    :func:`run_pipeline` so all front-ends (cc-pretty, opencode-pretty)
+    behave identically.
+    """
+    if args.no_color:
+        return False
+    if args.color:
+        return True
+    if os.environ.get("NO_COLOR"):
+        return False
+    return sys.stdout.isatty()
+
+
 @dataclass(frozen=True)
 class PipelineInput:
     """Inputs to :func:`run_pipeline`.
@@ -561,7 +594,7 @@ def run_pipeline(inp: PipelineInput) -> None:
     args = inp.args
     records = inp.records
 
-    if args.no_color or args.agent:
+    if not detect_color(args) or args.agent:
         C.disable()
 
     tool_input_max = args.tool_max if args.truncate_input else sys.maxsize

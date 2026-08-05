@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+import argparse
+import io
+import json
+import subprocess
+import sys
+
+import pytest
+
+from claude_config.cc_pretty.main import add_shared_args, detect_color
 from claude_config.cc_pretty.parse import (
     AssistantRecord,
     AttachmentData,
@@ -227,3 +236,100 @@ def test_render_tool_use_has_ref_and_no_toolu_id() -> None:
     assert "toolu_" not in out
     # No jq_hint trailer (the legend documents the recipe once).
     assert "sed -n" not in out
+
+
+# ─── Color auto-detection ────────────────────────────────────────────────────
+
+# detect_color lives in cc_pretty.main and is applied centrally in
+# run_pipeline, so cc-pretty and opencode-pretty share the behavior; the
+# unit tests here cover the decision, with one CLI end-to-end pair below.
+
+
+class _FakeTty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def _args(**overrides) -> argparse.Namespace:
+    """Build a fully populated args Namespace via the shared CLI surface."""
+    parser = argparse.ArgumentParser()
+    add_shared_args(parser, default_tool_max=200)
+    args = parser.parse_args([])
+    for key, value in overrides.items():
+        setattr(args, key, value)
+    return args
+
+
+def test_detect_color_no_color_flag_always_wins(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "stdout", _FakeTty())
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    assert detect_color(_args(no_color=True, color=True)) is False
+
+
+def test_detect_color_color_flag_forces_on_when_piped(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "stdout", io.StringIO())  # not a TTY
+    monkeypatch.setenv("NO_COLOR", "1")  # explicit flag also overrides the env var
+    assert detect_color(_args(color=True)) is True
+
+
+def test_detect_color_no_color_env_disables_on_tty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "stdout", _FakeTty())
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert detect_color(_args()) is False
+
+
+def test_detect_color_empty_no_color_env_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    # no-color.org: only a present *and non-empty* NO_COLOR disables color.
+    monkeypatch.setattr(sys, "stdout", _FakeTty())
+    monkeypatch.setenv("NO_COLOR", "")
+    assert detect_color(_args()) is True
+
+
+def test_detect_color_off_when_stdout_is_not_a_tty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "stdout", io.StringIO())
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    assert detect_color(_args()) is False
+
+
+def test_detect_color_on_for_tty_without_no_color_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "stdout", _FakeTty())
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    assert detect_color(_args()) is True
+
+
+# End-to-end CLI tests run in a subprocess: a clean interpreter avoids the
+# module-level C.disable() above, and captured stdout is a pipe, exercising
+# the real auto-detection path.
+
+def _run_cli(jsonl_file, *flags: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-m", "claude_config.cc_pretty.main", str(jsonl_file), *flags],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _write_jsonl(tmp_path):
+    jsonl = tmp_path / "session.jsonl"
+    record = {"type": "user", "message": {"role": "user", "content": "hi"}}
+    jsonl.write_text(json.dumps(record) + "\n")
+    return jsonl
+
+
+def test_cli_disables_color_when_stdout_is_piped(tmp_path) -> None:
+    proc = _run_cli(_write_jsonl(tmp_path))
+    assert proc.returncode == 0
+    assert "\033[" not in proc.stdout
+
+
+def test_cli_color_flag_forces_ansi_when_piped(tmp_path) -> None:
+    proc = _run_cli(_write_jsonl(tmp_path), "--color")
+    assert proc.returncode == 0
+    assert "\033[" in proc.stdout
+
+
+def test_cli_rejects_color_and_no_color_together(tmp_path) -> None:
+    proc = _run_cli(_write_jsonl(tmp_path), "--color", "--no-color")
+    assert proc.returncode == 2
+    assert "not allowed with argument" in proc.stderr

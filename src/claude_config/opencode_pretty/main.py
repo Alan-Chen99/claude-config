@@ -8,6 +8,10 @@ pipeline. The data-source conversion lives in
 opencode's part-based messages get flattened into Claude-Code-style
 records (and how revert state surfaces as rewound indices).
 
+Color output is auto-detected: on when stdout is a TTY, off when piped or
+when NO_COLOR is set (https://no-color.org). --color forces it on (e.g.
+piping to `less -R`), --no-color forces it off.
+
 Usage: opencode-pretty <session_id> [<flag>...]
 """
 

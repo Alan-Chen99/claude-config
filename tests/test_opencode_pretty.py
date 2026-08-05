@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import subprocess
 import sys
 from contextlib import redirect_stdout
@@ -383,3 +384,47 @@ def test_legend_emits_opencode_recovery_hint_for_opencode_log_path() -> None:
     assert "jq" in output
     # The Claude-Code-specific recovery wording must not leak through.
     assert "sed -n" not in output
+
+
+# ─── Color auto-detection ────────────────────────────────────────────────────
+
+# Unit coverage for the color decision lives in test_cc_pretty_render.py
+# (detect_color is shared via cc_pretty.main). Here we only check the CLI
+# end-to-end. These run in a subprocess: a clean interpreter avoids the
+# global C.disable() that test_cc_pretty_render applies at import time, and
+# captured stdout is a pipe, exercising the real auto-detection path.
+
+def _run_cli(export_file, *flags: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable, "-m", "claude_config.opencode_pretty.main",
+            "ses_test", "--from-file", str(export_file), *flags,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_cli_disables_color_when_stdout_is_piped(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = _run_cli(export_file)
+    assert proc.returncode == 0
+    assert "\033[" not in proc.stdout
+
+
+def test_cli_color_flag_forces_ansi_when_piped(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = _run_cli(export_file, "--color")
+    assert proc.returncode == 0
+    assert "\033[" in proc.stdout
+
+
+def test_cli_rejects_color_and_no_color_together(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = _run_cli(export_file, "--color", "--no-color")
+    assert proc.returncode == 2
+    assert "not allowed with argument" in proc.stderr
