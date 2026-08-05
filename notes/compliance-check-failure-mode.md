@@ -28,6 +28,35 @@ Round-by-round empirical work (task files, model responses, tool-call counts) li
 
 ---
 
+## Experiment-from-ground rule
+
+A round may build on a prior claim only after re-examining that claim in the current round. Applies uniformly to interpretive claims, methodology, sanity checks, bias-tests, and calibrations.
+
+**Load-bearing vs context-only.**
+- **Load-bearing** — cited in the current round's committed decision, falsifiable prediction, or design justification. Full re-examination required.
+- **Context-only** — may be cited unaudited; mark as *"unreexamined citation — see R##"* so the trust boundary is visible in the round file.
+
+**What re-examination requires.**
+- **Logical claims** — re-derived in the round's argument (structural comparison, framework partition, procedural rule).
+- **Experimental claims** — re-run on the current prompt/fixture unless cache conditions hold.
+- **Methodology / sanity-checks / bias-tests / calibrations** — audited against the current deployment surface and against current-most methodology ideas. A calibration cell covering kimi L6 does not cover gpt-5.5 L12 without re-audit. A bias-test written before a new bias source was identified must be re-audited against the newer taxonomy.
+
+**Transitive.**
+Re-examining a claim covers (a) whether the stated evidence still supports it under current context, and (b) whether the immediate evidentiary basis remains valid. One evidentiary hop is mandatory; go deeper when the one-hop audit surfaces a break. Applies transitively to sanity-checks: a "probe is unbiased" claim is re-audited whenever the probe's deployment surface grows, and the calibration cells that claim rests on are re-audited in the same pass.
+
+**Cache (session-level only).**
+- Session artifacts (transcripts, tool outputs, JSON emissions) may be reused only if model, prompt, fixture, probe wording, and fork point are exactly equal to the cached run.
+- Cache invalidates when any of: (a) a downstream round has identified a bias or defect in the same probe/method; (b) the claim's deployment surface has grown outside the original calibration surface; (c) a framework entry cited in the claim has been rewritten.
+- **Interpretive analysis is never cached.** Every round that leans on an interpretive claim re-derives it in the current round's context.
+
+**Session-ID discipline.**
+Every session, fork, or probe run cited in a round file is labeled explicitly as **cached** (originating round + session ID) or **new** (with the new session ID). Unlabeled session references are a lint error.
+
+**Disagreement on re-derivation.**
+When re-derivation produces a different result than the prior derivation, current-round wins. Prior claim annotated *"superseded at R##"* with a one-line delta note in the prior round file. Both readings do not stay live.
+
+---
+
 ## Fixtures & working specs
 
 - **V0 fixture** — original "summarize status" fixture from rounds 1-7; imperative admits multiple scope classifications.
@@ -79,14 +108,7 @@ Round-by-round empirical work (task files, model responses, tool-call counts) li
 
 ### F1. Rule-collision archetypes → optimization-target reframe [R1-R7]
 
-Iterate rule-based specs against ambiguous "summarize status." Decomposition: (a) locate text-level defect, (b) reword/add rules, (c) observe failure re-emerge on different axis, (d) change what the agent optimizes for.
-
-- **Rules fire against the noun they're written around** [R1-R2]. Failure surfaces off the anchor noun can't be caught.
-- **Body-only rules don't reliably survive gating** [R3-R4]. Post-gate duties must live at the gate layer.
-- **Frame selection happens before rules fire** [R3-R7]. A body rule can't restore already-discarded scope.
-- **Rule-pair composability is a spec property** [R5]. Grammatically-conflicting rules get composed; "minimum-risk suppress-one" is spec-compliant.
-- **No finite anti-axis list terminates under "minimum literal compliance"** [R7]. Per-axis restrictions are unfalsifiable; fix is to change the optimization target.
-- **Effort cannot in general be user-specified** [R7]. Agent must infer effort from big-picture at runtime and expose it for cheap rejection.
+Iterate rule-based specs against ambiguous "summarize status" through: locate text-level defect → reword/add rules → observe failure re-emerge on different axis → change what the agent optimizes for. Compressed findings (see round files for evidence): rules anchor to the noun they're written around and miss off-anchor surfaces [R1-R2]; body-only rules don't reliably survive gating so post-gate duties must live at the gate layer [R3-R4]; frame-selection precedes rule-firing, so a body rule can't restore already-discarded scope [R3-R7]; grammatically-conflicting rule pairs compose into "minimum-risk suppress-one" spec-compliant outcomes [R5]; no finite anti-axis list terminates under literal compliance — fix is to change the optimization target and expose agent-inferred effort for cheap rejection [R7].
 
 ### F2. Execution-layer failure decomposition on fully-specified fixtures [R8-R11]
 
@@ -357,13 +379,11 @@ Lookup for the per-round file behind a claim. Column format: `N: terse question`
 - **23:** R13 Runs C/E/F clean re-runs; F72 worker/author asymmetry survives? — [`23`](./compliance-check-failure-mode/round-23.md)
 - **24:** contam counts directly measured; R23 model-version confound? — [`24`](./compliance-check-failure-mode/round-24.md)
 - **25:** no-interpretive-ambiguity task — identity-lineage baselines execute in aligned role-frame; task-shape iterations? — [`25`](./compliance-check-failure-mode/round-25.md)
-- **26:** *(superseded — treated diligence as interpretation.)*
 - **27:** hybrid pause-permission task — sharper disk-committed dispatch than plan-review? Why cells adopt task-supplied precedent without alternatives? — [`27`](./compliance-check-failure-mode/round-27.md), [`27-precedent`](./compliance-check-failure-mode/round-27-precedent-anchoring.md)
 - **28:** precedent-keeping — fixture-blind or state-sensitive under textual-refutation marker; value-side intervention without marker confounds? — [`28`](./compliance-check-failure-mode/round-28.md)
 - **29:** identity-outcome-precval — best-approach value fires *unprompted* on "suppose all tests pass"? — [`29`](./compliance-check-failure-mode/round-29.md)
 - **30:** R29 negative model-general / value-specific / fixture-conditional (matrix)? — [`30`](./compliance-check-failure-mode/round-30.md)
-- **31:** *(superseded by R32.)* 10-cell crossing audit — [`31`](./compliance-check-failure-mode/round-31.md)
-- **32:** which R31 attributions survive re-derivation under `@L<n>[i]` + F62 discipline? — [`32`](./compliance-check-failure-mode/round-32.md)
+- **32:** which R31 attributions survive re-derivation under `@L<n>[i]` + F62 discipline? (subsumes R31 10-cell crossing audit at [`31`](./compliance-check-failure-mode/round-31.md)) — [`32`](./compliance-check-failure-mode/round-32.md)
 - **33:** per-cell crossing motivations vs own reasoning vs downstream product; fixture-caveat gate? — [`33`](./compliance-check-failure-mode/round-33.md)
 - **34:** wire-level diff between providers under matched setup — [`34`](./compliance-check-failure-mode/round-34.md)
 - **35:** layer separation preventing round-to-round attribution-error introduction — [`35`](./compliance-check-failure-mode/round-35.md), [`experiments/`](./compliance-check-failure-mode/experiments/)
