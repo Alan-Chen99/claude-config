@@ -2,225 +2,220 @@
 
 ## What this doc is
 
-Transferable content from an ongoing investigation into why opencode agents fail to comply with user direction on specific task classes. "Transferable" means content that survives implementation drift — different fixture, different task file, different model version, different spec version.
+Investigator-facing case notes on why opencode agents fail to comply with user direction on specific task classes. Not a prompt-engineering guide — findings are project-specific and grounded in the fixtures/rounds where they surfaced.
 
-Round-by-round empirical work (which task file was run, which model responded how, what the tool-call counts were) lives in per-round files under [`compliance-check-failure-mode/`](./compliance-check-failure-mode/). This main file records only content of the following shapes.
+Round-by-round empirical work (task files, model responses, tool-call counts) lives in per-round files under [`compliance-check-failure-mode/`](./compliance-check-failure-mode/). This main file keeps only content that survives implementation drift, organized as five shapes:
 
-### Allowed shapes
-
-1. **Research framework / decomposition** — how the problem is split, what invariant is being chased, what properties a solution (or a leg-N-ready input) must satisfy. *Primary shape.* Specific tasks/fixtures/spec files are implementations of these frameworks.
-2. **Logical claim about the problem space** — a constraint that holds regardless of implementation.
-3. **Design idea + logical why** — an approach worth trying, with logical (not experimental) justification: "to solve X, try Y because Z."
+1. **Research framework** — how the problem is split, what invariant is chased. *Primary shape.*
+2. **Logical claim** — a constraint holding regardless of implementation.
+3. **Design idea + logical why** — an approach worth trying, with a priori justification.
 4. **Methodological lesson** — a probe / measurement / attribution mistake to avoid.
 5. **System fact** — code-verifiable harness mechanism, cite `path:line`.
 
-### Forbidden
+**Excluded:** per-cell tool-call counts, rubric scores, replication numbers, retraction bookkeeping (delete on supersession — do not "retract with note"). Test for every candidate entry: name the framework question and the property a solution must satisfy — if the answer collapses to a specific file / model / count, extract the property or discard.
 
-- "Model M on task T with fixture F produced N tool calls."
-- "Cell A vs cell B differs by delta X."
-- "V## task file achieves rubric score Y."
-- Any raw tool-call count, rubric score, or n=X replication number.
-- Retraction bookkeeping ("F## contradicted by R##") — allowed only when the retraction itself feeds a framework revision that lives in shapes 1-4.
+**Citation rule.** Every claim, bullet, or design idea must cite the round(s) where it surfaced or was demonstrated (e.g. `[R7]`, `[R37-R44]`, `[R42/R43]`). No round → the claim is either untraced (fix by tracing to a round file) or general enough that it belongs in a different doc.
 
-### Reframing test (apply to every candidate entry)
+## Growth policy
 
-Ask: "What was the framework question this was answering, and what does the outcome tell us about *what a solution must satisfy*?" If the answer is a specific file / model / count, either extract the property-level claim into shape 1 or 3, or discard.
-
-### Retention rule
-
-Main doc grows only when a new shape-1-5 item is discovered. A round that only produces empirical replication of an existing shape-1-5 item does not touch this file. On supersession, delete the old item; do not "retract with note."
+- **Whole-file budget: ≤18k tokens** (`agent-tools count-tokens --file <path>`). Baseline: pre-refactor was ~10k; shape decomposition adds intrinsic overhead. Current file sits ~18k. Adding content that would exceed 18k requires pruning older content of equal or greater size in the same edit.
+- **Growth condition (retention rule).** Main doc grows only when a new shape-1-5 item is discovered. Empirical replication of an existing item does not touch this file.
+- **Prune candidates,** in order:
+  1. Superseded items — delete outright (do not retain "retracted with note").
+  2. Shape-3 design ideas not promoted to a committed spec after 3+ rounds of use — move to [`open-ideas.md`](./compliance-check-failure-mode/open-ideas.md).
+  3. Shape-2 entries whose fixture is no longer active — cite from a round file and drop.
+  4. Round-index rows for rounds fully subsumed by a later round — drop, letting the later round's row point to both.
 
 ---
 
-## Fixtures & working specs (deployment ledger)
+## Fixtures & working specs
 
-- **V5 fixture:** `/root/claude-config-work2/`. Standard 4-part diagnostic task extracted at `/tmp/V5-task.md`.
-- **Maintainer fixture:** `/root/claude-config-work-maintainer/`. Git-surgery rewrite of `work2/`; PROMPT.md in maintainer-authored voice. Task at `/root/experiment-materials/V5-minimal-task.md`.
-- **F75 fixture:** identity-outcome-framing agent + `/root/experiment-materials/H17-task.md`.
-- **`opencode/agents/min.md`** — diagnostic-minimum baseline (R002 stack + G1-G6 gate via `agent-tools min.gate`).
-- **`opencode/agents/identity.md`** and **`identity-outcome.md`** — parallel values-framework specs.
+- **V0 fixture** — original "summarize status" fixture from rounds 1-7; imperative admits multiple scope classifications.
+- **V5 fixture** — `/root/claude-config-work2/`; standard 4-part diagnostic task at `/tmp/V5-task.md`.
+- **Maintainer fixture** — `/root/claude-config-work-maintainer/`; git-surgery rewrite of `work2/` with PROMPT.md in maintainer-authored voice. Task at `/root/experiment-materials/V5-minimal-task.md`.
+- **F75 fixture / H17-task** — identity-outcome-framing agent + `/root/experiment-materials/H17-task.md` (5-line task ending *"Don't act yet."* on an ambiguous decision).
+- **`opencode/agents/min.md`** — diagnostic-minimum baseline (R002 stack + G1-G6 gate via `agent-tools min.gate`) [R7].
+- **`opencode/agents/identity.md`**, **`identity-outcome.md`** — parallel values-framework specs [R10-R11].
 - **`opencode/agents/alan-default-ids.md`** — operational spec running day-to-day. No post-R7 finding has produced a committed change here.
+
+**F/H code convention.** F## / H## / E## / Efix-vN are per-round artifact IDs (mechanism claims, task/spec variants). Only F62 (Shape 5) and F75 (above) are load-bearing enough to be defined in this main doc; other codes appearing in prose (F72, F74, F78, F79, F97, Efix-v7, …) refer to per-round-file artifacts — resolve via the round index below.
 
 ---
 
 ## Shape 5: System facts (opencode mechanism)
 
-**Prompt-assembly:**
+**Prompt-assembly** [R19, R30]:
 
-- Provider-conditional prompt is skipped entirely when `agent.prompt` is set. `packages/opencode/src/session/llm.ts:116` — `input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)`. Provider prompt dispatch at `packages/opencode/src/session/system.ts:19-33` (distinct files per model family: `PROMPT_BEAST`, `PROMPT_CODEX`, `PROMPT_GPT`, `PROMPT_GEMINI`, `PROMPT_ANTHROPIC`, `PROMPT_KIMI`, `PROMPT_DEFAULT`). Setting `agent.prompt` replaces, not merges — hidden trap for any setup that assumes provider prompt still applies.
-- `CLAUDE.md` / `AGENTS.md` / `CONTEXT.md` injection: `packages/opencode/src/session/instruction.ts:14-18,154-168` reads `~/.claude/CLAUDE.md` (unless `disableClaudeCodePrompt`), the first `AGENTS.md`/`CLAUDE.md`/`CONTEXT.md` walking up from cwd, and `~/.config/opencode/AGENTS.md`; concatenated into system prompt at `session/prompt.ts:1426`.
+- Provider-conditional prompt is skipped entirely when `agent.prompt` is set. `packages/opencode/src/session/llm.ts:116` — `input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)`. Provider prompt dispatch at `packages/opencode/src/session/system.ts:19-33` (per model family: `PROMPT_BEAST`, `PROMPT_CODEX`, `PROMPT_GPT`, `PROMPT_GEMINI`, `PROMPT_ANTHROPIC`, `PROMPT_KIMI`, `PROMPT_DEFAULT`). Setting `agent.prompt` replaces, not merges — hidden trap for any setup that assumes provider prompt still applies.
+- `CLAUDE.md` / `AGENTS.md` / `CONTEXT.md` injection at `packages/opencode/src/session/instruction.ts:14-18,154-168` reads `~/.claude/CLAUDE.md` (unless `disableClaudeCodePrompt`), the first `AGENTS.md`/`CLAUDE.md`/`CONTEXT.md` walking up from cwd, and `~/.config/opencode/AGENTS.md`; concatenated at `session/prompt.ts:1426`.
 
-**Config-loading channels:**
+**Config-loading channels** [R19]:
 
-- `{file:PATH}` template inlines the file raw. `packages/opencode/src/config/variable.ts:44-88` `substitute()` reads `Filesystem.readText(resolvedPath)` and inlines via `JSON.stringify(fileContent).slice(1,-1)`. No frontmatter awareness. Flows to `agents[name].prompt` → system prompt. **A spec loaded via `{file:...}` retains its YAML frontmatter verbatim in the system prompt.**
-- Disk-load path strips frontmatter via gray-matter. `packages/opencode/src/config/agent.ts:105-130` uses `md.content.trim()`. Committed `.opencode/agents/*.md` are clean via this path; only inline-config `{file:...}` leaks frontmatter.
-- Inline `cfg.agent[key].prompt` (containing `{file:...}` expansion) is merged with disk-loaded agents at `packages/opencode/src/config/config.ts:614-620`; inline-expanded string wins.
+- `{file:PATH}` inlines the file raw. `packages/opencode/src/config/variable.ts:44-88` `substitute()` uses `Filesystem.readText` + `JSON.stringify(fileContent).slice(1,-1)`. No frontmatter awareness. Flows to `agents[name].prompt`. **A spec loaded via `{file:...}` retains its YAML frontmatter verbatim in the system prompt.**
+- Disk-load path strips frontmatter via gray-matter at `config/agent.ts:105-130` (`md.content.trim()`). Committed `.opencode/agents/*.md` are clean via this path.
+- Inline `cfg.agent[key].prompt` merged with disk-loaded agents at `config/config.ts:614-620`; inline-expanded string wins.
 
-**Backend / provider policy:**
+**Backend / provider policy** [R18, R34]:
 
-- Codex OAuth endpoint (`chatgpt.com/backend-api/codex/responses`) applies server-side policy reducing `reasoning_summary_text` to bold headings only (mean ~39 chars). API-key endpoint (`api.openai.com/v1/responses`) returns paragraphs (mean ~363 chars). Mitigation: `OPENCODE_AUTH_CONTENT='{"openai":{"type":"api","key":"$OPENAI_API_KEY"}}'`. Instrumentation hooks at `provider.ts:1567` and `plugin/codex.ts`; `OPENCODE_F62_LOG_DIR=<dir>` enables request capture.
-- `textVerbosity` is hardcoded `"low"` for all gpt-5.x models except gpt-5-codex, gpt-5-chat, and Azure. `packages/opencode/src/provider/transform.ts:1129-1148`. No user override. Reasoning-effort variant controls `reasoningEffort` and is orthogonal.
+- **F62.** Codex OAuth endpoint (`chatgpt.com/backend-api/codex/responses`) applies server-side policy reducing `reasoning_summary_text` to bold headings only (mean ~39 chars). API-key endpoint (`api.openai.com/v1/responses`) returns paragraphs (mean ~363 chars). Mitigation: `OPENCODE_AUTH_CONTENT='{"openai":{"type":"api","key":"$OPENAI_API_KEY"}}'`. Instrumentation at `provider.ts:1567` + `plugin/codex.ts`; `OPENCODE_F62_LOG_DIR=<dir>` enables capture.
+- `textVerbosity` hardcoded `"low"` for all gpt-5.x models except gpt-5-codex, gpt-5-chat, Azure. `packages/opencode/src/provider/transform.ts:1129-1148`. No user override. `reasoningEffort` is orthogonal.
 
-**Wrapper / harness:**
+**Wrapper / harness** [R19]:
 
-- `agent-tools run --desc "…"` was leaking description to `/proc/<pid>/cmdline` (readable by test agent via `ps aux`). Fixed via `--hide-cmdline`; historical sessions may still show the leak.
-- `edit: deny` in opencode config does not block `bash python -c "Path(...).write_text(...)"`. Process-level restrictions needed for write-bypass prevention.
+- `agent-tools run --desc "…"` was leaking description via `/proc/<pid>/cmdline` (readable by test agent via `ps aux`). Fixed with `--hide-cmdline`; historical sessions may still show the leak.
+- `edit: deny` does not block `bash python -c "Path(...).write_text(...)"`. Process-level restrictions needed for write-bypass prevention.
 
-**Session tooling:**
+**Session tooling** (general opencode ops; kept here for locality):
 
-- `agent-tools opencode-pretty <session-id>` prints `@L<n>[i]` refs per part; recover raw content via `opencode export <sid> | jq '.messages[<n-1>].parts[<i>]'`. Pretty-print line numbers drift across export passes — use `@L<n>[i]` refs, not raw line numbers, when citing.
-- `opencode run --format json` stdout stream elides reasoning parts even when the tokens block reports non-zero reasoning tokens. Reasoning must be retrieved from DB via `opencode export <sid>`.
+- `agent-tools opencode-pretty <session-id>` prints `@L<n>[i]` refs per part; recover raw via `opencode export <sid> | jq '.messages[<n-1>].parts[<i>]'`. Pretty-print line numbers drift across export passes — cite `@L<n>[i]` refs, not raw line numbers.
+- `opencode run --format json` stdout stream elides reasoning parts even when the tokens block reports non-zero reasoning tokens. Retrieve from DB via `opencode export <sid>`.
 - `opencode export` writes JSON on stdout, `"Exporting session:"` prefix on stderr. Plain `> file` is clean; do not `tail -n +2` on the merged stream.
-- `opencode run --session $ID --fork` CLI flag does *full-session* fork. To fork at a specific message point (drop from messageID forward), HTTP `POST http://127.0.0.1:4096/session/:sid/fork` with `{messageID}` payload against `opencode serve --port <n> --hostname 127.0.0.1`.
+- `opencode run --session $ID --fork` CLI flag does *full-session* fork. To fork at a specific messageID (drop from ID forward), HTTP `POST http://127.0.0.1:4096/session/:sid/fork` with `{messageID}` against `opencode serve --port <n> --hostname 127.0.0.1`.
 - `opencode run --agent <path>` silently falls back to the session's stored default agent unless `<path>` matches a registered agent name at `~/.config/opencode/agents/<name>.md`. Logs *"agent not found. Falling back to default agent"*.
 
 ---
 
 ## Shape 1: Research frameworks
 
-### F1. Rule-collision archetypes → optimization-target reframe
+### F1. Rule-collision archetypes → optimization-target reframe [R1-R7]
 
-Iterate rule-based specs against ambiguous "summarize status" tasks. Framework decomposes into: (a) locate the text-level defect that permitted the failure, (b) reword/add rules to close it, (c) observe failure re-emerge on a different axis, (d) eventually change what the agent is optimizing for.
+Iterate rule-based specs against ambiguous "summarize status." Decomposition: (a) locate text-level defect, (b) reword/add rules, (c) observe failure re-emerge on different axis, (d) change what the agent optimizes for.
 
-Framework claims that survived:
+- **Rules fire against the noun they're written around** [R1-R2]. Failure surfaces off the anchor noun can't be caught.
+- **Body-only rules don't reliably survive gating** [R3-R4]. Post-gate duties must live at the gate layer.
+- **Frame selection happens before rules fire** [R3-R7]. A body rule can't restore already-discarded scope.
+- **Rule-pair composability is a spec property** [R5]. Grammatically-conflicting rules get composed; "minimum-risk suppress-one" is spec-compliant.
+- **No finite anti-axis list terminates under "minimum literal compliance"** [R7]. Per-axis restrictions are unfalsifiable; fix is to change the optimization target.
+- **Effort cannot in general be user-specified** [R7]. Agent must infer effort from big-picture at runtime and expose it for cheap rejection.
 
-- **A rule fires against the noun it is written around.** A spec whose failure surface is not co-extensive with the rule's anchor noun cannot catch off-anchor failures.
-- **Body-only rules do not reliably surface into post-gate working memory.** Whatever must survive gating has to live at the gate layer, not in rule bodies.
-- **Frame selection happens before rules fire.** Any rule intended to correct scope loss must operate before or during frame selection; a body rule cannot restore access to a scope the agent has already discarded.
-- **Composability of rule pairs is a spec property.** Two rules whose grammatical subjects and predicates conflict will be composed by the agent; the "minimum-risk" resolution (suppress one) is spec-compliant behavior.
-- **No finite anti-axis list terminates the shrinking chain** under a "minimum literal compliance" target. Per-axis restriction inferences ("user must not care about axis X") are unfalsifiable from the problem statement alone. Solutions must change the optimization target, not the axis list.
-- **Effort cannot in general be user-specified.** A solution must let the agent infer effort from the big picture at runtime and expose that inference for cheap rejection.
+### F2. Execution-layer failure decomposition on fully-specified fixtures [R8-R11]
 
-### F2. Execution-layer failure decomposition on fully-specified fixtures
+On execute-pinning fixtures, what failure modes persist past rule/target interventions?
 
-On a fixture that pins the execute stage, what failure modes persist that no rule- or target-level intervention has addressed?
+- **Failures decompose into ≥4 layers** [R8]: (a) candidate never generated; (b) generated but lost to competition; (c) generated + locally inferred but not followed through; (d) draft material compressed out of final synthesis. Specs must name their target layer.
+- **A well-generated candidate does not automatically survive competition** [R8]. Reliability needs explicit persistence.
+- **No stable model-supplied "instruction" vs "context" definition** [R9]. The boundary must be written into the spec.
+- **Context-treatment is controlled by operational rationale, not label** [R10-R11]. Label-without-rationale leaves interpretation to on-the-fly composition.
+- **Values and instruction-priority are separate layers** [R11]. Fighting caveat-honoring by rewriting values is category-confusing.
+- **Scratchpad/summary reads ≡ subagent returns** [R11]. Opaque distilled outputs from an unre-verified delegated context; trust-calibration bugs on one shape imply the other.
 
-- **Failures decompose into at least four layers:** (a) candidate never generated; (b) candidate generated but lost to competing candidates before execution; (c) candidate generated and completed as local inference but never converted to follow-through; (d) material in the draft compressed out of the final synthesis. A spec must name which layer it is addressing.
-- **A well-generated candidate does not automatically survive competition.** Reliability at execution requires an explicit persistence mechanism.
-- **No stable model-supplied definition of "instruction" vs "context".** Any principled boundary must be written into the spec, not assumed.
-- **What controls context-treatment is the operational rationale, not the label.** A label without rationale leaves the operational reading to on-the-fly composition.
-- **Values and instruction-priority are separate layers.** Fighting caveat-honoring by rewriting values is category-confusing. Values should not be tickets against instructions.
-- **Scratchpad/summary reads ≡ subagent returns** — opaque distilled outputs from a delegated context the agent chose not to re-verify. Trust-calibration bugs on one shape imply the same on the other.
+### F3. Ambiguous-imperative interpretation: R020 fork + F75 two-layer decomposition [R12-R18]
 
-### F3. Ambiguous-imperative interpretation: R020 fork + F75 two-layer decomposition
+For a user-message imperative admitting multiple defensible interpretations ("Don't act yet" on a decision task): what gets the agent to (a) generate the correct interpretation, (b) evaluate non-circularly, (c) act on it?
 
-For a user-message imperative admitting multiple defensible interpretations ("Don't act yet" on a decision task that also requires evidence): what design causes the agent to (a) generate the correct interpretation, (b) evaluate alternatives non-circularly, (c) act on the correct interpretation?
+- **R020 fork is forced** [R12]. Any text is either default-context (interpret for intent) or default-instruction (honor as directive). Both readings cannot coexist; spec must pick per rule / class.
+- **Two-layer decomposition** [R18]: F75-interpret (reading committed) vs F75-behavior (does derived permission drive action). Fix independently.
+- **Three-factor structure for path-crossing under referenced material** [R13, R25]: (i) surface pressure surfacing the referent, (ii) frame dissolving caveat authority, (iii) authorship/strategic scope covering the path. All three required under some conditions.
+- **Interpretation-shifting content must live in the parsed message** [R18]. Response-generated content is post-hoc for the committed reading.
 
-- **R020 fork is forced.** Any text in the agent's context is either default-context (interpret for intent) or default-instruction (honor as directive). Both readings of a caveat cannot be simultaneously honored; a valid spec must pick, per rule or per class of referent.
-- **Two-layer decomposition:** F75-interpret (which reading gets committed) vs F75-behavior (whether the derived permission actually drives action). A spec can address these independently; fixing only one is insufficient.
-- **Three-factor structure for path-crossing under referenced material:** (i) surface pressure that surfaces the referent as candidate, (ii) frame that dissolves referent-caveat authority, (iii) authorship- or strategic-scope extension covering the referent path. All three required under some fixture conditions.
-- **Interpretation-shifting content must live in the parsed message**, not merely be reproduced in the response. Content generated in the response is post-hoc for the committed reading.
+### F4. Pipeline leg decomposition — leg-2-ready task inputs [R25-R28]
 
-### F4. Pipeline leg decomposition — leg-2-ready task inputs
+`<original task> → <fully-specified task> → <answer>`. Leg 1 = interpretation; leg 2 = execution. Isolate leg 2 by iterating the task until interpretations converge under aligned frames.
 
-`<original task> → <fully-specified task> → <answer>`. Leg 1 = interpretation; leg 2 = execution. To isolate leg 2, treat the task as the input variable and iterate until interpretations converge under aligned frames.
+- **Interpretation directly observable in output** [R25]. Require a structured section (Role / Scope / Task / Premise / Decision / Reasoning / Fallback).
+- **Task-side role establishment** [R25]. Task must supply executor-vs-author role explicitly, or the spec supplies an incompatible one.
+- **Commitment-forcing structure** [R27]. Per-dispatch permission gates + "already saved to disk" preconditions + named invocations elicit disk-committed evidence of interpretation.
+- **End-user model as required section** [R25]. Forces first-principles construction, not trial-vocabulary shorthand.
+- **Compliance-check-aligned interpretation** [R25]: PROMPT.md as artifact-for-workers not instructions-to-self; agent at prompt-author layer not work-doer; scratchpad as output-of-dispatch not authoritative content; plan reaches the interpreted goal.
+- **Editor-frame is sufficient; author-frame is a strict extension** [R25, R27]. Author-frame requires a followup that forces authorship-of-past-writing.
+- **Precedent-anchoring ≡ coherence-preservation ≡ form-vs-effect** [R28]. Three sharpenings of one bug: agent doesn't run the consistency-value ↔ divergence-cost calculation. For state-independent operations form-inheritance delivers effect-inheritance; state-dependent it doesn't. Solution must split behavior on that axis.
+- **Reasoning-layer effect ≠ decision-layer effect** [R28]. Needs a discriminator fixture where state and precedent disagree.
 
-Properties a leg-2-ready task must supply:
+### F5. Value-attribution isolation [R29-R33]
 
-- **Interpretation directly observable in output.** Require the agent to emit a structured section (Role / Scope / Task / Premise / Decision / Reasoning / Fallback) so interpretation is a scored artifact, not inferred from thinking-trace topics.
-- **Task-side role establishment.** Task must supply the executor-vs-author role frame explicitly, or the spec will supply an incompatible one.
-- **Commitment-forcing structure.** Per-dispatch permission gates, "already saved to disk" preconditions, and named invocations elicit disk-committed evidence of the interpretation, which is what leg 2 needs to be diagnostic.
-- **End-user model as required section.** Forces first-principles construction rather than collapse to trial-vocabulary shorthand.
-- **Compliance-check-aligned interpretation requires at minimum:** PROMPT.md read as artifact-for-workers not instructions-to-self; agent operates at prompt-author layer not work-doer layer; scratchpad read as output-of-dispatch not authoritative work-content; plan reaches the interpreted goal (coherence test).
-- **Editor-frame is sufficient; author-frame is a strict extension.** Author-frame (retrospection, intent-vs-text, past-mistake-ownership) requires a followup that specifically forces authorship-of-past-writing.
-- **Precedent-anchoring vs coherence-preservation vs form-vs-effect are three progressively-sharper framings of one failure.** The bug is not "keeps the known thing" — it is "doesn't run the consistency-value ↔ divergence-cost calculation at all." For state-independent operations, form-inheritance delivers effect-inheritance; for state-dependent operations it does not. A solution must make the agent split its behavior on that axis.
-- **Reasoning-layer effect ≠ decision-layer effect.** A discriminator fixture where state and precedent disagree is required to demonstrate action-layer effect.
+For a multi-value spec, isolate which value drives which observable behavior.
 
-### F5. Value-attribution isolation
+- **Values are behaviorally separable within a single response** [R29, R32]. Match each item to the value's spec-text; "novel work in a followup" isn't specific-value evidence.
+- **Value scope-limits matter as much as content** [R32]. A precedent-evaluation value scoped to *externally-sourced* precedents doesn't police the agent's own prior commitments; scope is testable.
+- **Followup design controls which value's firing is observable** [R29]. Uncued tests spontaneous firing; cued tests under-prompting. Negative-uncued ≠ negative-cued.
+- **Wrong-axis findings need per-axis falsifiability** [R30]: fixture, spec/value ablation, model, cue-vs-no-cue.
+- **Reasoning-visibility is a required axis** [R32]. On F62-affected models, "value X didn't fire" and "fired + dropped from output" are indistinguishable without paragraph-reasoning recovery.
 
-Given a spec containing multiple values, isolate which value drives which observable behavior.
+### F6. Layer-localization of cross-model behavioral differences [R34, R37+, R44]
 
-- **Values are behaviorally separable within a single response.** Each response item must be matched to the specific value's spec-text criteria; a followup producing novel work is not evidence that a specific value fires.
-- **Value scope-limits matter as much as value content.** A precedent-evaluation value scoped to *externally-sourced* precedents does not police the agent's own prior commitments; scope is testable and must be checked.
-- **Followup design controls which value's firing can be observed.** Withholding an axis-cue tests spontaneous firing; cueing an axis tests firing-under-prompting. Negative-uncued does not imply negative-under-cued.
-- **A finding built on the wrong axis needs falsifiability at each axis independently** (fixture, spec/value ablation, model, cue-vs-no-cue).
-- **Reasoning-visibility is a required axis.** On F62-affected models, "value X does not fire" and "value X fires and gets dropped from surfaced output" are indistinguishable without recovery of paragraph reasoning.
+When two models diverge under matched setup, which layer is load-bearing?
 
-### F6. Layer-localization of cross-model behavioral differences
+- **Layers to distinguish**: (a) transport/API; (b) hardcoded client default; (c) provider-conditional prompt; (d) server-side backend policy; (e) task-message scope inheritance; (f) in-flight active-consideration filter; (g) verdict/justification; (h) emission-layer suppression.
+- **Matched only if both models see equal content at every layer above the layer under test** [R34]. Wire-level capture is the only reliable check; "same source config" isn't sufficient (transform layer injects per-model defaults invisibly).
+- **A rule can shift decision justification without shifting the verdict** [R38-R39]. Justification-only shift = rule reaches one layer but not another.
+- **Cross-model non-crossing on old-worktree paths lives at the active-consideration filter, not rejection-axis layer** [R44]. Aggregate rejection axes (spec-frame + adequacy + drift) shared; differentiator is which paths enter first-pass planning. Spec-level rules operating on justification can't shift a difference living upstream.
 
-When two models diverge under nominally-matched setup, which layer of the causal stack is load-bearing?
+### F7. Raw-evidence / interpretive-layer separation [R35]
 
-- **Layers to distinguish:** (a) transport/API structural difference; (b) hardcoded client-side parameter default; (c) provider-conditional prompt content; (d) server-side backend policy; (e) task-message scope inheritance; (f) in-flight per-candidate weighing / active-consideration filter; (g) verdict / justification layer; (h) emission-layer suppression.
-- **A model-comparison probe is matched only if both models see equal content at every layer above the layer under test.** Wire-level capture is the only reliable check; source-level "same config" is not sufficient (opencode's transform layer injects per-model defaults invisibly).
-- **A rule can shift the justification structure for a decision without shifting the verdict.** Justification-only shift is evidence that the rule reaches one layer but not another.
-- **Cross-model non-crossing on old-worktree paths lives at the active-consideration filter, not the rejection-axis layer.** Aggregate rejection axes (spec-frame + adequacy + drift) are shared; the differentiator is which paths enter first-pass planning. Spec-level rules operating on justification cannot shift a difference that lives upstream.
-
-### F7. Raw-evidence / interpretive-layer separation
-
-- **A raw-evidence artifact** (chronological, focus-directed, no interpretation) must be separable from the **interpretive layer** (rounds citing evidence as `@L<n>[i]` refs). Findings that entangle the two force every correction to touch both.
-- Artifact criterion: stands under interpretation revisions; new interpretations quote artifacts rather than re-reading sessions; each artifact answers "what is in the log relevant to this focus" and stops.
+- **Raw-evidence artifact** (chronological, focus-directed, no interpretation) must be separable from the **interpretive layer** (rounds citing evidence via `@L<n>[i]` refs). Entangled findings force every correction to touch both.
+- Artifact criterion: stands under interpretation revisions; new interpretations quote artifacts rather than re-reading sessions.
 - Skill: [`session-timeline`](../skills/session-timeline/SKILL.md).
 
-### F8. Bias-controlled candidate-enumeration probes
+### F8. Bias-controlled candidate-enumeration probes [R37-R44]
 
-A candidate-enumeration probe measures a joint of (model disposition, probe schema, task frame). Claims about "the model's candidate set" require that the schema itself does not force verdicts or counts.
+A candidate-enumeration probe measures the joint of (model disposition, probe schema, task frame). "The model's candidate set" claims require a schema that doesn't force verdicts or counts.
 
-- **Probe schema decomposes into:** *grain* (per-file vs per-utility), *verdict expressiveness* (enum vs free-text), *bundling policy*, *enumeration frame* (first-pass vs exhaustive-with-escape-hatch), *rejection-slot policy* (per-utility vs aggregate).
-- **Ground-truth check:** correlation between probe emissions and unforked baseline behavior at the same turn.
-- **Cross-probe convergence** (retrospective self-report + rewind enumeration + bias-controlled rewind enumeration all agreeing) is the only route to overcoming any single probe's bias.
+- **Probe schema decomposes into** [R42]: *grain* (per-file / per-utility), *verdict expressiveness* (enum / free-text), *bundling*, *enumeration frame* (first-pass / exhaustive-with-escape-hatch), *rejection-slot policy* (per-utility / aggregate).
+- **Ground-truth check** [R42-R43]: correlation between probe emissions and unforked baseline at same turn.
+- **Cross-probe convergence** (retrospective + rewind enumeration + bias-controlled rewind all agreeing) is the only route past any single probe's bias [R44].
 - Reference schema: [`experiments/p5-probe-r43__refined-schema.md`](./compliance-check-failure-mode/experiments/p5-probe-r43__refined-schema.md). Design taxonomy: [`experiments/probe-design-a-b-c__methodology.md`](./compliance-check-failure-mode/experiments/probe-design-a-b-c__methodology.md).
 
 ---
 
 ## Shape 2: Logical claims
 
-Entries here are project-specific case notes, grounded in the fixtures and rounds where they surfaced. "Logical" means the reasoning is a priori — derivable from the semantics of the fixture and the operation, not from what a specific model did in one run. Each entry names its fixture, states the design fork the fixture forces (or the intrinsic limitation it hits), records what we picked and how we're implementing, and reports status honestly. **Working on this fixture ≠ the only workable choice. Not working yet ≠ the choice is wrong or the alternative works.** These are project logs, not a prompt-engineering guide — do not read them as general advice.
+Project case notes grounded in fixtures and rounds. "Logical" = a priori from the semantics of fixture and operation, not from any single model's run. Format: **ID. Title.** *Fixture [rounds].* Design fork or intrinsic limit. *Picked* X → status. Blanket caveat (not repeated per-entry): an approach that works isn't proven optimal; one that hasn't worked yet isn't proven wrong.
 
 ### A. Rule-layer targeting
 
-- **Pre-frame-selection vs post-frame-selection intervention.** *Fixture:* V0 "summarize status" (R1-R7) — the imperative admits multiple scope classifications ("what's in scratchpad" vs "including implications for future work"), and the classification narrows what the agent subsequently inspects. *Analysis:* the classification happens at parse-time; once the frame is set, a rule that acts within-frame is operating on an already-narrowed scope. Restoring the discarded scope is not a within-frame operation. Coherent choices: (a) intervene at parse-time (rule / phrasing / channel that acts before the frame commits), or (b) supply an explicit reopen-trigger firing on downstream state. *Picked:* (a) at R7 (R002 stack biases parse-time selection via an optimization target — "big-picture contribution, not literal completion"). *Status:* Works on the V0 fixture. (b) untested here; the fact that (a) works isn't evidence it's the only workable choice, and its working here isn't evidence a similar (a) will work on other fixtures.
+- **A1. Pre- vs post-frame-selection intervention.** *V0 "summarize status" [R1-R7].* Frame classification is at parse-time; within-frame rules operate on already-narrowed scope. Fork: (a) parse-time intervention, (b) explicit reopen-trigger downstream. *Picked* (a) at R7 (R002 stack biases parse-time via "big-picture contribution, not literal completion"). Works on V0; (b) untested.
 
-- **Detection-conditioned vs unconditional triggers.** *Fixture:* H17-task ambiguity-workflow rules on identity-outcome-framing (R16-R17). The failure being defended against is "agent doesn't notice the phrase is ambiguous." *Analysis:* any rule "when you notice X, do Y" requires the agent to first recognize X — which is exactly the failing capability. Coherent choices: (a) accept the rule catches only self-recognized ambiguity (cover the rest another way), or (b) restructure to fire unconditionally at a fixed step ("before response construction, walk this workflow"). *Picked:* (b) at R17 (mandatory-scan procedural anchor). *Status:* Rule fires under (b), but the workflow's output doesn't reliably reach the tool-call decision — R18 diagnosed this as a distinct layer problem (see B3). (b)'s implementation not yet reaching the target doesn't imply (a) would have worked; both remain open.
+- **A2. Detection-conditioned vs unconditional triggers.** *H17-task on identity-outcome-framing [R16-R17].* "When you notice X, do Y" requires the agent to recognize X — the failing capability. Fork: (a) accept coverage limit, (b) fire unconditionally at fixed step. *Picked* (b) at R17 (mandatory-scan procedural anchor). Rule fires, but output doesn't reach tool-call decision — R18 diagnosed as distinct layer (see B3).
 
-- **Declarative rule vs procedural workflow.** *Fixture:* F75-vulnerable spec design (R14, R16) — where to place duties like "classify inputs before acting." *Analysis:* a declarative rule in an "Instruction Priority" section is consulted only if the agent chooses to reach for the taxonomy at reasoning time; a procedural step in a "Doing tasks" workflow fires as a sequential duty when the workflow is engaged. Semantically these arrive at the agent at different points in response construction. *Picked:* (b) procedural at R16 (mandatory-scan step in commentary workflow). *Status:* Fires more reliably than R14's declarative-labels-v2 variant, but still gated by whether the workflow itself gets engaged. Neither shape is complete alone.
+- **A3. Declarative rule vs procedural workflow.** *F75-vulnerable spec [R14, R16].* "Instruction Priority" is consulted only if the agent reaches for the taxonomy; a "Doing tasks" step fires as sequential duty. *Picked* (b) procedural at R16. More reliable than R14's declarative-labels-v2, but gated by workflow engagement.
 
 ### B. Interpretation handling
 
-- **Mutually exclusive interpretive defaults require a pick.** *Fixture:* Maintainer PROMPT.md caveat "should be considered invalid / idea only" (R12-R13). *Analysis:* as text-in-context, the caveat can be treated as (a) context-to-interpret-for-intent (extract what the author was warning about) or (b) directive-to-honor-literally (treat linked content as untrusted). These readings yield opposite operational behaviors on the same words; a spec cannot leave both live. *Picked:* we've iterated on multiple designs, no committed pick. R12 tried a rule to "follow intent" (targets a); R13 tried maintainer-collapse frame that dissolves caveat authority via ownership. *Status:* Both partial; the interpretation gap persists. Not-picking is not a legitimate stable state — the caveat continues to activate contradictory behaviors depending on task-adjacent context.
+- **B1. Mutually exclusive interpretive defaults require a pick.** *Maintainer PROMPT.md caveat "should be considered invalid / idea only" [R12-R13].* Caveat as (a) context-to-interpret-for-intent or (b) directive-to-honor-literally = opposite behaviors; can't leave both live. *Picked* nothing committed — R12 tried "follow intent" rule (a); R13 tried maintainer-collapse frame dissolving caveat authority via ownership. Both partial; not-picking is not a stable state.
 
-- **Force-alternative-generation vs accept-committed-reading.** *Fixture:* H17-task under-determined imperative "Don't act yet" (R16). *Analysis:* the phrase gets committed to one reading with no alternatives generated on its own. Coherent choices: (a) force alternative-generation before commitment (workflow rule requiring enumeration + evaluation) or (b) accept the default single reading and design cheap-rejection channels for downstream correction. *Picked:* R16 iterated (a) — pick-step-preserved variants (word-matching, intent-derivation, "useful", why-written-at-this-time). Each variant picked broad. R7's R002 stack for the V0 fixture is a (b)-shape design (transparency + cheap rejection). *Status:* (a) implementations on H17 have not been made to work. (b)-shape not tried for H17. That (a) hasn't worked isn't proof it can't.
+- **B2. Force-alternative-generation vs accept-committed-reading.** *H17-task "Don't act yet" [R16].* Phrase commits to one reading with no alternatives generated. Fork: (a) force alternative-generation, (b) accept default + cheap-rejection channels. *Picked* R16 iterated (a) via pick-step-preserved variants — each picked broad. R7 R002 on V0 is a (b)-shape design. (a) on H17 not working; (b) untried on H17.
 
-- **In-input vs in-output intervention placement.** *Fixture:* F75-vulnerable spec at the boundary between workflow output and tool-call decision (R18). *Analysis:* interpretation is committed at parse-time; content the agent generates in its response can't shift a reading already fixed before generation. Coherent choices: (a) place interpretation-shifting content in the parsed input (task-adjacent placement, or system-prompt intervention on how the phrase reads); (b) insert an intermediate boundary between workflow output and the tool-call decision so a second reasoning cycle can act on derived interpretation. *Picked:* both tried. R18 (a) via task-adjacent placement (works when task is modifiable); R18 (b) via a workflow step forcing re-parse before commit. *Status:* (a) works when available; (b) has partial working variants. Both remain live design axes.
+- **B3. In-input vs in-output intervention placement.** *F75-vulnerable spec at workflow-output → tool-call boundary [R18].* Interpretation commits at parse-time; response-generated content can't shift a reading fixed before generation. Fork: (a) parsed-input placement, (b) intermediate re-parse boundary. *Picked* both at R18. (a) works when task is modifiable; (b) partial.
 
-- **System-prompt-channel vs user-message-channel for identity.** *Fixture:* Maintainer paradigm — "you are the maintainer of PROMPT.md" (R13). *Analysis:* identity claims read differently by channel. In the user channel: role-play (user asks me to play a role for this response). In the system-prompt channel: ownership. These are distinct semantic operations, not weak-vs-strong versions of the same. *Picked:* system-prompt channel. *Status:* Works to dissolve caveat authority on the referenced-material read at R13. The user-channel variant reads as role-play — a coherent alternative for a different downstream question, not a weak version of the identity claim.
+- **B4. System-prompt vs user-message channel for identity.** *Maintainer paradigm [R13].* User channel = role-play; system-prompt = ownership. Distinct semantic operations, not weak-vs-strong. *Picked* system-prompt at R13. Dissolves caveat authority on referenced-material read. User-channel serves a different question.
 
-- **Editor-frame vs worker-frame in rubric design.** *Fixture:* V5-plan-task-v3 rubric on identity + identity-outcome baselines (R25). *Analysis:* the artifact-vs-instruction interpretation is mutually exclusive at the artifact level. A rubric that scores worker-frame-behavior as aligned will treat editor-frame behavior (revising PROMPT.md as artifact) as partial alignment, misdiagnosing the interpretation. *Picked:* R25 rubric accepts editor-frame as aligned. *Status:* Works — surfaces meaningful separation between correctly-interpreted and misinterpreted cells. Picking worker-frame would have been coherent for a different downstream question ("does the agent execute the prompt?") but not for the interpretation-alignment question.
+- **B5. Editor-frame vs worker-frame in rubric design.** *V5-plan-task-v3 rubric on identity + identity-outcome [R25].* Artifact-vs-instruction is mutually exclusive at the artifact level; worker-frame rubric misdiagnoses editor-frame behavior as partial alignment. *Picked* editor-frame at R25. Surfaces separation between correctly- and misinterpreted cells. Worker-frame suits "does the agent execute?", not interpretation-alignment.
 
-- **In-channel/definitional vs orthogonal-pressure intervention.** *Fixture:* F75 "Don't act yet" phrase, testing whether audit-cost escalation shifts interpretation (R15). *Analysis:* the phrase reads at parse-time; audit consequences from a spec-side pressure channel arrive at the agent only after commitment, and can be routed around via cheaper-than-reframe escapes (avoidance, meta-answer, confident-bluff-with-hedges). In-channel intervention (same-message unification with joint intent) or definitional override (rename / re-scope the phrase) act at the parse layer where the reading is formed. Coherent choices: (a) in-channel or definitional, or (b) orthogonal pressure with the understanding it's cost-imposition, not interpretation-fixing. *Picked:* R15 committed to (a). Successive audit escalations under (b) just revealed the next cheaper escape. *Status:* (a) framing supported; (b) not-a-fix for this class of problem (though may still be useful for other purposes).
+- **B6. In-channel/definitional vs orthogonal-pressure intervention.** *F75 "Don't act yet," audit-cost escalation [R15].* Phrase reads at parse-time; audit consequences arrive post-commit and get routed around via cheaper-than-reframe escapes. *Picked* (a) in-channel/definitional at R15. (a) supported; (b) not a fix for interpretation (may serve other purposes).
 
 ### C. Probe design
 
-- **End-probing vs mid-trajectory probing.** *Fixture:* Candidate-set probes on gpt-5.5 identity-outcome baseline (R37+) — rewind-fork sessions at L6/L12/L16 vs end-of-trajectory. *Analysis:* end-of-trajectory probe ("why did you not read X?") retrieves a rationalization surface — an articulation the agent constructs at query time, not an extract from a stored decision — and its content varies across where in the trajectory it's queried. Mid-trajectory probe (fork before decision, then probe) targets a different object: the state before articulation consolidates. These measure different things (rationalization vs mechanism), not the same thing at different resolution. *Picked:* R37+ mid-trajectory forking for mechanism claims; end-of-session self-reports retained only for rationalization analysis. *Status:* Works. R44 recovered active-consideration information that end-probing had conflated with articulation. End-probing failing at this question doesn't mean it fails at all questions — it's the right tool for rationalization audits.
+- **C1. End-probing vs mid-trajectory probing.** *Rewind-fork L6/L12/L16 vs end-of-trajectory on gpt-5.5 [R37, R44].* End-probes retrieve query-time rationalization; mid-trajectory probes target state before articulation consolidates. Different objects (rationalization vs mechanism). *Picked* R37+ mid-trajectory for mechanism; end-probes only for rationalization audits. R44 recovered active-consideration information end-probing had conflated with articulation.
 
-- **Past-turn extraction vs future-turn generation.** *Fixture:* Rewind-fork probe wording, kimi and gpt-5.5 (R43). *Analysis:* "what did you consider last turn?" refers to a completed reasoning trace already in context; "what are you about to consider?" is itself the counterfactual next-turn generation. Different referents, different rationalization profiles, different sensitivity to elicitation bias. *Picked:* R43 committed to future-turn-generation semantics (present-tense wording, fork-before-turn design). R43 initially had past-tense wording under fork-before-turn — caught mid-round as undefined semantics and reinterpreted the response as generation-order property. *Status:* Works with the picked semantics. Past-turn extraction would be coherent under fork-after-turn design where a real completed trace exists; that path is untested here.
+- **C2. Past-turn extraction vs future-turn generation.** *Rewind-fork wording [R43].* "What did you consider" = completed trace in context; "what are you about to consider" = counterfactual next-turn generation. Different referents and elicitation-bias profiles. *Picked* R43 future-turn semantics (present-tense + fork-before-turn); caught undefined past-tense + fork-before-turn combination mid-round. Past-turn under fork-after-turn untested here.
 
-- **Escape-hatch vs no-escape-hatch enumeration probes.** *Fixture:* Candidate-enumeration probes on rewind-fork sessions (R44). *Analysis:* a candidate the model can reconstruct as "reasonable if pressed exhaustively" is not evidence the candidate was in first-pass planning; these are distinct generation-order properties. Without an escape-hatch, a count conflates the two states. *Picked:* R43 refined schema adds `awareness_only` boolean with "err toward false" bias. *Status:* Works to recover the first-pass vs reconstructive distinction on gpt-5.5 (R44). No-escape-hatch inflated R37 P5 counts and led to a mis-attributed "candidate on shortlist" claim that R44 corrected.
+- **C3. Escape-hatch vs no-escape-hatch enumeration probes.** *Candidate-enumeration on rewind-fork [R43-R44].* Reconstructible-under-pressure ≠ first-pass planning; no escape-hatch conflates. *Picked* `awareness_only` boolean with "err toward false" at R43. Recovers distinction on gpt-5.5 at R44. No-escape-hatch inflated R37 P5 counts → mis-attributed "candidate on shortlist," corrected at R44.
 
-- **Enumeration probe vs natural-decision observation.** *Fixture:* R37-R44 evolution of candidate-set probes. *Analysis:* asking a model to enumerate candidates is a different task from letting it decide naturally; the enumeration frame can invent structure the natural decision never had. Coherent choices: (a) use enumeration probes with stability/discriminator controls (drop-list-only variant, cross-rewind reason-stability, baseline correlation on calibration model), or (b) observe natural decisions only, giving up the ability to probe the candidate space. *Picked:* (a). R42 identified 5 bias sources in the schema; R43 controlled for all 5; R44 validated via kimi baseline correlation. *Status:* Bias-controlled probe recovers kimi baseline READ disposition. Without this validation, native-disposition claims from any enumeration probe are uninterpretable.
+- **C4. Enumeration probe vs natural-decision observation.** *Candidate-set probe evolution [R37-R44].* Enumeration frame can invent structure the natural decision never had. Fork: (a) enumeration + stability/discriminator controls, (b) natural-decision-only. *Picked* (a): R42 identified 5 bias sources; R43 controlled all 5; R44 validated via kimi baseline correlation. Without validation, enumeration-probe disposition claims are uninterpretable.
 
-- **Invitation-to-challenge vs anti-default anchor.** *Fixture:* Precedent-anchoring probes on V5-plan-task where the task supplies an example invocation and says "you may modify this but say why" (R27-precedent). *Analysis:* the phrasing makes staying-with-precedent cost-free and deviating costly. As a probe of whether the agent generates alternatives, this design is default-preserving — a positive result ("agent didn't deviate") doesn't tell you the agent lacked alternatives; the invitation reinforced the default. *Picked:* R28 phase-2 replaced with explicit anti-default anchor ("decide freshly from state; say why your choice fits"). *Status:* Anti-default variant surfaces state-inferred reasoning the invitation had suppressed. Invitation-to-challenge is not-broken for other design purposes (e.g., preserving worker autonomy) — the fork is between "surface alternatives" and "preserve default gracefully," pick per goal.
+- **C5. Invitation-to-challenge vs anti-default anchor.** *Precedent-anchoring probes on V5-plan-task ("you may modify but say why") [R27-precedent, R28].* Phrasing makes staying cost-free and deviating costly — default-preserving, so "didn't deviate" is uninformative about alternative-generation. *Picked* R28 phase-2 anti-default anchor ("decide freshly from state; say why your choice fits"). Surfaces state-inferred reasoning the invitation suppressed. Pick per goal.
 
 ### D. Attribution
 
-- **Justification-shift vs verdict-shift measurement.** *Fixture:* R38-R39 spec-rule iterations on the R37 candidate-set fixture. *Analysis:* whether the agent skips X and why the agent justifies skipping X are causally separable. A rule can move the justification (false-coverage claim → honest fallback) without touching the verdict-fixing gate. Rule evaluation must pick which of the two is being measured. *Picked:* R38 targeted interpretation/justification layer (abstract rule against assuming text-scope); shifted justification but not verdict. R39 same layer with concrete anchoring; also shifted justification, not verdict. R44 diagnosed verdict-fixing at active-consideration layer, upstream of both rules' targets. *Status:* Justification-shift confirmed; verdict-shift interventions targeting the upstream layer are open work. Both null and shift results informative because we knew which we were measuring.
+- **D1. Justification-shift vs verdict-shift measurement.** *Spec-rule iterations on R37 candidate-set fixture [R38-R39, R44].* Skip-verdict and skip-justification are causally separable; a rule can shift justification without touching the verdict-fixing gate. *Picked* interpretation/justification layer at R38 (abstract) + R39 (concrete-anchored) — both shifted justification, not verdict. R44 diagnosed verdict-fixing upstream at active-consideration layer. Verdict-shift interventions open.
 
-- **Attribute-at-articulation vs attribute-upstream.** *Fixture:* R37+ target-inheritance analysis on gpt-5.5 candidate-set. *Analysis:* if a target framing is stable across every pre-decision rewind, the visible articulation of that target later in the trajectory cannot be the point where the target was chosen — the target was already fixed upstream of every observation of it. *Picked:* R37+ moved attribution upstream — the "decision" to filter old-worktree paths out of active consideration is at task-message parse (@L1), not at any later articulation point. *Status:* Supported by rewind-fork stability across L6/L12/L16 (R44). Attribution move relocates the target for future interventions to the parse layer, not the articulation layer.
+- **D2. Attribute-at-articulation vs attribute-upstream.** *Target-inheritance on gpt-5.5 candidate-set [R37, R44].* If target framing is stable across every pre-decision rewind, later articulation is not the origin. *Picked* R37+ moved attribution upstream — old-worktree filter at task-message parse (@L1), not later articulation. Supported by rewind-fork stability at R44. Relocates interventions to the parse layer.
 
-- **Differential-cell design vs bundled comparison.** *Fixture:* R30 model × spec × fixture-fix matrix (kimi vs gpt-5.5, identity-outcome-clean vs no-value-#2, broken vs fixed fixture). *Analysis:* when a claim ("value #2 suppresses coverage-work") rests on comparison across cells varying in multiple axes, the effect can't be attributed to any single axis. Differential-cell design (pair cells differing only on the axis of interest) isolates mechanism. *Picked:* R30 unpacked R29's single-axis claim by running the cube. *Status:* Refuted the single-axis attribution; R32 F97 relocated the finding to value #5 (precval) via differential-cell readback. Value-attribution now requires paired-cell backing.
+- **D3. Differential-cell design vs bundled comparison.** *Model × spec × fixture-fix matrix [R30, R32].* Multi-axis-varying comparison can't attribute to any single axis. *Picked* differential-cell at R30. Refuted R29's single-axis claim; R32 relocated the finding to value #5 (precval). Value-attribution now requires paired-cell backing.
 
-- **Entangled vs separated evidence/interpretation layers.** *Fixture:* R30-R35 pattern of re-mining sessions while stacking attribution errors. *Analysis:* when the "raw evidence" of an investigation is produced by re-reading source material through the current interpretation, every correction to the interpretation forces a correction to the evidence. Coherent choices: (a) accept that each round rewrites both layers (fine for short investigations, corrosive at length), or (b) separate a factual-artifact substrate (produced without interpretive framing) from the interpretive layer that cites it. *Picked:* (b) at R35 via the [`session-timeline` skill](../skills/session-timeline/SKILL.md) and raw-evidence artifacts under [`experiments/`](./compliance-check-failure-mode/experiments/). *Status:* Later rounds cite artifacts by `@L<n>[i]` refs rather than re-reading sessions; corrections in R44 touched only the interpretive layer.
+- **D4. Entangled vs separated evidence/interpretation layers.** *R30-R35 re-mining pattern; framework at F7.* *Picked* raw-evidence artifacts at R35 via `session-timeline` skill. Later rounds cite via `@L<n>[i]` refs; R44 corrections touched only interpretation.
 
 ### E. Structural limitations
 
-- **Enumeration over long context is probabilistic disclosure.** *Fixture:* Candidate-set enumeration probes on gpt-5.5 (R37+). *Analysis:* asking an agent to enumerate items across a long context — candidates weighed, contradictions in a spec, bugs in a long file, motivations for a rejection — is inherently unreliable per-item. This is not a claim about gpt-5.5 specifically or about our specific probe; it's a limitation of the operation: enumeration over long context is high-variance for any specific item. The fact that a specific item happened to surface in one run isn't evidence that similar items will surface reliably. *Implication:* any design relying on such an enumeration for reliability must supplement with another mechanic. *Status:* R44 cross-probe convergence requirement follows from this. R37 P1/P5 initially took single-run enumerations at face value; R44 corrected via convergence across three probe designs.
+- **E1. Enumeration over long context is probabilistic disclosure.** *Candidate-set enumeration on gpt-5.5 [R37+].* Enumeration of items across long context (candidates weighed, spec contradictions, rejection motivations) is per-item unreliable — a limitation of the operation, not model-specific. Reliability designs need supplementary mechanic. R37 P1/P5 took single-run enumerations at face value; R44 corrected via cross-probe convergence.
 
-- **Circular checks against derived quantities.** *Fixture:* R16 "words vs need" spec-clause analysis on H17-task ambiguity workflow. *Analysis:* a "check whether the agent's words align with the user's need" rule presupposes need is characterizable independently of the words being checked. When the agent introspects on need, need reduces to its interpretation of the words. Any check of shape "compare A against B where B is derived from A" has the same structural problem — not a weakness, a null. *Implication:* checks of this shape must reference external anchors (facts, referents, outcomes) rather than agent-derived quantities, or be discarded as null checks. *Status:* R16 discarded the words-vs-need clause; downstream H17 spec-rule iterations avoid this shape.
+- **E2. Circular checks against derived quantities.** *"Words vs need" spec clause on H17-task [R16].* Presupposes need is characterizable independently of the words; agent introspection collapses need to its interpretation — a null, not a weakness. "Compare A vs B where B is derived from A" must reference external anchors or be discarded. R16 dropped the clause.
 
-- **Observation-only cannot distinguish absence-of-consideration from considered-and-rejected.** *Fixture:* R33 kimi crossings analysis on identity-outcome-precval — asking whether value #2 (frame-questioning) was ever considered and rejected. *Analysis:* if a motivation never surfaces at reasoning-visible level, the resulting behavior looks identical to considered-and-rejected. Any inference "spec rule R blocked X because X did not surface" has confused the null with the intended verdict. *Implication:* disambiguation requires either recovery of internal reasoning (visible-reasoning model, structured probe) or a design that forces different externalization for the two states. *Status:* R33 downgraded "value blocked X" attributions to "value's firing was unobserved." R44 `awareness_only` schema is one design that forces different externalization.
+- **E3. Observation-only cannot distinguish absence-of-consideration from considered-and-rejected.** *Kimi crossings on identity-outcome-precval [R33, R44].* If a motivation never surfaces at reasoning-visible level, behavior is identical to considered-and-rejected. Disambiguation needs internal-reasoning recovery or design forcing different externalization. R33 downgraded "value blocked X" to "value's firing unobserved"; R44 `awareness_only` forces different externalization.
 
-- **Hidden-reasoning bounds mechanism inference.** *Fixture:* F62 confound on Codex-backend gpt-5.5 (`chatgpt.com/backend-api/codex/responses`) — reasoning exposed only as short bold headings. *Analysis:* "value X did not fire" and "value X fired and was dropped at surface" produce identical observable behavior when only headings are exposed. Not a claim about gpt-5.5 in general — a claim about what is inferable from this specific surface. *Implication:* mechanism claims on this model class require a reasoning-recovery channel (raw API + `include_reasoning`, or structured schema slots that force reasoning into the response). *Status:* R32+ flags all Codex-backend gpt-5.5 mechanism claims as speculative. R44 candidate-set JSON schema bypasses heading collapse and produces admissible mechanism evidence.
+- **E4. Hidden-reasoning bounds mechanism inference.** *F62 confound on Codex-backend gpt-5.5 [R32+].* "Value X did not fire" vs "fired and dropped at surface" is unobservable when only headings are exposed. Mechanism claims on this class need reasoning-recovery (raw API + `include_reasoning`, or structured-schema slots). R32+ flags these speculative; R44 JSON schema bypasses heading collapse.
 
-- **Floor-bounded outcomes cannot distinguish intervention-inertness.** *Fixture:* R20 F79 v1 above-floor test on F75-vulnerable spec. *Analysis:* when the measured baseline sits at floor (e.g., 0 tool_use), a control also at floor tells you nothing about whether the intervention is inert or whether some other force (F75-block) is dominating. Contamination cannot suppress below floor either. *Implication:* intervention-inertness claims require an above-floor baseline. *Status:* Applied to R20+; below-floor cells now flagged as uninformative rather than as "intervention had null effect."
+- **E5. Floor-bounded outcomes cannot distinguish intervention-inertness.** *Above-floor test on an early F75 intervention [R20+].* Baseline at floor + control at floor tells nothing about inertness vs dominant other force (F75-block). Inertness claims require above-floor baseline. R20+ flags below-floor cells uninformative.
 
 ---
 
@@ -228,43 +223,43 @@ Entries here are project-specific case notes, grounded in the fixtures and round
 
 ### Spec structure
 
-- **Positive optimization target over "avoid X" prohibitions.** No separate anti-X rule; the target penalizes X intrinsically as failure-mode-of-the-goal.
-- **Reframe rules so the assigning-agent grammatically disappears** — dissolves conflicts with prohibitions on assigning work by removing the fire condition, not adjudicating priority.
-- **Route uncertainty into a named taxonomy** (goal / scope / objective) so each kind has defined handling; force a single big-picture inference so the agent has a direction.
-- **Structured gate-input schema** (Task / Big picture / Uncertainty / Scope / Output Draft) — big-picture inference becomes machine-checkable and disclosed.
-- **Standing license for side-effect-free operations evaluated by big-picture value**, to remove the implicit "stay literal" prior.
-- **Attach epistemically-grounded rationale to the "context" bullet** ("written earlier, possibly wrong; informs but does not decide"). Operational reading depends on rationale, not label.
-- **Values as positive-orient default-posture verbs**, not conditional "when X you do not Y" — behavior stops depending on the agent self-classifying a moment as triggering.
-- **Concrete-list enumeration in value directives.** Concrete enumeration ("a command flag, a code call, a next-step choice") gives the agent a mapping surface at the site of application; abstract-only phrasing loses effect even under structural parallelism.
-- **Encode calculations, not rules, in values.** "Weigh consistency-value against divergence-cost; for state-dependent forms, form-inheritance does not preserve effect" — predicts differential behavior split by form's state-dependence.
-- **Narrow-default with widen-requires-justification** avoids the pick-time safety-asymmetry bias (directive-violation = hard-failure vs weak-answer = soft-failure) that pushes every criterion-based pick toward broad.
+- **Positive optimization target over "avoid X" prohibitions** [R7]. Target penalizes X intrinsically as failure-mode-of-the-goal.
+- **Reframe rules so the assigning-agent grammatically disappears** [R6] — dissolves conflicts with assign-work prohibitions by removing the fire condition.
+- **Route uncertainty into a named taxonomy** (goal / scope / objective) with defined handling; force a single big-picture inference [R7].
+- **Structured gate-input schema** (Task / Big picture / Uncertainty / Scope / Output Draft) — big-picture inference becomes machine-checkable and disclosed [R7].
+- **Standing license for side-effect-free operations evaluated by big-picture value** [R7], to remove the implicit "stay literal" prior.
+- **Attach epistemically-grounded rationale to the "context" bullet** ("written earlier, possibly wrong; informs but does not decide") [R12]. Operational reading depends on rationale, not label.
+- **Values as positive-orient default-posture verbs**, not conditional "when X you do not Y" [R10-R11] — behavior stops depending on the agent self-classifying a moment as triggering.
+- **Concrete-list enumeration in value directives** [R28]. Concrete enumeration ("a command flag, a code call, a next-step choice") gives a mapping surface; abstract-only phrasing loses effect even under structural parallelism.
+- **Encode calculations, not rules, in values** [R28]. "Weigh consistency-value against divergence-cost; for state-dependent forms, form-inheritance doesn't preserve effect" — predicts differential behavior split by state-dependence.
+- **Narrow-default with widen-requires-justification** [R16] avoids the pick-time safety-asymmetry bias (directive-violation = hard-failure vs weak-answer = soft-failure) that pushes criterion-based picks toward broad.
 
 ### Ambiguous-imperative interventions
 
-- **Specification-lock over cost imposition.** To shift interpretation of a phrase, add a rule in the same channel unifying into joint intent with it, or definitionally rename the phrase. Orthogonal system-side quality/audit pressure does not shift interpretation — the agent finds cheaper-than-reframe escapes.
-- **Affirmative permission beats correction-of-misinterpretation.** "You have permission to explore" gives something to reason from; "don't misread X as prohibition" leaves the misreading available. Pair with ID-requirement ("a prohibition must be a rule with an id").
-- **Procedural workflow > declarative rules for reasoning-shaped duties.** "Instruction priority" style reads as taxonomy metadata; "Doing tasks" style reads as sequential duty. Position duties that must fire before response construction as sequential steps.
-- **Mandatory-scan procedural anchor** ("in commentary, do these steps in order; show the work; don't skip to the answer"). Passive "when you notice" triggers move workflow into hidden reasoning.
-- **Skipped-candidate disclosure commentary rule** — name candidates you weighed and rejected, and why. Surfaces candidate-generation at message-content level with narrower measurement-alters-phenomenon risk than open-ended "list rules applied" because target category is specific.
-- **Task-adjacent placement.** Interpretation-shifting content in the user message adjacent to the ambiguous phrase — parse-time input governs parse-time interpretation.
-- **Maintainer identity in the system-prompt channel** dissolves referenced-material caveat authority via ownership. Identity claims in the user-message channel read as role-play — API channel semantics dominate.
+- **Specification-lock over cost imposition** [R15]. To shift interpretation, add a same-channel rule unifying into joint intent or definitionally rename the phrase. Orthogonal audit pressure doesn't shift interpretation — agent finds cheaper-than-reframe escapes.
+- **Affirmative permission beats correction-of-misinterpretation** [R15-R16]. "You have permission to explore" gives something to reason from; "don't misread X as prohibition" leaves the misreading available. Pair with ID-requirement ("a prohibition must be a rule with an id").
+- **Procedural workflow > declarative rules for reasoning-shaped duties** [R14, R16]. "Instruction priority" style reads as taxonomy metadata; "Doing tasks" style reads as sequential duty. Position duties that must fire before response construction as sequential steps.
+- **Mandatory-scan procedural anchor** [R17] ("in commentary, do these steps in order; show the work; don't skip to the answer"). Passive "when you notice" triggers move workflow into hidden reasoning.
+- **Skipped-candidate disclosure commentary rule** [R17-R18] — name candidates weighed and rejected, and why. Surfaces candidate-generation at message-content level; narrower measurement-alters-phenomenon risk than open-ended "list rules applied."
+- **Task-adjacent placement** [R18]. Interpretation-shifting content in the user message adjacent to the ambiguous phrase — parse-time input governs parse-time interpretation.
+- **Maintainer identity in system-prompt channel** [R13] dissolves referenced-material caveat authority via ownership. User-channel identity reads as role-play — API channel semantics dominate.
 
 ### Task design for leg-2 investigation
 
-- **Hybrid pause-permission task** (edit-allowed + task-gated pause with disk-committed edits + exact invocation named) — forces precision by requiring the artifact to be constructable and disk-persistable before execution.
-- **Author-recall / author-intent-inversion clauses** to force author-frame: "walk through what you were thinking when you wrote X" or "worker interpreted X; is that what you intended?"
-- **Task-side gate + process watcher** (SIGTERM on long-lived unwanted invocations) — generalizable "trusted but verified" pattern for execute-permission rounds.
-- **Mark precedent explicitly at task-writing side as decide-freshly.** Replace "you may modify but say why" with "decide freshly from state and say why your choice fits."
-- **Precedent-evaluation value** ("evaluate before you inherit; provenance is not evidence for fit") — produces state-inferred (not merely state-cited) reasoning without marker-based confounds.
+- **Hybrid pause-permission task** [R27] (edit-allowed + task-gated pause with disk-committed edits + exact invocation named) — forces precision by requiring the artifact to be constructable and disk-persistable before execution.
+- **Author-recall / author-intent-inversion clauses** [R25] to force author-frame: "walk through what you were thinking when you wrote X" or "worker interpreted X; is that what you intended?"
+- **Task-side gate + process watcher** [R27] (SIGTERM on long-lived unwanted invocations) — generalizable "trusted but verified" pattern for execute-permission rounds.
+- **Mark precedent explicitly as decide-freshly** [R28]. Replace "you may modify but say why" with "decide freshly from state and say why your choice fits."
+- **Precedent-evaluation value** [R28] ("evaluate before you inherit; provenance is not evidence for fit") — produces state-inferred (not merely state-cited) reasoning without marker-based confounds.
 
 ### Probe design (mechanism attribution)
 
-- **Followup withholding axis-cue** ("suppose the next loops find all tests pass; what would you do next?") discriminates values whose spec-text target has no cue in the prompt.
-- **Precedent-swap probe** (single-character-block fixture diff, e.g. add/remove `--continue`) — if agent's final invocation tracks the swap, precedent-anchoring is inheritance not deviation-blindness.
-- **Cross-model × value-ablation × fixture-fix matrix** for spec-attribution — isolates confounds a single-axis test cannot.
-- **Rewind-fork probes at multiple pre-decision boundaries.** End-of-session self-reports recover most-visible-articulated-scope, not origin. Fork at L1/L6/L12/L14 to discriminate target-fixing inherited from task-message @L1 from target-fixing that emerged mid-arc.
-- **Concrete-anchored rule variant after abstract variant fails.** Abstract-failure can mean "wrong layer" or "too general"; rewriting the same rule against the specific in-context artifact discriminates.
-- **Bias-controlled candidate-enumeration schema** (full ref: [`experiments/p5-probe-r43__refined-schema.md`](./compliance-check-failure-mode/experiments/p5-probe-r43__refined-schema.md)). Key features: per-utility grain with `current_status_of_this_answer`; content-first slots (`probable_contents` + `what_each_would_tell_you`); free-text disposition (not enum); ordered `next_turn_tool_calls_if_any` (not batch-selection); anti-bundling (one file per candidate); no aggregate rejection slots; `awareness_only` boolean with "err toward false" bias. Each feature counters a specific bias listed in Shape 4 § probe-schema.
+- **Followup withholding axis-cue** [R29] ("suppose the next loops find all tests pass; what would you do next?") discriminates values whose spec-text target has no cue in the prompt.
+- **Precedent-swap probe** [R28] (single-character-block fixture diff, e.g. add/remove `--continue`) — if agent's final invocation tracks the swap, precedent-anchoring is inheritance not deviation-blindness.
+- **Cross-model × value-ablation × fixture-fix matrix** [R30] for spec-attribution — isolates confounds a single-axis test cannot.
+- **Rewind-fork probes at multiple pre-decision boundaries** [R37+]. End-of-session self-reports recover most-visible-articulated-scope, not origin. Fork at L1/L6/L12/L14 to discriminate target-fixing inherited from task-message @L1 from target-fixing that emerged mid-arc.
+- **Concrete-anchored rule variant after abstract variant fails** [R39]. Abstract-failure can mean "wrong layer" or "too general"; rewriting against the specific in-context artifact discriminates.
+- **Bias-controlled candidate-enumeration schema** [R43] (full ref: [`experiments/p5-probe-r43__refined-schema.md`](./compliance-check-failure-mode/experiments/p5-probe-r43__refined-schema.md)). Key features: per-utility grain with `current_status_of_this_answer`; content-first slots (`probable_contents` + `what_each_would_tell_you`); free-text disposition (not enum); ordered `next_turn_tool_calls_if_any` (not batch-selection); anti-bundling; no aggregate rejection slots; `awareness_only` boolean with "err toward false" bias. Each feature counters a specific bias in Shape 4 § probe-schema.
 
 ---
 
@@ -272,19 +267,19 @@ Entries here are project-specific case notes, grounded in the fixtures and round
 
 ### Attribution discipline
 
-- **Blocking tests, not self-reports, for causation.** Post-hoc introspective narratives reflect the agent's model of what happened, not the causal mechanism. Remove one factor, hold others fixed.
-- **End-of-session retrospective probes recover rationalization, not mechanism.** "Why didn't you X" retrieves the most-visible-articulated-scope. Reach earlier via rewind-fork when the question is about origin.
-- **Cross-probe convergence beats any single probe's ground-truth claim.** Retract confabulation attributions when a bias-controlled probe converges with the retrospective self-report.
-- **A diagnostic can change the phenomenon it measures** via interaction of its scope-wording and its purpose-framing. Ablate both dimensions independently.
-- **Ex-ante utility tagging discipline.** Tag candidates by information available at the rewind point (path, filename, prior-mentions), not by content revealed later. Retrospective tagging inflates apparent utility.
-- **Cross-model probe validation via baseline correlation.** New probe must recover known unprobed baseline for at least one calibration model, or it is measuring itself.
-- **Tense must match fork design.** Past-tense wording is only defined for fork-after-turn where a real past trace exists.
-- **Value-attribution requires matching against the specific value's spec-text criteria, per item.** "Novel and dispatched" is diagnostic of *some* value firing, not of a specific one; don't attribute without ablating other candidate drivers.
-- **Spot-checking a quote does not verify mechanism attribution.** Re-derive the lead-up chain from raw session content, not from quote-verification of the endpoint.
-- **Distinguish interpretation-layer from execution-layer failures before designing a fix.** "Misinterpretation" attribution when the actual layer is candidate-persistence mis-targets the fix.
-- **Do not ground system understanding on fixtures where inference dominates every observation.** Use fully-specified deliverables to isolate execution.
+- **Blocking tests, not self-reports, for causation** [R30]. Post-hoc introspective narratives reflect the agent's model, not the causal mechanism. Remove one factor, hold others fixed.
+- **End-of-session retrospective probes recover rationalization, not mechanism** [R37+]. "Why didn't you X" retrieves most-visible-articulated-scope. Reach earlier via rewind-fork for origin.
+- **Cross-probe convergence beats any single probe's ground-truth claim** [R44]. Retract confabulation attributions when a bias-controlled probe converges with the retrospective self-report.
+- **A diagnostic can change the phenomenon it measures** [R42] via interaction of scope-wording and purpose-framing. Ablate both dimensions independently.
+- **Ex-ante utility tagging discipline** [R41]. Tag candidates by information available at the rewind point (path, filename, prior-mentions), not by content revealed later. Retrospective tagging inflates apparent utility.
+- **Cross-model probe validation via baseline correlation** [R42-R43]. A new probe must recover a known unprobed baseline for at least one calibration model, or it is measuring itself.
+- **Tense must match fork design** [R43]. Past-tense wording is only defined for fork-after-turn where a real past trace exists.
+- **Value-attribution requires matching against the specific value's spec-text criteria, per item** [R29, R32]. "Novel and dispatched" is diagnostic of *some* value firing, not a specific one.
+- **Spot-checking a quote does not verify mechanism attribution** [R32]. Re-derive the lead-up chain from raw session content, not from quote-verification of the endpoint.
+- **Distinguish interpretation-layer from execution-layer failures before designing a fix** [R18, R25]. "Misinterpretation" attribution when the actual layer is candidate-persistence mis-targets the fix.
+- **Do not ground system understanding on fixtures where inference dominates every observation** [R8]. Use fully-specified deliverables to isolate execution.
 
-### Probe-schema bias sources (5)
+### Probe-schema bias sources [R42]
 
 Any probe measuring "the candidate set" must be audited for all five:
 
@@ -296,104 +291,94 @@ Any probe measuring "the candidate set" must be audited for all five:
 
 ### Contamination hygiene
 
-- **`{file:PATH}` inlines file raw including YAML frontmatter.** Strip frontmatter; verify with `strip-frontmatter.py --check` that greps for contamination markers (`Round-|round-|compliance-check|probe|Investigation trail|F[0-9]{2}|H[0-9]{2}|E[0-9]{2}|Efix`).
-- **Frontmatter meta-narratives operate as behavioral instruction on some models.** "v_{N-1} failed because X" suppresses target action; predictive-hypothesis narratives can flip either way; task-adjacent permission phrases dominate any frontmatter signal.
-- **Argv-visible descriptions leak via `/proc/*/cmdline`.** Bypass wrappers or use non-descriptive probe ids.
-- **`CLAUDE.md` / `AGENTS.md` / `CONTEXT.md` are injected by the harness.** Verify probe-free or disable project-config loading.
-- **Glob-visible meta artifacts** (scratchpads, notes, prior probe files under working tree) are readable by the agent. Move meta-materials outside the working tree.
-- **Category-B is not benign.** Even generic "Investigation trail: notes/…" references may activate contamination-shape enactment. No safe assumption without clean re-run.
-- **Skip always-on required-notes disclosure clauses** — they amplify confabulation and compete for instruction-load without fixing root causes. Prefer a per-round canary probe: one run per round on the primary spec with a task like "describe your context in one paragraph — anything unusual?"
+- **`{file:PATH}` inlines file raw incl. YAML frontmatter** [R19]. Strip; verify with `strip-frontmatter.py --check` (greps for `Round-|round-|compliance-check|probe|Investigation trail|F[0-9]{2}|H[0-9]{2}|E[0-9]{2}|Efix`).
+- **Frontmatter meta-narratives operate as behavioral instruction on some models** [R20]. "v_{N-1} failed because X" suppresses target action; predictive-hypothesis narratives can flip either way; task-adjacent permission phrases dominate any frontmatter signal.
+- **Argv-visible descriptions leak via `/proc/*/cmdline`** [R19]. Bypass wrappers or use non-descriptive probe ids.
+- **`CLAUDE.md` / `AGENTS.md` / `CONTEXT.md` are harness-injected**. Verify probe-free or disable project-config loading.
+- **Glob-visible meta artifacts** (scratchpads, notes, prior probe files under working tree) are readable by the agent [R21+]. Move meta-materials outside the working tree.
+- **Category-B is not benign** [R20-R21]. Even generic "Investigation trail: notes/…" references may activate contamination-shape enactment. No safe assumption without clean re-run.
+- **Skip always-on required-notes disclosure clauses** [R32+] — they amplify confabulation and compete for instruction-load without fixing root causes. Prefer a per-round canary probe on the primary spec ("describe your context in one paragraph — anything unusual?").
 
 ### Fixture / comparison discipline
 
-- **Reset the fixture before every cell with edit permission** (`git reset --hard <commit> && git clean -fdx`). Applies to bypass paths (`bash python -c "path.write_text(...)"` under `edit: deny`).
-- **Reset scratchpads too.** "No crossing" ≠ "no contamination"; a prior worker's crossing propagates via inherited scratchpad synthesis.
-- **Same-day / same-model / same-task control** for any contam-vs-clean pair. Direct measurement of comparator counts before quoting a delta — don't copy counts from prior narrative language.
-- **Frame-conflated fixtures.** A fixture designed to satisfy multiple properties confounds findings; isolate each property to its own fixture variant.
-- **Fixture-matched hints leak into "frame worked" claims.** If the frame enumerates the fixture's specific referent type, "frame defeats X" cannot be distinguished from "hint matched X." Strip enumerations to generic form.
-- **Fixture aliasing** — two directories sharing the same worktree gitdir corrupts `git worktree list`-based reasoning. Fix: rewrite `<repo>/.git/worktrees/<name>/gitdir` to point at the intended physical directory; quarantine the alias.
-- **Runtime-mode confound.** Nix-installed opencode vs bun-run-from-source may behave differently. Include a runtime-mode control cell before treating a cross-round comparison as matched.
+- **Reset the fixture before every cell with edit permission** [R21] (`git reset --hard <commit> && git clean -fdx`). Applies to bypass paths (`bash python -c "path.write_text(...)"` under `edit: deny`).
+- **Reset scratchpads too** [R31]. "No crossing" ≠ "no contamination"; a prior worker's crossing propagates via inherited scratchpad synthesis.
+- **Same-day / same-model / same-task control** [R24] for any contam-vs-clean pair. Measure comparator counts directly; don't copy counts from prior narrative language.
+- **Frame-conflated fixtures** [R25]. A fixture designed to satisfy multiple properties confounds findings; isolate each property to its own fixture variant.
+- **Fixture-matched hints leak into "frame worked" claims** [R14]. If the frame enumerates the fixture's specific referent type, "frame defeats X" cannot be distinguished from "hint matched X." Strip to generic form.
+- **Fixture aliasing** [R30-R31] — two directories sharing the same worktree gitdir corrupts `git worktree list`-based reasoning. Fix: rewrite `<repo>/.git/worktrees/<name>/gitdir`; quarantine the alias.
+- **Runtime-mode confound** [R30]. Nix-installed opencode vs bun-run-from-source may behave differently. Include a runtime-mode control cell before treating a cross-round comparison as matched.
 
 ### Semantic and reference discipline
 
-- **Terminology drifts across rounds.** A word introduced as a categorical axis label ("skip") gets used later as shorthand for a quantitative measure ("zero tool calls"). Every write-up must define the axis of its terms and quote raw counts, not just categorical labels.
-- **Categorical vs quantitative axis conflation.** Crossing-axis (did the agent read across a path boundary?) is distinct from inspection-quantity-axis (raw tool_use count). Always record both when quoting a delta.
-- **Cascading-risk contamination inventory.** When a load-bearing cell is contradicted, all dependent findings must be re-audited even if not directly re-run.
-- **`@L<n>[i]` refs, not raw line numbers** — pretty-print line numbers drift 200-2500 lines across export passes.
-- **F62 confound applies to every gpt-5.5 mechanism inference.** Flag as speculative unless reasoning appears in emitted prose or in the produced artifact. Prefer JSON candidate-set slots that bypass heading collapse for cross-model comparison.
+- **Terminology drifts across rounds** [R24]. A word introduced as a categorical axis label ("skip") gets used later as shorthand for a quantitative measure ("zero tool calls"). Every write-up must define the axis and quote raw counts.
+- **Categorical vs quantitative axis conflation** [R24]. Crossing-axis (did the agent read across a path boundary?) is distinct from inspection-quantity-axis (raw tool_use count). Record both when quoting a delta.
+- **Cascading-risk contamination inventory** [R23-R24]. When a load-bearing cell is contradicted, all dependent findings must be re-audited even if not directly re-run.
+- **`@L<n>[i]` refs, not raw line numbers** [R32, R35] — pretty-print line numbers drift 200-2500 lines across export passes.
+- **F62 confound applies to every gpt-5.5 mechanism inference** [R32+]. Flag as speculative unless reasoning appears in emitted prose or produced artifact. Prefer JSON candidate-set slots that bypass heading collapse for cross-model comparison.
 
 ### Statistical / framework discipline
 
-- **n=1 gives direction, not magnitude.** Large deltas (0 → 30+) survive n=1; magnitude stability and cross-cell attribution require replication. Characterize base-rate distribution across ≥3 replications before attributing a single-cell outcome to a mechanism.
-- **Do not mix diligence into an interpretation rubric.** Loop-mechanics vocabulary precision is a diligence axis, not an interpretation axis; scoring it against an interpretation rubric produces spurious retractions.
-- **Coherence prerequisite for intervention measurement.** A rule contradicting the existing instruction-priority hierarchy may be silently filtered; "intervention had null effect" may be measuring self-contradiction filtering.
-- **Trajectory-comparison subagents for (contam, clean) pairs.** Structured comparison prompt (opening commentary, reasoning-heading arc, workflow visibility, first-3-tool-call analysis, decision-fact citation quality). Prevents main-context bloat while preserving qualitative signal.
-- **Audit prompts iterate.** Substring-grep audit under-calls content flow; add timeline + paraphrase-explicit + ground-truth-inline + read-every-reasoning-block rules to catch paraphrase leaks and meta-frame activations grep alone misses.
+- **n=1 gives direction, not magnitude** [R30]. Large deltas (0 → 30+) survive n=1; magnitude stability and cross-cell attribution require replication. Characterize base-rate distribution across ≥3 replications before attributing a single-cell outcome to a mechanism.
+- **Do not mix diligence into an interpretation rubric** [R26]. Loop-mechanics vocabulary precision is a diligence axis, not an interpretation axis; scoring it against an interpretation rubric produces spurious retractions.
+- **Coherence prerequisite for intervention measurement** [R14-R15]. A rule contradicting the existing instruction-priority hierarchy may be silently filtered; "intervention had null effect" may be measuring self-contradiction filtering.
+- **Trajectory-comparison subagents for (contam, clean) pairs** [R32]. Structured comparison prompt (opening commentary, reasoning-heading arc, workflow visibility, first-3-tool-call analysis, decision-fact citation quality). Prevents main-context bloat while preserving qualitative signal.
+- **Audit prompts iterate** [R36]. Substring-grep audit under-calls content flow; add timeline + paraphrase-explicit + ground-truth-inline + read-every-reasoning-block rules to catch paraphrase leaks and meta-frame activations grep alone misses.
 
-### Raw-evidence / interpretive-layer separation (why the [`session-timeline`](../skills/session-timeline/SKILL.md) skill exists)
+### Raw-evidence / interpretive-layer separation
 
-Every round re-reads sessions; each pass introduces attribution errors a later round must correct. Separating layers means future corrections touch only interpretation while the raw-evidence artifact stands. Raw-evidence artifacts live under [`experiments/`](./compliance-check-failure-mode/experiments/).
+Framework: F7. Implementation: [`session-timeline` skill](../skills/session-timeline/SKILL.md) produces artifacts under [`experiments/`](./compliance-check-failure-mode/experiments/); interpretive rounds cite via `@L<n>[i]` refs [R35+].
 
 ---
 
 ## Round index
 
-**Purpose of this section:** a doc index for future readers who want to find the per-round file that contains the empirical detail behind a claim. Not research. Each entry is the *question* the round pursued — findings live in the per-round file, and any transferable content has already been extracted above into shapes 1-5.
+Lookup for the per-round file behind a claim. Column format: `N: terse question`. Files at `compliance-check-failure-mode/round-NN.md` unless linked.
 
-| Round | File | Question |
-|-------|------|----------|
-| 1-2 | [`01-02`](./compliance-check-failure-mode/round-01-02.md) | Does rewording a mis-anchored predicate close the failure surface it missed? |
-| 3-4 | [`03-04`](./compliance-check-failure-mode/round-03-04.md) | Can a body-added "go beyond literal" clause restore access to a scope the agent has already narrowed? |
-| 5 | [`05`](./compliance-check-failure-mode/round-05.md) | When two rules grammatically conflict, which wins, and can wording be repaired without rewriting both? |
-| 6 | [`06`](./compliance-check-failure-mode/round-06.md) | Does removing a rule's fire-condition dissolve the conflict without further edits? |
-| 7 | [`07`](./compliance-check-failure-mode/round-07.md) | Does per-axis restriction terminate under any finite spec, or must the optimization target change? |
-| 8 | [`08`](./compliance-check-failure-mode/round-08.md) | On a fixture that pins the execute stage, what execution-layer failures does a well-behaved baseline still show? |
-| 9 | [`09`](./compliance-check-failure-mode/round-09.md) | Can a "rules or instructions applied" diagnostic serve as neutral telemetry, and does the agent supply a stable definition of "instruction"? |
-| 10 | [`10`](./compliance-check-failure-mode/round-10.md) | Does treating the user as a person and everything else as context (values + instruction-priority paradigm) change which failure modes fire? |
-| 11 | [`11`](./compliance-check-failure-mode/round-11.md) | Within the identity paradigm, which layer governs caveat-treatment, and what value-shape avoids recognize-then-enforce failure? |
-| 12 | [`12`](./compliance-check-failure-mode/round-12.md) | When R020 forces a context-vs-instruction default pick, do rationale-clause and frame-reclass act as separate mechanisms? |
-| 13 | [`13`](./compliance-check-failure-mode/round-13.md) | If we collapse the user (maintainer paradigm), does caveat authority dissolve — and if not, what factors gate path-crossing? |
-| 14 | [`14`](./compliance-check-failure-mode/round-14.md) | Does a label-based classification substrate (R###/G###) defeat F75 on its own? |
-| 15 | [`15`](./compliance-check-failure-mode/round-15.md) | Is "'Don't act yet' → no tools" a stable literal-prohibition reading or an elastic lazy-defensible one, and does orthogonal pressure shift it? |
-| 16 | [`16`](./compliance-check-failure-mode/round-16.md) | What is the pipeline position of the interpretation failure, and is the "words vs need" spec clause structurally defective? |
-| 17 | [`17`](./compliance-check-failure-mode/round-17.md) | Can a spec-level rule get the model to run motivation-derivation spontaneously, and why does inspection still not follow? |
-| 18 | [`18`](./compliance-check-failure-mode/round-18.md) | Is F75-behavior a phrase-level prior outside interpretation, or a parse-time interpretation-default varying by model? |
-| 19 | [`19`](./compliance-check-failure-mode/round-19.md) | What actually leaked into the system prompt, and how do we distinguish real leak channels from confabulation? |
-| 20-21 | [`20`](./compliance-check-failure-mode/round-20.md) [`21`](./compliance-check-failure-mode/round-21.md) | Do the load-bearing R17/R18 findings survive frontmatter-strip, and does contamination direction depend on narrative form? |
-| 22 | [`22`](./compliance-check-failure-mode/round-22.md) | Do R12/R13 HIGH-priority Category-A-adjacent cells survive clean re-runs, and does the F74 core claim survive? |
-| 23 | [`23`](./compliance-check-failure-mode/round-23.md) | Do R13 Runs C/E/F survive clean re-runs on inspection-quantity and crossing axes, and does F72's worker/author asymmetry survive? |
-| 24 | [`24`](./compliance-check-failure-mode/round-24.md) | What do actual contam counts show when measured directly rather than copied, and does R23 have a model-version confound? |
-| 25 | [`25`](./compliance-check-failure-mode/round-25.md) | Given a task with no interpretive ambiguity, do the identity-lineage baselines execute it in aligned role-frame — and what task-shape iterations get them there? |
-| 26 | [`26`](./compliance-check-failure-mode/round-26.md) | *(Superseded; treated diligence as interpretation.)* |
-| 27 | [`27`](./compliance-check-failure-mode/round-27.md) + [`27-precedent`](./compliance-check-failure-mode/round-27-precedent-anchoring.md) | Does a hybrid pause-permission task produce sharper disk-committed dispatch artifacts than a plan-review task? Why do both cells adopt task-supplied precedent without generating alternatives? |
-| 28 | [`28`](./compliance-check-failure-mode/round-28.md) | Is the precedent-keeping rationale fixture-blind or state-sensitive under a textual-refutation marker — and can a value-side intervention produce state-inferred reasoning without the marker's confounds? |
-| 29 | [`29`](./compliance-check-failure-mode/round-29.md) | On the identity-outcome-precedent-value spec, does the agent's best-approach value fire *unprompted* on a "suppose all tests pass" followup? |
-| 30 | [`30`](./compliance-check-failure-mode/round-30.md) | Is R29's negative result model-general, value-#2-specific, or fixture-conditional, under a cross-model × value-ablation × fixture-fix matrix? |
-| 31 | [`31`](./compliance-check-failure-mode/round-31.md) | *(Superseded by R32.)* Across the 10-cell R29/R30 corpus, which cells crossed and what content flowed downstream? |
-| 32 | [`32`](./compliance-check-failure-mode/round-32.md) | Which of R31's mechanism attributions survive re-derivation from raw session content under `@L<n>[i]` refs and F62-caveat discipline? |
-| 33 | [`33`](./compliance-check-failure-mode/round-33.md) | What motivated each cell's crossing, what did the cell's own reasoning claim, and what did the crossing produce downstream — and does the fixture caveat gate any of it? |
-| 34 | [`34`](./compliance-check-failure-mode/round-34.md) | What actually differs between the two providers' wire-level requests under nominally-matched setup? |
-| 35 | [`35`](./compliance-check-failure-mode/round-35.md) + [`experiments/`](./compliance-check-failure-mode/experiments/) | What layer separation prevents each interpretive round from re-introducing attribution errors that the next round has to correct? |
-| 36 | [`36`](./compliance-check-failure-mode/round-36.md) | Does the session-timeline skill produce artifacts stable under a fresh extractor, and what corpus is needed for a future interpretive round to cite without re-mining? |
-| 37 | [`37`](./compliance-check-failure-mode/round-37.md) | Are old-worktree paths ever on the model's candidate list, and if so, is target-fixing an in-flight decision or inherited from task-message @L1? |
-| 38 | [`38`](./compliance-check-failure-mode/round-38.md) | Does an abstract spec-level rule against assuming text-scope shift the drop-reasoning for the target artifact? |
-| 39 | [`39`](./compliance-check-failure-mode/round-39.md) | Does a concrete-anchored intent-drift rule (naming the same-author-same-commit faithfulness criterion) shift what the abstract rule couldn't? |
-| 40 | [`40`](./compliance-check-failure-mode/round-40.md) | Does a content-first per-candidate schema surface content-utility axes that aggregate rejection slots collapse? |
-| 41 | [`41`](./compliance-check-failure-mode/round-41.md) | Does per-utility grain (with `current_status_of_this_answer`) expose distinct rejection shapes that file-level grain hides, and does it change verdicts? |
-| 42 | [`42`](./compliance-check-failure-mode/round-42.md) | When the R41 probe is applied to a model whose baseline reads the target, does the probe recover baseline behavior or induce a probe-artifact verdict? |
-| 43 | [`43`](./compliance-check-failure-mode/round-43.md) | With five identified bias sources removed, does the probe recover kimi's baseline READ disposition? |
-| 44 | [`44`](./compliance-check-failure-mode/round-44.md) | With the bias-controlled probe on gpt-5.5, do candidate counts and old-worktree active-consideration status hold, and where does the cross-model difference actually live? |
+- **1-2:** rewording a mis-anchored predicate — closes the missed surface? — [`01-02`](./compliance-check-failure-mode/round-01-02.md)
+- **3-4:** body-added "go beyond literal" — restore already-narrowed scope? — [`03-04`](./compliance-check-failure-mode/round-03-04.md)
+- **5:** grammatically-conflicting rule pair — which wins; repairable without rewriting both? — [`05`](./compliance-check-failure-mode/round-05.md)
+- **6:** removing a rule's fire-condition — dissolves the conflict? — [`06`](./compliance-check-failure-mode/round-06.md)
+- **7:** per-axis restriction terminate on any finite spec, or must the optimization target change? — [`07`](./compliance-check-failure-mode/round-07.md)
+- **8:** on execute-pinning fixture, what execution-layer failures persist? — [`08`](./compliance-check-failure-mode/round-08.md)
+- **9:** "rules or instructions applied" diagnostic as neutral telemetry; agent-stable "instruction" definition? — [`09`](./compliance-check-failure-mode/round-09.md)
+- **10:** user-as-person + everything-else-as-context (values + instruction-priority paradigm) — failure modes change? — [`10`](./compliance-check-failure-mode/round-10.md)
+- **11:** within identity paradigm, which layer governs caveat-treatment; value-shape avoiding recognize-then-enforce? — [`11`](./compliance-check-failure-mode/round-11.md)
+- **12:** R020 context-vs-instruction default pick — rationale-clause vs frame-reclass as separate mechanisms? — [`12`](./compliance-check-failure-mode/round-12.md)
+- **13:** maintainer paradigm — dissolves caveat authority; what gates path-crossing? — [`13`](./compliance-check-failure-mode/round-13.md)
+- **14:** label substrate (R###/G###) defeat F75 alone? — [`14`](./compliance-check-failure-mode/round-14.md)
+- **15:** "Don't act yet → no tools" — literal or elastic; orthogonal pressure shifts it? — [`15`](./compliance-check-failure-mode/round-15.md)
+- **16:** pipeline position of interpretation failure; "words vs need" clause structurally defective? — [`16`](./compliance-check-failure-mode/round-16.md)
+- **17:** spec-level rule for spontaneous motivation-derivation; why inspection doesn't follow? — [`17`](./compliance-check-failure-mode/round-17.md)
+- **18:** F75-behavior — phrase-level prior outside interpretation, or parse-time default varying by model? — [`18`](./compliance-check-failure-mode/round-18.md)
+- **19:** what leaked into system prompt; distinguishing real leak channels from confabulation? — [`19`](./compliance-check-failure-mode/round-19.md)
+- **20-21:** R17/R18 findings survive frontmatter-strip; contamination direction by narrative form? — [`20`](./compliance-check-failure-mode/round-20.md), [`21`](./compliance-check-failure-mode/round-21.md)
+- **22:** R12/R13 HIGH-priority clean re-runs; F74 core claim survives? — [`22`](./compliance-check-failure-mode/round-22.md)
+- **23:** R13 Runs C/E/F clean re-runs; F72 worker/author asymmetry survives? — [`23`](./compliance-check-failure-mode/round-23.md)
+- **24:** contam counts directly measured; R23 model-version confound? — [`24`](./compliance-check-failure-mode/round-24.md)
+- **25:** no-interpretive-ambiguity task — identity-lineage baselines execute in aligned role-frame; task-shape iterations? — [`25`](./compliance-check-failure-mode/round-25.md)
+- **26:** *(superseded — treated diligence as interpretation.)*
+- **27:** hybrid pause-permission task — sharper disk-committed dispatch than plan-review? Why cells adopt task-supplied precedent without alternatives? — [`27`](./compliance-check-failure-mode/round-27.md), [`27-precedent`](./compliance-check-failure-mode/round-27-precedent-anchoring.md)
+- **28:** precedent-keeping — fixture-blind or state-sensitive under textual-refutation marker; value-side intervention without marker confounds? — [`28`](./compliance-check-failure-mode/round-28.md)
+- **29:** identity-outcome-precval — best-approach value fires *unprompted* on "suppose all tests pass"? — [`29`](./compliance-check-failure-mode/round-29.md)
+- **30:** R29 negative model-general / value-specific / fixture-conditional (matrix)? — [`30`](./compliance-check-failure-mode/round-30.md)
+- **31:** *(superseded by R32.)* 10-cell crossing audit — [`31`](./compliance-check-failure-mode/round-31.md)
+- **32:** which R31 attributions survive re-derivation under `@L<n>[i]` + F62 discipline? — [`32`](./compliance-check-failure-mode/round-32.md)
+- **33:** per-cell crossing motivations vs own reasoning vs downstream product; fixture-caveat gate? — [`33`](./compliance-check-failure-mode/round-33.md)
+- **34:** wire-level diff between providers under matched setup — [`34`](./compliance-check-failure-mode/round-34.md)
+- **35:** layer separation preventing round-to-round attribution-error introduction — [`35`](./compliance-check-failure-mode/round-35.md), [`experiments/`](./compliance-check-failure-mode/experiments/)
+- **36:** session-timeline artifact stability under fresh extractor; corpus for future interpretive round — [`36`](./compliance-check-failure-mode/round-36.md)
+- **37:** old-worktree paths ever on candidate list; target-fixing in-flight or inherited from @L1? — [`37`](./compliance-check-failure-mode/round-37.md)
+- **38:** abstract text-scope rule shifts drop-reasoning? — [`38`](./compliance-check-failure-mode/round-38.md)
+- **39:** concrete-anchored intent-drift rule (same-author-same-commit) — shifts what abstract couldn't? — [`39`](./compliance-check-failure-mode/round-39.md)
+- **40:** content-first per-candidate schema — surfaces axes aggregate rejection slots collapse? — [`40`](./compliance-check-failure-mode/round-40.md)
+- **41:** per-utility `current_status_of_this_answer` — distinct rejection shapes; verdict change? — [`41`](./compliance-check-failure-mode/round-41.md)
+- **42:** R41 probe on baseline-READ model — recovers baseline or induces probe-artifact? — [`42`](./compliance-check-failure-mode/round-42.md)
+- **43:** with 5 bias sources removed, probe recovers kimi baseline READ? — [`43`](./compliance-check-failure-mode/round-43.md)
+- **44:** bias-controlled probe on gpt-5.5 — counts + active-consideration status hold; where cross-model difference lives? — [`44`](./compliance-check-failure-mode/round-44.md)
 
 ---
 
-## Open ideas (prospective — shape-3 candidates)
+## Open ideas
 
-- **Drop-list-only rewind-fork probe** (P5b): reword P5 to ask only for `verdict: "read"` candidates. Discriminates genuine in-flight weighing from probe-triggered enumeration, without giving the agent a slot to enumerate reconstructive candidates into.
-- **Task-message ablation probe** for the target-inheritance hypothesis: rewrite the task's paragraph-1 to explicitly include pointer targets in "current state." If crossing emerges under otherwise-clean spec, task-message inheritance is the load-bearing gate.
-- **Caveat-scope ablation:** strip a specific PROMPT.md caveat clause and rerun. Discriminates caveat-authority as drop-driver vs adequacy-check as drop-driver.
-- **L1-rewind probe:** fork before all assistant responses, then inject the probe. Captures the earliest possible candidate-generation state, before pointer entered assistant context.
-- **Cross-model spot checks** on F75 baseline / F78 Efix-v7 to test model-specificity of shape-3 designs that were derived on a single model.
-- **`{file:PATH}` upstream fix** — add defensive markdown frontmatter strip in opencode's `substitute()`. Not addressed.
-- **`edit: deny` process-level enforcement** — extend to block the `bash python -c "path.write_text(...)"` bypass.
-
----
+Prospective shape-3 candidates live in [`compliance-check-failure-mode/open-ideas.md`](./compliance-check-failure-mode/open-ideas.md).
