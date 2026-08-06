@@ -352,45 +352,47 @@ Framework: F7. Implementation: [`session-timeline` skill](../skills/session-time
 
 Lookup for the per-round file behind a claim. Column format: `N: terse question`. Files at `compliance-check-failure-mode/round-NN.md` unless linked.
 
+**Status marker convention.** Suffix `— *[status]*` indicates a later round has retracted, contradicted, refined, rescoped, or reframed load-bearing claims from that round. No suffix = still-live at load-bearing granularity (self-caveats not tracked here). Rows R26 and R31 are absent from this index — R26 dropped from the growth-tracked set (see [`round-26.md`](./compliance-check-failure-mode/round-26.md) header: "SUPERSEDED"); R31 subsumed by R32's row below.
+
 - **1-2:** rewording a mis-anchored predicate — closes the missed surface? — [`01-02`](./compliance-check-failure-mode/round-01-02.md)
 - **3-4:** body-added "go beyond literal" — restore already-narrowed scope? — [`03-04`](./compliance-check-failure-mode/round-03-04.md)
-- **5:** grammatically-conflicting rule pair — which wins; repairable without rewriting both? — [`05`](./compliance-check-failure-mode/round-05.md)
-- **6:** removing a rule's fire-condition — dissolves the conflict? — [`06`](./compliance-check-failure-mode/round-06.md)
+- **5:** grammatically-conflicting rule pair — which wins; repairable without rewriting both? — [`05`](./compliance-check-failure-mode/round-05.md) — *[superseded by R6]*
+- **6:** removing a rule's fire-condition — dissolves the conflict? — [`06`](./compliance-check-failure-mode/round-06.md) — *[superseded by R7 — optimization-target reframe replaces rule-layering]*
 - **7:** per-axis restriction terminate on any finite spec, or must the optimization target change? — [`07`](./compliance-check-failure-mode/round-07.md)
 - **8:** on execute-pinning fixture, what execution-layer failures persist? — [`08`](./compliance-check-failure-mode/round-08.md)
 - **9:** "rules or instructions applied" diagnostic as neutral telemetry; agent-stable "instruction" definition? — [`09`](./compliance-check-failure-mode/round-09.md)
 - **10:** user-as-person + everything-else-as-context (values + instruction-priority paradigm) — failure modes change? — [`10`](./compliance-check-failure-mode/round-10.md)
 - **11:** within identity paradigm, which layer governs caveat-treatment; value-shape avoiding recognize-then-enforce? — [`11`](./compliance-check-failure-mode/round-11.md)
-- **12:** R020 context-vs-instruction default pick — rationale-clause vs frame-reclass as separate mechanisms? — [`12`](./compliance-check-failure-mode/round-12.md)
-- **13:** maintainer paradigm — dissolves caveat authority; what gates path-crossing? — [`13`](./compliance-check-failure-mode/round-13.md)
+- **12:** R020 context-vs-instruction default pick — rationale-clause vs frame-reclass as separate mechanisms? — [`12`](./compliance-check-failure-mode/round-12.md) — *[N1/F68 contradicted by R22 clean re-run]*
+- **13:** maintainer paradigm — dissolves caveat authority; what gates path-crossing? — [`13`](./compliance-check-failure-mode/round-13.md) — *[F72/F74 challenged by R22-R23; skip magnitude corrected by R24]*
 - **14:** label substrate (R###/G###) defeat F75 alone? — [`14`](./compliance-check-failure-mode/round-14.md)
-- **15:** "Don't act yet → no tools" — literal or elastic; orthogonal pressure shifts it? — [`15`](./compliance-check-failure-mode/round-15.md)
-- **16:** pipeline position of interpretation failure; "words vs need" clause structurally defective? — [`16`](./compliance-check-failure-mode/round-16.md)
-- **17:** spec-level rule for spontaneous motivation-derivation; why inspection doesn't follow? — [`17`](./compliance-check-failure-mode/round-17.md)
-- **18:** F75-behavior — phrase-level prior outside interpretation, or parse-time default varying by model? — [`18`](./compliance-check-failure-mode/round-18.md)
+- **15:** "Don't act yet → no tools" — literal or elastic; orthogonal pressure shifts it? — [`15`](./compliance-check-failure-mode/round-15.md) — *[F77 v2/v3 contradicted by R21 clean re-run]*
+- **16:** pipeline position of interpretation failure; "words vs need" clause structurally defective? — [`16`](./compliance-check-failure-mode/round-16.md) — *[F78 pick-step-elimination contradicted by R21]*
+- **17:** spec-level rule for spontaneous motivation-derivation; why inspection doesn't follow? — [`17`](./compliance-check-failure-mode/round-17.md) — *[F79/F80 contamination-driven, contradicted by R20-R21]*
+- **18:** F75-behavior — phrase-level prior outside interpretation, or parse-time default varying by model? — [`18`](./compliance-check-failure-mode/round-18.md) — *[F80 contradicted by R20; F81 reframed as depth-modulator under clean spec]*
 - **19:** what leaked into system prompt; distinguishing real leak channels from confabulation? — [`19`](./compliance-check-failure-mode/round-19.md)
 - **20-21:** R17/R18 findings survive frontmatter-strip; contamination direction by narrative form? — [`20`](./compliance-check-failure-mode/round-20.md), [`21`](./compliance-check-failure-mode/round-21.md)
 - **22:** R12/R13 HIGH-priority clean re-runs; F74 core claim survives? — [`22`](./compliance-check-failure-mode/round-22.md)
-- **23:** R13 Runs C/E/F clean re-runs; F72 worker/author asymmetry survives? — [`23`](./compliance-check-failure-mode/round-23.md)
+- **23:** R13 Runs C/E/F clean re-runs; F72 worker/author asymmetry survives? — [`23`](./compliance-check-failure-mode/round-23.md) — *[magnitude claims + model-version confound corrected by R24]*
 - **24:** contam counts directly measured; R23 model-version confound? — [`24`](./compliance-check-failure-mode/round-24.md)
 - **25:** no-interpretive-ambiguity task — identity-lineage baselines execute in aligned role-frame; task-shape iterations? — [`25`](./compliance-check-failure-mode/round-25.md)
 - **27:** hybrid pause-permission task — sharper disk-committed dispatch than plan-review? Why cells adopt task-supplied precedent without alternatives? — [`27`](./compliance-check-failure-mode/round-27.md), [`27-precedent`](./compliance-check-failure-mode/round-27-precedent-anchoring.md)
 - **28:** precedent-keeping — fixture-blind or state-sensitive under textual-refutation marker; value-side intervention without marker confounds? — [`28`](./compliance-check-failure-mode/round-28.md)
-- **29:** identity-outcome-precval — best-approach value fires *unprompted* on "suppose all tests pass"? — [`29`](./compliance-check-failure-mode/round-29.md)
-- **30:** R29 negative model-general / value-specific / fixture-conditional (matrix)? — [`30`](./compliance-check-failure-mode/round-30.md)
+- **29:** identity-outcome-precval — best-approach value fires *unprompted* on "suppose all tests pass"? — [`29`](./compliance-check-failure-mode/round-29.md) — *[single-axis attribution refuted by R30 matrix; relocated to precval by R32]*
+- **30:** R29 negative model-general / value-specific / fixture-conditional (matrix)? — [`30`](./compliance-check-failure-mode/round-30.md) — *[kimi-k3 baseline attribution corrected by R32/R33 F102; runtime-mode confound flagged R32]*
 - **32:** which R31 attributions survive re-derivation under `@L<n>[i]` + F62 discipline? (subsumes R31 10-cell crossing audit at [`31`](./compliance-check-failure-mode/round-31.md)) — [`32`](./compliance-check-failure-mode/round-32.md)
-- **33:** per-cell crossing motivations vs own reasoning vs downstream product; fixture-caveat gate? — [`33`](./compliance-check-failure-mode/round-33.md)
-- **34:** wire-level diff between providers under matched setup — [`34`](./compliance-check-failure-mode/round-34.md)
+- **33:** per-cell crossing motivations vs own reasoning vs downstream product; fixture-caveat gate? — [`33`](./compliance-check-failure-mode/round-33.md) — *[F101 mechanism ("engaged-then-scoped-out") retired R37; F103 "no weighing" reading superseded by R37 F119; Mot-4 label retired R37 N6]*
+- **34:** wire-level diff between providers under matched setup — [`34`](./compliance-check-failure-mode/round-34.md) — *[F104 verbosity-as-driver not-supported by R37 P5; codex-backend-swap open item retracted R46]*
 - **35:** layer separation preventing round-to-round attribution-error introduction — [`35`](./compliance-check-failure-mode/round-35.md), [`experiments/`](./compliance-check-failure-mode/experiments/)
-- **36:** session-timeline artifact stability under fresh extractor; corpus for future interpretive round — [`36`](./compliance-check-failure-mode/round-36.md)
-- **37:** old-worktree paths ever on candidate list; target-fixing in-flight or inherited from @L1? — [`37`](./compliance-check-failure-mode/round-37.md)
-- **38:** abstract text-scope rule shifts drop-reasoning? — [`38`](./compliance-check-failure-mode/round-38.md)
-- **39:** concrete-anchored intent-drift rule (same-author-same-commit) — shifts what abstract couldn't? — [`39`](./compliance-check-failure-mode/round-39.md)
-- **40:** content-first per-candidate schema — surfaces axes aggregate rejection slots collapse? — [`40`](./compliance-check-failure-mode/round-40.md)
-- **41:** per-utility `current_status_of_this_answer` — distinct rejection shapes; verdict change? — [`41`](./compliance-check-failure-mode/round-41.md)
+- **36:** session-timeline artifact stability under fresh extractor; corpus for future interpretive round — [`36`](./compliance-check-failure-mode/round-36.md) — *[focus-path event counts mechanistically explained by R37 N3+N5]*
+- **37:** old-worktree paths ever on candidate list; target-fixing in-flight or inherited from @L1? — [`37`](./compliance-check-failure-mode/round-37.md) — *[F116 retracted by R44 (P1 was honest self-report); F117 refined by R44 ("reconstructible under pressure, not actively weighed"); codex-swap open item retracted R46; composite validated R46]*
+- **38:** abstract text-scope rule shifts drop-reasoning? — [`38`](./compliance-check-failure-mode/round-38.md) — *[drift-rule effects rescoped by R44 to reconstructive-justification layer downstream of active-consideration filter]*
+- **39:** concrete-anchored intent-drift rule (same-author-same-commit) — shifts what abstract couldn't? — [`39`](./compliance-check-failure-mode/round-39.md) — *[drift-rule effects rescoped by R44 (same as R38); R46 confirmed via direct read]*
+- **40:** content-first per-candidate schema — surfaces axes aggregate rejection slots collapse? — [`40`](./compliance-check-failure-mode/round-40.md) — *[rejection-axis findings rescoped by R44 to justification-construction layer]*
+- **41:** per-utility `current_status_of_this_answer` — distinct rejection shapes; verdict change? — [`41`](./compliance-check-failure-mode/round-41.md) — *[probe biased (5 sources diagnosed by R42); candidate enumeration inflation superseded by R43-R44 bias-controlled schema]*
 - **42:** R41 probe on baseline-READ model — recovers baseline or induces probe-artifact? — [`42`](./compliance-check-failure-mode/round-42.md)
 - **43:** with 5 bias sources removed, probe recovers kimi baseline READ? — [`43`](./compliance-check-failure-mode/round-43.md)
-- **44:** bias-controlled probe on gpt-5.5 — counts + active-consideration status hold; where cross-model difference lives? — [`44`](./compliance-check-failure-mode/round-44.md)
+- **44:** bias-controlled probe on gpt-5.5 — counts + active-consideration status hold; where cross-model difference lives? — [`44`](./compliance-check-failure-mode/round-44.md) — *[validated by R46 direct-read ground truth; awareness_only interpretation confirmed]*
 - **45:** retracted — [`45`](./compliance-check-failure-mode/round-45.md)
 - **46:** OpenRouter unblocks paragraph reasoning on gpt-5.5; direct-read ground truth validates R44 `awareness_only` interpretation; Design A wording bug — [`46`](./compliance-check-failure-mode/round-46.md)
 
