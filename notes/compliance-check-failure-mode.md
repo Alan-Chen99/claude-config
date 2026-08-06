@@ -84,9 +84,9 @@ When re-derivation produces a different result than the prior derivation, curren
 - Disk-load path strips frontmatter via gray-matter at `config/agent.ts:105-130` (`md.content.trim()`). Committed `.opencode/agents/*.md` are clean via this path.
 - Inline `cfg.agent[key].prompt` merged with disk-loaded agents at `config/config.ts:614-620`; inline-expanded string wins.
 
-**Backend / provider policy** [R18, R34]:
+**Backend / provider policy** [R18, R34, R46]:
 
-- **F62.** Codex OAuth endpoint (`chatgpt.com/backend-api/codex/responses`) applies server-side policy reducing `reasoning_summary_text` to bold headings only (mean ~39 chars). API-key endpoint (`api.openai.com/v1/responses`) returns paragraphs (mean ~363 chars). Mitigation: `OPENCODE_AUTH_CONTENT='{"openai":{"type":"api","key":"$OPENAI_API_KEY"}}'`. Instrumentation at `provider.ts:1567` + `plugin/codex.ts`; `OPENCODE_F62_LOG_DIR=<dir>` enables capture.
+- **F62.** Codex OAuth endpoint (`chatgpt.com/backend-api/codex/responses`) applies server-side policy reducing `reasoning_summary_text` to bold headings only (mean ~39 chars). API-key endpoint (`api.openai.com/v1/responses`) returns paragraphs (mean ~363 chars). Mitigations: (a) `OPENCODE_AUTH_CONTENT='{"openai":{"type":"api","key":"$OPENAI_API_KEY"}}'`; (b) [R46] route via OpenRouter — `openrouter/openai/gpt-5.5` with `OPENROUTER_API_KEY` + `provider.openrouter.options.apiKey` inline in `OPENCODE_CONFIG_CONTENT` + model `options.reasoning:{effort:high,exclude:false}`. Both routes return `openai-responses-v1` paragraph summaries. Instrumentation at `provider.ts:1567` + `plugin/codex.ts`; `OPENCODE_F62_LOG_DIR=<dir>` enables capture.
 - `textVerbosity` hardcoded `"low"` for all gpt-5.x models except gpt-5-codex, gpt-5-chat, Azure. `packages/opencode/src/provider/transform.ts:1129-1148`. No user override. `reasoningEffort` is orthogonal.
 
 **Wrapper / harness** [R19]:
@@ -258,13 +258,7 @@ Project case notes grounded in fixtures and rounds. "Logical" = a priori from th
 
 ### Ambiguous-imperative interventions
 
-- **Specification-lock over cost imposition** [R15]. To shift interpretation, add a same-channel rule unifying into joint intent or definitionally rename the phrase. Orthogonal audit pressure doesn't shift interpretation — agent finds cheaper-than-reframe escapes.
-- **Affirmative permission beats correction-of-misinterpretation** [R15-R16]. "You have permission to explore" gives something to reason from; "don't misread X as prohibition" leaves the misreading available. Pair with ID-requirement ("a prohibition must be a rule with an id").
-- **Procedural workflow > declarative rules for reasoning-shaped duties** [R14, R16]. "Instruction priority" style reads as taxonomy metadata; "Doing tasks" style reads as sequential duty. Position duties that must fire before response construction as sequential steps.
-- **Mandatory-scan procedural anchor** [R17] ("in commentary, do these steps in order; show the work; don't skip to the answer"). Passive "when you notice" triggers move workflow into hidden reasoning.
-- **Skipped-candidate disclosure commentary rule** [R17-R18] — name candidates weighed and rejected, and why. Surfaces candidate-generation at message-content level; narrower measurement-alters-phenomenon risk than open-ended "list rules applied."
-- **Task-adjacent placement** [R18]. Interpretation-shifting content in the user message adjacent to the ambiguous phrase — parse-time input governs parse-time interpretation.
-- **Maintainer identity in system-prompt channel** [R13] dissolves referenced-material caveat authority via ownership. User-channel identity reads as role-play — API channel semantics dominate.
+R13-R18 items demoted to [`open-ideas.md`](./compliance-check-failure-mode/open-ideas.md) § "Demoted from main doc" per growth policy (dormant since discovery, no committed spec, not carrying weight in the R37+ investigation line).
 
 ### Task design for leg-2 investigation
 
@@ -346,6 +340,7 @@ Any probe measuring "the candidate set" must be audited for all five:
 - **Coherence prerequisite for intervention measurement** [R14-R15]. A rule contradicting the existing instruction-priority hierarchy may be silently filtered; "intervention had null effect" may be measuring self-contradiction filtering.
 - **Trajectory-comparison subagents for (contam, clean) pairs** [R32]. Structured comparison prompt (opening commentary, reasoning-heading arc, workflow visibility, first-3-tool-call analysis, decision-fact citation quality). Prevents main-context bloat while preserving qualitative signal.
 - **Audit prompts iterate** [R36]. Substring-grep audit under-calls content flow; add timeline + paraphrase-explicit + ground-truth-inline + read-every-reasoning-block rules to catch paraphrase leaks and meta-frame activations grep alone misses.
+- **Probe wording that references emission-structure is brittle** [R46]. Wording like *"in your reasoning parts"* or *"in your thinking blocks"* assumes the model+backend+client stores planning content in a specific part-type. On OpenRouter+opencode+gpt-5.5, planning often lives in `text` (preamble) parts on tool-heavy turns, not `reasoning` parts; Design A probes with a `reasoning parts` restriction produced false-null (A_L12) or silent conflation (A_L7/L17). Prefer wording that names content-property (planning content, weighing content, target statements) independent of storage part-type.
 
 ### Raw-evidence / interpretive-layer separation
 
@@ -396,6 +391,8 @@ Lookup for the per-round file behind a claim. Column format: `N: terse question`
 - **42:** R41 probe on baseline-READ model — recovers baseline or induces probe-artifact? — [`42`](./compliance-check-failure-mode/round-42.md)
 - **43:** with 5 bias sources removed, probe recovers kimi baseline READ? — [`43`](./compliance-check-failure-mode/round-43.md)
 - **44:** bias-controlled probe on gpt-5.5 — counts + active-consideration status hold; where cross-model difference lives? — [`44`](./compliance-check-failure-mode/round-44.md)
+- **45:** retracted — [`45`](./compliance-check-failure-mode/round-45.md)
+- **46:** OpenRouter unblocks paragraph reasoning on gpt-5.5; direct-read ground truth validates R44 `awareness_only` interpretation; Design A wording bug — [`46`](./compliance-check-failure-mode/round-46.md)
 
 ---
 
