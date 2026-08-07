@@ -44,6 +44,11 @@ A round may build on a prior claim only after re-examining that claim in the cur
 **Transitive.**
 Re-examining a claim covers (a) whether the stated evidence still supports it under current context, and (b) whether the immediate evidentiary basis remains valid. One evidentiary hop is mandatory; go deeper when the one-hop audit surfaces a break. Applies transitively to sanity-checks: a "probe is unbiased" claim is re-audited whenever the probe's deployment surface grows, and the calibration cells that claim rests on are re-audited in the same pass.
 
+**Substrate-session reads (`experiments/` artifacts).**
+An `experiments/` artifact is a focus-bounded condensation of a source session — its § Focus statement bounds what it covers, and its § Provenance names the source session (jsonl path or `opencode export` session ID). The artifact is not itself the one-hop basis; the session it condenses is. Load-bearing use of an `experiments/` artifact requires opening that source session in the current round.
+- **Missing session.** If the source session is not retrievable (deleted export, purged DB, session ID no longer resolves), the claim cannot be used. Re-run the experiment to produce a new source session, then re-derive from that. No downgrade path — the artifact alone is insufficient regardless of how it is annotated.
+- **Focus drift.** If the round's use of the artifact needs data outside the artifact's § Focus statement, re-open the source session and produce a **sibling artifact** whose Focus matches the current use. Do not extend the original artifact's Focus in place — the new focus is distinct, not a superset of the old one, and mixing them destroys the one-focus-per-artifact invariant that makes the substrate trustable. Do not extrapolate the original artifact's tabulation to the new use. The round file cites the sibling artifact.
+
 **Cache (session-level only).**
 - Session artifacts (transcripts, tool outputs, JSON emissions) may be reused only if model, prompt, fixture, probe wording, and fork point are exactly equal to the cached run.
 - Cache invalidates when any of: (a) a downstream round has identified a bias or defect in the same probe/method; (b) the claim's deployment surface has grown outside the original calibration surface; (c) a framework entry cited in the claim has been rewritten.
@@ -396,6 +401,7 @@ Lookup for the per-round file behind a claim. Column format: `N: terse question`
 - **45:** retracted — [`45`](./compliance-check-failure-mode/round-45.md)
 - **46:** OpenRouter unblocks paragraph reasoning on gpt-5.5; direct-read ground truth validates R44 `awareness_only` interpretation; Design A wording bug — [`46`](./compliance-check-failure-mode/round-46.md)
 - **47:** kimi baseline / no2-fixed n=2 replication — within-cell variance vs R30 headline deltas; F1/F4 direction survives, F2 numeric claim inside noise band, F5 scope-restricted to broken fixture — [`47`](./compliance-check-failure-mode/round-47.md)
+- **48:** R47 synthesis (no new sessions) — content-ref weak-gradient in fp_probes; PROMPT.md tool-choice sub-invariant; ranked next probes (broken-fixture n≥3 for F5, cross-fixture-cross-model matrix, rate-limit failure-loudness wrapper); Shape-4 promote-candidate blocked on main-doc budget — [`48`](./compliance-check-failure-mode/round-48.md)
 
 ---
 

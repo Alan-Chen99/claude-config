@@ -13,6 +13,21 @@ Scales from one session to a whole hierarchy (main + subagent invocations).
 Extractor decides workflow and report organization; skill just constrains via
 invariants.
 
+## Invocation
+
+Invoke this skill in a **subagent** unless the entire caller session is
+itself a session-timeline run (e.g., a top-level user request that is only
+"produce a session-timeline artifact for X"). Building an artifact requires
+reading skeleton dumps, jq outputs, greps, and reasoning-block extractions
+that routinely reach tens of thousands of tokens of intermediate context —
+none of which the caller needs after the artifact is written. A subagent
+isolates that context; the caller receives the artifact path and a short
+summary.
+
+Exception (whole-session case): if no other work is happening in the
+caller's context, running the skill inline is fine — there is no context to
+protect.
+
 ## Invariants
 
 1. **One focus per artifact.** Focus is one natural-language sentence stated at
