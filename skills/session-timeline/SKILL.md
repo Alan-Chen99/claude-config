@@ -28,6 +28,58 @@ Exception (whole-session case): if no other work is happening in the
 caller's context, running the skill inline is fine — there is no context to
 protect.
 
+## Modes
+
+Two invocation modes. The `mode:` should be stated in the invocation brief;
+if omitted on a direct user invocation, question mode is the default. Parents
+dispatching a subagent must state `mode: evidence` — see "For parents"
+below.
+
+### question mode
+
+Default for direct user invocation.
+
+- Input: session ID(s) + optional question.
+- Default question if omitted: *"What happened in this session — highlight
+  anything noteworthy, unexpected, or requiring investigation."*
+- Produces:
+  1. An evidence artifact (same file, format, and invariants as evidence mode;
+     focus = the question).
+  2. A synthesized answer to the question, returned in the response prose.
+- Response shape: `{ answer_prose, evidence_path }`.
+
+The evidence artifact stays pure (facts only) — the answer lives in the
+response, not in the artifact — so the artifact remains reusable substrate
+for later interpretive rounds.
+
+### evidence mode
+
+Required when a parent dispatches this skill via a subagent.
+
+- Input: session ID(s) + a description of what's important. The description
+  can be phrased as a focus, a question the parent will answer later, or an
+  evaluation criterion. The output is a factual log regardless of how the
+  request is phrased.
+- Produces: an evidence artifact only.
+- Response shape: `{ evidence_path, one-paragraph summary of contents }`.
+- Gathering discipline: gather anything that MIGHT be relevant to the
+  description. When in doubt, include (summarized). No interpretive answer.
+
+## For parents dispatching this skill
+
+Before dispatching, read this SKILL.md so you know what the artifact
+contains, what invariants apply, and how to phrase the focus.
+
+Brief format:
+
+- `mode: evidence` (required — parents MUST use evidence mode)
+- session ID(s)
+- focus / description of what matters
+
+The subagent returns `{ evidence_path, one-paragraph summary }`. Read the
+artifact and synthesize across artifacts in your own turn. Synthesis is not
+persisted by this skill.
+
 ## Invariants
 
 1. **One focus per artifact.** Focus is one natural-language sentence stated at
