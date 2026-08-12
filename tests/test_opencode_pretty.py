@@ -409,6 +409,45 @@ def test_legend_emits_opencode_recovery_hint_for_opencode_log_path() -> None:
     assert "sed -n" not in output
 
 
+# ─── Full-render refs + truncation hints ────────────────────────────────────
+
+
+def test_full_render_refs_are_source_true_on_every_block_type() -> None:
+    output = render(sample_export())
+    # thinking header carries the TRUE part index (step-start part shifted it)
+    assert "╭─ thinking" in output and "@L2[1]" in output
+    # text block marker line
+    assert "── text @L2[2] ──" in output
+    # tool_use AND its result both reference the tool part @L2[3]
+    assert "▶ read" in output and "@L2[3]" in output
+    # user input header carries a ref
+    user_line = next(l for l in output.splitlines() if l.startswith("┌ User"))
+    assert "@L1" in user_line
+
+
+def test_truncated_tool_result_prints_exact_recovery_command() -> None:
+    export = sample_export()
+    export["messages"][1]["parts"][3]["state"]["output"] = "y" * 5000
+    output = render(export, tool_max=100)
+    assert (
+        "…full: opencode export ses_1234567890abcdef > "
+        "/tmp/oc-ses_1234567890abcdef.json && jq -r "
+        "'.messages[1].parts[3].state.output' /tmp/oc-ses_1234567890abcdef.json"
+    ) in output
+
+
+def test_untruncated_blocks_print_no_hint() -> None:
+    output = render(sample_export())
+    assert "…full:" not in output
+
+
+def test_truncated_tool_input_hint_points_at_state_input() -> None:
+    export = sample_export()
+    export["messages"][1]["parts"][3]["state"]["input"] = {"prompt": "x" * 500}
+    output = render(export, tool_max=100, truncate_input=True)
+    assert "…full:" in output and ".state.input'" in output
+
+
 # ─── Color auto-detection ────────────────────────────────────────────────────
 
 # Unit coverage for the color decision lives in test_cc_pretty_render.py

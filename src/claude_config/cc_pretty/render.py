@@ -328,13 +328,20 @@ class Renderer:
         # is unchanged. The first occurrence is always emitted.
         self._last_output_style: str | None = None
 
+    def _hint(self, lineno: int, block_idx: int | None, leaf: str) -> str:
+        """Dim recovery line printed under a truncated block."""
+        cmd = recovery_cmd(self.log_path, lineno, block_idx, leaf)
+        return f"    {C.DIM}…full: {cmd}{C.RESET}"
+
     # ── Content block renderers ──────────────────────────────────────────
 
-    def _render_thinking(self, block: ThinkingBlock) -> str:
+    def _render_thinking(self, block: ThinkingBlock, lineno: int, block_idx: int) -> str:
         prefix = C.THINKING + "  │ " + C.RESET
         body = textwrap.indent(block.thinking, prefix, predicate=lambda _: True)
+        ref = block_ref(block, lineno, block_idx)
         return (
-            f"{C.THINKING}  ╭─ thinking ─────────────────────────{C.RESET}\n"
+            f"{C.THINKING}  ╭─ thinking ─────────────{C.RESET}  "
+            f"{C.DIM}{ref}{C.RESET}\n"
             f"{body}\n"
             f"{C.THINKING}  ╰─────────────────────────────────────{C.RESET}"
         )
@@ -346,9 +353,12 @@ class Renderer:
         if block.id:
             self._tool_id_to_name[block.id] = block.name
 
-        ref = fmt_ref(lineno, block_idx)
+        ref = block_ref(block, lineno, block_idx)
         lines = [f"{C.TOOL}  ▶ {block.name}{C.RESET}  {C.DIM}{ref}{C.RESET}"]
         lines.append(ind(trunc(inp_str, self.tool_input_max), "    "))
+        if len(inp_str) > self.tool_input_max:
+            leaf = ".state.input" if _is_opencode_path(self.log_path) else ".input"
+            lines.append(self._hint(lineno, _resolve_idx(block, block_idx), leaf))
         return "\n".join(lines)
 
     def _render_tool_result(self, block: ToolResultBlock, lineno: int, block_idx: int,
@@ -360,25 +370,31 @@ class Renderer:
         label = f"✗ error{name_suffix}" if block.is_error else f"◀ result{name_suffix}"
 
         content = block.content
+        truncated = False
 
         if isinstance(content, list):
             parts = []
             for sub in content:
                 if sub.get("type") == "text":
                     t = sub.get("text", "")
-                    parts.append(trunc(t, self.tool_output_max))
                 else:
-                    s = str(sub)
-                    parts.append(trunc(s, self.tool_output_max))
+                    t = str(sub)
+                truncated = truncated or len(t) > self.tool_output_max
+                parts.append(trunc(t, self.tool_output_max))
             body = "\n".join(parts)
         else:
+            truncated = len(content) > self.tool_output_max
             body = trunc(content, self.tool_output_max)
 
-        ref = fmt_ref(lineno, block_idx)
+        ref = block_ref(block, lineno, block_idx)
         lines = [
             f"{label_color}  {label}{C.RESET}  {C.DIM}{ref}{C.RESET}",
             ind(body, "    "),
         ]
+
+        if truncated:
+            leaf = ".state.output" if _is_opencode_path(self.log_path) else ".content"
+            lines.append(self._hint(lineno, _resolve_idx(block, block_idx), leaf))
 
         if isinstance(tur, ToolUseResultDict):
             if tur.stderr:
@@ -390,16 +406,32 @@ class Renderer:
 
     def _render_context_text(self, text: str, lineno: int, block_idx: int) -> str:
         ref = fmt_ref(lineno, block_idx)
-        return "\n".join([
+        lines = [
             f"{C.RESULT}  ◀ context{C.RESET}  {C.DIM}{ref}{C.RESET}",
             ind(trunc(text, self.tool_output_max), "    "),
-        ])
+        ]
+        if len(text) > self.tool_output_max:
+            lines.append(self._hint(lineno, block_idx, ".text"))
+        return "\n".join(lines)
 
     # ── Turn renderers ───────────────────────────────────────────────────
 
     def render_user_input(self, records: list[tuple[UserRecord, int]], ts: str) -> str:
-        lines = [f"{C.USER}┌ User{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"]
-        for rec, _ in records:
+        lines: list[str] = []
+        first = True
+        for rec, lineno in records:
+            # opencode conversion tags the record with _pi (first text part
+            # index) so the ref resolves to .messages[n-1].parts[pi].text.
+            pi = getattr(rec, "_pi", None)
+            ref = fmt_ref(lineno, pi if isinstance(pi, int) else 0)
+            if first:
+                lines.append(
+                    f"{C.USER}┌ User{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}  "
+                    f"{C.DIM}{ref}{C.RESET}"
+                )
+                first = False
+            else:
+                lines.append(f"  {C.DIM}── {ref} ──{C.RESET}")
             if isinstance(rec.message.content, str):
                 lines.append(ind(rec.message.content, "  "))
         return "\n".join(lines)
@@ -446,10 +478,17 @@ class Renderer:
             for bi, block in enumerate(rec.message.content_blocks()):
                 if isinstance(block, ThinkingBlock):
                     if self.show_thinking:
-                        body.append(self._render_thinking(block))
+                        body.append(self._render_thinking(block, lineno, bi))
                     else:
-                        body.append(f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}")
+                        ref = block_ref(block, lineno, bi)
+                        body.append(
+                            f"{C.THINKING}  [thinking: {len(block.thinking)} chars]"
+                            f"{C.RESET}  {C.DIM}{ref}{C.RESET}"
+                        )
                 elif isinstance(block, TextBlock):
+                    body.append(
+                        f"{C.DIM}  ── text {block_ref(block, lineno, bi)} ──{C.RESET}"
+                    )
                     body.append(ind(block.text, "  "))
                 elif isinstance(block, ToolUseBlock):
                     if self.chat_only:
@@ -556,7 +595,10 @@ class Renderer:
                 f"{C.DIM}{ref}{C.RESET}"
             )
             truncated_body = trunc(body, self.tool_output_max)
-            return "\n".join([header, ind(truncated_body, "  ")])
+            lines = [header, ind(truncated_body, "  ")]
+            if len(body) > self.tool_output_max:
+                lines.append(self._hint(lineno, None, ".attachment.content"))
+            return "\n".join(lines)
 
         if atype == "hook_success":
             return (
