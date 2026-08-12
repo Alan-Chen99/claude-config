@@ -689,22 +689,26 @@ class Renderer:
         self, count: int, first_ts: str, last_ts: str,
         n_user: int, n_assistant: int, hidden: bool,
     ) -> str:
-        time_range = f"{first_ts}\u2013{last_ts}" if first_ts != last_ts else first_ts
+        time_range = f"{first_ts}–{last_ts}" if first_ts != last_ts else first_ts
         turns = f"{n_user} user, {n_assistant} assistant"
         status = f"{count} records hidden" if hidden else f"{count} records shown above"
-        return (
+        out = (
             f"{C.REWIND}\f⟲ rewind{C.RESET}\n"
             f"{C.DIM}  {turns}  {time_range}  ({status}){C.RESET}"
         )
+        if hidden:
+            out += f"\n{C.DIM}  reveal: --show-rewound{C.RESET}"
+        return out
 
     def render_compaction_marker(
         self, section_num: int, prev_records: int,
         prev_first_ts: str, prev_last_ts: str,
         prev_n_user: int, prev_n_assistant: int,
         tokens_before: int, tokens_after: int,
+        section_hidden: bool,
     ) -> str:
         time_range = (
-            f"{prev_first_ts}\u2013{prev_last_ts}"
+            f"{prev_first_ts}–{prev_last_ts}"
             if prev_first_ts != prev_last_ts else prev_first_ts
         )
         header = f"{C.SYSTEM}\f⟐ compacted{C.RESET}"
@@ -722,4 +726,10 @@ class Renderer:
                 parts.append(f"{tokens_after:,}tok")
             arrow = " → ".join(parts)
             token_info = f"\n{C.DIM}  context: {arrow}{C.RESET}"
-        return f"{header}\n{C.DIM}{prev_summary}{C.RESET}{token_info}"
+        out = f"{header}\n{C.DIM}{prev_summary}{C.RESET}{token_info}"
+        if section_hidden:
+            out += (
+                f"\n{C.DIM}  reveal: --compact-all or "
+                f"--compact-leg {section_num - 1}{C.RESET}"
+            )
+        return out

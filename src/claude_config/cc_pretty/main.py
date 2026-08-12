@@ -222,6 +222,7 @@ def find_compaction_boundaries(
         results.append({
             "idx": boundary_idx,
             "section_num": bi + 1,
+            "prev_start": prev_start,
             "prev_records": prev_end - prev_start,
             "prev_first_ts": fmt_ts(first_ts),
             "prev_last_ts": fmt_ts(last_ts),
@@ -678,6 +679,9 @@ def run_pipeline(inp: PipelineInput) -> None:
                 prev_n_assistant=cb["prev_n_assistant"],
                 tokens_before=cb["tokens_before"],
                 tokens_after=cb["tokens_after"],
+                section_hidden=all(
+                    j in compact_hidden for j in range(cb["prev_start"], i)
+                ),
             ))
 
         if i in rewind_markers:

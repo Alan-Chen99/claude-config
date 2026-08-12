@@ -14,6 +14,7 @@ from claude_config.cc_pretty.parse import (
     AttachmentData,
     AttachmentRecord,
     Message,
+    ToolResultBlock,
     Usage,
 )
 from claude_config.cc_pretty.render import (
@@ -386,3 +387,14 @@ def test_legend_lines_cover_every_block_type_per_harness() -> None:
     oc_file = "\n".join(legend_lines("opencode-file:///tmp/x.json"))
     assert "opencode export" not in oc_file
     assert "jq -r" in oc_file and "/tmp/x.json" in oc_file
+
+
+def test_cc_tool_result_truncation_hint_uses_sed_and_content_leaf() -> None:
+    from claude_config.cc_pretty.parse import ToolResultBlock
+
+    r = Renderer("/tmp/s.jsonl", tool_output_max=50, tool_input_max=50)
+    block = ToolResultBlock(
+        type="tool_result", tool_use_id="toolu_x", content="z" * 500,
+    )
+    out = r._render_tool_result(block, lineno=9, block_idx=0)
+    assert "…full: sed -n '9p' /tmp/s.jsonl | jq -r '.message.content[0].content'" in out

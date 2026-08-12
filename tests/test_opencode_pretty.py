@@ -419,7 +419,7 @@ def test_full_render_refs_are_source_true_on_every_block_type() -> None:
     # text block marker line
     assert "── text @L2[2] ──" in output
     # tool_use AND its result both reference the tool part @L2[3]
-    assert "▶ read" in output and "@L2[3]" in output
+    assert "▶ read" in output and output.count("@L2[3]") == 2
     # user input header carries a ref
     user_line = next(l for l in output.splitlines() if l.startswith("┌ User"))
     assert "@L1" in user_line
@@ -490,3 +490,33 @@ def test_cli_rejects_color_and_no_color_together(tmp_path) -> None:
     proc = _run_cli(export_file, "--color", "--no-color")
     assert proc.returncode == 2
     assert "not allowed with argument" in proc.stderr
+
+
+# ─── Marker reveal hints ────────────────────────────────────────────────────
+
+
+def test_rewind_marker_prints_reveal_hint_when_hidden() -> None:
+    export = sample_export()
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export)
+    assert "⟲ rewind" in output
+    assert "reveal: --show-rewound" in output
+
+
+def test_rewind_marker_omits_reveal_hint_when_shown() -> None:
+    export = sample_export()
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export, show_rewound=True)
+    assert "⟲ rewind" in output
+    assert "reveal: --show-rewound" not in output
+
+
+def test_compaction_marker_prints_reveal_hint_when_leg_hidden() -> None:
+    output = render(_add_compaction(sample_export()))
+    assert "reveal: --compact-all or --compact-leg 0" in output
+
+
+def test_compaction_marker_omits_reveal_hint_with_compact_all() -> None:
+    output = render(_add_compaction(sample_export()), compact_all=True)
+    assert "⟐ compacted" in output
+    assert "reveal: --compact" not in output
