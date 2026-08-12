@@ -375,6 +375,29 @@ def test_show_rewound_displays_rewound_records() -> None:
     assert "please inspect this" in output
 
 
+# ─── Source-true part indices (_pi / _out_len) ──────────────────────────────
+
+
+def test_export_to_records_tags_blocks_with_source_part_index() -> None:
+    records, _ = export_to_records(sample_export())
+    asst = records[1][0]
+    blocks = asst.message.content_blocks()
+    # parts: [step-start(0), reasoning(1), text(2), tool(3), step-finish(4),
+    #         unknown(5)] — rendered blocks must keep the export's indices.
+    assert getattr(blocks[0], "_pi") == 1  # thinking (reasoning part)
+    assert getattr(blocks[1], "_pi") == 2  # text part
+    assert getattr(blocks[2], "_pi") == 3  # tool_use part
+    assert getattr(blocks[2], "_out_len") == len("file contents here")
+    result_blocks = records[2][0].message.content_blocks()
+    assert getattr(result_blocks[0], "_pi") == 3  # result refs the tool part
+
+
+def test_export_to_records_tags_user_record_with_first_text_part_index() -> None:
+    records, _ = export_to_records(sample_export())
+    user_rec = records[0][0]
+    assert getattr(user_rec, "_pi") == 0  # sole text part at index 0
+
+
 # ─── Legend ─────────────────────────────────────────────────────────────────
 
 
