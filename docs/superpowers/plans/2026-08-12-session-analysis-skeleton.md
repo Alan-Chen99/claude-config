@@ -370,8 +370,8 @@ def legend_lines(log_path: str) -> list[str]:
         ]
     return [
         "# refs @L<n>[i] = line n, .message.content[i] (i=0 omitted) · "
-        "leafs: thinking .thinking · text .text · ▶ .input · ◀ .content · "
-        "user .message.content · attach .attachment.content",
+        "leafs: thinking .thinking · text .text · ▶ .input · ◀ result .content · "
+        "◀ context .text · user .message.content · attach .attachment.content",
         f"# recover: sed -n '<n>p' {log_path} | jq -r '<path>'",
     ]
 
@@ -552,7 +552,7 @@ In `src/claude_config/cc_pretty/render.py`:
         return "\n".join(lines)
 ```
 
-**3e.** Replace `_render_context_text`:
+**3e.** Replace `_render_context_text` (context blocks are TextBlocks — their raw string lives at `.text`, NOT `.content`):
 
 ```python
     def _render_context_text(self, text: str, lineno: int, block_idx: int) -> str:
@@ -562,7 +562,7 @@ In `src/claude_config/cc_pretty/render.py`:
             ind(trunc(text, self.tool_output_max), "    "),
         ]
         if len(text) > self.tool_output_max:
-            lines.append(self._hint(lineno, block_idx, ".content"))
+            lines.append(self._hint(lineno, block_idx, ".text"))
         return "\n".join(lines)
 ```
 
@@ -1025,8 +1025,9 @@ def render_skeleton(
                              ".state.output" if oc else ".content",
                              f'"{_preview(text)}"')
                     elif isinstance(block, TextBlock):
+                        # cc context block — raw string at .text, not .content
                         emit(ref, "context", f"{_tok(block.text)}~tok",
-                             ".content", f'"{_preview(block.text)}"')
+                             ".text", f'"{_preview(block.text)}"')
 
         elif isinstance(rec, AttachmentRecord):
             a = rec.attachment
