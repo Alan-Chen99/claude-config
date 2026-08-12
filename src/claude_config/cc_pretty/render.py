@@ -205,37 +205,86 @@ def fmt_ref(lineno: int, block_idx: int = 0) -> str:
     return f"@L{lineno}"
 
 
-def render_legend(log_path: str) -> str:
-    """One-line legend explaining how to recover content from `@L<n>` refs.
+def _resolve_idx(block: object, enum_idx: int) -> int:
+    """Source-true block index: opencode ``_pi`` when present, else enum index."""
+    pi = getattr(block, "_pi", None)
+    return pi if isinstance(pi, int) else enum_idx
 
-    Printed once at the top of the output so per-block recovery hints (the
-    old `# sed -n 'Np' ... | jq -r '...'` lines) can be omitted entirely.
 
-    For ``log_path`` of the form ``opencode://<session_id>`` (used by
-    opencode-pretty), the recovery recipe points at ``opencode export``
-    instead of cc's sed+jq combo — ``@L<n>`` then refers to the 1-based
-    index into ``.messages`` and ``[i]`` to the index into ``.parts``.
+def block_ref(block: object, lineno: int, enum_idx: int) -> str:
+    """Ref for a content block, source-true across harnesses.
 
-    ``opencode export`` truncates its stdout at ~64KB when writing to a
-    pipe, so the recipe redirects to a file first and runs ``jq`` against
-    the file — a bare ``opencode export ... | jq ...`` silently loses
-    everything past the first pipe buffer and errors with "Unfinished
-    string at EOF" on any part beyond that boundary.
+    opencode conversion tags each block with ``_pi`` — the index of the part
+    in the exported message it came from — because dropped parts
+    (step-start/step-finish/...) would otherwise shift the enumeration index
+    away from the jq path the legend promises. cc-pretty blocks have no
+    ``_pi``; their enumeration index already matches ``.message.content[i]``.
+    """
+    return fmt_ref(lineno, _resolve_idx(block, enum_idx))
+
+
+def _is_opencode_path(log_path: str) -> bool:
+    return log_path.startswith(("opencode://", "opencode-file://"))
+
+
+def recovery_cmd(log_path: str, lineno: int, block_idx: int | None, leaf: str) -> str:
+    """Exact shell command printing the raw string behind a ref.
+
+    ``block_idx`` is the source-true block/part index (see :func:`block_ref`);
+    ``None`` means the leaf addresses the whole record (cc user string input,
+    attachments). ``leaf`` is the jq path suffix appended after the block
+    selector (e.g. ``.state.output``, ``.content``).
     """
     if log_path.startswith("opencode://"):
-        session_id = log_path[len("opencode://"):]
-        return (
-            f"{C.HINT}# refs '@L<n>[i]' point at message n (1-based), part i (default 0). "
-            f"Recover: opencode export {session_id} > /tmp/oc-{session_id}.json "
-            f"&& jq '.messages[<n-1>].parts[<i>]' /tmp/oc-{session_id}.json{C.RESET}"
-        )
-    return (
-        f"{C.HINT}# refs '@L<n>[i]' point at line n, content block i (default 0). "
-        f"Recover: sed -n '<n>p' {log_path} | jq -r '<jq>' — "
-        f"jq is .message.content[i].input for ▶ tool calls, "
-        f".content for ◀ result, .text for ◀ context, "
-        f".attachment.content for Additional Context.{C.RESET}"
-    )
+        sid = log_path[len("opencode://"):]
+        f = f"/tmp/oc-{sid}.json"
+        path = f".messages[{lineno - 1}].parts[{block_idx or 0}]{leaf}"
+        return f"opencode export {sid} > {f} && jq -r '{path}' {f}"
+    if log_path.startswith("opencode-file://"):
+        src = log_path[len("opencode-file://"):]
+        path = f".messages[{lineno - 1}].parts[{block_idx or 0}]{leaf}"
+        return f"jq -r '{path}' {src}"
+    if block_idx is None:
+        return f"sed -n '{lineno}p' {log_path} | jq -r '{leaf}'"
+    return (f"sed -n '{lineno}p' {log_path} | "
+            f"jq -r '.message.content[{block_idx}]{leaf}'")
+
+
+def legend_lines(log_path: str) -> list[str]:
+    """The two hint lines documenting refs + recovery for this log source."""
+    if log_path.startswith("opencode://"):
+        sid = log_path[len("opencode://"):]
+        return [
+            "# refs @L<n>[i] = .messages[n-1].parts[i] (i=0 omitted) · "
+            "leafs: reasoning/text/user .text · tool .state.input/.state.output",
+            f"# recover: opencode export {sid} > /tmp/oc-{sid}.json "
+            f"&& jq -r '.messages[<n-1>].parts[<i>]<leaf>' /tmp/oc-{sid}.json",
+        ]
+    if log_path.startswith("opencode-file://"):
+        src = log_path[len("opencode-file://"):]
+        return [
+            "# refs @L<n>[i] = .messages[n-1].parts[i] (i=0 omitted) · "
+            "leafs: reasoning/text/user .text · tool .state.input/.state.output",
+            f"# recover: jq -r '.messages[<n-1>].parts[<i>]<leaf>' {src}",
+        ]
+    return [
+        "# refs @L<n>[i] = line n, .message.content[i] (i=0 omitted) · "
+        "leafs: thinking .thinking · text .text · ▶ .input · ◀ .content · "
+        "user .message.content · attach .attachment.content",
+        f"# recover: sed -n '<n>p' {log_path} | jq -r '<path>'",
+    ]
+
+
+def render_legend(log_path: str) -> str:
+    """Two-line hint header documenting how to recover raw content behind refs.
+
+    Printed once at the top of the full render (and reused as the skeleton
+    header's recipe lines). ``opencode export`` truncates its stdout at ~64KB
+    on a pipe, so the session recipe redirects to a file first — a bare
+    ``opencode export ... | jq ...`` silently loses everything past the
+    first pipe buffer.
+    """
+    return "\n".join(f"{C.HINT}{line}{C.RESET}" for line in legend_lines(log_path))
 
 
 # ─── Usage formatting ───────────────────────────────────────────────────────
