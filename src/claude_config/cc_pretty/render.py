@@ -269,8 +269,8 @@ def legend_lines(log_path: str) -> list[str]:
         ]
     return [
         "# refs @L<n>[i] = line n, .message.content[i] (i=0 omitted) · "
-        "leafs: thinking .thinking · text .text · ▶ .input · ◀ .content · "
-        "user .message.content · attach .attachment.content",
+        "leafs: thinking .thinking · text .text · ▶ .input · ◀ result .content · "
+        "◀ context .text · user .message.content · attach .attachment.content",
         f"# recover: sed -n '<n>p' {log_path} | jq -r '<path>'",
     ]
 

@@ -378,6 +378,7 @@ def test_legend_lines_cover_every_block_type_per_harness() -> None:
     for token in (".thinking", ".text", ".input", ".content",
                   ".message.content", ".attachment.content", "sed -n"):
         assert token in cc, token
+    assert "context .text" in cc  # ◀ context blocks are TextBlocks (leaf .text)
     oc = "\n".join(legend_lines("opencode://ses_x"))
     for token in (".text", ".state.input", ".state.output",
                   "opencode export ses_x"):
