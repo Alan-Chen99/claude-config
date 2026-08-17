@@ -22,7 +22,7 @@ opencode conversion drops parts (`step-start`, `step-finish`, `patch`, `file`), 
 - Modify: `src/claude_config/opencode_pretty/convert.py` (`_build_assistant_blocks`, `_collect_user_text`, `_make_user_record` and its caller)
 - Test: `tests/test_opencode_pretty.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_opencode_pretty.py`:
 
@@ -50,12 +50,12 @@ def test_export_to_records_tags_user_record_with_first_text_part_index() -> None
     assert getattr(user_rec, "_pi") == 0  # sole text part at index 0
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_opencode_pretty.py -q -k "source_part_index or first_text_part_index"`
 Expected: FAIL — `getattr(...) == None` assertions.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/claude_config/opencode_pretty/convert.py`, replace `_build_assistant_blocks` with:
 
@@ -204,12 +204,12 @@ def _make_user_record(
     })
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `uv run pytest tests/test_opencode_pretty.py -q`
 Expected: all PASS (new two + existing — `_pi` extras don't change record counts).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/claude_config/opencode_pretty/convert.py tests/test_opencode_pretty.py
@@ -226,7 +226,7 @@ Primitives everything else uses: `block_ref` (source-true ref), `recovery_cmd` (
 - Modify: `src/claude_config/cc_pretty/render.py` (`render_legend` area)
 - Test: `tests/test_cc_pretty_render.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Update the import block at the top of `tests/test_cc_pretty_render.py` to include the new names:
 
@@ -296,12 +296,12 @@ def test_legend_lines_cover_every_block_type_per_harness() -> None:
     assert "jq -r" in oc_file and "/tmp/x.json" in oc_file
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_cc_pretty_render.py -q -k "block_ref or recovery_cmd or legend_lines"`
 Expected: FAIL — `ImportError: cannot import name 'block_ref'`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/claude_config/cc_pretty/render.py`, replace `render_legend` with the following (keep `fmt_ref` unchanged above it):
 
@@ -388,12 +388,12 @@ def render_legend(log_path: str) -> str:
     return "\n".join(f"{C.HINT}{line}{C.RESET}" for line in legend_lines(log_path))
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `uv run pytest tests/test_cc_pretty_render.py tests/test_opencode_pretty.py -q`
 Expected: all PASS — including existing legend tests (they assert substrings that still hold).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/claude_config/cc_pretty/render.py tests/test_cc_pretty_render.py
@@ -409,7 +409,7 @@ Full render currently refs only tool calls/results/context/attachments. Add refs
 - Modify: `src/claude_config/cc_pretty/render.py` (`_render_thinking`, `_render_tool_use`, `_render_tool_result`, `_render_context_text`, `render_user_input`, `render_assistant_turn`, `render_attachment`)
 - Test: `tests/test_opencode_pretty.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_opencode_pretty.py`:
 
@@ -453,12 +453,12 @@ def test_truncated_tool_input_hint_points_at_state_input() -> None:
     assert "…full:" in output and ".state.input'" in output
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_opencode_pretty.py -q -k "source_true_on_every or recovery_command or no_hint or state_input"`
 Expected: FAIL — no `@L2[1]` thinking ref, no `── text` marker, no `…full:` lines.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/claude_config/cc_pretty/render.py`:
 
@@ -626,12 +626,12 @@ In `src/claude_config/cc_pretty/render.py`:
             return "\n".join(lines)
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `uv run pytest tests/test_opencode_pretty.py tests/test_cc_pretty_render.py -q`
 Expected: all PASS. (Existing assertions still hold: `test_render_tool_use_has_ref_and_no_toolu_id`'s `"sed -n" not in out` passes because the short input isn't truncated; `[thinking:` prefix unchanged.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/claude_config/cc_pretty/render.py tests/test_opencode_pretty.py
@@ -649,7 +649,7 @@ Hidden regions must self-document how to reveal them. Rewind markers gain `revea
 - Modify: `src/claude_config/cc_pretty/render.py` (`render_rewind_marker`, `render_compaction_marker`)
 - Test: `tests/test_opencode_pretty.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_opencode_pretty.py`:
 
@@ -684,12 +684,12 @@ def test_compaction_marker_omits_reveal_hint_with_compact_all() -> None:
     assert "reveal: --compact" not in output
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_opencode_pretty.py -q -k "reveal_hint"`
 Expected: FAIL — no `reveal:` lines exist yet.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 **3a.** In `src/claude_config/cc_pretty/main.py`, `find_compaction_boundaries`: add `"prev_start": prev_start` to the result dict:
 
@@ -786,12 +786,12 @@ Expected: FAIL — no `reveal:` lines exist yet.
             ))
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `uv run pytest tests/test_opencode_pretty.py tests/test_cc_pretty_render.py -q`
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/claude_config/cc_pretty/main.py src/claude_config/cc_pretty/render.py tests/test_opencode_pretty.py
@@ -815,7 +815,7 @@ New DENSITY flag: one line per content block (ref, type, ~tok size, jq leaf, pre
 - Modify: `src/claude_config/cc_pretty/main.py` (`add_shared_args` regrouped + `--skeleton`, `run_pipeline` branch, module docstring)
 - Test: `tests/test_opencode_pretty.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_opencode_pretty.py`:
 
@@ -866,12 +866,12 @@ def test_cli_rejects_chat_only_and_skeleton_together(tmp_path) -> None:
     assert "not allowed with argument" in proc.stderr
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_opencode_pretty.py -q -k "skeleton"`
 Expected: FAIL — `make_args(skeleton=True)` sets the attribute but `run_pipeline` has no skeleton branch, so the render lacks the `# skeleton:` header.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 **3a.** In `src/claude_config/cc_pretty/render.py`, add the import and append the skeleton section at the end of the file:
 
@@ -1251,12 +1251,12 @@ rendering loop on top of a different data source.
 """
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `uv run pytest tests/test_opencode_pretty.py tests/test_cc_pretty_render.py -q`
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/claude_config/cc_pretty/main.py src/claude_config/cc_pretty/render.py tests/test_opencode_pretty.py
@@ -1273,7 +1273,7 @@ With `--from-file`, hints/legend must reference the saved export (no re-export).
 - Modify: `src/claude_config/cc_pretty/main.py` (`emit_agent_output`)
 - Test: `tests/test_opencode_pretty.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_opencode_pretty.py`:
 
@@ -1302,12 +1302,12 @@ def test_emit_agent_output_chunk_listing_drops_parallel_reads(
     assert "/tmp/pytest-agent-1.txt" in out
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_opencode_pretty.py -q -k "from_file_legend or agent_output"`
 Expected: FAIL — legend still prints the export recipe under `--from-file`; chunk listing still says "Read all".
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 **3a.** In `src/claude_config/opencode_pretty/main.py`, replace the log_path construction:
 
@@ -1332,12 +1332,12 @@ Expected: FAIL — legend still prints the export recipe under `--from-file`; ch
           "reading every chunk — see skills/session-analysis.")
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `uv run pytest tests/test_opencode_pretty.py tests/test_cc_pretty_render.py -q`
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/claude_config/opencode_pretty/main.py src/claude_config/cc_pretty/main.py tests/test_opencode_pretty.py
@@ -1350,14 +1350,14 @@ git commit -m "opencode-pretty: --from-file hints reference the file; --agent dr
 
 No automated test — manual verification with exact commands. Any mismatch = fix before proceeding.
 
-- [ ] **Step 1: Full suite green**
+- [x] **Step 1: Full suite green**
 
 ```bash
 cd /root/claude-config-work3 && uv run pytest tests/ -q
 ```
 Expected: all PASS.
 
-- [ ] **Step 2: opencode skeleton + ref resolution on a real session**
+- [x] **Step 2: opencode skeleton + ref resolution on a real session**
 
 ```bash
 cd /root/claude-config-work3
@@ -1374,7 +1374,7 @@ jq -r '.messages[3].parts[3].state.input' /tmp/oc-skel-check.json | head -3
 ```
 Expected: tool name matches the skeleton line; input prints. (Adjust indices to an actual tool line from the skeleton output.)
 
-- [ ] **Step 3: cc-pretty skeleton + ref resolution on a real JSONL**
+- [x] **Step 3: cc-pretty skeleton + ref resolution on a real JSONL**
 
 ```bash
 CC_JSONL=$(ls -t /root/.claude/projects/*/*.jsonl 2>/dev/null | head -1)
@@ -1391,14 +1391,14 @@ sed -n '57p' "$CC_JSONL" | jq -r '.message.content[2].name'   # prints the tool 
 ```
 Expected: name matches the skeleton line.
 
-- [ ] **Step 4: Full render smoke (humans still use it)**
+- [x] **Step 4: Full render smoke (humans still use it)**
 
 ```bash
 CLAUDE_CONFIG_ROOT=/root/claude-config-work3 ./agent-tools/target/release/agent-tools opencode-pretty ses_00b8f9b93ffevaivD0NyDMnuau --tool-max 300 | head -40
 ```
 Expected: two-line legend at top; thinking headers carry refs; `── text @L… ──` markers; truncated blocks end with `…full: opencode export … jq -r …` lines; user headers carry `@L…`.
 
-- [ ] **Step 5: Commit (only if fixes were needed)**
+- [x] **Step 5: Commit (only if fixes were needed)**
 
 ```bash
 git add -A src tests
@@ -1418,7 +1418,7 @@ Assemble the merged skill. New prose is given verbatim below; carried sections a
 - Delete: `skills/session-timeline/` (SKILL.md, CLAUDE.md)
 - Delete: `skills/diagnose-session/` (SKILL.md, CLAUDE.md, README.md)
 
-- [ ] **Step 1: Write `skills/session-analysis/SKILL.md`**
+- [x] **Step 1: Write `skills/session-analysis/SKILL.md`**
 
 Frontmatter:
 
@@ -1533,7 +1533,7 @@ pretty-side hiding.
      - Rules rule 1 "Read thinking blocks." keep; the `╭─ thinking ─` marker phrasing → "reasoning/thinking blocks".
    - Rules: carry all EXCEPT rule 4 ("Do NOT use subagents…") — DELETE it. Renumber.
 
-- [ ] **Step 2: Write `skills/session-analysis/CLAUDE.md`**
+- [x] **Step 2: Write `skills/session-analysis/CLAUDE.md`**
 
 ```markdown
 # session-analysis/
@@ -1549,7 +1549,7 @@ skeleton-first reading protocol with evidence, question, and diagnose modes.
 | `README.md` | Design rationale and limitations                | Understanding the approach     |
 ```
 
-- [ ] **Step 3: Write `skills/session-analysis/README.md`**
+- [x] **Step 3: Write `skills/session-analysis/README.md`**
 
 CARRY `skills/diagnose-session/README.md` (design rationale, detection tiers, limitations, relationship to self-reporting) with these edits:
 - Title: `# session-analysis`.
@@ -1557,13 +1557,13 @@ CARRY `skills/diagnose-session/README.md` (design rationale, detection tiers, li
 - Limitations: replace "Pick the matching renderer … per Step 1 of the SKILL." with "Both harnesses are read via the shared skeleton-first reading protocol (see SKILL.md)."
 - Limitations: drop "Token-limited: very long conversations may need chunked reading" (the protocol IS the chunking strategy).
 
-- [ ] **Step 4: Delete the old skill dirs**
+- [x] **Step 4: Delete the old skill dirs**
 
 ```bash
 git rm -r skills/session-timeline skills/diagnose-session
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add skills/session-analysis
@@ -1584,7 +1584,7 @@ git commit -m "skills: merge session-timeline + diagnose-session into session-an
 - Modify: `docs/opencode-system-prompt/build-self-reported.md` (line ~220)
 - Modify: `notes/compliance-check-failure-mode.md` (two links)
 
-- [ ] **Step 1: Rename + rewrite the agent wrapper**
+- [x] **Step 1: Rename + rewrite the agent wrapper**
 
 ```bash
 git mv agents/session-timeline.md agents/session-analysis.md
@@ -1631,7 +1631,7 @@ Return:
 Do not inline the artifact body — the parent reads it from the path.
 ```
 
-- [ ] **Step 2: `skills/CLAUDE.md` table**
+- [x] **Step 2: `skills/CLAUDE.md` table**
 
 Replace the two rows:
 
@@ -1646,7 +1646,7 @@ with:
 | `session-analysis/`   | Session log analysis: skeleton-first reading protocol; evidence artifacts, question answers, diagnose reports | Analyzing agent session logs (opencode exports or Claude Code JSONL) |
 ```
 
-- [ ] **Step 3: `skills/diagnose-workflow/SKILL.md`**
+- [x] **Step 3: `skills/diagnose-workflow/SKILL.md`**
 
 Retitle `## Relationship to diagnose-session` → `## Relationship to session-analysis`. In the table, replace every `diagnose-session` cell mention with `session-analysis` (diagnose mode). Replace the final two lines:
 
@@ -1664,11 +1664,11 @@ For comprehensive diagnosis, use both:
 2. `session-analysis` in diagnose mode second — get content-level findings
 ```
 
-- [ ] **Step 4: `skills/diagnose-workflow/README.md`**
+- [x] **Step 4: `skills/diagnose-workflow/README.md`**
 
 Line 46: `Use `diagnose-session` for content-level analysis.` → `Use `session-analysis` (diagnose mode) for content-level analysis.`
 
-- [ ] **Step 5: `.claude/skills/prompt-tests/SKILL.md` grader brief**
+- [x] **Step 5: `.claude/skills/prompt-tests/SKILL.md` grader brief**
 
 Replace the brief's first two sentences (the "Read the session log with `agent-tools cc-pretty <FILE> --agent` … read every chunk file it lists." part) with:
 
@@ -1685,19 +1685,19 @@ Leave "cheating/contamination using the rules in this skill…" and everything a
 - "**Full diagnose-session report** inlined." → "**Full diagnose report** inlined."
 - "Outstanding problematic behavior in the diagnose-session report" → "…in the diagnose report".
 
-- [ ] **Step 6: Repo root `CLAUDE.md`**
+- [x] **Step 6: Repo root `CLAUDE.md`**
 
 In the `agent-tools/` section, both CLI-surface descriptions: add `--skeleton` to the mirrored flag list (cc-pretty entry and the opencode-pretty entry's "Mirrors cc-pretty's CLI surface (`--tool-max`, …)" list).
 
-- [ ] **Step 7: `docs/opencode-system-prompt/build-self-reported.md`**
+- [x] **Step 7: `docs/opencode-system-prompt/build-self-reported.md`**
 
 Around line 220 there is a `diagnose-session` mention; update it to `session-analysis` (diagnose mode), preserving surrounding prose.
 
-- [ ] **Step 8: `notes/compliance-check-failure-mode.md` links**
+- [x] **Step 8: `notes/compliance-check-failure-mode.md` links**
 
 Two links target `../skills/session-timeline/SKILL.md` (lines ~177 and ~355). Repoint both to `../skills/session-analysis/SKILL.md`, label `[session-analysis]` with a parenthetical "(formerly `session-timeline`)". Prose mentions of the historical skill name elsewhere in notes/ stay untouched.
 
-- [ ] **Step 9: Verify no dangling references**
+- [x] **Step 9: Verify no dangling references**
 
 ```bash
 cd /root/claude-config-work3
@@ -1705,7 +1705,7 @@ grep -rn "diagnose-session\|session-timeline" --include="*.md" skills/ agents/ .
 ```
 Expected: no output except the historical-name note inside `skills/session-analysis/README.md` (which intentionally names both predecessor skills).
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add agents/ skills/ .claude/skills/prompt-tests/ CLAUDE.md docs/opencode-system-prompt/ notes/compliance-check-failure-mode.md
@@ -1718,7 +1718,7 @@ git commit -m "session-analysis: rename agent wrapper, update all references"
 
 Verify the merged skill's documented commands actually work end-to-end (technique-skill application test), then run everything.
 
-- [ ] **Step 1: Skeleton → batch extraction works as documented (opencode)**
+- [x] **Step 1: Skeleton → batch extraction works as documented (opencode)**
 
 ```bash
 cd /root/claude-config-work3
@@ -1731,7 +1731,7 @@ jq -r '.messages[1].parts[1].text' /tmp/oc-proto.json | head -3
 ```
 Expected: slice length 3; the reasoning text matches the skeleton preview at that ref.
 
-- [ ] **Step 2: Skeleton → batch extraction works as documented (cc)**
+- [x] **Step 2: Skeleton → batch extraction works as documented (cc)**
 
 ```bash
 CC_JSONL=$(ls -t /root/.claude/projects/*/*.jsonl 2>/dev/null | head -1)
@@ -1742,18 +1742,18 @@ sed -n '1,3p' "$CC_JSONL" | jq -r '.type'
 ```
 Expected: refs resolve to the named content. (If no CC jsonl exists, use the Task 7 fixture.)
 
-- [ ] **Step 3: Reveal-flag deviation works**
+- [x] **Step 3: Reveal-flag deviation works**
 
 From `/tmp/skel-check.txt` or `/tmp/skel-cc.txt`: if a `⟐ compacted` or `⟲ rewind` line appears, re-run the skeleton with its printed `reveal:` flag and confirm the hidden block lines appear. If the session has no hidden regions, force one: cc — pick any jsonl with a compact_boundary; opencode — the revert-state fixture in the test suite already covers it; note the result.
 
-- [ ] **Step 4: Full test suite + repo checks**
+- [x] **Step 4: Full test suite + repo checks**
 
 ```bash
 cd /root/claude-config-work3 && uv run pytest tests/ -q && git status --short
 ```
 Expected: all PASS; clean tree (everything committed).
 
-- [ ] **Step 5: Final commit (if anything changed)**
+- [x] **Step 5: Final commit (if anything changed)**
 
 ```bash
 git add -A && git commit -m "session-analysis: protocol smoke-test fixes"
