@@ -578,3 +578,21 @@ def test_cli_rejects_chat_only_and_skeleton_together(tmp_path) -> None:
     proc = _run_cli(export_file, "--chat-only", "--skeleton")
     assert proc.returncode == 2
     assert "not allowed with argument" in proc.stderr
+
+
+def test_skeleton_marks_rewound_tail_with_reveal_flag() -> None:
+    export = sample_export()
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export, skeleton=True)
+    assert "⟲ rewind" in output
+    assert "reveal: --show-rewound" in output
+    assert "please inspect this" not in output  # rewound blocks emit no lines
+
+
+def test_skeleton_show_rewound_lists_blocks_without_reveal() -> None:
+    export = sample_export()
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export, skeleton=True, show_rewound=True)
+    assert "shown above" in output
+    assert "reveal: --show-rewound" not in output
+    assert '"please inspect this"' in output

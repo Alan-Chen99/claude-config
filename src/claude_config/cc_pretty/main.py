@@ -460,7 +460,7 @@ def add_shared_args(parser: argparse.ArgumentParser, *, default_tool_max: int = 
 
       SELECTION    which records participate
       DENSITY      view mode (mutually exclusive)
-      BODY-DETAIL  per-block detail within the default full-render density
+      BODY-DETAIL  per-block detail (no effect under --skeleton)
       OUTPUT       where/how the render is emitted
 
     Front-ends still own the positional argument(s) that point at the data
@@ -516,7 +516,8 @@ def add_shared_args(parser: argparse.ArgumentParser, *, default_tool_max: int = 
     )
 
     body = parser.add_argument_group(
-        "BODY-DETAIL (only within the default full-render density)")
+        "BODY-DETAIL (no effect under --skeleton; --show-usage/--no-thinking "
+        "also apply under --chat-only)")
     body.add_argument(
         "--tool-max",
         type=int,

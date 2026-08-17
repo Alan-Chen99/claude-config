@@ -746,7 +746,7 @@ def _tok(s: str) -> int:
 
 
 def _preview(s: str, width: int = 50) -> str:
-    one = " ".join(s.split())
+    one = " ".join(s.split()).replace('"', "'")
     if len(one) > width:
         return one[:width] + "…"
     return one
@@ -780,7 +780,9 @@ def render_skeleton(
     jq leaf so a reader can plan ~10k-token batches and extract exactly those
     blocks with one jq/sed command (see skills/session-analysis).
     Bookkeeping records (progress, snapshots, queue ops, ...) are skipped;
-    --show-all surfaces model-invisible attachments/system lines.
+    --show-all surfaces model-invisible attachments/system lines (attachments
+    without text content are skipped — there is no .attachment.content to
+    extract).
     """
     oc = _is_opencode_path(log_path)
     tool_id_to_name: dict[str, str] = {}
@@ -811,7 +813,7 @@ def render_skeleton(
 
     def emit(ref: str, label: str, size: str, leaf: str, preview: str) -> None:
         lines.append(
-            f"{ref:<10} {label:<18} {size:<20} {leaf:<26} {preview}".rstrip()
+            f"{ref:<12} {label:<30} {size:<20} {leaf:<26} {preview}".rstrip()
         )
 
     def rewind_line(m: dict) -> str:
@@ -899,10 +901,12 @@ def render_skeleton(
             body = a.content
             text = ("\n\n".join(str(x) for x in body)
                     if isinstance(body, list) else str(body or ""))
+            if not text:
+                continue  # nothing extractable — no skeleton line
             emit(fmt_ref(lineno), f"attach:{a.type}",
-                 f"{_tok(text)}~tok" if text else "",
-                 ".attachment.content" if text else "",
-                 f'"{_preview(text)}"' if text else "")
+                 f"{_tok(text)}~tok",
+                 ".attachment.content",
+                 f'"{_preview(text)}"')
 
         elif isinstance(rec, SystemRecord):
             if rec.subtype == "compact_boundary":
