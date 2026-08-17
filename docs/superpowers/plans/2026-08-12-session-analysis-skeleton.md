@@ -802,6 +802,12 @@ git commit -m "cc-pretty: rewind/compaction markers carry reveal hints for hidde
 
 ### Task 5: `--skeleton` density mode
 
+**Folded review follow-ups (from Tasks 3-4 reviews) — apply FIRST as their own commit:**
+1. Remove the redundant local `from claude_config.cc_pretty.parse import ToolResultBlock` inside `test_cc_tool_result_truncation_hint_uses_sed_and_content_leaf` (it is imported at module top).
+2. Add compact-leg pin tests to tests/test_opencode_pretty.py: `render(_add_compaction(sample_export()), compact_leg=1)` → `reveal: --compact` present; `compact_leg=0` → `reveal: --compact` absent.
+3. Guard the vacuous-true case: run_pipeline call site becomes `section_hidden=cb["prev_records"] > 0 and all(...)`; mirror the same `cb["prev_records"] > 0 and` guard in `render_skeleton`'s marker computation (3a below).
+Commit: `cc-pretty: review follow-ups — compact-leg pins, zero-record section guard`.
+
 New DENSITY flag: one line per content block (ref, type, ~tok size, jq leaf, preview) plus hidden-region marker lines, with a header carrying identity, the size heuristic, and the recovery recipe. Flags reorganized into argparse axis groups so `--help` documents the spec.
 
 **Files:**
@@ -958,8 +964,9 @@ def render_skeleton(
     for i, (rec, lineno) in enumerate(records):
         if i in compaction_markers:
             cb = compaction_markers[i]
-            hidden = all(j in compact_hidden
-                         for j in range(cb["prev_start"], cb["idx"]))
+            hidden = (cb["prev_records"] > 0 and
+                      all(j in compact_hidden
+                          for j in range(cb["prev_start"], cb["idx"])))
             line = (f"⟐ compacted · section {cb['section_num']} "
                     f"({cb['prev_records']} records)")
             if hidden:
