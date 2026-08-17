@@ -1,6 +1,8 @@
 # session-analysis
 
-Post-hoc analysis of Claude Code conversation logs to surface unreported items.
+Post-hoc analysis of agent session logs (opencode exports and Claude Code
+JSONL): focus-directed evidence artifacts, question answers, and findings
+reports surfacing items the agent did not self-report.
 
 This skill merges the skills formerly known as `diagnose-session` (findings
 reports) and `session-timeline` (evidence artifacts) into one skeleton-first
@@ -32,7 +34,8 @@ External inspection complements self-reporting because it has different strength
 Findings are organized by detectability confidence:
 
 - **HIGH**: Tool issues (error markers), context waste (repeated reads),
-  corrected mistakes (error→revision sequences)
+  corrected mistakes (error→revision sequences), workflow dropout (dropped
+  skill-workflow steps)
 - **MEDIUM**: Manual action, instruction issues, unexpected changes
 - **THINKING-BLOCK**: Contradictory reasoning, under-investigated critical
   issues, unverified prior-iteration claims, dismissed concerns

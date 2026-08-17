@@ -66,11 +66,12 @@ Required when a parent dispatches this skill via a subagent.
 
 ### diagnose mode
 
-- Input: log path (`*.jsonl`) or opencode session id.
+- Input: log path (`*.jsonl`), opencode session id, or saved export
+  (`*.json` via `--from-file`).
 - Produces: a findings report (see "Mode: diagnose" below), returned in the
   response prose.
-- Must be named explicitly (`mode: diagnose` or "diagnose this session") —
-  the no-mode default for direct invocation stays question mode.
+- Response shape: `{ report_prose }`.
+- Must be named explicitly (`mode: diagnose` or "diagnose this session").
 
 ## For parents dispatching this skill
 
@@ -136,8 +137,6 @@ pretty file as reading substrate.
 `Exporting session: <id>` to **stderr** and pure JSON to stdout, so a plain
 `> file` redirect gives a clean JSON file — do NOT `tail -n +2` it (that
 strips the opening `{`). Only strip if you used `2>&1` and merged stderr in.
-The redirect to file is required — `opencode export | jq` truncates at
-~64KB.
 
 **Reference convention**: `@L<n>[i]` where `n` is 1-based message index and
 `i` is 0-based part index. Map to jq: `.messages[<n-1>].parts[<i>]`. Refs are
@@ -177,19 +176,19 @@ Per-type payload keys:
 
 ```bash
 # Full part at @L5[3]
-jq '.messages[4].parts[3]' /tmp/sess-<id>-clean.json
+jq '.messages[4].parts[3]' /tmp/oc-<id>.json
 
 # Just the reasoning text at @L8
-jq '.messages[7].parts[] | select(.type=="reasoning") | .text' /tmp/sess-<id>-clean.json
+jq '.messages[7].parts[] | select(.type=="reasoning") | .text' /tmp/oc-<id>.json
 
 # Every tool call in message @L5 with input
-jq '.messages[4].parts[] | select(.type=="tool") | {tool, input: .state.input}' /tmp/sess-<id>-clean.json
+jq '.messages[4].parts[] | select(.type=="tool") | {tool, input: .state.input}' /tmp/oc-<id>.json
 
 # Every tool_use path across the session that matches a regex
-jq -r '.messages[] | .parts[] | select(.type=="tool") | .state.input | (.filePath // .command // empty)' /tmp/sess-<id>-clean.json | grep -nE '<focus-regex>'
+jq -r '.messages[] | .parts[] | select(.type=="tool") | .state.input | (.filePath // .command // empty)' /tmp/oc-<id>.json | grep -nE '<focus-regex>'
 
 # Reasoning token count per assistant turn (for F62 heading-only handling)
-jq '.messages[] | select(.info.role=="assistant") | {id: .info.id, reasoning_tokens: .info.tokens.reasoning}' /tmp/sess-<id>-clean.json
+jq '.messages[] | select(.info.role=="assistant") | {id: .info.id, reasoning_tokens: .info.tokens.reasoning}' /tmp/oc-<id>.json
 ```
 
 **DB location**: `~/.local/share/opencode/opencode.db` for latest/beta/prod
@@ -203,6 +202,10 @@ channels; `~/.local/share/opencode/opencode-${channel}.db` otherwise (e.g.,
 - `text` — assistant text at message end (final channel)
 - `tool_use` — tool call (name + input)
 - `tool_result` — tool output (usually rendered with the tool_use)
+
+In export terms: a rendered `tool_use`/`◀ result` pair is one `tool` part's
+`.state.input`/`.state.output`; preamble is a `text` part before the tool
+part.
 
 Preamble may not describe all tools in a parallel-batch turn; when it doesn't,
 note the payload contents of each `tool_use` factually.
@@ -331,7 +334,8 @@ focus-slug is 2–4 dash-separated words naming the focus. Example filenames:
 
 Post-hoc analysis of an agent conversation log (opencode export or Claude
 Code JSONL). Surfaces findings the agent may have missed in its
-self-reporting (Required notes).
+self-reporting (Required notes — the self-reporting sections in assistant
+messages; see conventions/agent-responses.md).
 
 Read the log via the Reading protocol above.
 
