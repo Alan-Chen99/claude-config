@@ -532,3 +532,49 @@ def test_compaction_marker_omits_reveal_hint_with_compact_leg_0() -> None:
     # Leg 0 = pre-compact section itself: nothing hidden at the boundary.
     output = render(_add_compaction(sample_export()), compact_leg=0)
     assert "reveal: --compact" not in output
+
+
+# ─── Skeleton density ───────────────────────────────────────────────────────
+
+
+def test_skeleton_renders_one_line_per_block_with_refs_sizes_leafs() -> None:
+    export = sample_export()
+    # Long reasoning text so we can prove the skeleton shows previews, not bodies.
+    export["messages"][1]["parts"][1]["text"] = "deep thought " * 100
+    output = render(export, skeleton=True)
+    lines = output.splitlines()
+    assert lines[0].startswith("# skeleton: parser-work")
+    assert any("~tok" in l and "sizes" in l for l in lines[:3])
+    assert any(l.startswith("@L1") and "user" in l and ".text" in l
+               and '"please inspect this"' in l for l in lines)
+    # reasoning at TRUE part index 1 (step-start occupies part 0)
+    assert any(l.startswith("@L2[1]") and "reasoning" in l for l in lines)
+    assert any(l.startswith("@L2[2]") and "text" in l for l in lines)
+    assert any(l.startswith("@L2[3]") and "tool:read" in l
+               and ".state.input/.state.output" in l
+               and "/tmp/example.txt" in l for l in lines)
+    # full bodies must NOT appear — skeleton is previews only
+    assert "deep thought deep thought deep thought deep thought deep thought" \
+        not in output
+
+
+def test_skeleton_marks_hidden_regions_with_reveal_flags() -> None:
+    output = render(_add_compaction(sample_export()), skeleton=True)
+    assert "⟐ compacted · section 1" in output
+    assert "reveal: --compact-all or --compact-leg 0" in output
+    assert "please inspect this" not in output  # hidden leg: no block lines
+
+
+def test_skeleton_compact_all_lists_every_leg_without_reveal() -> None:
+    output = render(_add_compaction(sample_export()),
+                    skeleton=True, compact_all=True)
+    assert '"please inspect this"' in output
+    assert "reveal: --compact" not in output
+
+
+def test_cli_rejects_chat_only_and_skeleton_together(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = _run_cli(export_file, "--chat-only", "--skeleton")
+    assert proc.returncode == 2
+    assert "not allowed with argument" in proc.stderr

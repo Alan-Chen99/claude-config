@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 import textwrap
+from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 from claude_config.cc_pretty.parse import (
     AgentProgress,
@@ -21,6 +23,7 @@ from claude_config.cc_pretty.parse import (
     PermissionModeRecord,
     ProgressRecord,
     QueueOperationRecord,
+    Record,
     SystemRecord,
     TextBlock,
     ThinkingBlock,
@@ -733,3 +736,187 @@ class Renderer:
                 f"--compact-leg {section_num - 1}{C.RESET}"
             )
         return out
+
+
+# ─── Skeleton (one line per block) ───────────────────────────────────────────
+
+def _tok(s: str) -> int:
+    """~token estimate for the skeleton size column (chars/4 heuristic)."""
+    return len(s) // 4
+
+
+def _preview(s: str, width: int = 50) -> str:
+    one = " ".join(s.split())
+    if len(one) > width:
+        return one[:width] + "…"
+    return one
+
+
+def _tool_target(inp: Any) -> str:
+    """Short target summary for a tool line (filePath, command, ...)."""
+    if not isinstance(inp, dict):
+        return _preview(str(inp), 60)
+    for key in ("filePath", "command", "pattern", "path", "name",
+                "description", "prompt"):
+        val = inp.get(key)
+        if isinstance(val, str) and val:
+            return _preview(val, 60)
+    return _preview(json.dumps(inp), 60)
+
+
+def render_skeleton(
+    records: list[tuple[Record, int]],
+    *,
+    log_path: str,
+    compact_hidden: set[int],
+    hidden_for_rewind: set[int],
+    compaction_markers: dict[int, dict],
+    rewind_markers: dict[int, dict],
+    record_visible: Callable[[Record], bool],
+) -> str:
+    """One line per content block + hidden-region markers with reveal hints.
+
+    The skeleton is a block map: every line names its ref, approx size, and
+    jq leaf so a reader can plan ~10k-token batches and extract exactly those
+    blocks with one jq/sed command (see skills/session-analysis).
+    Bookkeeping records (progress, snapshots, queue ops, ...) are skipped;
+    --show-all surfaces model-invisible attachments/system lines.
+    """
+    oc = _is_opencode_path(log_path)
+    tool_id_to_name: dict[str, str] = {}
+    lines: list[str] = []
+
+    # Header: identity + size heuristic + the shared legend recipe lines.
+    first = records[0][0] if records else None
+    slug = getattr(first, "slug", "") or ""
+    if not slug and not oc:
+        slug = log_path.rsplit("/", 1)[-1]
+    cwd = getattr(first, "cwd", "") or ""
+    model = ""
+    for rec, _ in records:
+        m = getattr(getattr(rec, "message", None), "model", "")
+        if m:
+            model = m
+            break
+    n_units = len({ln for _, ln in records}) if oc else (records[-1][1] if records else 0)
+    unit = "msgs" if oc else "lines"
+    head = f"# skeleton: {slug} · {n_units} {unit}"
+    if model:
+        head += f" · {model}"
+    if cwd:
+        head += f" · {cwd}"
+    lines.append(head)
+    lines.append("# sizes: ~tok ≈ chars/4 (batch-planning heuristic)")
+    lines.extend(legend_lines(log_path))
+
+    def emit(ref: str, label: str, size: str, leaf: str, preview: str) -> None:
+        lines.append(
+            f"{ref:<10} {label:<18} {size:<20} {leaf:<26} {preview}".rstrip()
+        )
+
+    def rewind_line(m: dict) -> str:
+        line = f"⟲ rewind · {m['count']} records"
+        line += " hidden · reveal: --show-rewound" if m["hidden"] else " shown above"
+        return line
+
+    for i, (rec, lineno) in enumerate(records):
+        if i in compaction_markers:
+            cb = compaction_markers[i]
+            hidden = (cb["prev_records"] > 0 and
+                      all(j in compact_hidden
+                          for j in range(cb["prev_start"], cb["idx"])))
+            line = (f"⟐ compacted · section {cb['section_num']} "
+                    f"({cb['prev_records']} records)")
+            if hidden:
+                line += (f" hidden · reveal: --compact-all or "
+                         f"--compact-leg {cb['section_num'] - 1}")
+            lines.append(line)
+        if i in rewind_markers:
+            lines.append(rewind_line(rewind_markers[i]))
+        if i in compact_hidden or i in hidden_for_rewind:
+            continue
+        if not record_visible(rec):
+            continue
+
+        if isinstance(rec, AssistantRecord):
+            for bi, block in enumerate(rec.message.content_blocks()):
+                ref = block_ref(block, lineno, bi)
+                if isinstance(block, ThinkingBlock):
+                    emit(ref, "reasoning" if oc else "thinking",
+                         f"{_tok(block.thinking)}~tok",
+                         ".text" if oc else ".thinking",
+                         f'"{_preview(block.thinking)}"')
+                elif isinstance(block, TextBlock):
+                    emit(ref, "text", f"{_tok(block.text)}~tok", ".text",
+                         f'"{_preview(block.text)}"')
+                elif isinstance(block, ToolUseBlock):
+                    if block.id:
+                        tool_id_to_name[block.id] = block.name
+                    inp_str = (fmt_tool_input(block.input)
+                               if isinstance(block.input, dict)
+                               else str(block.input))
+                    if oc:
+                        out_len = getattr(block, "_out_len", 0)
+                        size = f"in:{_tok(inp_str)} out:{out_len // 4}~tok"
+                        leaf = ".state.input/.state.output"
+                    else:
+                        size = f"in:{_tok(inp_str)}~tok"
+                        leaf = ".input"
+                    emit(ref, f"tool:{block.name}", size, leaf,
+                         _tool_target(block.input))
+
+        elif isinstance(rec, UserRecord):
+            if isinstance(rec.message.content, str):
+                pi = getattr(rec, "_pi", None)
+                ref = fmt_ref(lineno, pi if isinstance(pi, int) else 0)
+                emit(ref, "user", f"{_tok(rec.message.content)}~tok",
+                     ".text" if oc else ".message.content",
+                     f'"{_preview(rec.message.content)}"')
+            else:
+                for bi, block in enumerate(rec.message.content_blocks()):
+                    ref = block_ref(block, lineno, bi)
+                    if isinstance(block, ToolResultBlock):
+                        name = tool_id_to_name.get(block.tool_use_id, "")
+                        label = f"result:{name}" if name else "result"
+                        content = block.content
+                        text = (
+                            "".join(
+                                s.get("text", "") for s in content
+                                if isinstance(s, dict) and s.get("type") == "text"
+                            )
+                            if isinstance(content, list) else str(content)
+                        )
+                        emit(ref, label, f"{_tok(text)}~tok",
+                             ".state.output" if oc else ".content",
+                             f'"{_preview(text)}"')
+                    elif isinstance(block, TextBlock):
+                        # cc context block — raw string at .text, not .content
+                        emit(ref, "context", f"{_tok(block.text)}~tok",
+                             ".text", f'"{_preview(block.text)}"')
+
+        elif isinstance(rec, AttachmentRecord):
+            a = rec.attachment
+            body = a.content
+            text = ("\n\n".join(str(x) for x in body)
+                    if isinstance(body, list) else str(body or ""))
+            emit(fmt_ref(lineno), f"attach:{a.type}",
+                 f"{_tok(text)}~tok" if text else "",
+                 ".attachment.content" if text else "",
+                 f'"{_preview(text)}"' if text else "")
+
+        elif isinstance(rec, SystemRecord):
+            if rec.subtype == "compact_boundary":
+                continue  # the ⟐ marker line above already covers it
+            content = getattr(rec, "content", "") or ""
+            emit(fmt_ref(lineno), f"system:{rec.subtype}",
+                 f"{_tok(content)}~tok" if content else "",
+                 ".content" if content else "",
+                 f'"{_preview(content)}"' if content else "")
+        # Progress / snapshots / queue ops / last-prompt / permission-mode:
+        # bookkeeping — intentionally no skeleton lines.
+
+    tail = len(records)
+    if tail in rewind_markers:
+        lines.append(rewind_line(rewind_markers[tail]))
+
+    return "\n".join(lines)
