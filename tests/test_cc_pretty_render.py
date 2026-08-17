@@ -390,8 +390,6 @@ def test_legend_lines_cover_every_block_type_per_harness() -> None:
 
 
 def test_cc_tool_result_truncation_hint_uses_sed_and_content_leaf() -> None:
-    from claude_config.cc_pretty.parse import ToolResultBlock
-
     r = Renderer("/tmp/s.jsonl", tool_output_max=50, tool_input_max=50)
     block = ToolResultBlock(
         type="tool_result", tool_use_id="toolu_x", content="z" * 500,

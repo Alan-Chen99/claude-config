@@ -520,3 +520,15 @@ def test_compaction_marker_omits_reveal_hint_with_compact_all() -> None:
     output = render(_add_compaction(sample_export()), compact_all=True)
     assert "⟐ compacted" in output
     assert "reveal: --compact" not in output
+
+
+def test_compaction_marker_prints_reveal_hint_with_compact_leg_1() -> None:
+    # Leg 1 = post-compact section: the pre-compact section stays hidden.
+    output = render(_add_compaction(sample_export()), compact_leg=1)
+    assert "reveal: --compact" in output
+
+
+def test_compaction_marker_omits_reveal_hint_with_compact_leg_0() -> None:
+    # Leg 0 = pre-compact section itself: nothing hidden at the boundary.
+    output = render(_add_compaction(sample_export()), compact_leg=0)
+    assert "reveal: --compact" not in output

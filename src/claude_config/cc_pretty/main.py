@@ -679,7 +679,7 @@ def run_pipeline(inp: PipelineInput) -> None:
                 prev_n_assistant=cb["prev_n_assistant"],
                 tokens_before=cb["tokens_before"],
                 tokens_after=cb["tokens_after"],
-                section_hidden=all(
+                section_hidden=cb["prev_records"] > 0 and all(
                     j in compact_hidden for j in range(cb["prev_start"], i)
                 ),
             ))
