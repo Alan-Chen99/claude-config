@@ -596,3 +596,27 @@ def test_skeleton_show_rewound_lists_blocks_without_reveal() -> None:
     assert "shown above" in output
     assert "reveal: --show-rewound" not in output
     assert '"please inspect this"' in output
+
+
+# ─── --from-file recipes / --agent guidance ─────────────────────────────────
+
+
+def test_cli_from_file_legend_references_file_not_export(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = _run_cli(export_file)
+    assert proc.returncode == 0
+    assert "opencode export ses_" not in proc.stdout
+    assert "jq -r" in proc.stdout and str(export_file) in proc.stdout
+
+
+def test_emit_agent_output_chunk_listing_drops_parallel_reads(
+    capsys, monkeypatch,
+) -> None:
+    from claude_config.cc_pretty.main import emit_agent_output
+    monkeypatch.setenv("BASH_MAX_OUTPUT_LENGTH", "100")  # limit becomes 80
+    emit_agent_output("y" * 500, "pytest-agent")
+    out = capsys.readouterr().out
+    assert "Read all" not in out
+    assert "--skeleton" in out
+    assert "/tmp/pytest-agent-1.txt" in out

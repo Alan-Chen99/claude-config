@@ -108,7 +108,11 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(0)
 
     session_id = meta.get("session_id") or args.session_id
-    log_path = f"opencode://{session_id}"
+    if args.from_file:
+        # Hints/legend reference the saved export directly — no re-export.
+        log_path = f"opencode-file://{args.from_file}"
+    else:
+        log_path = f"opencode://{session_id}"
 
     # Always pass an explicit rewound set — even an empty one — so
     # cc-pretty's parent-fork detector is bypassed. opencode legitimately

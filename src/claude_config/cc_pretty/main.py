@@ -905,9 +905,11 @@ def emit_agent_output(output: str, chunk_prefix: str) -> None:
 
     n = len(infos)
     print(f"Rendered {len(output):,} chars, {len(lines)} lines across {n} files.")
-    print(f"Read all {n} files in parallel:")
+    print("Chunk files (read selectively):")
     for path, chars, start, end in infos:
         print(f"  {path} ({chars:,} chars, lines {start}-{end})")
+    print("Prefer --skeleton + targeted jq/sed extraction per ref over "
+          "reading every chunk — see skills/session-analysis.")
 
 
 # ─── cc-pretty entry point ───────────────────────────────────────────────────
