@@ -31,8 +31,8 @@ protect.
 
 Three invocation modes. The `mode:` should be stated in the invocation brief;
 if omitted on a direct user invocation, question mode is the default. Parents
-dispatching a subagent must state `mode: evidence` — see "For parents"
-below.
+dispatching a subagent **for an evidence artifact** must state `mode: evidence`
+— see "For parents" below.
 
 ### question mode
 
@@ -80,7 +80,7 @@ contains, what invariants apply, and how to phrase the focus.
 
 Brief format:
 
-- `mode: evidence` (required — parents MUST use evidence mode)
+- `mode: evidence` (required for evidence-artifact dispatch; diagnose mode is run by the analysis owner, e.g. a grader subagent — not governed by this section)
 - session ID(s)
 - focus / description of what matters
 

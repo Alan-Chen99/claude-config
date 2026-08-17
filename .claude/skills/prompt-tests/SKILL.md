@@ -286,13 +286,12 @@ copied in, grader-only files left in the repo.
   longest-lived session (typically the parent / main session).
 - **Reading the rendered log is not optional.** A grader that only reads the
   final answer text cannot satisfy the grader rule above.
-- **Pass `--agent` to `agent-tools opencode-pretty` (and `cc-pretty`).** Without
-  it, the rendered log writes straight to stdout and Bash truncates large
-  sessions at 30k chars. With `--agent`, the tool strips ANSI color and, when
-  the output exceeds the Bash limit, writes chunk files under `/tmp/` and
-  prints their paths — read every chunk file it lists. Use the printed
-  drill-down hint (`agent-tools opencode-pretty <session> --message <id> --full`)
-  to recover any single message in full.
+- **Read session logs via the session-analysis reading protocol.**
+  `agent-tools cc-pretty <FILE> --skeleton` /
+  `agent-tools opencode-pretty <session> --skeleton` gives a block map with
+  refs; extract batches per the protocol instead of rendering the full log —
+  Bash truncates large sessions at 30k chars, and full renders of big
+  sessions blow the grader's context.
 - **Don't commit raw JSON session logs.** Keep them under `/tmp/`. Summarize
   the trial in a record at `docs/opencode-system-prompt/trials/<YYYY-MM-DD>-<case>-<descriptor>.md`
   per the trial-logging rule in `prompt-tests/CLAUDE.md`. Do not append to a

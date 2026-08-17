@@ -8,7 +8,7 @@ By mid-R35 the diagnosis was clear: rounds 30–35 were repeatedly re-mining the
 
 Structural fix: separate the two layers.
 
-- **Raw-evidence layer**: focus-directed timeline artifacts at [`experiments/`](./experiments/) — chronological, factual, no interpretation. Produced by the [`session-timeline` skill](../../skills/session-timeline/SKILL.md) via subagent extraction. Each artifact answers *"what is in the log relevant to this focus"* and stops there.
+- **Raw-evidence layer**: focus-directed timeline artifacts at [`experiments/`](./experiments/) — chronological, factual, no interpretation. Produced by the [session-analysis skill](../../skills/session-analysis/SKILL.md) (formerly `session-timeline`) via subagent extraction. Each artifact answers *"what is in the log relevant to this focus"* and stops there.
 - **Interpretive layer**: rounds cite timeline artifacts as evidence. Future corrections touch only the interpretation; the evidence artifact stands.
 
 R35 pivoted to building the skill and validating it on one pilot (kimi-no2-broken × old-worktree-reads focus, at [`experiments/kimi-no2-broken__old-worktree-reads.md`](./experiments/kimi-no2-broken__old-worktree-reads.md)). The pilot went through 3 iterations to converge invariants (positive-over-negative descriptions, skeleton-then-jq workflow, no full-pretty-render, no relevance-classification labels).
