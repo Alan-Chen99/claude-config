@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -110,7 +111,8 @@ def main(argv: list[str] | None = None) -> None:
     session_id = meta.get("session_id") or args.session_id
     if args.from_file:
         # Hints/legend reference the saved export directly — no re-export.
-        log_path = f"opencode-file://{args.from_file}"
+        # Absolutize: recipes must resolve regardless of the reader's cwd.
+        log_path = f"opencode-file://{os.path.abspath(args.from_file)}"
     else:
         log_path = f"opencode://{session_id}"
 

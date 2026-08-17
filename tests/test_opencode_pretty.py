@@ -610,6 +610,21 @@ def test_cli_from_file_legend_references_file_not_export(tmp_path) -> None:
     assert "jq -r" in proc.stdout and str(export_file) in proc.stdout
 
 
+def test_cli_from_file_legend_absolutizes_relative_paths(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = subprocess.run(
+        [
+            sys.executable, "-m", "claude_config.opencode_pretty.main",
+            "ses_test", "--from-file", "export.json",
+        ],
+        capture_output=True, text=True, check=False,
+        cwd=tmp_path,
+    )
+    assert proc.returncode == 0
+    assert str(export_file) in proc.stdout
+
+
 def test_emit_agent_output_chunk_listing_drops_parallel_reads(
     capsys, monkeypatch,
 ) -> None:
