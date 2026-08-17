@@ -43,7 +43,7 @@ raw JSONL — 100% accuracy in all cases.
 ## Known Limitations
 
 - Cannot detect parent-level dropped work (items discussed but never delegated).
-  Use `diagnose-session` for content-level analysis.
+  Use `session-analysis` (diagnose mode) for content-level analysis.
 - Content summaries for `Explore`-type subagents show intermediate reasoning
   rather than structured results. The first-line summary is less useful for these.
 - Does not assess quality of agent outputs — only structural success/failure.

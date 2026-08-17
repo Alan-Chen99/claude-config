@@ -140,10 +140,10 @@ agent-tools cc-workflow <FILE> --anomalies-only
    reasoning text rather than structured results. This is a known limitation —
    note it but do not treat it as an anomaly.
 
-## Relationship to diagnose-session
+## Relationship to session-analysis
 
-| Aspect | diagnose-session | diagnose-workflow |
-|--------|-----------------|-------------------|
+| Aspect | session-analysis (diagnose mode) | diagnose-workflow |
+|--------|----------------------------------|-------------------|
 | **What it reads** | Rendered conversation text | Raw JSONL structure |
 | **What it finds** | Unreported Required notes items | Agent success/failure, anomalies, resource usage |
 | **Scope** | All conversation activity | Sub-agent workflows only |
@@ -152,4 +152,4 @@ agent-tools cc-workflow <FILE> --anomalies-only
 
 For comprehensive diagnosis, use both:
 1. `/diagnose-workflow` first — get the structural picture
-2. `/diagnose-session` second — get content-level findings
+2. `session-analysis` in diagnose mode second — get content-level findings

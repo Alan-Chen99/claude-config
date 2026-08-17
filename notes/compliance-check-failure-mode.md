@@ -174,7 +174,7 @@ When two models diverge under matched setup, which layer is load-bearing?
 
 - **Raw-evidence artifact** (chronological, focus-directed, no interpretation) must be separable from the **interpretive layer** (rounds citing evidence via `@L<n>[i]` refs). Entangled findings force every correction to touch both.
 - Artifact criterion: stands under interpretation revisions; new interpretations quote artifacts rather than re-reading sessions.
-- Skill: [`session-timeline`](../skills/session-timeline/SKILL.md).
+- Skill: [session-analysis](../skills/session-analysis/SKILL.md) (formerly `session-timeline`).
 
 ### F8. Bias-controlled candidate-enumeration probes [R37-R44]
 
@@ -352,7 +352,7 @@ Any probe measuring "the candidate set" must be audited for all five:
 
 ### Raw-evidence / interpretive-layer separation
 
-Framework: F7. Implementation: [`session-timeline` skill](../skills/session-timeline/SKILL.md) produces artifacts under [`experiments/`](./compliance-check-failure-mode/experiments/); interpretive rounds cite via `@L<n>[i]` refs [R35+].
+Framework: F7. Implementation: [session-analysis](../skills/session-analysis/SKILL.md) (formerly `session-timeline`) produces artifacts under [`experiments/`](./compliance-check-failure-mode/experiments/); interpretive rounds cite via `@L<n>[i]` refs [R35+].
 
 ---
 

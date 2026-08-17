@@ -52,19 +52,19 @@ Historical baselines from the opencode era are at
 3. **Dispatch one grader subagent per session log.** One subagent per session
    — no parallel-grader launching. The grader's brief:
 
-   > Read the session log with `agent-tools cc-pretty <FILE> --agent` (Claude
-   > Code JSONL) or `agent-tools opencode-pretty <session> --agent` (opencode
-   > session), **including all thinking blocks**. `--agent` strips ANSI color
-   > and chunks oversized output into `/tmp/` files for parallel reads instead
-   > of letting Bash truncate at 30k chars — read every chunk file it lists.
-   > Run `/diagnose-session` over the log. First check for
+   > Read the session log with the session-analysis skill's reading
+   > protocol: `agent-tools cc-pretty <FILE> --skeleton` (Claude Code JSONL)
+   > or `agent-tools opencode-pretty <session> --skeleton` (opencode), then
+   > extract batches per the protocol, **including all thinking/reasoning
+   > blocks**. Run the `session-analysis` skill in **diagnose mode** over
+   > the log. First check for
    > cheating/contamination using the rules in this skill. If contaminated,
    > return `invalid` and do not grade semantic quality. Otherwise compare the
    > transcript to `reference-solution.md` semantically. Return:
    > - **Verdict**: `pass` / `acceptable` / `fail` / `invalid`.
    > - **Reasoning** grounded in transcript quotes (final answer, tool calls,
    >   thinking blocks).
-   > - **Full diagnose-session report** inlined.
+   > - **Full diagnose report** inlined.
 
 4. **Aggregate in the parent.** Apply outcome rules:
    - `pass` → pass.
@@ -73,7 +73,7 @@ Historical baselines from the opencode era are at
      acceptable (never `pass`), call it `fail`. Parent's judgment.
    - `invalid` → discard the run and rerun from a clean scratch cwd. It is not
      a semantic fail.
-   - Outstanding problematic behavior in the diagnose-session report can
+   - Outstanding problematic behavior in the diagnose report can
      override `pass` → `fail`. Parent decides severity in context of the task.
 
 Trial count is task-dependent. Run once first; iterate only if the result is

@@ -217,7 +217,6 @@ Use the skill tool to load a skill when a task matches its description.
   customize-opencode
   decision-critic
   deepthink
-  diagnose-session
   diagnose-workflow
   dispatching-parallel-agents
   do
@@ -237,6 +236,7 @@ Use the skill tool to load a skill when a task matches its description.
   receiving-code-review
   refactor
   requesting-code-review
+  session-analysis
   subagent-driven-development
   systematic-debugging
   test-driven-development
