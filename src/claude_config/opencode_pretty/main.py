@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -108,7 +109,12 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(0)
 
     session_id = meta.get("session_id") or args.session_id
-    log_path = f"opencode://{session_id}"
+    if args.from_file:
+        # Hints/legend reference the saved export directly — no re-export.
+        # Absolutize: recipes must resolve regardless of the reader's cwd.
+        log_path = f"opencode-file://{os.path.abspath(args.from_file)}"
+    else:
+        log_path = f"opencode://{session_id}"
 
     # Always pass an explicit rewound set — even an empty one — so
     # cc-pretty's parent-fork detector is bypassed. opencode legitimately

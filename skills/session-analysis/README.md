@@ -1,6 +1,15 @@
-# diagnose-session
+# session-analysis
 
-Post-hoc analysis of Claude Code conversation logs to surface unreported items.
+Post-hoc analysis of agent session logs (opencode exports and Claude Code
+JSONL): focus-directed evidence artifacts and task answers over one or more
+sessions.
+
+This skill merges the skills formerly known as `diagnose-session` and
+`session-timeline` into one skeleton-first, two-mode workflow. The
+diagnose-session category machinery was removed after method comparison
+showed it trades salient detection for systematic negatives; its working
+mechanics live on as protocol rules (self-report verification, workflow
+completion, large-output rule).
 
 ## Design Rationale
 
@@ -23,25 +32,13 @@ External inspection complements self-reporting because it has different strength
 | tool-issue | Poor (agents work around it) | Good (✗ markers, errors visible) |
 | context-waste | Poor (agents don't notice) | Good (repeated reads visible) |
 
-## Detection Tiers
-
-Findings are organized by detectability confidence:
-
-- **HIGH**: Tool issues (error markers), context waste (repeated reads),
-  corrected mistakes (error→revision sequences)
-- **MEDIUM**: Manual action, instruction issues, unexpected changes
-- **THINKING-BLOCK**: Contradictory reasoning, under-investigated critical
-  issues, unverified prior-iteration claims, dismissed concerns
-- **LOW**: Suspected user mistakes, hidden challenges
-
 ## Limitations
 
-- Supports both Claude Code JSONL and opencode session exports. Pick the
-  matching renderer (`agent-tools cc-pretty` vs `agent-tools opencode-pretty`)
-  per Step 1 of the SKILL.
+- Supports both Claude Code JSONL and opencode session exports. Both
+  harnesses are read via the shared skeleton-first reading protocol (see
+  SKILL.md).
 - Cannot detect hidden-challenge reliably (requires real-time reasoning context)
 - Cannot detect suspected-user-mistake without understanding user's full intent
-- Token-limited: very long conversations may need chunked reading
 - Single-pass analysis: no iterative deepening on ambiguous findings
 - Thinking-block findings depend on the model's internal reasoning patterns;
   different models may surface concerns differently
@@ -52,5 +49,6 @@ This skill is additive, not a replacement. The hybrid approach:
 1. Improved self-reporting instruction (`conventions/agent-responses.md`)
    adds backward-scan, forcing questions, and relabeling override to reduce
    systematic under-reporting
-2. diagnose-session catches what the agent still missed or miscategorized
+2. session-analysis (task mode, or evidence mode + parent synthesis) catches
+   what the agent still missed or miscategorized
 3. Together they provide more complete coverage than either alone

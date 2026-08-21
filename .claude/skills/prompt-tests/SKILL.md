@@ -52,19 +52,22 @@ Historical baselines from the opencode era are at
 3. **Dispatch one grader subagent per session log.** One subagent per session
    — no parallel-grader launching. The grader's brief:
 
-   > Read the session log with `agent-tools cc-pretty <FILE> --agent` (Claude
-   > Code JSONL) or `agent-tools opencode-pretty <session> --agent` (opencode
-   > session), **including all thinking blocks**. `--agent` strips ANSI color
-   > and chunks oversized output into `/tmp/` files for parallel reads instead
-   > of letting Bash truncate at 30k chars — read every chunk file it lists.
-   > Run `/diagnose-session` over the log. First check for
+   > Read the session log with the session-analysis skill in **evidence
+   > mode**: `agent-tools cc-pretty <FILE> --skeleton` (Claude Code JSONL)
+   > or `agent-tools opencode-pretty <session> --skeleton` (opencode), then
+   > extract per the reading protocol, **including all thinking/reasoning
+   > blocks**. Focus: the grading criteria — the contamination rules in this
+   > skill, what the task required, and (if the run failed or struggled) the
+   > evidence bearing on why. First check for
    > cheating/contamination using the rules in this skill. If contaminated,
    > return `invalid` and do not grade semantic quality. Otherwise compare the
    > transcript to `reference-solution.md` semantically. Return:
    > - **Verdict**: `pass` / `acceptable` / `fail` / `invalid`.
    > - **Reasoning** grounded in transcript quotes (final answer, tool calls,
    >   thinking blocks).
-   > - **Full diagnose-session report** inlined.
+   > - **Causal attribution** for any failure or struggle: why it happened,
+   >   as a causal chain grounded in evidence-artifact quotes.
+   > - The evidence artifact path.
 
 4. **Aggregate in the parent.** Apply outcome rules:
    - `pass` → pass.
@@ -73,8 +76,9 @@ Historical baselines from the opencode era are at
      acceptable (never `pass`), call it `fail`. Parent's judgment.
    - `invalid` → discard the run and rerun from a clean scratch cwd. It is not
      a semantic fail.
-   - Outstanding problematic behavior in the diagnose-session report can
-     override `pass` → `fail`. Parent decides severity in context of the task.
+   - Outstanding problematic behavior evidenced in the artifact can
+     override `pass` → `fail`; the override must cite the causal chain, not a
+     category label. Parent decides severity in context of the task.
 
 Trial count is task-dependent. Run once first; iterate only if the result is
 ambiguous or `acceptable`.
@@ -286,13 +290,12 @@ copied in, grader-only files left in the repo.
   longest-lived session (typically the parent / main session).
 - **Reading the rendered log is not optional.** A grader that only reads the
   final answer text cannot satisfy the grader rule above.
-- **Pass `--agent` to `agent-tools opencode-pretty` (and `cc-pretty`).** Without
-  it, the rendered log writes straight to stdout and Bash truncates large
-  sessions at 30k chars. With `--agent`, the tool strips ANSI color and, when
-  the output exceeds the Bash limit, writes chunk files under `/tmp/` and
-  prints their paths — read every chunk file it lists. Use the printed
-  drill-down hint (`agent-tools opencode-pretty <session> --message <id> --full`)
-  to recover any single message in full.
+- **Read session logs via the session-analysis reading protocol.**
+  `agent-tools cc-pretty <FILE> --skeleton` /
+  `agent-tools opencode-pretty <session> --skeleton` gives a block map with
+  refs; extract batches per the protocol instead of rendering the full log —
+  Bash truncates large sessions at 30k chars, and full renders of big
+  sessions blow the grader's context.
 - **Don't commit raw JSON session logs.** Keep them under `/tmp/`. Summarize
   the trial in a record at `docs/opencode-system-prompt/trials/<YYYY-MM-DD>-<case>-<descriptor>.md`
   per the trial-logging rule in `prompt-tests/CLAUDE.md`. Do not append to a

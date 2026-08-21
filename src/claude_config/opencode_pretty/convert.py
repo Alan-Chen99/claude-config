@@ -101,13 +101,14 @@ def export_to_records(
                 _push(records, msg_id_to_idx, m_id, rec, mi)
                 continue
 
-            user_text = _collect_user_text(parts)
+            user_text, user_pi = _collect_user_text(parts)
             rec = _make_user_record(
                 session_id=session_id,
                 msg_id=m_id,
                 parent_id=parent_id,
                 ts=ts,
                 content=user_text,
+                part_idx=user_pi,
                 extra=common_meta,
             )
             _push(records, msg_id_to_idx, m_id, rec, mi)
@@ -208,6 +209,7 @@ def _make_user_record(
     parent_id: str | None,
     ts: str,
     content: str,
+    part_idx: int,
     extra: dict[str, Any],
 ) -> Record:
     return parse_record({
@@ -216,6 +218,7 @@ def _make_user_record(
         "parentUuid": parent_id,
         "sessionId": session_id,
         "timestamp": ts,
+        "_pi": part_idx,
         "message": {
             "role": "user",
             "content": content,
@@ -326,69 +329,94 @@ def _build_assistant_blocks(
     content_blocks are emitted on the AssistantRecord (in part order).
     tool_result_blocks go on a follow-up synthetic UserRecord so cc-pretty's
     renderer pairs each ``◀ result`` with its preceding ``▶ tool_use``.
+
+    Every block carries ``_pi`` — the index of the export part it came from.
+    Dropped parts (step-start/step-finish/patch/file/...) would otherwise
+    shift the renderer's enumeration index away from the jq path the legend
+    promises (``.messages[n-1].parts[i]``). Tool blocks also carry
+    ``_out_len`` (output char count) for the skeleton's ``out:`` column.
     """
     content: list[dict[str, Any]] = []
     results: list[dict[str, Any]] = []
-    for part in parts:
+    for pi, part in enumerate(parts):
         typ = part.get("type")
         if typ == "reasoning":
             text = part.get("text", "")
             if text:
-                content.append({"type": "thinking", "thinking": text})
+                content.append({"type": "thinking", "thinking": text, "_pi": pi})
         elif typ == "text":
             text = part.get("text", "")
             if text:
-                content.append({"type": "text", "text": text})
+                content.append({"type": "text", "text": text, "_pi": pi})
         elif typ == "tool":
             call_id = part.get("callID", "") or part.get("id", "")
             name = part.get("tool", "tool")
             state = part.get("state") if isinstance(part.get("state"), dict) else {}
+            status = state.get("status")
+            out_len = 0
+            if status == "completed":
+                out_text = str(state.get("output", ""))
+                out_len = len(out_text)
+                results.append({
+                    "type": "tool_result",
+                    "tool_use_id": call_id,
+                    "content": out_text,
+                    "is_error": False,
+                    "_pi": pi,
+                })
+            elif status == "error":
+                out_text = str(state.get("error", ""))
+                out_len = len(out_text)
+                results.append({
+                    "type": "tool_result",
+                    "tool_use_id": call_id,
+                    "content": out_text,
+                    "is_error": True,
+                    "_pi": pi,
+                })
             content.append({
                 "type": "tool_use",
                 "id": call_id,
                 "name": name,
                 "input": state.get("input", {}),
+                "_pi": pi,
+                "_out_len": out_len,
             })
-            status = state.get("status")
-            if status == "completed":
-                results.append({
-                    "type": "tool_result",
-                    "tool_use_id": call_id,
-                    "content": str(state.get("output", "")),
-                    "is_error": False,
-                })
-            elif status == "error":
-                results.append({
-                    "type": "tool_result",
-                    "tool_use_id": call_id,
-                    "content": str(state.get("error", "")),
-                    "is_error": True,
-                })
         # step-start / step-finish / snapshot / patch / agent / subtask /
         # retry / file: not rendered. They're either bookkeeping or carry
         # signal we don't have a slot for in the cc-pretty record types.
     return content, results
 
 
-def _collect_user_text(parts: list[dict[str, Any]]) -> str:
-    """Flatten user-message parts into a single string.
+def _collect_user_text(parts: list[dict[str, Any]]) -> tuple[str, int]:
+    """Flatten user-message parts; return (text, first text part index).
 
     Multi-part user inputs in opencode are usually a text body plus optional
     file attachments. We render the text and tag each file with a brief
     pointer line; cc-pretty's user-input renderer just emits this verbatim.
+
+    The part index lets the user message's ref point at its first text part
+    so the documented jq path (``.messages[n-1].parts[i].text``) resolves to
+    the visible text. Multi-text-part messages lose per-part granularity —
+    the flattening predates refs; documented limitation.
     """
     chunks: list[str] = []
-    for part in parts:
+    first_text_pi = 0
+    seen_text = False
+    for pi, part in enumerate(parts):
         typ = part.get("type")
         if typ == "text":
             text = part.get("text", "")
             if text:
+                if not seen_text:
+                    first_text_pi = pi
+                    seen_text = True
                 chunks.append(text)
         elif typ == "file":
             label = part.get("filename") or part.get("url") or "file"
             mime = part.get("mime") or "?"
             chunks.append(f"[attached {mime}: {label}]")
-    return "\n\n".join(chunks)
+    return "\n\n".join(chunks), first_text_pi
 
 
 # ─── Rewind computation ─────────────────────────────────────────────────────

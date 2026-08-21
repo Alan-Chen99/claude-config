@@ -375,6 +375,29 @@ def test_show_rewound_displays_rewound_records() -> None:
     assert "please inspect this" in output
 
 
+# ─── Source-true part indices (_pi / _out_len) ──────────────────────────────
+
+
+def test_export_to_records_tags_blocks_with_source_part_index() -> None:
+    records, _ = export_to_records(sample_export())
+    asst = records[1][0]
+    blocks = asst.message.content_blocks()
+    # parts: [step-start(0), reasoning(1), text(2), tool(3), step-finish(4),
+    #         unknown(5)] — rendered blocks must keep the export's indices.
+    assert getattr(blocks[0], "_pi") == 1  # thinking (reasoning part)
+    assert getattr(blocks[1], "_pi") == 2  # text part
+    assert getattr(blocks[2], "_pi") == 3  # tool_use part
+    assert getattr(blocks[2], "_out_len") == len("file contents here")
+    result_blocks = records[2][0].message.content_blocks()
+    assert getattr(result_blocks[0], "_pi") == 3  # result refs the tool part
+
+
+def test_export_to_records_tags_user_record_with_first_text_part_index() -> None:
+    records, _ = export_to_records(sample_export())
+    user_rec = records[0][0]
+    assert getattr(user_rec, "_pi") == 0  # sole text part at index 0
+
+
 # ─── Legend ─────────────────────────────────────────────────────────────────
 
 
@@ -384,6 +407,45 @@ def test_legend_emits_opencode_recovery_hint_for_opencode_log_path() -> None:
     assert "jq" in output
     # The Claude-Code-specific recovery wording must not leak through.
     assert "sed -n" not in output
+
+
+# ─── Full-render refs + truncation hints ────────────────────────────────────
+
+
+def test_full_render_refs_are_source_true_on_every_block_type() -> None:
+    output = render(sample_export())
+    # thinking header carries the TRUE part index (step-start part shifted it)
+    assert "╭─ thinking" in output and "@L2[1]" in output
+    # text block marker line
+    assert "── text @L2[2] ──" in output
+    # tool_use AND its result both reference the tool part @L2[3]
+    assert "▶ read" in output and output.count("@L2[3]") == 2
+    # user input header carries a ref
+    user_line = next(l for l in output.splitlines() if l.startswith("┌ User"))
+    assert "@L1" in user_line
+
+
+def test_truncated_tool_result_prints_exact_recovery_command() -> None:
+    export = sample_export()
+    export["messages"][1]["parts"][3]["state"]["output"] = "y" * 5000
+    output = render(export, tool_max=100)
+    assert (
+        "…full: opencode export ses_1234567890abcdef > "
+        "/tmp/oc-ses_1234567890abcdef.json && jq -r "
+        "'.messages[1].parts[3].state.output' /tmp/oc-ses_1234567890abcdef.json"
+    ) in output
+
+
+def test_untruncated_blocks_print_no_hint() -> None:
+    output = render(sample_export())
+    assert "…full:" not in output
+
+
+def test_truncated_tool_input_hint_points_at_state_input() -> None:
+    export = sample_export()
+    export["messages"][1]["parts"][3]["state"]["input"] = {"prompt": "x" * 500}
+    output = render(export, tool_max=100, truncate_input=True)
+    assert "…full:" in output and ".state.input'" in output
 
 
 # ─── Color auto-detection ────────────────────────────────────────────────────
@@ -428,3 +490,148 @@ def test_cli_rejects_color_and_no_color_together(tmp_path) -> None:
     proc = _run_cli(export_file, "--color", "--no-color")
     assert proc.returncode == 2
     assert "not allowed with argument" in proc.stderr
+
+
+# ─── Marker reveal hints ────────────────────────────────────────────────────
+
+
+def test_rewind_marker_prints_reveal_hint_when_hidden() -> None:
+    export = sample_export()
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export)
+    assert "⟲ rewind" in output
+    assert "reveal: --show-rewound" in output
+
+
+def test_rewind_marker_omits_reveal_hint_when_shown() -> None:
+    export = sample_export()
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export, show_rewound=True)
+    assert "⟲ rewind" in output
+    assert "reveal: --show-rewound" not in output
+
+
+def test_compaction_marker_prints_reveal_hint_when_leg_hidden() -> None:
+    output = render(_add_compaction(sample_export()))
+    assert "reveal: --compact-all or --compact-leg 0" in output
+
+
+def test_compaction_marker_omits_reveal_hint_with_compact_all() -> None:
+    output = render(_add_compaction(sample_export()), compact_all=True)
+    assert "⟐ compacted" in output
+    assert "reveal: --compact" not in output
+
+
+def test_compaction_marker_prints_reveal_hint_with_compact_leg_1() -> None:
+    # Leg 1 = post-compact section: the pre-compact section stays hidden.
+    output = render(_add_compaction(sample_export()), compact_leg=1)
+    assert "reveal: --compact" in output
+
+
+def test_compaction_marker_omits_reveal_hint_with_compact_leg_0() -> None:
+    # Leg 0 = pre-compact section itself: nothing hidden at the boundary.
+    output = render(_add_compaction(sample_export()), compact_leg=0)
+    assert "reveal: --compact" not in output
+
+
+# ─── Skeleton density ───────────────────────────────────────────────────────
+
+
+def test_skeleton_renders_one_line_per_block_with_refs_sizes_leafs() -> None:
+    export = sample_export()
+    # Long reasoning text so we can prove the skeleton shows previews, not bodies.
+    export["messages"][1]["parts"][1]["text"] = "deep thought " * 100
+    output = render(export, skeleton=True)
+    lines = output.splitlines()
+    assert lines[0].startswith("# skeleton: parser-work")
+    assert any("~tok" in l and "sizes" in l for l in lines[:3])
+    assert any(l.startswith("@L1") and "user" in l and ".text" in l
+               and '"please inspect this"' in l for l in lines)
+    # reasoning at TRUE part index 1 (step-start occupies part 0)
+    assert any(l.startswith("@L2[1]") and "reasoning" in l for l in lines)
+    assert any(l.startswith("@L2[2]") and "text" in l for l in lines)
+    assert any(l.startswith("@L2[3]") and "tool:read" in l
+               and ".state.input/.state.output" in l
+               and "/tmp/example.txt" in l for l in lines)
+    # full bodies must NOT appear — skeleton is previews only
+    assert "deep thought deep thought deep thought deep thought deep thought" \
+        not in output
+
+
+def test_skeleton_marks_hidden_regions_with_reveal_flags() -> None:
+    output = render(_add_compaction(sample_export()), skeleton=True)
+    assert "⟐ compacted · section 1" in output
+    assert "reveal: --compact-all or --compact-leg 0" in output
+    assert "please inspect this" not in output  # hidden leg: no block lines
+
+
+def test_skeleton_compact_all_lists_every_leg_without_reveal() -> None:
+    output = render(_add_compaction(sample_export()),
+                    skeleton=True, compact_all=True)
+    assert '"please inspect this"' in output
+    assert "reveal: --compact" not in output
+
+
+def test_cli_rejects_chat_only_and_skeleton_together(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = _run_cli(export_file, "--chat-only", "--skeleton")
+    assert proc.returncode == 2
+    assert "not allowed with argument" in proc.stderr
+
+
+def test_skeleton_marks_rewound_tail_with_reveal_flag() -> None:
+    export = sample_export()
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export, skeleton=True)
+    assert "⟲ rewind" in output
+    assert "reveal: --show-rewound" in output
+    assert "please inspect this" not in output  # rewound blocks emit no lines
+
+
+def test_skeleton_show_rewound_lists_blocks_without_reveal() -> None:
+    export = sample_export()
+    export["info"]["revert"] = {"messageID": "msg_001_user"}
+    output = render(export, skeleton=True, show_rewound=True)
+    assert "shown above" in output
+    assert "reveal: --show-rewound" not in output
+    assert '"please inspect this"' in output
+
+
+# ─── --from-file recipes / --agent guidance ─────────────────────────────────
+
+
+def test_cli_from_file_legend_references_file_not_export(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = _run_cli(export_file)
+    assert proc.returncode == 0
+    assert "opencode export ses_" not in proc.stdout
+    assert "jq -r" in proc.stdout and str(export_file) in proc.stdout
+
+
+def test_cli_from_file_legend_absolutizes_relative_paths(tmp_path) -> None:
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps(sample_export()))
+    proc = subprocess.run(
+        [
+            sys.executable, "-m", "claude_config.opencode_pretty.main",
+            "ses_test", "--from-file", "export.json",
+        ],
+        capture_output=True, text=True, check=False,
+        cwd=tmp_path,
+    )
+    assert proc.returncode == 0
+    assert str(export_file) in proc.stdout
+
+
+def test_emit_agent_output_chunk_listing_drops_parallel_reads(
+    capsys, monkeypatch,
+) -> None:
+    from claude_config.cc_pretty.main import emit_agent_output
+    monkeypatch.setenv("BASH_MAX_OUTPUT_LENGTH", "100")  # limit becomes 80
+    emit_agent_output("y" * 500, "pytest-agent")
+    out = capsys.readouterr().out
+    assert "Read all" not in out
+    assert "--skeleton" in out
+    assert "/tmp/pytest-agent-1.txt" in out

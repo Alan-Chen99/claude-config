@@ -1,11 +1,16 @@
 """Pretty-print a Claude Code JSONL session log to stdout.
 
-Usage: cc-pretty <session.jsonl> [--tool-max N] [--truncate-input]
+Usage: cc-pretty <session.jsonl> [--skeleton | --chat-only]
+                                 [--tool-max N] [--truncate-input]
                                  [--color | --no-color] [--no-thinking]
                                  [--show-rewound] [--show-all]
-                                 [--chat-only]
                                  [--compact-all] [--compact-leg N]
                                  [--agent]
+
+Flags form four orthogonal axes (see --help): SELECTION (which records),
+DENSITY (full render / --skeleton / --chat-only), BODY-DETAIL (within full
+render), OUTPUT. Every rendered block carries an @L<n>[i] ref; the legend
+at the top documents how to recover the raw string behind any ref.
 
 Color output is auto-detected: on when stdout is a TTY, off when piped or
 when NO_COLOR is set (https://no-color.org). --color forces it on (e.g.
@@ -46,7 +51,7 @@ from claude_config.cc_pretty.parse import (
     read_jsonl,
     parse_all,
 )
-from claude_config.cc_pretty.render import C, Renderer, fmt_ts, separator
+from claude_config.cc_pretty.render import C, Renderer, fmt_ts, render_skeleton, separator
 
 
 # Attachment subtypes whose content reaches the model (system-reminder text,
@@ -222,6 +227,7 @@ def find_compaction_boundaries(
         results.append({
             "idx": boundary_idx,
             "section_num": bi + 1,
+            "prev_start": prev_start,
             "prev_records": prev_end - prev_start,
             "prev_first_ts": fmt_ts(first_ts),
             "prev_last_ts": fmt_ts(last_ts),
@@ -449,25 +455,96 @@ def build_rewind_info(
 def add_shared_args(parser: argparse.ArgumentParser, *, default_tool_max: int = 200) -> None:
     """Attach the cc-pretty / opencode-pretty shared options to ``parser``.
 
+    Flags are organized in four orthogonal axes — a command picks at most one
+    value per axis, so any combination's meaning is predictable:
+
+      SELECTION    which records participate
+      DENSITY      view mode (mutually exclusive)
+      BODY-DETAIL  per-block detail (no effect under --skeleton)
+      OUTPUT       where/how the render is emitted
+
     Front-ends still own the positional argument(s) that point at the data
-    source (a JSONL path for cc-pretty, a session ID for opencode-pretty),
-    but the rendering controls and leg/rewind filters are identical so they
-    live here. ``default_tool_max`` lets front-ends pick a different default
-    truncation budget without redefining the argument.
+    source (a JSONL path for cc-pretty, a session ID for opencode-pretty).
+    ``default_tool_max`` lets front-ends pick a different default truncation
+    budget without redefining the argument.
     """
-    parser.add_argument(
+    sel = parser.add_argument_group("SELECTION (which records)")
+    sel.add_argument(
+        "--compact-all",
+        action="store_true",
+        help="Show all compaction legs (default: only last leg)",
+    )
+    sel.add_argument(
+        "--compact-leg",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Show only compaction leg N (1-indexed; 0 = pre-compact section)",
+    )
+    sel.add_argument(
+        "--show-rewound",
+        action="store_true",
+        help="Show rewound conversation branches (hidden by default)",
+    )
+    sel.add_argument(
+        "--show-all",
+        action="store_true",
+        help="Show all records including non-model content "
+        "(hooks, progress, system metadata)",
+    )
+    sel.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="Hide progress records when --show-all is used",
+    )
+
+    den = parser.add_argument_group("DENSITY (view mode — pick at most one)")
+    denx = den.add_mutually_exclusive_group()
+    denx.add_argument(
+        "--chat-only",
+        action="store_true",
+        help="Show only user prompts and assistant messages — drop tool "
+        "calls, tool results, system records, and attachments. Assistant "
+        "turns that contain only tool_use blocks are skipped entirely.",
+    )
+    denx.add_argument(
+        "--skeleton",
+        action="store_true",
+        help="One line per content block: ref, type, ~tok size, jq leaf, "
+        "preview — a block map for targeted jq/sed extraction. Hidden "
+        "regions appear as marker lines with their reveal flags.",
+    )
+
+    body = parser.add_argument_group(
+        "BODY-DETAIL (no effect under --skeleton; --show-usage/--no-thinking "
+        "also apply under --chat-only)")
+    body.add_argument(
         "--tool-max",
         type=int,
         default=default_tool_max,
         help=f"Max chars for tool output (default: {default_tool_max}). "
         "Tool input is shown in full unless --truncate-input is set.",
     )
-    parser.add_argument(
+    body.add_argument(
         "--truncate-input",
         action="store_true",
         help="Also truncate tool input to --tool-max chars (full by default)",
     )
-    color_group = parser.add_mutually_exclusive_group()
+    body.add_argument(
+        "--no-thinking",
+        action="store_true",
+        help="Collapse thinking blocks to single-line summary",
+    )
+    body.add_argument(
+        "--show-usage",
+        action="store_true",
+        help="Show per-turn usage block "
+        "(in/out/cached/cache_create tokens). Hidden by default — opt in "
+        "when debugging cache-hit rates or cost regressions.",
+    )
+
+    out = parser.add_argument_group("OUTPUT")
+    color_group = out.add_mutually_exclusive_group()
     color_group.add_argument(
         "--no-color",
         action="store_true",
@@ -480,61 +557,14 @@ def add_shared_args(parser: argparse.ArgumentParser, *, default_tool_max: int = 
         help="Force ANSI colors even when stdout is not a TTY (e.g. piping "
         "to `less -R`)",
     )
-    parser.add_argument(
-        "--no-progress",
-        action="store_true",
-        help="Hide progress records when --show-all is used",
-    )
-    parser.add_argument(
-        "--no-thinking",
-        action="store_true",
-        help="Collapse thinking blocks to single-line summary",
-    )
-    parser.add_argument(
-        "--show-usage",
-        action="store_true",
-        help="Show per-turn usage block "
-        "(in/out/cached/cache_create tokens). Hidden by default — opt in "
-        "when debugging cache-hit rates or cost regressions.",
-    )
-    parser.add_argument(
-        "--show-rewound",
-        action="store_true",
-        help="Show rewound conversation branches (hidden by default)",
-    )
-    parser.add_argument(
-        "--show-all",
-        action="store_true",
-        help="Show all records including non-model content "
-        "(hooks, progress, system metadata)",
-    )
-    parser.add_argument(
-        "--chat-only",
-        action="store_true",
-        help="Show only user prompts and assistant messages — drop tool "
-        "calls, tool results, system records, and attachments. Assistant "
-        "turns that contain only tool_use blocks are skipped entirely.",
-    )
-    parser.add_argument(
-        "--compact-all",
-        action="store_true",
-        help="Show all compaction legs (default: only last leg)",
-    )
-    parser.add_argument(
-        "--compact-leg",
-        type=int,
-        default=None,
-        metavar="N",
-        help="Show only compaction leg N (1-indexed; 0 = pre-compact section)",
-    )
-    parser.add_argument(
+    out.add_argument(
         "--agent",
         action="store_true",
         help="Agent-friendly output: if small enough, print directly; "
-        "otherwise write chunk files to /tmp and print paths for parallel reads. "
+        "otherwise write chunk files to /tmp and print paths. "
         "Implies --no-color.",
     )
-    parser.add_argument(
+    out.add_argument(
         "--validate-only",
         action="store_true",
         help="Parse all records through pydantic schema without rendering; "
@@ -652,78 +682,74 @@ def run_pipeline(inp: PipelineInput) -> None:
         records, rewound, hide_rewound=not args.show_rewound,
     )
 
-    # ── Session header (first visible record) ───────────────────────────
-    if records:
-        first_rec = records[0][0]
-        for idx, (rec, _) in enumerate(records):
-            if idx not in hidden_for_rewind and idx not in compact_hidden:
-                first_rec = rec
-                break
-        header = r.render_session_header(first_rec)
-        if header:
-            print(header)
+    # ── Skeleton density short-circuits the full render ────────────────
+    if args.skeleton:
+        record_visible = (lambda _rec: True) if args.show_all else is_model_visible
+        print(render_skeleton(
+            records,
+            log_path=inp.log_path,
+            compact_hidden=compact_hidden,
+            hidden_for_rewind=hidden_for_rewind,
+            compaction_markers=compaction_markers,
+            rewind_markers=rewind_markers,
+            record_visible=record_visible,
+        ))
+    else:
+        # ── Session header (first visible record) ───────────────────────
+        if records:
+            first_rec = records[0][0]
+            for idx, (rec, _) in enumerate(records):
+                if idx not in hidden_for_rewind and idx not in compact_hidden:
+                    first_rec = rec
+                    break
+            header = r.render_session_header(first_rec)
+            if header:
+                print(header)
 
-    # ── Render records ──────────────────────────────────────────────────
-    i = 0
-    while i < len(records):
-        if i in compaction_markers:
-            cb = compaction_markers[i]
-            print(separator())
-            print(r.render_compaction_marker(
-                section_num=cb["section_num"],
-                prev_records=cb["prev_records"],
-                prev_first_ts=cb["prev_first_ts"],
-                prev_last_ts=cb["prev_last_ts"],
-                prev_n_user=cb["prev_n_user"],
-                prev_n_assistant=cb["prev_n_assistant"],
-                tokens_before=cb["tokens_before"],
-                tokens_after=cb["tokens_after"],
-            ))
-
-        if i in rewind_markers:
-            print(separator())
-            print(r.render_rewind_marker(**rewind_markers[i]))
-
-        if i in compact_hidden:
-            i += 1
-            continue
-        if i in hidden_for_rewind:
-            i += 1
-            continue
-
-        rec, lineno = records[i]
-
-        if not args.show_all and not is_model_visible(rec):
-            i += 1
-            continue
-        if args.chat_only and not is_chat_visible(rec):
-            i += 1
-            continue
-
-        ts = fmt_ts(getattr(rec, "timestamp", ""))
-
-        if isinstance(rec, AssistantRecord):
-            group: list[tuple[AssistantRecord, int]] = [(rec, lineno)]
-            j = i + 1
-            while (
-                j < len(records)
-                and j not in hidden_for_rewind
-                and j not in compact_hidden
-                and j not in rewind_boundaries
-                and j not in compaction_markers
-                and isinstance(records[j][0], AssistantRecord)
-            ):
-                group.append(records[j])  # type: ignore
-                j += 1
-            rendered = r.render_assistant_turn(group, ts)
-            if rendered is not None:
+        # ── Render records ──────────────────────────────────────────────
+        i = 0
+        while i < len(records):
+            if i in compaction_markers:
+                cb = compaction_markers[i]
                 print(separator())
-                print(rendered)
-            i = j
+                print(r.render_compaction_marker(
+                    section_num=cb["section_num"],
+                    prev_records=cb["prev_records"],
+                    prev_first_ts=cb["prev_first_ts"],
+                    prev_last_ts=cb["prev_last_ts"],
+                    prev_n_user=cb["prev_n_user"],
+                    prev_n_assistant=cb["prev_n_assistant"],
+                    tokens_before=cb["tokens_before"],
+                    tokens_after=cb["tokens_after"],
+                    section_hidden=cb["prev_records"] > 0 and all(
+                        j in compact_hidden for j in range(cb["prev_start"], i)
+                    ),
+                ))
 
-        elif isinstance(rec, UserRecord):
-            if is_user_input(rec):
-                ugroup: list[tuple[UserRecord, int]] = [(rec, lineno)]
+            if i in rewind_markers:
+                print(separator())
+                print(r.render_rewind_marker(**rewind_markers[i]))
+
+            if i in compact_hidden:
+                i += 1
+                continue
+            if i in hidden_for_rewind:
+                i += 1
+                continue
+
+            rec, lineno = records[i]
+
+            if not args.show_all and not is_model_visible(rec):
+                i += 1
+                continue
+            if args.chat_only and not is_chat_visible(rec):
+                i += 1
+                continue
+
+            ts = fmt_ts(getattr(rec, "timestamp", ""))
+
+            if isinstance(rec, AssistantRecord):
+                group: list[tuple[AssistantRecord, int]] = [(rec, lineno)]
                 j = i + 1
                 while (
                     j < len(records)
@@ -731,81 +757,101 @@ def run_pipeline(inp: PipelineInput) -> None:
                     and j not in compact_hidden
                     and j not in rewind_boundaries
                     and j not in compaction_markers
-                    and isinstance(records[j][0], UserRecord)
-                    and is_user_input(records[j][0])
+                    and isinstance(records[j][0], AssistantRecord)
                 ):
-                    ugroup.append(records[j])  # type: ignore
+                    group.append(records[j])  # type: ignore
                     j += 1
-                print(separator())
-                print(r.render_user_input(ugroup, ts))
-                i = j
-            else:
-                tgroup: list[tuple[UserRecord, int]] = [(rec, lineno)]
-                j = i + 1
-                while (
-                    j < len(records)
-                    and j not in hidden_for_rewind
-                    and j not in compact_hidden
-                    and j not in rewind_boundaries
-                    and j not in compaction_markers
-                    and isinstance(records[j][0], UserRecord)
-                    and not is_user_input(records[j][0])
-                ):
-                    tgroup.append(records[j])  # type: ignore
-                    j += 1
-                print(separator())
-                print(r.render_tool_output(tgroup, ts))
-                i = j
-
-        elif isinstance(rec, SystemRecord):
-            print(separator())
-            print(r.render_system(rec, ts))
-            i += 1
-
-        elif isinstance(rec, ProgressRecord):
-            if not args.no_progress:
-                print(r.render_progress(rec, ts))
-            i += 1
-
-        elif isinstance(rec, FileHistorySnapshotRecord):
-            print(r.render_file_snapshot(rec))
-            i += 1
-
-        elif isinstance(rec, LastPromptRecord):
-            print(r.render_last_prompt(rec))
-            i += 1
-
-        elif isinstance(rec, QueueOperationRecord):
-            print(r.render_queue_op(rec))
-            i += 1
-
-        elif isinstance(rec, AttachmentRecord):
-            rendered = r.render_attachment(rec, ts, lineno)
-            if rendered is not None:
-                if rec.attachment.type == "hook_additional_context":
+                rendered = r.render_assistant_turn(group, ts)
+                if rendered is not None:
                     print(separator())
-                print(rendered)
-            i += 1
+                    print(rendered)
+                i = j
 
-        elif isinstance(rec, PermissionModeRecord):
-            print(r.render_permission_mode(rec))
-            i += 1
+            elif isinstance(rec, UserRecord):
+                if is_user_input(rec):
+                    ugroup: list[tuple[UserRecord, int]] = [(rec, lineno)]
+                    j = i + 1
+                    while (
+                        j < len(records)
+                        and j not in hidden_for_rewind
+                        and j not in compact_hidden
+                        and j not in rewind_boundaries
+                        and j not in compaction_markers
+                        and isinstance(records[j][0], UserRecord)
+                        and is_user_input(records[j][0])
+                    ):
+                        ugroup.append(records[j])  # type: ignore
+                        j += 1
+                    print(separator())
+                    print(r.render_user_input(ugroup, ts))
+                    i = j
+                else:
+                    tgroup: list[tuple[UserRecord, int]] = [(rec, lineno)]
+                    j = i + 1
+                    while (
+                        j < len(records)
+                        and j not in hidden_for_rewind
+                        and j not in compact_hidden
+                        and j not in rewind_boundaries
+                        and j not in compaction_markers
+                        and isinstance(records[j][0], UserRecord)
+                        and not is_user_input(records[j][0])
+                    ):
+                        tgroup.append(records[j])  # type: ignore
+                        j += 1
+                    print(separator())
+                    print(r.render_tool_output(tgroup, ts))
+                    i = j
 
-        else:
-            print(f"{C.DIM}  [unknown record: {rec.type}]{C.RESET}")
-            i += 1
+            elif isinstance(rec, SystemRecord):
+                print(separator())
+                print(r.render_system(rec, ts))
+                i += 1
 
-    # A rewind block that runs to the end of the record stream has its
-    # marker keyed at i == len(records), which the main loop never
-    # iterates over. Flush it here. (Compaction boundaries never sit at
-    # len(records) — there's always at least the boundary record itself
-    # past that index — so they don't need the same flush.)
-    tail = len(records)
-    if tail in rewind_markers:
+            elif isinstance(rec, ProgressRecord):
+                if not args.no_progress:
+                    print(r.render_progress(rec, ts))
+                i += 1
+
+            elif isinstance(rec, FileHistorySnapshotRecord):
+                print(r.render_file_snapshot(rec))
+                i += 1
+
+            elif isinstance(rec, LastPromptRecord):
+                print(r.render_last_prompt(rec))
+                i += 1
+
+            elif isinstance(rec, QueueOperationRecord):
+                print(r.render_queue_op(rec))
+                i += 1
+
+            elif isinstance(rec, AttachmentRecord):
+                rendered = r.render_attachment(rec, ts, lineno)
+                if rendered is not None:
+                    if rec.attachment.type == "hook_additional_context":
+                        print(separator())
+                    print(rendered)
+                i += 1
+
+            elif isinstance(rec, PermissionModeRecord):
+                print(r.render_permission_mode(rec))
+                i += 1
+
+            else:
+                print(f"{C.DIM}  [unknown record: {rec.type}]{C.RESET}")
+                i += 1
+
+        # A rewind block that runs to the end of the record stream has its
+        # marker keyed at i == len(records), which the main loop never
+        # iterates over. Flush it here. (Compaction boundaries never sit at
+        # len(records) — there's always at least the boundary record itself
+        # past that index — so they don't need the same flush.)
+        tail = len(records)
+        if tail in rewind_markers:
+            print(separator())
+            print(r.render_rewind_marker(**rewind_markers[tail]))
+
         print(separator())
-        print(r.render_rewind_marker(**rewind_markers[tail]))
-
-    print(separator())
 
     if args.agent:
         output = sys.stdout.getvalue()
@@ -859,9 +905,11 @@ def emit_agent_output(output: str, chunk_prefix: str) -> None:
 
     n = len(infos)
     print(f"Rendered {len(output):,} chars, {len(lines)} lines across {n} files.")
-    print(f"Read all {n} files in parallel:")
+    print("Chunk files (read selectively):")
     for path, chars, start, end in infos:
         print(f"  {path} ({chars:,} chars, lines {start}-{end})")
+    print("Prefer --skeleton + targeted jq/sed extraction per ref over "
+          "reading every chunk — see skills/session-analysis.")
 
 
 # ─── cc-pretty entry point ───────────────────────────────────────────────────

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 import textwrap
+from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 from claude_config.cc_pretty.parse import (
     AgentProgress,
@@ -21,6 +23,7 @@ from claude_config.cc_pretty.parse import (
     PermissionModeRecord,
     ProgressRecord,
     QueueOperationRecord,
+    Record,
     SystemRecord,
     TextBlock,
     ThinkingBlock,
@@ -205,37 +208,86 @@ def fmt_ref(lineno: int, block_idx: int = 0) -> str:
     return f"@L{lineno}"
 
 
-def render_legend(log_path: str) -> str:
-    """One-line legend explaining how to recover content from `@L<n>` refs.
+def _resolve_idx(block: object, enum_idx: int) -> int:
+    """Source-true block index: opencode ``_pi`` when present, else enum index."""
+    pi = getattr(block, "_pi", None)
+    return pi if isinstance(pi, int) else enum_idx
 
-    Printed once at the top of the output so per-block recovery hints (the
-    old `# sed -n 'Np' ... | jq -r '...'` lines) can be omitted entirely.
 
-    For ``log_path`` of the form ``opencode://<session_id>`` (used by
-    opencode-pretty), the recovery recipe points at ``opencode export``
-    instead of cc's sed+jq combo — ``@L<n>`` then refers to the 1-based
-    index into ``.messages`` and ``[i]`` to the index into ``.parts``.
+def block_ref(block: object, lineno: int, enum_idx: int) -> str:
+    """Ref for a content block, source-true across harnesses.
 
-    ``opencode export`` truncates its stdout at ~64KB when writing to a
-    pipe, so the recipe redirects to a file first and runs ``jq`` against
-    the file — a bare ``opencode export ... | jq ...`` silently loses
-    everything past the first pipe buffer and errors with "Unfinished
-    string at EOF" on any part beyond that boundary.
+    opencode conversion tags each block with ``_pi`` — the index of the part
+    in the exported message it came from — because dropped parts
+    (step-start/step-finish/...) would otherwise shift the enumeration index
+    away from the jq path the legend promises. cc-pretty blocks have no
+    ``_pi``; their enumeration index already matches ``.message.content[i]``.
+    """
+    return fmt_ref(lineno, _resolve_idx(block, enum_idx))
+
+
+def _is_opencode_path(log_path: str) -> bool:
+    return log_path.startswith(("opencode://", "opencode-file://"))
+
+
+def recovery_cmd(log_path: str, lineno: int, block_idx: int | None, leaf: str) -> str:
+    """Exact shell command printing the raw string behind a ref.
+
+    ``block_idx`` is the source-true block/part index (see :func:`block_ref`);
+    ``None`` means the leaf addresses the whole record (cc user string input,
+    attachments). ``leaf`` is the jq path suffix appended after the block
+    selector (e.g. ``.state.output``, ``.content``).
     """
     if log_path.startswith("opencode://"):
-        session_id = log_path[len("opencode://"):]
-        return (
-            f"{C.HINT}# refs '@L<n>[i]' point at message n (1-based), part i (default 0). "
-            f"Recover: opencode export {session_id} > /tmp/oc-{session_id}.json "
-            f"&& jq '.messages[<n-1>].parts[<i>]' /tmp/oc-{session_id}.json{C.RESET}"
-        )
-    return (
-        f"{C.HINT}# refs '@L<n>[i]' point at line n, content block i (default 0). "
-        f"Recover: sed -n '<n>p' {log_path} | jq -r '<jq>' — "
-        f"jq is .message.content[i].input for ▶ tool calls, "
-        f".content for ◀ result, .text for ◀ context, "
-        f".attachment.content for Additional Context.{C.RESET}"
-    )
+        sid = log_path[len("opencode://"):]
+        f = f"/tmp/oc-{sid}.json"
+        path = f".messages[{lineno - 1}].parts[{block_idx or 0}]{leaf}"
+        return f"opencode export {sid} > {f} && jq -r '{path}' {f}"
+    if log_path.startswith("opencode-file://"):
+        src = log_path[len("opencode-file://"):]
+        path = f".messages[{lineno - 1}].parts[{block_idx or 0}]{leaf}"
+        return f"jq -r '{path}' {src}"
+    if block_idx is None:
+        return f"sed -n '{lineno}p' {log_path} | jq -r '{leaf}'"
+    return (f"sed -n '{lineno}p' {log_path} | "
+            f"jq -r '.message.content[{block_idx}]{leaf}'")
+
+
+def legend_lines(log_path: str) -> list[str]:
+    """The two hint lines documenting refs + recovery for this log source."""
+    if log_path.startswith("opencode://"):
+        sid = log_path[len("opencode://"):]
+        return [
+            "# refs @L<n>[i] = .messages[n-1].parts[i] (i=0 omitted) · "
+            "leafs: reasoning/text/user .text · tool .state.input/.state.output",
+            f"# recover: opencode export {sid} > /tmp/oc-{sid}.json "
+            f"&& jq -r '.messages[<n-1>].parts[<i>]<leaf>' /tmp/oc-{sid}.json",
+        ]
+    if log_path.startswith("opencode-file://"):
+        src = log_path[len("opencode-file://"):]
+        return [
+            "# refs @L<n>[i] = .messages[n-1].parts[i] (i=0 omitted) · "
+            "leafs: reasoning/text/user .text · tool .state.input/.state.output",
+            f"# recover: jq -r '.messages[<n-1>].parts[<i>]<leaf>' {src}",
+        ]
+    return [
+        "# refs @L<n>[i] = line n, .message.content[i] (i=0 omitted) · "
+        "leafs: thinking .thinking · text .text · ▶ .input · ◀ result .content · "
+        "◀ context .text · user .message.content · attach .attachment.content",
+        f"# recover: sed -n '<n>p' {log_path} | jq -r '<path>'",
+    ]
+
+
+def render_legend(log_path: str) -> str:
+    """Two-line hint header documenting how to recover raw content behind refs.
+
+    Printed once at the top of the full render (and reused as the skeleton
+    header's recipe lines). ``opencode export`` truncates its stdout at ~64KB
+    on a pipe, so the session recipe redirects to a file first — a bare
+    ``opencode export ... | jq ...`` silently loses everything past the
+    first pipe buffer.
+    """
+    return "\n".join(f"{C.HINT}{line}{C.RESET}" for line in legend_lines(log_path))
 
 
 # ─── Usage formatting ───────────────────────────────────────────────────────
@@ -279,13 +331,20 @@ class Renderer:
         # is unchanged. The first occurrence is always emitted.
         self._last_output_style: str | None = None
 
+    def _hint(self, lineno: int, block_idx: int | None, leaf: str) -> str:
+        """Dim recovery line printed under a truncated block."""
+        cmd = recovery_cmd(self.log_path, lineno, block_idx, leaf)
+        return f"    {C.DIM}…full: {cmd}{C.RESET}"
+
     # ── Content block renderers ──────────────────────────────────────────
 
-    def _render_thinking(self, block: ThinkingBlock) -> str:
+    def _render_thinking(self, block: ThinkingBlock, lineno: int, block_idx: int) -> str:
         prefix = C.THINKING + "  │ " + C.RESET
         body = textwrap.indent(block.thinking, prefix, predicate=lambda _: True)
+        ref = block_ref(block, lineno, block_idx)
         return (
-            f"{C.THINKING}  ╭─ thinking ─────────────────────────{C.RESET}\n"
+            f"{C.THINKING}  ╭─ thinking ─────────────{C.RESET}  "
+            f"{C.DIM}{ref}{C.RESET}\n"
             f"{body}\n"
             f"{C.THINKING}  ╰─────────────────────────────────────{C.RESET}"
         )
@@ -297,9 +356,12 @@ class Renderer:
         if block.id:
             self._tool_id_to_name[block.id] = block.name
 
-        ref = fmt_ref(lineno, block_idx)
+        ref = block_ref(block, lineno, block_idx)
         lines = [f"{C.TOOL}  ▶ {block.name}{C.RESET}  {C.DIM}{ref}{C.RESET}"]
         lines.append(ind(trunc(inp_str, self.tool_input_max), "    "))
+        if len(inp_str) > self.tool_input_max:
+            leaf = ".state.input" if _is_opencode_path(self.log_path) else ".input"
+            lines.append(self._hint(lineno, _resolve_idx(block, block_idx), leaf))
         return "\n".join(lines)
 
     def _render_tool_result(self, block: ToolResultBlock, lineno: int, block_idx: int,
@@ -311,25 +373,31 @@ class Renderer:
         label = f"✗ error{name_suffix}" if block.is_error else f"◀ result{name_suffix}"
 
         content = block.content
+        truncated = False
 
         if isinstance(content, list):
             parts = []
             for sub in content:
                 if sub.get("type") == "text":
                     t = sub.get("text", "")
-                    parts.append(trunc(t, self.tool_output_max))
                 else:
-                    s = str(sub)
-                    parts.append(trunc(s, self.tool_output_max))
+                    t = str(sub)
+                truncated = truncated or len(t) > self.tool_output_max
+                parts.append(trunc(t, self.tool_output_max))
             body = "\n".join(parts)
         else:
+            truncated = len(content) > self.tool_output_max
             body = trunc(content, self.tool_output_max)
 
-        ref = fmt_ref(lineno, block_idx)
+        ref = block_ref(block, lineno, block_idx)
         lines = [
             f"{label_color}  {label}{C.RESET}  {C.DIM}{ref}{C.RESET}",
             ind(body, "    "),
         ]
+
+        if truncated:
+            leaf = ".state.output" if _is_opencode_path(self.log_path) else ".content"
+            lines.append(self._hint(lineno, _resolve_idx(block, block_idx), leaf))
 
         if isinstance(tur, ToolUseResultDict):
             if tur.stderr:
@@ -341,16 +409,32 @@ class Renderer:
 
     def _render_context_text(self, text: str, lineno: int, block_idx: int) -> str:
         ref = fmt_ref(lineno, block_idx)
-        return "\n".join([
+        lines = [
             f"{C.RESULT}  ◀ context{C.RESET}  {C.DIM}{ref}{C.RESET}",
             ind(trunc(text, self.tool_output_max), "    "),
-        ])
+        ]
+        if len(text) > self.tool_output_max:
+            lines.append(self._hint(lineno, block_idx, ".text"))
+        return "\n".join(lines)
 
     # ── Turn renderers ───────────────────────────────────────────────────
 
     def render_user_input(self, records: list[tuple[UserRecord, int]], ts: str) -> str:
-        lines = [f"{C.USER}┌ User{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"]
-        for rec, _ in records:
+        lines: list[str] = []
+        first = True
+        for rec, lineno in records:
+            # opencode conversion tags the record with _pi (first text part
+            # index) so the ref resolves to .messages[n-1].parts[pi].text.
+            pi = getattr(rec, "_pi", None)
+            ref = fmt_ref(lineno, pi if isinstance(pi, int) else 0)
+            if first:
+                lines.append(
+                    f"{C.USER}┌ User{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}  "
+                    f"{C.DIM}{ref}{C.RESET}"
+                )
+                first = False
+            else:
+                lines.append(f"  {C.DIM}── {ref} ──{C.RESET}")
             if isinstance(rec.message.content, str):
                 lines.append(ind(rec.message.content, "  "))
         return "\n".join(lines)
@@ -397,10 +481,17 @@ class Renderer:
             for bi, block in enumerate(rec.message.content_blocks()):
                 if isinstance(block, ThinkingBlock):
                     if self.show_thinking:
-                        body.append(self._render_thinking(block))
+                        body.append(self._render_thinking(block, lineno, bi))
                     else:
-                        body.append(f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}")
+                        ref = block_ref(block, lineno, bi)
+                        body.append(
+                            f"{C.THINKING}  [thinking: {len(block.thinking)} chars]"
+                            f"{C.RESET}  {C.DIM}{ref}{C.RESET}"
+                        )
                 elif isinstance(block, TextBlock):
+                    body.append(
+                        f"{C.DIM}  ── text {block_ref(block, lineno, bi)} ──{C.RESET}"
+                    )
                     body.append(ind(block.text, "  "))
                 elif isinstance(block, ToolUseBlock):
                     if self.chat_only:
@@ -507,7 +598,10 @@ class Renderer:
                 f"{C.DIM}{ref}{C.RESET}"
             )
             truncated_body = trunc(body, self.tool_output_max)
-            return "\n".join([header, ind(truncated_body, "  ")])
+            lines = [header, ind(truncated_body, "  ")]
+            if len(body) > self.tool_output_max:
+                lines.append(self._hint(lineno, None, ".attachment.content"))
+            return "\n".join(lines)
 
         if atype == "hook_success":
             return (
@@ -598,22 +692,26 @@ class Renderer:
         self, count: int, first_ts: str, last_ts: str,
         n_user: int, n_assistant: int, hidden: bool,
     ) -> str:
-        time_range = f"{first_ts}\u2013{last_ts}" if first_ts != last_ts else first_ts
+        time_range = f"{first_ts}–{last_ts}" if first_ts != last_ts else first_ts
         turns = f"{n_user} user, {n_assistant} assistant"
         status = f"{count} records hidden" if hidden else f"{count} records shown above"
-        return (
+        out = (
             f"{C.REWIND}\f⟲ rewind{C.RESET}\n"
             f"{C.DIM}  {turns}  {time_range}  ({status}){C.RESET}"
         )
+        if hidden:
+            out += f"\n{C.DIM}  reveal: --show-rewound{C.RESET}"
+        return out
 
     def render_compaction_marker(
         self, section_num: int, prev_records: int,
         prev_first_ts: str, prev_last_ts: str,
         prev_n_user: int, prev_n_assistant: int,
         tokens_before: int, tokens_after: int,
+        section_hidden: bool,
     ) -> str:
         time_range = (
-            f"{prev_first_ts}\u2013{prev_last_ts}"
+            f"{prev_first_ts}–{prev_last_ts}"
             if prev_first_ts != prev_last_ts else prev_first_ts
         )
         header = f"{C.SYSTEM}\f⟐ compacted{C.RESET}"
@@ -631,4 +729,198 @@ class Renderer:
                 parts.append(f"{tokens_after:,}tok")
             arrow = " → ".join(parts)
             token_info = f"\n{C.DIM}  context: {arrow}{C.RESET}"
-        return f"{header}\n{C.DIM}{prev_summary}{C.RESET}{token_info}"
+        out = f"{header}\n{C.DIM}{prev_summary}{C.RESET}{token_info}"
+        if section_hidden:
+            out += (
+                f"\n{C.DIM}  reveal: --compact-all or "
+                f"--compact-leg {section_num - 1}{C.RESET}"
+            )
+        return out
+
+
+# ─── Skeleton (one line per block) ───────────────────────────────────────────
+
+def _tok(s: str) -> int:
+    """~token estimate for the skeleton size column (chars/4 heuristic)."""
+    return len(s) // 4
+
+
+def _preview(s: str, width: int = 50) -> str:
+    one = " ".join(s.split()).replace('"', "'")
+    if len(one) > width:
+        return one[:width] + "…"
+    return one
+
+
+def _tool_target(inp: Any) -> str:
+    """Short target summary for a tool line (filePath, command, ...)."""
+    if not isinstance(inp, dict):
+        return _preview(str(inp), 60)
+    for key in ("filePath", "command", "pattern", "path", "name",
+                "description", "prompt"):
+        val = inp.get(key)
+        if isinstance(val, str) and val:
+            return _preview(val, 60)
+    return _preview(json.dumps(inp), 60)
+
+
+def render_skeleton(
+    records: list[tuple[Record, int]],
+    *,
+    log_path: str,
+    compact_hidden: set[int],
+    hidden_for_rewind: set[int],
+    compaction_markers: dict[int, dict],
+    rewind_markers: dict[int, dict],
+    record_visible: Callable[[Record], bool],
+) -> str:
+    """One line per content block + hidden-region markers with reveal hints.
+
+    The skeleton is a block map: every line names its ref, approx size, and
+    jq leaf so a reader can plan ~10k-token batches and extract exactly those
+    blocks with one jq/sed command (see skills/session-analysis).
+    Bookkeeping records (progress, snapshots, queue ops, ...) are skipped;
+    --show-all surfaces model-invisible attachments/system lines (attachments
+    without text content are skipped — there is no .attachment.content to
+    extract).
+    """
+    oc = _is_opencode_path(log_path)
+    tool_id_to_name: dict[str, str] = {}
+    lines: list[str] = []
+
+    # Header: identity + size heuristic + the shared legend recipe lines.
+    first = records[0][0] if records else None
+    slug = getattr(first, "slug", "") or ""
+    if not slug and not oc:
+        slug = log_path.rsplit("/", 1)[-1]
+    cwd = getattr(first, "cwd", "") or ""
+    model = ""
+    for rec, _ in records:
+        m = getattr(getattr(rec, "message", None), "model", "")
+        if m:
+            model = m
+            break
+    n_units = len({ln for _, ln in records}) if oc else (records[-1][1] if records else 0)
+    unit = "msgs" if oc else "lines"
+    head = f"# skeleton: {slug} · {n_units} {unit}"
+    if model:
+        head += f" · {model}"
+    if cwd:
+        head += f" · {cwd}"
+    lines.append(head)
+    lines.append("# sizes: ~tok ≈ chars/4 (batch-planning heuristic)")
+    lines.extend(legend_lines(log_path))
+
+    def emit(ref: str, label: str, size: str, leaf: str, preview: str) -> None:
+        lines.append(
+            f"{ref:<12} {label:<30} {size:<20} {leaf:<26} {preview}".rstrip()
+        )
+
+    def rewind_line(m: dict) -> str:
+        line = f"⟲ rewind · {m['count']} records"
+        line += " hidden · reveal: --show-rewound" if m["hidden"] else " shown above"
+        return line
+
+    for i, (rec, lineno) in enumerate(records):
+        if i in compaction_markers:
+            cb = compaction_markers[i]
+            hidden = (cb["prev_records"] > 0 and
+                      all(j in compact_hidden
+                          for j in range(cb["prev_start"], cb["idx"])))
+            line = (f"⟐ compacted · section {cb['section_num']} "
+                    f"({cb['prev_records']} records)")
+            if hidden:
+                line += (f" hidden · reveal: --compact-all or "
+                         f"--compact-leg {cb['section_num'] - 1}")
+            lines.append(line)
+        if i in rewind_markers:
+            lines.append(rewind_line(rewind_markers[i]))
+        if i in compact_hidden or i in hidden_for_rewind:
+            continue
+        if not record_visible(rec):
+            continue
+
+        if isinstance(rec, AssistantRecord):
+            for bi, block in enumerate(rec.message.content_blocks()):
+                ref = block_ref(block, lineno, bi)
+                if isinstance(block, ThinkingBlock):
+                    emit(ref, "reasoning" if oc else "thinking",
+                         f"{_tok(block.thinking)}~tok",
+                         ".text" if oc else ".thinking",
+                         f'"{_preview(block.thinking)}"')
+                elif isinstance(block, TextBlock):
+                    emit(ref, "text", f"{_tok(block.text)}~tok", ".text",
+                         f'"{_preview(block.text)}"')
+                elif isinstance(block, ToolUseBlock):
+                    if block.id:
+                        tool_id_to_name[block.id] = block.name
+                    inp_str = (fmt_tool_input(block.input)
+                               if isinstance(block.input, dict)
+                               else str(block.input))
+                    if oc:
+                        out_len = getattr(block, "_out_len", 0)
+                        size = f"in:{_tok(inp_str)} out:{out_len // 4}~tok"
+                        leaf = ".state.input/.state.output"
+                    else:
+                        size = f"in:{_tok(inp_str)}~tok"
+                        leaf = ".input"
+                    emit(ref, f"tool:{block.name}", size, leaf,
+                         _tool_target(block.input))
+
+        elif isinstance(rec, UserRecord):
+            if isinstance(rec.message.content, str):
+                pi = getattr(rec, "_pi", None)
+                ref = fmt_ref(lineno, pi if isinstance(pi, int) else 0)
+                emit(ref, "user", f"{_tok(rec.message.content)}~tok",
+                     ".text" if oc else ".message.content",
+                     f'"{_preview(rec.message.content)}"')
+            else:
+                for bi, block in enumerate(rec.message.content_blocks()):
+                    ref = block_ref(block, lineno, bi)
+                    if isinstance(block, ToolResultBlock):
+                        name = tool_id_to_name.get(block.tool_use_id, "")
+                        label = f"result:{name}" if name else "result"
+                        content = block.content
+                        text = (
+                            "".join(
+                                s.get("text", "") for s in content
+                                if isinstance(s, dict) and s.get("type") == "text"
+                            )
+                            if isinstance(content, list) else str(content)
+                        )
+                        emit(ref, label, f"{_tok(text)}~tok",
+                             ".state.output" if oc else ".content",
+                             f'"{_preview(text)}"')
+                    elif isinstance(block, TextBlock):
+                        # cc context block — raw string at .text, not .content
+                        emit(ref, "context", f"{_tok(block.text)}~tok",
+                             ".text", f'"{_preview(block.text)}"')
+
+        elif isinstance(rec, AttachmentRecord):
+            a = rec.attachment
+            body = a.content
+            text = ("\n\n".join(str(x) for x in body)
+                    if isinstance(body, list) else str(body or ""))
+            if not text:
+                continue  # nothing extractable — no skeleton line
+            emit(fmt_ref(lineno), f"attach:{a.type}",
+                 f"{_tok(text)}~tok",
+                 ".attachment.content",
+                 f'"{_preview(text)}"')
+
+        elif isinstance(rec, SystemRecord):
+            if rec.subtype == "compact_boundary":
+                continue  # the ⟐ marker line above already covers it
+            content = getattr(rec, "content", "") or ""
+            emit(fmt_ref(lineno), f"system:{rec.subtype}",
+                 f"{_tok(content)}~tok" if content else "",
+                 ".content" if content else "",
+                 f'"{_preview(content)}"' if content else "")
+        # Progress / snapshots / queue ops / last-prompt / permission-mode:
+        # bookkeeping — intentionally no skeleton lines.
+
+    tail = len(records)
+    if tail in rewind_markers:
+        lines.append(rewind_line(rewind_markers[tail]))
+
+    return "\n".join(lines)

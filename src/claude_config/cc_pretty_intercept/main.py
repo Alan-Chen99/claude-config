@@ -133,7 +133,7 @@ def _render_message(
         block = parse_content_block(raw)
         if isinstance(block, ThinkingBlock):
             if renderer.show_thinking:
-                lines.append(renderer._render_thinking(block))
+                lines.append(renderer._render_thinking(block, lineno, bi))
             else:
                 lines.append(
                     f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}"
@@ -166,7 +166,7 @@ def _render_response(resp: Response, renderer: Renderer) -> str:
         block = parse_content_block(raw)
         if isinstance(block, ThinkingBlock):
             if renderer.show_thinking:
-                lines.append(renderer._render_thinking(block))
+                lines.append(renderer._render_thinking(block, 1, bi))
             else:
                 lines.append(
                     f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}"

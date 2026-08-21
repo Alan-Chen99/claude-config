@@ -49,8 +49,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `copy-writing-style/` | Generic style-matched content generation   | Writing in any reference style           |
 | `arxiv-to-md/`        | arXiv paper to markdown conversion        | Converting papers for LLM consumption    |
 | `cc-history/`         | Claude Code conversation history analysis | Querying past conversations, token usage |
-| `diagnose-session/`   | Post-hoc conversation log analysis        | Surfacing unreported items from session logs |
-| `session-timeline/`   | Focus-directed extraction of opencode session content into raw evidence artifacts | Building the evidence layer for interpretive rounds; separates "what's in the log" from "what it means" |
+| `session-analysis/`   | Session log analysis: skeleton-first reading protocol; task answers and facts-only evidence artifacts | Analyzing agent session logs (opencode exports or Claude Code JSONL) |
 | `diagnose-workflow/`  | Structural sub-agent workflow extraction   | Diagnosing multi-agent workflow success/failure |
 | `long-bash/`          | Long-running bash command protocol         | Running commands that may exceed 2min timeout   |
 | `git-surgery/`        | libgit2/pygit2 history rewrites without touching worktree, index, or HEAD; preserves SHA references in tracked files and commit messages | Squashing/dropping/reordering/amending commits when the worktree must survive or commit SHAs are checked in elsewhere |

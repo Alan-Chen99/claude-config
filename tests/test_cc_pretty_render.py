@@ -14,12 +14,16 @@ from claude_config.cc_pretty.parse import (
     AttachmentData,
     AttachmentRecord,
     Message,
+    ToolResultBlock,
     Usage,
 )
 from claude_config.cc_pretty.render import (
     C,
     Renderer,
+    block_ref,
     fmt_ref,
+    legend_lines,
+    recovery_cmd,
     render_legend,
     separator,
     trunc,
@@ -333,3 +337,62 @@ def test_cli_rejects_color_and_no_color_together(tmp_path) -> None:
     proc = _run_cli(_write_jsonl(tmp_path), "--color", "--no-color")
     assert proc.returncode == 2
     assert "not allowed with argument" in proc.stderr
+
+
+# ─── block_ref / recovery_cmd / legend_lines (direct-str access) ────────────
+
+
+def test_block_ref_prefers_source_part_index_when_present() -> None:
+    class _B:
+        pass
+    b = _B()
+    b._pi = 3
+    assert block_ref(b, 2, 0) == "@L2[3]"
+    assert block_ref(_B(), 2, 0) == "@L2"      # no _pi → enumeration index
+    assert block_ref(_B(), 2, 1) == "@L2[1]"
+
+
+def test_recovery_cmd_opencode_session() -> None:
+    cmd = recovery_cmd("opencode://ses_abc", 5, 3, ".state.output")
+    assert cmd == (
+        "opencode export ses_abc > /tmp/oc-ses_abc.json && "
+        "jq -r '.messages[4].parts[3].state.output' /tmp/oc-ses_abc.json"
+    )
+
+
+def test_recovery_cmd_opencode_from_file() -> None:
+    cmd = recovery_cmd("opencode-file:///tmp/x.json", 5, 3, ".text")
+    assert cmd == "jq -r '.messages[4].parts[3].text' /tmp/x.json"
+
+
+def test_recovery_cmd_cc_block_and_record_level() -> None:
+    assert recovery_cmd("/tmp/s.jsonl", 57, 0, ".content") == (
+        "sed -n '57p' /tmp/s.jsonl | jq -r '.message.content[0].content'"
+    )
+    assert recovery_cmd("/tmp/s.jsonl", 12, None, ".message.content") == (
+        "sed -n '12p' /tmp/s.jsonl | jq -r '.message.content'"
+    )
+
+
+def test_legend_lines_cover_every_block_type_per_harness() -> None:
+    cc = "\n".join(legend_lines("/tmp/s.jsonl"))
+    for token in (".thinking", ".text", ".input", ".content",
+                  ".message.content", ".attachment.content", "sed -n"):
+        assert token in cc, token
+    assert "context .text" in cc  # ◀ context blocks are TextBlocks (leaf .text)
+    oc = "\n".join(legend_lines("opencode://ses_x"))
+    for token in (".text", ".state.input", ".state.output",
+                  "opencode export ses_x"):
+        assert token in oc, token
+    oc_file = "\n".join(legend_lines("opencode-file:///tmp/x.json"))
+    assert "opencode export" not in oc_file
+    assert "jq -r" in oc_file and "/tmp/x.json" in oc_file
+
+
+def test_cc_tool_result_truncation_hint_uses_sed_and_content_leaf() -> None:
+    r = Renderer("/tmp/s.jsonl", tool_output_max=50, tool_input_max=50)
+    block = ToolResultBlock(
+        type="tool_result", tool_use_id="toolu_x", content="z" * 500,
+    )
+    out = r._render_tool_result(block, lineno=9, block_idx=0)
+    assert "…full: sed -n '9p' /tmp/s.jsonl | jq -r '.message.content[0].content'" in out
