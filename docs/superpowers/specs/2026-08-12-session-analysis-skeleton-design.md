@@ -1,5 +1,9 @@
 # session-analysis: skeleton-first reading protocol + merged skill design
 
+> **Mode design superseded** by `2026-08-20-session-analysis-two-mode-revision-design.md`
+> (two modes + shared default task; diagnose machinery deleted; grading re-pointed).
+> The skeleton / flags / tooling sections below still stand.
+
 ## Context
 
 Two session-log analysis skills exist:
