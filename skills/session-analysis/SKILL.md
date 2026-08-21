@@ -6,11 +6,9 @@ description: use only if invoked by user or workflow
 # Session Analysis
 
 Analyze one or more logged agent sessions — opencode exports or Claude Code
-JSONL — through a shared skeleton-first reading protocol. Three modes:
-**evidence** (a focus-directed raw-evidence artifact, facts only),
-**question** (evidence artifact + a synthesized answer in the response), and
-**diagnose** (a findings report surfacing items the agent did not
-self-report).
+JSONL — through a shared skeleton-first reading protocol. Two modes:
+**task** (use the log(s) to do something or answer a question) and
+**evidence** (extract what may be relevant into a facts-only artifact).
 
 ## Invocation
 
@@ -29,49 +27,41 @@ protect.
 
 ## Modes
 
-Three invocation modes. The `mode:` should be stated in the invocation brief;
-if omitted on a direct user invocation, question mode is the default. Parents
-dispatching a subagent **for an evidence artifact** must state `mode: evidence`
-— see "For parents" below.
+Two invocation modes. State `mode:` in the invocation brief; a direct
+invocation with no `mode:` runs task mode. Both modes share one default
+task, used whenever no task or focus is given:
 
-### question mode
+> **What happened in this session — highlight anything noteworthy,
+> unexpected, or requiring investigation.**
 
-Default for direct user invocation.
+### task mode
 
-- Input: session ID(s) + optional question.
-- Default question if omitted: *"What happened in this session — highlight
-  anything noteworthy, unexpected, or requiring investigation."*
-- Produces:
-  1. An evidence artifact (same file, format, and invariants as evidence mode;
-     focus = the question).
-  2. A synthesized answer to the question, returned in the response prose.
-- Response shape: `{ answer_prose, evidence_path }`.
+Default for direct invocation. Use the log(s) to perform a task — answer a
+question or do something.
 
-The evidence artifact stays pure (facts only) — the answer lives in the
-response, not in the artifact — so the artifact remains reusable substrate
-for later interpretive rounds.
+- Input: session ID(s) + optional task + optional `artifact: required|skip`.
+- Produces: the answer/result in the response prose. When `artifact:
+  required` (the default when unstated): also an evidence artifact (same
+  file, format, and invariants as evidence mode; focus = the task).
+- Response shape: `{ answer_prose, evidence_path? }`.
+
+`artifact: skip` is for terminal one-off tasks. The artifact costs ≈ +25–35%
+over answer-only and pays for itself the first time a follow-up reuses it;
+the artifact stays pure (facts only) — the answer lives in the response — so
+it remains reusable substrate for later interpretive rounds.
 
 ### evidence mode
 
 Required when a parent dispatches this skill via a subagent.
 
-- Input: session ID(s) + a description of what's important. The description
-  can be phrased as a focus, a question the parent will answer later, or an
-  evaluation criterion. The output is a factual log regardless of how the
-  request is phrased.
+- Input: session ID(s) + a description of what's important — a focus, a
+  question the parent will answer later, or an evaluation criterion. When
+  omitted, the shared default task is the focus. The output is a factual log
+  regardless of how the request is phrased.
 - Produces: an evidence artifact only.
 - Response shape: `{ evidence_path, one-paragraph summary of contents }`.
 - Gathering discipline: gather anything that MIGHT be relevant to the
   description. When in doubt, include (summarized). No interpretive answer.
-
-### diagnose mode
-
-- Input: log path (`*.jsonl`), opencode session id, or saved export
-  (`*.json` via `--from-file`).
-- Produces: a findings report (see "Mode: diagnose" below), returned in the
-  response prose.
-- Response shape: `{ report_prose }`.
-- Must be named explicitly (`mode: diagnose` or "diagnose this session").
 
 ## For parents dispatching this skill
 
@@ -80,7 +70,8 @@ contains, what invariants apply, and how to phrase the focus.
 
 Brief format:
 
-- `mode: evidence` (required for evidence-artifact dispatch; diagnose mode is run by the analysis owner, e.g. a grader subagent — not governed by this section)
+- `mode: evidence` (required — parents MUST use evidence mode; for
+  grading/audits see "Focused audits" below)
 - session ID(s)
 - focus / description of what matters
 
@@ -108,26 +99,58 @@ pretty file as reading substrate.
    (sed/jq bypass all hiding); an opencode export contains all compaction
    legs but only uncleaned rewind tails (opencode deletes abandoned tails on
    the next prompt).
-3. **Plan batches.** Group adjacent blocks totaling ≤ ~10k tokens (size
-   column). Key blocks may be read out of order first (e.g. a
-   known-decisive reasoning block).
-4. **Extract one batch with one command** naming exactly those refs:
-   - opencode: `opencode export <id> > /tmp/oc-<id>.json` once, then
-     `jq '.messages[9:25]' /tmp/oc-<id>.json` for a message range (0-based
-     slice: `.messages[a:b]` covers refs `@L(a+1)`..`@Lb`), or
+3. **Plan questions, not reads.** From the skeleton: what is this session
+   about? What questions matter for it? What would count as
+   noteworthy/unexpected/worth investigating in this context? Write the
+   questions down, then derive extraction rounds from them. Do NOT
+   pre-enumerate the read queue — a plan phrased as reads anchors you to it;
+   a plan phrased as questions keeps the investigation adaptive. **Report
+   plan drift**: questions added or dropped as the investigation proceeds are
+   themselves noteworthy — state them in your output.
+4. **Extract one round with one command** naming exactly those refs:
+   - opencode: `opencode export <id> > /tmp/oc-<id>.json` once, then per
+     round `jq '.messages[9:25]' /tmp/oc-<id>.json` for a message range
+     (0-based slice: `.messages[a:b]` covers refs `@L(a+1)`..`@Lb`), or
      `jq -r '.messages[<n-1>].parts[<i>]<leaf>' /tmp/oc-<id>.json` for one
      block. Never pipe `opencode export` into jq directly — stdout truncates
-     at ~64KB on a pipe; redirect to a file first.
+     at ~64KB on a pipe; redirect to a file first. Paste-ready helpers:
+     ```bash
+     OC=/tmp/oc-<id>.json
+     ocr() { jq -r ".messages[$(($1-1))].parts[$2]$3" "$OC"; }  # ocr 12 3 .state.output → @L12[3] leaf
+     ocrange() { jq ".messages[$(($1-1)):$2]" "$OC"; }          # ocrange 10 25 → refs @L10..@L25
+     ```
    - cc: `sed -n '10,25p' <file>.jsonl` for a line range, or
      `sed -n '<n>p' <file>.jsonl | jq -r '.message.content[<i>]<leaf>'` for
      one block (user inputs: `jq -r '.message.content'`; attachments:
      `jq -r '.attachment.content'`).
-5. **Think before fetching more.** Assess the batch's relevance to the
-   focus/question/findings, then plan the next batch.
-6. **Coverage sweep.** End with all blocks read. Required: every reasoning
-   block, every text block, every tool input. Tool OUTPUT is optional —
-   except when a later reasoning/text block references it: then go back and
-   read/explore/understand the referenced part.
+5. **Assess between rounds.** A round may be one batch or a planned queue of
+   batches. After each round: what did it surface? What does it redirect?
+   Then plan the next round.
+6. **Coverage sweep + manifest.** Required reading: every reasoning block,
+   every text block, every tool input. Before finishing, produce the
+   manifest: block counts by type vs. what you extracted, with a one-line
+   reason for every unextracted required block:
+   ```bash
+   jq '[.messages[].parts[] | .type] | group_by(.) | map({(.[0]): length}) | add' "$OC"
+   ```
+   Tool OUTPUT is optional — except (a) when a later reasoning/text block
+   references it: go back and read/explore/understand the referenced part;
+   and (b) the large-output rule below.
+7. **Large-output rule.** A tool output above ~2k~tok (size column) must not
+   be consumed only via the session-agent's own summary or quote — at
+   minimum, skim it structurally (head/tail or a targeted grep). The
+   session-agent's summary of a large output is evidence *about* the output,
+   not the output itself.
+8. **Self-report sections.** If the session contains self-report sections
+   (e.g. "Required notes"), verify every claim about what was or was not
+   reported against the actual section text before making it.
+9. **Workflow completion.** If the session invoked multi-step workflows
+   (skills with numbered steps/phases), check whether the later steps ran,
+   keyed to the workflow's own directives as visible in the log. Not all
+   workflows use explicit markers; a workflow can drop steps without leaving
+   a marker-shaped trace.
+10. **Telemetry.** Process claims (commands run, blocks read, coverage) must
+    come from the actual command history, not estimates.
 
 ## Harness notes
 
@@ -330,162 +353,13 @@ focus-slug is 2–4 dash-separated words naming the focus. Example filenames:
 `gpt55-xhigh-baseline__prompt-md-rewrite.md`,
 `dispatch-3-main-plus-subagents__crossing-motivation.md`.
 
-## Mode: diagnose
+## Focused audits (grading, compliance checks)
 
-Post-hoc analysis of an agent conversation log (opencode export or Claude
-Code JSONL). Surfaces findings the agent may have missed in its
-self-reporting (Required notes — the self-reporting sections in assistant
-messages; see conventions/agent-responses.md).
-
-Read the log via the Reading protocol above.
-
-### Construct the timeline
-
-Before scanning for findings, construct a **semantic timeline** of what the
-agent was doing, in order. This is not a transcript of tool calls — it is the
-narrative of the agent's actions and decisions.
-
-Each line names what the agent was *doing*, not which syscall ran. "Reproduced
-the failure" beats "ran `./export_catalog.py`". "Probed adjacent Python
-version" beats "Bash uv run --python 3.13".
-
-Cover: tool-call clusters that served one purpose, subagent dispatches, gate
-drafts, error → retry cycles, file edits, and major reasoning turns visible
-in thinking blocks.
-
-Example:
-
-```
-- Read the failing fixture script.
-- Ran the script with uv; reproduced TypeError on Python 3.14 / pydantic 2.12.5.
-- Drafted gate (objectively-wrong / discriminating-check), self-critiqued.
-- Probed adjacent Python version 3.13; same script ran clean.
-- Searched pydantic issue tracker; found issue #12732 / PR #12733.
-- Concluded root cause as runtime/library compatibility, not application code.
-- Sent final answer.
-```
-
-The timeline goes at the top of the report (see "Produce the report" below),
-after the Overview.
-
-### Scan for findings
-
-Scan the log for each category below. For every potential finding,
-you MUST follow the evidence-first protocol:
-
-**Evidence-first protocol:**
-1. QUOTE the specific text from the log (tool output, error message, agent text)
-2. CLASSIFY into exactly one category
-3. EXPLAIN why this matters (one sentence)
-
-#### Detection tiers
-
-**HIGH detectability** — scan for these patterns systematically:
-
-| Category | Detection signals |
-|----------|------------------|
-| **tool issue** | Tool outputs containing `✗`, non-zero exit codes, "error", "failed", "denied", "permission", capability errors. Also: tools that return unhelpful results forcing the agent to retry. |
-| **context waste** | Repeated reads of the same file. Failed reads (file not found). Reading files then not using the content. Large tool outputs that didn't contribute to the result. |
-| **corrected mistake** | Error→revision sequences: agent tries something, gets an error, then changes approach. Failed commands followed by different commands. Agent reverses a prior assessment or conclusion. |
-| **workflow dropout** | Multi-step skill workflows (e.g., `/do` steps 1→2→3→4→5→6) where a later step was never invoked. Detection leans on the timeline (above) and on `NEXT STEP` directives visible in extracted skill-script text. Pattern: a skill-script step in the timeline whose `NEXT STEP` directive (visible in the extracted text) does not appear as a follow-up tool call later in the timeline. Always **significant** severity — the dropped steps are invisible to the user and typically contain quality gates or validation. |
-
-**MEDIUM detectability** — look for these with evidence:
-
-| Category | Detection signals |
-|----------|------------------|
-| **manual action needed** | Agent mentions something the user must do (install, configure, restart, approve). Check if it was surfaced in Required notes. |
-| **instruction issue** | Agent references a file/instruction that doesn't exist. Conflicting instructions observed. Agent works around an instruction rather than following it. |
-| **unexpected change** | Agent modifies files beyond what was asked. Scope creep visible in the diff or tool calls. Agent replaces something rather than augmenting it when augmentation was requested. |
-
-**THINKING-BLOCK patterns** — scan reasoning/thinking blocks for these:
-
-| Category | Detection signals |
-|----------|------------------|
-| **contradictory reasoning** | Agent's thinking contradicts its text output or tool results. Statements like "I already fixed this" when the fix hasn't been verified. Agent dismissing review findings without investigation. Thinking says one thing, output says another. **Exclusion:** An agent explicitly citing guidelines, protocol, or instructions to justify an action that differs from its internal assessment is protocol-compliance, NOT a contradiction (e.g., "I'd normally do X but the rules say Y so I'll do Y"). |
-| **under-investigated critical issue** | Critical terms (segfault, crash, data loss, corruption, security vulnerability, race condition) mentioned in thinking but with minimal follow-up. The agent acknowledges a serious problem but doesn't investigate its scope, root cause, or downstream impact. A single mention of a critical term without evidence of investigation is a finding. |
-| **unverified prior-iteration claim** | Agent references what a prior iteration did or didn't do without verifying the claim. Phrases like "prior iteration missed X", "this was already done", "the previous run handled this". These claims may be wrong and need cross-referencing against actual evidence. |
-| **dismissed concern** | Agent notices something concerning in thinking but doesn't surface it in output or Required notes. The thinking block reveals awareness of a problem that the user never sees. |
-
-**LOW detectability** — report only with strong textual evidence:
-
-| Category | Detection signals |
-|----------|------------------|
-| **suspected user mistake** | Agent notices something wrong with user's input/files but doesn't flag it. Agent fixes a user error silently. User's next message confirms something the agent should have caught. |
-| **hidden challenge** | Non-obvious problems the agent solved that weren't apparent from the initial request. These are hard to detect externally — only report if the log clearly shows the agent discovering and solving an unexpected problem. |
-
-### Check existing Required notes (workspace conversations only)
-
-If the conversation contains "Required notes" sections in assistant messages:
-1. List what was self-reported
-2. Compare against your findings
-3. Flag items that were reported under the wrong category (miscategorization)
-
-If no Required notes exist (non-workspace conversation), skip this step and
-note that self-reporting was not active for this conversation.
-
-### Produce the report
-
-Format findings as:
-
-```
-## Session Diagnosis: <session-id>
-
-### Overview
-<1-2 sentences: what the conversation was about, how many turns>
-
-### Timeline
-<semantic chronological list per "Construct the timeline" above>
-
-### Findings
-
-#### <category>
-> <quoted evidence from log>
-
-<explanation — one sentence>
-<severity: minor | notable | significant>
-
-[repeat for each finding]
-
-### Self-Reporting Comparison (workspace only)
-- Self-reported: <count> items
-- Diagnosed: <count> items
-- Overlap: <count>
-- Missed by self-reporting: <list>
-- Miscategorized: <list>
-- False positives in self-reporting: <list>
-
-### Thinking-Block Findings
-[Findings from thinking blocks get their own section because they represent
-information the agent had but chose not to surface. These are often the most
-important findings.]
-
-### Summary
-<2-3 sentences: overall quality assessment, most impactful missed items>
-```
-
-### Rules
-
-1. **Read thinking blocks.** Every finding category that touches reasoning
-   (contradictory reasoning, under-investigated critical issue, unverified
-   prior-iteration claim, dismissed concern) MUST cite quoted text from a
-   thinking block. Findings about agent behavior that ignore thinking-block
-   evidence are incomplete.
-2. Every finding MUST have a direct quote from the log. No finding without evidence.
-3. Do NOT hallucinate findings. If the log is clean, say so — "No findings" is
-   a valid and expected outcome for clean sessions. Do not manufacture findings
-   to fill the report.
-4. Severity guide:
-   - **significant**: Would change what the user does next
-   - **notable**: User should know but doesn't change immediate action
-   - **minor**: Completeness item, low practical impact
-5. When in doubt about a finding, include it with lower severity rather than omitting.
-6. For corrected mistake: the agent fixing its own error is EXPECTED behavior.
-   The finding is that it wasn't reported, not that the error occurred.
-7. For suspected user mistake: be careful distinguishing "user made a mistake"
-   from "user has a different intent than the agent assumed."
-8. Context waste means the **agent** read or fetched irrelevant content. Token
-   caching statistics, system-level overhead, and infrastructure details are NOT
-   context waste — only agent-initiated reads/writes that didn't contribute to
-   the result count.
-9. Lead the Findings section with significant/notable items. Group minor items
-   at the end under a "Minor" subheading so users see high-impact findings first.
+For audits that need a verdict or causal attribution — prompt-tests grading,
+workflow reviews — dispatch evidence mode with the audit criteria as the
+focus, then synthesize the causal story from the artifact in your own turn.
+Do not use fixed findings-category checklists for this: they produce
+category-shaped items rather than causal attribution — findings get inflated
+to fit the list while the actual reason things happened may not fit any
+category. Verdicts cite artifact evidence and name the causal chain
+explicitly.
