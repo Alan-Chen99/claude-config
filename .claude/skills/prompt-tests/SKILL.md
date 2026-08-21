@@ -52,19 +52,22 @@ Historical baselines from the opencode era are at
 3. **Dispatch one grader subagent per session log.** One subagent per session
    — no parallel-grader launching. The grader's brief:
 
-   > Read the session log with the session-analysis skill's reading
-   > protocol: `agent-tools cc-pretty <FILE> --skeleton` (Claude Code JSONL)
+   > Read the session log with the session-analysis skill in **evidence
+   > mode**: `agent-tools cc-pretty <FILE> --skeleton` (Claude Code JSONL)
    > or `agent-tools opencode-pretty <session> --skeleton` (opencode), then
-   > extract batches per the protocol, **including all thinking/reasoning
-   > blocks**. Run the `session-analysis` skill in **diagnose mode** over
-   > the log. First check for
+   > extract per the reading protocol, **including all thinking/reasoning
+   > blocks**. Focus: the grading criteria — the contamination rules in this
+   > skill, what the task required, and (if the run failed or struggled) the
+   > evidence bearing on why. First check for
    > cheating/contamination using the rules in this skill. If contaminated,
    > return `invalid` and do not grade semantic quality. Otherwise compare the
    > transcript to `reference-solution.md` semantically. Return:
    > - **Verdict**: `pass` / `acceptable` / `fail` / `invalid`.
    > - **Reasoning** grounded in transcript quotes (final answer, tool calls,
    >   thinking blocks).
-   > - **Full diagnose report** inlined.
+   > - **Causal attribution** for any failure or struggle: why it happened,
+   >   as a causal chain grounded in evidence-artifact quotes.
+   > - The evidence artifact path.
 
 4. **Aggregate in the parent.** Apply outcome rules:
    - `pass` → pass.
@@ -73,8 +76,9 @@ Historical baselines from the opencode era are at
      acceptable (never `pass`), call it `fail`. Parent's judgment.
    - `invalid` → discard the run and rerun from a clean scratch cwd. It is not
      a semantic fail.
-   - Outstanding problematic behavior in the diagnose report can
-     override `pass` → `fail`. Parent decides severity in context of the task.
+   - Outstanding problematic behavior evidenced in the artifact can
+     override `pass` → `fail`; the override must cite the causal chain, not a
+     category label. Parent decides severity in context of the task.
 
 Trial count is task-dependent. Run once first; iterate only if the result is
 ambiguous or `acceptable`.
