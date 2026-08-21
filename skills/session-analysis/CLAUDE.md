@@ -1,7 +1,7 @@
 # session-analysis/
 
 Session log analysis over opencode exports and Claude Code JSONL:
-skeleton-first reading protocol with evidence, question, and diagnose modes.
+skeleton-first reading protocol with task and evidence modes.
 
 ## Files
 
