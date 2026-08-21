@@ -142,14 +142,14 @@ agent-tools cc-workflow <FILE> --anomalies-only
 
 ## Relationship to session-analysis
 
-| Aspect | session-analysis (diagnose mode) | diagnose-workflow |
-|--------|----------------------------------|-------------------|
+| Aspect | session-analysis (task mode) | diagnose-workflow |
+|--------|------------------------------|-------------------|
 | **What it reads** | Rendered conversation text | Raw JSONL structure |
-| **What it finds** | Unreported Required notes items | Agent success/failure, anomalies, resource usage |
+| **What it finds** | Content-level findings, noteworthy items, self-report gaps | Agent success/failure, anomalies, resource usage |
 | **Scope** | All conversation activity | Sub-agent workflows only |
 | **Strength** | Content-level analysis (errors, waste, mistakes) | Structural ground-truth (tokens, counts, durations) |
 | **Weakness** | Cannot see inside sub-agents | Cannot assess content quality |
 
 For comprehensive diagnosis, use both:
 1. `/diagnose-workflow` first — get the structural picture
-2. `session-analysis` in diagnose mode second — get content-level findings
+2. `session-analysis` in task mode second — get content-level findings
