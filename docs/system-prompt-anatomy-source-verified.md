@@ -2,6 +2,13 @@
 
 Source-verified against `claude-code` source (`/repos/claude-code-src/src/`).
 
+> **Scope: claude-code 2.1.88.** Function references and code paths are valid
+> for that tree only. Verified live behavior for 2.1.235 — a `role: "system"`
+> reminder message, a single `DeferredToolPlaceholder` tool entry, no
+> `TaskCreate` family, and model-specific prompt text — is in
+> [system-prompt-snapshot/README.md](system-prompt-snapshot/README.md).
+> Re-verifying this document against 2.1.235 requires decompiling that build.
+
 Claude Code assembles context from multiple sources. The harness rebuilds the
 message array before every API call — some blocks are static, some are
 re-injected fresh, and some accumulate over the conversation.

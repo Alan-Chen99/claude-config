@@ -1,82 +1,38 @@
 {
-  "version": "x-anthropic-billing-header: cc_version=2.1.143.c8c; cc_entrypoint=cli; cch=3139a;",
-  "model": "claude-haiku-4-5-20251001",
+  "version": "x-anthropic-billing-header: cc_version=2.1.235.6db; cc_entrypoint=cli; cch=f49e3; cc_is_subagent=true;",
+  "model": "claude-sonnet-5",
   "block_count": 3,
-  "total_tokens": 820,
+  "total_tokens": 1600,
   "blocks": [
     {
       "index": 0,
-      "tokens": 38,
-      "preview": "x-anthropic-billing-header: cc_version=2.1.143.c8c; cc_entrypoint=cli; cch=3139a;"
+      "tokens": 58,
+      "preview": "x-anthropic-billing-header: cc_version=2.1.235.6db; cc_entrypoint=cli; cch=f49e3; cc_is_subagent=true;"
     },
     {
       "index": 1,
-      "tokens": 14,
-      "preview": "You are Claude Code, Anthropic's official CLI for Claude."
+      "tokens": 28,
+      "preview": "You are a Claude agent, built on Anthropic's Claude Agent SDK."
     },
     {
       "index": 2,
-      "tokens": 768,
+      "tokens": 1516,
       "preview": "You are a file search specialist for Claude Code, Anthropic's official CLI for Claude. You excel at thoroughly navigating and exploring codebases.\n\n=== CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS"
     }
   ],
   "tools": [
     "Bash",
-    "CronCreate",
-    "CronDelete",
-    "CronList",
-    "EnterWorktree",
-    "ExitWorktree",
-    "Monitor",
-    "PushNotification",
     "Read",
-    "RemoteTrigger",
-    "ShareOnboardingGuide",
     "Skill",
-    "TaskCreate",
-    "TaskGet",
-    "TaskList",
-    "TaskStop",
-    "TaskUpdate",
-    "WebFetch",
-    "WebSearch",
-    "mcp__claude_ai_Google_Drive__copy_file",
-    "mcp__claude_ai_Google_Drive__create_file",
-    "mcp__claude_ai_Google_Drive__download_file_content",
-    "mcp__claude_ai_Google_Drive__get_file_metadata",
-    "mcp__claude_ai_Google_Drive__get_file_permissions",
-    "mcp__claude_ai_Google_Drive__list_recent_files",
-    "mcp__claude_ai_Google_Drive__read_file_content",
-    "mcp__claude_ai_Google_Drive__search_files"
+    "DeferredToolPlaceholder",
+    "ToolSearch"
   ],
   "tool_tokens": {
-    "Bash": 3669,
-    "CronCreate": 1616,
-    "CronDelete": 607,
-    "CronList": 572,
-    "EnterWorktree": 1349,
-    "ExitWorktree": 1206,
-    "Monitor": 2285,
-    "PushNotification": 906,
-    "Read": 1184,
-    "RemoteTrigger": 867,
-    "ShareOnboardingGuide": 860,
-    "Skill": 928,
-    "TaskCreate": 1204,
-    "TaskGet": 785,
-    "TaskList": 817,
-    "TaskStop": 658,
-    "TaskUpdate": 1547,
-    "WebFetch": 988,
-    "WebSearch": 996,
-    "mcp__claude_ai_Google_Drive__copy_file": 774,
-    "mcp__claude_ai_Google_Drive__create_file": 1173,
-    "mcp__claude_ai_Google_Drive__download_file_content": 763,
-    "mcp__claude_ai_Google_Drive__get_file_metadata": 660,
-    "mcp__claude_ai_Google_Drive__get_file_permissions": 598,
-    "mcp__claude_ai_Google_Drive__list_recent_files": 776,
-    "mcp__claude_ai_Google_Drive__read_file_content": 907,
-    "mcp__claude_ai_Google_Drive__search_files": 1128
+    "Bash": 4484,
+    "Read": 1260,
+    "Skill": 977,
+    "DeferredToolPlaceholder": 432,
+    "ToolSearch": 889
   },
-  "source_request": "0004-request.json"
+  "source_request": "0006-request.json"
 }

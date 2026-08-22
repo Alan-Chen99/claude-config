@@ -63,6 +63,7 @@ for _k in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
 # Proxy writes per-session: ~/.claude/requests-log/{session_id}/NNNN.json
 PROXY_LOG_BASE = Path.home() / ".claude" / "requests-log"
 _LOG_FILE_RE = re.compile(r"^\d+\.json$")
+_BILLING_HEADER_RE = re.compile(r"^x-anthropic-billing-header:.*$", re.MULTILINE)
 
 def _pty_drain(fd: int, timeout: float) -> str:
     """Read all available pty output until timeout, preventing buffer-full blocking."""
@@ -120,6 +121,10 @@ def _strip_cache_control(obj):
     elif isinstance(obj, list):
         return [_strip_cache_control(x) for x in obj]
     return obj
+
+
+def _strip_defer_loading(tool: dict) -> dict:
+    return {k: v for k, v in tool.items() if k != "defer_loading"}
 
 
 def count_tokens(model: str, *, system=None, tools=None) -> int:
@@ -207,10 +212,10 @@ def find_new_proxy_logs(start_time: float, child_pid: int) -> list[Path]:
 
 def find_all_requests_proxy(
     log_files: list[Path],
-) -> list[tuple[Path, int, bool]]:
+) -> list[tuple[Path, int, bool, bool]]:
     """Return deduplicated requests from proxy log files.
 
-    Each entry is (path_to_request_json, system_tokens, has_tools).
+    Each entry is (path_to_request_json, system_tokens, has_tools, is_subagent).
     Deduplicates by system prompt content hash.
     """
     results = []
@@ -235,10 +240,12 @@ def find_all_requests_proxy(
             if s.get("type") == "text"
         ]
         content = "\n".join(texts)
-        # Normalize per-request variability before hashing: the billing-header
-        # block carries a `cch=<hex>;` session fingerprint that differs every
-        # request, which otherwise defeats dedup of identical prompts.
-        norm = re.sub(r"cch=[0-9a-fA-F]+;", "cch=N;", content)
+        # The billing header carries per-request fingerprints — cch, cc_prev_req,
+        # cc_prompt_id — so hashing it verbatim makes every request unique and
+        # dedup collapses to nothing. The whole line is normalized rather than
+        # each field, so a newly added fingerprint cannot silently break dedup
+        # again.
+        norm = _BILLING_HEADER_RE.sub("x-anthropic-billing-header: <normalized>", content)
         h = hashlib.md5(norm.encode()).hexdigest()
         if h in seen:
             continue
@@ -248,10 +255,11 @@ def find_all_requests_proxy(
         req_path.write_text(json.dumps(req, indent=2))
 
         has_tools = len(req.get("tools", [])) > 0
+        is_subagent = "cc_is_subagent=true" in content
         model = req.get("model", "claude-opus-4-6")
         sys_blocks = req.get("system", [])
         sys_tokens = count_tokens(model, system=sys_blocks) - _baseline(model)
-        results.append((req_path, sys_tokens, has_tools))
+        results.append((req_path, sys_tokens, has_tools, is_subagent))
     return results
 
 
@@ -280,8 +288,12 @@ def extract_request(req_path: Path, out_dir: Path, file_prefix: str = "") -> dic
     block_tokens = [
         count_tokens(model, system=[blk]) - base for blk in blocks
     ]
+    # count_tokens rejects a request whose every tool is deferred, so the lone
+    # DeferredToolPlaceholder entry is measured with the flag dropped. The
+    # definition text is what is being sized; the flag is not part of it.
     tool_tokens = {
-        t["name"]: count_tokens(model, tools=[t]) - base for t in tools
+        t["name"]: count_tokens(model, tools=[_strip_defer_loading(t)]) - base
+        for t in tools
     }
 
     summary = {
@@ -304,6 +316,44 @@ def extract_request(req_path: Path, out_dir: Path, file_prefix: str = "") -> dic
     return summary
 
 
+CREDENTIALS_FILE = Path.home() / ".claude" / ".credentials.json"
+
+# Rendered by the child when it starts unauthenticated.
+AUTH_FAILURE_MARKERS = ("Not logged in", "Login expired", "Please run /login")
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;?<>]*[ -/]*[@-~]|\x1b[@-Z\\-_]")
+
+
+def _has_stored_credentials() -> bool:
+    try:
+        creds = json.loads(CREDENTIALS_FILE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    return bool(creds.get("claudeAiOauth", {}).get("accessToken"))
+
+
+def _flatten_pty(output: str) -> str:
+    """Strip escapes and whitespace so column-redrawn text matches literally.
+
+    Claude Code repositions the cursor between words instead of emitting
+    spaces, so "Login expired" arrives as "Login\x1b[9Gexpired". Dropping both
+    escapes and whitespace makes such fragments comparable.
+    """
+    return "".join(_ANSI_RE.sub("", output).split())
+
+
+def _assert_authenticated(output: str) -> None:
+    flat = _flatten_pty(output)
+    hit = next(
+        (m for m in AUTH_FAILURE_MARKERS if "".join(m.split()) in flat), None
+    )
+    if hit:
+        raise RuntimeError(
+            f"Spawned Claude session is unauthenticated (pty showed {hit!r}). "
+            "No API call was made, so nothing can be captured."
+        )
+
+
 def spawn_claude(
     extra_args: list[str],
     model: str = "haiku",
@@ -311,8 +361,22 @@ def spawn_claude(
     subagents: list[str] | None = None,
 ) -> int:
     env = os.environ.copy()
-    # Prevent nested session detection
+    # Prevent nested session detection. CLAUDE_CODE_CHILD_SESSION additionally
+    # disables transcript saving in the child, which is not what a standalone
+    # interactive session looks like.
     env.pop("CLAUDECODE", None)
+    env.pop("CLAUDE_CODE_CHILD_SESSION", None)
+    # Claude Code strips CLAUDE_CODE_OAUTH_TOKEN from tool subprocess
+    # environments, so a capture launched from inside a session inherits no
+    # credentials. Without them the child renders "Not logged in" and issues
+    # zero API calls, which surfaces downstream as an unexplained empty capture.
+    if not env.get("CLAUDE_CODE_OAUTH_TOKEN") and not _has_stored_credentials():
+        raise RuntimeError(
+            "No Claude credentials available for the spawned session: "
+            "CLAUDE_CODE_OAUTH_TOKEN is unset and ~/.claude/.credentials.json "
+            "holds no access token. Export CLAUDE_CODE_OAUTH_TOKEN before "
+            "running capture.py (see README, 'Credentials')."
+        )
     # Route through MITM proxy
     env["HTTPS_PROXY"] = f"http://127.0.0.1:{PROXY_PORT}"
     # Node.js fetch (undici) ignores HTTPS_PROXY unless --use-env-proxy is set.
@@ -377,29 +441,30 @@ def spawn_claude(
         os.chdir(work_dir)
         os.execvpe(cmd[0], cmd, env)
 
+    transcript: list[str] = []
     try:
         # Accept trust dialog
-        _pty_drain(fd, 5)
+        transcript.append(_pty_drain(fd, 5))
         os.write(fd, b"\r")
 
         # Claude Code enables bracketed paste mode. A trailing \r in the same
         # write gets absorbed into the paste payload instead of submitting,
         # so write the message and the submit-Enter as separate writes.
         if subagents:
-            _pty_drain(fd, 10)
+            transcript.append(_pty_drain(fd, 10))
             os.write(fd, message.encode())
             time.sleep(0.5)
             os.write(fd, b"\r")
-            output = _pty_drain(fd, timeout_s - 20)
+            transcript.append(_pty_drain(fd, timeout_s - 20))
         else:
-            _pty_drain(fd, 10)
+            transcript.append(_pty_drain(fd, 10))
             os.write(fd, b"say exactly: done")
             time.sleep(0.3)
             os.write(fd, b"\r")
-            output = _pty_drain(fd, 30)
+            transcript.append(_pty_drain(fd, 30))
 
         os.write(fd, b"/exit\r")
-        _pty_drain(fd, 5)
+        transcript.append(_pty_drain(fd, 5))
     except OSError:
         pass
     finally:
@@ -412,6 +477,8 @@ def spawn_claude(
         except ChildProcessError:
             pass
         shutil.rmtree(work_dir, ignore_errors=True)
+
+    _assert_authenticated("".join(transcript))
     return pid
 
 
@@ -487,37 +554,41 @@ def main() -> None:
     # a title-generation Haiku call (~250 tokens, no tools) before the main call.
     # With --system-prompt the main call can be smaller than the title-gen call,
     # so size alone is not sufficient — tools presence is the reliable signal.
+    # Subagent calls also carry tools, and are excluded by their header flag.
     main_idx = max(
         range(len(all_reqs)),
-        key=lambda i: (all_reqs[i][2], all_reqs[i][1]),  # (has_tools, size)
+        # (not subagent, has_tools, size)
+        key=lambda i: (not all_reqs[i][3], all_reqs[i][2], all_reqs[i][1]),
     )
     main_summary = extract_request(all_reqs[main_idx][0], OUT_DIR)
     content = (OUT_DIR / "system.txt").read_text()
     print(content)
 
-    # Extract subagent prompts (everything except the main prompt)
+    # Extract subagent prompts. `cc_is_subagent=true` in the billing header is
+    # the authoritative marker; size and tool-presence heuristics also match the
+    # title-generation call and the security-monitor classifier, which are not
+    # subagents.
     subagent_summaries = []
-    other_reqs = [r for i, r in enumerate(all_reqs) if i != main_idx]
-    if subagents and other_reqs:
-        # Filter out preflight/title-gen calls: keep only requests with tools
-        # (subagents always have tools) or substantial system prompts (> 2K)
-        sub_reqs = [(p, sz) for p, sz, ht in other_reqs if ht or sz > 2000]
-        if sub_reqs:
-            sub_dir = OUT_DIR / "subagents"
-            sub_dir.mkdir()
-            for i, (req_path, _) in enumerate(sub_reqs, 1):
-                prefix = f"{i:03d}"
-                s = extract_request(req_path, sub_dir, file_prefix=f"{prefix}-")
-                subagent_summaries.append(s)
-                sub_content = (sub_dir / f"{prefix}-system.txt").read_text()
-                print(
-                    f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}"
-                )
-    elif subagents:
-        print(
-            "WARNING: --subagent specified but no subagent calls captured.",
-            file=sys.stderr,
-        )
+    if subagents:
+        sub_reqs = [
+            (p, sz) for i, (p, sz, _ht, is_sub) in enumerate(all_reqs)
+            if is_sub and i != main_idx
+        ]
+        if not sub_reqs:
+            raise RuntimeError(
+                f"--subagent requested {subagents} but no request carried "
+                "cc_is_subagent=true; the session never spawned an agent."
+            )
+        sub_dir = OUT_DIR / "subagents"
+        sub_dir.mkdir()
+        for i, (req_path, _) in enumerate(sub_reqs, 1):
+            prefix = f"{i:03d}"
+            s = extract_request(req_path, sub_dir, file_prefix=f"{prefix}-")
+            subagent_summaries.append(s)
+            sub_content = (sub_dir / f"{prefix}-system.txt").read_text()
+            print(
+                f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}"
+            )
 
     n_sub = len(subagent_summaries)
     print(

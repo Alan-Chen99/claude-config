@@ -2,6 +2,17 @@
 
 How Claude Code assembles the context sent to the model on each API call.
 
+> **Scope: claude-code 2.1.88 source** (`/repos/claude-code-src/`). The
+> assembly mechanism it describes is still broadly accurate, but the concrete
+> layout has moved on: as of 2.1.235 the reminders live in a dedicated
+> `role: "system"` message placed after the first user message, deferred tools
+> are represented by a single `DeferredToolPlaceholder` entry in `tools[]`, the
+> `TaskCreate` family no longer exists, and Sonnet 5 and Opus 5 receive
+> different prompt text. For what a current build actually sends, see
+> [system-prompt-snapshot/README.md](system-prompt-snapshot/README.md) and
+> [system-prompt-snapshot/what-the-model-gets.md](system-prompt-snapshot/what-the-model-gets.md),
+> which are captured from live traffic rather than read from source.
+
 For source-verified details with function references and code paths, see
 [system-prompt-anatomy-source-verified.md](system-prompt-anatomy-source-verified.md).
 

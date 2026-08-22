@@ -93,7 +93,7 @@ Style-matched content generation from any style reference file. 3-phase iterativ
 | Path                                       | What                                          | When to read                                            |
 | ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------- |
 | `opencode-system-prompt/`                  | opencode prompt notes: `alan-default-ids.md` per-delta annotation (`alan-default-commentary.md`), `min-commentary.md` (scope and design rationale for the diagnostic minimum baseline at `opencode/agents/min.md`), `build-self-reported.md` outlining the session prompt assembly | Investigating opencode prompt behavior, `alan-default-ids.md` deltas vs upstream codex gpt-5.5 `base_instructions` (from `/repos/codex/codex-rs/models-manager/models.json`), or why a specific clause is present |
-| `system-prompt-anatomy.md`                 | Simplified overview of system prompt assembly | Quick orientation, understanding prompt structure       |
-| `system-prompt-anatomy-source-verified.md` | Detailed anatomy with function references     | Debugging context loading, source-level understanding   |
-| `system-prompt-snapshot/`                  | Captured system prompts and full API requests | Comparing prompt versions, understanding API parameters |
+| `system-prompt-anatomy.md`                 | Simplified overview of system prompt assembly — pinned to cc 2.1.88 source | Quick orientation, understanding prompt structure       |
+| `system-prompt-anatomy-source-verified.md` | Detailed anatomy with function references — pinned to cc 2.1.88 source     | Debugging context loading, source-level understanding   |
+| `system-prompt-snapshot/`                  | Captured system prompts and full API requests — live capture, cc 2.1.235   | Comparing prompt versions, understanding API parameters |
 | `tool-token-limits.md`                     | Token counting, truncation, and size limits per tool | Understanding tool output constraints, debugging limits |

@@ -1,29 +1,41 @@
 # What the Model Gets
 
-Everything the model receives, in order, on a fresh interactive session with a project CLAUDE.md, no output style.
-v2.1.143. Source: `opus/default/request.json`, `sonnet/default/request.json`.
+Everything the model receives, in order, on a fresh interactive session with a
+project CLAUDE.md, no output style.
+
+v2.1.235. Source: `sonnet/default/request.json`, `opus/default/request.json`.
 Capture uses `--setting-sources project,local` to isolate from user settings.
-Sonnet and Opus receive identical system prompt text except model name and knowledge cutoff;
-the per-section token counts below differ because opus-4-7 and sonnet-4-6 use different tokenizers
-(opus runs ~38% larger on the same text).
+
+**Sonnet 5 and Opus 5 do not receive the same prompt.** Through 2.1.143 the two
+models got byte-identical text and differed only in tokenizer. In 2.1.235 the
+tokenizers agree and the *text* diverges: opus gets a compressed harness prompt
+and shorter descriptions for the core tools. Every section below is therefore
+given per model.
 
 Token counts from the Anthropic count_tokens API (exact).
 
-## system[0] (sonnet 38 / opus 47 tokens, not cached)
+## system[0] (sonnet 83 / opus 86 tokens, not cached)
 
 ```
-x-anthropic-billing-header: cc_version=2.1.143.b09; cc_entrypoint=cli; cch=00000;
+x-anthropic-billing-header: cc_version=2.1.235.cf9; cc_entrypoint=cli; cch=00000; cc_prompt_id=00000000-0000-0000-0000-000000000000;
 ```
 
-## system[1] (sonnet 15 / opus 24 tokens, not cached)
+`cc_prompt_id` is new in 2.1.235. Follow-up turns add `cc_prev_req=req_...`;
+subagent calls add `cc_is_subagent=true`. All of these change per request, so
+the header is not stable across captures.
+
+## system[1] (sonnet 24 / opus 24 tokens, not cached)
 
 ```
 You are Claude Code, Anthropic's official CLI for Claude.
 ```
 
-## system[2] (sonnet 2,132 / opus 3,054 tokens, cached 1h global)
+Identical text, identical count — the ~38% opus tokenizer inflation seen with
+`claude-opus-4-7` vs `claude-sonnet-4-6` is gone.
 
-Static behavioral rules. Cross-org cacheable (`scope: global`).
+## system[2] — sonnet (3,247 tokens, cached 1h global)
+
+Static behavioral rules, 10,574 chars. Cross-org cacheable (`scope: global`).
 
 ```
 You are an interactive agent that helps users with software engineering tasks...
@@ -35,405 +47,247 @@ You are an interactive agent that helps users with software engineering tasks...
 IMPORTANT: {security policy}
 IMPORTANT: {URL policy — NEVER generate or guess URLs}
 
-# System
-{6 bullets: output rendering, permission model, system-reminder tags,
-prompt injection, hooks, context compression}
+# System                        [1,615 ch, 6 bullets]
+{output rendering, permission model, system-reminder tags, prompt injection,
+hooks, context compression}
 
-# Doing tasks
-{12 bullets: software engineering framing, defer to user judgement,
-2-3 sentence response for exploratory questions, prefer editing existing files,
-OWASP security, no extras/abstractions, no speculative error handling,
-no comments by default, no WHAT comments, dev server for UI changes,
-no backwards-compat hacks, /help link}
+# Doing tasks                   [3,304 ch, 14 bullets]
+{software engineering framing, defer to user judgement, 2-3 sentence response
+for exploratory questions, prefer editing existing files, OWASP security,
+no extras/abstractions, no speculative error handling, no comments by default,
+no WHAT comments, dev server for UI changes, no backwards-compat hacks,
+/help link}
 
-# Executing actions with care
+# Executing actions with care   [3,552 ch, 4 bullets]
 {reversibility/blast radius policy, 4 categories of risky actions,
-investigate before destroying}
+investigate before destroying, prefer reversible steps over deletion,
+git status before work-discarding commands, secret review before pushing}
 
-# Using your tools
-{3 bullets: prefer dedicated tools (Read/Edit/Write) over Bash,
-TaskCreate for tracking, parallel calls when independent}
+# Using your tools              [628 ch, 2 bullets]
+{prefer dedicated tools over Bash, parallel calls when independent}
 
-# Tone and style
-{4 bullets: no emojis, concise, file_path:line_number references,
-no colon before tool calls}
+# Tone and style                [537 ch, 4 bullets]
+{no emojis, concise, file_path:line_number references, no colon before
+tool calls}
 ```
 
-## system[3] (sonnet 4,266 / opus 5,754 tokens, cached 1h org)
+Changed from 2.1.143:
 
-NEW in v2.1.143: this block is now also cached (was uncached in v2.1.87).
-Cache scope is org-only because the block contains the user's working directory
-and other session-stable but non-global content.
+- `# Executing actions with care` gained the reversibility preference
+  (move/rename/stash over delete), a carve-out for self-created scratch files,
+  a mandatory `git status` before work-discarding git commands, and a
+  secret-review step before pushing.
+- `# Using your tools` lost `Use TaskCreate to plan and track work`, dropping
+  from 3 bullets to 2. The task tools were removed in the same release.
 
-```
-# Text output (does not apply to tool calls)
-{6 paragraphs replacing the old "Output efficiency" section:
-narrate at key moments (find/redirect/blocker), don't narrate internal
-deliberation, write so reader can pick up cold, end-of-turn summary 1-2 sentences,
-match response shape to task, no comments / planning docs in code}
+## system[2] — opus (393 tokens, cached 1h global)
 
-# Session-specific guidance
-{5 bullets: `! <cmd>` prefix for interactive commands,
-Agent tool guidance + Explore for >3 queries, /<skill-name> via Skill,
-/schedule offering policy (very specific anti-overuse rules),
-/ultrareview explanation}
-
-# auto memory
-{persistent file-based memory system at /root/.claude/projects/.../memory/}
-## Types of memory
-{user, feedback, project, reference — XML definitions with examples for each}
-## What NOT to save in memory
-## How to save memories
-## When to access memories
-## Before recommending from memory
-## Memory and other forms of persistence
-
-# Environment
- - Primary working directory, git repo, platform, shell, OS
- - Model name: "Sonnet 4.6" / "claude-sonnet-4-6" (or Opus 4.7 / claude-opus-4-7)
- - Knowledge cutoff: Sonnet August 2025, Opus May 2025
- - Model family IDs, fast mode info, Claude Code availability
-
-# Context management
-{conversation summarization note}
-
-gitStatus: This is the git status at the start of the conversation...
-Current branch: main
-Main branch (you will usually use this for PRs): main
-Status: {modified/untracked files}
-Recent commits: {last 5 commits}
-```
-
-Note: auto memory section only appears when `autoMemoryEnabled` is true (the default).
-The capture uses `--setting-sources project,local` to avoid inheriting the user's
-global settings, which ensures defaults apply.
-
-## Tools
-
-10 upfront tools (sent in `tools[]` without `defer_loading`) + 27 deferred tools
-(sent in `tools[]` with `defer_loading: true`). In v2.1.87 only 9 upfront were
-sent and the deferred list was a plain string user message. In v2.1.143 deferred
-tools are real tool definitions with full schemas — they just aren't loaded
-until ToolSearch is called.
-
-Removed from upfront vs v2.1.87: **Glob**, **Grep**.
-Added to upfront: **AskUserQuestion**, **ScheduleWakeup**, **ShareOnboardingGuide**.
-
-| Tool | Sonnet tokens | Opus tokens |
-|---|---:|---:|
-| Agent | 2,656 | 3,696 |
-| AskUserQuestion | 1,726 | 2,376 |
-| Bash | 3,601 | 4,998 |
-| Edit | 937 | 1,254 |
-| Read | 1,181 | 1,581 |
-| ScheduleWakeup | 1,493 | 2,084 |
-| ShareOnboardingGuide | 857 | 1,145 |
-| Skill | 929 | 1,292 |
-| ToolSearch | 882 | 1,210 |
-| Write | 770 | 1,035 |
-| **Total upfront** | **10,559** | **14,596** |
-
-## tool desc (Agent)
+1,210 chars — an eighth of sonnet's. The five sonnet sections collapse into one:
 
 ```
-Agent: Launch a new agent to handle complex, multi-step tasks. Each agent type
-has specific capabilities and tools available to it.
+You are an interactive agent that helps users with software engineering tasks.
 
-Available agent types and the tools they have access to:
-{6 built-in types: claude(*), claude-code-guide, Explore, general-purpose(*),
-Plan, statusline-setup(Read,Edit)}
-{user-defined agents from ~/.claude/agents/ are appended here if configured}
+IMPORTANT: {security policy — identical wording to sonnet}
 
-When not to use:
-{specific file → Read/grep via Bash, known target → direct tool}
-
-Usage notes:
-{short description, parallel launches, result not visible to user,
-trust but verify, background vs foreground, SendMessage continuation,
-worktree isolation, writing the prompt}
-
-Example usage:
-{2 examples: branch ship-readiness audit, second-opinion review}
-
-{input_schema: description, isolation, model, prompt, run_in_background, subagent_type}
+# Harness                       [5 bullets]
+{markdown-in-terminal rendering, permission model and denied calls,
+mid-conversation system turns and hooks, prefer file/search tools + parallel
+calls, file_path:line_number is clickable}
 ```
 
-## tool desc (AskUserQuestion) — NEW in v2.1.143
+There is no opus equivalent of `# Doing tasks`, `# Executing actions with
+care`, or `# Tone and style` in this block; the surviving guidance moves to
+`# Delivering work` and `# Corrections` in system[3].
+
+## system[3] — sonnet (6,013 tokens, cached 1h org)
+
+18,812 chars.
 
 ```
-AskUserQuestion: Use this tool when you need to ask the user questions during
-execution. {1-4 questions, multiSelect option, preview field for visual
-comparisons (single-select only), plan mode note (don't ask if plan ready —
-use ExitPlanMode instead)}
+# Text output (does not apply to tool calls)      [1,654 ch]
+{narrate before first tool call, short updates at key moments, no internal
+deliberation, end-of-turn summary, no comments in code by default}
 
-{input_schema: questions[{question, header, options[{label, description, preview}],
-multiSelect}], answers, annotations, metadata}
+{they/them default for unstated pronouns — NEW in 2.1.235, applies to
+ visible thinking too}
+
+# Session-specific guidance                       [1,384 ch, 4 bullets]
+{`!` prefix for user-run commands, subagent_type "fork", /<skill-name>,
+/code-review ultra}
+
+# auto memory                                     [663 ch + 6 subsections]
+{memory dir path, then:
+ ## Types of memory                 [7,195 ch]
+ ## What NOT to save in memory      [686 ch, 5 bullets]
+ ## How to save memories            [1,505 ch, 9 bullets]
+ ## When to access memories         [770 ch, 4 bullets]
+ ## Before recommending from memory [679 ch, 3 bullets]
+ ## Memory and other forms of persistence [1,112 ch, 2 bullets]}
+
+# Environment                                     [958 ch, 10 bullets]
+{cwd, is-git-repo, platform, shell, OS version, model name + id,
+knowledge cutoff, model family + ids, surfaces, fast mode}
+
+# Scratchpad Directory                            [718 ch, 5 bullets]  NEW
+{/tmp/claude-0/<project-slug>/<session-id>/scratchpad — use instead of /tmp}
+
+# Context management                              [1,135 ch]
+{summarization notice, act-when-you-have-enough-information, EndConversation
+usage note, <total_tokens>N tokens left</total_tokens>}
+
+gitStatus: {branch, main branch, git user, status, recent commits}
 ```
 
-## tool desc (Bash)
+Changed from 2.1.143:
+
+- **New**: they/them pronoun default, `# Scratchpad Directory`, the
+  act-when-you-have-enough-information paragraph, the `EndConversation` note,
+  and the `<total_tokens>` budget line.
+- `# Session-specific guidance` was rewritten around `subagent_type: "fork"`;
+  the Explore-for-broad-exploration bullet and the `/schedule` offer policy
+  paragraph are gone. `/ultrareview` is now described as a deprecated alias
+  for `/code-review ultra`.
+- `# Environment` reports Sonnet 5 / `claude-sonnet-5`, knowledge cutoff
+  January 2026, and the Claude 5 family ids (Fable 5, Opus 5, Sonnet 5,
+  Haiku 4.5).
+
+## system[3] — opus (3,365 tokens, cached 1h org)
+
+10,231 chars. Different sections, not a subset.
 
 ```
-Bash: Executes a given bash command and returns its output.
-IMPORTANT: avoid cat/head/tail/sed/awk/echo — use Read/Edit/Write instead
+{preamble, 975 ch: write code that reads like the surrounding code;
+ they/them pronoun default; confirm hard-to-reverse or outward-facing
+ actions; report outcomes faithfully}
 
-# Instructions
-{verify parent dirs, quote paths, absolute paths, timeout up to 600s,
-run_in_background, description style, multiple commands (parallel vs &&),
-git: prefer new commits, no destructive ops, never skip hooks, no sleep,
-find from . not /, find -regex alternation order}
+# Session-specific guidance   [892 ch, 3 bullets]
+# Memory                      [2,063 ch, 2 bullets]   (vs sonnet's ~12,600 ch
+                                                       "# auto memory" tree)
+# Environment                 [950 ch, 10 bullets]
+# Scratchpad Directory        [718 ch, 5 bullets]     (identical to sonnet)
+# Context management          [538 ch]
+# Delivering work             [1,999 ch]              opus only
+# Corrections                 [1,951 ch]              opus only
 
-# Committing changes with git
-Git Safety Protocol:
-  NEVER update git config
-  NEVER destructive commands unless user requests
-  NEVER skip hooks (--no-verify, --no-gpg-sign)
-  NEVER force push main/master
-  CRITICAL: always NEW commits not amend — hook failure means commit didn't happen
-  NEVER commit unless user explicitly asks — VERY IMPORTANT
-{4-step workflow: status+diff+log → analyze+draft → stage+commit+verify → fix hooks}
-IMPORTANT: never -i flag (interactive not supported)
-IMPORTANT: no --no-edit with rebase
-ALWAYS pass commit message via HEREDOC
-
-# Creating pull requests
-{3-step workflow: status+diff+log+diff-from-base → analyze ALL commits+draft → branch+push+gh-pr-create}
-
-# Other common operations
-{gh api for PR comments}
-
-{input_schema: command, dangerouslyDisableSandbox, description, run_in_background, timeout}
+gitStatus: {...}
 ```
 
-## tool desc (Edit)
+Opus has no `# Text output` block. `# Delivering work` (act on the actual
+request, requested scope is the deliverable) and `# Corrections` (do not
+over-correct earlier statements) carry guidance that sonnet gets inside
+`# Doing tasks` and `# Text output`.
+
+## Tools — upfront
+
+13 callable tools plus a `DeferredToolPlaceholder` entry flagged
+`defer_loading: true`. Sent in `tools[]`, not in the system prompt.
+
+| Tool | Sonnet tokens | Opus tokens | Description identical? |
+|---|---|---|---|
+| Workflow | 8,254 | 8,186 | yes |
+| Artifact | 6,922 | 6,854 | yes |
+| Bash | 4,484 | 1,237 | **no** — 10,067 vs 1,043 chars |
+| Agent | 3,213 | 1,295 | **no** — 7,081 vs 1,811 chars |
+| ScheduleWakeup | 2,049 | 1,981 | yes |
+| AskUserQuestion | 1,961 | 1,968 | **no** — 1,531 vs 1,786 chars |
+| Read | 1,260 | 894 | **no** — 1,782 vs 790 chars |
+| ReportFindings | 1,175 | 1,107 | yes |
+| Skill | 977 | 909 | yes |
+| Edit | 933 | 634 | **no** — 1,094 vs 360 chars |
+| ToolSearch | 889 | 821 | yes |
+| ListAgents | 751 | 683 | yes |
+| Write | 714 | 522 | **no** — 618 vs 240 chars |
+| DeferredToolPlaceholder | 432 | 364 | yes |
+| **total in request** | **29,427** | **23,752** | |
+
+Every tool that predates 2.1.235 has a shortened opus description; every tool
+introduced in it is byte-identical across models. `AskUserQuestion` is the
+lone tool whose opus description is longer.
+
+Against 2.1.143: **added** `Artifact`, `ListAgents`, `ReportFindings`,
+`Workflow`; **removed** `ShareOnboardingGuide`. The upfront tool payload went
+from 10,559 to 29,427 sonnet tokens, most of it `Workflow` and `Artifact`.
+
+`DeferredToolPlaceholder` is new: a single stub carrying `defer_loading: true`.
+In 2.1.143 each deferred tool appeared in `tools[]` with its own
+`defer_loading` flag. One practical consequence: `count_tokens` rejects a
+request in which every tool is deferred, so the placeholder must be measured
+with the flag stripped.
+
+## Tools — deferred (18)
+
+Named in a system-reminder, schemas not loaded:
 
 ```
-Edit: Performs exact string replacements in files.
-
-Usage:
-MUST Read file first — errors if not.
-ALWAYS prefer editing existing files. NEVER write new files unless required.
-{preserve indentation from Read output, old_string must be unique or use replace_all,
-replace_all for renaming}
-
-{input_schema: file_path, new_string, old_string, replace_all}
-```
-
-## tool desc (Read)
-
-```
-Read: Reads a file from the local filesystem.
-
-Usage:
-{absolute paths, default 2000 lines, read only needed part, cat -n format,
-images (multimodal), PDFs (MUST use pages param for >10 pages, max 20),
-Jupyter notebooks, files only not dirs}
-ALWAYS read screenshots when user provides path.
-Do NOT re-read a file you just edited.
-
-{input_schema: file_path, limit, offset, pages}
-```
-
-## tool desc (ScheduleWakeup) — NEW in v2.1.143
-
-```
-ScheduleWakeup: Schedule when to resume work in /loop dynamic mode — the user
-invoked /loop without an interval, asking you to self-pace iterations.
-
-Don't schedule short-interval wakeups to poll background work the harness
-already tracks. Schedule a long fallback (1200s+) instead, unless polling
-external state that the harness cannot notify on.
-
-Picking delaySeconds:
-{Anthropic prompt cache has 5-minute TTL — sleeping past 300s loses cache.
-Under 5 min for active polling external state; 5 min–1 hour for genuinely
-idle waits or fallback heartbeats. Don't pick exactly 300s. Default to
-1200–1800s for idle ticks.}
-
-{input_schema: delaySeconds (60–3600), prompt, reason}
-```
-
-## tool desc (ShareOnboardingGuide) — NEW in v2.1.143
-
-```
-ShareOnboardingGuide: Upload the ONBOARDING.md in the current directory and
-return a share link teammates can open in Claude Code.
-
-Modes: check (default, upload only if local file exists), update, create, delete.
-
-{input_schema: mode, short_code}
-```
-
-## tool desc (Skill)
-
-```
-Skill: Execute a skill within the main conversation.
-
-How to invoke:
-{skill name + optional args, fully qualified plugin:skill names}
-
-Important:
-BLOCKING REQUIREMENT: invoke skill BEFORE generating any response about the task.
-NEVER mention a skill without actually calling this tool.
-{skills listed in system-reminder, don't invoke running skills,
-not for built-in CLI commands, <command-name> tag = already loaded}
-
-{input_schema: args, skill}
-```
-
-## tool desc (ToolSearch)
-
-```
-ToolSearch: Fetches full schema definitions for deferred tools so they can be called.
-{until fetched, only name known — no schema, cannot invoke}
-{returns <function> JSON schema blocks}
-
-Query forms:
-{"select:Read,Edit" exact, "notebook jupyter" keyword, "+slack send" name+rank}
-
-{input_schema: max_results, query}
-```
-
-## tool desc (Write)
-
-```
-Write: Writes a file to the local filesystem.
-
-Usage:
-MUST Read first if file exists — errors if not.
-{prefer Edit for modifications, overwrites existing}
-NEVER create *.md or README unless explicitly requested.
-
-{input_schema: content, file_path}
-```
-
-## messages structure (changed in v2.1.143)
-
-Now a single `messages[0]` with multiple content blocks instead of two
-separate messages.
-
-```
-messages[0].content = [
-  {type: "text", text: "<system-reminder>The following deferred tools...</system-reminder>"},  // 27 tool names listed
-  {type: "text", text: "<system-reminder>The following skills are available...</system-reminder>"},
-  {type: "text", text: "<system-reminder>... # claudeMd ... # currentDate ...</system-reminder>"},
-  {type: "text", text: "{user's actual input}", cache_control: {type: "ephemeral", ttl: "1h"}},
-]
-```
-
-In v2.1.87 the deferred-tools list was a plain string in `messages[0]`. In
-v2.1.143 it is a content block in `messages[0]`, and the deferred tools also
-appear in `tools[]` with `defer_loading: true` (full schemas, just not loaded).
-
-### content block [0]: deferred tools
-
-```
-<system-reminder>
-The following deferred tools are now available via ToolSearch. Their schemas
-are NOT loaded — calling them directly will fail with InputValidationError.
-Use ToolSearch with query "select:<name>[,<name>...]" to load tool schemas
-before calling them:
-CronCreate
-CronDelete
-CronList
-EnterPlanMode
-EnterWorktree
-ExitPlanMode
-ExitWorktree
-Monitor
-NotebookEdit
-PushNotification
-RemoteTrigger
-TaskCreate
-TaskGet
-TaskList
-TaskOutput
-TaskStop
-TaskUpdate
-WebFetch
+CronCreate, CronDelete, CronList, DesignSync, EndConversation, EnterPlanMode,
+EnterWorktree, ExitPlanMode, ExitWorktree, Monitor, NotebookEdit,
+PushNotification, RemoteTrigger, SendMessage, TaskOutput, TaskStop, WebFetch,
 WebSearch
-mcp__claude_ai_Google_Drive__copy_file
-mcp__claude_ai_Google_Drive__create_file
-mcp__claude_ai_Google_Drive__download_file_content
-mcp__claude_ai_Google_Drive__get_file_metadata
-mcp__claude_ai_Google_Drive__get_file_permissions
-mcp__claude_ai_Google_Drive__list_recent_files
-mcp__claude_ai_Google_Drive__read_file_content
-mcp__claude_ai_Google_Drive__search_files
-</system-reminder>
 ```
 
-20 built-in deferred tools + 7 MCP tools from the user's cloud account in
-this capture. MCP tools come from account-level integrations and are not
-controlled by `--setting-sources`.
+Against 2.1.143: **added** `DesignSync`, `EndConversation`, `SendMessage`;
+**removed** `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate`. MCP tools
+(`mcp__claude_ai_Google_Drive__*` in the 2.1.143 capture) depend on the
+capturing account's connectors, not the CLI version, and are absent here.
 
-### content block [1]: skills
+The Bash tool description still says `NEVER use the TaskCreate or Agent tools`
+in its git-commit examples — a reference to a tool that exists in neither list.
 
-```
-<system-reminder>
-The following skills are available for use with the Skill tool:
-
-- update-config: ...
-- keybindings-help: ...
-- simplify: ...
-{... built-in CC skills + project .claude/skills/ + plugins}
-</system-reminder>
-```
-
-Size varies with installed skills. Grows significantly when user-level skills
-from `~/.claude/skills/` are included (requires `user` in `--setting-sources`).
-
-### content block [2]: claudeMd + currentDate
+## messages structure (changed in 2.1.235)
 
 ```
-<system-reminder>
-As you answer the user's questions, you can use the following context:
-# claudeMd
-Codebase and user instructions are shown below. Be sure to adhere to
-these instructions. IMPORTANT: These instructions OVERRIDE any default
-behavior and you MUST follow them exactly as written.
+messages[0]  role: user
+  [0] text   <system-reminder> claudeMd + userEmail + currentDate </system-reminder>
+  [1] text   the actual human input
 
-Contents of {path}/CLAUDE.md (project instructions, checked into the codebase):
-
-{full CLAUDE.md text}
-# currentDate
-Today's date is 2026-05-16.
-
-      IMPORTANT: this context may or may not be relevant to your tasks.
-      You should not respond to this context unless it is highly relevant
-      to your task.
-</system-reminder>
+messages[1]  role: system                              NEW in 2.1.235
+  [0] text   <system-reminder> deferred tools </system-reminder>
+             <system-reminder> available agent types </system-reminder>
+             <system-reminder> available skills </system-reminder>
+             <system-reminder> ## Auto Mode Active </system-reminder>
+             <system-reminder> <total_tokens>N tokens left</total_tokens> </system-reminder>
 ```
 
-The `# claudeMd` section is absent when no CLAUDE.md exists in the project.
+In 2.1.143 all of these were content blocks inside `messages[0]`, ahead of the
+human input. They now live in a dedicated `system`-role message placed *after*
+it.
 
-### content block [3]: actual human input (cached 1h)
+Shape caveats when parsing:
 
-```
-{the user's message}
-```
+- `messages[1].content` is a **list of blocks** on the first turn and a **bare
+  string** on later turns. Both occur in one session.
+- Every reminder shares a single text block. Sonnet wraps each in
+  `<system-reminder>` tags; opus emits them bare, separated by blank lines.
+  Neither delimiter is dependable — bound the deferred-tool listing by shape
+  (one bare identifier per line under the intro sentence) instead.
+- `## Auto Mode Active` appears only when the session runs in auto mode, which
+  is the interactive default in 2.1.235. Setting
+  `permissions.defaultMode: "default"` removes both the TUI indicator and the
+  reminder; the other reminders are unaffected. It is also absent from a `-p`
+  capture.
 
-Last block has `cache_control: { type: "ephemeral", ttl: "1h" }`.
+The system-role message costs 4,300 tokens (sonnet) / 3,958 (opus) in this
+capture. Its size tracks the user's installed skills and agents, so it is not
+comparable across machines.
 
 ## API parameters
 
-```json
-// Opus (claude-opus-4-7)
+```jsonc
+// Sonnet
 {
-  "max_tokens": 64000,
-  "thinking": { "type": "adaptive" },
-  "context_management": { "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] },
-  "output_config": { "effort": "max" },
-  "metadata": { "user_id": "<redacted>" },
-  "stream": true
+  "model": "claude-sonnet-5",
+  "max_tokens": 64000,                                     // was 32000
+  "stream": true,
+  "thinking": {"type": "adaptive"},
+  "output_config": {"effort": "max"},
+  "context_management": {"edits": [{"type": "clear_thinking_20251015", "keep": "all"}]},
+  "diagnostics": {"previous_message_id": null}
 }
 
-// Sonnet (claude-sonnet-4-6)
+// Opus — same, plus:
 {
-  "max_tokens": 32000,
-  "thinking": { "type": "adaptive" },
-  "context_management": { "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] },
-  "output_config": { "effort": "high" },
-  "metadata": { "user_id": "<redacted>" },
-  "stream": true
+  "model": "claude-opus-5",
+  "max_tokens": 64000,                                     // unchanged
+  "fallbacks": [{"model": "claude-opus-4-8"}]              // NEW
 }
 ```

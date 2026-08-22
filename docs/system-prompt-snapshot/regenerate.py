@@ -13,6 +13,7 @@ Usage:
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -69,6 +70,44 @@ VARIANTS: dict[str, dict] = {
 }
 
 
+_DEFERRED_INTRO = "The following deferred tools"
+_TOOL_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def extract_deferred_tools(data: dict) -> list[str]:
+    """Tool names listed in the deferred-tools reminder.
+
+    The reminder shares one text block with the agent-type and skill listings,
+    and sonnet wraps each in <system-reminder> tags while opus emits them bare.
+    Neither delimiter is dependable, so the listing is bounded by shape: the
+    names run one per line directly under the intro sentence and stop at the
+    first line that is not a bare identifier.
+    """
+    names: list[str] = []
+    for msg in data.get("messages", []):
+        content = msg.get("content", [])
+        # A system-role message carries its reminders as a bare string; user
+        # and assistant messages carry a list of typed blocks.
+        blocks = [{"text": content}] if isinstance(content, str) else content
+        for block in blocks:
+            lines = block.get("text", "").splitlines()
+            for i, line in enumerate(lines):
+                if not line.lstrip("<").startswith(_DEFERRED_INTRO):
+                    continue
+                section = []
+                for candidate in lines[i + 1:]:
+                    if not _TOOL_NAME_RE.match(candidate.strip()):
+                        break
+                    section.append(candidate.strip())
+                if not section:
+                    raise RuntimeError(
+                        "Deferred-tools reminder listed no tool names; the "
+                        f"format changed: {lines[i:i + 4]!r}"
+                    )
+                names.extend(section)
+    return names
+
+
 def run_variant(name: str, variant: dict, model: str) -> bool:
     out_dir = SCRIPT_DIR / model / name
     print(f"\n{'='*60}")
@@ -98,7 +137,10 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
             cwd=SCRIPT_DIR,
             capture_output=True,
             text=True,
-            timeout=240 if "--subagent" in capture_flags else 90,
+            # capture.py budgets 130s + 90s per extra subagent for the pty
+            # alone, then counts tokens per block and per tool over the main
+            # request plus every subagent request — one API call each.
+            timeout=600 if "--subagent" in capture_flags else 90,
         )
     except subprocess.TimeoutExpired:
         print(f"  TIMEOUT", file=sys.stderr)
@@ -172,23 +214,20 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
         ).input_tokens
         tools_tokens = r_with_tools - r_no_tools
 
-    deferred = []
-    for msg in data.get("messages", []):
-        content = msg.get("content", [])
-        if isinstance(content, list):
-            for block in content:
-                text = block.get("text", "")
-                if "deferred tools" in text.lower():
-                    for line in text.splitlines():
-                        line = line.strip()
-                        if line and not line.startswith("<") and not line.startswith("The"):
-                            deferred.append(line)
+    deferred = extract_deferred_tools(data)
+    # Since 2.1.235 `tools` also carries a single DeferredToolPlaceholder entry
+    # flagged defer_loading; it stands in for the whole deferred set rather than
+    # being a tool the model can call, so it is not counted as upfront.
+    upfront = [t["name"] for t in tools if not t.get("defer_loading")]
+    placeholder = [t["name"] for t in tools if t.get("defer_loading")]
+
     summary = {
         "model": req_model,
         "system_blocks": len(sys_blocks),
         "system_tokens": sys_tokens,
-        "tools_upfront": [t["name"] for t in tools],
-        "tools_upfront_count": len(tools),
+        "tools_upfront": upfront,
+        "tools_upfront_count": len(upfront),
+        "tools_deferred_placeholder": placeholder,
         "tools_deferred": deferred,
         "tools_deferred_count": len(deferred),
         "tools_total_tokens": tools_tokens,
@@ -199,7 +238,7 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
     print(f"  system-prompt.md  ({sys_tokens:,} tokens)")
-    print(f"  summary.json      ({len(tools)} upfront, {len(deferred)} deferred)")
+    print(f"  summary.json      ({len(upfront)} upfront, {len(deferred)} deferred)")
     if n_subagents:
         print(f"  subagents/        ({n_subagents} subagent prompt(s))")
 

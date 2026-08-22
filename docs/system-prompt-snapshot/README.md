@@ -1,7 +1,7 @@
 # Claude Code System Prompt Snapshots
 
-Captured: 2026-05-16
-Version: claude-cli/2.1.143
+Captured: 2026-08-22
+Version: claude-cli/2.1.235
 Mode: interactive (real pty via `capture.py`, `--setting-sources project,local`)
 Default captures include a project CLAUDE.md.
 
@@ -9,20 +9,19 @@ Default captures include a project CLAUDE.md.
 
 | File | What |
 |---|---|
-| `system-prompt-default.md` | Default system prompt (no flags) |
-| `system-prompt-flag-system-prompt.md` | With `--system-prompt "You are a custom assistant."` |
-| `system-prompt-flag-system-prompt-file.md` | With `--system-prompt-file` (same text, read from file) |
-| `system-prompt-flag-append.md` | With `--append-system-prompt "You are a custom assistant."` |
-| `full-api-request-default.json` | Full API request body (default). Metadata redacted. |
-| `full-api-request-flag-system-prompt.json` | Full API request with `--system-prompt`. Metadata redacted. |
-| `full-api-request-flag-system-prompt-file.json` | Full API request with `--system-prompt-file`. Metadata redacted. |
-| `full-api-request-flag-append.json` | Full API request with `--append-system-prompt`. Metadata redacted. |
-| `capture.py` | Python script that captures system prompts via pty + MITM proxy |
+| `<model>/<variant>/system-prompt.md` | System prompt blocks, separated by `---BLOCK_SEPARATOR---` |
+| `<model>/<variant>/request.json` | Full API request body. Metadata redacted. |
+| `<model>/<variant>/summary.json` | Block count, token counts, tool inventory |
+| `capture.py` | Captures one variant via pty + MITM proxy |
+| `regenerate.py` | Drives `capture.py` across every variant, writes `summary.json` |
 | `scripts/intercept/` | MITM proxy for API call logging (see `scripts/intercept/README.md`) |
+
+Variants: `default`, `custom-output-style`, `system-prompt`, `system-prompt-file`,
+`append`, `subagent`.
 
 ### Subagent captures
 
-When `capture.py --subagent` is used, the output includes a `subagents/` directory:
+`capture.py --subagent` adds a `subagents/` directory:
 
 | File | What |
 |---|---|
@@ -30,128 +29,315 @@ When `capture.py --subagent` is used, the output includes a `subagents/` directo
 | `subagents/NNN-request.json` | Full API request for subagent N |
 | `subagents/NNN-summary.json` | Block structure and tools for subagent N |
 
-System prompt blocks are separated by `---BLOCK_SEPARATOR---` in the `.md` files.
+Subagent requests are identified by `cc_is_subagent=true` in the billing header,
+not by size or tool count — the security-monitor call (below) also carries tools
+and a large system prompt.
 
-## System prompt structure (v2.1.143, interactive mode, sonnet)
+## Credentials
 
-The `system` array contains 4 text blocks. In v2.1.143 both block 2 and block 3
-carry `cache_control` (was: only block 2 cached in v2.1.87):
+The spawned child needs its own Claude credentials. Claude Code strips
+`CLAUDE_CODE_OAUTH_TOKEN` from tool subprocess environments, so a capture
+launched from inside a Claude Code session inherits none, and
+`~/.claude/.credentials.json` is empty when the session itself authenticates by
+env var. Export the token before running:
 
-| Block | Content | Cache | Sonnet tokens | Opus tokens |
+```bash
+set -a && . /workspace/.env && set +a   # or wherever the token lives
+```
+
+`capture.py` refuses to spawn when neither source has credentials. Without the
+guard the child renders "Not logged in", issues zero API calls, and the failure
+surfaces only as an empty capture.
+
+## System prompt structure (v2.1.235, interactive mode)
+
+The `system` array carries 4 text blocks. Blocks 2 and 3 carry `cache_control`;
+only block 2 sets `scope: global` (block 3 omits `scope`, so it falls back to
+org scope). Same layout as 2.1.143.
+
+| Block | Content | Cache | Sonnet 5 | Opus 5 |
 |---|---|---|---|---|
-| 0 | Billing header (`cc_version=2.1.143...`) | none | 38 | 47 |
-| 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 15 | 24 |
-| 2 | Static behavioral rules (intro through Tone and style) | 1h, global scope | 2,132 | 3,054 |
-| 3 | Text output, Session guidance, auto memory, Environment, Context mgmt, gitStatus | 1h, org scope | 4,266 | 5,754 |
+| 0 | Billing header (`cc_version=2.1.235...`) | none | 83 | 86 |
+| 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 24 | 24 |
+| 2 | Static behavioral rules | 1h, global scope | 3,247 | 393 |
+| 3 | Output style, session guidance, memory, environment, scratchpad, context mgmt, gitStatus | 1h, org scope | 6,013 | 3,365 |
 
-Total: 6,449 (sonnet) / 8,877 (opus) tokens across 4 blocks.
-
-Tool descriptions are in `tools[].description`, not in the system prompt. Defaults:
-**10 upfront tools** (Agent, AskUserQuestion, Bash, Edit, Read, ScheduleWakeup,
-ShareOnboardingGuide, Skill, ToolSearch, Write) — note Glob and Grep are no
-longer upfront. **27 deferred tools** (20 built-in + 7 MCP tools surfaced by
-the claude.ai account in this capture). Upfront tool definitions: 10,559
-sonnet / 14,596 opus tokens.
+Total: 9,365 (sonnet) / 3,866 (opus) tokens.
 
 Token counts from the Anthropic count_tokens API.
 
-### Tokenizer difference (opus vs sonnet)
+### Sonnet 5 and Opus 5 get different prompt text
 
-`claude-opus-4-7` and `claude-sonnet-4-6` use different tokenizers. The same
-system prompt text counts to ~38% more tokens under opus. The text payloads
-in `opus/default/request.json` and `sonnet/default/request.json` are byte-for-byte
-identical except for the per-session billing header — only the token totals
-differ.
+Through 2.1.143 both models received byte-identical prompt text and differed only
+in tokenizer. That is no longer true on either axis.
+
+The tokenizers now agree: block 1 is the same 57-character string and counts 24
+tokens under both models. The ~38% opus inflation documented for
+`claude-opus-4-7` vs `claude-sonnet-4-6` is gone.
+
+The text itself diverges. Opus 5 receives a substantially compressed prompt —
+11.4K characters against sonnet's 29.4K:
+
+| | Sonnet 5 | Opus 5 |
+|---|---|---|
+| Block 2 | 10,574 chars | 1,210 chars |
+| Block 3 | 18,812 chars | 10,231 chars |
+
+Opus 5's block 2 replaces sonnet's `# System` / `# Doing tasks` /
+`# Executing actions with care` / `# Using your tools` / `# Tone and style`
+sections with a single five-bullet `# Harness` section. Its block 3 adds
+`# Delivering work` and `# Corrections` sections that sonnet does not receive.
+Comparisons must therefore name a model; there is no longer one "the system
+prompt".
+
+### Behavioral changes in block 2 (sonnet, vs 2.1.143)
+
+- Destructive-action policy gained a reversibility preference (move/rename/stash
+  over delete), an explicit carve-out for self-created scratch files, a
+  mandatory `git status` before work-discarding git commands, and a
+  secret-review step before pushing.
+- `Use TaskCreate to plan and track work` was dropped along with the task tools.
+
+### Behavioral changes in block 3 (sonnet, vs 2.1.143)
+
+- New: they/them default for unstated pronouns, applied to visible thinking too.
+- New: `# Scratchpad Directory` — a session-specific path under
+  `/tmp/claude-0/<project-slug>/<session-id>/scratchpad` that the model is told
+  to use instead of `/tmp`.
+- New: act-when-you-have-enough-information guidance in `# Context management`.
+- New: `EndConversation` usage note.
+- New: `<total_tokens>N tokens left</total_tokens>` budget line.
+- Subagent guidance was rewritten around `subagent_type: "fork"`, which inherits
+  the parent's full context and runs in the background. The old
+  Explore-for-broad-exploration bullet is gone.
+- `/ultrareview` is now documented as a deprecated alias for `/code-review ultra`.
+- The `/schedule` offer policy paragraph was removed.
+
+## Tools
+
+13 upfront tools plus one `DeferredToolPlaceholder` entry flagged
+`defer_loading: true`:
+
+```
+Agent, Artifact, AskUserQuestion, Bash, Edit, ListAgents, Read,
+ReportFindings, ScheduleWakeup, Skill, ToolSearch, Workflow, Write
+```
+
+Against 2.1.143: **added** `Artifact`, `ListAgents`, `ReportFindings`,
+`Workflow`; **removed** `ShareOnboardingGuide`.
+
+Upfront tool definitions cost 29,427 tokens (sonnet) / 23,752 (opus), up from
+10,559 / 14,596. Two new tools account for most of it: `Workflow` (19,290 chars
+of description) and `Artifact` (11,175).
+
+Tool descriptions are model-specific, the same way the system prompt is. Opus 5
+gets a much shorter description for every tool that predates 2.1.235, while the
+newer tools are byte-identical across models:
+
+| Tool | Sonnet 5 | Opus 5 |
+|---|---|---|
+| Bash | 10,067 chars | 1,043 |
+| Agent | 7,081 | 1,811 |
+| Read | 1,782 | 790 |
+| Edit | 1,094 | 360 |
+| Write | 618 | 240 |
+| AskUserQuestion | 1,531 | 1,786 |
+| Artifact, Workflow, Skill, ToolSearch, ScheduleWakeup, ListAgents, ReportFindings, DeferredToolPlaceholder | identical | identical |
+
+`AskUserQuestion` is the one tool whose opus description is longer.
+
+18 deferred tools, listed by name in a system-reminder rather than as
+`tools[]` entries:
+
+```
+CronCreate, CronDelete, CronList, DesignSync, EndConversation, EnterPlanMode,
+EnterWorktree, ExitPlanMode, ExitWorktree, Monitor, NotebookEdit,
+PushNotification, RemoteTrigger, SendMessage, TaskOutput, TaskStop, WebFetch,
+WebSearch
+```
+
+Against 2.1.143: **added** `DesignSync`, `EndConversation`, `SendMessage`;
+**removed** `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate`. The
+`mcp__claude_ai_Google_Drive__*` tools present in the 2.1.143 capture are absent
+here — MCP tools depend on the capturing account's connectors, not on the CLI
+version.
+
+The Bash tool description still instructs `NEVER use the TaskCreate or Agent
+tools` in its git-commit examples, referring to a tool that no longer exists in
+either list.
+
+## messages structure (changed in 2.1.235)
+
+System-reminders moved out of the first user message into a dedicated
+`role: "system"` message placed **after** it.
+
+| | 2.1.143 | 2.1.235 |
+|---|---|---|
+| `messages[0]` (user) | deferred tools, skills, claudeMd, user text | claudeMd, user text |
+| `messages[1]` | — | `role: "system"`: deferred tools, agent types, skills, auto mode, token budget |
+
+The system-role message costs 4,300 tokens (sonnet) / 3,958 (opus) in this
+capture; its size tracks the user's installed skills and agents. Its `content`
+is a list of blocks on the first turn and a bare string on later turns — both
+shapes occur in one session.
+
+New reminders in that message: the agent-type roster, `## Auto Mode Active`,
+and `<total_tokens>N tokens left</total_tokens>`.
+
+Auto mode is the default for an interactive session in 2.1.235. Two probes
+differing only in `.claude/settings.local.json`: with `permissions.defaultMode`
+unset the TUI shows `auto mode on` and the reminder is present; with
+`defaultMode: "default"` both disappear. The other three reminders are present
+either way. The reminder tells the model to bias toward acting without
+clarifying questions, and repeats the `git status`-before-destructive-commands
+and secret-review rules from block 2.
+
+### Request parameters
+
+| | 2.1.143 | 2.1.235 |
+|---|---|---|
+| `max_tokens` (sonnet) | 32,000 | 64,000 |
+| `max_tokens` (opus) | 64,000 | 64,000 |
+| model | `claude-sonnet-4-6` / `claude-opus-4-7` | `claude-sonnet-5` / `claude-opus-5` |
+| `fallbacks` (opus only) | absent | `[{"model": "claude-opus-4-8"}]` |
+
+`context_management` (`clear_thinking_20251015`, keep all), `diagnostics`,
+`output_config` (`effort: max`), `stream`, and `thinking` (`adaptive`) are
+unchanged.
+
+### Billing header fields
+
+`cc_version` and `cch` are unchanged. New: `cc_prompt_id` (a UUID, on every
+request), `cc_prev_req` (on follow-up turns), and `cc_is_subagent=true` (on
+subagent calls). All three vary per request, so dedup normalizes the entire
+header line rather than individual fields.
+
+The `cc_version` suffix (`2.1.235.cf9`, `.df1`, `.6db`…) varies by call type
+within one session. It did so in 2.1.143 as well.
 
 ## `--system-prompt` behavior
 
-Replaces blocks 2-3 with the custom text. gitStatus is still appended unconditionally by `appendSystemContext()` in `query.ts`. Identity block is unchanged.
+Unchanged from 2.1.143. Replaces blocks 2-3 with the custom text; gitStatus is
+still appended unconditionally; the identity block survives.
 
 | Flag | Blocks | Sonnet tokens | What happens |
 |---|---|---|---|
-| (none) | 4 | 6,449 | Full default prompt |
-| `--system-prompt` | 3 | 139 | Custom text replaces blocks 2-3; gitStatus appended |
-| `--system-prompt-file` | 3 | 139 | Identical to `--system-prompt` (file read at startup) |
-| `--append-system-prompt` | 4 | 6,456 | Full default prompt + custom text appended after env |
+| (none) | 4 | 9,365 | Full default prompt |
+| `--system-prompt` | 3 | 228 | Custom text replaces blocks 2-3; gitStatus appended |
+| `--system-prompt-file` | 3 | 226 | Identical to `--system-prompt` (file read at startup) |
+| `--append-system-prompt` | 4 | 9,376 | Full default prompt + custom text |
+| output style (`Explanatory`) | 4 | 9,679 | Block 2 preamble swaps to the output-style framing |
 
-What `--system-prompt` removes (blocks 2-3):
-- All behavioral rules (security policy, system, doing tasks, executing actions, using tools, tone)
-- Text output / output style block
-- Session-specific guidance (`!` prefix, `/<skill-name>`, `/schedule`, `/ultrareview`)
-- Memory system instructions
-- Environment info, context management, gitStatus context
+`--append-system-prompt` inserts the custom text at the end of block 3, after
+the context-management section and before gitStatus — same position as 2.1.143.
 
-What survives `--system-prompt`:
-- Billing header (block 0)
-- Identity (block 1)
-- gitStatus (appended to custom text in block 2)
-- All upfront tool definitions and descriptions (in `tools[]`, not system prompt)
-- Deferred tool list (in `tools[]` with `defer_loading: true`)
-- User message injections (skills, CLAUDE.md context)
+What `--system-prompt` removes (blocks 2-3): all behavioral rules, output style,
+session-specific guidance, memory instructions, environment info, scratchpad
+directory, context management.
+
+What survives: billing header, identity, gitStatus, all upfront tool
+definitions, the deferred-tool placeholder, and the system-role reminder message.
 
 ### Sub-agent behavior
 
 Neither `--system-prompt` nor `--append-system-prompt` propagates to sub-agents.
-Subagent prompts are constructed independently by `agentDefinition.getSystemPrompt()`
-+ `enhanceSystemPromptWithEnvDetails()`. Each agent type gets its static persona
-regardless of parent flags.
+Each agent type gets its static persona regardless of parent flags.
 
-Source: `tools/AgentTool/runAgent.ts`, `tools/AgentTool/built-in/`
+Subagents now receive the identity line `"You are a Claude agent, built on
+Anthropic's Claude Agent SDK."` — in 2.1.143 they got the interactive
+`"You are Claude Code, Anthropic's official CLI for Claude."` line.
 
-| Agent | Prompt identity | Model | Key difference |
-|-------|----------------|-------|----------------|
-| Explore | "file search specialist" | haiku | Read-only, no Edit/Write, omits CLAUDE.md |
-| general-purpose | "an agent for Claude Code" | inherits parent | Read-write, tools: `['*']`, loads CLAUDE.md |
-| Plan | "software architect" | inherits parent | Same tools as Explore, omits CLAUDE.md |
+| Agent | Prompt identity | Model | Upfront tools |
+|-------|----------------|-------|---------------|
+| Explore | "file search specialist" | claude-sonnet-5 | Bash, Read, Skill, ToolSearch, DeferredToolPlaceholder |
+| general-purpose | "an agent for Claude Code" | claude-sonnet-5 | Agent, Artifact, Bash, Edit, Read, Skill, ToolSearch, Write, DeferredToolPlaceholder |
+
+Explore ran on `claude-haiku-4-5` in 2.1.143 and now runs on sonnet-5.
+Subagents also went from a full upfront tool list (27 entries for Explore in
+2.1.143) to the deferred mechanism.
+
+## Security-monitor calls
+
+A session makes side-channel classification calls that are neither the main
+conversation nor a subagent — a harm classifier run against pending tool calls:
+
+- model `claude-sonnet-5`, `max_tokens: 64`, no tools
+- a ~112K-character system prompt, cached 1h, opening `You are a security …`
+  with `## Threat Model`, `## HARD BLOCK`, `## SOFT BLOCK`, `## ALLOW`,
+  `## Classification Process`, and `## Output Format` sections
+- messages carry the user's CLAUDE.md and a `<transcript>` of the pending call
+- two response forms, both labelled "Stage 1" (stage 2 applies user intent and
+  the ALLOW exceptions): `<severity>N</severity>` — observed 2 and 5 — and
+  `<block>yes|no</block>`, each terminated by a stop sequence
+
+Observed firing once per tool call (`Agent` and `Bash` seen) in sessions where
+the harness evaluates permissions. A session run with
+`--dangerously-skip-permissions` produced none across hundreds of tool calls,
+and a session that made no tool call produced none.
+
+`capture.py` does not write these to the snapshot; the `cc_is_subagent` filter
+excludes them.
 
 ## Interactive vs `-p` mode differences
 
-These captures use interactive mode (real pty). In `-p` (pipe) mode, two things differ:
+These captures use interactive mode (real pty). Measured against a `-p` run on
+the same version:
 
 | | Interactive | `-p` mode |
 |---|---|---|
 | Identity (block 1) | `"You are Claude Code, Anthropic's official CLI for Claude."` | `"You are a Claude agent, built on Anthropic's Claude Agent SDK."` |
-| gitStatus | Appended to system prompt | Not appended |
-| Tools | 10 upfront + deferred in `tools[]` with `defer_loading: true` | varies |
+| `cc_entrypoint` | `cli` | `sdk-cli` |
+| gitStatus | Appended | Appended |
+| Upfront tools | 13 | 11 — no `Artifact`, no `AskUserQuestion` |
+| `## Auto Mode Active` reminder | present (session was in auto mode) | absent |
 
-The behavioral rules and `--system-prompt` replacement logic are the same in both modes.
+gitStatus **is** appended in `-p` mode as of 2.1.235; through 2.1.143 it was
+not. Block 2 is byte-identical to the interactive capture (10,574 chars), so
+the behavioral rules and `--system-prompt` replacement logic are the same in
+both modes.
 
 ## How to re-capture
 
 ```bash
-# Make sure ANTHROPIC_TOKEN_COUNT_API_KEY is set in /repos/claude-config/.env
+# ANTHROPIC_TOKEN_COUNT_API_KEY must be in /repos/claude-config/.env
 # (loaded automatically by both scripts via claude_config.config.load()).
 # See /repos/claude-config/.env.example for the full list of expected keys.
+# CLAUDE_CODE_OAUTH_TOKEN must be exported — see "Credentials" above.
 
-# Default prompt
-./capture.py
-
-# With --system-prompt
-./capture.py --system-prompt "Your custom prompt here"
-
-# With --system-prompt-file
+./capture.py                                        # default prompt
+./capture.py --system-prompt "Your custom prompt"
 ./capture.py --system-prompt-file /path/to/prompt.txt
-
-# With --append-system-prompt
 ./capture.py --append-system-prompt "Extra instructions"
+./capture.py --subagent                             # Explore + general-purpose
 
-# Capture subagent prompts (triggers an Explore agent, extracts all unique prompts)
-./capture.py --subagent
-
-# Re-generate every variant for a model into <model>/<variant>/ subdirs
-./regenerate.py --model sonnet      # all variants
-./regenerate.py --model opus default
+./regenerate.py --model sonnet                      # all variants
+./regenerate.py --model opus default                # one variant
 ```
 
 Do not run two `regenerate.py` invocations in parallel — they share
 `capture-output/` and `~/.claude/requests-log/` and will overwrite each
 other's intermediates.
 
-`capture.py` spawns claude with a real pty via `pty.fork()` (true interactive mode) and `--setting-sources project,local` to isolate from user settings, sends a canary message, then extracts the system prompt from the intercepted API request (via MITM proxy). A placeholder CLAUDE.md is created in the temp working directory so the capture includes the claudeMd context block. Output goes to `capture-output/` (system.txt, request.json, summary.json) and stdout.
+A capture is not byte-reproducible: the billing header fingerprints, the
+per-session temp working directory, the scratchpad UUID, and gitStatus all
+change per run. Token totals are still stable — three `sonnet/default` runs
+gave 9,359 / 9,365 / 9,365, and two `opus/default` runs gave 3,871 / 3,866.
+Blocks 2 and 3 are byte-identical between runs apart from those paths, so the
+sonnet-vs-opus divergence above is a property of the build, not of one capture.
+
+`capture.py` spawns claude with a real pty via `pty.fork()` and
+`--setting-sources project,local` to isolate from user settings, sends a canary
+message, then extracts the system prompt from the intercepted API request. A
+placeholder CLAUDE.md is created in the temp working directory so the capture
+includes the claudeMd context block. Output goes to `capture-output/`
+(system.txt, request.json, summary.json) and stdout.
 
 ### Why pty (not heredoc/pipe)
 
-Piping stdin (heredoc, `echo |`, subprocess with piped stdin) makes claude detect non-interactive mode, which changes the identity block and skips gitStatus. `pty.fork()` provides a real pty on both stdin and stdout so claude runs in true interactive mode.
+Piping stdin (heredoc, `echo |`, subprocess with piped stdin) makes claude
+detect non-interactive mode, which changes the identity block and skips
+gitStatus. `pty.fork()` provides a real pty on both stdin and stdout so claude
+runs in true interactive mode.
 
 ### Bracketed paste
 
@@ -169,3 +355,6 @@ sessions on the same machine all write under the same root. `capture.py`
 filters logs by `session.pid` matching its spawned claude PID (the proxy
 resolves PID from `~/.claude/sessions/<pid>.json`); mtime alone is not
 sufficient to isolate one capture's traffic.
+
+The proxy logs request bodies only, never headers, so no credential reaches
+disk.
