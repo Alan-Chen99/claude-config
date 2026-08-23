@@ -91,10 +91,10 @@ fi
 # HIDDEN PATH DEPENDENCY — read before changing:
 #   docker/entrypoint.sh (in the personal monorepo) starts mitmdump from a
 #   hardcoded glob "${HOME}/.claude/venvs/claude-config*/bin/mitmdump". If the
-#   canonical venv does not exist at exactly that name, scripts/claude.sh still
-#   exports HTTPS_PROXY=http://127.0.0.1:9160 and every request fails with
-#   ECONNREFUSED, which surfaces inside `claude` as "Unable to connect to
-#   Anthropic services".
+#   canonical venv does not exist at exactly that name, nothing listens on
+#   127.0.0.1:9160. scripts/claude.sh probes that port and skips HTTPS_PROXY
+#   when it is dead, so sessions still run — they run unintercepted, with a
+#   warning on stderr and no request logs under ~/.claude/requests-log.
 #
 # WHY UV_PROJECT_ENVIRONMENT IS PINNED HERE (not derived):
 #   .envrc derives the venv name from `basename "$PWD"`, so running `uv sync`

@@ -73,9 +73,10 @@ CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module>
 
 ### `scripts/claude.sh`
 
-The launcher. Exports the `Claude` git identity, points Node at the MITM proxy on
-`127.0.0.1:9160`, sets `IS_SANDBOX=1` and `CLAUDE_CODE_DISABLE_AGENT_VIEW=1`, then
-execs `claude --dangerously-skip-permissions --system-prompt-file <repo>/sys_prompt/alan-default-next.md`.
+The launcher. Exports the `Claude` git identity, sets `IS_SANDBOX=1` and
+`CLAUDE_CODE_DISABLE_AGENT_VIEW=1`, optionally points Node at the MITM proxy on
+`127.0.0.1:9160`, then execs
+`claude --dangerously-skip-permissions --system-prompt-file <repo>/sys_prompt/alan-default-next.md`.
 
 `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` is load-bearing: background/agent-view forks drop
 `--system-prompt-file`, so without it a forked session silently runs the stock prompt
@@ -86,8 +87,11 @@ the installed `~/.local/bin/claude.sh` symlink loads the canonical repo's prompt
 invoking a worktree's copy by path (`/root/claude-config-work/scripts/claude.sh`) loads
 that worktree's prompt — which is how a prompt edit gets exercised before it merges.
 
-The proxy export depends on the canonical venv provisioned by `install.sh`; see the
-HIDDEN PATH DEPENDENCY note there.
+The proxy env (`HTTPS_PROXY`, `NODE_EXTRA_CA_CERTS`, `NODE_OPTIONS=--use-env-proxy`) is
+bound only when a TCP connect to `127.0.0.1:9160` succeeds. With no listener the launcher
+prints a warning to stderr and runs unintercepted, instead of exporting a proxy that would
+fail every request with ECONNREFUSED. The listener itself comes from the canonical venv
+provisioned by `install.sh`; see the HIDDEN PATH DEPENDENCY note there.
 
 ### `src/claude_config/`
 
