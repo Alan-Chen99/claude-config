@@ -73,14 +73,28 @@ if [ -f "${AGENT_TOOLS_DIR}/Cargo.toml" ]; then
     fi
 fi
 
+# Put the launcher on PATH.
+# IMPORTANT: canonical-repo-only, same rule as agent-tools above. A worktree that
+# installs its own copy redirects every session's `claude.sh` to that worktree's
+# scripts/claude.sh and sys_prompt/, and leaves a dangling symlink behind when the
+# worktree is deleted.
+CLAUDE_SH_SRC="${REPO_DIR}/scripts/claude.sh"
+CLAUDE_SH_DST="${HOME}/.local/bin/claude.sh"
+if [ -f "$CLAUDE_SH_SRC" ]; then
+    mkdir -p "${HOME}/.local/bin"
+    ln -sf "$CLAUDE_SH_SRC" "$CLAUDE_SH_DST"
+    echo "installed: $CLAUDE_SH_DST -> $CLAUDE_SH_SRC"
+fi
+
 # Provision the canonical Python venv (mitmproxy + claude_config package).
 #
 # HIDDEN PATH DEPENDENCY — read before changing:
 #   docker/entrypoint.sh (in the personal monorepo) starts mitmdump from a
 #   hardcoded glob "${HOME}/.claude/venvs/claude-config*/bin/mitmdump". If the
-#   canonical venv does not exist at exactly that name, claude.sh still exports
-#   HTTPS_PROXY=http://127.0.0.1:9160 and every request fails with ECONNREFUSED,
-#   which surfaces inside `claude` as "Unable to connect to Anthropic services".
+#   canonical venv does not exist at exactly that name, scripts/claude.sh still
+#   exports HTTPS_PROXY=http://127.0.0.1:9160 and every request fails with
+#   ECONNREFUSED, which surfaces inside `claude` as "Unable to connect to
+#   Anthropic services".
 #
 # WHY UV_PROJECT_ENVIRONMENT IS PINNED HERE (not derived):
 #   .envrc derives the venv name from `basename "$PWD"`, so running `uv sync`

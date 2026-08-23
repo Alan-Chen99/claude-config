@@ -125,8 +125,9 @@ that subcommand was removed; edit the file or use `/config`.
 
 For a launcher that depends on `--system-prompt-file`, `disableAgentView` is the
 correct knob: it also closes `/background`, the other path that drops the flag.
+This repo's launcher, `scripts/claude.sh`, sets it:
 
 ```bash
-# in the launcher, before exec claude
+# in scripts/claude.sh, before exec claude
 export CLAUDE_CODE_DISABLE_AGENT_VIEW=1
 ```

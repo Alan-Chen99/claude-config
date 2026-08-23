@@ -7,14 +7,24 @@ export GIT_AUTHOR_EMAIL="81847+claude@users.noreply.github.com"
 export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 
+export HTTPS_PROXY=http://127.0.0.1:9160
+export NODE_EXTRA_CA_CERTS=~/.mitmproxy/mitmproxy-ca-cert.pem
+export NODE_OPTIONS="--use-env-proxy"
+
 export IS_SANDBOX=1
+# Background/agent-view forks drop --system-prompt-file; closing the agent view
+# closes every path that would otherwise run on the stock prompt.
+export CLAUDE_CODE_DISABLE_AGENT_VIEW=1
 
-export BASH_DEFAULT_TIMEOUT_MS=10000
-export BASH_MAX_TIMEOUT_MS=30000
+# readlink -f resolves the ~/.local/bin/claude.sh symlink, so the prompt loaded
+# belongs to the checkout the script physically lives in: the canonical repo via
+# the installed symlink, or a worktree's own prompt when that copy is run by path.
+REPO_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 
-exec claude --dangerously-skip-permissions "$@"
-# exec claude "$@"
+exec claude --dangerously-skip-permissions \
+	--system-prompt-file "${REPO_DIR}/sys_prompt/alan-default-next.md" \
+	"$@"
 
-# exec npx @anthropic-ai/claude-code@2.0.14 --dangerously-skip-permissions --system-prompt-file /repos/claude-config/SYSTEM.md "$@"
+# exec claude --dangerously-skip-permissions "$@"
 
 # exec claude

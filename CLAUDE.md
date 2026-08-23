@@ -17,7 +17,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `.envrc`                  | direnv environment config                                   | Modifying shell environment for development   |
 | `settings.json`           | Claude Code user settings                                   | Modifying hooks, statusline, permissions      |
 | `statusline.sh`           | Status line script wired up via `settings.json`             | Customizing the in-session status line        |
-| `install.sh`              | Symlinks dirs/files into `~/.claude/`, builds `agent-tools` | Installing or reinstalling the config         |
+| `install.sh`              | Symlinks dirs/files into `~/.claude/`, builds `agent-tools`, puts `claude.sh` on PATH | Installing or reinstalling the config         |
 | `.env` / `.env.example`   | Unified config (NTFY URL, OpenRouter, Anthropic token-count) | Setting up secrets — see `.env.example`       |
 
 ## Subdirectories
@@ -34,7 +34,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
 | `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
 | `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — see `docs/background-sessions.md` first |
-| `scripts/`         | Standalone scripts (MITM proxy, launchers, `reasoning-probe.py`) | Running or modifying utility scripts              |
+| `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py` | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
 ### `agent-tools/`
@@ -63,13 +63,31 @@ Venv location: each project root resolves to `~/.claude/venvs/<basename>/` (set 
 
 Build: `cd agent-tools && cargo build --release`. Installed as a symlink at `~/.local/bin/agent-tools` → `<repo>/agent-tools/target/release/agent-tools` by `install.sh`.
 
-**Worktrees must NEVER run `install.sh`** — the symlink must always point to the canonical repo's binary. Worktrees that install their own build will break all other sessions when the worktree is deleted.
+**Worktrees must NEVER run `install.sh`** — the symlinks must always point to the canonical repo. Worktrees that install their own build will break all other sessions when the worktree is deleted.
 
 Testing from a worktree without installing:
 ```bash
 cd agent-tools && cargo build --release
 CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module> [args...]
 ```
+
+### `scripts/claude.sh`
+
+The launcher. Exports the `Claude` git identity, points Node at the MITM proxy on
+`127.0.0.1:9160`, sets `IS_SANDBOX=1` and `CLAUDE_CODE_DISABLE_AGENT_VIEW=1`, then
+execs `claude --dangerously-skip-permissions --system-prompt-file <repo>/sys_prompt/alan-default-next.md`.
+
+`CLAUDE_CODE_DISABLE_AGENT_VIEW=1` is load-bearing: background/agent-view forks drop
+`--system-prompt-file`, so without it a forked session silently runs the stock prompt
+(`docs/background-sessions.md`).
+
+The prompt path is resolved from the script's own real location via `readlink -f`, so
+the installed `~/.local/bin/claude.sh` symlink loads the canonical repo's prompt, while
+invoking a worktree's copy by path (`/root/claude-config-work/scripts/claude.sh`) loads
+that worktree's prompt — which is how a prompt edit gets exercised before it merges.
+
+The proxy export depends on the canonical venv provisioned by `install.sh`; see the
+HIDDEN PATH DEPENDENCY note there.
 
 ### `src/claude_config/`
 
