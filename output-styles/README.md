@@ -36,6 +36,18 @@ Set the active style via `/config` (interactive picker) or by editing
 `/output-style` existed but is deprecated and hidden — it prints a message
 redirecting to `/config`.
 
+### Durability across a background handoff
+
+An output style is the only prompt customization that survives a session moving
+to the background. The fork Claude Code spawns is launched without
+`--system-prompt`, `--system-prompt-file`, or `--append-system-prompt`, but it
+reads `settings.json`, so `outputStyle` still applies. A prompt that must hold
+for *every* session belongs here rather than in `sys_prompt/`, and the two must
+not be allowed to drift — `sys_prompt/alan-default-next.md` and
+`output-styles/alan-default-next.md` share a name but not their content, so
+which rules are in force depends on whether the session was backgrounded. See
+`docs/background-sessions.md`.
+
 ## Official Documentation
 
 https://docs.anthropic.com/en/docs/claude-code/output-styles

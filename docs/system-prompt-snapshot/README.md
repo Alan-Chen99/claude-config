@@ -220,6 +220,10 @@ within one session. It did so in 2.1.143 as well.
 Unchanged from 2.1.143. Replaces blocks 2-3 with the custom text; gitStatus is
 still appended unconditionally; the identity block survives.
 
+The table below describes the session you launch. It does not hold for the rest
+of that session's life — a session that backgrounds itself loses the flag. See
+"Background sessions do not inherit the flag" below.
+
 | Flag | Blocks | Sonnet tokens | What happens |
 |---|---|---|---|
 | (none) | 4 | 9,365 | Full default prompt |
@@ -237,6 +241,44 @@ directory, context management.
 
 What survives: billing header, identity, gitStatus, all upfront tool
 definitions, the deferred-tool placeholder, and the system-role reminder message.
+
+### Background sessions do not inherit the flag
+
+A session that moves to the background is not the same process. Claude Code
+spawns a fork and hands the transcript over; the fork's argv is built from a
+fixed list in `X_r` (`globals/24.js:30356` of the 2.1.235 decompile):
+
+```
+--resume, --fork-session, --reply-on-resume, --add-dir…, --allowed-tools…,
+--disallowed-tools…, --model, --effort, --permission-mode, --agent, --agents,
+--append-system-prompt (only when keepParent, i.e. /fork)
+```
+
+`--system-prompt` and `--system-prompt-file` appear nowhere in that list, so a
+custom prompt is **silently replaced by the default prompt** the moment a
+session backgrounds. `--append-system-prompt` survives only a `/fork`, not a
+background handoff. The job's `state.json` records the same truncated set under
+`respawnFlags`, so resuming the job later does not restore the flag either.
+
+Measured on one session, same machine, same minute:
+
+| | Foreground (launched with `--system-prompt-file`) | After backgrounding |
+|---|---|---|
+| Blocks | 3 | 4 |
+| Block 2 | prompt file verbatim (25,237 chars) + gitStatus | CC default, 1,273 chars |
+| Block 3 | — | 24,024 chars (CC default + output style) |
+| argv | `--system-prompt-file <path>` | absent |
+
+What still propagates: the process environment (`HTTPS_PROXY`,
+`NODE_EXTRA_CA_CERTS`, `IS_SANDBOX`, `GIT_AUTHOR_*` were all present in the
+fork), so proxy-based request capture keeps working across the handoff.
+
+Consequence for prompt work: only settings-based configuration is durable
+across a background handoff. An output style survives (it is read from
+`settings.json` by the fork); a `--system-prompt-file` does not. A prompt that
+must hold for every session therefore belongs in `output-styles/`, not in
+`sys_prompt/`. See `docs/background-sessions.md` for the trigger and the
+disable knobs.
 
 ### Sub-agent behavior
 

@@ -32,7 +32,8 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `conventions/`     | Documentation and code quality standards                | Writing documentation, understanding coding rules |
 | `plans/`           | Plan storage directory                                  | Reviewing or executing existing plans             |
 | `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
-| `output-styles/`   | Output formatting styles                                | Customizing Claude's output format                |
+| `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
+| `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — see `docs/background-sessions.md` first |
 | `scripts/`         | Standalone scripts (MITM proxy, launchers, `reasoning-probe.py`) | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
@@ -96,4 +97,5 @@ Style-matched content generation from any style reference file. 3-phase iterativ
 | `system-prompt-anatomy.md`                 | Simplified overview of system prompt assembly — pinned to cc 2.1.88 source | Quick orientation, understanding prompt structure       |
 | `system-prompt-anatomy-source-verified.md` | Detailed anatomy with function references — pinned to cc 2.1.88 source     | Debugging context loading, source-level understanding   |
 | `system-prompt-snapshot/`                  | Captured system prompts and full API requests — live capture, cc 2.1.235   | Comparing prompt versions, understanding API parameters |
+| `background-sessions.md`                   | How a session moves to the agent view (FleetView), what the fork inherits, disable knobs — cc 2.1.235 | Diagnosing a session that backgrounded itself, or a custom system prompt that stopped applying |
 | `tool-token-limits.md`                     | Token counting, truncation, and size limits per tool | Understanding tool output constraints, debugging limits |
