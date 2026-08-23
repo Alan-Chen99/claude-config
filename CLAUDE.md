@@ -34,7 +34,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
 | `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
 | `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — see `docs/background-sessions.md` first |
-| `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py` | Running or modifying utility scripts              |
+| `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py`, `prompt-test-run.sh` | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
 ### `agent-tools/`
