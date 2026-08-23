@@ -12,18 +12,16 @@ JSONL — through a shared skeleton-first reading protocol. Two modes:
 
 ## Invocation
 
-Invoke this skill in a **subagent** unless the entire caller session is
-itself a session-analysis run (e.g., a top-level user request that is only
-"produce a session-analysis artifact for X"). Building an artifact requires
-reading skeleton dumps, jq outputs, greps, and reasoning-block extractions
-that routinely reach tens of thousands of tokens of intermediate context —
-none of which the caller needs after the artifact is written. A subagent
-isolates that context; the caller receives the artifact path and a short
-summary.
+Invoke this skill in **subagents** — plural. Do not throw a complex focus
++ multiple logs into one call. Split by aspect (recommended: simple
+question first, then drill, one subagent per aspect) or by log. Each
+invocation carries a different focus and may cover only _parts of logs_.
+All remaining reasoning text eventually gets read by some subagent with an
+appropriate focus to confirm it is not relevant — do this pass last.
 
-Exception (whole-session case): if no other work is happening in the
-caller's context, running the skill inline is fine — there is no context to
-protect.
+Exception (whole-session case): if the entire caller session is itself a
+session-analysis run and no other context needs protecting, running
+inline is fine.
 
 ## Modes
 
@@ -265,24 +263,21 @@ pretty-side hiding.
 
 1. **One focus per artifact.** Focus is one natural-language sentence stated at
    the top. Same log may produce multiple artifacts under different foci.
-2. **Facts only, and prefer positive over negative descriptions.** Describe
-   what each part IS ("agent reads `<file>`; grep for `<token>` across
-   `<dir>`") or what it programmatically ISN'T via a concrete regex-negative
-   ("no match for `/<regex>/`"). Do not classify relevance ("unrelated to
-   focus"), do not claim causation ("informed the rewrite"), do not draw
-   conclusions ("suggests", "indicates", "confirms", "load-bearing",
-   "critical"). Reader traces relevance and causation from the recorded events.
+2. **Facts only, prefer positive descriptions.** Describe what each part
+   IS ("agent reads `<file>`; grep for `<token>` across `<dir>`"). Do not
+   classify relevance ("unrelated to focus"), claim causation ("informed
+   the rewrite"), or draw conclusions ("suggests", "indicates",
+   "confirms", "load-bearing", "critical"). Reader traces relevance and
+   causation from recorded events.
 
-   **The "not X" trap.** Phrases like *"not a read of the focus path"* or
-   *"not new reads of /X/"* look factual because they're negations, but they
-   inherit the relevance classification from the focus. If you're tempted to
-   write "not Y" where Y names focus-relevance, either (a) drop the negation
-   and describe positively what the payload IS ("this is the content of
-   `<some-file>` displayed as a sed tool_result; the string `<focus-token>`
-   appears inside the file's own text"), or (b) replace with a concrete
-   programmatic regex-negative ("no match for `/^  filePath: <regex>/` in
-   this turn's tool_use payloads"). A regex-negative is a fact anyone can
-   rerun; a relevance-negative is a judgment.
+   **Tool in/out:** a concrete regex-negative is admissible ("no match
+   for `/<regex>/`") — a fact anyone can rerun. Relevance-negatives ("not
+   a read of the focus path") inherit their category from the focus;
+   rewrite as positive description or regex-negative.
+
+   **Reasoning blocks:** regex is sanity-check / overview only, not
+   admissible as evidence — agents use their own semantic labels for
+   things. Summarize positively; do not write negatives about reasoning.
 3. **Complete coverage.** Every span of every session appears in the artifact.
    A span may be rendered at any precision — verbatim quote, short description,
    regex-negative note, or `<N turns, brief factual descriptor>` range marker —
