@@ -2047,6 +2047,11 @@ In `settings.json`, change the `PostToolUse` matcher from `"Bash|Monitor|Read"` 
 `PostToolUseFailure` runs the same `hook-post` subcommand: an errored tool result is a
 delivery point like any other, and `PostToolUse` does not fire for it.
 
+> **`UserPromptSubmit` already exists** in this `settings.json`, carrying an
+> `ntfy-hook --action cancel` block. Pasting the snippet above as a new key would
+> produce a duplicate JSON key, and one of the two hooks would be silently dropped.
+> Append a second entry to the existing array. Verify with `jq . settings.json`.
+
 Leave `PreToolUse` as `"Bash|Monitor"`.
 
 - [ ] **Step 2: Replace the coupled strings in the system prompt**
@@ -2078,13 +2083,23 @@ check() {
   fi
 }
 
+# Prompt-side needles are the human-readable strings. Source-side needles must be
+# the exact literal at each emit site, NOT the bare prefix: hook_post.rs emits the
+# header twice (the report and the "unavailable this time" fallback), and the status
+# keys also appear in status.rs test names — so a file-level grep for a bare prefix
+# still matches after the real emit site has drifted, and the guard passes while
+# broken. Coupling these needles to Rust syntax means renaming a binding inside one
+# of the literals is a false failure; update the needle, it is a one-word change.
 check '[agent-tools] run status:' "$prompt"
-check '[agent-tools] run status:' "$root/agent-tools/src/hook_post.rs"
+check '"[agent-tools] run status:\n{}"' "$root/agent-tools/src/hook_post.rs"
 check 'BACKGROUNDED:' "$prompt"
-check 'BACKGROUNDED:' "$root/agent-tools/src/hook_post.rs"
+check '"BACKGROUNDED: Command was backgrounded.' "$root/agent-tools/src/hook_post.rs"
 for key in producing 'quiet(' 'exited(' 'final(' abandoned 'spawn-failed('; do
   check "$key" "$prompt"
-  check "$key" "$root/agent-tools/src/status.rs"
+done
+for emit in 'write!(f, "producing")' 'write!(f, "quiet({b})")' 'write!(f, "exited({c})")' \
+            'write!(f, "final({c})")' 'write!(f, "abandoned")' 'write!(f, "spawn-failed({e})")'; do
+  check "$emit" "$root/agent-tools/src/status.rs"
 done
 
 if [ "$status_source" -ne 0 ]; then
@@ -2206,10 +2221,16 @@ Expected: FAIL (or a compile error against the old shape). This confirms the tes
 Run: `cd agent-tools && cargo test --test invariant_test`
 Expected: 1 passed.
 
-- [ ] **Step 4: Run the whole suite**
+- [ ] **Step 4: Remove the one dead field, then run the whole suite**
+
+`cargo build --release` warns `field cwd is never read` on `PreToolUseInput`
+(`agent-tools/src/hook_input.rs:13`). It is genuinely unused — serde ignores absent
+fields, so dropping it changes no behaviour — and this project removes dead code
+rather than annotating it. Delete the field, then:
 
 Run: `cd agent-tools && cargo test`
-Expected: all pass, no warnings from `cargo build --release`.
+Expected: all pass except the environmental `opencode_test` failure, and
+`cargo build --release` emits no warnings.
 
 - [ ] **Step 5: Commit**
 
