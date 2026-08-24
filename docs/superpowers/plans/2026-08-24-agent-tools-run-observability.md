@@ -155,7 +155,7 @@ mod tests {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd agent-tools && cargo test --lib procstat`
+Run: `cd agent-tools && cargo test --bin agent-tools procstat`
 Expected: FAIL — `cannot find function start_ticks`.
 
 - [ ] **Step 3: Write the implementation**
@@ -213,7 +213,7 @@ Add `mod procstat;` to `agent-tools/src/main.rs` alongside the existing `mod` li
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd agent-tools && cargo test --lib procstat`
+Run: `cd agent-tools && cargo test --bin agent-tools procstat`
 Expected: 4 passed.
 
 - [ ] **Step 5: Commit**
@@ -296,7 +296,7 @@ mod tests {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd agent-tools && cargo test --lib meta`
+Run: `cd agent-tools && cargo test --bin agent-tools meta`
 Expected: FAIL — `struct ChildMeta has no field named wrapper_pid`.
 
 - [ ] **Step 3: Write the implementation**
@@ -343,7 +343,7 @@ impl ChildMeta {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd agent-tools && cargo test --lib meta`
+Run: `cd agent-tools && cargo test --bin agent-tools meta`
 Expected: 4 passed. Other modules will not compile yet; that is Task 3.
 
 - [ ] **Step 5: Commit**
@@ -726,7 +726,7 @@ mod tests {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd agent-tools && cargo test --lib status`
+Run: `cd agent-tools && cargo test --bin agent-tools status`
 Expected: FAIL — `cannot find function derive`.
 
 - [ ] **Step 3: Write the implementation**
@@ -854,7 +854,7 @@ Add `mod status;` to `agent-tools/src/main.rs`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd agent-tools && cargo test --lib status`
+Run: `cd agent-tools && cargo test --bin agent-tools status`
 Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
@@ -926,7 +926,7 @@ mod tests {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd agent-tools && cargo test --lib ledger`
+Run: `cd agent-tools && cargo test --bin agent-tools ledger`
 Expected: FAIL — `cannot find type Ledger`.
 
 - [ ] **Step 3: Write the implementation**
@@ -999,7 +999,7 @@ Add `mod ledger;` to `agent-tools/src/main.rs`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd agent-tools && cargo test --lib ledger`
+Run: `cd agent-tools && cargo test --bin agent-tools ledger`
 Expected: 4 passed.
 
 - [ ] **Step 5: Commit**
