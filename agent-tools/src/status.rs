@@ -8,6 +8,8 @@ use crate::procstat;
 /// Quiet thresholds, ascending. Configuration, not contract.
 pub const QUIET_BUCKETS: &[(i64, &str)] = &[(30, "30s"), (300, "5m"), (1800, "30m"), (7200, "2h")];
 
+/// A child's status. The rendered form is both the ledger identity that decides
+/// whether something is reported twice and text quoted in the system prompt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StatusKey {
     SpawnFailed(String),
@@ -31,18 +33,29 @@ impl fmt::Display for StatusKey {
     }
 }
 
+/// A child's current status: the key that decides reporting, plus the detail
+/// rendered alongside it.
 pub struct Status {
     pub key: StatusKey,
     pub meta: Option<ChildMeta>,
     pub last_byte_at: Option<DateTime<Utc>>,
     pub out_bytes: u64,
     pub err_bytes: u64,
+    /// Stat failures that are not "file not created yet". Surfaced in the
+    /// rendered line so a filesystem problem cannot pass for an idle child.
+    pub stat_errors: Vec<String>,
 }
 
-fn file_facts(dir: &Path, name: &str) -> (u64, Option<DateTime<Utc>>) {
+/// Returns (bytes, mtime, stat failure other than "not created yet").
+///
+/// A missing capture file is ordinary: the parent directory exists before the
+/// tee opens either stream. Any other stat failure is a real filesystem problem,
+/// and reading it as "no output" would understate a child that is in fact busy.
+fn file_facts(dir: &Path, name: &str) -> (u64, Option<DateTime<Utc>>, Option<String>) {
     match std::fs::metadata(dir.join(name)) {
-        Ok(md) => (md.len(), md.modified().ok().map(DateTime::<Utc>::from)),
-        Err(_) => (0, None),
+        Ok(md) => (md.len(), md.modified().ok().map(DateTime::<Utc>::from), None),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (0, None, None),
+        Err(e) => (0, None, Some(format!("{name}: {e}"))),
     }
 }
 
@@ -57,13 +70,21 @@ fn largest_bucket(age_secs: i64) -> Option<&'static str> {
 /// Derive the current status of one capture directory. Total: every input
 /// combination yields exactly one key. Rows are evaluated in order.
 pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
-    let (out_bytes, out_mtime) = file_facts(dir, "stdout");
-    let (err_bytes, err_mtime) = file_facts(dir, "stderr");
+    let (out_bytes, out_mtime, out_err) = file_facts(dir, "stdout");
+    let (err_bytes, err_mtime, err_err) = file_facts(dir, "stderr");
     let last_byte_at = out_mtime.max(err_mtime);
+    let stat_errors: Vec<String> = [out_err, err_err].into_iter().flatten().collect();
 
     let Ok(m) = meta::read_meta(dir) else {
         // A capture that cannot be described is never silently dropped.
-        return Status { key: StatusKey::Abandoned, meta: None, last_byte_at, out_bytes, err_bytes };
+        return Status {
+            key: StatusKey::Abandoned,
+            meta: None,
+            last_byte_at,
+            out_bytes,
+            err_bytes,
+            stat_errors,
+        };
     };
 
     let key = if let Some(e) = m.spawn_error.clone() {
@@ -88,15 +109,24 @@ pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
         }
     };
 
-    Status { key, meta: Some(m), last_byte_at, out_bytes, err_bytes }
+    Status { key, meta: Some(m), last_byte_at, out_bytes, err_bytes, stat_errors }
 }
 
 /// One rendered line: name, key, detail, capture paths.
 pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     let name = s.meta.as_ref().map(|m| m.display_name()).unwrap_or_else(|| dir.display().to_string());
+    // The capture files are created when the tee opens them, so an mtime exists
+    // before any byte does. Byte counts, not mtime, decide whether output happened.
     let age = match s.last_byte_at {
-        Some(t) => format!("last byte {}s ago", (now - t).num_seconds().max(0)),
-        None => "no output".to_string(),
+        Some(t) if s.out_bytes + s.err_bytes > 0 => {
+            format!("last byte {}s ago", (now - t).num_seconds().max(0))
+        }
+        _ => "no output".to_string(),
+    };
+    let problems = if s.stat_errors.is_empty() {
+        String::new()
+    } else {
+        format!(" [stat failed: {}]", s.stat_errors.join("; "))
     };
     let pid = s
         .meta
@@ -105,7 +135,7 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         .map(|p| p.to_string())
         .unwrap_or_else(|| "-".into());
     format!(
-        "{name} [{}] pid {pid}, {age}, out={}B err={}B -> {}/{{stdout,stderr}}",
+        "{name} [{}] pid {pid}, {age}, out={}B err={}B{problems} -> {}/{{stdout,stderr}}",
         s.key,
         s.out_bytes,
         s.err_bytes,
@@ -214,8 +244,7 @@ mod tests {
 
     #[test]
     fn bucket_boundaries_are_inclusive() {
-        // An anchor exactly on a boundary is quiet, never producing. The spec
-        // called this out after review found the two definitions disagreed.
+        // An anchor exactly on a boundary is quiet, never producing.
         let d = TempDir::new().unwrap();
         let mut m = base();
         m.started_at = Utc::now() - Duration::seconds(30);
@@ -231,6 +260,45 @@ mod tests {
         m.reaped = None;
         write(&d, &m);
         assert_eq!(derive(d.path(), Utc::now()).key, StatusKey::Abandoned);
+    }
+
+    #[test]
+    fn render_says_no_output_when_nothing_was_written() {
+        // The capture file exists from the moment the tee opens it, so its mtime
+        // predates any byte. A line claiming a "last byte" next to out=0B is a
+        // contradiction the reader has to resolve.
+        let d = TempDir::new().unwrap();
+        write(&d, &base());
+        std::fs::write(d.path().join("stdout"), b"").unwrap();
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(line.contains("no output"), "line: {line}");
+        assert!(!line.contains("last byte"), "line: {line}");
+    }
+
+    #[test]
+    fn render_names_the_child_its_key_and_its_bytes() {
+        let d = TempDir::new().unwrap();
+        write(&d, &base());
+        std::fs::write(d.path().join("stdout"), b"hello").unwrap();
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(line.contains("[producing]"), "line: {line}");
+        assert!(line.contains("out=5B"), "line: {line}");
+        assert!(line.contains("last byte"), "line: {line}");
+    }
+
+    #[test]
+    fn a_stat_failure_is_reported_not_read_as_no_output() {
+        // A path component that is a regular file yields ENOTDIR, which is not
+        // NotFound and must not be collapsed into "this child wrote nothing".
+        let d = TempDir::new().unwrap();
+        let not_a_dir = d.path().join("regular_file");
+        std::fs::write(&not_a_dir, b"x").unwrap();
+        let now = Utc::now();
+        let s = derive(&not_a_dir, now);
+        assert!(!s.stat_errors.is_empty(), "a non-NotFound stat error must survive");
+        assert!(render(&not_a_dir, &s, now).contains("stat failed"));
     }
 
     #[test]
