@@ -22,6 +22,10 @@ pub struct PostToolUseInput {
     pub session_id: String,
     #[serde(default)]
     pub agent_id: Option<String>,
+    /// `PostToolUse` or `PostToolUseFailure` — the same hook answers both, and
+    /// the response has to name the event it is answering.
+    #[serde(default)]
+    pub hook_event_name: Option<String>,
     pub tool_name: String,
     pub tool_input: serde_json::Value,
     pub tool_use_id: String,

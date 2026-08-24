@@ -59,23 +59,39 @@ fn parent_dir(
     p
 }
 
-/// Create a finalized `<pid>/meta.json` capture directory under `parent`, with
-/// optional desc. Production current-call captures are always finalized by the
-/// time the post-hook reads them (the agent-tools run subprocess has exited),
-/// so seed the same shape: `exit_code:0`. The unfinalized path is tested
-/// separately by `stale_in_flight_child_surfaces_with_unfinalized_annotation`.
-fn seed_capture(parent: &std::path::Path, pid: u32, desc: Option<&str>) -> std::path::PathBuf {
-    let child = parent.join(pid.to_string());
-    std::fs::create_dir_all(&child).unwrap();
-    let desc_json = match desc {
-        Some(d) => format!("\"{d}\""),
+/// Write a capture dir with the given facts and return its identity string.
+///
+/// `wrapper_started_ticks: 1` never matches a real process's start time, so the
+/// wrapper reads as dead however the pid is allocated on this machine.
+fn seed(home: &std::path::Path, tuid: &str, wrapper_pid: u32, reaped: Option<i32>) -> String {
+    let parent = parent_dir(home, "sid", None, tuid);
+    let dir = parent.join(wrapper_pid.to_string());
+    std::fs::create_dir_all(&dir).unwrap();
+    let reaped_json = match reaped {
+        Some(s) => format!(
+            r#"{{"at":"{}","status":{s}}}"#,
+            chrono::Utc::now().to_rfc3339()
+        ),
         None => "null".to_string(),
     };
     let meta = format!(
-        r#"{{"child_id":{pid},"desc":{desc_json},"command":["echo","hi"],"started_at":null,"ended_at":null,"exit_code":0}}"#
+        r#"{{"wrapper_pid":{wrapper_pid},"wrapper_started_ticks":1,"child_pid":4242,
+            "desc":"seeded","command":["true"],"started_at":"{}",
+            "spawn_error":null,"reaped":{reaped_json},"drained_at":null}}"#,
+        chrono::Utc::now().to_rfc3339()
     );
-    std::fs::write(child.join("meta.json"), meta).unwrap();
-    child
+    std::fs::write(dir.join("meta.json"), meta).unwrap();
+    format!("{tuid}/{wrapper_pid}")
+}
+
+fn post_body(tool: &str, tuid: &str) -> serde_json::Value {
+    serde_json::json!({
+        "session_id": "sid",
+        "tool_name": tool,
+        "tool_input": {},
+        "tool_use_id": tuid,
+        "tool_response": {}
+    })
 }
 
 #[test]
@@ -105,49 +121,6 @@ fn no_parent_dir_no_bg_emits_nothing() {
 }
 
 #[test]
-fn two_captures_no_bg_lists_them() {
-    let home = tempfile::tempdir().unwrap();
-    let parent = parent_dir(home.path(), "sid", None, "tuid");
-    let dir1 = seed_capture(&parent, 100, Some("first"));
-    let dir2 = seed_capture(&parent, 200, Some("second"));
-
-    let (status, stdout, stderr) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Bash",
-            "tool_input": {"command": "echo hi"},
-            "tool_use_id": "tuid",
-            "tool_response": {}
-        }),
-    );
-    assert!(status.success(), "stderr: {stderr}");
-    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    let ctx = v["hookSpecificOutput"]["additionalContext"]
-        .as_str()
-        .unwrap();
-    assert!(
-        ctx.contains("[agent-tools] captures from this Bash call:"),
-        "ctx: {ctx}"
-    );
-
-    // Directory-sorted order: "100" sorts before "200" lexicographically.
-    // Per-capture details bracket carries exit code, duration (omitted here
-    // because seed_capture writes null timestamps), and out/err byte sizes.
-    let expected_first = format!(
-        "first [exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
-        dir1.display()
-    );
-    let expected_second = format!(
-        "second [exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
-        dir2.display()
-    );
-    let expected =
-        format!("[agent-tools] captures from this Bash call: {expected_first}; {expected_second}");
-    assert_eq!(ctx, expected, "ctx: {ctx}");
-}
-
-#[test]
 fn bg_only_emits_only_bg_notice() {
     let home = tempfile::tempdir().unwrap();
     // No captures, but backgroundTaskId present.
@@ -170,512 +143,6 @@ fn bg_only_emits_only_bg_notice() {
     assert!(ctx.contains("bt-7"), "ctx: {ctx}");
     assert!(ctx.contains("5000"), "ctx: {ctx}");
     assert!(!ctx.contains("[agent-tools] captures"), "ctx: {ctx}");
-}
-
-#[test]
-fn captures_and_bg_combined() {
-    let home = tempfile::tempdir().unwrap();
-    let parent = parent_dir(home.path(), "sid", None, "tuid");
-    let dir1 = seed_capture(&parent, 42, Some("probe"));
-
-    let (status, stdout, stderr) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Bash",
-            "tool_input": {"command": "long-running"},
-            "tool_use_id": "tuid",
-            "tool_response": {"backgroundTaskId": "bt-9", "assistantAutoBackgrounded": true}
-        }),
-    );
-    assert!(status.success(), "stderr: {stderr}");
-    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    let ctx = v["hookSpecificOutput"]["additionalContext"]
-        .as_str()
-        .unwrap();
-
-    let captures_part = format!(
-        "[agent-tools] captures from this Bash call: probe [exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
-        dir1.display()
-    );
-    assert!(ctx.starts_with(&captures_part), "ctx: {ctx}");
-    // Captures and bg notice are joined by a single space.
-    let after_captures = &ctx[captures_part.len()..];
-    assert!(
-        after_captures.starts_with(" BACKGROUNDED:"),
-        "after: {after_captures}"
-    );
-    assert!(ctx.contains("KAIROS"), "ctx: {ctx}");
-    assert!(ctx.contains("bt-9"), "ctx: {ctx}");
-}
-
-#[test]
-fn subagent_capture_paths_contain_agent_segment() {
-    let home = tempfile::tempdir().unwrap();
-    let parent = parent_dir(home.path(), "sid", Some("agent-abc"), "tuid");
-    let dir1 = seed_capture(&parent, 77, Some("sub"));
-
-    let (status, stdout, stderr) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "agent_id": "agent-abc",
-            "tool_name": "Bash",
-            "tool_input": {"command": "echo hi"},
-            "tool_use_id": "tuid",
-            "tool_response": {}
-        }),
-    );
-    assert!(status.success(), "stderr: {stderr}");
-    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    let ctx = v["hookSpecificOutput"]["additionalContext"]
-        .as_str()
-        .unwrap();
-    assert!(ctx.contains("/agent-abc/"), "ctx: {ctx}");
-    assert!(ctx.contains(&dir1.display().to_string()), "ctx: {ctx}");
-}
-
-#[test]
-fn per_capture_format_with_and_without_desc() {
-    let home = tempfile::tempdir().unwrap();
-    let parent = parent_dir(home.path(), "sid", None, "tuid");
-    let dir_with = seed_capture(&parent, 100, Some("labeled"));
-    let dir_without = seed_capture(&parent, 200, None);
-
-    let (status, stdout, stderr) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Bash",
-            "tool_input": {"command": "echo hi"},
-            "tool_use_id": "tuid",
-            "tool_response": {}
-        }),
-    );
-    assert!(status.success(), "stderr: {stderr}");
-    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    let ctx = v["hookSpecificOutput"]["additionalContext"]
-        .as_str()
-        .unwrap();
-
-    // With-desc branch: "<desc> [details] → <dir>/{stdout,stderr}".
-    let with_fragment = format!(
-        "labeled [exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
-        dir_with.display()
-    );
-    assert!(ctx.contains(&with_fragment), "ctx: {ctx}");
-    // Without-desc branch: details bracket replaces the missing label, so the
-    // line starts directly with `[`. Result: "[details] → <dir>/{stdout,stderr}".
-    let without_fragment = format!(
-        "[exit=0 out=0B err=0B] → {}/{{stdout,stderr}}",
-        dir_without.display()
-    );
-    assert!(ctx.contains(&without_fragment), "ctx: {ctx}");
-    // The without-desc form must NOT be preceded by a bare " → " (which would
-    // mean an empty label slot was joined with an arrow). The listing
-    // delimiter is "; " — verify that's what precedes the bracket.
-    assert!(
-        !ctx.contains(&format!(
-            " → [exit=0 out=0B err=0B] → {}",
-            dir_without.display()
-        )),
-        "without-desc form must not be preceded by a bare arrow; ctx: {ctx}"
-    );
-}
-
-#[test]
-fn unmatched_tool_emits_nothing() {
-    // Edit/Write/Grep/etc. are not in the matcher set; the hook returns
-    // early. Even with a capture present, no output is emitted.
-    let home = tempfile::tempdir().unwrap();
-    let parent = parent_dir(home.path(), "sid", None, "tuid");
-    seed_capture(&parent, 1, Some("ignored"));
-
-    let (status, stdout, stderr) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Edit",
-            "tool_input": {"file_path": "/tmp/x"},
-            "tool_use_id": "tuid",
-            "tool_response": {}
-        }),
-    );
-    assert!(status.success(), "stderr: {stderr}");
-    assert!(
-        stdout.trim().is_empty(),
-        "expected no stdout, got: {stdout}"
-    );
-}
-
-#[test]
-fn read_with_no_prior_bg_emits_nothing() {
-    // Read IS in the matcher set (it triggers the late-capture scan), but
-    // when there is no prior backgrounded toolu_id in scope, scan finds
-    // nothing and the hook emits no additionalContext.
-    let home = tempfile::tempdir().unwrap();
-    let (status, stdout, stderr) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Read",
-            "tool_input": {"file_path": "/tmp/x"},
-            "tool_use_id": "tuid-read",
-            "tool_response": {}
-        }),
-    );
-    assert!(status.success(), "stderr: {stderr}");
-    assert!(
-        stdout.trim().is_empty(),
-        "expected no stdout, got: {stdout}"
-    );
-}
-
-/// Helper: append a JSONL event under <toolu_dir>/events.jsonl.
-fn append_event(
-    toolu_dir: &std::path::Path,
-    ts: chrono::DateTime<chrono::Utc>,
-    kind: &str,
-    data: serde_json::Value,
-) {
-    use std::io::Write as _;
-    std::fs::create_dir_all(toolu_dir).unwrap();
-    let path = toolu_dir.join("events.jsonl");
-    let line = serde_json::to_string(&serde_json::json!({
-        "ts": ts,
-        "kind": kind,
-        "data": data,
-    }))
-    .unwrap();
-    let mut f = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-        .unwrap();
-    writeln!(f, "{line}").unwrap();
-}
-
-/// Helper: seed a finalized child (started + exited) in a prior toolu_dir.
-/// Creates the events.jsonl entries AND the <pid>/meta.json so the scan can
-/// pull the desc from either source.
-fn seed_finalized_child(toolu_dir: &std::path::Path, pid: i64, desc: &str) {
-    let started_ts = chrono::Utc::now() - chrono::Duration::seconds(30);
-    let exited_ts = chrono::Utc::now() - chrono::Duration::seconds(20);
-    append_event(
-        toolu_dir,
-        started_ts,
-        "child_started",
-        serde_json::json!({"child_pid": pid, "desc": desc, "command": ["echo", "hi"]}),
-    );
-    append_event(
-        toolu_dir,
-        exited_ts,
-        "child_exit",
-        serde_json::json!({"child_pid": pid, "exit_code": 0}),
-    );
-    let child = toolu_dir.join(pid.to_string());
-    std::fs::create_dir_all(&child).unwrap();
-    let meta = format!(
-        r#"{{"child_id":{pid},"desc":"{desc}","command":["echo","hi"],"started_at":null,"ended_at":null,"exit_code":0}}"#
-    );
-    std::fs::write(child.join("meta.json"), meta).unwrap();
-}
-
-#[test]
-fn read_surfaces_late_captures_from_prior_backgrounded_call() {
-    let home = tempfile::tempdir().unwrap();
-    let scope = home.path().join(".claude/agent-tools/sid");
-    let prior_toolu = scope.join("toolu_prior");
-    seed_finalized_child(&prior_toolu, 4242, "stage2-later");
-
-    // A Read tool call AFTER the prior backgrounded call's late wrap exited.
-    let (status, stdout, stderr) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Read",
-            "tool_input": {"file_path": "/tmp/x"},
-            "tool_use_id": "tuid-read",
-            "tool_response": {}
-        }),
-    );
-    assert!(status.success(), "stderr: {stderr}");
-    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    let ctx = v["hookSpecificOutput"]["additionalContext"]
-        .as_str()
-        .unwrap();
-    assert!(
-        ctx.contains("Late captures from prior backgrounded call toolu_prior:"),
-        "ctx: {ctx}"
-    );
-    assert!(ctx.contains("stage2-later"), "ctx: {ctx}");
-    let expected_path = format!("{}/{{stdout,stderr}}", prior_toolu.join("4242").display());
-    assert!(ctx.contains(&expected_path), "ctx: {ctx}");
-}
-
-#[test]
-fn second_hook_fire_does_not_reemit_late_capture() {
-    // Ledger dedup: once a child PID is surfaced, subsequent hooks must
-    // not list it again.
-    let home = tempfile::tempdir().unwrap();
-    let scope = home.path().join(".claude/agent-tools/sid");
-    let prior_toolu = scope.join("toolu_prior");
-    seed_finalized_child(&prior_toolu, 1111, "only-once");
-
-    let payload = serde_json::json!({
-        "session_id": "sid",
-        "tool_name": "Read",
-        "tool_input": {"file_path": "/tmp/x"},
-        "tool_use_id": "tuid-r1",
-        "tool_response": {}
-    });
-    let (_, stdout1, _) = run_post(home.path(), payload.clone());
-    assert!(
-        stdout1.contains("only-once"),
-        "first fire should emit: {stdout1}"
-    );
-
-    // Second fire with a DIFFERENT tool_use_id (so the current-call dedup
-    // doesn't mask the test). The ledger entry from the first fire should
-    // make the second fire skip the late capture.
-    let payload2 = serde_json::json!({
-        "session_id": "sid",
-        "tool_name": "Read",
-        "tool_input": {"file_path": "/tmp/x"},
-        "tool_use_id": "tuid-r2",
-        "tool_response": {}
-    });
-    let (_, stdout2, _) = run_post(home.path(), payload2);
-    assert!(
-        !stdout2.contains("only-once"),
-        "second fire must not re-emit: {stdout2}"
-    );
-}
-
-#[test]
-fn in_flight_child_without_exit_is_skipped() {
-    // child_started present but no child_exit yet, and the start is recent
-    // (< 5min stale threshold) → scan skips, no emission this fire.
-    let home = tempfile::tempdir().unwrap();
-    let scope = home.path().join(".claude/agent-tools/sid");
-    let prior_toolu = scope.join("toolu_prior");
-    let recent_ts = chrono::Utc::now() - chrono::Duration::seconds(10);
-    append_event(
-        &prior_toolu,
-        recent_ts,
-        "child_started",
-        serde_json::json!({"child_pid": 7777, "desc": "still-running"}),
-    );
-
-    let (_, stdout, stderr) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Read",
-            "tool_input": {"file_path": "/tmp/x"},
-            "tool_use_id": "tuid-r",
-            "tool_response": {}
-        }),
-    );
-    assert!(
-        !stdout.contains("Late captures"),
-        "in-flight child must not emit: {stdout} | stderr: {stderr}"
-    );
-}
-
-#[test]
-fn stale_in_flight_child_surfaces_with_unfinalized_annotation() {
-    // child_started older than 5min with no child_exit → emitted with
-    // [unfinalized] suffix, covering SIGKILL / host-shutdown cases.
-    let home = tempfile::tempdir().unwrap();
-    let scope = home.path().join(".claude/agent-tools/sid");
-    let prior_toolu = scope.join("toolu_prior");
-    let old_ts = chrono::Utc::now() - chrono::Duration::seconds(400);
-    append_event(
-        &prior_toolu,
-        old_ts,
-        "child_started",
-        serde_json::json!({"child_pid": 8888, "desc": "abandoned"}),
-    );
-
-    let (_, stdout, _) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Read",
-            "tool_input": {"file_path": "/tmp/x"},
-            "tool_use_id": "tuid-r",
-            "tool_response": {}
-        }),
-    );
-    assert!(
-        stdout.contains("Late captures from prior backgrounded call toolu_prior:"),
-        "stdout: {stdout}"
-    );
-    // No meta.json is written for this test (only events.jsonl), so the
-    // details bracket has no exit/duration — just the forced unfinalized
-    // marker plus byte sizes from the missing stdout/stderr files.
-    assert!(
-        stdout.contains("abandoned [unfinalized out=0B err=0B]"),
-        "stdout: {stdout}"
-    );
-}
-
-#[test]
-fn bash_call_seeds_ledger_with_its_own_pids() {
-    // The hook for a Bash call must record its captures' PIDs in the
-    // ledger under its own tool_use_id, so a later hook firing with a
-    // DIFFERENT tool_use_id does not surface them as "late captures from
-    // prior backgrounded call <this-bash>".
-    let home = tempfile::tempdir().unwrap();
-    let parent = parent_dir(home.path(), "sid", None, "tuid-bash");
-    let _dir1 = seed_capture(&parent, 555, Some("bash-cap"));
-    // Also write events.jsonl so the dir is recognized as a wrap-parent on
-    // later scans.
-    append_event(
-        &parent,
-        chrono::Utc::now() - chrono::Duration::seconds(60),
-        "child_started",
-        serde_json::json!({"child_pid": 555, "desc": "bash-cap"}),
-    );
-    append_event(
-        &parent,
-        chrono::Utc::now() - chrono::Duration::seconds(50),
-        "child_exit",
-        serde_json::json!({"child_pid": 555, "exit_code": 0}),
-    );
-
-    // First hook fire: the Bash call lists its own capture.
-    let (_, stdout1, _) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Bash",
-            "tool_input": {"command": "echo hi"},
-            "tool_use_id": "tuid-bash",
-            "tool_response": {}
-        }),
-    );
-    assert!(
-        stdout1.contains("[agent-tools] captures from this Bash call:"),
-        "stdout1: {stdout1}"
-    );
-    assert!(stdout1.contains("bash-cap"), "stdout1: {stdout1}");
-    // The seed should have happened — the late-capture section must NOT
-    // appear for this same call.
-    assert!(!stdout1.contains("Late captures"), "stdout1: {stdout1}");
-
-    // Second hook fire under a different tool_use_id. Without seeding, the
-    // scan would now find PID 555 unsurfaced and re-emit it as a late
-    // capture from toolu_bash. With seeding, it stays silent.
-    let (_, stdout2, _) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Read",
-            "tool_input": {"file_path": "/tmp/x"},
-            "tool_use_id": "tuid-other",
-            "tool_response": {}
-        }),
-    );
-    assert!(
-        !stdout2.contains("Late captures"),
-        "ledger seed failed; second hook re-emitted: {stdout2}"
-    );
-}
-
-#[test]
-fn subagent_scope_isolated_from_main_thread() {
-    // A main-thread Read should NOT see captures from a subagent's prior
-    // backgrounded call, and vice versa — the per-scope ledger lives under
-    // <session>/<agent_id>/ and the scan walks only that scope.
-    let home = tempfile::tempdir().unwrap();
-    let sub_scope = home.path().join(".claude/agent-tools/sid/agent-abc");
-    let sub_toolu = sub_scope.join("toolu_sub_prior");
-    seed_finalized_child(&sub_toolu, 333, "subagent-late");
-
-    // Main-thread Read: scope is <sid>/, which contains the subagent dir
-    // "agent-abc/" but that dir has no events.jsonl directly inside, so
-    // scan_priors filters it out. Main thread sees nothing.
-    let (_, stdout_main, _) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "tool_name": "Read",
-            "tool_input": {"file_path": "/tmp/x"},
-            "tool_use_id": "tuid-main",
-            "tool_response": {}
-        }),
-    );
-    assert!(
-        !stdout_main.contains("subagent-late"),
-        "main thread saw subagent capture: {stdout_main}"
-    );
-
-    // Subagent Read in its own scope: sees the late capture.
-    let (_, stdout_sub, _) = run_post(
-        home.path(),
-        serde_json::json!({
-            "session_id": "sid",
-            "agent_id": "agent-abc",
-            "tool_name": "Read",
-            "tool_input": {"file_path": "/tmp/x"},
-            "tool_use_id": "tuid-sub",
-            "tool_response": {}
-        }),
-    );
-    assert!(
-        stdout_sub.contains("subagent-late"),
-        "stdout_sub: {stdout_sub}"
-    );
-    assert!(
-        stdout_sub.contains("toolu_sub_prior"),
-        "stdout_sub: {stdout_sub}"
-    );
-}
-
-#[test]
-fn parallel_hooks_emit_late_capture_at_most_once() {
-    // Two hook processes firing concurrently for different tool_use_ids
-    // must not both surface the same prior late capture. The per-scope
-    // flock around the ledger read-modify-write serializes them; one
-    // emits, the other skips.
-    let home = tempfile::tempdir().unwrap();
-    let scope = home.path().join(".claude/agent-tools/sid");
-    let prior_toolu = scope.join("toolu_prior");
-    seed_finalized_child(&prior_toolu, 9999, "race-target");
-
-    let body_a = serde_json::json!({
-        "session_id": "sid",
-        "tool_name": "Read",
-        "tool_input": {"file_path": "/tmp/x"},
-        "tool_use_id": "tuid-parA",
-        "tool_response": {}
-    });
-    let body_b = serde_json::json!({
-        "session_id": "sid",
-        "tool_name": "Read",
-        "tool_input": {"file_path": "/tmp/x"},
-        "tool_use_id": "tuid-parB",
-        "tool_response": {}
-    });
-    // Spawn two hook subprocesses without waiting between them.
-    let home_path = home.path().to_path_buf();
-    let h1 = std::thread::spawn({
-        let home_path = home_path.clone();
-        move || run_post(&home_path, body_a)
-    });
-    let h2 = std::thread::spawn(move || run_post(&home_path, body_b));
-    let (_, out_a, _) = h1.join().unwrap();
-    let (_, out_b, _) = h2.join().unwrap();
-
-    let a_emits = out_a.contains("race-target");
-    let b_emits = out_b.contains("race-target");
-    assert!(
-        a_emits ^ b_emits,
-        "exactly one of the parallel hooks must emit the late capture; \
-         a_emits={a_emits} b_emits={b_emits}\nout_a: {out_a}\nout_b: {out_b}"
-    );
 }
 
 #[test]
@@ -711,4 +178,344 @@ fn explicit_run_in_background_is_not_reported_as_timeout() {
         ctx.contains("explicit run_in_background"),
         "should label cause as explicit run_in_background: {ctx}"
     );
+}
+
+#[test]
+fn bg_notice_and_status_report_combined() {
+    // The notice is about this tool call; the status block is about children.
+    // Both belong in one additionalContext, notice first.
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "tuid", 42, Some(0));
+
+    let (status, stdout, stderr) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Bash",
+            "tool_input": {"command": "long-running"},
+            "tool_use_id": "tuid",
+            "tool_response": {"backgroundTaskId": "bt-9", "assistantAutoBackgrounded": true}
+        }),
+    );
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+
+    assert!(ctx.starts_with("BACKGROUNDED:"), "ctx: {ctx}");
+    assert!(ctx.contains("KAIROS"), "ctx: {ctx}");
+    assert!(ctx.contains("bt-9"), "ctx: {ctx}");
+    // Notice and report are joined by a single space, in that order.
+    assert!(ctx.contains(" [agent-tools] run status:\n"), "ctx: {ctx}");
+    assert!(ctx.contains("seeded [final(0)]"), "ctx: {ctx}");
+}
+
+#[test]
+fn a_non_backgroundable_tool_gets_no_backgrounded_notice() {
+    // Only Bash and Monitor can be backgrounded. Every other tool is a delivery
+    // point for status and nothing else, even if its response carries the field.
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, None);
+    let (status, stdout, stderr) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Grep",
+            "tool_input": {"pattern": "x"},
+            "tool_use_id": "toolu_now",
+            "tool_response": {"backgroundTaskId": "bt-impossible"}
+        }),
+    );
+    assert!(status.success(), "stderr: {stderr}");
+    assert!(
+        stdout.contains("[agent-tools] run status:"),
+        "stdout: {stdout}"
+    );
+    assert!(!stdout.contains("BACKGROUNDED"), "stdout: {stdout}");
+}
+
+#[test]
+fn subagent_capture_paths_contain_agent_segment() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = parent_dir(home.path(), "sid", Some("agent-abc"), "tuid");
+    let dir = parent.join("77");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("meta.json"),
+        format!(
+            r#"{{"wrapper_pid":77,"wrapper_started_ticks":1,"child_pid":4242,"desc":"sub",
+                "command":["true"],"started_at":"{}","spawn_error":null,"reaped":null,
+                "drained_at":null}}"#,
+            chrono::Utc::now().to_rfc3339()
+        ),
+    )
+    .unwrap();
+
+    let (status, stdout, stderr) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "agent_id": "agent-abc",
+            "tool_name": "Bash",
+            "tool_input": {"command": "echo hi"},
+            "tool_use_id": "tuid",
+            "tool_response": {}
+        }),
+    );
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+    assert!(ctx.contains("/agent-abc/"), "ctx: {ctx}");
+    assert!(ctx.contains(&dir.display().to_string()), "ctx: {ctx}");
+}
+
+#[test]
+fn abandoned_child_is_reported_without_any_five_minute_wait() {
+    // wrapper_pid 0 has no /proc entry, so the wrapper is dead. The child was
+    // seeded seconds ago; the old implementation would have waited 300s.
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, None);
+    let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    assert!(
+        stdout.contains("[agent-tools] run status:"),
+        "stdout: {stdout}"
+    );
+    assert!(stdout.contains("abandoned"), "stdout: {stdout}");
+}
+
+#[test]
+fn the_same_key_is_never_reported_twice() {
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, None);
+    let (_, first, _) = run_post(home.path(), post_body("Grep", "toolu_a"));
+    assert!(first.contains("abandoned"));
+    let (_, second, _) = run_post(home.path(), post_body("Grep", "toolu_b"));
+    assert!(
+        !second.contains("abandoned"),
+        "second report was redundant: {second}"
+    );
+}
+
+#[test]
+fn a_new_key_for_a_known_child_is_reported_again() {
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, Some(0));
+    let (_, first, _) = run_post(home.path(), post_body("Grep", "toolu_a"));
+    assert!(first.contains("final(0)"), "stdout: {first}");
+    // Same child, now unreadable meta -> abandoned, a different key.
+    std::fs::remove_file(
+        parent_dir(home.path(), "sid", None, "toolu_prior")
+            .join("0")
+            .join("meta.json"),
+    )
+    .unwrap();
+    let (_, second, _) = run_post(home.path(), post_body("Grep", "toolu_b"));
+    assert!(second.contains("abandoned"), "stdout: {second}");
+}
+
+#[test]
+fn a_subagents_children_are_not_reported_to_the_main_thread() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = parent_dir(home.path(), "sid", Some("agent-1"), "toolu_sub");
+    let dir = parent.join("7");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("meta.json"),
+        format!(
+            r#"{{"wrapper_pid":0,"wrapper_started_ticks":1,"child_pid":1,"desc":"subagent child",
+                "command":["true"],"started_at":"{}","spawn_error":null,"reaped":null,"drained_at":null}}"#,
+            chrono::Utc::now().to_rfc3339()
+        ),
+    )
+    .unwrap();
+    let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_main"));
+    assert!(!stdout.contains("subagent child"), "scope leak: {stdout}");
+}
+
+#[test]
+fn a_failure_event_is_answered_in_its_own_name() {
+    // PostToolUse does not fire for an errored tool result; PostToolUseFailure
+    // does, and a response naming the wrong event is dropped.
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, None);
+    let (status, stdout, stderr) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "hook_event_name": "PostToolUseFailure",
+            "tool_name": "Bash",
+            "tool_input": {"command": "false"},
+            "tool_use_id": "toolu_now",
+            "tool_response": {}
+        }),
+    );
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(
+        v["hookSpecificOutput"]["hookEventName"].as_str(),
+        Some("PostToolUseFailure"),
+        "stdout: {stdout}"
+    );
+}
+
+#[test]
+fn an_event_name_absent_from_the_input_falls_back_to_post_tool_use() {
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, None);
+    let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(
+        v["hookSpecificOutput"]["hookEventName"].as_str(),
+        Some("PostToolUse"),
+        "stdout: {stdout}"
+    );
+}
+
+#[test]
+fn lines_dropped_for_size_are_reported_later_not_lost() {
+    // The bound must record only the lines it kept. If it recorded a dropped
+    // line, that child's key would match forever after and its change would
+    // never reach the agent. Seed far more than one report can carry and prove
+    // every child lands exactly once across successive delivery points.
+    const CHILDREN: u32 = 150;
+    let home = tempfile::tempdir().unwrap();
+    let ids: Vec<String> = (0..CHILDREN)
+        .map(|i| seed(home.path(), &format!("toolu_bulk_{i:03}"), 1000 + i, None))
+        .collect();
+
+    let mut rounds: Vec<String> = Vec::new();
+    for round in 0..10 {
+        let (_, out, _) = run_post(home.path(), post_body("Grep", &format!("toolu_r{round}")));
+        rounds.push(out);
+    }
+    assert!(
+        rounds[0].contains("more changed, omitted for size"),
+        "the first report must say it was truncated; round 0: {}",
+        rounds[0]
+    );
+
+    let combined = rounds.join("\n");
+    for id in &ids {
+        let needle = format!("{id}/{{stdout,stderr}}");
+        assert_eq!(
+            combined.matches(&needle).count(),
+            1,
+            "child {needle} must be reported exactly once across all rounds"
+        );
+    }
+}
+
+#[test]
+fn a_lost_ledger_says_so_before_repeating_itself() {
+    // With no record of what the agent was already told, every child looks new.
+    // The burst of repeats is unavoidable; being unexplained is not.
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, None);
+    let (_, first, _) = run_post(home.path(), post_body("Grep", "toolu_a"));
+    assert!(first.contains("abandoned"), "stdout: {first}");
+
+    std::fs::write(
+        home.path().join(".claude/agent-tools/sid/.reported.json"),
+        b"{not json",
+    )
+    .unwrap();
+    let (_, second, _) = run_post(home.path(), post_body("Grep", "toolu_b"));
+    let note = second
+        .find("report history lost")
+        .unwrap_or_else(|| panic!("a reset ledger must announce itself; stdout: {second}"));
+    let repeat = second
+        .find("abandoned")
+        .unwrap_or_else(|| panic!("the repeat itself must still happen; stdout: {second}"));
+    assert!(
+        note < repeat,
+        "the reason must lead the repeats; stdout: {second}"
+    );
+}
+
+/// Seed a capture whose rendered line alone exceeds the whole report budget.
+fn seed_oversized(home: &std::path::Path, tuid: &str, wrapper_pid: u32) -> String {
+    let id = seed(home, tuid, wrapper_pid, None);
+    let dir = parent_dir(home, "sid", None, tuid).join(wrapper_pid.to_string());
+    let meta = format!(
+        r#"{{"wrapper_pid":{wrapper_pid},"wrapper_started_ticks":1,"child_pid":4242,
+            "desc":"{}","command":["true"],"started_at":"{}",
+            "spawn_error":null,"reaped":null,"drained_at":null}}"#,
+        "x".repeat(9_500),
+        chrono::Utc::now().to_rfc3339()
+    );
+    std::fs::write(dir.join("meta.json"), meta).unwrap();
+    id
+}
+
+#[test]
+fn a_short_line_after_an_oversized_one_still_fits() {
+    // Scan order is the filesystem's. A child whose own line cannot fit must not
+    // end the report: the ones after it in that order still have room.
+    let home = tempfile::tempdir().unwrap();
+    for i in 0..9u32 {
+        seed_oversized(home.path(), &format!("toolu_huge_{i}"), 100 + i);
+    }
+    let small = seed(home.path(), "toolu_small", 200, None);
+
+    let (_, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    assert!(
+        stdout.contains(&format!("{small}/{{stdout,stderr}}")),
+        "the small child must be reported despite the oversized ones; \nstdout: {stdout}\nstderr: {stderr}"
+    );
+    assert!(
+        stdout.contains("9 more changed, omitted for size"),
+        "every oversized line is dropped and counted; stdout: {stdout}"
+    );
+}
+
+#[test]
+fn parallel_hooks_report_each_child_exactly_once() {
+    // The reason this uses a lock file at all is that concurrent tool calls must
+    // not both report the same change, nor lose one another's ledger writes.
+    // Only real processes exercise an flock; threads in one process cannot.
+    let home = tempfile::tempdir().unwrap();
+    for i in 1..=8u32 {
+        seed(home.path(), &format!("toolu_prior_{i}"), i, None);
+    }
+
+    let mut kids = Vec::new();
+    for i in 0..8 {
+        let mut c = Command::new(bin())
+            .arg("hook-post")
+            .env("HOME", home.path())
+            .env("CLAUDE_CONFIG_ROOT", worktree_root())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        // Close stdin immediately so all eight run at once rather than each
+        // waiting for the collect loop to reach it.
+        let mut si = c.stdin.take().unwrap();
+        si.write_all(
+            post_body("Grep", &format!("toolu_call_{i}"))
+                .to_string()
+                .as_bytes(),
+        )
+        .unwrap();
+        drop(si);
+        kids.push(c);
+    }
+
+    let combined = kids
+        .into_iter()
+        .map(|c| String::from_utf8_lossy(&c.wait_with_output().unwrap().stdout).into_owned())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    for i in 1..=8u32 {
+        let needle = format!("toolu_prior_{i}/{i}");
+        assert_eq!(
+            combined.matches(&needle).count(),
+            1,
+            "child {needle} must be reported exactly once across all hooks; combined:\n{combined}"
+        );
+    }
 }
