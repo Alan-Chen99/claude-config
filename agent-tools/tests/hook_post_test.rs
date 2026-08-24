@@ -529,23 +529,37 @@ fn seed_live(home: &std::path::Path, tuid: &str) -> String {
 }
 
 #[test]
-fn a_still_running_child_is_reported_after_finished_ones() {
-    // Identity order alone would put the running child first. Only `rank`
-    // overrides that, so an inverted or absent rank fails this test.
+fn still_running_children_are_reported_after_finished_ones() {
+    // Four of each. With one of each, a read_dir order that happens to satisfy
+    // the assertion is a coin flip, so removing the sort passes by luck; with
+    // four it is a 1-in-70 accident. Identity order alone interleaves them,
+    // since `toolu_a1_running` sorts before `toolu_b1_done`.
     let home = tempfile::tempdir().unwrap();
-    seed(home.path(), "toolu_zzz_done", 7, Some(0));
-    seed_live(home.path(), "toolu_aaa_running");
+    for i in 1..=4u32 {
+        seed(home.path(), &format!("toolu_b{i}_done"), i, Some(0));
+        seed_live(home.path(), &format!("toolu_a{i}_running"));
+    }
 
     let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
-    let done = stdout
-        .find("toolu_zzz_done")
-        .expect("finished child reported");
-    let running = stdout
-        .find("toolu_aaa_running")
-        .expect("running child reported");
+    let last_done = (1..=4)
+        .map(|i| {
+            stdout
+                .find(&format!("toolu_b{i}_done"))
+                .expect("finished child reported")
+        })
+        .max()
+        .unwrap();
+    let first_running = (1..=4)
+        .map(|i| {
+            stdout
+                .find(&format!("toolu_a{i}_running"))
+                .expect("running child reported")
+        })
+        .min()
+        .unwrap();
     assert!(
-        done < running,
-        "a finished child must reach the agent before a still-running one: {stdout}"
+        last_done < first_running,
+        "every finished child must reach the agent before every running one: {stdout}"
     );
 }
 

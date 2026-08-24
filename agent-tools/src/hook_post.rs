@@ -251,3 +251,23 @@ fn bound(
     }
     kept
 }
+
+#[cfg(test)]
+mod tests {
+    use super::rank;
+
+    #[test]
+    fn finished_keys_outrank_running_ones() {
+        for key in [
+            "final(0)",
+            "exited(1)",
+            "abandoned",
+            "spawn-failed(No such file)",
+        ] {
+            assert_eq!(rank(key), 0, "{key} says the child is done");
+        }
+        for key in ["producing", "quiet(30s)", "quiet(2h)"] {
+            assert_eq!(rank(key), 1, "{key} says the child is still going");
+        }
+    }
+}
