@@ -244,7 +244,16 @@ git commit -m "agent-tools: add procstat for pid-reuse-safe wrapper liveness"
 
 ---
 
-## Task 2: ChildMeta becomes a fact record
+## Task 2: ChildMeta becomes a fact record, and every consumer keeps compiling
+
+> **Merged with what was Task 3.** `ChildMeta`'s fields are read by `run.rs`,
+> `ps.rs`, and `hook_post.rs`. Changing the struct without updating all three
+> leaves the crate uncompilable, so Task 2's own tests could not run and the
+> TDD loop would be broken from here until Task 8. The struct change, the
+> `run.rs` rewrite, and mechanical patches to the other two consumers therefore
+> land in one commit. The `ps.rs` and `hook_post.rs` patches here are interim:
+> Task 6 deletes the `hook_post.rs` code being patched and Task 8 rewrites the
+> `ps.rs` code being patched. Do the minimum to compile — do not improve them.
 
 **Files:**
 - Modify: `agent-tools/src/meta.rs:8-15`
@@ -363,18 +372,12 @@ impl ChildMeta {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd agent-tools && cargo test --bin agent-tools meta`
-Expected: 4 passed. Other modules will not compile yet; that is Task 3.
+Expected: 4 passed once Parts 2 and 3 are in place. Until then the crate does not compile.
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add agent-tools/src/meta.rs
-git commit -m "agent-tools: ChildMeta records facts, not status"
-```
 
 ---
 
-## Task 3: run.rs records facts as it learns them
+### Part 2: run.rs records facts as it learns them
 
 The load-bearing change: `reaped` is written the instant the child is reaped, **before** joining the tee tasks. Today both fields are written after (`run.rs:137-151`), which is why a detached descendant hides the exit status.
 
@@ -592,11 +595,55 @@ Keep the existing tee/silence/signal setup unchanged, then replace the shutdown 
 Run: `cd agent-tools && cargo test --test run_facts_test`
 Expected: 3 passed. `reap_is_recorded_before_the_pipes_drain` is the regression guard for the defect this whole plan exists to fix.
 
-- [ ] **Step 5: Commit**
+
+### Part 3: keep `ps.rs` and `hook_post.rs` compiling
+
+- [ ] **Step 1: Patch the nine call sites**
+
+`agent-tools/src/ps.rs`:
+
+```rust
+// :57-59  started_at is no longer Option
+            .then_with(|| a.meta.started_at.cmp(&b.meta.started_at))
+// :61     the capture dir is keyed by wrapper pid now
+            .then_with(|| a.meta.wrapper_pid.cmp(&b.meta.wrapper_pid))
+// :255
+    let live = m.reaped.is_none()
+        && m.child_pid.map(|p| is_pid_alive(p as i32)).unwrap_or(false);
+// :261
+            m.reaped
+                .map(|r| r.status.to_string())
+                .unwrap_or_else(|| "?".into())
+// :266
+    writeln!(buf, "    pid {} {}", m.wrapper_pid, status)?;
+```
+
+`agent-tools/src/hook_post.rs`:
+
+```rust
+// :154
+        match m.reaped.map(|r| r.status) {
+// :157
+                if let Some(end) = m.reaped.map(|r| r.at) {
+                    let secs = (end - m.started_at).num_seconds();
+// :164   started_at is no longer Option; use it directly
+                let secs = (chrono::Utc::now() - m.started_at).num_seconds();
+```
+
+- [ ] **Step 2: Confirm the whole crate compiles and every test runs**
+
+Run: `cd agent-tools && cargo test`
+Expected: the full suite runs. Pre-existing tests that assert the old
+`meta.json` shape will fail — that is expected and they are rewritten in Tasks 6
+and 8. Record which ones fail so the later tasks can be checked against the
+list. Nothing may fail to *compile*.
+
+- [ ] **Step 3: Commit the whole thing as one change**
 
 ```bash
-git add agent-tools/src/run.rs agent-tools/tests/run_facts_test.rs
-git commit -m "agent-tools: record reap before drain, key capture dir by wrapper pid"
+git add agent-tools/src/meta.rs agent-tools/src/run.rs agent-tools/src/ps.rs \
+        agent-tools/src/hook_post.rs agent-tools/tests/run_facts_test.rs
+git commit -m "agent-tools: ChildMeta records facts, run.rs records reap before drain"
 ```
 
 ---
