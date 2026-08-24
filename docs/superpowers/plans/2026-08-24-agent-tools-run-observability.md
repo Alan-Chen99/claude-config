@@ -1453,7 +1453,22 @@ git commit -m "agent-tools: report status changes on the user-turn channel"
 
 **Files:**
 - Modify: `agent-tools/src/ps.rs:253-290` (`write_capture`, `is_pid_alive`)
-- Test: `agent-tools/tests/ps_test.rs` (create)
+- Modify: `agent-tools/tests/ps_test.rs` — **this file already exists**; four of its tests
+  hand-write the old `meta.json` shape and fail after Task 2. Rewrite those fixtures to the
+  fact record, do not create a new file.
+- Modify: `agent-tools/tests/end_to_end_test.rs` — carries its own local mirror of
+  `ChildMeta` at `tests/end_to_end_test.rs:7-13` with a `child_id: u32` field, and parses
+  the real `meta.json` that `run` produces. It fails with `missing field 'child_id'` after
+  Task 2. Update the mirror to the fact record: `wrapper_pid`, `wrapper_started_ticks`,
+  `child_pid: Option<u32>`, `started_at`, `spawn_error`, `reaped`, `drained_at`.
+
+> No other task touches `end_to_end_test.rs`. If this task skips it, the suite is still
+> red when the plan finishes.
+
+**Tests that must be green at the end of this task:** all of `ps_test.rs` and
+`end_to_end_test.rs`. Note that `run_test.rs` does **not** fail after Task 2 — it globs the
+capture directory and only asserts `meta.json` exists and contains the desc — so there is
+nothing to fix there.
 
 - [ ] **Step 1: Write the failing test**
 
