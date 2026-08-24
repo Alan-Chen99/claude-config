@@ -34,7 +34,29 @@ Why the split: derivation is pure given `(facts, now, liveness, file stat)` and 
 
 ---
 
-## Task 0: Verify the delivery channels before building on them
+## Task 0: Verify the delivery channels before building on them — COMPLETE (2026-08-24)
+
+> **Result: both channels deliver, and a third is required.** Verified by capturing the
+> literal API request bodies, not by grepping transcripts. `PostToolUse` with
+> `matcher: ""` delivered for Read, Write, Edit and ToolSearch as well as Bash, including
+> in subagent threads. `UserPromptSubmit` delivered on every turn. Task 7 stays in the
+> plan.
+>
+> **Step 3's acceptance criterion below was wrong** and would have produced a false
+> negative: the token does not land in the `user` record carrying the tool result. It
+> arrives as a separate `role: "system"` message on the wire and as an `attachment`
+> record of type `hook_additional_context` in the transcript. In subagent threads no
+> attachment record is written at all even though delivery happens, so only wire capture
+> is authoritative.
+>
+> **New requirement discovered:** `PostToolUse` does not fire when a tool result is an
+> error; the failure path dispatches `PostToolUseFailure`. Without registering that
+> event, every errored tool call is a delivery point with no report — a straight
+> violation of the invariant. Registering it was verified to close the hole. Tasks 6 and
+> 9 below now cover it.
+>
+> Do not re-run this task.
+
 
 The spec's coverage claim depends on `additionalContext` actually reaching the model from a non-Bash tool result and from a user turn. Both are schema-present but delivery is documented only for `Stop`. **If this task fails, stop and narrow the spec's Delivery points section before continuing.**
 
@@ -1229,9 +1251,58 @@ and in `run()`, after the backgrounding notice is pushed:
 ```rust
     let changes = report_changes(&input.session_id, input.agent_id.as_deref())?;
     if !changes.is_empty() {
-        parts.push(format!("[agent-tools] run status:\n{}", changes.join("\n")));
+        parts.push(format!("[agent-tools] run status:\n{}", bound(changes)));
     }
 ```
+
+with the size bound, because `additionalContext` is capped at 10,000 characters and the
+runtime silently replaces anything longer with a 2,000-character stub — which would read
+as "nothing else changed":
+
+```rust
+/// Join report lines under the additionalContext cap, naming what was dropped.
+/// A silently truncated report is indistinguishable from a report of no change.
+const REPORT_BUDGET: usize = 9_000;
+
+fn bound(lines: Vec<String>) -> String {
+    let mut used = 0;
+    let mut kept: Vec<String> = Vec::new();
+    for line in &lines {
+        if used + line.len() + 1 > REPORT_BUDGET {
+            break;
+        }
+        used += line.len() + 1;
+        kept.push(line.clone());
+    }
+    let dropped = lines.len() - kept.len();
+    if dropped > 0 {
+        kept.push(format!(
+            "  ... {dropped} more changed, omitted for size; run `agent-tools ps` for all of them"
+        ));
+    }
+    kept.join("\n")
+}
+```
+
+**Echo the incoming event name.** The same binary now answers both `PostToolUse` and
+`PostToolUseFailure`, and the response must name the event it is answering.
+`PostToolUseInput` does not currently capture it. In `agent-tools/src/hook_input.rs`, add
+to `PostToolUseInput`:
+
+```rust
+    #[serde(default)]
+    pub hook_event_name: Option<String>,
+```
+
+and in `hook_post.rs`, use it where the output is built instead of the hard-coded
+`"PostToolUse"`:
+
+```rust
+    let event = input.hook_event_name.as_deref().unwrap_or("PostToolUse");
+```
+
+Add a test asserting that an input with `"hook_event_name":"PostToolUseFailure"` produces
+output whose `hookSpecificOutput.hookEventName` is `PostToolUseFailure`.
 
 Delete the `if input.tool_name != "Bash" && ... != "Read"` early return: the hook now fires for every tool, and status reporting applies to all of them. Keep the backgrounding notice gated to Bash and Monitor, since only those tools can be backgrounded.
 
@@ -1479,6 +1550,14 @@ git commit -m "agent-tools: ps renders derived status, drops child-pid liveness"
 In `settings.json`, change the `PostToolUse` matcher from `"Bash|Monitor|Read"` to `""`, and add:
 
 ```json
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "agent-tools hook-post", "timeout": 5 }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -1487,6 +1566,9 @@ In `settings.json`, change the `PostToolUse` matcher from `"Bash|Monitor|Read"` 
       }
     ]
 ```
+
+`PostToolUseFailure` runs the same `hook-post` subcommand: an errored tool result is a
+delivery point like any other, and `PostToolUse` does not fire for it.
 
 Leave `PreToolUse` as `"Bash|Monitor"`.
 

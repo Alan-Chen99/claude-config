@@ -249,8 +249,22 @@ The invariant binds every channel agent-tools can instrument.
 
 | Channel | Mechanism |
 | --- | --- |
-| tool results | `PostToolUse` hook, `matcher: ""` (documented: empty string matches all tools) |
-| user turns | `UserPromptSubmit` hook, `hookSpecificOutput.additionalContext` |
+| successful tool results | `PostToolUse` hook, `matcher: ""` (empty string matches all tools) |
+| **errored tool results** | `PostToolUseFailure` hook |
+| user turns | `UserPromptSubmit` hook |
+
+All three carry the report in `hookSpecificOutput.additionalContext`; plain hook stdout
+does not reach the model. All three were verified end to end on 2026-08-24 by capturing
+the literal request bodies sent to the API: the report arrives as a separate
+`role: "system"` message immediately after the message it accompanies, and in the
+transcript as an `attachment` record of type `hook_additional_context`. It is *not* part
+of the tool-result record itself.
+
+`PostToolUseFailure` is not an optional extra. `PostToolUse` does not fire when a tool
+result is an error — the failure path dispatches `PostToolUseFailure` instead — so
+without it, every errored tool call is a delivery point that arrives with no report.
+That is a direct violation of the invariant, and an errored call is exactly when an
+agent is most likely to go looking at a wrapped process.
 
 The current matcher is `Bash|Monitor|Read` (`settings.json:94`), which leaves Grep,
 Glob, Edit, Write, Task, and WebFetch able to deliver a consequence of a status change
@@ -262,9 +276,25 @@ by the invariant, not an optimization.
 `TaskCreated` and `TaskCompleted` exist in the hook input schema only and cannot return
 `additionalContext`; they are not delivery points.
 
-Out of instrumentation, and therefore outside the guarantee: content the agent produces
-itself, and anything reaching it outside a hookable event. `agent-tools ps` is the
-fallback for both.
+### Channels that cannot be instrumented
+
+These are named holes, not oversights. `agent-tools ps` is the fallback for all of them.
+
+| Hole | Why |
+| --- | --- |
+| permission-denied tool calls | the dispatcher returns before the tool runs, firing neither `PostToolUse` nor `PostToolUseFailure`. Only a `PermissionDenied` hook sees it, and only under the auto-mode classifier |
+| `bareFork` sessions | `PostToolUse` dispatch is skipped outright for them |
+| content the agent produces itself | no event exists |
+
+### Report size
+
+`additionalContext` is capped at 10,000 characters; beyond that the runtime spills the
+text to disk and substitutes a stub holding the first 2,000. A report is one line per
+changed child, so a session with many children can cross that. The report must therefore
+bound itself: emit at most as many lines as fit under the cap, and when lines are
+dropped, say how many and name `agent-tools ps` as the way to see the rest. A silently
+truncated report reads as "nothing else changed", which is precisely the lie this spec
+exists to prevent.
 
 Cost: one scan per tool call, `O(children in scope)` stats. The Read matcher addition
 was measured at under 5ms by the same method.
@@ -348,13 +378,15 @@ Integration tests. Each is a falsification of a specific clause.
 
 ## Risks
 
-- `additionalContext` appears in the `PostToolUse` output schema for all tools and in
-  the `UserPromptSubmit` schema (observed in the decompiled 2.1.235 tree: `lki.js`
-  output schemas, `sSf.js` output processing), but delivery to the model is documented
-  only for `Stop`. Implementation step one is an empirical check that a report emitted
-  from a non-Bash tool result, and from a user turn, actually reaches the model. If a
-  channel does not deliver, the coverage claim in Delivery points must be narrowed in
-  this file rather than quietly accepted.
+- Delivery was verified on 2026-08-24 against Claude Code 2.1.235 by capturing the
+  literal API request bodies, not by reading schemas. `PostToolUse` with an empty matcher
+  delivered for Read, Write, Edit and ToolSearch as well as Bash, including inside
+  subagent threads; `UserPromptSubmit` delivered on every turn, not only the first.
+  Two cautions for anyone re-running that check: in a subagent thread no attachment
+  record is written to the transcript even though the context is delivered, so grepping
+  transcripts under-reports and only wire capture is authoritative; and a matcher
+  containing no regex metacharacters is compared by exact string equality, so `"Edit"`
+  does not match `MultiEdit`.
 - Report volume scales with children in scope. The dedup rule bounds it to one line per
   key transition, but a session that starts hundreds of children accumulates scan cost
   on every tool call.
