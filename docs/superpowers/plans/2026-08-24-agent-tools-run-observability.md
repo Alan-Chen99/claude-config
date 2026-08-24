@@ -1402,6 +1402,49 @@ fn a_subagents_children_are_not_reported_to_the_main_thread() {
 }
 
 #[test]
+fn a_failed_status_report_does_not_discard_the_backgrounded_notice() {
+    // A directory where the lock file belongs makes Ledger::open fail. The
+    // notice is computed from the tool response and owes nothing to the ledger,
+    // so it must survive — and the failure must be visible, not swallowed.
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, None);
+    let scope = home.path().join(".claude/agent-tools/sid");
+    std::fs::create_dir_all(scope.join(".reported.lock")).unwrap();
+
+    let (_, stdout, _) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Bash",
+            "tool_input": {"command": "x", "run_in_background": true},
+            "tool_use_id": "toolu_now",
+            "tool_response": {"backgroundTaskId": "bg_1"}
+        }),
+    );
+    assert!(stdout.contains("BACKGROUNDED:"), "notice was lost: {stdout}");
+    assert!(
+        stdout.contains("run status: unavailable"),
+        "the reporting failure was swallowed: {stdout}"
+    );
+}
+
+#[test]
+fn report_order_is_reproducible_rather_than_filesystem_order() {
+    // Seeded in reverse so creation order cannot be mistaken for sorted order.
+    let home = tempfile::tempdir().unwrap();
+    for i in (1..=5u32).rev() {
+        seed(home.path(), &format!("toolu_{i}"), i, None);
+    }
+    let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    let order: Vec<usize> = (1..=5u32)
+        .map(|i| stdout.find(&format!("toolu_{i}/{i}")).expect("every child reported"))
+        .collect();
+    let mut sorted = order.clone();
+    sorted.sort_unstable();
+    assert_eq!(order, sorted, "children must appear in identity order: {stdout}");
+}
+
+#[test]
 fn parallel_hooks_report_each_child_exactly_once() {
     // The reason this uses a lock file at all is that concurrent tool calls must
     // not both report the same change, nor lose one another's ledger writes.
@@ -1469,6 +1512,7 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
     let now = chrono::Utc::now();
     let mut ledger = crate::ledger::Ledger::open(&scope)?;
     let mut pending: Vec<(String, String, String)> = Vec::new();
+    let mut notes: Vec<String> = Vec::new();
 
     for tuid_entry in fs::read_dir(&scope)?.flatten() {
         let tuid_dir = tuid_entry.path();
@@ -1478,7 +1522,16 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
         let Some(tuid) = tuid_dir.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        for cap_entry in fs::read_dir(&tuid_dir)?.flatten() {
+        let Ok(cap_entries) = fs::read_dir(&tuid_dir) else {
+            // The surrounding scan skips what it cannot use; aborting the whole
+            // report over one directory would hide every other child's change.
+            notes.push(format!(
+                "  note: {} could not be listed; its captures are missing from this report",
+                tuid_dir.display()
+            ));
+            continue;
+        };
+        for cap_entry in cap_entries.flatten() {
             let cap_dir = cap_entry.path();
             let Some(name) = cap_dir.file_name().and_then(|n| n.to_str()) else {
                 continue;
@@ -1494,11 +1547,22 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
             }
         }
     }
+    // Terminal keys first when the budget forces a choice: "this finished" matters
+    // more to an agent than "this is still running". Identity breaks ties, so a
+    // report is reproducible instead of in whatever order read_dir happened to
+    // yield — which would also make the dropped set arbitrary.
+    pending.sort_by(|a, b| rank(&a.1).cmp(&rank(&b.1)).then_with(|| a.0.cmp(&b.0)));
     let mut lines = bound(&mut ledger, pending);
     // A reset ledger makes every child look new. Say why, or the agent sees a
     // burst of repeats with no explanation.
     if let Some(reason) = ledger.reset_reason.clone() {
-        lines.insert(0, format!("  note: report history lost — {reason}; each child below is reported again once"));
+        notes.insert(
+            0,
+            format!("  note: report history lost — {reason}; each child below is reported again once"),
+        );
+    }
+    for note in notes.into_iter().rev() {
+        lines.insert(0, note);
     }
     ledger.commit()?;
     Ok(lines)
@@ -1508,9 +1572,21 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
 and in `run()`, after the backgrounding notice is pushed:
 
 ```rust
-    let changes = report_changes(&input.session_id, input.agent_id.as_deref())?;
-    if !changes.is_empty() {
-        parts.push(format!("[agent-tools] run status:\n{}", changes.join("\n")));
+    // The backgrounding notice is independent of status reporting and is the one
+    // message this hook must not lose. A `?` here would discard an
+    // already-computed notice because something unrelated failed.
+    match report_changes(&input.session_id, input.agent_id.as_deref()) {
+        Ok(changes) if !changes.is_empty() => {
+            parts.push(format!("[agent-tools] run status:\n{}", changes.join("\n")));
+        }
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("agent-tools hook-post: status report failed: {e:#}");
+            parts.push(format!(
+                "[agent-tools] run status: unavailable this time ({e}); \
+                 run `agent-tools ps` for the current state"
+            ));
+        }
     }
 ```
 
@@ -1528,6 +1604,16 @@ as "nothing else changed":
 /// The count of dropped lines is stated, because a silently truncated report is
 /// indistinguishable from a report of no change.
 const REPORT_BUDGET: usize = 9_000;
+
+/// Ordering weight: 0 for keys that say a child is done, 1 for keys that say it
+/// is still going.
+fn rank(key: &str) -> u8 {
+    if key.starts_with("producing") || key.starts_with("quiet(") {
+        1
+    } else {
+        0
+    }
+}
 
 fn bound(
     ledger: &mut crate::ledger::Ledger,
