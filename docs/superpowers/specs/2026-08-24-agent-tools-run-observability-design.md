@@ -11,8 +11,8 @@ describes components that were never built (`wrap-task`, `children/<pid>/`,
 
 `agent-tools run` has no specified behavior for a child that outlives the wrapper
 call. The wrapper exits on pipe EOF, not on child exit (`run.rs:119-124` waits on
-the child and then joins the tee tasks; `capture.rs:39-56` returns only at
-`read() == 0`). A descendant that inherited the stdout/stderr write ends keeps the
+the child and then joins the tee tasks; `capture.rs:39-56` returns at EOF, or on an
+I/O error — never on a timeout). A descendant that inherited the stdout/stderr write ends keeps the
 wrapper alive after its own child is reaped, and the exit status — known to the
 kernel — is recorded nowhere, because `child_exit` and the closing `meta.json` are
 written only after the tees join (`run.rs:137-151`).
@@ -30,7 +30,8 @@ to know, so that whether anything was backgrounded is unobservable.
 
 | Term | Meaning |
 | --- | --- |
-| child | one `agent-tools run` invocation and the process it spawned |
+| child | one `agent-tools run` invocation, identified by `<tool_use_id>/<wrapper_pid>`; it exists even when no process ever started |
+| child process | the OS process the wrapper spawned, if any |
 | wrapper | the `agent-tools run` process itself |
 | status | the current truth about a child; always available by pull |
 | report | text pushed to the agent at a delivery point |
@@ -51,6 +52,11 @@ child that ran and exited entirely inside one tool call and a child whose wrappe
 backgrounded for an hour are governed by the same rule, which is what makes
 backgrounding unobservable.
 
+A status change after a session's last delivery point is never reported. No consequence
+of it can reach the agent either, so the invariant holds vacuously. `Stop` is not used
+as a delivery point; adding it later would be additive and would not change the
+guarantee.
+
 Two corollaries constrain the implementation:
 
 - Status is derived at delivery time from durable facts, never cached at transition
@@ -68,11 +74,23 @@ The detail is rendered alongside a report and never causes one.
 | Key | Meaning | Terminal |
 | --- | --- | --- |
 | `spawn-failed(<err>)` | the command never started | yes |
-| `producing` | child alive, bytes seen more recently than the first quiet bucket | no |
-| `quiet(<bucket>)` | child alive, no bytes for at least `<bucket>` | no |
-| `exited(<status>)` | child reaped; capture still open because another process holds the pipes | no |
-| `final(<status>)` | child reaped and every writer closed; the capture file is complete | yes |
-| `abandoned` | wrapper gone without recording an exit; capture complete, status unknowable | yes |
+| `producing` | wrapper alive, no reap recorded, quiet anchor newer than the first bucket | no |
+| `quiet(<bucket>)` | wrapper alive, no reap recorded, quiet anchor at least `<bucket>` old | no |
+| `exited(<status>)` | child process reaped; the capture file may still grow because the pipes are still open | no |
+| `final(<status>)` | child process reaped and no further bytes can ever be added to the capture file | yes |
+| `abandoned` | wrapper gone without recording a reap; the capture is complete and the child process's fate is unknown | yes |
+
+The **quiet anchor** is the timestamp of the most recent captured byte, or `started_at`
+when nothing has been captured. `producing` therefore does not claim that any output
+exists — only that nothing has stalled.
+
+`<status>` is the child process's exit code, or `128 + signum` when it died from a
+signal.
+
+`final` promises that the file cannot grow, not that it holds everything the process
+wrote: a wrapper killed by SIGKILL loses whatever was still in the pipe buffer, and that
+loss is not observable from outside. `abandoned` marks the case where completeness was
+never confirmed by the wrapper at all.
 
 A later status supersedes an earlier one. The agent is told the current key only; keys
 it never saw are never sent. A child that started, produced output, and finished
@@ -80,13 +98,13 @@ between two delivery points is reported once, as `final(<status>)`.
 
 `exited` and `final` are distinct because they answer different questions. `exited`
 gives the status and warns that the capture file may still grow. `final` additionally
-promises the file is complete. Collapsing them is what produced the original defect.
+promises it will not. Collapsing them is what produced the original defect.
 
 ### Quiet buckets
 
-Default boundaries: **30s, 5m, 30m, 2h**. A child whose most recent byte is older than
-a boundary has that bucket as its key; the largest crossed bucket wins. A child that
-has produced no bytes at all is measured from `started_at`.
+Default boundaries: **30s, 5m, 30m, 2h**. A child whose quiet anchor is at least a
+boundary old has that bucket as its key; the largest crossed bucket wins. Boundaries are
+inclusive, so an anchor exactly 30s old is `quiet(30s)`, never `producing`.
 
 Crossing into a bucket is a key change and therefore one report. Continuous output
 never changes the key, so a chatty child is reported once and then stays silent no
@@ -203,16 +221,23 @@ comparison), and `stat` on the two capture files.
 
 | Condition | Key |
 | --- | --- |
+| `meta.json` missing or unparseable | `abandoned` |
 | `spawn_error` present | `spawn-failed(err)` |
-| `drained_at` present | `final(exit_status)` |
-| `reaped_at` present, wrapper dead | `final(exit_status)` |
-| `reaped_at` present, wrapper alive | `exited(exit_status)` |
-| no `reaped_at`, wrapper dead | `abandoned` |
-| no `reaped_at`, wrapper alive, last byte newer than the first bucket | `producing` |
-| no `reaped_at`, wrapper alive, last byte older than bucket B | `quiet(B)`, largest crossed |
+| `drained_at` and the reap record both present | `final(status)` |
+| reap present, wrapper alive | `exited(status)` |
+| reap present, wrapper dead | `final(status)` |
+| no reap, wrapper dead | `abandoned` |
+| no reap, wrapper alive, anchor newer than the first bucket | `producing` |
+| no reap, wrapper alive, anchor at least bucket B old | `quiet(B)`, largest crossed |
 
-Rows are evaluated top-down; the first match wins. A wrapper that died after writing
-`drained_at` is `final`, not `abandoned`.
+Rows are evaluated top-down; the first match wins. Every input combination matches
+exactly one row.
+
+The reap time and the exit status are one atomic record, so no row can name a status
+that was never written. `drained_at` without a reap cannot be produced — the wrapper
+joins the tees only after reaping — and a record showing it is treated as corrupt: it
+falls through to the no-reap rows, which classify it by wrapper liveness rather than
+inventing a status.
 
 Total: every combination of inputs maps to exactly one key. There are no timeouts and
 no heuristics. A dead wrapper implies a complete capture because the wrapper held the
@@ -285,6 +310,9 @@ or delete the claim. Leaving both the claim and the gap is not acceptable.
 | parallel tool calls racing the ledger | per-scope flock, as today |
 | capture files deleted by a human | sizes report 0B, paths still printed, keys still derive from `meta.json` |
 | `meta.json` unreadable | the child is reported as `abandoned`; a capture that cannot be described is never silently dropped |
+| wrapper SIGSTOPped | reported as `producing` or `quiet`, even if the child process has already exited. A stopped wrapper cannot reap, so no fact exists to derive from. This is the one state where a live wrapper without a reap record does not imply a live child process; it is pathological and accepted rather than papered over |
+| bytes still in the pipe when the wrapper is SIGKILLed | lost. `final` promises no further growth, not completeness |
+| quiet boundaries reconfigured | the ledger stores rendered keys, so each affected child emits one report under the new labels. One-time noise, not a correctness failure |
 
 ## Testing
 
@@ -297,7 +325,9 @@ Integration tests. Each is a falsification of a specific clause.
 3. **Run to completion inside one tool call.** Exactly one report, `final(<status>)`.
    No `producing` or `quiet` report is ever emitted for it.
 4. **Continuous output across many tool calls.** Exactly one report total.
-5. **Stalled child across bucket boundaries.** Exactly one report per bucket crossed.
+5. **Stalled child across bucket boundaries.** One report per bucket that is the current
+   bucket at some delivery point. Crossing 30s, 5m and 30m between two delivery points
+   collapses to a single `quiet(30m)` report, because the largest crossed bucket wins.
 6. **Flap between deliveries.** No report when the key is unchanged at both ends.
 7. **Subagent isolation.** A subagent's reports never appear in the main thread's scope.
 8. **The invariant itself.** A daemon writes a marker file after its parent exits. The
