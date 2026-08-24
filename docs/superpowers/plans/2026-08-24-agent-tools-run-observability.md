@@ -150,6 +150,27 @@ mod tests {
         // pid 0 never has a /proc entry.
         assert!(!is_alive(0, 1));
     }
+
+    #[test]
+    fn a_zombie_is_not_alive() {
+        // An exited-but-unreaped child keeps its pid and its start ticks, so
+        // ticks alone cannot distinguish it from a live process. It has
+        // already released its pipe fds, so it must not count as alive.
+        let mut child = std::process::Command::new("true").spawn().unwrap();
+        let pid = child.id();
+        let ticks = start_ticks(pid).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            let raw = std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap();
+            if parse_stat(&raw).unwrap().0 == b'Z' {
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "child never became a zombie");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(!is_alive(pid, ticks), "a zombie must not count as alive");
+        child.wait().unwrap();
+    }
 }
 ```
 
@@ -163,7 +184,7 @@ Expected: FAIL — `cannot find function start_ticks`.
 Put above the test module in `agent-tools/src/procstat.rs`:
 
 ```rust
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use std::fs;
 
 /// Parse `/proc/<pid>/stat` into (state, starttime_ticks).
@@ -182,10 +203,8 @@ pub fn parse_stat(line: &str) -> Result<(u8, u64)> {
         .context("stat: line too short for starttime")?
         .parse::<u64>()
         .context("stat: starttime not an integer")?;
-    let Some(&b) = state.as_bytes().first() else {
-        bail!("stat: empty state field")
-    };
-    Ok((b, starttime))
+    // split_whitespace never yields an empty token, so the first byte exists.
+    Ok((state.as_bytes()[0], starttime))
 }
 
 pub fn start_ticks(pid: u32) -> Result<u64> {
@@ -214,7 +233,7 @@ Add `mod procstat;` to `agent-tools/src/main.rs` alongside the existing `mod` li
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd agent-tools && cargo test --bin agent-tools procstat`
-Expected: 4 passed.
+Expected: 5 passed.
 
 - [ ] **Step 5: Commit**
 
