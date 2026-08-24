@@ -60,6 +60,7 @@ mod meta;
 mod opencode;
 mod paths;
 mod procname;
+mod procstat;
 mod ps;
 mod run;
 mod signals;
