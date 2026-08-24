@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use chrono::Utc;
 use nix::sys::signal;
 use nix::unistd::Pid;
 use std::fmt::Write as _;
@@ -52,13 +51,8 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
         a.agent_id
             .cmp(&b.agent_id)
             .then_with(|| a.tool_use_id.cmp(&b.tool_use_id))
-            .then_with(|| {
-                a.meta
-                    .started_at
-                    .unwrap_or_else(Utc::now)
-                    .cmp(&b.meta.started_at.unwrap_or_else(Utc::now))
-            })
-            .then_with(|| a.meta.child_id.cmp(&b.meta.child_id))
+            .then_with(|| a.meta.started_at.cmp(&b.meta.started_at))
+            .then_with(|| a.meta.wrapper_pid.cmp(&b.meta.wrapper_pid))
     });
 
     let mut buf = String::new();
@@ -252,18 +246,19 @@ fn collect_pid_captures(
 
 fn write_capture(buf: &mut String, c: &Capture) -> Result<()> {
     let m = &c.meta;
-    let live = m.ended_at.is_none() && is_pid_alive(m.child_id as i32);
+    let live = m.reaped.is_none()
+        && m.child_pid.map(|p| is_pid_alive(p as i32)).unwrap_or(false);
     let status = if live {
         "[running]".to_string()
     } else {
         format!(
             "[exited {}]",
-            m.exit_code
-                .map(|e| e.to_string())
+            m.reaped
+                .map(|r| r.status.to_string())
                 .unwrap_or_else(|| "?".into())
         )
     };
-    writeln!(buf, "    pid {} {}", m.child_id, status)?;
+    writeln!(buf, "    pid {} {}", m.wrapper_pid, status)?;
     if let Some(d) = &m.desc {
         writeln!(buf, "      desc:    {d}")?;
     }

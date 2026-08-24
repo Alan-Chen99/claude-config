@@ -151,22 +151,20 @@ fn format_details(child_dir: &Path, force_unfinalized: bool) -> String {
     let mut bits: Vec<String> = Vec::new();
     let mut emitted_unfinalized = false;
     if let Some(m) = &meta {
-        match m.exit_code {
+        match m.reaped.map(|r| r.status) {
             Some(code) => {
                 bits.push(format!("exit={code}"));
-                if let (Some(start), Some(end)) = (m.started_at, m.ended_at) {
-                    bits.push(format_duration(end.signed_duration_since(start)));
+                if let Some(end) = m.reaped.map(|r| r.at) {
+                    bits.push(format_duration(end.signed_duration_since(m.started_at)));
                 }
             }
             None => {
                 bits.push("unfinalized".to_string());
                 emitted_unfinalized = true;
-                if let Some(start) = m.started_at {
-                    bits.push(format!(
-                        "ran {}",
-                        format_duration(Utc::now().signed_duration_since(start)),
-                    ));
-                }
+                bits.push(format!(
+                    "ran {}",
+                    format_duration(Utc::now().signed_duration_since(m.started_at)),
+                ));
             }
         }
     }
