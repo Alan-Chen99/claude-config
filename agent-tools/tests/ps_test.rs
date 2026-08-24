@@ -18,14 +18,20 @@ fn agent_tools() -> Command {
     command
 }
 
-/// Seed a capture at `<home>/.claude/agent-tools/<session>/[<agent>/]<tuid>/<pid>/`.
-/// Writes meta.json, stdout, stderr. Returns the capture (pid) directory.
+/// Seed a capture at `<home>/.claude/agent-tools/<session>/[<agent>/]<tuid>/<wrapper_pid>/`.
+/// Writes meta.json (the fact record `run` writes), stdout, stderr. Returns the
+/// capture directory.
+///
+/// `wrapper_started_ticks: 1` cannot match a real process's start time, so the
+/// wrapper reads as dead however this machine happens to allocate pids. With a
+/// reap recorded that derives to `final(<status>)`; without one, `abandoned`.
+/// Either way the fixture's status is fixed, not a race against the test host.
 fn seed_capture(
     home: &Path,
     session: &str,
     agent: Option<&str>,
     tuid: &str,
-    pid: u32,
+    wrapper_pid: u32,
     desc: Option<&str>,
     exit: Option<i32>,
     stdout: &str,
@@ -35,15 +41,20 @@ fn seed_capture(
         dir.push(a);
     }
     dir.push(tuid);
-    dir.push(pid.to_string());
+    dir.push(wrapper_pid.to_string());
     std::fs::create_dir_all(&dir).unwrap();
     let meta = serde_json::json!({
-        "child_id": pid,
+        "wrapper_pid": wrapper_pid,
+        "wrapper_started_ticks": 1,
+        "child_pid": wrapper_pid + 1,
         "desc": desc,
         "command": ["echo", desc.unwrap_or("anon")],
         "started_at": "2026-05-17T10:00:00Z",
-        "ended_at": exit.map(|_| "2026-05-17T10:00:05Z"),
-        "exit_code": exit,
+        "spawn_error": serde_json::Value::Null,
+        "reaped": exit.map(|status| {
+            serde_json::json!({"at": "2026-05-17T10:00:05Z", "status": status})
+        }),
+        "drained_at": exit.map(|_| "2026-05-17T10:00:05Z"),
     });
     std::fs::write(
         dir.join("meta.json"),
@@ -126,10 +137,17 @@ fn main_thread_two_captures_under_one_tool_use_id() {
     assert!(s.contains("session: sid"), "{s}");
     assert!(s.contains("agent: _main"), "{s}");
     assert!(s.contains("tool-use tuid1 (2 captures)"), "{s}");
-    assert!(s.contains("pid 11111"), "{s}");
-    assert!(s.contains("pid 22222"), "{s}");
-    assert!(s.contains("desc:    probe-a"), "{s}");
-    assert!(s.contains("desc:    probe-b"), "{s}");
+    // Each capture is named by its desc and carries its own derived status,
+    // so a listing that merged or dropped one cannot satisfy both lines.
+    assert!(s.contains("probe-a [final(0)]"), "{s}");
+    assert!(s.contains("probe-b [final(1)]"), "{s}");
+    // The wrapper pid is what the capture dir is named for; a report has no
+    // room for it, `ps` does.
+    assert!(s.contains("wrapper: pid 11111"), "{s}");
+    assert!(s.contains("wrapper: pid 22222"), "{s}");
+    assert!(s.contains("cmd:     echo probe-a"), "{s}");
+    assert!(s.contains("cmd:     echo probe-b"), "{s}");
+    assert!(s.contains("started: 10:00:00.000"), "{s}");
 }
 
 #[test]
@@ -160,7 +178,10 @@ fn subagent_capture_listed_under_subagent_header() {
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("agent: agent-x"), "{s}");
     assert!(s.contains("tool-use tuid-sub (1 capture)"), "{s}");
-    assert!(s.contains("pid 33333"), "{s}");
+    assert!(s.contains("sub-probe [final(0)]"), "{s}");
+    assert!(s.contains("wrapper: pid 33333"), "{s}");
+    // Only meaningful because the assertions above prove the capture was in
+    // fact listed: an empty listing would satisfy this line for free.
     assert!(!s.contains("agent: _main"), "leak: {s}");
 }
 
@@ -201,8 +222,12 @@ fn task_filter_limits_to_one_tool_use_id() {
     );
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("tuid-keep"), "{s}");
+    // The kept capture must actually be rendered, or the two negatives below
+    // would pass on an empty listing.
+    assert!(s.contains("keep [final(0)]"), "{s}");
+    assert!(s.contains("wrapper: pid 44444"), "{s}");
     assert!(!s.contains("tuid-drop"), "{s}");
-    assert!(!s.contains("pid 55555"), "{s}");
+    assert!(!s.contains("wrapper: pid 55555"), "{s}");
 }
 
 #[test]
@@ -254,10 +279,67 @@ fn events_appear_in_chronological_order() {
         String::from_utf8_lossy(&out.stderr)
     );
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("events (chronological, all captures):"), "{s}");
-    let pos_first = s.find("first").expect("first event missing");
-    let pos_middle = s.find("middle").expect("middle event missing");
-    let pos_last = s.find("last").expect("last event missing");
+    // Events are collected from the tool_use_id dirs of surviving captures, so
+    // the capture has to be listed for the block to appear at all.
+    assert!(s.contains("evt [final(0)]"), "{s}");
+    // Search inside the events block, not the whole listing: the capture line
+    // above it says "last byte Ns ago", which would match the `last` event
+    // before the block is even reached.
+    let block = s
+        .split_once("events (chronological, all captures):")
+        .unwrap_or_else(|| panic!("events block missing: {s}"))
+        .1;
+    let pos_first = block.find("first").expect("first event missing");
+    let pos_middle = block.find("middle").expect("middle event missing");
+    let pos_last = block.find("last").expect("last event missing");
     assert!(pos_first < pos_middle, "ordering wrong: {s}");
     assert!(pos_middle < pos_last, "ordering wrong: {s}");
+}
+
+#[test]
+fn ps_shows_status_for_every_child_and_never_consumes_the_ledger() {
+    // `ps` is the pull half of the bargain: reports are deduplicated against
+    // the ledger and an agent's context can be compacted away, so there has to
+    // be one place that shows everything's current status whether or not it was
+    // already reported. Reading that must not retire a pending report, so `ps`
+    // neither reads nor writes the ledger — it does not even take its lock,
+    // which would serialize a read-only listing behind a reporting hook.
+    let home = tempfile::tempdir().unwrap();
+    // No reap and a wrapper that cannot be alive: abandoned. Nothing will ever
+    // push this child's status again, which is exactly why `ps` must show it.
+    seed_capture(
+        home.path(),
+        "sid",
+        None,
+        "toolu_x",
+        7,
+        Some("forgotten job"),
+        None,
+        "",
+    );
+
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("forgotten job [abandoned]"), "{s}");
+
+    let scope = home.path().join(".claude/agent-tools/sid");
+    assert!(
+        !scope.join(".reported.json").exists(),
+        "ps must not write the ledger"
+    );
+    assert!(
+        !scope.join(".reported.lock").exists(),
+        "ps must not even open the ledger: `Ledger::open` creates this lock file \
+         and takes an exclusive flock on it"
+    );
 }

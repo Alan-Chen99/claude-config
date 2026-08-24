@@ -4,22 +4,32 @@ use std::process::{Command, Stdio};
 
 use serde::Deserialize;
 
+/// Local mirror of `agent_tools::meta::Reaped`.
+#[derive(Debug, Deserialize)]
+struct Reaped {
+    #[allow(dead_code)]
+    at: String,
+    status: i32,
+}
+
 /// Local mirror of `agent_tools::meta::ChildMeta` so the test can parse
 /// `meta.json` strictly via serde without depending on the binary crate
 /// (which has no `lib` target).
+///
+/// Every field is required, so this fails loudly if `run` stops writing one of
+/// the facts every reader derives status from. The meta parsed below is the one
+/// the real `agent-tools run` subprocess wrote, not a fixture.
 #[derive(Debug, Deserialize)]
 struct ChildMeta {
-    #[allow(dead_code)]
-    child_id: u32,
+    wrapper_pid: u32,
+    wrapper_started_ticks: u64,
+    child_pid: Option<u32>,
     desc: Option<String>,
-    #[allow(dead_code)]
     command: Vec<String>,
-    #[allow(dead_code)]
-    started_at: Option<String>,
-    #[allow(dead_code)]
-    ended_at: Option<String>,
-    #[allow(dead_code)]
-    exit_code: Option<i32>,
+    started_at: String,
+    spawn_error: Option<String>,
+    reaped: Option<Reaped>,
+    drained_at: Option<String>,
 }
 
 fn bin() -> String {
@@ -175,6 +185,35 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         Some("probe"),
         "ChildMeta.desc should be Some(\"probe\")"
     );
+    assert_eq!(meta.command, vec!["echo".to_string(), "hi".to_string()]);
+    assert!(!meta.started_at.is_empty(), "started_at must be recorded");
+    // The capture dir is named for the wrapper, and the record says so itself.
+    assert_eq!(
+        meta.wrapper_pid.to_string(),
+        pid_name,
+        "capture dir name must be the wrapper pid it records"
+    );
+    // Liveness is decided by (wrapper_pid, wrapper_started_ticks); a zero here
+    // would make every wrapper look like every other one after a pid wrap.
+    assert!(
+        meta.wrapper_started_ticks > 0,
+        "wrapper start ticks must be real; got {}",
+        meta.wrapper_started_ticks
+    );
+    assert!(
+        meta.child_pid.is_some_and(|c| c != meta.wrapper_pid),
+        "child pid must be the spawned child, not the wrapper; got {:?}",
+        meta.child_pid
+    );
+    assert!(meta.spawn_error.is_none(), "echo hi should have spawned");
+    // Reaped and drained are both recorded before the wrapper exits, so this
+    // capture is `final(0)` — which is what the two readers below must say.
+    assert_eq!(
+        meta.reaped.as_ref().map(|r| r.status),
+        Some(0),
+        "reap status should be 0"
+    );
+    assert!(meta.drained_at.is_some(), "drain time should be recorded");
 
     // --- Step 4: hook-post lists the capture in additionalContext. ----------
     let post_input = serde_json::json!({
@@ -212,19 +251,19 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         .as_str()
         .expect("additionalContext is a string");
     assert!(
-        ctx.contains("[agent-tools] captures from this Bash call:"),
-        "additionalContext missing captures header; got: {ctx}"
+        ctx.contains("[agent-tools] run status:"),
+        "additionalContext missing status header; got: {ctx}"
     );
-    // End-to-end run uses the real `agent-tools run` subprocess, so meta.json
-    // is finalized with exit=0 and a real (small) duration. The bracket also
-    // carries the actual stdout byte size ("hi\n" = 3 bytes) and 0B stderr.
+    // The wrapper exited, so it is reaped, drained, and dead: `final(0)`. The
+    // line also carries the actual stdout byte size ("hi\n" = 3 bytes) and 0B
+    // stderr, and this is the child's first report, so nothing deduplicates it.
     assert!(
-        ctx.contains("probe [exit=0 "),
-        "additionalContext missing `probe [exit=0 ` fragment; got: {ctx}"
+        ctx.contains("probe [final(0)] pid "),
+        "additionalContext missing `probe [final(0)] pid ` fragment; got: {ctx}"
     );
     assert!(
-        ctx.contains("out=3B err=0B] → "),
-        "additionalContext missing byte-size fragment `out=3B err=0B] → `; got: {ctx}"
+        ctx.contains("out=3B err=0B -> "),
+        "additionalContext missing byte-size fragment `out=3B err=0B -> `; got: {ctx}"
     );
     assert!(
         ctx.contains("{stdout,stderr}"),
@@ -252,12 +291,25 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         ps_stdout.contains(&format!("tool-use {tuid}")),
         "ps output missing `tool-use {tuid}`; got:\n{ps_stdout}"
     );
+    // Same derivation as the report above, reached without the ledger — and
+    // reached with hook-post's ledger files now sitting in the session dir,
+    // which the capture walk must step over rather than trip on.
     assert!(
-        ps_stdout.contains("desc:    probe") || ps_stdout.contains("desc: probe"),
-        "ps output missing desc line for probe; got:\n{ps_stdout}"
+        ps_stdout.contains("probe [final(0)]"),
+        "ps output missing derived status for probe; got:\n{ps_stdout}"
+    );
+    // What a size-capped report leaves out: the full command, the wrapper pid,
+    // and the start time.
+    assert!(
+        ps_stdout.contains("cmd:     echo hi"),
+        "ps output missing the full command; got:\n{ps_stdout}"
     );
     assert!(
-        ps_stdout.contains(&pid_name),
-        "ps output missing pid `{pid_name}`; got:\n{ps_stdout}"
+        ps_stdout.contains(&format!("wrapper: pid {pid_name}")),
+        "ps output missing wrapper pid `{pid_name}`; got:\n{ps_stdout}"
+    );
+    assert!(
+        ps_stdout.contains("started: "),
+        "ps output missing start time; got:\n{ps_stdout}"
     );
 }
