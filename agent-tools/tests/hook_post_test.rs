@@ -472,6 +472,59 @@ fn a_short_line_after_an_oversized_one_still_fits() {
 }
 
 #[test]
+fn a_failed_status_report_does_not_discard_the_backgrounded_notice() {
+    // A directory where the lock file belongs makes Ledger::open fail. The
+    // notice is computed from the tool response and owes nothing to the ledger,
+    // so it must survive — and the failure must be visible, not swallowed.
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_prior", 0, None);
+    let scope = home.path().join(".claude/agent-tools/sid");
+    std::fs::create_dir_all(scope.join(".reported.lock")).unwrap();
+
+    let (_, stdout, _) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Bash",
+            "tool_input": {"command": "x", "run_in_background": true},
+            "tool_use_id": "toolu_now",
+            "tool_response": {"backgroundTaskId": "bg_1"}
+        }),
+    );
+    assert!(
+        stdout.contains("BACKGROUNDED:"),
+        "notice was lost: {stdout}"
+    );
+    assert!(
+        stdout.contains("run status: unavailable"),
+        "the reporting failure was swallowed: {stdout}"
+    );
+}
+
+#[test]
+fn report_order_is_reproducible_rather_than_filesystem_order() {
+    // Seeded in reverse so creation order cannot be mistaken for sorted order.
+    let home = tempfile::tempdir().unwrap();
+    for i in (1..=5u32).rev() {
+        seed(home.path(), &format!("toolu_{i}"), i, None);
+    }
+    let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    let order: Vec<usize> = (1..=5u32)
+        .map(|i| {
+            stdout
+                .find(&format!("toolu_{i}/{i}"))
+                .expect("every child reported")
+        })
+        .collect();
+    let mut sorted = order.clone();
+    sorted.sort_unstable();
+    assert_eq!(
+        order, sorted,
+        "children must appear in identity order: {stdout}"
+    );
+}
+
+#[test]
 fn parallel_hooks_report_each_child_exactly_once() {
     // The reason this uses a lock file at all is that concurrent tool calls must
     // not both report the same change, nor lose one another's ledger writes.

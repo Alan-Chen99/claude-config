@@ -37,9 +37,21 @@ pub fn run() -> Result<()> {
         }
     }
 
-    let changes = report_changes(&input.session_id, input.agent_id.as_deref())?;
-    if !changes.is_empty() {
-        parts.push(format!("[agent-tools] run status:\n{}", changes.join("\n")));
+    // The backgrounding notice is independent of status reporting and is the one
+    // message this hook must not lose. A `?` here would discard an
+    // already-computed notice because something unrelated failed.
+    match report_changes(&input.session_id, input.agent_id.as_deref()) {
+        Ok(changes) if !changes.is_empty() => {
+            parts.push(format!("[agent-tools] run status:\n{}", changes.join("\n")));
+        }
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("agent-tools hook-post: status report failed: {e:#}");
+            parts.push(format!(
+                "[agent-tools] run status: unavailable this time ({e}); \
+                 run `agent-tools ps` for the current state"
+            ));
+        }
     }
 
     if parts.is_empty() {
@@ -131,6 +143,7 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
     let now = chrono::Utc::now();
     let mut ledger = crate::ledger::Ledger::open(&scope)?;
     let mut pending: Vec<(String, String, String)> = Vec::new();
+    let mut notes: Vec<String> = Vec::new();
 
     for tuid_entry in fs::read_dir(&scope)?.flatten() {
         let tuid_dir = tuid_entry.path();
@@ -140,7 +153,16 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
         let Some(tuid) = tuid_dir.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        for cap_entry in fs::read_dir(&tuid_dir)?.flatten() {
+        let Ok(cap_entries) = fs::read_dir(&tuid_dir) else {
+            // The surrounding scan skips what it cannot use; aborting the whole
+            // report over one directory would hide every other child's change.
+            notes.push(format!(
+                "  note: {} could not be listed; its captures are missing from this report",
+                tuid_dir.display()
+            ));
+            continue;
+        };
+        for cap_entry in cap_entries.flatten() {
             let cap_dir = cap_entry.path();
             let Some(name) = cap_dir.file_name().and_then(|n| n.to_str()) else {
                 continue;
@@ -163,16 +185,24 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
             }
         }
     }
+    // Terminal keys first when the budget forces a choice: "this finished" matters
+    // more to an agent than "this is still running". Identity breaks ties, so a
+    // report is reproducible instead of in whatever order read_dir happened to
+    // yield — which would also make the dropped set arbitrary.
+    pending.sort_by(|a, b| rank(&a.1).cmp(&rank(&b.1)).then_with(|| a.0.cmp(&b.0)));
     let mut lines = bound(&mut ledger, pending);
     // A reset ledger makes every child look new. Say why, or the agent sees a
     // burst of repeats with no explanation.
     if let Some(reason) = ledger.reset_reason.clone() {
-        lines.insert(
+        notes.insert(
             0,
             format!(
                 "  note: report history lost — {reason}; each child below is reported again once"
             ),
         );
+    }
+    for note in notes.into_iter().rev() {
+        lines.insert(0, note);
     }
     ledger.commit()?;
     Ok(lines)
@@ -186,6 +216,16 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
 /// dropped line stays pending instead, and lands at the next delivery point.
 /// The count of dropped lines is stated, because a silently truncated report is
 /// indistinguishable from a report of no change.
+/// Ordering weight: 0 for keys that say a child is done, 1 for keys that say it
+/// is still going.
+fn rank(key: &str) -> u8 {
+    if key.starts_with("producing") || key.starts_with("quiet(") {
+        1
+    } else {
+        0
+    }
+}
+
 fn bound(
     ledger: &mut crate::ledger::Ledger,
     pending: Vec<(String, String, String)>,
