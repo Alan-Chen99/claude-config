@@ -112,10 +112,17 @@ matter how many delivery points pass. Boundaries are configuration, not contract
 
 ### Detail
 
-Rendered with a report and shown by `ps`; never a reason to report: desc, command,
-wrapper and child pid, `started_at`, timestamp of the most recent byte and its age
-computed at delivery time, stdout/stderr byte counts, capture paths, exit status where
-known.
+Detail is rendered alongside a key and is never itself a reason to report. It has two
+audiences with different budgets.
+
+A **report** line is pushed into `additionalContext`, which is capped (see Report size),
+so it stays lean: the child's name — the `--desc` string, or the command when there is
+none — the key, the child pid, the age of the most recent byte, the stdout and stderr
+byte counts, and the capture paths. The exit status needs no separate field; it is
+already inside the key.
+
+**`agent-tools ps`** is pulled on demand and has no such budget, so it adds what the
+report omits: the full command, the wrapper pid, and `started_at`.
 
 Ages are computed at delivery, not at transition, so the number the agent reads is
 accurate when it reads it.
