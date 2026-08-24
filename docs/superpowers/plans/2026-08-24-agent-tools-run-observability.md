@@ -1067,6 +1067,7 @@ mod tests {
         let scope = TempDir::new().unwrap();
         let mut l = Ledger::open(scope.path()).unwrap();
         assert!(l.changed("toolu_a/12", "producing"));
+        l.record("toolu_a/12", "producing");
         l.commit().unwrap();
     }
 
@@ -1075,10 +1076,10 @@ mod tests {
         let scope = TempDir::new().unwrap();
         {
             let mut l = Ledger::open(scope.path()).unwrap();
-            assert!(l.changed("toolu_a/12", "producing"));
+            l.record("toolu_a/12", "producing");
             l.commit().unwrap();
         }
-        let mut l = Ledger::open(scope.path()).unwrap();
+        let l = Ledger::open(scope.path()).unwrap();
         assert!(!l.changed("toolu_a/12", "producing"));
     }
 
@@ -1087,10 +1088,10 @@ mod tests {
         let scope = TempDir::new().unwrap();
         {
             let mut l = Ledger::open(scope.path()).unwrap();
-            l.changed("toolu_a/12", "exited(0)");
+            l.record("toolu_a/12", "exited(0)");
             l.commit().unwrap();
         }
-        let mut l = Ledger::open(scope.path()).unwrap();
+        let l = Ledger::open(scope.path()).unwrap();
         assert!(l.changed("toolu_a/12", "final(0)"));
     }
 
@@ -1099,7 +1100,25 @@ mod tests {
         let scope = TempDir::new().unwrap();
         let mut l = Ledger::open(scope.path()).unwrap();
         assert!(l.changed("toolu_a/12", "producing"));
+        l.record("toolu_a/12", "producing");
         assert!(l.changed("toolu_b/99", "producing"));
+    }
+
+    #[test]
+    fn a_key_that_was_never_recorded_stays_pending() {
+        // A caller that drops a line for size must not have it counted as told,
+        // or that child's change is lost from the push channel permanently.
+        let scope = TempDir::new().unwrap();
+        {
+            let l = Ledger::open(scope.path()).unwrap();
+            assert!(l.changed("toolu_a/12", "producing"));
+            l.commit().unwrap();
+        }
+        let l = Ledger::open(scope.path()).unwrap();
+        assert!(
+            l.changed("toolu_a/12", "producing"),
+            "an unreported key must not count as told"
+        );
     }
 }
 ```
@@ -1152,16 +1171,18 @@ impl Ledger {
         Ok(Ledger { path, map, _lock: lock })
     }
 
-    /// True when `key` differs from the last key reported for `id`. Records
-    /// the new key in memory; call `commit` to persist.
-    pub fn changed(&mut self, id: &str, key: &str) -> bool {
-        match self.map.get(id) {
-            Some(prev) if prev == key => false,
-            _ => {
-                self.map.insert(id.to_string(), key.to_string());
-                true
-            }
-        }
+    /// True when `key` differs from the last key reported for `id`.
+    ///
+    /// A pure query. Nothing is recorded until `record` is called, so a line the
+    /// caller ends up dropping stays pending rather than being marked as told.
+    pub fn changed(&self, id: &str, key: &str) -> bool {
+        self.map.get(id).map(|prev| prev != key).unwrap_or(true)
+    }
+
+    /// Record `key` as the last key reported for `id`. Call this only for lines
+    /// that actually reach the agent.
+    pub fn record(&mut self, id: &str, key: &str) {
+        self.map.insert(id.to_string(), key.to_string());
     }
 
     pub fn commit(&self) -> Result<()> {
@@ -1180,7 +1201,7 @@ Add `mod ledger;` to `agent-tools/src/main.rs`.
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd agent-tools && cargo test --bin agent-tools ledger`
-Expected: 4 passed.
+Expected: 5 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1308,7 +1329,7 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
     }
     let now = chrono::Utc::now();
     let mut ledger = crate::ledger::Ledger::open(&scope)?;
-    let mut lines = Vec::new();
+    let mut pending: Vec<(String, String, String)> = Vec::new();
 
     for tuid_entry in fs::read_dir(&scope)?.flatten() {
         let tuid_dir = tuid_entry.path();
@@ -1328,11 +1349,13 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
             }
             let st = crate::status::derive(&cap_dir, now);
             let id = format!("{tuid}/{name}");
-            if ledger.changed(&id, &st.key.to_string()) {
-                lines.push(format!("  {}", crate::status::render(&cap_dir, &st, now)));
+            let key = st.key.to_string();
+            if ledger.changed(&id, &key) {
+                pending.push((id, key, format!("  {}", crate::status::render(&cap_dir, &st, now))));
             }
         }
     }
+    let lines = bound(&mut ledger, pending);
     ledger.commit()?;
     Ok(lines)
 }
@@ -1343,7 +1366,7 @@ and in `run()`, after the backgrounding notice is pushed:
 ```rust
     let changes = report_changes(&input.session_id, input.agent_id.as_deref())?;
     if !changes.is_empty() {
-        parts.push(format!("[agent-tools] run status:\n{}", bound(changes)));
+        parts.push(format!("[agent-tools] run status:\n{}", changes.join("\n")));
     }
 ```
 
@@ -1352,27 +1375,40 @@ runtime silently replaces anything longer with a 2,000-character stub — which 
 as "nothing else changed":
 
 ```rust
-/// Join report lines under the additionalContext cap, naming what was dropped.
-/// A silently truncated report is indistinguishable from a report of no change.
+/// Keep the report lines that fit under the additionalContext cap, and record in
+/// the ledger only the ones actually kept.
+///
+/// Recording a line the agent never saw would retire that child's change
+/// permanently: its key would match next time and never be reported again. A
+/// dropped line stays pending instead, and lands at the next delivery point.
+/// The count of dropped lines is stated, because a silently truncated report is
+/// indistinguishable from a report of no change.
 const REPORT_BUDGET: usize = 9_000;
 
-fn bound(lines: Vec<String>) -> String {
+fn bound(
+    ledger: &mut crate::ledger::Ledger,
+    pending: Vec<(String, String, String)>,
+) -> Vec<String> {
     let mut used = 0;
     let mut kept: Vec<String> = Vec::new();
-    for line in &lines {
+    let mut dropped = 0;
+    for (id, key, line) in pending {
+        // `continue`, not `break`: a short line after a long one still fits.
         if used + line.len() + 1 > REPORT_BUDGET {
-            break;
+            dropped += 1;
+            continue;
         }
         used += line.len() + 1;
-        kept.push(line.clone());
+        ledger.record(&id, &key);
+        kept.push(line);
     }
-    let dropped = lines.len() - kept.len();
     if dropped > 0 {
         kept.push(format!(
-            "  ... {dropped} more changed, omitted for size; run `agent-tools ps` for all of them"
+            "  ... {dropped} more changed, omitted for size; they are reported at the \
+             next delivery point, or run `agent-tools ps` now"
         ));
     }
-    kept.join("\n")
+    kept
 }
 ```
 
