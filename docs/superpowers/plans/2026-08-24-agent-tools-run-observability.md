@@ -2142,12 +2142,49 @@ Create `agent-tools/tests/invariant_test.rs`:
 
 ```rust
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-fn bin() -> String { env!("CARGO_BIN_EXE_agent-tools").to_string() }
+fn bin() -> String {
+    env!("CARGO_BIN_EXE_agent-tools").to_string()
+}
+
 fn worktree_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("agent-tools/ should have a parent")
+        .to_path_buf()
+}
+
+/// Kills the wrapper and the daemon holding its pipes however the test exits,
+/// including on a failed assertion. `std::process::Child`'s own Drop does not
+/// kill, and the daemon is not the wrapper's child at all, so without this a
+/// single failing assertion would leave two processes behind — one of them
+/// sleeping for five minutes.
+struct Cleanup {
+    wrapper: std::process::Child,
+    daemon_pid_file: PathBuf,
+}
+
+impl Drop for Cleanup {
+    fn drop(&mut self) {
+        let _ = self.wrapper.kill();
+        let _ = self.wrapper.wait();
+        if let Ok(s) = std::fs::read_to_string(&self.daemon_pid_file) {
+            if let Ok(pid) = s.trim().parse::<u32>() {
+                let _ = Command::new("kill").arg(pid.to_string()).status();
+            }
+        }
+    }
+}
+
+/// The one capture dir under `parent`, named for the wrapper pid.
+fn capture_dir(parent: &Path) -> Option<PathBuf> {
+    std::fs::read_dir(parent)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.is_dir())
 }
 
 /// A daemon outlives the wrapped child and writes a marker. The tool call that
@@ -2158,23 +2195,44 @@ fn a_consequence_never_arrives_before_the_status_that_caused_it() {
     let home = tempfile::tempdir().unwrap();
     let parent = home.path().join(".claude/agent-tools/sid/toolu_run");
     let marker = home.path().join("marker.txt");
+    let pid_file = home.path().join("daemon.pid");
 
-    let mut wrapper = Command::new(bin())
-        .args([
-            "run", "--desc", "detaching job", "bash", "-c",
-            &format!("(sleep 1; echo done > {}) & echo started", marker.display()),
-        ])
+    // Two detached jobs, both holding the inherited stdout and stderr:
+    //
+    // - `sleep 300` is the pipe holder. It is what makes this test
+    //   discriminating. While it lives the wrapper cannot reach EOF, so an
+    //   implementation that records the exit status only once the pipes drain
+    //   has nothing to report for the whole life of the test. Its pid is `$!`
+    //   of a simple command, so killing that pid really does release the pipe;
+    //   a subshell pid could leave the fd held by a grandchild.
+    // - the marker writer waits a second, so the marker — the consequence —
+    //   cannot appear until well after the wrapped `bash` has exited and been
+    //   reaped. It then exits on its own.
+    let script = format!(
+        "sleep 300 & echo $! > {pid}; (sleep 1; echo done > {marker}) & echo started",
+        pid = pid_file.display(),
+        marker = marker.display(),
+    );
+    let wrapper = Command::new(bin())
+        .args(["run", "--desc", "detaching job", "bash", "-c", &script])
         .env("HOME", home.path())
         .env("CLAUDE_CONFIG_ROOT", worktree_root())
         .env("AGENT_TOOLS_PARENT_DIR", &parent)
         .stdout(Stdio::null())
         .spawn()
         .unwrap();
+    let _cleanup = Cleanup {
+        wrapper,
+        daemon_pid_file: pid_file,
+    };
 
     // Wait for the consequence to become observable.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     while !marker.exists() {
-        assert!(std::time::Instant::now() < deadline, "marker never appeared");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "marker never appeared"
+        );
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
@@ -2185,36 +2243,86 @@ fn a_consequence_never_arrives_before_the_status_that_caused_it() {
         .env("CLAUDE_CONFIG_ROOT", worktree_root())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .unwrap();
     c.stdin
         .as_mut()
         .unwrap()
         .write_all(
-            br#"{"session_id":"sid","tool_name":"Read","tool_input":{"file_path":"marker.txt"},
-                 "tool_use_id":"toolu_read","tool_response":{}}"#,
+            serde_json::json!({
+                "session_id": "sid",
+                "tool_name": "Read",
+                "tool_input": {"file_path": marker.to_string_lossy()},
+                "tool_use_id": "toolu_read",
+                "tool_response": {},
+            })
+            .to_string()
+            .as_bytes(),
         )
         .unwrap();
-    let stdout = String::from_utf8_lossy(&c.wait_with_output().unwrap().stdout).into_owned();
+    let out = c.wait_with_output().unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert!(out.status.success(), "hook-post failed; stderr: {stderr}");
 
-    assert!(stdout.contains("detaching job"), "no report at all: {stdout}");
     assert!(
-        stdout.contains("exited(0)") || stdout.contains("final(0)"),
+        stdout.contains("detaching job"),
+        "no report at all: {stdout}{stderr}"
+    );
+    // Name and key together in one fragment: a report about this child, whose
+    // key names an exit status. `exited` while the wrapper is still draining,
+    // `final` once it is gone — either says what the agent needed to know.
+    assert!(
+        stdout.contains("detaching job [exited(0)]") || stdout.contains("detaching job [final(0)]"),
         "consequence observed before the status: {stdout}"
     );
 
-    let _ = wrapper.kill();
-    let _ = wrapper.wait();
+    // `drained_at` only ever goes from null to set, so finding it null now
+    // proves it was null while the report above was produced: the status was
+    // known before the pipes drained, which is the whole hazard. A test that
+    // observed a drained wrapper would be passing on the easy case.
+    let dir = capture_dir(&parent).expect("capture dir exists");
+    let meta: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(dir.join("meta.json")).unwrap()).unwrap();
+    assert!(
+        meta["drained_at"].is_null(),
+        "the daemon should still hold the pipes; meta: {meta}"
+    );
 }
 ```
 
+The daemon going on holding the pipes for the rest of the test is what makes
+this discriminate, and it is not optional. A daemon that dies the moment it
+writes the marker drains the pipes at that same instant, so even a wrapper that
+records the exit status only at drain time has it on disk before the hook runs:
+against the pre-change binary that shape gets back `detaching job [exit=0 1.0s
+out=8B err=0B]` and fails only because the key vocabulary changed. Hold the
+pipes and the pre-change binary answers with nothing at all, which is the defect
+being guarded.
+
 - [ ] **Step 2: Run test to verify it fails on the pre-change binary**
 
+Each task commits its work, so `git stash` no longer reaches the pre-change
+code. Build it in a scratch clone — never a worktree of the canonical repo,
+whose `.git` this must not touch:
+
 ```bash
-cd agent-tools && git stash && cargo test --test invariant_test; git stash pop
+scratch=$(mktemp -d)
+git clone -q --no-hardlinks . "$scratch/prechange"
+git -C "$scratch/prechange" checkout -q 07d80d8   # last commit before this plan
+cp agent-tools/tests/invariant_test.rs "$scratch/prechange/agent-tools/tests/"
+cd "$scratch/prechange/agent-tools" && cargo test --test invariant_test
 ```
 
-Expected: FAIL (or a compile error against the old shape). This confirms the test discriminates. If it passes against the old code, the test is wrong — fix the test before proceeding.
+Expected: FAIL on the *first* assertion — `no report at all:` with an empty
+hook-post stdout. The agent could read the marker and learn nothing at all about
+the child whose exit produced it.
+
+A failure on the second assertion instead means the report was there and only
+its wording changed. That is not the invariant, and a test that discriminates
+only on vocabulary would pass the moment the vocabulary matched. Fix the test
+before proceeding.
 
 - [ ] **Step 3: Run it against the implementation**
 
@@ -2224,18 +2332,23 @@ Expected: 1 passed.
 - [ ] **Step 4: Remove the one dead field, then run the whole suite**
 
 `cargo build --release` warns `field cwd is never read` on `PreToolUseInput`
-(`agent-tools/src/hook_input.rs:13`). It is genuinely unused — serde ignores absent
-fields, so dropping it changes no behaviour — and this project removes dead code
-rather than annotating it. Delete the field, then:
+(`agent-tools/src/hook_input.rs:13`). It is genuinely unused — serde ignores
+absent fields, so dropping it changes no behaviour — and this project removes
+dead code rather than annotating it. The unit tests keep feeding `cwd` in their
+fixtures, which is now a guard that the real payload's extra keys still parse.
+Delete the field, then:
 
-Run: `cd agent-tools && cargo test`
+Run: `cd agent-tools && cargo test --no-fail-fast`
 Expected: all pass except the environmental `opencode_test` failure, and
-`cargo build --release` emits no warnings.
+`cargo build --release` emits no warnings. `--no-fail-fast` is load-bearing:
+cargo stops at the first failing target, and `opencode_test` sorts ahead of
+`ps_test`, `run_facts_test`, and `run_test`, so a plain `cargo test` reports
+success for three targets it never ran.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add agent-tools/tests/invariant_test.rs
+git add agent-tools/tests/invariant_test.rs agent-tools/src/hook_input.rs
 git commit -m "agent-tools: guard the observability invariant end to end"
 ```
 
