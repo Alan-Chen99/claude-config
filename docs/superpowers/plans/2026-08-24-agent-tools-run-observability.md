@@ -2358,13 +2358,26 @@ git commit -m "agent-tools: guard the observability invariant end to end"
 
 **Files:** none modified.
 
-- [ ] **Step 1: Build**
+> **This task changes shared state and needs explicit sign-off before it runs.**
+> The canonical repo does not contain this work; it lives on the `work` branch in a
+> worktree. Going live means merging into the canonical checkout and rebuilding the
+> binary that `~/.local/bin/agent-tools` points at — which every running session's
+> hooks use, including the session doing the merge. Until then all of this is inert,
+> which is why the whole plan could be built without disturbing anything.
+
+- [ ] **Step 1: Merge, then build in the canonical repo**
 
 ```bash
-cd /repos/claude-config/agent-tools && agent-tools run --desc "release build" cargo build --release
+# from the canonical checkout, not a worktree
+cd /repos/claude-config && git merge work
+cd agent-tools && agent-tools run --desc "release build" cargo build --release
 ```
 
-Do this in the canonical repo, never a worktree — `install.sh` symlinks point there, and a worktree build that gets deleted breaks every other session.
+Never build-and-install from a worktree: `install.sh` symlinks point at the canonical
+repo, and a worktree build that later gets deleted breaks every other session.
+
+Expect the running session's own hook output to change format from this point on —
+the old `[agent-tools] captures from this Bash call:` line is gone.
 
 - [ ] **Step 2: Exercise the detached case by hand**
 
@@ -2372,7 +2385,11 @@ Do this in the canonical repo, never a worktree — `install.sh` symlinks point 
 agent-tools run --desc "smoke: detaching" bash -c 'tail -f /dev/null & echo started'
 ```
 
-Expected: the call still blocks until the Bash tool backgrounds it — the spec deliberately does not change the wrapper's lifetime — but the next tool result carries `[agent-tools] run status:` with `detaching job [exited(0)] ...`. Confirm the exit status appears without a five-minute wait.
+Expected: the call still blocks until the Bash tool backgrounds it — the spec
+deliberately does not change the wrapper's lifetime — but the next tool result carries
+`[agent-tools] run status:` with `smoke: detaching [exited(0)] ...`. The name in the
+line is the `--desc` string verbatim, not a paraphrase of it. Confirm the exit status
+appears without a five-minute wait.
 
 - [ ] **Step 3: Confirm quiet reporting and non-redundancy**
 
