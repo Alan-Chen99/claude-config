@@ -56,6 +56,7 @@ mod events;
 mod hook_input;
 mod hook_post;
 mod hook_pre;
+mod ledger;
 mod meta;
 mod opencode;
 mod paths;
