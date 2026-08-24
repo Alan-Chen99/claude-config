@@ -501,6 +501,54 @@ fn a_failed_status_report_does_not_discard_the_backgrounded_notice() {
     );
 }
 
+/// This process's own start ticks, so a fixture can name a wrapper that is
+/// genuinely alive. `seed`'s hardcoded ticks never match a real process, which
+/// is why every other fixture derives `abandoned`.
+fn own_start_ticks() -> u64 {
+    let raw = std::fs::read_to_string("/proc/self/stat").unwrap();
+    let tail = raw.rsplit_once(')').unwrap().1;
+    tail.split_whitespace().nth(19).unwrap().parse().unwrap()
+}
+
+/// Seed a child whose wrapper is this live test process, so it derives
+/// `producing` rather than `abandoned`.
+fn seed_live(home: &std::path::Path, tuid: &str) -> String {
+    let pid = std::process::id();
+    let parent = parent_dir(home, "sid", None, tuid);
+    let dir = parent.join(pid.to_string());
+    std::fs::create_dir_all(&dir).unwrap();
+    let meta = format!(
+        r#"{{"wrapper_pid":{pid},"wrapper_started_ticks":{},"child_pid":4242,
+            "desc":"live child","command":["true"],"started_at":"{}",
+            "spawn_error":null,"reaped":null,"drained_at":null}}"#,
+        own_start_ticks(),
+        chrono::Utc::now().to_rfc3339()
+    );
+    std::fs::write(dir.join("meta.json"), meta).unwrap();
+    format!("{tuid}/{pid}")
+}
+
+#[test]
+fn a_still_running_child_is_reported_after_finished_ones() {
+    // Identity order alone would put the running child first. Only `rank`
+    // overrides that, so an inverted or absent rank fails this test.
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "toolu_zzz_done", 7, Some(0));
+    seed_live(home.path(), "toolu_aaa_running");
+
+    let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    let done = stdout
+        .find("toolu_zzz_done")
+        .expect("finished child reported");
+    let running = stdout
+        .find("toolu_aaa_running")
+        .expect("running child reported");
+    assert!(
+        done < running,
+        "a finished child must reach the agent before a still-running one: {stdout}"
+    );
+}
+
 #[test]
 fn report_order_is_reproducible_rather_than_filesystem_order() {
     // Seeded in reverse so creation order cannot be mistaken for sorted order.
