@@ -36,16 +36,18 @@ impl Ledger {
         Ok(Ledger { path, map, _lock: lock })
     }
 
-    /// True when `key` differs from the last key reported for `id`. Records
-    /// the new key in memory; call `commit` to persist.
-    pub fn changed(&mut self, id: &str, key: &str) -> bool {
-        match self.map.get(id) {
-            Some(prev) if prev == key => false,
-            _ => {
-                self.map.insert(id.to_string(), key.to_string());
-                true
-            }
-        }
+    /// True when `key` differs from the last key reported for `id`.
+    ///
+    /// A pure query. Nothing is recorded until `record` is called, so a line the
+    /// caller ends up dropping stays pending rather than being marked as told.
+    pub fn changed(&self, id: &str, key: &str) -> bool {
+        self.map.get(id).map(|prev| prev != key).unwrap_or(true)
+    }
+
+    /// Record `key` as the last key reported for `id`. Call this only for lines
+    /// that actually reach the agent.
+    pub fn record(&mut self, id: &str, key: &str) {
+        self.map.insert(id.to_string(), key.to_string());
     }
 
     pub fn commit(&self) -> Result<()> {
@@ -68,6 +70,7 @@ mod tests {
         let scope = TempDir::new().unwrap();
         let mut l = Ledger::open(scope.path()).unwrap();
         assert!(l.changed("toolu_a/12", "producing"));
+        l.record("toolu_a/12", "producing");
         l.commit().unwrap();
     }
 
@@ -76,10 +79,10 @@ mod tests {
         let scope = TempDir::new().unwrap();
         {
             let mut l = Ledger::open(scope.path()).unwrap();
-            assert!(l.changed("toolu_a/12", "producing"));
+            l.record("toolu_a/12", "producing");
             l.commit().unwrap();
         }
-        let mut l = Ledger::open(scope.path()).unwrap();
+        let l = Ledger::open(scope.path()).unwrap();
         assert!(!l.changed("toolu_a/12", "producing"));
     }
 
@@ -88,10 +91,10 @@ mod tests {
         let scope = TempDir::new().unwrap();
         {
             let mut l = Ledger::open(scope.path()).unwrap();
-            l.changed("toolu_a/12", "exited(0)");
+            l.record("toolu_a/12", "exited(0)");
             l.commit().unwrap();
         }
-        let mut l = Ledger::open(scope.path()).unwrap();
+        let l = Ledger::open(scope.path()).unwrap();
         assert!(l.changed("toolu_a/12", "final(0)"));
     }
 
@@ -100,6 +103,24 @@ mod tests {
         let scope = TempDir::new().unwrap();
         let mut l = Ledger::open(scope.path()).unwrap();
         assert!(l.changed("toolu_a/12", "producing"));
+        l.record("toolu_a/12", "producing");
         assert!(l.changed("toolu_b/99", "producing"));
+    }
+
+    #[test]
+    fn a_key_that_was_never_recorded_stays_pending() {
+        // A caller that drops a line for size must not have it counted as told,
+        // or that child's change is lost from the push channel permanently.
+        let scope = TempDir::new().unwrap();
+        {
+            let l = Ledger::open(scope.path()).unwrap();
+            assert!(l.changed("toolu_a/12", "producing"));
+            l.commit().unwrap();
+        }
+        let l = Ledger::open(scope.path()).unwrap();
+        assert!(
+            l.changed("toolu_a/12", "producing"),
+            "an unreported key must not count as told"
+        );
     }
 }
