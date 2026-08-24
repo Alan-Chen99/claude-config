@@ -65,6 +65,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-tools hook-prompt",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -91,7 +100,19 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|Monitor|Read",
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-tools hook-post",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
