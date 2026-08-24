@@ -1950,6 +1950,14 @@ fn ps_shows_status_for_every_child_and_never_consumes_the_ledger() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("forgotten job"), "stdout: {stdout}");
     assert!(stdout.contains("abandoned"), "stdout: {stdout}");
+    // .reported.json only appears on commit, so asserting its absence would pass
+    // for a `ps` that opened the ledger read-only — retiring nothing, but taking
+    // an exclusive flock and serializing a listing behind every reporting hook.
+    // The lock file is what `Ledger::open` creates, so that is what to assert on.
+    assert!(
+        !home.path().join(".claude/agent-tools/sid/.reported.lock").exists(),
+        "ps must not even open the ledger"
+    );
     assert!(
         !home.path().join(".claude/agent-tools/sid/.reported.json").exists(),
         "ps must not write the ledger"
@@ -1973,6 +1981,9 @@ fn write_capture(buf: &mut String, c: &Capture) -> Result<()> {
     writeln!(buf, "    {}", crate::status::render(&c.capture_dir, &st, now))?;
     if let Some(m) = &st.meta {
         writeln!(buf, "      cmd:     {}", m.command.join(" "))?;
+        // The report carries the wrapper pid only as a path component, which is
+        // not "what the report omits" — name it outright.
+        writeln!(buf, "      wrapper: pid {}", m.wrapper_pid)?;
         writeln!(buf, "      started: {}", m.started_at.format("%H:%M:%S%.3f"))?;
     }
     Ok(())
