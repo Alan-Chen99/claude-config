@@ -1105,6 +1105,31 @@ mod tests {
     }
 
     #[test]
+    fn a_second_open_in_this_process_fails_fast_instead_of_hanging() {
+        let scope = TempDir::new().unwrap();
+        let _first = Ledger::open(scope.path()).unwrap();
+        let err = Ledger::open(scope.path()).unwrap_err().to_string();
+        assert!(err.contains("already open in this process"), "err: {err}");
+    }
+
+    #[test]
+    fn a_corrupt_ledger_announces_itself_rather_than_resetting_quietly() {
+        let scope = TempDir::new().unwrap();
+        {
+            let mut l = Ledger::open(scope.path()).unwrap();
+            l.record("toolu_a/12", "producing");
+            l.commit().unwrap();
+        }
+        std::fs::write(scope.path().join(".reported.json"), b"{not json").unwrap();
+        let l = Ledger::open(scope.path()).unwrap();
+        assert!(l.reset_reason.is_some(), "a corrupt ledger must say so");
+        assert!(
+            l.changed("toolu_a/12", "producing"),
+            "the record really is gone, so the child reports again"
+        );
+    }
+
+    #[test]
     fn a_key_that_was_never_recorded_stays_pending() {
         // A caller that drops a line for size must not have it counted as told,
         // or that child's change is lost from the push channel permanently.
@@ -1133,11 +1158,49 @@ Expected: FAIL — `cannot find type Ledger`.
 Put above the test module in `agent-tools/src/ledger.rs`:
 
 ```rust
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use nix::fcntl::{Flock, FlockArg};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+
+/// Scopes with a live `Ledger` in this process.
+///
+/// `flock` keys off the open file description, not the process, so a second
+/// `open` on a scope this process already holds blocks forever waiting on its
+/// own lock — with no diagnostic, and nothing able to release it. The set turns
+/// that hang into an error.
+fn open_scopes() -> &'static Mutex<HashSet<PathBuf>> {
+    static SCOPES: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
+    SCOPES.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+/// The stored map, plus the reason it could not be read.
+///
+/// A missing file is ordinary: nothing has been reported in this scope yet.
+/// Anything else means the record of what the agent was already told is gone.
+/// The agent has to hear about that, because the consequence is every child
+/// being reported to it a second time.
+fn load(path: &Path) -> (BTreeMap<String, String>, Option<String>) {
+    let bytes = match fs::read(path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (BTreeMap::new(), None),
+        Err(e) => {
+            return (
+                BTreeMap::new(),
+                Some(format!("{} could not be read ({e})", path.display())),
+            )
+        }
+    };
+    match serde_json::from_slice(&bytes) {
+        Ok(m) => (m, None),
+        Err(e) => (
+            BTreeMap::new(),
+            Some(format!("{} is unreadable ({e})", path.display())),
+        ),
+    }
+}
 
 /// Per-scope map of child identity -> last reported status key.
 ///
@@ -1145,14 +1208,45 @@ use std::path::{Path, PathBuf};
 /// `<tool_use_id>/<wrapper_pid>`. The exclusive flock is held for the lifetime
 /// of the value, so a scan-and-report cycle is atomic against parallel hooks.
 pub struct Ledger {
+    scope: PathBuf,
     path: PathBuf,
     map: BTreeMap<String, String>,
+    /// Set when the stored ledger could not be read. Everything in this scope
+    /// will look new, so the report says why rather than letting the agent see
+    /// unexplained repeats.
+    pub reset_reason: Option<String>,
     _lock: Flock<fs::File>,
+}
+
+impl Drop for Ledger {
+    fn drop(&mut self) {
+        open_scopes().lock().unwrap().remove(&self.scope);
+    }
 }
 
 impl Ledger {
     pub fn open(scope: &Path) -> Result<Self> {
-        fs::create_dir_all(scope).ok();
+        fs::create_dir_all(scope)
+            .with_context(|| format!("create scope dir {}", scope.display()))?;
+        let scope = fs::canonicalize(scope)
+            .with_context(|| format!("canonicalize {}", scope.display()))?;
+        if !open_scopes().lock().unwrap().insert(scope.clone()) {
+            bail!(
+                "a Ledger for {} is already open in this process; a second one would \
+                 block forever waiting on this process's own flock",
+                scope.display()
+            );
+        }
+        match Self::acquire(scope.clone()) {
+            Ok(l) => Ok(l),
+            Err(e) => {
+                open_scopes().lock().unwrap().remove(&scope);
+                Err(e)
+            }
+        }
+    }
+
+    fn acquire(scope: PathBuf) -> Result<Self> {
         let lock_path = scope.join(".reported.lock");
         let file = fs::OpenOptions::new()
             .read(true)
@@ -1164,11 +1258,8 @@ impl Ledger {
         let lock = Flock::lock(file, FlockArg::LockExclusive)
             .map_err(|(_, e)| anyhow::anyhow!("flock {}: {e}", lock_path.display()))?;
         let path = scope.join(".reported.json");
-        let map = fs::read(&path)
-            .ok()
-            .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default();
-        Ok(Ledger { path, map, _lock: lock })
+        let (map, reset_reason) = load(&path);
+        Ok(Ledger { scope, path, map, reset_reason, _lock: lock })
     }
 
     /// True when `key` differs from the last key reported for `id`.
@@ -1185,7 +1276,10 @@ impl Ledger {
         self.map.insert(id.to_string(), key.to_string());
     }
 
-    pub fn commit(&self) -> Result<()> {
+    /// Takes `&mut self` so two threads sharing one open `Ledger` cannot race
+    /// the fixed temp filename. The flock excludes other processes; it does
+    /// nothing to serialize callers already holding this file description.
+    pub fn commit(&mut self) -> Result<()> {
         let tmp = self.path.with_extension("json.tmp");
         fs::write(&tmp, serde_json::to_vec_pretty(&self.map)?)
             .with_context(|| format!("write {}", tmp.display()))?;
@@ -1201,7 +1295,7 @@ Add `mod ledger;` to `agent-tools/src/main.rs`.
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd agent-tools && cargo test --bin agent-tools ledger`
-Expected: 5 passed.
+Expected: 7 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1306,6 +1400,51 @@ fn a_subagents_children_are_not_reported_to_the_main_thread() {
     let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_main"));
     assert!(!stdout.contains("subagent child"), "scope leak: {stdout}");
 }
+
+#[test]
+fn parallel_hooks_report_each_child_exactly_once() {
+    // The reason this uses a lock file at all is that concurrent tool calls must
+    // not both report the same change, nor lose one another's ledger writes.
+    // Only real processes exercise an flock; threads in one process cannot.
+    let home = tempfile::tempdir().unwrap();
+    for i in 1..=8u32 {
+        seed(home.path(), &format!("toolu_prior_{i}"), i, None);
+    }
+
+    let mut kids = Vec::new();
+    for i in 0..8 {
+        let mut c = Command::new(bin())
+            .arg("hook-post")
+            .env("HOME", home.path())
+            .env("CLAUDE_CONFIG_ROOT", worktree_root())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        // Close stdin immediately so all eight run at once rather than each
+        // waiting for the collect loop to reach it.
+        let mut si = c.stdin.take().unwrap();
+        si.write_all(post_body("Grep", &format!("toolu_call_{i}")).to_string().as_bytes())
+            .unwrap();
+        drop(si);
+        kids.push(c);
+    }
+
+    let combined = kids
+        .into_iter()
+        .map(|c| String::from_utf8_lossy(&c.wait_with_output().unwrap().stdout).into_owned())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    for i in 1..=8u32 {
+        let needle = format!("toolu_prior_{i}/{i}");
+        assert_eq!(
+            combined.matches(&needle).count(),
+            1,
+            "child {needle} must be reported exactly once across all hooks; combined:\n{combined}"
+        );
+    }
+}
 ```
 
 Delete the tests that assert the removed strings: `stale_in_flight_child_surfaces_with_unfinalized_annotation` and every test asserting `"captures from this Bash call"` or `"Late captures from prior backgrounded call"`. Keep every test asserting `BACKGROUNDED:` behavior unchanged.
@@ -1355,7 +1494,12 @@ fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String
             }
         }
     }
-    let lines = bound(&mut ledger, pending);
+    let mut lines = bound(&mut ledger, pending);
+    // A reset ledger makes every child look new. Say why, or the agent sees a
+    // burst of repeats with no explanation.
+    if let Some(reason) = ledger.reset_reason.clone() {
+        lines.insert(0, format!("  note: report history lost — {reason}; each child below is reported again once"));
+    }
     ledger.commit()?;
     Ok(lines)
 }
