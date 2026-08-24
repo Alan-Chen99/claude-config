@@ -56,6 +56,7 @@ mod events;
 mod hook_input;
 mod hook_post;
 mod hook_pre;
+mod hook_prompt;
 mod ledger;
 mod meta;
 mod opencode;
@@ -131,6 +132,9 @@ enum Cmd {
     /// PostToolUse hook for Bash and Monitor.
     #[command(name = "hook-post")]
     HookPost,
+    /// UserPromptSubmit hook: carries pending run status changes into a user turn.
+    #[command(name = "hook-prompt")]
+    HookPrompt,
     /// pre_output script used in output styles
     #[command(name = "pre_output.record")]
     PreOutputRecord {
@@ -368,6 +372,13 @@ fn main() {
             }
             std::process::exit(0);
         }
+        Cmd::HookPrompt => {
+            if let Err(e) = hook_prompt::run() {
+                eprintln!("agent-tools hook-prompt: {e:#}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
+        }
         Cmd::Ps { task, session_id } => {
             if let Err(e) = ps::run(task, session_id) {
                 eprintln!("agent-tools ps: {e:#}");
@@ -462,6 +473,7 @@ fn main() {
             }
             Cmd::HookPre => unreachable!(),
             Cmd::HookPost => unreachable!(),
+            Cmd::HookPrompt => unreachable!(),
             Cmd::Run { .. } => unreachable!(),
             Cmd::Ps { .. } => unreachable!(),
             Cmd::OpencodeGate { .. } => unreachable!(),

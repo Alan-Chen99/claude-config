@@ -135,7 +135,7 @@ fn scope_dir(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
 
 /// Scan every capture dir in this agent's scope, derive each status, and
 /// return one line per child whose key changed since it was last reported.
-fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String>> {
+pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String>> {
     let scope = scope_dir(session_id, agent_id)?;
     if !scope.is_dir() {
         return Ok(Vec::new());
