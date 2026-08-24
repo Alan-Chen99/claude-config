@@ -64,6 +64,7 @@ mod procstat;
 mod ps;
 mod run;
 mod signals;
+mod status;
 
 #[derive(Parser)]
 #[command(name = "agent-tools")]
