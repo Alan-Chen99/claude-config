@@ -347,6 +347,7 @@ or delete the claim. Leaving both the claim and the gap is not acceptable.
 | parallel tool calls racing the ledger | per-scope flock, as today |
 | capture files deleted by a human | sizes report 0B, paths still printed, keys still derive from `meta.json` |
 | `meta.json` unreadable | the child is reported as `abandoned`; a capture that cannot be described is never silently dropped |
+| an all-digit `tool_use_id` | would be mistaken for a wrapper-pid directory, and a subagent's captures would be reported to the main thread. Scope isolation rests on this: a scope entry is a subagent directory precisely when its name does not parse as a `u32`. Real ids are `toolu_<base62>`, so the assumption holds — but it is an assumption, not a check |
 | wrapper SIGSTOPped | reported as `producing` or `quiet`, even if the child process has already exited. A stopped wrapper cannot reap, so no fact exists to derive from. This is the one state where a live wrapper without a reap record does not imply a live child process; it is pathological and accepted rather than papered over |
 | bytes still in the pipe when the wrapper is SIGKILLed | lost. `final` promises no further growth, not completeness |
 | quiet boundaries reconfigured | the ledger stores rendered keys, so each affected child emits one report under the new labels. One-time noise, not a correctness failure |

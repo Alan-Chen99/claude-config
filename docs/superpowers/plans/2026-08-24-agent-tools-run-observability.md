@@ -1997,6 +1997,14 @@ git commit -m "agent-tools: ps renders derived status, drops child-pid liveness"
 
 ## Task 9: wire the hooks and the prompt
 
+> **Do not run `cargo fmt`.** Nine files are not rustfmt-clean at HEAD — `ledger.rs`,
+> `meta.rs`, `procstat.rs`, `ps.rs`, `run.rs`, `status.rs`, `run_facts_test.rs`,
+> `run_test.rs`, and one hunk in `main.rs`. A bare `cargo fmt`, and also
+> `cargo fmt -- <files>` which formats the whole crate regardless, drags all of that
+> into the diff. Format individual new files with `rustfmt <file>` instead. There is
+> no fmt gate in CI, so the ambient state is accepted house style, not a defect to
+> fix inside an unrelated task.
+
 **Files:**
 - Modify: `settings.json:93-100`
 - Modify: `sys_prompt/alan-default-next.md:169-172`
