@@ -131,6 +131,53 @@ CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module>
 
 There is no `--root` override. The binary's compile-time root is authoritative for every subcommand. `CLAUDE_CONFIG_ROOT` is only an assertion: if set to any other path, `agent-tools` exits non-zero; if the binary was built from a non-default worktree and the env var is unset, `agent-tools` exits non-zero.
 
+### Launching an uninstalled checkout
+
+```bash
+cd agent-tools && cargo build --release
+CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools claude [claude args...]
+```
+
+Four things decide whether a session exercises this checkout rather than the
+installed one: the binary its hooks invoke, the `settings.json` registering
+those hooks, the system prompt teaching the agent to read what they emit, and
+the output style carrying `pre_output.record`. Wire three of the four and the
+session looks healthy while testing the installed checkout, so `claude.rs`
+wires all four from one place.
+
+Isolation runs through `CLAUDE_CONFIG_DIR`, pointed at
+`<root>/.claude/worktree-config/` (gitignored, so it dies with the worktree
+rather than orphaning under `~/.claude`). The alternative — layering this
+checkout's settings on the installed ones via `--settings` — double-registers
+every hook, because settings sources are unioned rather than overridden, so
+`hook-pre` and `hook-post` would each run twice per tool call. Suppressing the
+user source with `--setting-sources` instead drops user-level skills, agents,
+and output-styles along with it, which silently removes the output style the
+prompt depends on.
+
+The directory holds what `install.sh` would symlink into `~/.claude`, sourced
+from this checkout, plus `CLAUDE.md`, `.credentials.json`, and `plugins` linked
+from the real `~/.claude` because those are the machine's rather than the
+checkout's. `settings.json` is **copied**, not linked: Claude Code rewrites it
+in place when the model or theme changes mid-session, and a link would land
+those writes on the tracked file. `.claude.json` is seeded once so onboarding is
+skipped, then left alone because Claude Code rewrites it continuously.
+Transcripts stay inside the config dir, so a test session does not appear in
+`/resume` from a normal one.
+
+Two guards run before launch, both for failures a session cannot report about
+itself: every `agent-tools <sub>` the settings file wires must exist in this
+build (a non-zero `UserPromptSubmit` hook blocks the turn outright, so a missing
+subcommand yields a session that starts clean and then refuses every prompt),
+and `scripts/check-prompt-coupling.sh` must pass.
+
+The subcommand refuses to run when its root is the installed checkout's. That
+request is what `claude.sh` already serves, and answering it here would produce
+a session indistinguishable from a normal one — the silent wrong-checkout result
+the root assertion exists to prevent, in the one place the assertion cannot
+catch it, since a binary whose compiled root is the installed root satisfies
+every check it makes.
+
 For testing hook behavior end-to-end in a worktree, copy the built binary onto a test path and invoke it directly with synthetic hook input on stdin:
 
 ```bash
