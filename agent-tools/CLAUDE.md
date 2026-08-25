@@ -79,6 +79,23 @@ so a report cannot describe a state older than the tool result it rides on.
 because anything longer is silently replaced with a short stub — which the agent would
 read as "nothing else changed".
 
+### Report lines
+
+One line per child, always. The name — `--desc`, or the command when there is none —
+is the only field carrying arbitrary text, and it is bounded twice before it reaches
+a line: `meta::escape_control` escapes control characters, and `status.rs`'s
+`NAME_MAX` caps the rendered length.
+
+Both bounds exist because a line is a contract, not a display. A name containing a
+newline renders a second line that reads as a status line for a child that does not
+exist; any multi-line `bash -c` script with no `--desc` produces one. A line longer
+than `REPORT_BUDGET` can never be selected by `bound`, so it is never recorded, and
+that child's change is announced as omitted at every delivery point without ever
+being delivered; a 9,000-character command produces one.
+
+`ps` escapes its `cmd:` line for the same reason. It does not cap, because the full
+command is what `ps` exists to add.
+
 ### The ledger
 
 `<scope>/.reported.json` maps child identity (`<tool_use_id>/<wrapper_pid>`) to the

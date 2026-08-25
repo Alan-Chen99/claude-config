@@ -270,4 +270,28 @@ mod tests {
             assert_eq!(rank(key), 1, "{key} says the child is still going");
         }
     }
+
+    #[test]
+    fn a_short_line_after_one_that_does_not_fit_still_lands() {
+        // Scan order is the filesystem's. A child whose line does not fit must
+        // not end the report: the ones after it in that order still have room.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let mut ledger = crate::ledger::Ledger::open(tmp.path()).unwrap();
+        let oversized = "b".repeat(super::REPORT_BUDGET - 100);
+        let pending = vec![
+            ("a/1".to_string(), "final(0)".to_string(), "a".repeat(200)),
+            ("b/2".to_string(), "final(0)".to_string(), oversized),
+            ("c/3".to_string(), "final(0)".to_string(), "c".repeat(50)),
+        ];
+        let lines = super::bound(&mut ledger, pending);
+        assert!(lines.iter().any(|l| l.starts_with("aaa")), "lines: {lines:?}");
+        assert!(
+            lines.iter().any(|l| l.starts_with("ccc")),
+            "the short line after the one that did not fit must still land"
+        );
+        assert!(lines.iter().any(|l| l.contains("1 more changed")), "the drop is counted");
+        assert!(ledger.changed("b/2", "final(0)"), "a dropped line must stay pending");
+        assert!(!ledger.changed("a/1", "final(0)"), "a kept line must be recorded");
+        assert!(!ledger.changed("c/3", "final(0)"), "a kept line must be recorded");
+    }
 }

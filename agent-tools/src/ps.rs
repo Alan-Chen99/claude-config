@@ -259,7 +259,11 @@ fn write_capture(buf: &mut String, c: &Capture) -> Result<()> {
         crate::status::render(&c.capture_dir, &st, now)
     )?;
     if let Some(m) = &st.meta {
-        writeln!(buf, "      cmd:     {}", m.command.join(" "))?;
+        writeln!(
+            buf,
+            "      cmd:     {}",
+            crate::meta::escape_control(&m.command.join(" "))
+        )?;
         writeln!(buf, "      wrapper: pid {}", m.wrapper_pid)?;
         writeln!(
             buf,

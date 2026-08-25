@@ -161,7 +161,12 @@ report.
 
 One header line, one line per child whose key changed. `<desc>` is the `--desc` string,
 or the command when `--desc` was not given — `desc` is optional (`meta.rs:10`) and a
-report must never render an empty name. This text is prompt-coupled; see Prompt coupling.
+report must never render an empty name. The name is the only field carrying arbitrary
+text, so it is escaped and length-capped: a newline in it renders a second line that
+reads as a status line for a child that does not exist, and a name long enough to push
+the line past the report budget makes that child's change permanently unselectable —
+announced as omitted at every delivery point and never delivered. This text is
+prompt-coupled; see Prompt coupling.
 
 This replaces both current emissions — `"[agent-tools] captures from this Bash call: "`
 and `"Late captures from prior backgrounded call "`. That split exists only because the

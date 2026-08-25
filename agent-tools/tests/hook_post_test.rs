@@ -435,7 +435,7 @@ fn a_lost_ledger_says_so_before_repeating_itself() {
     );
 }
 
-/// Seed a capture whose rendered line alone exceeds the whole report budget.
+/// Seed a capture whose name is unbounded: a 9,500-character `--desc`.
 fn seed_oversized(home: &std::path::Path, tuid: &str, wrapper_pid: u32) -> String {
     let id = seed(home, tuid, wrapper_pid, None);
     let dir = parent_dir(home, "sid", None, tuid).join(wrapper_pid.to_string());
@@ -451,23 +451,36 @@ fn seed_oversized(home: &std::path::Path, tuid: &str, wrapper_pid: u32) -> Strin
 }
 
 #[test]
-fn a_short_line_after_an_oversized_one_still_fits() {
-    // Scan order is the filesystem's. A child whose own line cannot fit must not
-    // end the report: the ones after it in that order still have room.
+fn an_unbounded_name_is_delivered_once_rather_than_deferred_forever() {
+    // A line that cannot fit is never recorded, so it is re-dropped at every
+    // delivery point: the agent is told something changed and can never learn
+    // what from the report. Capping the name keeps every line selectable.
     let home = tempfile::tempdir().unwrap();
-    for i in 0..9u32 {
-        seed_oversized(home.path(), &format!("toolu_huge_{i}"), 100 + i);
-    }
+    let huge = seed_oversized(home.path(), "toolu_huge", 100);
     let small = seed(home.path(), "toolu_small", 200, None);
 
-    let (_, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    let (_, first, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
     assert!(
-        stdout.contains(&format!("{small}/{{stdout,stderr}}")),
-        "the small child must be reported despite the oversized ones; \nstdout: {stdout}\nstderr: {stderr}"
+        first.contains(&format!("{huge}/{{stdout,stderr}}")),
+        "the child with the unbounded name must be reported; \nstdout: {first}\nstderr: {stderr}"
     );
     assert!(
-        stdout.contains("9 more changed, omitted for size"),
-        "every oversized line is dropped and counted; stdout: {stdout}"
+        first.contains(&format!("{small}/{{stdout,stderr}}")),
+        "and so must the one after it; stdout: {first}"
+    );
+    assert!(
+        !first.contains("omitted for size"),
+        "nothing had to be dropped; stdout: {first}"
+    );
+
+    let (_, second, _) = run_post(home.path(), post_body("Grep", "toolu_next"));
+    assert!(
+        !second.contains("omitted for size"),
+        "the change was retired, not re-announced as dropped; stdout: {second}"
+    );
+    assert!(
+        !second.contains(&format!("{huge}/{{stdout,stderr}}")),
+        "and not repeated; stdout: {second}"
     );
 }
 

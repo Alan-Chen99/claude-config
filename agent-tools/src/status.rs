@@ -5,6 +5,12 @@ use std::path::Path;
 use crate::meta::{self, ChildMeta};
 use crate::procstat;
 
+/// Longest name a report line carries. `--desc` and the command are the only
+/// unbounded fields in a line, and `hook_post::bound` can never select a line
+/// larger than the whole report budget: that child's change would be announced
+/// as omitted at every delivery point and never actually delivered.
+const NAME_MAX: usize = 200;
+
 /// Quiet thresholds, ascending. Configuration, not contract.
 pub const QUIET_BUCKETS: &[(i64, &str)] = &[(30, "30s"), (300, "5m"), (1800, "30m"), (7200, "2h")];
 
@@ -57,6 +63,14 @@ fn file_facts(dir: &Path, name: &str) -> (u64, Option<DateTime<Utc>>, Option<Str
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => (0, None, None),
         Err(e) => (0, None, Some(format!("{name}: {e}"))),
     }
+}
+
+/// Truncate on a char boundary, marking that it happened.
+fn cap(name: &str) -> String {
+    if name.chars().count() <= NAME_MAX {
+        return name.to_string();
+    }
+    name.chars().take(NAME_MAX).chain(['\u{2026}']).collect()
 }
 
 fn largest_bucket(age_secs: i64) -> Option<&'static str> {
@@ -115,6 +129,7 @@ pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
 /// One rendered line: name, key, detail, capture paths.
 pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     let name = s.meta.as_ref().map(|m| m.display_name()).unwrap_or_else(|| dir.display().to_string());
+    let name = cap(&name);
     // The capture files are created when the tee opens them, so an mtime exists
     // before any byte does. Byte counts, not mtime, decide whether output happened.
     let age = match s.last_byte_at {
@@ -308,5 +323,35 @@ mod tests {
         assert_eq!(StatusKey::Exited(2).to_string(), "exited(2)");
         assert_eq!(StatusKey::Final(0).to_string(), "final(0)");
         assert_eq!(StatusKey::Abandoned.to_string(), "abandoned");
+    }
+
+    #[test]
+    fn render_keeps_one_child_on_one_line() {
+        // A multi-line `bash -c` script with no --desc is enough to reach this.
+        let dir = TempDir::new().unwrap();
+        let m = ChildMeta {
+            desc: None,
+            command: vec!["bash".into(), "-c".into(), "echo first\necho second".into()],
+            ..base()
+        };
+        write(&dir, &m);
+        let now = Utc::now();
+        let line = render(dir.path(), &derive(dir.path(), now), now);
+        assert!(!line.contains('\n'), "rendered over two lines: {line}");
+    }
+
+    #[test]
+    fn render_caps_the_name_so_a_line_can_always_fit_a_report() {
+        // The name is the only unbounded field in a line. A line longer than the
+        // whole report budget can never be selected, so its change would be
+        // announced as omitted at every delivery point and never delivered.
+        let dir = TempDir::new().unwrap();
+        let m = ChildMeta { desc: Some("x".repeat(20_000)), ..base() };
+        write(&dir, &m);
+        let now = Utc::now();
+        let line = render(dir.path(), &derive(dir.path(), now), now);
+        assert!(line.len() < 1_000, "line is {} bytes: {line}", line.len());
+        assert!(line.contains('\u{2026}'), "truncation must be visible: {line}");
+        assert!(line.contains("{stdout,stderr}"), "the capture path survives: {line}");
     }
 }

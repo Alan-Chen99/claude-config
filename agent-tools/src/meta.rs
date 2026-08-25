@@ -30,12 +30,33 @@ pub struct ChildMeta {
 impl ChildMeta {
     /// Name for reports and `ps`: the `--desc` string, else the command.
     /// A report must never render an empty name.
+    ///
+    /// Control characters are escaped: both consumers are line-oriented, so a
+    /// newline here splits one child across two lines and the second reads as a
+    /// status line for a child that does not exist.
     pub fn display_name(&self) -> String {
-        match &self.desc {
+        let raw = match &self.desc {
             Some(d) if !d.trim().is_empty() => d.clone(),
             _ => self.command.join(" "),
+        };
+        escape_control(&raw)
+    }
+}
+
+/// Escape control characters so a value cannot break a line-oriented display or
+/// emit terminal escape sequences of its own.
+pub fn escape_control(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c.is_control() => out.push_str(&format!("\\x{:02x}", c as u32)),
+            c => out.push(c),
         }
     }
+    out
 }
 
 /// Write meta atomically: write to <path>.tmp then rename.
@@ -111,5 +132,22 @@ mod tests {
         write_meta(dir.path(), &sample()).unwrap();
         assert!(dir.path().join("meta.json").exists());
         assert!(!dir.path().join("meta.json.tmp").exists());
+    }
+
+    #[test]
+    fn display_name_escapes_control_characters() {
+        // Both consumers are line-oriented. A newline here splits one child
+        // across two lines, and the second reads as a status line for a child
+        // that does not exist.
+        let m = ChildMeta {
+            desc: Some("evil\n  injected [final(0)] pid 1".into()),
+            ..sample()
+        };
+        let name = m.display_name();
+        assert!(!name.contains('\n'), "name: {name}");
+        assert!(
+            name.contains("evil\\n  injected"),
+            "the newline is shown, not obeyed: {name}"
+        );
     }
 }
