@@ -356,6 +356,7 @@ or delete the claim. Leaving both the claim and the gap is not acceptable.
 | wrapper SIGSTOPped | reported as `producing` or `quiet`, even if the child process has already exited. A stopped wrapper cannot reap, so no fact exists to derive from. This is the one state where a live wrapper without a reap record does not imply a live child process; it is pathological and accepted rather than papered over |
 | bytes still in the pipe when the wrapper is SIGKILLed | lost. `final` promises no further growth, not completeness |
 | quiet boundaries reconfigured | the ledger stores rendered keys, so each affected child emits one report under the new labels. One-time noise, not a correctness failure |
+| `TaskStop` reports success while the child runs on | the tool dispatches a signal and marks its own registry entry `killed` without waiting, confirming receipt, or escalating past SIGTERM, so its result can assert a stop that has not happened. Derivation is unaffected — the report is the accurate half of that message. Upstream, open: anthropics/claude-code#85200, anthropics/claude-code#74638 |
 
 ## Testing
 

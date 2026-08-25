@@ -96,6 +96,24 @@ being delivered; a 9,000-character command produces one.
 `ps` escapes its `cmd:` line for the same reason. It does not cap, because the full
 command is what `ps` exists to add.
 
+### A `TaskStop` result is not evidence about a child
+
+`TaskStop` dispatches a signal and marks its own registry entry `killed`. It does not
+wait for the process, confirm receipt, or escalate: a task that ignores SIGTERM runs
+to completion while the tool reports `Successfully stopped task`. When that message
+and a status report disagree — `[producing]` alongside "stopped" — the report is the
+accurate half.
+
+Upstream, both open: anthropics/claude-code#85200 (local_bash; the process tree
+survives, and an orphaned `rm -rf` ran for 20 minutes past the stop) and
+anthropics/claude-code#74638 ("TaskStop reports success while process survives", for
+agents). Neither names the escalation gap: what arrives is SIGTERM, which is
+trappable, and no SIGKILL follows.
+
+Nothing here compensates for it. Polling a just-stopped child would add latency to a
+delivery point in order to paper over an upstream defect, and the report is already
+correct.
+
 ### The ledger
 
 `<scope>/.reported.json` maps child identity (`<tool_use_id>/<wrapper_pid>`) to the
