@@ -31,6 +31,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `agents/`          | Sub-agent definitions (developer, architect)            | Customizing agent behavior, understanding roles   |
 | `conventions/`     | Documentation and code quality standards                | Writing documentation, understanding coding rules |
 | `plans/`           | Plan storage directory                                  | Reviewing or executing existing plans             |
+| `notes/`           | Long-form investigation write-ups — measured evidence and root cause for one behaviour each | Before re-investigating a known failure mode; after finishing an investigation worth keeping |
 | `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
 | `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
 | `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — see `docs/background-sessions.md` first |
