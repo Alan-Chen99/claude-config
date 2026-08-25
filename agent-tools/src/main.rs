@@ -1,10 +1,12 @@
 use std::env;
+use std::fs;
 use std::io;
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
 /// Printed to stdout by `agent-tools opencode.gate`. Coupled to
 /// `opencode/agents/alan-default-ids.md` step 4/5 wording — see agent-tools CLAUDE.md
@@ -52,17 +54,22 @@ If this surfaced new work or a revision, do it and re-enter the gate at the next
 ";
 
 mod capture;
+mod claude;
 mod events;
 mod hook_input;
 mod hook_post;
 mod hook_pre;
+mod hook_prompt;
+mod ledger;
 mod meta;
 mod opencode;
 mod paths;
 mod procname;
+mod procstat;
 mod ps;
 mod run;
 mod signals;
+mod status;
 
 #[derive(Parser)]
 #[command(name = "agent-tools")]
@@ -128,6 +135,9 @@ enum Cmd {
     /// PostToolUse hook for Bash and Monitor.
     #[command(name = "hook-post")]
     HookPost,
+    /// UserPromptSubmit hook: carries pending run status changes into a user turn.
+    #[command(name = "hook-prompt")]
+    HookPrompt,
     /// pre_output script used in output styles
     #[command(name = "pre_output.record")]
     PreOutputRecord {
@@ -164,6 +174,12 @@ enum Cmd {
         #[arg(long = "session-id")]
         session_id: Option<String>,
     },
+    /// Launch Claude Code against this checkout's config without installing it.
+    Claude {
+        /// Arguments forwarded to claude
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Print the '# Environment' block (cwd, git, platform, shell, OS) for SessionStart hooks.
     #[command(name = "env-context")]
     EnvContext,
@@ -194,7 +210,7 @@ fn repo_root() -> PathBuf {
     if let Some(env_root) = env::var_os("CLAUDE_CONFIG_ROOT") {
         let env_root_raw = PathBuf::from(env_root);
         let env_root = canonicalize_root(&env_root_raw, "CLAUDE_CONFIG_ROOT");
-        if env_root != build_root {
+        if !same_dir(&env_root, &build_root) {
             root_error(format!(
                 "CLAUDE_CONFIG_ROOT does not match this agent-tools binary\n  binary root: {}\n  CLAUDE_CONFIG_ROOT: {}\nRebuild or invoke the agent-tools binary from the matching checkout.",
                 build_root.display(),
@@ -211,9 +227,9 @@ fn repo_root() -> PathBuf {
             build_root.display()
         ));
     });
-    let default_root = canonicalize_root(&default_root, "default ~/.claude/skills root");
+    let default_root = canonicalize_root(&default_root, "default skills root");
 
-    if default_root != build_root {
+    if !same_dir(&default_root, &build_root) {
         root_error(format!(
             "CLAUDE_CONFIG_ROOT is required for this non-default agent-tools binary\n  binary root: {}\n  default root: {}\nSet CLAUDE_CONFIG_ROOT={} and retry.",
             build_root.display(),
@@ -231,9 +247,25 @@ fn compiled_root() -> &'static Path {
         .expect("agent-tools/ should have a parent")
 }
 
-fn installed_default_root() -> Result<PathBuf, String> {
+/// The config directory whose `skills` link names the checkout this process
+/// should belong to. `CLAUDE_CONFIG_DIR` relocates every config read Claude
+/// Code performs, so inside a session launched against one checkout's config
+/// the binary answering that session's hooks has to be that checkout's binary;
+/// reading `$HOME/.claude` there would let the installed build serve the
+/// session unremarked, which is the silent wrong-checkout result this whole
+/// assertion exists to prevent.
+fn claude_config_dir() -> Result<PathBuf, String> {
+    if let Some(dir) = env::var_os("CLAUDE_CONFIG_DIR") {
+        if !dir.is_empty() {
+            return Ok(PathBuf::from(dir));
+        }
+    }
     let home = env::var_os("HOME").ok_or_else(|| "HOME not set".to_string())?;
-    let claude_dir = PathBuf::from(home).join(".claude");
+    Ok(PathBuf::from(home).join(".claude"))
+}
+
+pub(crate) fn installed_default_root() -> Result<PathBuf, String> {
+    let claude_dir = claude_config_dir()?;
     let skills_link = claude_dir.join("skills");
     let target = std::fs::read_link(&skills_link)
         .map_err(|e| format!("cannot read symlink {}: {e}", skills_link.display()))?;
@@ -259,6 +291,18 @@ fn canonicalize_root(path: impl AsRef<Path>, label: &str) -> PathBuf {
             path.display()
         ));
     })
+}
+
+/// Directory identity, not path spelling. One directory can be reachable under
+/// more than one path — a bind mount serves the same tree under two names, and
+/// `canonicalize` resolves symlinks but not mounts — so comparing strings calls
+/// two names for one checkout two different roots and rejects a binary built
+/// from the installed checkout under its other name.
+pub(crate) fn same_dir(a: &Path, b: &Path) -> bool {
+    match (fs::metadata(a), fs::metadata(b)) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
 }
 
 fn root_error(message: String) -> ! {
@@ -365,11 +409,29 @@ fn main() {
             }
             std::process::exit(0);
         }
+        Cmd::HookPrompt => {
+            if let Err(e) = hook_prompt::run() {
+                eprintln!("agent-tools hook-prompt: {e:#}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
+        }
         Cmd::Ps { task, session_id } => {
             if let Err(e) = ps::run(task, session_id) {
                 eprintln!("agent-tools ps: {e:#}");
                 std::process::exit(1);
             }
+        }
+        Cmd::Claude { args } => {
+            let known: Vec<String> = Cli::command()
+                .get_subcommands()
+                .map(|c| c.get_name().to_string())
+                .collect();
+            if let Err(e) = claude::run(&root, &known, args) {
+                eprintln!("agent-tools claude: {e:#}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
         }
         Cmd::OpencodeGate { args: _ } => {
             drain_stdin();
@@ -459,10 +521,12 @@ fn main() {
             }
             Cmd::HookPre => unreachable!(),
             Cmd::HookPost => unreachable!(),
+            Cmd::HookPrompt => unreachable!(),
             Cmd::Run { .. } => unreachable!(),
             Cmd::Ps { .. } => unreachable!(),
             Cmd::OpencodeGate { .. } => unreachable!(),
             Cmd::MinGate { .. } => unreachable!(),
+            Cmd::Claude { .. } => unreachable!(),
         },
     }
 }

@@ -5,12 +5,14 @@ use serde::Deserialize;
 /// it intentionally rewrites — Claude Code uses `updatedInput` as a full
 /// replacement (queryHelpers.ts), so anything we don't echo back is silently
 /// dropped from the executed tool call.
+///
+/// The real payload carries more keys than these (`cwd`, among others); serde
+/// ignores what is not declared, so only the fields something reads are listed.
 #[derive(Debug, Deserialize)]
 pub struct PreToolUseInput {
     pub session_id: String,
     #[serde(default)]
     pub agent_id: Option<String>,
-    pub cwd: String,
     pub tool_name: String,
     pub tool_input: serde_json::Value,
     pub tool_use_id: String,
@@ -22,6 +24,10 @@ pub struct PostToolUseInput {
     pub session_id: String,
     #[serde(default)]
     pub agent_id: Option<String>,
+    /// `PostToolUse` or `PostToolUseFailure` — the same hook answers both, and
+    /// the response has to name the event it is answering.
+    #[serde(default)]
+    pub hook_event_name: Option<String>,
     pub tool_name: String,
     pub tool_input: serde_json::Value,
     pub tool_use_id: String,

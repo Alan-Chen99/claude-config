@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
 use chrono::Utc;
-use nix::sys::signal;
-use nix::unistd::Pid;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -52,13 +50,8 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
         a.agent_id
             .cmp(&b.agent_id)
             .then_with(|| a.tool_use_id.cmp(&b.tool_use_id))
-            .then_with(|| {
-                a.meta
-                    .started_at
-                    .unwrap_or_else(Utc::now)
-                    .cmp(&b.meta.started_at.unwrap_or_else(Utc::now))
-            })
-            .then_with(|| a.meta.child_id.cmp(&b.meta.child_id))
+            .then_with(|| a.meta.started_at.cmp(&b.meta.started_at))
+            .then_with(|| a.meta.wrapper_pid.cmp(&b.meta.wrapper_pid))
     });
 
     let mut buf = String::new();
@@ -250,41 +243,33 @@ fn collect_pid_captures(
     }
 }
 
+/// One capture block: the derived status line, then the facts a pushed report
+/// leaves out. `ps` has no size budget, so it can afford the full command, the
+/// wrapper pid, and the start time; a report has to fit under a cap.
+///
+/// Status is derived here rather than read from `c.meta`: the meta on disk is
+/// facts only, and liveness is the wrapper's, never the child pid's — a live
+/// wrapper that has not recorded a reap means the child is alive by definition.
 fn write_capture(buf: &mut String, c: &Capture) -> Result<()> {
-    let m = &c.meta;
-    let live = m.ended_at.is_none() && is_pid_alive(m.child_id as i32);
-    let status = if live {
-        "[running]".to_string()
-    } else {
-        format!(
-            "[exited {}]",
-            m.exit_code
-                .map(|e| e.to_string())
-                .unwrap_or_else(|| "?".into())
-        )
-    };
-    writeln!(buf, "    pid {} {}", m.child_id, status)?;
-    if let Some(d) = &m.desc {
-        writeln!(buf, "      desc:    {d}")?;
+    let now = Utc::now();
+    let st = crate::status::derive(&c.capture_dir, now);
+    writeln!(
+        buf,
+        "    {}",
+        crate::status::render(&c.capture_dir, &st, now)
+    )?;
+    if let Some(m) = &st.meta {
+        writeln!(
+            buf,
+            "      cmd:     {}",
+            crate::meta::escape_control(&m.command.join(" "))
+        )?;
+        writeln!(buf, "      wrapper: pid {}", m.wrapper_pid)?;
+        writeln!(
+            buf,
+            "      started: {}",
+            m.started_at.format("%H:%M:%S%.3f")
+        )?;
     }
-    writeln!(buf, "      cmd:     {}", m.command.join(" "))?;
-    let stdout_p = c.capture_dir.join("stdout");
-    let stderr_p = c.capture_dir.join("stderr");
-    writeln!(
-        buf,
-        "      stdout:  {}  ({} bytes)",
-        stdout_p.display(),
-        stdout_p.metadata().map(|md| md.len()).unwrap_or(0)
-    )?;
-    writeln!(
-        buf,
-        "      stderr:  {}  ({} bytes)",
-        stderr_p.display(),
-        stderr_p.metadata().map(|md| md.len()).unwrap_or(0)
-    )?;
     Ok(())
-}
-
-fn is_pid_alive(pid: i32) -> bool {
-    signal::kill(Pid::from_raw(pid), None).is_ok()
 }

@@ -43,36 +43,58 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
     std::fs::create_dir_all(&parent_dir)
         .with_context(|| format!("mkdir {}", parent_dir.display()))?;
 
-    let mut child = Command::new(&cmd[0])
-        .args(&cmd[1..])
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .with_context(|| format!("spawn {:?}", cmd))?;
-    let pid = child.id().context("child pid unavailable")?;
-    let child_dir = parent_dir.join(pid.to_string());
+    // The capture dir is named by the WRAPPER's pid: it exists before the
+    // child does, so a command that fails to exec still has a directory to be
+    // reported from.
+    let wrapper_pid = std::process::id();
+    let wrapper_started_ticks = crate::procstat::start_ticks(wrapper_pid)?;
+    let child_dir = parent_dir.join(wrapper_pid.to_string());
     std::fs::create_dir_all(&child_dir)
         .with_context(|| format!("mkdir {}", child_dir.display()))?;
 
     let started_at = chrono::Utc::now();
-    let cm = ChildMeta {
-        child_id: pid,
+    let mut cm = ChildMeta {
+        wrapper_pid,
+        wrapper_started_ticks,
+        child_pid: None,
         desc: desc.clone(),
         command: cmd.clone(),
-        started_at: Some(started_at),
-        ended_at: None,
-        exit_code: None,
+        started_at,
+        spawn_error: None,
+        reaped: None,
+        drained_at: None,
     };
+    meta::write_meta(&child_dir, &cm)?;
+
+    let spawned = Command::new(&cmd[0])
+        .args(&cmd[1..])
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
+
+    let mut child = match spawned {
+        Ok(c) => c,
+        Err(e) => {
+            cm.spawn_error = Some(e.to_string());
+            meta::write_meta(&child_dir, &cm)?;
+            events::append(
+                &parent_dir,
+                "spawn_failed",
+                serde_json::json!({"wrapper_pid": wrapper_pid, "command": cmd, "error": e.to_string()}),
+            )
+            .ok();
+            return Err(anyhow!("spawn {:?}: {e}", cmd));
+        }
+    };
+
+    let pid = child.id().context("child pid unavailable")?;
+    cm.child_pid = Some(pid);
     meta::write_meta(&child_dir, &cm)?;
     events::append(
         &parent_dir,
         "child_started",
-        serde_json::json!({
-            "child_pid": pid,
-            "desc": desc,
-            "command": cmd,
-        }),
+        serde_json::json!({"wrapper_pid": wrapper_pid, "child_pid": pid, "desc": desc, "command": cmd}),
     )
     .ok();
 
@@ -117,12 +139,6 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
     ));
 
     let status = child.wait().await?;
-    let _ = cancel_tx.send(true);
-    let _ = stdout_tee.await;
-    let _ = stderr_tee.await;
-    let _ = s1.await;
-    let _ = s2.await;
-
     let exit_code = status.code().unwrap_or_else(|| {
         #[cfg(unix)]
         {
@@ -134,19 +150,29 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
         1
     });
 
-    let cm = ChildMeta {
-        child_id: pid,
-        desc,
-        command: cmd,
-        started_at: Some(started_at),
-        ended_at: Some(chrono::Utc::now()),
-        exit_code: Some(exit_code),
-    };
+    // Record the reap BEFORE draining. A descendant holding the inherited
+    // pipes can delay the drain indefinitely; the status is known now.
+    cm.reaped = Some(meta::Reaped { at: chrono::Utc::now(), status: exit_code });
     meta::write_meta(&child_dir, &cm)?;
     events::append(
         &parent_dir,
         "child_exit",
-        serde_json::json!({"child_pid": pid, "exit_code": exit_code}),
+        serde_json::json!({"wrapper_pid": wrapper_pid, "child_pid": pid, "exit_code": exit_code}),
+    )
+    .ok();
+
+    let _ = cancel_tx.send(true);
+    let _ = stdout_tee.await;
+    let _ = stderr_tee.await;
+    let _ = s1.await;
+    let _ = s2.await;
+
+    cm.drained_at = Some(chrono::Utc::now());
+    meta::write_meta(&child_dir, &cm)?;
+    events::append(
+        &parent_dir,
+        "drained",
+        serde_json::json!({"wrapper_pid": wrapper_pid}),
     )
     .ok();
 

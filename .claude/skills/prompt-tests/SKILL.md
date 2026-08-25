@@ -261,6 +261,70 @@ opencode run --agent prompt-test --format json --dir "$SCRATCH" \
   < "$REPO/$CASE/task.md" | tee "/tmp/$(basename $CASE)-$(date +%s).jsonl"
 ```
 
+### A `sys_prompt/` full-replacement prompt
+
+`sys_prompt/alan-default-next.md` is the prompt `scripts/claude.sh` passes to
+`--system-prompt-file`. Neither recipe above tests it: the opencode recipe points
+at `opencode/agents/*.md`, and the Claude Code recipe exercises the default
+prompt. Use `scripts/prompt-test-run.sh`, which loads the file as an opencode
+agent prompt so the text under test is exercised verbatim:
+
+```bash
+scripts/prompt-test-run.sh <case> <tag> [prompt-file]     # default: sys_prompt/alan-default-next.md
+```
+
+It creates the `/tmp` scratch cwd, copies the case's `fixture/` if it has one,
+disables project config and plugins, and prints the log path and session id.
+Override the model with `PROMPT_TEST_MODEL` (default
+`openrouter/anthropic/claude-opus-5`, chosen so a Claude Code prompt is exercised
+by a Claude model) and the log directory with `PROMPT_TEST_OUT_DIR`.
+
+**Always run a paired baseline arm when evaluating a prompt edit.** A prompt
+section that was added because a case failed must be shown to be why the case now
+passes, and several cases in this directory pass at baseline:
+
+```bash
+git show HEAD:sys_prompt/alan-default-next.md > /tmp/prompt-baseline.md
+scripts/prompt-test-run.sh <case> baseline /tmp/prompt-baseline.md
+scripts/prompt-test-run.sh <case> green
+```
+
+Two fidelity caveats for this runner. Tool names, hooks, and the agent-view fork
+behavior are Claude Code's, not opencode's, so anything the prompt says about them
+is not exercised. And the script refuses a prompt file beginning with YAML
+frontmatter, because opencode's `{file:...}` would inject it verbatim (C1 in the
+contamination inventory).
+
+**Snapshot both prompts to `/tmp` before launching a batch.** The runner resolves
+its prompt path at session start, so editing `sys_prompt/alan-default-next.md`
+while runs are in flight silently splits one arm across two prompts. Pass explicit
+snapshot paths for both arms rather than relying on the default.
+
+**Two log caveats.** The `--format json` stream is written incrementally: a log
+read while the run is still in flight can be missing the final text part, so check
+that the file has stopped growing, or recover the answer with
+`opencode export <session-id>`, which is the source of truth. And reasoning
+summaries are not always emitted — short deliberations (observed at 164–307
+reasoning tokens on `openrouter/anthropic/claude-opus-5`) produce no `reasoning`
+part at all while longer ones do, so a grader instructed to read every thinking
+block may correctly find none. Check `info.tokens.reasoning` before recording
+coverage.
+
+**Stage a blind grader's inputs outside `prompt-tests/`.** Reading a case's
+`task.md` is enough to make the harness inject `prompt-tests/CLAUDE.md` — which
+carries arm-level results — into the grader's context as a system-reminder.
+Instructing the grader not to read it does not help; copy `task.md` and the
+gradeable rubric sections into a scratch directory and point the grader there.
+
+**Grading a prompt edit is better done blind.** Give the grader both sessions
+labelled A and B, tell it the arms differ only in the system prompt, and do not
+say which is which. Name the decisive criterion in advance. Graders told which arm
+is the treatment have a visible pull toward finding a difference, and every grader
+in this repo's history has separately warned that the mandatory
+`agent-tools pre_output.record` gate — whose `uncertainties` field maps nearly
+one-to-one onto whatever the report ends up disclosing — over-determines most
+candidate effects.
+
 ### Claude Code
 
 Headless invocation with `claude --print` (or `claude` with stdin piping)

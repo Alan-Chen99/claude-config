@@ -14,6 +14,9 @@
 
 /.claude/worktrees
 
+# agent-tools claude: the private config dir for an uninstalled checkout
+/.claude/worktree-config/
+
 # system-prompt-snapshot: intermediate capture output
 docs/system-prompt-snapshot/capture-output/
 

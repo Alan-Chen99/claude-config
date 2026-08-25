@@ -1,5 +1,13 @@
 # agent-tools wrap-task / run — Design
 
+> **Superseded in part, and inaccurate as a description of the shipped binary.**
+> Observability, process lifetime, and backgrounding are specified by
+> `2026-08-24-agent-tools-run-observability-design.md`. The components below named
+> `wrap-task`, `children/<pid>/`, `command.sh`, and `AGENT_TOOLS_TASK_ID` were never
+> built: `hook-pre` only prefixes `unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS;
+> export AGENT_TOOLS_PARENT_DIR=<dir>;` to the command
+> (`agent-tools/src/hook_pre.rs:47-50`), and there is no `wrap-task` subcommand. Read this file for the original motivation only.
+
 Status: draft
 Date: 2026-05-17
 Source spec: `plans/agent-tools-run-spec.md`
