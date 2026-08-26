@@ -26,10 +26,10 @@ The agent does not run between **delivery points** — the moments it receives c
 tool result or a user turn — so it cannot learn of a change as it happens; it must never
 receive a consequence first. That is what makes backgrounding unobservable.
 
-- **Status is derived at delivery from durable facts, never cached when it changes.** Its
-  writer may die before the next reader.
-- **A wrapper that dies recording nothing still yields a truthful status**: its liveness
-  is observable, so "unknown" is derivable rather than missing.
+- **A status is true when read, not when written.** Whatever last wrote one down may have
+  died since.
+- **A child whose wrapper died having recorded nothing still has a truthful status.**
+  "Unknown" is an answer a reader derives, never a missing one.
 
 ## Status
 
@@ -52,50 +52,47 @@ captured byte, or the start when nothing was captured; the largest boundary cros
 (30s, 5m, 30m, 2h — configuration), and crossing one is a key change, so a chatty child
 reports once, a stalled one per boundary.
 
-Derivation must be **total** — every observable input combination maps to exactly one key,
-no timeouts, no heuristics — and must never hand a terminal key to a child that is starting
-or finishing: a reader racing the wrapper's writes re-reads before concluding a fate is
-unknown. Liveness is an identity check, not a bare pid probe, or a reboot or recycled pid
-leaves dead wrappers reporting live. Reap and exit status are one atomic fact, so no key
-names a status never recorded.
+Every child has **exactly one** key at every moment — every observable combination of
+inputs maps to one, with no timeouts and no heuristics. A child still starting, or still
+finishing, is never reported terminal. Neither a reboot nor a recycled pid makes a
+dead child report running. No key names an exit status that was never observed.
 
 ## Reporting
 
 At each delivery point, for each child in the **scope** — one agent's view, a subagent's
-children never the main thread's — derive the key; report it when it differs from the last
+children never the main thread's — report the current key when it differs from the last
 key **reported** there, otherwise nothing.
 
 - **Every delivery point carries every pending change**, errored tool calls included,
   since that is when an agent goes looking. Uninstrumentable channels are named, with the
   pull path as fallback.
-- **A key is retired only once the agent has been told**, on every channel: recording
-  delivery before the write succeeds turns a failed print into permanent loss, while
-  committing after risks only a duplicate.
+- **A change the agent was not shown is reported again.** At worst it sees a change twice;
+  it never fails to see one.
 - **A report is never silently short**: when it drops lines it says how many and names the
   pull path, since silence reads as "nothing else changed".
 - **A line is recognizable and self-sufficient**: it names the child — the `--desc`, or
-  the command, never empty — its key, and where its output is. It begins a line, the prefix
-  the agent identifies, and no arbitrary text can forge one or crowd a change out.
-  The prompt quotes them, so they change with the emitters — stale quotes replaced, not
-  added to — and the guard checks position, not just presence.
+  the command, never empty — its key, and where its output is. It begins a line, carrying
+  the prefix the agent recognizes, and nothing a child can write forges one or crowds a
+  change out. The prompt's quoted lines match what is emitted, replaced when the emitters
+  change rather than added to, and checked by position, not mere presence.
 - **A delay is announced**: a delivery point silent because a lock was held is
   indistinguishable from one with nothing to say.
 
 ## The pull path
 
 `agent-tools ps` answers what the report cannot: what is true now, for an agent whose
-context was compacted while the ledger records those keys as delivered.
+context was compacted after those keys were reported and retired.
 
 - **It answers "what is running now" by default, says what it withheld, and keeps that
   retrievable** — a count with no way back is useless after the compaction that made it
   necessary.
 - **Its output is consumed by a program.** Status is carried as fields, not a rendered
-  string, so selecting live children filters data rather than matching a display format:
-  one renderer, not two, its schema carried by the command, not the prompt.
+  string, so selecting live children filters data rather than matching a display format,
+  and the schema comes from the command, not the prompt.
 - **Its size is bounded by what is running, not by session history**, ordered newest first,
   since the tool carrying it truncates. It sets no byte budget of its own.
-- **It never suppresses a future report**, and **emits a capture it cannot describe, with
-  the reason** — push and pull must never disagree about whether a child exists.
+- **Push and pull never describe one child differently, nor disagree that it exists.** `ps`
+  shows a capture it cannot describe, with the reason, and never suppresses a future report.
 
 ## Passthrough
 
@@ -103,6 +100,8 @@ Three tiers: which differences are defects, which are trades, which are wishes.
 
 ### Guaranteed
 
+- **The command runs.** What bare would execute, the wrapper executes; the wrapper's own
+  inputs, `--desc` among them, never decide whether it does.
 - **Content.** Every byte the child writes to a stream reaches the caller's corresponding
   stream, unmodified and in order within it, as long as the caller accepts writes.
 - **Completeness, or a loud failure.** A forwarded stream is never silently short and a
@@ -128,8 +127,8 @@ Three tiers: which differences are defects, which are trades, which are wishes.
 - **The wrapper is visible and durable**: `pgrep -f` matches it, and it survives signals
   its child ignores. Visible argv makes `ps aux` diagnosis work, with an opt-out; outliving
   the child lets it reap, drain and record completeness.
-- **Unmerged streams have best-effort relative order.** Two pipes; that order was lost in
-  the kernel before the wrapper saw it.
+- **Unmerged streams have best-effort relative order.** That order was lost in the kernel
+  before the wrapper saw it.
 
 ### Not achievable
 
@@ -139,12 +138,13 @@ promising otherwise.
 
 ### The merge rule
 
-Two pipes destroy the order between a child's streams and splice long lines, neither
+Splitting a child's streams destroys the order between them and splices long lines, neither
 repairable afterwards: that order exists only in the kernel.
 
-**The child gets one pipe for both streams exactly when the caller's own two descriptors
-provably reach one destination that cannot disagree about where the next byte goes** —
-same file, both writable, both pipes or both appending. Everything else gets two.
+**The child's two streams share one destination exactly when the caller's own two
+descriptors provably reach one destination that cannot disagree about where the next byte
+goes** — same file, both writable, both pipes or both appending. Everything else stays
+split.
 
 - **Sound, not probabilistic.** Whether two descriptors share an open file description is
   undecidable here, so the conditions make it irrelevant: neither admissible destination
@@ -157,44 +157,47 @@ same file, both writable, both pipes or both appending. Everything else gets two
   are one appending description on one regular file, so ordinary calls merge and `2>&1` is
   a no-op. Measured, not contracted; the decision is recorded per capture.
 
-### A drivable core
+### A second entry point
 
 Every passthrough property above is a property of *processes*, so a test must drive a real
-binary, while `run` demands a scope, a ledger and hooks that bear on none of them. **The
-core must be drivable through an entry point needing none of that, and be the
-implementation `run` itself uses**, the two agreeing on forwarded bytes and exit codes.
-Root resolution still binds it; the prompt does not teach it, so agents keep reaching for
-the entry point with observability.
+binary, while `run` demands a scope, a ledger and hooks that bear on none of them. **A
+second entry point runs a command needing none of that, and agrees with `run` byte for byte
+on both forwarded streams and on the exit code** — a disagreement is a defect in whichever
+is wrong. Root resolution binds it as it binds every subcommand. The prompt does not teach
+it, so agents keep reaching for the entry point with observability.
 
-## Durable state
+## The record
 
-- **The wrapper records facts, never statuses**, and records the reap when it happens, not
-  when the pipes close, or a detached descendant delays the exit status indefinitely.
-- **A capture becomes visible atomically**; no key honestly describes a half-created one.
+- **The exit status appears when the direct child is reaped**, however long a descendant
+  holds the streams open.
+- **A capture becomes visible whole**; no key honestly describes a half-created one.
 - **A merged capture holds one file; the other is absent, not empty** — an empty stderr
   file would read as "no diagnostics".
-- **The facts include whatever explains a difference from bare** — downstream closed, drain
-  capped, capture failed, streams merged and on which condition — rendered beside the key,
-  so `final(0)` never sits beside a stalled capture.
-- **A malformed line in an append-only log costs that line, not the file**; the loss is
-  counted and stated.
+- **Whatever explains a difference from bare is readable beside the key** — downstream
+  closed, drain capped, capture failed, streams merged and on which condition — so
+  `final(0)` never sits beside a stalled capture.
+- **A malformed record costs that record, not the history**; the loss is counted and
+  stated.
 
 ## Current deviations
 
-The shipped binary against the above; ids match
-`notes/agent-tools-run-stress-findings.md`, which holds each reproduction. F9 and F12 there
-are accepted differences.
+The stress findings record fifteen measured behaviours of the shipped binary; twelve depart
+from the above. Each is reproduced in `notes/agent-tools-run-stress-findings.md` under the
+id below, which states its symptom — this table says only which clause it breaks.
 
-| # | Clause | Deviation |
-| --- | --- | --- |
-| F1 | drain bound | the forward error is discarded: a closed downstream goes unnoticed, the drain never ends |
-| F2 | capture isolation | a capture write failure truncates the caller mid-line and kills the child with `SIGPIPE` |
-| F3 | the merge rule | always two pipes, which in the Bash tool hits every wrapped command, not just `2>&1` ones |
-| F4, F13 | starting child | a scan between a capture's creation and its first fact derives `abandoned`, which the pull path hides |
-| F5 | retire after delivery | the ledger commits before the report prints, so a failed print retires those changes for good |
-| F6, F15 | pull output | uncapped, grows with session history, ordered uncorrelated with time, filterable only as text |
-| F7 | log tolerance | the first unparseable line fails the whole events file, and that error is discarded |
-| F8 | delay announced | the scope lock waits forever, so every delivery point stalls for the hook timeout |
-| F10 | — | a relative `AGENT_TOOLS_PARENT_DIR` is reported as unset, blaming the wrong cause |
-| F11 | line prefix | the header is joined to the backgrounding notice by a space, so no line carries the prefix |
-| F14 | never dropped | a multi-byte `--desc` character aborts before any state exists; nothing runs, nothing is recorded |
+| Clause | Open |
+| --- | --- |
+| the post-close drain is bounded | F1 |
+| capture failure never kills the child | F2 |
+| the merge rule | F3 |
+| never reported terminal while starting | F4 |
+| a change not shown is reported again | F5 |
+| the pull path's output | F6, F15 |
+| a malformed record costs that record | F7 |
+| a delay is announced | F8 |
+| the prefix begins a line | F11 |
+| push and pull never disagree | F13 |
+| the command runs | F14 |
+
+F9 and F12 are accepted differences, not deviations. F10 breaks no clause above: a relative
+`AGENT_TOOLS_PARENT_DIR` is reported as unset, blaming the wrong cause.

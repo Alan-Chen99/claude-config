@@ -238,7 +238,7 @@ the 1 MB maximum.
 **Fix direction:** give the child one pipe for both streams. Scoped here as an opt-in
 `--merge`; the spec instead decides from the caller's own fds and adds no flag, because
 every case it merges is provably indistinguishable from bare. Specified in
-`docs/superpowers/specs/2026-08-26-agent-tools-run-passthrough-and-fix-scope-design.md`.
+`docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`.
 
 ## F4
 

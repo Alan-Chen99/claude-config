@@ -1,7 +1,7 @@
 # agent-tools run — Process Observability
 
 Status: superseded by
-`docs/superpowers/specs/2026-08-26-agent-tools-run-passthrough-and-fix-scope-design.md`,
+`docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`,
 which absorbs this document's normative content into one self-contained specification of
 `agent-tools run`. Kept for the measurement narrative and the derivation walkthrough.
 Date: 2026-08-24
