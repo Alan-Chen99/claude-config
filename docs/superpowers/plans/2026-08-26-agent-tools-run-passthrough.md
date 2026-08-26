@@ -540,7 +540,13 @@ struct Run {
 
 /// Run `script` bare, and again through `run-core`, and return both.
 fn differential(script: &str) -> (Run, Run) {
-    let bare = Command::new("bash").args(["-c", script]).output().unwrap();
+    // Both sides get the same environment: the only difference between them must
+    // be the wrapper itself.
+    let bare = Command::new("bash")
+        .args(["-c", script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .output()
+        .unwrap();
     let tmp = tempfile::tempdir().unwrap();
     let wrapped = agent_tools()
         .args(["run-core", "--capture-dir"])
@@ -554,18 +560,26 @@ fn differential(script: &str) -> (Run, Run) {
     )
 }
 
+/// Compare on bytes, report as text. The guarantee under test is "unmodified and
+/// in order", and `from_utf8_lossy` maps every invalid sequence onto the same
+/// replacement character — so comparing rendered strings would accept a wrapper
+/// that reordered bytes inside invalid UTF-8. Tasks 3 and 4 are about byte order
+/// specifically, so that blind spot would sit directly under what they change.
 fn assert_same(script: &str) {
     let (bare, wrapped) = differential(script);
     assert_eq!(bare.code, wrapped.code, "exit code differs for {script:?}");
-    assert_eq!(
-        String::from_utf8_lossy(&bare.stdout),
-        String::from_utf8_lossy(&wrapped.stdout),
-        "stdout differs for {script:?}"
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&bare.stderr),
-        String::from_utf8_lossy(&wrapped.stderr),
-        "stderr differs for {script:?}"
+    assert_stream_same("stdout", script, &bare.stdout, &wrapped.stdout);
+    assert_stream_same("stderr", script, &bare.stderr, &wrapped.stderr);
+}
+
+fn assert_stream_same(stream: &str, script: &str, bare: &[u8], wrapped: &[u8]) {
+    assert!(
+        bare == wrapped,
+        "{stream} differs for {script:?}\n  bare    ({} bytes): {:?}\n  wrapped ({} bytes): {:?}",
+        bare.len(),
+        String::from_utf8_lossy(bare),
+        wrapped.len(),
+        String::from_utf8_lossy(wrapped)
     );
 }
 
@@ -577,6 +591,8 @@ fn core_agrees_with_bare_on_content_and_exit_code() {
     assert_same("printf 'no trailing newline'");
     assert_same("for i in $(seq 1 500); do echo line-$i; done");
     assert_same("head -c 100000 /dev/zero | tr '\\0' 'x'");
+    // Invalid UTF-8: bytes the lossy rendering cannot tell apart.
+    assert_same("printf '\\xff\\xfe\\xfd'");
 }
 
 #[test]
