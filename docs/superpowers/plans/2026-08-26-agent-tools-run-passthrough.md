@@ -1472,9 +1472,11 @@ git commit -m "agent-tools: final(0) could sit beside a capture that stopped gro
       is read from the caller's own descriptors, that a merged capture is one `output` file,
       and that `run-core` exists for differential testing and is deliberately not taught by
       the system prompt.
-- [ ] Rebuild the installed binary so live sessions get the fix:
-      `cargo build --release`.
-      Do **not** run `install.sh` from a worktree.
+- [ ] Do **not** run `install.sh`, and do not expect a build here to reach live sessions.
+      `~/.local/bin/agent-tools` symlinks to the canonical checkout's
+      `target/release/agent-tools`, which is a different file from this worktree's. Building
+      here cannot break a running session, and cannot fix one either: live sessions pick the
+      change up only after this branch merges and the canonical checkout is rebuilt.
 
 ## Not in this plan
 
