@@ -39,9 +39,12 @@ wrapper can have. See [Structurally unachievable](#structurally-unachievable).
 | [F11](#f11) | low | the `BACKGROUNDED:` notice and the status header are joined onto one line | `hook_post.rs:68` |
 | [F12](#f12) | low | the wrapper absorbs SIGTERM and SIGINT when the child ignores them | `signals.rs:18-30` |
 | [F13](#f13) | medium | `ps` hides the capture that `hook-post` reports as `abandoned` | `ps.rs:233-236` |
+| [F14](#f14) | critical | a multi-byte character in `--desc` discards the command, leaving no trace on disk | `procname.rs:42-48` + `procstat.rs:25` |
+| [F15](#f15) | medium | `ps` output grows with session history and is ordered by an identifier uncorrelated with time | `ps.rs:49-54` |
 
-Findings after the original run — F13, and the revised F3 — were added 2026-08-26 while
-scoping the fixes, under the same conditions. Their reproductions are quoted inline.
+Findings after the original run — F13, F14, F15, and the revised F3 — were added
+2026-08-26 while scoping the fixes, under the same conditions. Their reproductions are
+quoted inline.
 
 ---
 
@@ -188,11 +191,51 @@ Detecting it requires *forcing* it: 20 KB lines with only 40 stderr writes produ
 splices and would support a false "cannot happen" conclusion. The other stream needs a
 high concurrent write rate.
 
-**Fix direction:** ordering cannot be guaranteed while the streams are split — the
-relative order of two writes that both landed before the wrapper was scheduled exists
-only in the kernel's scheduling history. Line atomicity can: share one forward writer
-between the two tees and let whichever stream is mid-line own it, releasing when its
-pipe would block. Specified in
+#### Both halves come from splitting the streams, and giving the child one pipe closes both
+
+Measured 2026-08-26. "merged" gives the child a single pipe for fd 1 and fd 2; "bare"
+gives fd 1 and fd 2 one file description, which is what the Bash tool does.
+
+A child whose writes are serialized — one `write` in flight at a time, the ordinary
+case — 200 lines of 12,001 B interleaved with 2,000 short stderr lines:
+
+```
+             spliced   misordered
+bare              0      0/2200
+two pipes       202   1997/2200
+merged            0      0/2200
+```
+
+A child with two concurrent writers, same volumes:
+
+```
+bare -> file          0
+bare -> pipe        40-62      (consumer doing the same per-chunk work as capture.rs)
+merged             41-73
+two pipes          79
+```
+
+The residual is not the wrapper's doing. A plain shell pipeline with no `agent-tools`
+anywhere splices identically, because a write above `PIPE_BUF` (4096 B) is not atomic
+once the pipe fills, whereas a shared regular file is serialized by `f_pos_lock`. That
+belongs in [Structurally unachievable](#structurally-unachievable): inserting any pipe
+caps write atomicity, and only the destination being a file ever exceeded it.
+
+Splice offsets separate the two mechanisms — two pipes cluster at 8192, the read buffer
+at `capture.rs:37`, across 50 distinct offsets; merged clusters at 3812/3813, the pipe
+filling mid-write:
+
+```
+two pipes  most common: [(8192, 21), (4380, 2), (8760, 2), ...]  distinct: 50
+merged     most common: [(3812, 30), (3813, 20), (8192, 3)]      distinct: 4
+```
+
+Enlarging the pipe attacks only the merged mechanism and does not close it — with a tee
+that also writes a capture file, 3 runs each: 54-73 at 64 KB, 25-37 at 256 KB, 1-18 at
+the 1 MB maximum.
+
+**Fix direction:** an opt-in `--merge` giving the child one pipe. It costs the
+`out=`/`err=` split, which is why it is opt-in rather than automatic. Specified in
 `docs/superpowers/specs/2026-08-26-agent-tools-run-passthrough-and-fix-scope-design.md`.
 
 ## F4
@@ -442,6 +485,108 @@ violated, and in the worst direction: `ps` is the documented recovery path after
 compaction, so the one child the report just called terminal is the one an agent cannot
 look up.
 
+## F14
+
+### A multi-byte character in `--desc` discards the command, leaving no trace on disk
+
+**Added 2026-08-26**, found while auditing paths the original run did not exercise.
+
+Two independently harmless defects compose into a critical one.
+
+`procname.rs:42-48` truncates the `comm` hint by comparing a **byte** length against a
+**char**-at-a-time push:
+
+```rust
+let mut s = String::from("at:");
+for c in hint.chars() {
+    if s.len() >= 15 { break; }   // bytes
+    s.push(c);                     // a whole char, possibly 2-4 bytes
+}
+```
+
+At 13 or 14 bytes a 3-byte character overshoots to 16 or 17. `prctl(PR_SET_NAME)`
+truncates at 15 — mid-character — leaving invalid UTF-8 in `/proc/self/comm`, which is
+embedded in the `comm` field of `/proc/self/stat`. `procstat::start_ticks`
+(`procstat.rs:25`) then reads that file with `fs::read_to_string`, which hard-fails on
+invalid UTF-8, and the `?` aborts `run` at `run.rs:50` — before `create_dir_all` at
+`:52` and before the first `write_meta` at `:67`.
+
+Swept with one CJK character after N leading ASCII bytes:
+
+```
+n=9   bytes before push 12   rc=0  ok-9
+n=10  bytes before push 13   rc=2  agent-tools run: read /proc/629846/stat: stream did not contain valid UTF-8
+n=11  bytes before push 14   rc=2  agent-tools run: read /proc/629863/stat: stream did not contain valid UTF-8
+n=12  bytes before push 15   rc=0  ok-12
+```
+
+Ordinary phrasing reaches it, and nothing runs:
+
+```
+$ agent-tools run --desc "build the 鍵盘 driver" -- echo hello-world
+agent-tools run: read /proc/629898/stat: stream did not contain valid UTF-8
+rc=2
+$ find <scope>
+<scope>                       # scope dir only: no pid dir, no meta.json, no events
+```
+
+The window is 3 byte-offsets wide for a 3-byte character and 4 for an emoji. `n=9`
+carries the same character one byte earlier and exits 0, so this is a byte-offset
+window, not "non-ASCII breaks it".
+
+The prompt instructs the agent to write `--desc` as free natural-language text and
+marks the wrapper required for side-effectful and long-running commands. So a
+description containing CJK, Cyrillic, Greek, accented Latin or an emoji can silently
+discard the command the wrapper exists to protect, with an error naming neither
+`--desc` nor Unicode. Because the abort precedes every directory and meta write, the
+spec's own guarantee — "a capture that cannot be described is never silently dropped" —
+is breached in the one way it cannot detect: there is no capture to describe.
+
+`procstat`'s UTF-8-strict read is worth fixing on its own account. `comm` holds
+arbitrary bytes for any process, and `is_alive` (`procstat.rs:35`) returns `false` on a
+read error, so an unreadable `stat` makes a live wrapper derive as `final(status)`.
+
+`tests/run_test.rs::default_leaves_argv_visible_and_sets_comm` passes `--desc
+"compute-things"` — pure ASCII, structurally incapable of exercising the byte/char
+mismatch. `hide_cmdline` was checked and does *not* share the defect: `procname.rs:86-88`
+copies raw bytes and nothing in this repository reads `/proc/self/cmdline` back as UTF-8.
+
+## F15
+
+### `ps` output grows with session history and is ordered by an identifier uncorrelated with time
+
+**Added 2026-08-26.**
+
+Two halves with different fixes.
+
+**Growth.** 58 trivial wrapped calls, every `--desc` a short `step N`:
+
+```
+$ agent-tools ps --session-id psgrow-test | wc -lc
+    468   32187
+      captures section  14004
+      events section    18183
+```
+
+That is past the Bash tool's 30,000-character head truncation
+(`docs/tool-token-limits.md:42`) at an unremarkable scale, and it is not F6 — no field
+is long; the count is. Over half of it is the events section re-carrying `desc`,
+`command` and `wrapper_pid` that the capture record already holds.
+
+**Ordering.** `ps.rs:49-54` sorts by `agent_id`, then **lexical `tool_use_id`**, with
+`started_at` only a tie-break inside one id. Created in the order `zzz_first`,
+`mmm_second`, `aaa_third`:
+
+```
+tool-use toolu_aaa_third     started: 03:56:47.388     <- ran last, listed first
+tool-use toolu_mmm_second    started: 03:56:47.175
+tool-use toolu_zzz_first     started: 03:56:46.957     <- ran first, listed last
+```
+
+Head truncation therefore keeps an arbitrary id-lexical subset and drops the events
+section entirely, which is the opposite of what an agent recovering from a compaction
+needs.
+
 ---
 
 ## Structurally unachievable
@@ -455,6 +600,7 @@ than repeatedly re-litigated.
 | `isatty(1)` under a pty | `stdout IS a tty` | `stdout NOT a tty` | a tee is a pipe |
 | `WIFSIGNALED` at the parent | `True`, signal 15 | `False`, exit code 143 | the wrapper exits normally after translating |
 | `$PPID` / process group | the shell | the wrapper | a wrapper is a process |
+| atomicity of a write above 4096 B from concurrent writers | whole write, when the shared destination is a regular file | `PIPE_BUF`, once the pipe fills | a tee is a pipe; only a file description gets `f_pos_lock` |
 
 The `isatty` divergence does not reach the agent: inside the Bash tool stdin is a
 socket and stdout and stderr are the same regular file, so neither bare nor wrapped
