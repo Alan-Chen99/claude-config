@@ -70,13 +70,19 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
     // with the child's exit code, which the spec guarantees.
     let cm = Arc::new(Mutex::new(cm));
 
-    // The callbacks run inside the core, which owns the child's exit code, so
-    // neither may abort the run: a failed `write_meta` is recorded as an event
-    // and discarded. The two writes after the core returns still propagate with
-    // `?`. The cost of discarding is specific — until a later write succeeds,
-    // disk still says `reaped: None`, and `status::derive` reads a live wrapper
-    // with no reap as `producing`/`quiet`, describing a child that has already
-    // exited as still running.
+    // A failed `write_meta` is recorded as an event and discarded — in both
+    // callbacks below and at the `drained_at` write after the core returns.
+    // Bookkeeping is the wrapper's failure, not the child's, and must not
+    // decide what the caller learns the child did: the exit code is guaranteed.
+    // Only the spawn-error write still propagates, where there is no child
+    // status to preserve.
+    //
+    // The cost of discarding is specific, and different per fact. A lost reap
+    // leaves disk saying `reaped: None`, and `status::derive` reads a live
+    // wrapper with no reap as `producing`/`quiet` — a child that has already
+    // exited, described as still running. A lost `drained_at` costs only the
+    // `exited` -> `final` transition: with the reap on disk and the wrapper
+    // gone, `derive` reaches `final(status)` anyway.
     let on_spawn = {
         let cm = cm.clone();
         let dir = child_dir.clone();
@@ -149,7 +155,15 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
     {
         let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         m.drained_at = Some(chrono::Utc::now());
-        meta::write_meta(&child_dir, &m)?;
+        // Recorded and discarded, like the callbacks': see the policy above.
+        if let Err(e) = meta::write_meta(&child_dir, &m) {
+            events::append(
+                &parent_dir,
+                "meta_write_failed",
+                serde_json::json!({"wrapper_pid": wrapper_pid, "fact": "drained_at", "error": format!("{e:#}")}),
+            )
+            .ok();
+        }
     }
     events::append(&parent_dir, "drained", serde_json::json!({"wrapper_pid": wrapper_pid}))
         .ok();

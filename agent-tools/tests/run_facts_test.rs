@@ -14,12 +14,17 @@ fn worktree_root() -> PathBuf {
 /// the window where the parent exists and nothing is inside it; that is a
 /// "not yet", not a failure.
 fn read_meta(parent: &std::path::Path) -> Option<serde_json::Value> {
-    let dir = std::fs::read_dir(parent)
+    let dir = child_dir(parent)?;
+    serde_json::from_slice(&std::fs::read(dir.join("meta.json")).ok()?).ok()
+}
+
+/// The one capture dir under `parent`, named for the wrapper pid.
+fn child_dir(parent: &std::path::Path) -> Option<std::path::PathBuf> {
+    std::fs::read_dir(parent)
         .ok()?
         .flatten()
         .map(|e| e.path())
-        .find(|p| p.is_dir())?;
-    serde_json::from_slice(&std::fs::read(dir.join("meta.json")).ok()?).ok()
+        .find(|p| p.is_dir())
 }
 
 /// Kills the wrapper and the detached daemon however the test exits, including
@@ -109,4 +114,70 @@ fn spawn_failure_is_recorded() {
     let meta = read_meta(&parent).expect("meta.json written");
     assert!(meta["spawn_error"].as_str().is_some());
     assert!(meta["child_pid"].is_null());
+}
+
+/// Bookkeeping is the wrapper's failure, not the child's. A `meta.json` that
+/// cannot be written must not replace what the caller learns the child did:
+/// the wrapper still exits with the child's code, and says what went wrong
+/// through the event stream instead.
+#[test]
+fn a_failed_meta_write_never_replaces_the_child_exit_code() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    let release = home.path().join("release");
+
+    // The child waits on a file rather than sleeping a fixed time, so the
+    // window for breaking meta.json cannot close early on a loaded machine.
+    let script = format!(
+        "echo started; while [ ! -e {} ]; do sleep 0.02; done; exit 7",
+        release.display()
+    );
+    let wrapper = Command::new(bin())
+        .args(["run", "--desc", "unwritable", "bash", "-c", &script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut cleanup = Cleanup {
+        wrapper,
+        daemon_pid_file: home.path().join("no-daemon.pid"),
+    };
+
+    // Wait until the child pid is on disk, so the writes broken below are the
+    // reap and the drain rather than the ones that precede them.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        assert!(std::time::Instant::now() < deadline, "child pid never recorded");
+        match read_meta(&parent) {
+            Some(m) if !m["child_pid"].is_null() => break,
+            _ => std::thread::sleep(std::time::Duration::from_millis(20)),
+        }
+    }
+
+    // Replace meta.json with a directory: `write_meta` renames its tmp file
+    // onto that path, and rename(2) onto a directory fails with EISDIR. A
+    // chmod would not do it — these tests can run as root, which writes anyway.
+    let meta_path = child_dir(&parent).expect("capture dir exists").join("meta.json");
+    std::fs::remove_file(&meta_path).unwrap();
+    std::fs::create_dir(&meta_path).unwrap();
+
+    std::fs::write(&release, b"").unwrap();
+    let status = cleanup.wrapper.wait().unwrap();
+
+    assert_eq!(status.code(), Some(7), "the child's exit code, not the wrapper's");
+
+    let evts = std::fs::read_to_string(parent.join("events.jsonl")).unwrap();
+    let failed_facts: Vec<String> = evts
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str::<serde_json::Value>(l).expect("one event per line"))
+        .filter(|e| e["kind"] == "meta_write_failed")
+        .map(|e| e["data"]["fact"].as_str().unwrap_or_default().to_string())
+        .collect();
+
+    // The drain write is the one that used to abort the run; the reap write
+    // fails the same way for the same reason. Neither may be silent.
+    assert!(failed_facts.contains(&"drained_at".to_string()), "events: {evts}");
+    assert!(failed_facts.contains(&"reaped".to_string()), "events: {evts}");
 }
