@@ -458,14 +458,22 @@ instant its fact becomes true:
 `&m` is a `MutexGuard<ChildMeta>`; deref coercion gives `write_meta` the `&ChildMeta` it wants,
 so no `Clone` derive is needed.
 
-**The callbacks return `()`, so a failed `write_meta` inside them cannot be propagated.**
-Discarding it is deliberate: propagating would abort the run and report the wrapper's error
-instead of the child's exit code, which the spec guarantees. Record the failure through
-`events::append` — never `eprintln!` from inside a callback, because `on_reap` can run while
-the stderr tee is still forwarding child output to fd 2, and the two writers are not
-synchronized. The cost of discarding is a real window: until a later write succeeds, a reader
-sees `reaped: None` with the wrapper alive and derives `producing` for a child that has
-already exited. Later tasks adding facts to `ChildMeta` inherit this policy.
+**No `meta.json` write may decide the caller's exit code.** Bookkeeping is the wrapper's
+job, and the spec guarantees the caller receives the child's exit code; a capture that cannot
+be written "is the wrapper's failure, not the child's", and a meta write is no different.
+Every `write_meta` after the child exists therefore records a `meta_write_failed` event and
+continues, rather than propagating. This is not silent — it is stated in the event stream —
+and it is not lossy in the way it looks: with `reaped: Some` and the wrapper gone,
+`status::derive` yields `final(status)` even if `drained_at` never lands, so a lost write
+costs the `exited`→`final` transition, not the child's fate.
+
+Never `eprintln!` from inside a callback. `on_reap` can run while the stderr tee is still
+forwarding child output to fd 2, and the two writers are not synchronized, so a diagnostic
+can interleave with the child's own stderr and break the "unmodified and in order" guarantee.
+
+The one real cost: until a later write succeeds, a reader sees `reaped: None` with the
+wrapper alive and derives `producing` for a child that has already exited. Later tasks adding
+facts to `ChildMeta` inherit this whole policy.
 
 Three supporting edits: add `use crate::core;` to the imports at `run.rs:7-11`; delete the now
 unused `use std::process::Stdio;` (`run.rs:2`) and `use tokio::process::Command;` (`run.rs:5`),
