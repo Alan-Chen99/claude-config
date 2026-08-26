@@ -40,8 +40,12 @@ Run per-suite while working — it is faster and skips the known failure:
 
 ```bash
 cargo test --test core_test
-cargo test --lib core
+cargo test --bin agent-tools core::
 ```
+
+`agent-tools` is a binary-only crate with no `[lib]` target, so `cargo test --lib` fails
+outright rather than running anything. Inline `#[cfg(test)]` tests live in the bin target;
+reach them with `--bin agent-tools`, and integration tests with `--test <file_stem>`.
 
 ## File structure
 
@@ -471,9 +475,28 @@ Never `eprintln!` from inside a callback. `on_reap` can run while the stderr tee
 forwarding child output to fd 2, and the two writers are not synchronized, so a diagnostic
 can interleave with the child's own stderr and break the "unmodified and in order" guarantee.
 
-The one real cost: until a later write succeeds, a reader sees `reaped: None` with the
-wrapper alive and derives `producing` for a child that has already exited. Later tasks adding
-facts to `ChildMeta` inherit this whole policy.
+The one real cost is per fact. A lost `reaped` write leaves a reader seeing `reaped: None`
+with the wrapper alive, deriving `producing` for a child that has already exited. A lost
+`drained_at` costs only the `exited`→`final` transition. A lost `child_pid` shows `pid -` in
+`ps` and in the pushed report for the child's whole lifetime, because `status::render` reads
+that field from disk rather than from the in-memory struct.
+
+**Why no `eprintln!` for these, when Tasks 5-7 do print to stderr.** Not because the wrapper
+never adds bytes to stderr — those tasks add exactly that, and the spec requires it for
+stream and capture failures. The reason is narrower: the "stated on stderr and in the status"
+clause is scoped to the Guaranteed tier's forwarded-stream and capture failures, and says
+nothing about bookkeeping. A meta write is not a passthrough failure. On top of that, at
+`on_spawn`/`on_reap` the tee is provably still live on fd 2, so a diagnostic there would race
+the child's own output. Do not carry the substitutability argument into Tasks 5-7; it does not
+hold there.
+
+Know the limit of "and in the status": the pushed report is built from `status::derive`
+alone and never reads `events.jsonl`, so a `meta_write_failed` event changes nothing the agent
+is shown automatically. It surfaces only through `agent-tools ps`. The state machine still
+self-heals — a transient failure resolves to `final`, a permanent one to `abandoned` — so what
+is missing is the reason, not a correct status.
+
+Later tasks adding facts to `ChildMeta` inherit this whole policy.
 
 Three supporting edits: add `use crate::core;` to the imports at `run.rs:7-11`; delete the now
 unused `use std::process::Stdio;` (`run.rs:2`) and `use tokio::process::Command;` (`run.rs:5`),
@@ -698,7 +721,7 @@ mod tests {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cargo test --lib core`
+Run: `cargo test --bin agent-tools core::`
 Expected: FAIL — `cannot find function 'decide_merge' in this scope`.
 
 - [ ] **Step 3: Implement the decision**
@@ -758,7 +781,7 @@ pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cargo test --lib core`
+Run: `cargo test --bin agent-tools core::`
 Expected: PASS, 5 tests.
 
 - [ ] **Step 5: Commit**
@@ -1268,9 +1291,19 @@ and wrong story. Spec, Guaranteed: "Capture failure never kills the child; forwa
 never stops the capture … a capture that cannot be written is the wrapper's failure, not the
 child's."
 
+**Decide one inherited question while you are here.** `run.rs`'s spawn-error `write_meta`
+still uses `?`, on the reasoning that a failed spawn has no child exit code to preserve. But
+if that write itself fails, the `?` returns the write error and the original spawn failure is
+never reported — neither the `anyhow!("spawn ...")` nor the `spawn_failed` event, both of
+which sit after it. Two faults at once, and astronomically rare. This task generalizes
+"the wrapper's failure, not the child's", so settle it deliberately rather than by omission:
+either record-and-continue like the other three sites, or state in a comment why "no child
+status to preserve" ends the analysis.
+
 **Files:**
 - Modify: `agent-tools/src/capture.rs`
 - Modify: `agent-tools/src/core.rs`
+- Modify: `agent-tools/src/run.rs`
 - Modify: `agent-tools/tests/core_test.rs`
 
 - [ ] **Step 1: Write the failing test**
@@ -1454,7 +1487,7 @@ applies:
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `cargo test --test run_facts_test --lib status`
+Run: `cargo test --test run_facts_test && cargo test --bin agent-tools status::`
 Expected: PASS.
 
 - [ ] **Step 6: Check the prompt coupling**
