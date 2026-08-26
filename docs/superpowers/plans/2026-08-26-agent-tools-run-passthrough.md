@@ -575,12 +575,29 @@ fn assert_same(script: &str) {
 fn assert_stream_same(stream: &str, script: &str, bare: &[u8], wrapped: &[u8]) {
     assert!(
         bare == wrapped,
-        "{stream} differs for {script:?}\n  bare    ({} bytes): {:?}\n  wrapped ({} bytes): {:?}",
+        "{stream} differs for {script:?}\n  {}\n  bare    ({} bytes): {}\n  wrapped ({} bytes): {}",
+        first_difference(bare, wrapped),
         bare.len(),
-        String::from_utf8_lossy(bare),
+        preview(bare),
         wrapped.len(),
-        String::from_utf8_lossy(wrapped)
+        preview(wrapped)
     );
+}
+
+/// Render a stream for a failure message, capped. A mismatch on the 100 KB case
+/// would otherwise put 200 KB into the panic, burying every other failure in the
+/// run. The offset and the two lengths above already carry the answer, so the
+/// rendering only has to be recognizable.
+fn preview(bytes: &[u8]) -> String {
+    const MAX: usize = 200;
+    if bytes.len() <= MAX {
+        return format!("{:?}", String::from_utf8_lossy(bytes));
+    }
+    format!(
+        "{:?}… ({} more bytes)",
+        String::from_utf8_lossy(&bytes[..MAX]),
+        bytes.len() - MAX
+    )
 }
 
 #[test]
