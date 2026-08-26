@@ -532,14 +532,38 @@ compares is what turns each later task into a one-line assertion.
 Append to `agent-tools/tests/core_test.rs`:
 
 ```rust
-struct Run {
+/// The `run-core` invocation, in one place. `argv` is the command after `--`;
+/// stdio stays the caller's to wire, since where the caller's own two
+/// descriptors point is itself under test.
+fn run_core_cmd(capture_dir: &Path, argv: &[&str]) -> Command {
+    let mut c = agent_tools();
+    c.args(["run-core", "--capture-dir"])
+        .arg(capture_dir)
+        .arg("--")
+        .args(argv);
+    c
+}
+```
+
+Task 1's three tests each build that invocation by hand; change them to call `run_core_cmd`
+too, so the shape exists in one place rather than four.
+
+Then append the harness:
+
+```rust
+/// One side of a differential run: the bytes that reached the caller's own two
+/// streams, and the exit status the caller saw. The capture on disk is separate,
+/// and outlives the call under the `capture_dir` its caller owns.
+struct Captured {
     stdout: Vec<u8>,
     stderr: Vec<u8>,
     code: Option<i32>,
 }
 
-/// Run `script` bare, and again through `run-core`, and return both.
-fn differential(script: &str) -> (Run, Run) {
+/// Run `script` bare, and again through `run-core` capturing under `capture_dir`,
+/// and return both. `capture_dir` belongs to the caller, so what landed on disk
+/// can be compared against what was forwarded.
+fn differential(script: &str, capture_dir: &Path) -> (Captured, Captured) {
     // Both sides get the same environment: the only difference between them must
     // be the wrapper itself.
     let bare = Command::new("bash")
@@ -547,22 +571,29 @@ fn differential(script: &str) -> (Run, Run) {
         .env("CLAUDE_CONFIG_ROOT", worktree_root())
         .output()
         .unwrap();
-    let tmp = tempfile::tempdir().unwrap();
-    let wrapped = agent_tools()
-        .args(["run-core", "--capture-dir"])
-        .arg(tmp.path().join("cap"))
-        .args(["--", "bash", "-c", script])
+    let wrapped = run_core_cmd(capture_dir, &["bash", "-c", script])
         .output()
         .unwrap();
     (
-        Run { stdout: bare.stdout, stderr: bare.stderr, code: bare.status.code() },
-        Run { stdout: wrapped.stdout, stderr: wrapped.stderr, code: wrapped.status.code() },
+        Captured { stdout: bare.stdout, stderr: bare.stderr, code: bare.status.code() },
+        Captured { stdout: wrapped.stdout, stderr: wrapped.stderr, code: wrapped.status.code() },
     )
 }
 
-/// Where the two streams part, in bytes. The renderings cannot always show it —
-/// the invalid-UTF-8 case renders identically on both sides, which is the whole
-/// reason the comparison moved off the rendering.
+/// Compare on bytes, report as text. The guarantee under test is "unmodified and
+/// in order", and `from_utf8_lossy` maps every invalid sequence onto the same
+/// replacement character — so comparing rendered strings would accept a wrapper
+/// that reordered bytes inside invalid UTF-8.
+fn assert_same(script: &str) {
+    let tmp = tempfile::tempdir().unwrap();
+    let (bare, wrapped) = differential(script, &tmp.path().join("cap"));
+    assert_eq!(bare.code, wrapped.code, "exit code differs for {script:?}");
+    assert_stream_same("stdout", script, &bare.stdout, &wrapped.stdout);
+    assert_stream_same("stderr", script, &bare.stderr, &wrapped.stderr);
+}
+
+/// Where the two streams part, in bytes. The renderings cannot always show it:
+/// bytes no `String` can hold render the same on both sides.
 fn first_difference(bare: &[u8], wrapped: &[u8]) -> String {
     match bare.iter().zip(wrapped).position(|(a, b)| a != b) {
         Some(i) => format!(
@@ -571,18 +602,6 @@ fn first_difference(bare: &[u8], wrapped: &[u8]) -> String {
         ),
         None => format!("equal for {} bytes, then one side ends", bare.len().min(wrapped.len())),
     }
-}
-
-/// Compare on bytes, report as text. The guarantee under test is "unmodified and
-/// in order", and `from_utf8_lossy` maps every invalid sequence onto the same
-/// replacement character — so comparing rendered strings would accept a wrapper
-/// that reordered bytes inside invalid UTF-8. Tasks 3 and 4 are about byte order
-/// specifically, so that blind spot would sit directly under what they change.
-fn assert_same(script: &str) {
-    let (bare, wrapped) = differential(script);
-    assert_eq!(bare.code, wrapped.code, "exit code differs for {script:?}");
-    assert_stream_same("stdout", script, &bare.stdout, &wrapped.stdout);
-    assert_stream_same("stderr", script, &bare.stderr, &wrapped.stderr);
 }
 
 fn assert_stream_same(stream: &str, script: &str, bare: &[u8], wrapped: &[u8]) {
@@ -628,26 +647,16 @@ fn core_agrees_with_bare_on_content_and_exit_code() {
 #[test]
 fn a_pipeline_inside_a_wrapped_command_still_dies_of_sigpipe() {
     // The wrapper ignores SIGPIPE for its own writes; the child must not inherit
-    // that, or an inner pipeline behaves differently than it does bare. Measured
-    // before this plan: bare and wrapped both exit 141 here.
-    let tmp = tempfile::tempdir().unwrap();
-    let out = agent_tools()
-        .args(["run-core", "--capture-dir"])
-        .arg(tmp.path().join("cap"))
-        .args(["--", "bash", "-c", "yes | head -2; exit ${PIPESTATUS[0]}"])
-        .output()
-        .unwrap();
-    assert_eq!(String::from_utf8_lossy(&out.stdout), "y\ny\n");
-    assert_eq!(
-        out.status.code(),
-        Some(141),
-        "the inner `yes` must die of SIGPIPE, as it does bare"
-    );
+    // that, or an inner pipeline behaves differently than it does bare. `head`
+    // closes the pipe after two lines and `yes` dies of SIGPIPE, so
+    // `PIPESTATUS[0]` is 128 + 13 on both sides.
+    assert_same("yes | head -2; exit ${PIPESTATUS[0]}");
 }
 
 #[test]
 fn core_agrees_with_bare_on_signalled_death_status() {
-    let (bare, wrapped) = differential("kill -TERM $$");
+    let tmp = tempfile::tempdir().unwrap();
+    let (bare, wrapped) = differential("kill -TERM $$", &tmp.path().join("cap"));
     assert_eq!(bare.code, None, "bare: killed by a signal reports no code");
     assert_eq!(
         wrapped.code,
@@ -852,35 +861,34 @@ the other is absent, not empty — an empty stderr file would read as 'no diagno
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `agent-tools/tests/core_test.rs`:
+`run_core_cmd` already exists from Task 2 and builds the `run-core` invocation; wire the
+stdio onto it rather than assembling the argv again. Append to
+`agent-tools/tests/core_test.rs`:
 
 ```rust
 use std::process::Stdio;
 
 /// Run `run-core` with both of its own descriptors on one appending file, which
 /// is the shape the merge rule admits and the shape the Claude Code Bash tool has.
+/// Run `script` with both of the caller's own descriptors on one appending file:
+/// the shape the merge rule admits, and the shape the Claude Code Bash tool has.
+/// The returned `TempDir` keeps `cap/` alive so the capture can be inspected.
 fn run_core_to_one_appending_file(script: &str) -> (String, tempfile::TempDir) {
     let tmp = tempfile::tempdir().unwrap();
     let sink = tmp.path().join("caller.log");
-    let cap = tmp.path().join("cap");
     let f = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&sink)
         .unwrap();
     let f2 = f.try_clone().unwrap();
-    let status = agent_tools()
-        .args(["run-core", "--capture-dir"])
-        .arg(&cap)
-        .args(["--", "bash", "-c", script])
+    let status = run_core_cmd(&tmp.path().join("cap"), &["bash", "-c", script])
         .stdout(Stdio::from(f))
         .stderr(Stdio::from(f2))
         .status()
         .unwrap();
     assert!(status.code().is_some());
-    let text = std::fs::read_to_string(&sink).unwrap();
-    // The TempDir is returned so the capture outlives this call.
-    (text, tmp)
+    (std::fs::read_to_string(&sink).unwrap(), tmp)
 }
 
 #[test]
@@ -912,10 +920,7 @@ fn merged_capture_holds_one_file_and_no_empty_stderr() {
 fn split_capture_holds_two_files() {
     let tmp = tempfile::tempdir().unwrap();
     let cap = tmp.path().join("cap");
-    agent_tools()
-        .args(["run-core", "--capture-dir"])
-        .arg(&cap)
-        .args(["--", "bash", "-c", "echo a; echo b >&2"])
+    run_core_cmd(&cap, &["bash", "-c", "echo a; echo b >&2"])
         .output()
         .unwrap();
     assert_eq!(std::fs::read_to_string(cap.join("stdout")).unwrap(), "a\n");
@@ -1367,12 +1372,12 @@ fn capture_failure_never_kills_the_child() {
     std::fs::create_dir_all(cap.join("stdout")).unwrap();
     std::fs::create_dir_all(cap.join("output")).unwrap();
 
-    let out = agent_tools()
-        .args(["run-core", "--capture-dir"])
-        .arg(&cap)
-        .args(["--", "bash", "-c", "for i in $(seq 1 2000); do echo line-$i; done; exit 5"])
-        .output()
-        .unwrap();
+    let out = run_core_cmd(
+        &cap,
+        &["bash", "-c", "for i in $(seq 1 2000); do echo line-$i; done; exit 5"],
+    )
+    .output()
+    .unwrap();
 
     assert_eq!(
         out.status.code(),
