@@ -560,6 +560,19 @@ fn differential(script: &str) -> (Run, Run) {
     )
 }
 
+/// Where the two streams part, in bytes. The renderings cannot always show it —
+/// the invalid-UTF-8 case renders identically on both sides, which is the whole
+/// reason the comparison moved off the rendering.
+fn first_difference(bare: &[u8], wrapped: &[u8]) -> String {
+    match bare.iter().zip(wrapped).position(|(a, b)| a != b) {
+        Some(i) => format!(
+            "first difference at byte {i}: bare {:#04x}, wrapped {:#04x}",
+            bare[i], wrapped[i]
+        ),
+        None => format!("equal for {} bytes, then one side ends", bare.len().min(wrapped.len())),
+    }
+}
+
 /// Compare on bytes, report as text. The guarantee under test is "unmodified and
 /// in order", and `from_utf8_lossy` maps every invalid sequence onto the same
 /// replacement character — so comparing rendered strings would accept a wrapper
