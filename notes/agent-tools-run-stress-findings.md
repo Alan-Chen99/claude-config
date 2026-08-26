@@ -20,13 +20,15 @@ promises:
 > propagates the child's exit code. Pipelines, redirections, `2>&1`, exit-status
 > checks, and downstream filters behave exactly as if you had run the bare command.
 
-Three of those clauses are false (F1, F2, F3).
+Three of those clauses are false (F1, F2, F3). The last sentence is worse than false:
+"behave exactly as if you had run the bare command" names a property no tee-based
+wrapper can have. See [Structurally unachievable](#structurally-unachievable).
 
 | ID | Severity | Finding | Site |
 | --- | --- | --- | --- |
 | [F1](#f1) | critical | a wrapped producer never stops when its downstream consumer exits | `capture.rs:46` |
+| [F3](#f3) | critical | every wrapped command's merged output is reordered, and long lines are corrupted mid-line | `capture.rs:37` + the two-pipe tee |
 | [F2](#f2) | high | a capture-file write failure silently truncates the caller's output and kills the child | `run.rs:165-166` |
-| [F3](#f3) | high | `2>&1` interleaving is scrambled, differently on every run | design of the two-pipe tee |
 | [F4](#f4) | medium | a child that is merely starting can be reported `abandoned`, a terminal key | `run.rs:52` before `run.rs:67` |
 | [F5](#f5) | medium | the ledger commits before the report prints, so a failed write retires changes forever | `hook_post.rs:207` before `:71` |
 | [F6](#f6) | medium | `agent-tools ps` has no output bound | `ps.rs:265` |
@@ -36,6 +38,10 @@ Three of those clauses are false (F1, F2, F3).
 | [F10](#f10) | low | a relative `AGENT_TOOLS_PARENT_DIR` is misdiagnosed as "not set" | `run.rs:36` |
 | [F11](#f11) | low | the `BACKGROUNDED:` notice and the status header are joined onto one line | `hook_post.rs:68` |
 | [F12](#f12) | low | the wrapper absorbs SIGTERM and SIGINT when the child ignores them | `signals.rs:18-30` |
+| [F13](#f13) | medium | `ps` hides the capture that `hook-post` reports as `abandoned` | `ps.rs:233-236` |
+
+Findings after the original run — F13, and the revised F3 — were added 2026-08-26 while
+scoping the fixes, under the same conditions. Their reproductions are quoted inline.
 
 ---
 
@@ -119,31 +125,75 @@ Disk-full is the realistic trigger — and F1 is a mechanism that produces disk-
 
 ## F3
 
-### `2>&1` interleaving is scrambled, differently on every run
+### Every wrapped command's merged output is reordered, and long lines are corrupted
 
-Bare, one file descriptor carries both streams and writes land in real order. Wrapped,
-the child gets two pipes drained by two independent tokio tasks, so a merged view is
-reordered non-deterministically.
+**Revised 2026-08-26.** The original entry scoped this to `2>&1` and to reordering.
+Both halves were too narrow.
+
+**It is not `2>&1`-specific.** The Claude Code Bash tool already gives fd 1 and fd 2
+the same file, so every wrapped command is affected whether or not the agent writes a
+redirection. Measured with a probe that writes its result to a file — `$(readlink …)`
+runs inside command substitution, which replaces fd 1 and reports the wrong answer:
 
 ```
-for i in $(seq 1 8); do echo "OUT$i"; echo "ERR$i" >&2; done     viewed with 2>&1
-
-bare    OUT1 ERR1 OUT2 ERR2 OUT3 ERR3 OUT4 ERR4 OUT5 ERR5 OUT6 ERR6 OUT7 ERR7 OUT8 ERR8
-run 1   OUT1 ERR1 ERR2 ERR3 ERR4 ERR5 ERR6 ERR7 ERR8 OUT2 OUT3 OUT4 OUT5 OUT6 OUT7 OUT8
-run 2   OUT1 OUT2 OUT3 OUT4 OUT5 OUT6 OUT7 ERR1 ERR2 ERR3 ERR4 ERR5 ERR6 ERR7 OUT8 ERR8
-run 3   OUT1 ERR1 ERR2 ERR3 ERR4 ERR5 ERR6 ERR7 ERR8 OUT2 OUT3 OUT4 OUT5 OUT6 OUT7 OUT8
+                          fd1                         fd2                        same
+plain (cc bash tool)      …/tasks/bs7ii47ub.output    …/tasks/bs7ii47ub.output   YES
+2>&1 | cat                pipe:[618105766]            pipe:[618105766]           YES
+| cat, no 2>&1            pipe:[618105769]            …/tasks/….output           no
 ```
 
-Concretely: a compiler's error line separates from the progress line naming the file
-it belongs to.
+#### Reordering — the mild half
 
-The canonical example in `sys_prompt/alan-default-next.md:169` is
-`agent-tools run --desc "Build all components" make 2>&1 | tail -30` — precisely this
-shape.
+With no pipes and no redirection anywhere:
 
-This one is inherent to splitting the streams. Either stop promising byte-exact `2>&1`
-equivalence in the tool description, or give the child a single shared pipe when the
-caller merged them (which costs the ability to distinguish the two capture files).
+```
+bare     OUT1 ERR1 OUT2 ERR2 OUT3 ERR3 OUT4 ERR4
+wrapped  OUT1 ERR1 ERR2 ERR3 ERR4 OUT2 OUT3 OUT4      (3 of 3 runs)
+```
+
+It only bites when the child's two writes land close together. The threshold is sharp:
+
+```
+gap between writes      out of place
+0                       30/60
+10 us                    6/60
+50 us                    0/60
+>=100 us                 0/60
+```
+
+A child doing real work between lines is already exact. Every earlier demonstration in
+this file used a tight loop, which is why the effect looked universal.
+
+#### Mid-line splicing — the severe half
+
+A line longer than the 8192-byte read buffer (`capture.rs:37`) is forwarded as several
+`write` syscalls, and on the `new_multi_thread` runtime (`main.rs:385`) the other
+stream's write lands between them. Bare never does this: the child's write reaches the
+shared file description as one syscall and the kernel's `f_pos_lock` serializes it.
+
+```
+                                             bare              wrapped
+12 KB lines, 2,000 stderr lines      200 lines, 0 splices   228 lines, 28 splices  (14%)
+5 MB line,  20,000 stderr lines        1 line,  0 splices   583 lines, 582 splices
+
+splice offsets: exactly 8191/8192      e.g.  ...OOOOOOOOOOOOOOOOOOOOE100\nE10
+```
+
+This is the more serious failure and the more likely one. A 12 KB line is an ordinary
+compile command or log record, and corruption is unrecoverable downstream — `grep`,
+`jq`, and log parsers all see a garbage record — whereas reordering leaves every line
+intact.
+
+Detecting it requires *forcing* it: 20 KB lines with only 40 stderr writes produce zero
+splices and would support a false "cannot happen" conclusion. The other stream needs a
+high concurrent write rate.
+
+**Fix direction:** ordering cannot be guaranteed while the streams are split — the
+relative order of two writes that both landed before the wrapper was scheduled exists
+only in the kernel's scheduling history. Line atomicity can: share one forward writer
+between the two tees and let whichever stream is mid-line own it, releasing when its
+pipe would block. Specified in
+`docs/superpowers/specs/2026-08-26-agent-tools-run-passthrough-and-fix-scope-design.md`.
 
 ## F4
 
@@ -360,6 +410,61 @@ SIGTERM and the wrapper propagated its exit 42 correctly.
 
 This is the mechanism behind the `TaskStop` row already in the spec's failure-mode
 table.
+
+## F13
+
+### `ps` hides the capture that `hook-post` reports as `abandoned`
+
+**Added 2026-08-26**, found while reproducing F4 rather than in the original run.
+
+`ps.rs:233-236` skips a capture whose `meta.json` will not parse:
+
+```rust
+let m = match meta::read_meta(&p) {
+    Ok(m) => m,
+    Err(_) => continue,
+};
+```
+
+`hook_post::report_changes` does not skip it — `status::derive` returns `abandoned` for
+the same directory. So the two consumers of one derivation disagree about whether the
+child exists at all. Against a capture dir containing no `meta.json`:
+
+```
+hook-post:  …/999999 [abandoned] pid -, no output, out=0B err=0B
+ps       :  (nothing)
+```
+
+The spec says `ps` "renders the current status of every child in the session using the
+same derivation … everything shown whether or not it was reported", and its failure-mode
+table says "a capture that cannot be described is never silently dropped". Both are
+violated, and in the worst direction: `ps` is the documented recovery path after a
+compaction, so the one child the report just called terminal is the one an agent cannot
+look up.
+
+---
+
+## Structurally unachievable
+
+Not defects. These are the clauses of the tool description that no tee-based wrapper
+can satisfy, measured 2026-08-26 so the contract can be rewritten around them rather
+than repeatedly re-litigated.
+
+| Property | Bare | Wrapped | Why |
+| --- | --- | --- | --- |
+| `isatty(1)` under a pty | `stdout IS a tty` | `stdout NOT a tty` | a tee is a pipe |
+| `WIFSIGNALED` at the parent | `True`, signal 15 | `False`, exit code 143 | the wrapper exits normally after translating |
+| `$PPID` / process group | the shell | the wrapper | a wrapper is a process |
+
+The `isatty` divergence does not reach the agent: inside the Bash tool stdin is a
+socket and stdout and stderr are the same regular file, so neither bare nor wrapped
+sees a terminal. It reaches a human running `agent-tools run` in a shell.
+
+One clause that *is* satisfied, and was worth checking because its failure would have
+been severe: Rust sets `SIGPIPE` to `SIG_IGN` in the wrapper, and ignored dispositions
+survive `exec`. `std::process::Command` resets it, so the child does not inherit it —
+a wrapped child's `SigIgn` mask is `0000000180000000` (bit 12 clear) and a pipeline
+*inside* a wrapped `bash -c` still yields 141. Nested pipelines are unaffected.
 
 ---
 
