@@ -91,7 +91,8 @@ tool call returns.
 **Fix direction:** on a `BrokenPipe` forward error, stop the tee and drop the read end
 so the child receives `EPIPE`/`SIGPIPE` as it would bare. Whether the capture should
 also stop or continue to a file-only tail is a design choice; discarding the error is
-not.
+not. The spec settles that choice: stop forwarding, keep capturing under a bounded
+post-close drain, and drop the read end at the cap.
 
 ## F2
 
@@ -234,8 +235,9 @@ Enlarging the pipe attacks only the merged mechanism and does not close it — w
 that also writes a capture file, 3 runs each: 54-73 at 64 KB, 25-37 at 256 KB, 1-18 at
 the 1 MB maximum.
 
-**Fix direction:** an opt-in `--merge` giving the child one pipe. It costs the
-`out=`/`err=` split, which is why it is opt-in rather than automatic. Specified in
+**Fix direction:** give the child one pipe for both streams. Scoped here as an opt-in
+`--merge`; the spec instead decides from the caller's own fds and adds no flag, because
+every case it merges is provably indistinguishable from bare. Specified in
 `docs/superpowers/specs/2026-08-26-agent-tools-run-passthrough-and-fix-scope-design.md`.
 
 ## F4
