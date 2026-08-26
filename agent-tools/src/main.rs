@@ -55,6 +55,7 @@ If this surfaced new work or a revision, do it and re-enter the gate at the next
 
 mod capture;
 mod claude;
+mod core;
 mod events;
 mod hook_input;
 mod hook_post;
@@ -126,6 +127,16 @@ enum Cmd {
         /// "`--desc` argv hiding (F88)".
         #[arg(long)]
         hide_cmdline: bool,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        cmd: Vec<String>,
+    },
+    /// Run a command through the passthrough core with no scope, ledger or hooks.
+    /// Exists so passthrough behaviour can be differenced against the bare command.
+    /// Not taught by the system prompt: use `run` for anything that needs reporting.
+    #[command(name = "run-core")]
+    RunCore {
+        #[arg(long)]
+        capture_dir: std::path::PathBuf,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         cmd: Vec<String>,
     },
@@ -395,6 +406,24 @@ fn main() {
                 }
             }
         }
+        Cmd::RunCore { capture_dir, cmd } => {
+            if cmd.is_empty() {
+                eprintln!("agent-tools run-core: no command supplied after --");
+                std::process::exit(2);
+            }
+            let outcome = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(core::run_core(&cmd, &capture_dir, |_| {}, |_| {}));
+            match outcome {
+                Ok(o) => std::process::exit(o.exit_code),
+                Err(e) => {
+                    eprintln!("agent-tools run-core: {e}");
+                    std::process::exit(2);
+                }
+            }
+        }
         Cmd::HookPre => {
             if let Err(e) = hook_pre::run() {
                 eprintln!("agent-tools hook-pre: {e:#}");
@@ -523,6 +552,7 @@ fn main() {
             Cmd::HookPost => unreachable!(),
             Cmd::HookPrompt => unreachable!(),
             Cmd::Run { .. } => unreachable!(),
+            Cmd::RunCore { .. } => unreachable!(),
             Cmd::Ps { .. } => unreachable!(),
             Cmd::OpencodeGate { .. } => unreachable!(),
             Cmd::MinGate { .. } => unreachable!(),
