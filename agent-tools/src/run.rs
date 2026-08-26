@@ -64,8 +64,19 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
 
     use std::sync::Mutex;
 
+    // Shared with the callbacks below, which the core calls at the instant each
+    // fact becomes true. Every lock site takes a poisoned guard rather than
+    // unwrapping it: a panic here would end the wrapper by panic instead of
+    // with the child's exit code, which the spec guarantees.
     let cm = Arc::new(Mutex::new(cm));
 
+    // The callbacks run inside the core, which owns the child's exit code, so
+    // neither may abort the run: a failed `write_meta` is recorded as an event
+    // and discarded. The two writes after the core returns still propagate with
+    // `?`. The cost of discarding is specific — until a later write succeeds,
+    // disk still says `reaped: None`, and `status::derive` reads a live wrapper
+    // with no reap as `producing`/`quiet`, describing a child that has already
+    // exited as still running.
     let on_spawn = {
         let cm = cm.clone();
         let dir = child_dir.clone();
@@ -73,9 +84,16 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
         let desc = desc.clone();
         let cmdv = cmd.clone();
         move |pid: u32| {
-            let mut m = cm.lock().unwrap();
+            let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             m.child_pid = Some(pid);
-            let _ = meta::write_meta(&dir, &m);
+            if let Err(e) = meta::write_meta(&dir, &m) {
+                events::append(
+                    &parent,
+                    "meta_write_failed",
+                    serde_json::json!({"wrapper_pid": wrapper_pid, "fact": "child_pid", "error": format!("{e:#}")}),
+                )
+                .ok();
+            }
             events::append(
                 &parent,
                 "child_started",
@@ -92,9 +110,16 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
         move |code: i32| {
             // Before the drain, never after: a descendant holding the inherited
             // pipes can delay the drain indefinitely, and the status is known now.
-            let mut m = cm.lock().unwrap();
+            let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             m.reaped = Some(meta::Reaped { at: chrono::Utc::now(), status: code });
-            let _ = meta::write_meta(&dir, &m);
+            if let Err(e) = meta::write_meta(&dir, &m) {
+                events::append(
+                    &parent,
+                    "meta_write_failed",
+                    serde_json::json!({"wrapper_pid": wrapper_pid, "fact": "reaped", "error": format!("{e:#}")}),
+                )
+                .ok();
+            }
             events::append(
                 &parent,
                 "child_exit",
@@ -107,7 +132,7 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
     let outcome = match core::run_core(&cmd, &child_dir, on_spawn, on_reap).await {
         Ok(o) => o,
         Err(core::CoreError::Spawn(e)) => {
-            let mut m = cm.lock().unwrap();
+            let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             m.spawn_error = Some(e.to_string());
             meta::write_meta(&child_dir, &m)?;
             events::append(
@@ -122,7 +147,7 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
     };
 
     {
-        let mut m = cm.lock().unwrap();
+        let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         m.drained_at = Some(chrono::Utc::now());
         meta::write_meta(&child_dir, &m)?;
     }

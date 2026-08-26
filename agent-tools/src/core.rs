@@ -62,6 +62,15 @@ where
     S: FnOnce(u32),
     R: FnOnce(i32),
 {
+    // `cmd[0]` below would panic on an empty slice. Both callers check first,
+    // but this is the contract the passthrough tests drive directly, so it
+    // answers instead of aborting.
+    if cmd.is_empty() {
+        return Err(CoreError::Other(anyhow::anyhow!(
+            "run_core: no command supplied"
+        )));
+    }
+
     std::fs::create_dir_all(capture_dir)
         .map_err(|e| CoreError::Other(anyhow::anyhow!("mkdir {}: {e}", capture_dir.display())))?;
 
@@ -151,4 +160,27 @@ where
         exit_code,
         merge: Merge::Split("not yet decided"),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The crate has no lib target, so `tests/core_test.rs` reaches `run_core`
+    /// only through the binary — and an empty command cannot be spelled on a
+    /// command line. A unit test is the only place this precondition can be
+    /// driven.
+    #[tokio::test]
+    async fn empty_command_is_an_error_not_a_panic() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cap = tmp.path().join("cap");
+        let cmd: Vec<String> = Vec::new();
+
+        let err = run_core(&cmd, &cap, |_| {}, |_| {})
+            .await
+            .expect_err("an empty command has nothing to run");
+
+        assert!(matches!(err, CoreError::Other(_)), "got: {err:?}");
+        assert!(!cap.exists(), "nothing ran, so nothing should be captured");
+    }
 }
