@@ -19,11 +19,16 @@ Build and test baseline:
 ```bash
 cd /root/claude-config-work/agent-tools
 cargo build --release
-cargo test
+cargo test --no-fail-fast
 ```
 
-**Expected:** 105 tests pass, and exactly one test fails:
-`opencode_test.rs::opencode_loads_prefixed_langfuse_env_and_forwards_args`.
+`--no-fail-fast` is required: plain `cargo test` stops at the first failing test binary, so
+every suite after it silently never runs and any total you read is truncated.
+
+**Expected:** exactly one failure,
+`opencode_test.rs::opencode_loads_prefixed_langfuse_env_and_forwards_args`, and no other.
+Judge yourself on the named tests in each task rather than on a total, which grows as the
+tasks add tests.
 
 That failure is **pre-existing and unrelated to this plan**. It happens because the test
 uses the real worktree root, so `agent-tools opencode` reads the repository's own `.env`,
@@ -44,7 +49,7 @@ cargo test --lib core
 | --- | --- | --- |
 | `agent-tools/src/core.rs` | create | The process core: merge decision, spawn, tee, wait, bounded drain, outcome facts. No scope, ledger, hook or `AGENT_TOOLS_PARENT_DIR` knowledge. |
 | `agent-tools/src/capture.rs` | modify | `tee` gains forward-close detection, capture-failure isolation, and a drain bound. Returns what happened instead of discarding it. |
-| `agent-tools/src/run.rs` | modify | Keeps meta/events/signal wiring; delegates process handling to `core`. Persists the outcome facts. |
+| `agent-tools/src/run.rs` | modify | Keeps meta and events wiring; delegates process handling, and signal forwarding with it, to `core`. Persists the outcome facts. |
 | `agent-tools/src/meta.rs` | modify | `ChildMeta` carries the facts that explain a difference from bare. |
 | `agent-tools/src/status.rs` | modify | `render()` shows those facts beside the key. |
 | `agent-tools/src/main.rs` | modify | `Cmd::RunCore` variant + dispatch arm. |
@@ -327,7 +332,10 @@ Add to `enum Cmd` (after the `Run` variant around :118):
     RunCore {
         #[arg(long)]
         capture_dir: std::path::PathBuf,
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true, last = true)]
+        // No `last = true`: clap asserts at runtime that it cannot be combined with
+        // `trailing_var_arg`, and the assert is debug-only, so a release build would
+        // accept it and only `cargo test` would fail. This matches `Cmd::Run`.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         cmd: Vec<String>,
     },
 ```
@@ -413,7 +421,7 @@ instant its fact becomes true:
             events::append(
                 &parent,
                 "child_exit",
-                serde_json::json!({"wrapper_pid": wrapper_pid, "exit_code": code}),
+                serde_json::json!({"wrapper_pid": wrapper_pid, "child_pid": m.child_pid, "exit_code": code}),
             )
             .ok();
         }
@@ -449,6 +457,15 @@ instant its fact becomes true:
 
 `&m` is a `MutexGuard<ChildMeta>`; deref coercion gives `write_meta` the `&ChildMeta` it wants,
 so no `Clone` derive is needed.
+
+**The callbacks return `()`, so a failed `write_meta` inside them cannot be propagated.**
+Discarding it is deliberate: propagating would abort the run and report the wrapper's error
+instead of the child's exit code, which the spec guarantees. Record the failure through
+`events::append` — never `eprintln!` from inside a callback, because `on_reap` can run while
+the stderr tee is still forwarding child output to fd 2, and the two writers are not
+synchronized. The cost of discarding is a real window: until a later write succeeds, a reader
+sees `reaped: None` with the wrapper alive and derives `producing` for a child that has
+already exited. Later tasks adding facts to `ChildMeta` inherit this policy.
 
 Three supporting edits: add `use crate::core;` to the imports at `run.rs:7-11`; delete the now
 unused `use std::process::Stdio;` (`run.rs:2`) and `use tokio::process::Command;` (`run.rs:5`),
