@@ -532,3 +532,54 @@ fn post_close_drain_is_bounded_and_the_bound_is_recorded() {
         "at the bound the read end closes, so the child sees SIGPIPE as it would bare"
     );
 }
+
+/// The low end of the range. A bound of `0` is a bound like any other, and the
+/// drain stops at the first read past the close — one read of capture rather
+/// than none, because `tee` counts the chunk that detected the close without
+/// comparing on it and reaches the comparison only on the next one.
+#[test]
+fn the_lowest_bound_stops_the_drain_at_the_first_read_past_the_close() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    let out = pipefail(&format!(
+        "{} run-core --drain-cap-bytes 0 --capture-dir {} -- {OVERRUNS_THE_BOUND} | head -1",
+        bin(),
+        cap.display()
+    ));
+
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "yes-line\n");
+    let captured = std::fs::metadata(cap.join("stdout")).unwrap().len();
+    // The ceiling is twelve of the tee's 8192-byte reads, and every term of it
+    // is structural: the one 8192-byte block `head -1` reads before it quits,
+    // the eight the 64 KiB pipe buffer holds, the one tokio's stdout has in
+    // hand when the close lands, the one
+    // `TeeOutcome::bytes_since_close_detected` describes as the lag, and the
+    // one read the drain arm takes before breaking. 98,304 bytes — which is
+    // also the largest of 160 runs, across an idle machine and one with every
+    // core saturated; the smallest was 20,480. 150,000 keeps margin over that
+    // ceiling and still catches both ways a bound of 0 stops being one — read
+    // as "uncapped", or swapped for the 256 MiB default — since either lets
+    // the producer run its whole 10,485,760 bytes into the capture.
+    assert!(
+        captured < 150_000,
+        "the drain stops one read past the close, not at the producer's end; \
+         captured {captured} bytes of 10485760"
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    // Position, as the neighbouring tests check it, and the bound's own value
+    // with it. Size alone cannot tell a bound of 0 from one of 64 KiB here:
+    // measured, the two bands overlap under load — 0 reaching 98,304 and 65,536
+    // falling to 81,920 — because both are dominated by what was in flight when
+    // the close surfaced rather than by the bound. The line is exact where the
+    // size is not.
+    assert!(
+        err.lines()
+            .any(|l| l.starts_with("agent-tools: stdout drain bound of 0 bytes")),
+        "the bound that fired is the one that was asked for; stderr was {err:?}"
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(141),
+        "at the bound the read end closes, so the child sees SIGPIPE as it would bare"
+    );
+}

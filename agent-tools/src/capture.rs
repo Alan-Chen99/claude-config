@@ -43,6 +43,16 @@ pub struct TeeOutcome {
 /// `read_buf_divides_the_two_regimes` below is what makes that loud.
 const READ_BUF: usize = 8192;
 
+/// A bound no capture can reach, for callers with no downstream to lose.
+/// Not a sentinel: `tee` compares against it like any other value, so there is
+/// no special case to leave untested. `0` is equally valid and means "stop at
+/// the first chunk after the close".
+// Part of `tee`'s contract rather than of any current caller's: the callers
+// with no downstream to lose are all tests, and a bin crate's `pub` does not
+// reach them from the non-test build.
+#[allow(dead_code)]
+pub const UNCAPPED: u64 = u64::MAX;
+
 /// Tee `reader` -> (capture file at `capture_path`) + (forward writer).
 /// Updates `last_activity_unix_ms` on each non-empty read. Appends
 /// `first_byte` + (later) `silence`/`silence_break` events to `events_dir`
@@ -57,7 +67,9 @@ const READ_BUF: usize = 8192;
 /// `drain_cap_bytes` past the close the reader is dropped, which closes the read
 /// end of the child's pipe and leaves the child facing the `SIGPIPE` bare would
 /// have given it. The bound applies only once forwarding has failed, so an
-/// ordinary run never approaches it. 0 is uncapped.
+/// ordinary run never approaches it. Every value is a bound and every value
+/// means the same thing, `0` included — it stops at the first chunk read after
+/// the close. A caller with no downstream to lose passes `UNCAPPED`.
 ///
 /// Returns when the reader closes (EOF), or when the drain reaches its bound.
 pub async fn tee<R, W>(
@@ -93,7 +105,7 @@ where
 
         if outcome.forward_closed {
             outcome.bytes_since_close_detected += n as u64;
-            if drain_cap_bytes > 0 && outcome.bytes_since_close_detected >= drain_cap_bytes {
+            if outcome.bytes_since_close_detected >= drain_cap_bytes {
                 outcome.drain_capped = true;
                 state(&format!(
                     "agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes \
@@ -247,7 +259,7 @@ mod tests {
             reader,
             cap.clone(),
             tokio::io::sink(),
-            0,
+            UNCAPPED,
             last.clone(),
             evts_dir,
         ));
@@ -269,7 +281,9 @@ mod tests {
         let (forward_w, mut forward_r) = tokio::io::duplex(1024);
         let last = Arc::new(AtomicI64::new(now_unix_ms()));
 
-        let h = tokio::spawn(tee("stdout", reader, cap, forward_w, 0, last, evts_dir));
+        let h = tokio::spawn(tee(
+            "stdout", reader, cap, forward_w, UNCAPPED, last, evts_dir,
+        ));
         writer.write_all(b"forward me\n").await.unwrap();
         drop(writer);
         h.await.unwrap().unwrap();
@@ -294,7 +308,7 @@ mod tests {
             reader,
             cap,
             tokio::io::sink(),
-            0,
+            UNCAPPED,
             last,
             evts_dir.clone(),
         ));
