@@ -346,14 +346,19 @@ fn pipefail(script: &str) -> std::process::Output {
         .unwrap()
 }
 
-/// A producer whose output cannot fit in the pipe the consumer just dropped.
+/// Enough output that the close is seen inside the read loop, not at the flush.
 ///
-/// The size is load-bearing. `seq 1 5000` is 23,893 bytes and even 5000 `echo`s
-/// of `line-$i` are 48,893 — both under the 65,536-byte pipe buffer, so the tee
-/// hands the kernel everything and finishes before `head` has exited, and no
-/// forward write ever fails. Nothing observes the close and the test cannot
-/// fail. `seq 1 100000` is 588,895 bytes, nine times the buffer, so the tee must
-/// block on a reader that has gone.
+/// The size is load-bearing, and the regime boundary is one of the tee's
+/// 8192-byte reads — not any buffer size in tokio. A forwarded write's error
+/// surfaces one chunk after the write that caused it: `Blocking::poll_write`
+/// hands the chunk to a blocking task and returns `Ok` without waiting, so the
+/// next `poll_write`, or the flush at EOF, is what reports it. A child whose
+/// whole output arrives in a single read therefore fails nothing in the loop;
+/// `ARRIVES_IN_ONE_CHUNK` covers that band. 588,895 bytes cannot arrive in one
+/// read however the producer paces it — it is seventy-two of them — so this one
+/// always fails in the loop. It also dwarfs the 65,536-byte pipe buffer, so the
+/// tee must block on a reader that has gone rather than handing the kernel
+/// everything and finishing before `head` exits.
 const OVERFLOWS_THE_PIPE: &str = "bash -c 'echo done >&2; seq 1 100000'";
 
 /// The producer is last on purpose: `bash` exits with the status of the last
@@ -367,6 +372,17 @@ fn wrapped_into_head(cap: &Path) -> String {
     )
 }
 
+/// Not a guard for the forward close. This passes unchanged against code that
+/// discards the error from the final flush, and against code whose read loop
+/// never checked its forward writes at all — it was green before either fix and
+/// after. `a_close_seen_only_at_the_flush_is_stated_too` is the test that guards
+/// the flush; `a_closed_downstream_is_stated_on_stderr` guards the loop.
+///
+/// What this one pins is that losing the downstream costs the caller neither the
+/// child nor the call: the child runs to completion, the whole result still
+/// reaches disk, and the wrapper exits on the child's own status instead of
+/// dying of SIGPIPE the way bare does. A later drain bound that stops reading
+/// too early breaks it, which is why it stays.
 #[test]
 fn downstream_quitting_neither_kills_the_child_nor_the_call() {
     let tmp = tempfile::tempdir().unwrap();
@@ -429,5 +445,45 @@ fn a_closed_downstream_is_stated_on_stderr() {
             .count(),
         1,
         "said once, not once per chunk; stderr was {err:?}"
+    );
+}
+
+/// One chunk, one read, so only the flush can ever see the close.
+///
+/// The error from a forwarded write appears one chunk after the write that
+/// caused it: `Blocking::poll_write` hands the chunk to a blocking task and
+/// returns `Ok` without waiting, and the next `poll_write` — or the flush — is
+/// what reports it. A child whose whole output is a single chunk fails nothing
+/// in the loop, so `EPIPE` has exactly one place left to appear.
+///
+/// 2000 bytes is one `write` under `PIPE_BUF`, so it reaches the tee whole in a
+/// single read rather than in however many pieces the producer chose, and it
+/// sits four times inside the 8192-byte read rather than near its edge. The
+/// consumer is gone before any of it exists: `(exit 0)` forks, exits and closes
+/// the read end while the child is still sleeping. Nothing races.
+const ARRIVES_IN_ONE_CHUNK: &str = r#"bash -c 'sleep 0.5; printf "%01999d\n" 0'"#;
+
+#[test]
+fn a_close_seen_only_at_the_flush_is_stated_too() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    let out = pipefail(&format!(
+        "{} run-core --capture-dir {} -- {ARRIVES_IN_ONE_CHUNK} | (exit 0)",
+        bin(),
+        cap.display()
+    ));
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("agent-tools: stdout downstream closed"),
+        "a close only the flush can see is still stated; stderr was {err:?}"
+    );
+    let captured = std::fs::read_to_string(cap.join("stdout"))
+        .or_else(|_| std::fs::read_to_string(cap.join("output")))
+        .unwrap();
+    assert_eq!(
+        captured.len(),
+        2000,
+        "and the capture still holds everything the child wrote"
     );
 }

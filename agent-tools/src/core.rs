@@ -99,8 +99,6 @@ pub struct Outcome {
     /// A downstream stopped accepting writes, on either stream, and forwarding
     /// to it stopped. The child ran on and the capture kept growing.
     pub forward_closed: bool,
-    /// Bytes captured after that, summed over both streams.
-    pub post_close_bytes: u64,
 }
 
 /// Spawn failed, or something else did. Kept distinct so `run` can record the
@@ -316,7 +314,6 @@ where
         // Either stream losing its downstream is the same difference from bare;
         // which one it was is already on stderr, under the stream's own name.
         forward_closed: a.forward_closed || b.forward_closed,
-        post_close_bytes: a.post_close_bytes + b.post_close_bytes,
     })
 }
 
