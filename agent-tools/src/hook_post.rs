@@ -65,7 +65,11 @@ pub fn run() -> Result<()> {
     let out = serde_json::json!({
         "hookSpecificOutput": {
             "hookEventName": event,
-            "additionalContext": parts.join(" ")
+            // Newline, not space: the prompt teaches the agent to recognize a
+            // line beginning `[agent-tools]` or `BACKGROUNDED:`, and a joined
+            // pair leaves the second header mid-line where that rule cannot
+            // reach it.
+            "additionalContext": parts.join("\n")
         }
     });
     println!("{}", serde_json::to_string(&out)?);

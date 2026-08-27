@@ -206,8 +206,8 @@ fn bg_notice_and_status_report_combined() {
     assert!(ctx.starts_with("BACKGROUNDED:"), "ctx: {ctx}");
     assert!(ctx.contains("KAIROS"), "ctx: {ctx}");
     assert!(ctx.contains("bt-9"), "ctx: {ctx}");
-    // Notice and report are joined by a single space, in that order.
-    assert!(ctx.contains(" [agent-tools] run status:\n"), "ctx: {ctx}");
+    // Notice first, then the report, each header beginning its own line.
+    assert!(ctx.contains("\n[agent-tools] run status:\n"), "ctx: {ctx}");
     assert!(ctx.contains("seeded [final(0)]"), "ctx: {ctx}");
 }
 
@@ -646,4 +646,37 @@ fn parallel_hooks_report_each_child_exactly_once() {
             "child {needle} must be reported exactly once across all hooks; combined:\n{combined}"
         );
     }
+}
+
+/// The prompt teaches the agent that a line beginning `[agent-tools]` or
+/// `BACKGROUNDED:` is status from this channel. Joining the two notices with a
+/// space leaves the status header mid-line, where that rule does not reach it.
+#[test]
+fn the_status_header_begins_a_line_even_beside_a_backgrounding_notice() {
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "tuid", 424242, Some(0));
+    let (status, stdout, stderr) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Bash",
+            "tool_input": {"command": "sleep 9999", "timeout": 5000},
+            "tool_use_id": "tuid",
+            "tool_response": {"backgroundTaskId": "bt-11"}
+        }),
+    );
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("additionalContext");
+    assert!(ctx.contains("BACKGROUNDED:"), "context: {ctx}");
+    let header = ctx
+        .lines()
+        .find(|l| l.contains("[agent-tools] run status:"))
+        .unwrap_or_else(|| panic!("no status header in: {ctx}"));
+    assert!(
+        header.starts_with("[agent-tools] run status:"),
+        "the header must begin its line, got: {header:?}"
+    );
 }
