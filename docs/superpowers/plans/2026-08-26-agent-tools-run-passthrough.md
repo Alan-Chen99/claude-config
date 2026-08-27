@@ -929,17 +929,34 @@ fn split_capture_holds_two_files() {
 
 #[test]
 fn long_lines_survive_the_merge_uncorrupted() {
-    let script = "for i in $(seq 1 40); do printf 'O%.0s' $(seq 1 9000); echo; \
-                  printf 'E%.0s' $(seq 1 9000) >&2; echo >&2; done";
+    // The splice has to be forced. A long line crosses several of the tee's
+    // 8192-byte reads, and the other stream has to land a write between two of
+    // them, which only happens while the gap between the child's own two writes
+    // stays under roughly 50 us. One command substitution inside the loop is
+    // twenty times that by itself, so the long line is built once and the loop
+    // runs on builtins alone.
+    let script = "long=$(printf 'O%.0s' $(seq 1 12000)); i=0; \
+                  while ((i<200)); do echo \"$long\"; echo E >&2; ((i++)); done";
     let (text, _tmp) = run_core_to_one_appending_file(script);
+    let (mut long_lines, mut short_lines) = (0, 0);
     for line in text.lines() {
-        assert_eq!(line.len(), 9000, "a spliced line means the merge failed");
-        let first = line.as_bytes()[0];
+        let first = *line
+            .as_bytes()
+            .first()
+            .expect("an empty line means one write was split in two");
         assert!(
             line.bytes().all(|b| b == first),
             "a line mixing O and E is two writes spliced together"
         );
+        if first == b'O' {
+            assert_eq!(line.len(), 12000, "a spliced line means the merge failed");
+            long_lines += 1;
+        } else {
+            assert_eq!(line, "E", "a spliced line means the merge failed");
+            short_lines += 1;
+        }
     }
+    assert_eq!((long_lines, short_lines), (200, 200), "every line arrives whole, exactly once");
 }
 ```
 
@@ -949,11 +966,11 @@ Run: `cargo test --test core_test merged`
 Expected: FAIL — `cap/output` does not exist; both streams still go to two pipes, and
 `merged_streams_keep_their_relative_order` fails on interleaving.
 
-This task also retires the crate's three dead-code warnings, which nothing before it can:
-`decide_merge` has no non-test caller until `run_core` consults it, which keeps
-`Merge::Merged` unconstructed in the non-test build, and `Outcome.merge` is written but read
-by nobody. Do not silence any of them with `#[allow]` — wiring the decision in is what
-retires them, and a suppression would hide whether it worked.
+This task retires two of the crate's three dead-code warnings: consulting `decide_merge`
+gives it a caller and constructs `Merge::Merged`. The third, `field 'merge' is never read`,
+survives — writing `Outcome { merge }` is not a read — and retires in Task 8, which carries
+the facts into `ChildMeta`. Do not silence any of them with `#[allow]`; a suppression would
+hide whether the wiring worked.
 
 - [ ] **Step 3: Add the tokio `net` feature**
 
@@ -978,7 +995,12 @@ the decision. Take the decision from this process's own fds 1 and 2 before spawn
     command.args(&cmd[1..]).stdin(Stdio::inherit());
 
     let merged_reader = if let Merge::Merged(_) = merge {
-        let (r, w) = nix::unistd::pipe()
+        // O_CLOEXEC, as `Stdio::piped()` does for the split branch: the child
+        // gets fd 1 and fd 2 by `dup2`, which clears the flag, and the copies
+        // these came from close on exec. Left inheritable, a descendant of a
+        // child that closed its own stdout and stderr would still hold a write
+        // end, and the tee would wait on a pipe bare would already have closed.
+        let (r, w) = nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC)
             .map_err(|e| CoreError::Other(anyhow::anyhow!("pipe: {e}")))?;
         let w2 = w
             .try_clone()
@@ -991,6 +1013,12 @@ the decision. Take the decision from this process's own fds 1 and 2 before spawn
     };
 
     let mut child = command.spawn().map_err(CoreError::Spawn)?;
+    // `command` still owns the write ends it was handed, and the child now has
+    // its own. A pipe reports EOF only once the last write end closes, so
+    // keeping these would leave the merged tee reading a pipe nobody will ever
+    // write to or close — a child that has already exited, and a wrapper that
+    // never returns.
+    drop(command);
 ```
 
 Then, after `on_spawn(pid)` and the signal wiring, replace the two `tokio::spawn(capture::tee(
@@ -1050,7 +1078,7 @@ absent rather than empty, which is what the spec requires.
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 9 tests. `long_lines_survive_the_merge_uncorrupted` is the direct regression
+Expected: PASS, 10 tests. `long_lines_survive_the_merge_uncorrupted` is the direct regression
 guard for F3's splice mechanism.
 
 - [ ] **Step 6: Verify `run` inherits the fix and nothing else regressed**
@@ -1066,7 +1094,7 @@ split — the split was never the contract.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add agent-tools/Cargo.toml agent-tools/src/core.rs agent-tools/tests/core_test.rs
+git add agent-tools/Cargo.toml agent-tools/Cargo.lock agent-tools/src/core.rs agent-tools/tests/core_test.rs
 git commit -m "agent-tools: two pipes reordered every wrapped command's output"
 ```
 
