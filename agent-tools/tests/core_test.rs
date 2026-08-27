@@ -349,11 +349,10 @@ fn pipefail(script: &str) -> std::process::Output {
 /// Enough output that the close is seen inside the read loop, not at the flush.
 ///
 /// The size is load-bearing, and the regime boundary is one of the tee's
-/// 8192-byte reads — not any buffer size in tokio. A forwarded write's error
-/// surfaces one chunk after the write that caused it: `Blocking::poll_write`
-/// hands the chunk to a blocking task and returns `Ok` without waiting, so the
-/// next `poll_write`, or the flush at EOF, is what reports it. A child whose
-/// whole output arrives in a single read therefore fails nothing in the loop;
+/// 8192-byte reads — not any buffer size in tokio. `TeeOutcome`'s
+/// `bytes_since_close_detected` states the mechanism: a forwarded write's error
+/// surfaces one chunk after the write that caused it, so a child whose whole
+/// output arrives in a single read fails nothing in the loop, and
 /// `ARRIVES_IN_ONE_CHUNK` covers that band. 588,895 bytes cannot arrive in one
 /// read however the producer paces it — it is seventy-two of them — so this one
 /// always fails in the loop.
@@ -399,9 +398,7 @@ fn downstream_quitting_neither_kills_the_child_nor_the_call() {
         "1\n2\n3\n",
         "the caller still sees exactly what it asked for"
     );
-    let captured = std::fs::read_to_string(cap.join("stdout"))
-        .or_else(|_| std::fs::read_to_string(cap.join("output")))
-        .unwrap();
+    let captured = std::fs::read_to_string(cap.join("stdout")).unwrap();
     assert!(
         captured.ends_with("100000\n"),
         "the whole result still lands on disk; got {} bytes",
@@ -448,11 +445,10 @@ fn a_closed_downstream_is_stated_on_stderr() {
 
 /// One chunk, one read, so only the flush can ever see the close.
 ///
-/// The error from a forwarded write appears one chunk after the write that
-/// caused it: `Blocking::poll_write` hands the chunk to a blocking task and
-/// returns `Ok` without waiting, and the next `poll_write` — or the flush — is
-/// what reports it. A child whose whole output is a single chunk fails nothing
-/// in the loop, so `EPIPE` has exactly one place left to appear.
+/// `TeeOutcome`'s `bytes_since_close_detected` states the mechanism: the error
+/// from a forwarded write appears one chunk after the write that caused it. A
+/// child whose whole output is a single chunk fails nothing in the loop, so
+/// `EPIPE` has exactly one place left to appear.
 ///
 /// 2000 bytes is one `write` under `PIPE_BUF`, so it reaches the tee whole in a
 /// single read rather than in however many pieces the producer chose, and it
@@ -472,13 +468,15 @@ fn a_close_seen_only_at_the_flush_is_stated_too() {
     ));
 
     let err = String::from_utf8_lossy(&out.stderr);
-    assert!(
-        err.contains("agent-tools: stdout downstream closed"),
-        "a close only the flush can see is still stated; stderr was {err:?}"
+    assert_eq!(
+        err.lines()
+            .filter(|l| l.starts_with("agent-tools: stdout downstream closed"))
+            .count(),
+        1,
+        "a close only the flush can see is still stated, once, and at the start of a \
+         line — the position the prompt teaches; stderr was {err:?}"
     );
-    let captured = std::fs::read_to_string(cap.join("stdout"))
-        .or_else(|_| std::fs::read_to_string(cap.join("output")))
-        .unwrap();
+    let captured = std::fs::read_to_string(cap.join("stdout")).unwrap();
     assert_eq!(
         captured.len(),
         2000,

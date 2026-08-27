@@ -14,20 +14,18 @@ use crate::events;
 pub struct TeeOutcome {
     /// The downstream stopped accepting writes; forwarding stopped here.
     pub forward_closed: bool,
-    /// Counted from the chunk whose forward write returned an error, which is
-    /// not the chunk during which the downstream closed. A forwarded write's
-    /// error surfaces one chunk late — `Blocking::poll_write` hands the chunk to
-    /// a blocking task and returns `Ok` without waiting, so the *next* write is
-    /// what reports it — and the write that failed was already past the close.
-    /// So this lags the real close by up to two of the 8192-byte reads below.
-    /// Counting the trigger chunk whole is exact rather than approximate:
-    /// `Blocking::poll_write` fails that chunk from its Busy arm having accepted
-    /// none of it, so there is no accepted prefix to subtract. The chunk that
-    /// may have been delivered in part is the preceding one — the write that was
-    /// still in flight when the downstream closed — and it is never counted here
-    /// at all. An anchor for a drain bound, not a count of bytes the downstream
-    /// missed.
-    pub post_close_bytes: u64,
+    /// An anchor for a drain bound, not a count of bytes the downstream missed:
+    /// detection lags the close itself by up to two of the 8192-byte reads
+    /// below. A forwarded write's error surfaces one chunk late —
+    /// `Blocking::poll_write` hands the chunk to a blocking task and returns
+    /// `Ok` without waiting, so the *next* write is what reports it — and the
+    /// write that failed was already past the close. The trigger chunk is
+    /// counted whole, which is exact rather than approximate: `poll_write`
+    /// fails it from its Busy arm having accepted none of it, so there is no
+    /// prefix to subtract. The chunk that may have been delivered in part is
+    /// the preceding one, still in flight when the downstream closed, and it is
+    /// never counted here at all.
+    pub bytes_since_close_detected: u64,
 }
 
 /// The tee's read size, and the boundary between the two capture-side regimes.
@@ -84,10 +82,10 @@ where
         file.write_all(chunk).await?;
 
         if outcome.forward_closed {
-            outcome.post_close_bytes += n as u64;
+            outcome.bytes_since_close_detected += n as u64;
         } else if let Err(e) = forward.write_all(chunk).await {
             outcome.forward_closed = true;
-            outcome.post_close_bytes += n as u64;
+            outcome.bytes_since_close_detected += n as u64;
             state_forward_closed(stream_name, &e, &capture_path);
         }
         last_activity_unix_ms.store(now_unix_ms(), Ordering::SeqCst);
@@ -101,15 +99,13 @@ where
         }
     }
     file.flush().await.ok();
-    // The same error, at the second write site. A forwarded write's error
-    // surfaces one chunk after the write that caused it: `Blocking::poll_write`
-    // hands the chunk to a blocking task and returns `Ok` without waiting, and
-    // the next `poll_write` — or this flush — is what reports it. The last chunk
-    // has no next write, so its error can appear nowhere but here; and a child
-    // whose whole output arrives in one 8192-byte read has no earlier chunk
-    // either, so here is the only place `EPIPE` ever appears. Discarded, the
-    // caller's stream is silently short by whatever was still in flight and the
-    // outcome says forwarding was fine.
+    // The second write site for the one-chunk-late error stated on
+    // `TeeOutcome::bytes_since_close_detected`. The last chunk has no next
+    // write, so its error can appear nowhere but here; and a child whose whole
+    // output arrives in one 8192-byte read has no earlier chunk either, so here
+    // is the only place `EPIPE` ever appears. Discarded, the caller's stream is
+    // silently short by whatever was still in flight and the outcome says
+    // forwarding was fine.
     match forward.flush().await {
         Err(e) if !outcome.forward_closed => {
             outcome.forward_closed = true;
