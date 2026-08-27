@@ -488,7 +488,6 @@ fn a_long_command_is_capped_on_the_ps_line() {
     );
 }
 
-
 /// `ps` is read after a compaction, through a tool result that truncates. What
 /// started most recently is what the agent is still acting on, so it must be at
 /// the top rather than wherever the tool-use identifier happened to sort.
@@ -497,9 +496,21 @@ fn captures_are_ordered_newest_first() {
     let home = tempfile::tempdir().unwrap();
     // Identifier order and time order disagree: the alphabetically first
     // tool-use holds the oldest capture.
-    seed_capture_at(home.path(), "sid", None, "toolu_aaa", 100, Some("oldest"), Some(0), "2026-05-17T10:00:00Z");
-    seed_capture_at(home.path(), "sid", None, "toolu_zzz", 200, Some("middle"), Some(0), "2026-05-17T11:00:00Z");
-    seed_capture_at(home.path(), "sid", None, "toolu_zzz", 300, Some("newest"), Some(0), "2026-05-17T12:00:00Z");
+    let at = |tuid, pid, desc, started| {
+        seed_capture_at(
+            home.path(),
+            "sid",
+            None,
+            tuid,
+            pid,
+            Some(desc),
+            Some(0),
+            started,
+        )
+    };
+    at("toolu_aaa", 100, "oldest", "2026-05-17T10:00:00Z");
+    at("toolu_zzz", 200, "middle", "2026-05-17T11:00:00Z");
+    at("toolu_zzz", 300, "newest", "2026-05-17T12:00:00Z");
 
     let out = agent_tools()
         .args(["ps", "--session-id", "sid"])
@@ -513,7 +524,10 @@ fn captures_are_ordered_newest_first() {
         String::from_utf8_lossy(&out.stderr)
     );
     let s = String::from_utf8_lossy(&out.stdout);
-    let pos = |needle: &str| s.find(needle).unwrap_or_else(|| panic!("{needle} missing from: {s}"));
+    let pos = |needle: &str| {
+        s.find(needle)
+            .unwrap_or_else(|| panic!("{needle} missing from: {s}"))
+    };
     assert!(
         pos("newest") < pos("middle") && pos("middle") < pos("oldest"),
         "captures must read newest first: {s}"
