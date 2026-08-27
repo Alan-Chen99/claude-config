@@ -2069,7 +2069,8 @@ Until this task the facts exist only inside the core; the agent never sees them.
 **Files:**
 - Modify: `agent-tools/src/meta.rs:16-28`
 - Modify: `agent-tools/src/run.rs`
-- Modify: `agent-tools/src/status.rs` (`render`, around :131)
+- Modify: `agent-tools/src/status.rs` — `render`, currently at `:174`, whose single `format!`
+  is at `:197`; find them by name, since three tasks have already moved every line they named
 - Modify: `agent-tools/tests/run_facts_test.rs`
 
 - [ ] **Step 1: Write the failing test**
