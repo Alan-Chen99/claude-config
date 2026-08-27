@@ -55,6 +55,7 @@ If this surfaced new work or a revision, do it and re-enter the gate at the next
 
 mod capture;
 mod claude;
+mod core;
 mod events;
 mod hook_input;
 mod hook_post;
@@ -126,6 +127,33 @@ enum Cmd {
         /// "`--desc` argv hiding (F88)".
         #[arg(long)]
         hide_cmdline: bool,
+        /// Bytes captured after the downstream closed before the read end is
+        /// dropped. Unset means the production default; the two entry points
+        /// never carry their own, or they can disagree about the one case the
+        /// bound exists for.
+        ///
+        /// Nobody running a command has a reason to turn this. It is here
+        /// because `drain_capped` reaches `meta.json` only through `run`, so a
+        /// test that the bound is recorded would otherwise have to drive the
+        /// 256 MiB default to see it, and would not be written.
+        #[arg(long)]
+        drain_cap_bytes: Option<u64>,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        cmd: Vec<String>,
+    },
+    /// Run a command through the passthrough core with no scope, ledger or hooks.
+    /// Exists so passthrough behaviour can be differenced against the bare command.
+    /// Not taught by the system prompt: use `run` for anything that needs reporting.
+    #[command(name = "run-core")]
+    RunCore {
+        #[arg(long)]
+        capture_dir: std::path::PathBuf,
+        /// Bytes captured after the downstream closed before the read end is
+        /// dropped. Unset means the production default; the two entry points
+        /// never carry their own, or they can disagree about the one case the
+        /// bound exists for.
+        #[arg(long)]
+        drain_cap_bytes: Option<u64>,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         cmd: Vec<String>,
     },
@@ -381,16 +409,76 @@ fn main() {
     let root = repo_root();
 
     match cli.command {
-        Cmd::Run { desc, hide_cmdline, cmd } => {
+        Cmd::Run {
+            desc,
+            hide_cmdline,
+            drain_cap_bytes,
+            cmd,
+        } => {
             let code = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run::run(desc, hide_cmdline, cmd));
+                .block_on(run::run(desc, hide_cmdline, drain_cap_bytes, cmd));
             match code {
                 Ok(c) => std::process::exit(c),
                 Err(e) => {
-                    eprintln!("agent-tools run: {e:#}");
+                    // `agent-tools: `, not the `agent-tools <sub>: ` the
+                    // other subcommands' arms spell. This print and
+                    // `run-core`'s are the only two a caller can meet *after*
+                    // it has already seen its command's output:
+                    // `core::run_core` raises its wait failure with the tees
+                    // running, `run::run` passes it through, and it lands
+                    // here. The system prompt promises the agent that a line
+                    // beginning `agent-tools:` is the wrapper's own rather
+                    // than its command's, which is the only thing separating
+                    // the two once they share a stream. The arms that can fail
+                    // only before a child exists never interleave with command
+                    // output, so the inconsistency is deliberate — except
+                    // `run::run`'s own empty-command check, which reaches this
+                    // print before any child exists and keeps the prefix
+                    // anyway. Harmless: nothing else is writing to stderr at
+                    // that point for it to be confused with, and the promise
+                    // runs one way — a line beginning `agent-tools:` is the
+                    // wrapper's, not that every wrapper line begins one.
+                    // `scripts/check-prompt-coupling.sh` pins the prompt's
+                    // half of that promise and `capture.rs`'s five
+                    // diagnostics; these two carry it uncovered, which is why
+                    // the reason lives here.
+                    eprintln!("agent-tools: run: {e:#}");
+                    std::process::exit(2);
+                }
+            }
+        }
+        Cmd::RunCore {
+            capture_dir,
+            drain_cap_bytes,
+            cmd,
+        } => {
+            if cmd.is_empty() {
+                eprintln!("agent-tools run-core: no command supplied after --");
+                std::process::exit(2);
+            }
+            let outcome = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(core::run_core(
+                    &cmd,
+                    &capture_dir,
+                    drain_cap_bytes,
+                    |_, _| {},
+                    |_| {},
+                ));
+            match outcome {
+                Ok(o) => std::process::exit(o.exit_code),
+                Err(e) => {
+                    // Prefixed `agent-tools:` for the reason `Cmd::Run`'s arm
+                    // spells out: reachable with the tees already running, so a
+                    // caller can meet it after its command's own output. The
+                    // no-command print above cannot — it fires before a child
+                    // exists — so it keeps the subcommand-qualified form.
+                    eprintln!("agent-tools: run-core: {e}");
                     std::process::exit(2);
                 }
             }
@@ -523,6 +611,7 @@ fn main() {
             Cmd::HookPost => unreachable!(),
             Cmd::HookPrompt => unreachable!(),
             Cmd::Run { .. } => unreachable!(),
+            Cmd::RunCore { .. } => unreachable!(),
             Cmd::Ps { .. } => unreachable!(),
             Cmd::OpencodeGate { .. } => unreachable!(),
             Cmd::MinGate { .. } => unreachable!(),

@@ -11,6 +11,8 @@ These strings are emitted by `agent-tools` and quoted verbatim in the system pro
 | `hook_post.rs` / `hook_prompt.rs` report header `"[agent-tools] run status:\n…"`, and the `"… unavailable this time"` fallback that shares its prefix | `sys_prompt/alan-default-next.md`, `# Using your tools`, the `agent-tools run` bullet list | Edit both sides together. `scripts/check-prompt-coupling.sh` fails if they drift. It matches the exact literal at each emit site, not the bare prefix: the prefix also occurs in the fallback branch, so a file-level grep passes over a drifted header. |
 | `status.rs`'s `Display for StatusKey` → `producing`, `quiet(<bucket>)`, `exited(<code>)`, `final(<code>)`, `abandoned`, `spawn-failed(<error>)` | Same bullet list, the sentence beginning "Keys are" | Same rule, with a second consumer: these strings are also the ledger identity that decides whether a change has already been reported, so renaming one re-reports every live child once. `key_strings_are_stable_ledger_identities` pins the text; the coupling script pins the prompt to it. |
 | `hook_post.rs::bg_notice` → `"BACKGROUNDED: Command was backgrounded. Cause: …"`                 | Same bullet list, closing sentence                     | The prompt keys off the bare substring `BACKGROUNDED:`, so only the prefix is coupled.             |
+| `capture.rs`'s five diagnostics, every one written through `state`: the downstream-closed notice, the drain-bound notice, and one each for the capture's open, write loop and flush failures | Same bullet list, the passthrough bullet — "always prefixed `agent-tools:`" | The prompt promises the prefix, not the wording, so the guard pins one exact literal per emit site rather than the prefix: measured, dropping `agent-tools:` at one site still leaves four matches in the file, so a bare-prefix grep passes while any four of the five drift. Five sites because the open, the write loop and the flush each need their own message; the `failed (` needle runs on to `forwarding continues` so it cannot also match the flush's line and leave that site unpinned. Drift costs the agent the only thing separating a wrapper diagnostic from its command's own stderr. The notes segment carries the same facts on the status channel, which is what covers the cases stderr cannot — a notice about stderr itself, or about the one destination a merge made of both, since that is the closed descriptor in exactly those. Measured: `… 2>&1 \| head -3` delivers no notice and still reports `[downstream closed]`. `main.rs`'s `run` and `run-core` failure prints are the only other diagnostics reachable once the tees are running, so they carry the same prefix under the same promise; the guard pins `capture.rs`'s five, and a comment at each of those two sites carries the reason its spelling differs from the other subcommands'. |
+| `status.rs::render`'s notes segment and `stat failed:` — `streams split: <why>`, `downstream closed`, `drain capped`, `capture failed: <err>`, `[stat failed: <err>]` | Same bullet list, the status bullet, the sentence beginning "`<detail>` is" | Guarded, one needle per emit site: `check-prompt-coupling.sh` pins the whole `format!` / `push` expression rather than the words, because the bare words also occur in `status.rs`'s own render assertions, so a word-level grep passes over a drifted emitter. Each needle matches exactly one place in the file, and each of the five was watched to fail — change the emitted string and the script names `status.rs`. The prompt teaches the agent that a bracket after the byte counts is facts rather than a second key, and names all five; renaming one leaves that bracket unexplained on a line the agent must still read. See "The notes segment" below for the emit conditions. |
 | `main.rs::GATE_STDOUT` (printed by `agent-tools opencode.gate`)                                  | `opencode/agents/alan-default-ids.md`, step 4 ("gate stdout returns instructions") and step 5 ("reason in a thinking block about what it instructs") of the Doing-tasks list; G1 reinforces R002 (big-picture target), G4 cites R043 (cheap-rejection transparency), G6 cites R090 (no implicit work-assignment), G7 stands alone (evidence-vs-claim), all rules defined in the same agent body | The agent prompt references "gate stdout" without quoting it. If GATE_STDOUT were emptied or removed, the agent prompt would still direct the agent to "follow nothing" — silently no-ops the R060 mistake-check. Pointer-style: items reference rules in the agent body rather than restating them. If the body's R002, R043, or R090 is renumbered or removed, the matching G silently loses its referent. The closing sentence ("re-enter the gate at the next version") is the consumer for the step-5 iterate-until-clean trigger; the body's heredoc uses `turn-<X>-version-<Y>` tags that share this vocabulary. Edit both sides together; rebuild `agent-tools` so the binary actually emits the new text. |
 | `main.rs::MIN_GATE_STDOUT` (printed by `agent-tools min.gate`)                                   | `opencode/agents/min.md`, step 4/5/6 wording; G1 reinforces R002 (big-picture target), G4 cites R043 (cheap-rejection transparency), G6 cites R090 (no implicit work-assignment), all defined in the same agent body | Diagnostic baseline counterpart to GATE_STDOUT — identical text minus G7 (the evidence-vs-claim check). Pointer-style: items reference rules in the agent body rather than restating them, so the gate is a reminder list rather than a complete checklist. If the body's R002, R043, or R090 is renumbered or removed, the matching G silently loses its referent. Edit both sides together; rebuild `agent-tools`. Cite layout was G3→R070 / G5→R090 before round 7 of the failure-mode investigation. |
 
@@ -52,6 +54,40 @@ K3 + v8 + H17"` verbatim from `ps aux` (all runs pre-fix had the
 leak; the hide fix now exists but is behind a flag so we do not lose
 debugging clarity on non-probe work).
 
+## The merge rule
+
+A wrapped child gets **one** destination for both its streams exactly when the caller's own two
+descriptors provably reach one destination that cannot disagree about where the next byte goes:
+the same file (same device and inode), both writable, and either both pipes or both appending.
+Everything else stays split. `core::decide_merge` is the whole of it.
+
+Splitting destroys the order between the two streams and splices long lines, and neither is
+repairable afterwards — that order exists only in the kernel, and by the time the wrapper has
+two pipes it is gone. So the rule exists to keep it, not as an optimisation.
+
+**It declines rather than guesses.** Whether two descriptors share an open file description is
+not decidable from userspace, so the conditions make the question irrelevant: neither admissible
+destination has an offset to disagree about, and merging two distinct ones would misroute the
+caller's data. The enumeration is short for two different reasons, and the difference matters if
+you extend it. A tty or `/dev/null` cannot be admitted — character devices are not uniformly
+unseekable, so the class would be a guess. A socket *could* be, being provably unseekable like a
+pipe, and is left out only because no measured caller presents one on both descriptors. Add a
+destination when a caller needs it, not because it would be sound.
+
+There is no flag. The only decisive test would mean writing to the caller's own file, and a flag
+could only demand the merge the rule refused.
+
+**`core::Merge` and `status::Capture` are one fact recorded twice.** A merged run opens one
+`output` file; a split run opens `stdout` and `stderr`. `status::derive` reads the shape back off
+whichever files exist, and `meta.json`'s `merge` field supplies only the *condition*. A change to
+what either arm opens has to move both, or a report line describes files that are not there.
+
+**Its reach is an environment assumption, not a contract.** In the Claude Code Bash tool both
+descriptors are one appending description on one regular file, so ordinary calls merge and
+`2>&1` is a no-op. A harness that spawns with `Command::output()` gets two fresh pipes, two
+inodes, and a split — which is why almost every test in this repo sees the split path and almost
+no production run does. Measure before assuming which one your case takes.
+
 ## Status reporting
 
 `hook_post.rs` answers `PostToolUse` with an empty matcher (every tool) and
@@ -81,10 +117,30 @@ read as "nothing else changed".
 
 ### Report lines
 
-One line per child, always. The name — `--desc`, or the command when there is none —
-is the only field carrying arbitrary text, and it is bounded twice before it reaches
-a line: `meta::escape_control` escapes control characters, and `status.rs`'s
-`NAME_MAX` caps the rendered length.
+One line per child, always:
+
+```
+<name> [<key>] pid <pid>, <age>, <bytes> [<notes>] [stat failed: <errors>] -> <paths>
+```
+
+The two trailing bracketed groups are omitted entirely — brackets included — when
+they hold nothing; the key's brackets are always there.
+
+Four of its fields come off the record and carry arbitrary text: the name —
+`--desc`, or the command when there is none — and the `merge`, `capture_error`, and
+`spawn_error` strings. All four pass through `meta::escape_control`, which escapes
+control characters; only the name is also bounded in length, by `status.rs`'s
+`NAME_MAX`.
+
+None of the three — `merge`, `capture_error`, `spawn_error` — is child-controlled
+today: every producer is a wrapper-authored `io::Error`, an anyhow chain, or one of
+`core::decide_merge`'s static conditions. A record read off disk is still not
+trustworthy input: a hand-written `meta.json` carrying a newline in `capture_error`
+made `agent-tools ps` emit a second physical line, reading as a status line for a
+child that does not exist. A malformed record costs that record, not the history.
+`spawn_error` reaches a line inside the status key, so `render` escapes the rendered
+key rather than the single variant that carries text; the raw key stays the ledger
+identity, where a newline is harmless JSON.
 
 Both bounds exist because a line is a contract, not a display. A name containing a
 newline renders a second line that reads as a status line for a child that does not
@@ -95,6 +151,48 @@ being delivered; a 9,000-character command produces one.
 
 `ps` escapes its `cmd:` line for the same reason. It does not cap, because the full
 command is what `ps` exists to add.
+
+#### The notes segment
+
+Everything that explains a difference from bare, in one bracketed group sitting
+between the byte counts and the capture paths, `; `-separated. None of them names a
+stream: `downstream closed` and `drain capped` are folded across both tees, so on a split
+run they do not say which side it was. Stderr usually does, under the stream's own name —
+but not when stderr is the descriptor that closed, which is one of the two shapes this
+record exists for. In this order — which
+`status::tests::a_difference_from_bare_is_readable_beside_the_key` pins by asserting the
+whole bracket group rather than each note independently, since the prompt teaches the order:
+
+| Note                    | Emitted when                                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `streams split: <why>`  | The capture is two files **and** `meta.merge` holds a condition other than `different destinations`.                 |
+| `downstream closed`     | `meta.forward_closed` — a caller descriptor stopped accepting writes, so forwarding stopped there.                   |
+| `drain capped`          | `meta.drain_capped` — post-close capture reached `core::DEFAULT_DRAIN_CAP_BYTES`, so the capture is short by design. |
+| `capture failed: <err>` | `meta.capture_error` — a capture file could not be written, so it is incomplete from that point on.                  |
+
+The whole group is absent, brackets included, when none of the four applies —
+which is nearly every run. These lines land in every tool result, and a note that
+is always there stops being read. `drain capped` is reachable only inside the
+forwarding-failed branch, so it never appears without `downstream closed`.
+
+`<why>` is `core::decide_merge`'s condition string: `descriptor could not be
+inspected`, `descriptor flags could not be read`, `not both writable`, or `same
+file, but not both appending`. It is never `different destinations`, the one
+condition `render` suppresses: there the caller's own two descriptors already
+reached two destinations, so bare kept the streams apart too and the split explains
+nothing — and that is the shape of every harness spawning with two pipes, so noting
+it would put a note on every line of every test run and none on production, which
+merges. Whether the capture is one file or two is read off the files that exist
+(`status::Capture`), never off the record; `meta.merge` supplies only the condition.
+
+A line therefore carries up to **three** bracketed groups, in this order: the status
+key (always), the notes (only when something differed from bare), and `[stat failed:
+…]` (only when stat'ing a capture file failed with something other than *not created
+yet*). The last two share bracket shape and `; ` separators while meaning different
+things — the notes describe the run, `stat failed` describes this process's own
+inability to read the capture files, and it alone is sourced from a live syscall
+rather than from `meta.json`. Bracket count is what separates a clean line from one
+carrying notes, and is asserted as such in `a_clean_run_carries_no_notes`.
 
 ### A `TaskStop` result is not evidence about a child
 

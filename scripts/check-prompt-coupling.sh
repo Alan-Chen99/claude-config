@@ -53,6 +53,49 @@ abandoned|write!(f, "abandoned")
 spawn-failed(|write!(f, "spawn-failed({e})")
 KEYS
 
+# The wrapper's own diagnostics. The prompt promises every one begins
+# `agent-tools:`, which is how the agent tells them from its command's output.
+# The prompt-side needle carries the prefix, not just the promise, or a reworded
+# prefix would pass. One needle per emit site: a bare-prefix grep over
+# `capture.rs` matches as long as any one of the five still carries it, so four
+# could drift unseen. Five, because the open, the write loop and the flush each
+# need their own message. The `failed (` needle runs on to `forwarding continues`
+# so it cannot also match the flush's line and leave that site unpinned. Each
+# needle is a fragment of one physical line — these format strings are
+# line-continued and `grep -qF` does not span lines.
+check 'always prefixed `agent-tools:`' "$prompt"
+check '"agent-tools: {stream_name} downstream closed ({err}); still capturing to' "$src/capture.rs"
+check '"agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes' "$src/capture.rs"
+check '"agent-tools: capture to {} could not be opened (' "$src/capture.rs"
+check '"agent-tools: capture to {} failed ({e}); forwarding continues' "$src/capture.rs"
+check '"agent-tools: capture to {} failed at the flush (' "$src/capture.rs"
+
+# The drain bound's size. The prompt names 256 MiB because "bounded" alone leaves
+# an agent unable to predict which of two behaviours a runaway producer gets —
+# `pipefail` reporting the producer's status, or the `141` the bound forces. That
+# number is a constant in `core.rs`, and nothing else would notice it moving.
+check '256 MiB bound' "$prompt"
+check 'DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;' "$src/core.rs"
+
+# The notes segment and the stat-failure group, both built by `status.rs::render`.
+# The prompt names all five so the agent reads a bracket after the byte counts as
+# facts about the run rather than as a second status key; rename one and that
+# bracket is unexplained on a line the agent must still read. Source-side needles
+# are whole `format!` / `push` expressions because the bare words also appear in
+# this file's own render assertions, so a word-level grep passes over a drifted
+# emitter. Each needle was verified to match exactly one place in `status.rs`.
+while IFS='|' read -r in_prompt in_source; do
+  [ -n "$in_prompt" ] || continue
+  check "$in_prompt" "$prompt"
+  check "$in_source" "$src/status.rs"
+done <<'NOTES'
+streams split: <why>|format!("streams split: {}", meta::escape_control(why))
+downstream closed|notes.push("downstream closed".to_string())
+drain capped|notes.push("drain capped".to_string())
+capture failed: <err>|format!("capture failed: {}", meta::escape_control(e))
+stat failed: <err>|format!(" [stat failed: {}]", s.stat_errors.join("; "))
+NOTES
+
 if [ "$status_source" -ne 0 ]; then
   echo "prompt coupling check FAILED" >&2
   exit 1

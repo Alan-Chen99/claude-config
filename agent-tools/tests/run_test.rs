@@ -175,9 +175,54 @@ fn records_child_started_and_child_exit_in_parent_events() {
         .unwrap();
     assert!(out.status.success());
     let evts = std::fs::read_to_string(parent_dir.join("events.jsonl")).unwrap();
-    assert!(evts.contains("\"child_started\""), "events: {evts}");
-    assert!(evts.contains("\"child_exit\""), "events: {evts}");
-    assert!(evts.contains("compute things"), "events: {evts}");
+
+    // The payloads are what a reader reconstructs the run from, so pin their
+    // whole shape: a field silently dropped from one of them is a fact lost,
+    // and matching on the kind string alone would not notice.
+    let events: Vec<serde_json::Value> = evts
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str(l).expect("each line is one event"))
+        .collect();
+    let data_of = |kind: &str| -> serde_json::Value {
+        events
+            .iter()
+            .find(|e| e["kind"] == kind)
+            .unwrap_or_else(|| panic!("no {kind} event: {evts}"))["data"]
+            .clone()
+    };
+    let field_names = |v: &serde_json::Value| -> Vec<String> {
+        let obj = v.as_object().expect("data is an object");
+        let mut names: Vec<String> = obj.keys().cloned().collect();
+        names.sort();
+        names
+    };
+
+    let started = data_of("child_started");
+    let exited = data_of("child_exit");
+
+    assert_eq!(
+        field_names(&started),
+        ["child_pid", "command", "desc", "wrapper_pid"]
+    );
+    assert_eq!(
+        field_names(&exited),
+        ["child_pid", "exit_code", "wrapper_pid"]
+    );
+
+    assert_eq!(started["desc"], "compute things");
+    assert_eq!(
+        started["command"],
+        serde_json::json!(["bash", "-c", "echo ok"])
+    );
+    assert_eq!(exited["exit_code"], 0);
+
+    // The exit must be attributable to the process that started: both events
+    // name the same child and the same wrapper, and neither pid is null.
+    assert!(started["child_pid"].as_u64().is_some(), "events: {evts}");
+    assert!(started["wrapper_pid"].as_u64().is_some(), "events: {evts}");
+    assert_eq!(exited["child_pid"], started["child_pid"]);
+    assert_eq!(exited["wrapper_pid"], started["wrapper_pid"]);
 }
 
 // Default: --desc and full argv are visible in /proc/self/cmdline
@@ -204,7 +249,11 @@ fn default_leaves_argv_visible_and_sets_comm() {
         .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     // Default keeps the descriptive argv intact.
     assert!(
@@ -248,7 +297,11 @@ fn hide_cmdline_hides_desc_and_argv_from_proc_self_cmdline() {
         .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
         !stdout.contains("F88-SECRET-CANARY-STRING"),

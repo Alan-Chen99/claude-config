@@ -261,9 +261,16 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         ctx.contains("probe [final(0)] pid "),
         "additionalContext missing `probe [final(0)] pid ` fragment; got: {ctx}"
     );
+    // `.output()` hands the wrapper two pipes, so the merge rule splits — and
+    // bare would have kept those two streams apart too, so nothing was lost and
+    // the line says nothing about it. The `-> ` sitting directly against the
+    // byte counts is what pins that: the notes segment lands between them, so a
+    // note reappearing here fails on the real wrapper run rather than only on a
+    // hand-written `meta.json`.
     assert!(
         ctx.contains("out=3B err=0B -> "),
-        "additionalContext missing byte-size fragment `out=3B err=0B -> `; got: {ctx}"
+        "additionalContext missing byte-size fragment \
+         `out=3B err=0B -> `; got: {ctx}"
     );
     assert!(
         ctx.contains("{stdout,stderr}"),

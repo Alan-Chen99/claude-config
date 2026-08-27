@@ -12,7 +12,8 @@ use crate::paths;
 struct Capture {
     agent_id: Option<String>,
     tool_use_id: String,
-    /// Directory containing this capture's stdout/stderr/meta.json.
+    /// Directory holding this capture: `stdout` and `stderr` when the streams were
+    /// split, `output` when they were merged, plus `meta.json` either way.
     /// Layout: `<tool_use_id_dir>/<pid>/`.
     capture_dir: PathBuf,
     meta: ChildMeta,
