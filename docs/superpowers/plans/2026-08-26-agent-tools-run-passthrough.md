@@ -1602,14 +1602,93 @@ git commit -m "agent-tools: final(0) could sit beside a capture that stopped gro
 
 ---
 
+## Task 9: The prompt promises more than the wrapper delivers
+
+The spec's "Not achievable" tier ends: "The prompt must stop promising otherwise." Nothing
+before this task does that, and Tasks 5-7 make the promise worse rather than better, because
+they add wrapper diagnostics on a stream the prompt says the wrapper never writes to.
+
+What `sys_prompt/alan-default-next.md` claims today, in the `agent-tools run` bullet list:
+
+> The wrapper passes the child's stdout and stderr through byte-for-byte and propagates the
+> child's exit code. Pipelines, redirections, `2>&1`, exit-status checks, and downstream
+> filters behave exactly as if you had run the bare command. The wrapper itself writes
+> nothing to stdout or stderr.
+
+Three of those clauses are false. Downstream filters do **not** behave as bare: a quitting
+downstream stops neither the child nor the call, and `pipefail` reports the producer's own
+status rather than `141` — that is the tool's purpose, not a defect. The wrapper writes to
+stderr whenever a stream or capture fails. And `2>&1` is not merely honoured, it is a no-op
+wherever the caller's own descriptors already reach one destination.
+
+An agent that believes the current text will misread an exit code and misattribute a
+diagnostic line to its own command.
+
+**Files:**
+- Modify: `sys_prompt/alan-default-next.md`
+- Modify: `agent-tools/CLAUDE.md` (the prompt-coupled strings table)
+
+- [ ] **Step 1: Replace the claim**
+
+Substitute this for the bullet quoted above:
+
+> - The wrapper forwards the child's bytes unchanged, in order within each stream, and exits
+>   with the child's own code — `128 + signum` if the child was signalled, since the wrapper
+>   cannot die of its child's signal. Stdin is inherited. Where the caller's stdout and
+>   stderr already reach one destination, the child gets one too, so ordinary calls keep
+>   their interleaving and `2>&1` is a no-op. Three deliberate differences: a downstream that
+>   quits stops neither the child nor the call, so `… | head -3` prints three lines while the
+>   whole result still lands on disk, and `pipefail` reports the producer's own status rather
+>   than `141`; the wrapper is a real process, so `pgrep -f` matches it and it outlives
+>   signals its child ignores; and it writes its own diagnostics to stderr, always prefixed
+>   `agent-tools:`, when a stream or capture fails. `isatty` is false under the wrapper.
+
+- [ ] **Step 2: Make the stderr prefix true**
+
+The text above promises every wrapper diagnostic begins `agent-tools:`. Check each
+`eprintln!` added by Tasks 5, 6 and 7 actually carries that prefix, and fix any that does
+not. A promise the emitters do not keep is worse than the claim it replaced.
+
+Run: `grep -rn 'eprintln!' agent-tools/src/`
+Expected: every line that reaches the caller's stderr starts its message with `agent-tools:`.
+
+- [ ] **Step 3: Record the coupling**
+
+`agent-tools/CLAUDE.md` has a table of strings emitted by the binary and quoted in the system
+prompt, so drift between them can be caught. The `agent-tools:` diagnostic prefix is now such
+a string. Add a row naming the emitters (`capture.rs`, `core.rs`), the prompt location, and
+what breaks if they drift: the agent stops being able to tell the wrapper's diagnostics from
+its own command's output.
+
+- [ ] **Step 4: Verify**
+
+Run: `bash scripts/check-prompt-coupling.sh`
+Expected: exit 0. This script pins the status-key literals and headers, not this bullet, so
+it should pass unchanged — confirm that rather than assume it.
+
+Run: `agent-tools count-tokens --file sys_prompt/alan-default-next.md`
+Expected: the file is a system prompt loaded on every session; note the before and after so
+the change's cost is visible.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add sys_prompt/alan-default-next.md agent-tools/CLAUDE.md
+git commit -m "prompt: it promised bare-equivalence the wrapper never had"
+```
+
+---
+
 ## Closing out
 
 - [ ] Update `notes/agent-tools-run-stress-findings.md`: mark F1, F2 and F3 fixed, naming the
       commit that closed each. Leave the reproductions in place — they are the regression
       record.
 - [ ] Update the spec's deviations table in
-      `docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`: remove the F1, F2 and F3
-      rows. Re-check the token budget with
+      `docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`: remove the F1 and F2
+      rows, and correct the count. F3's row is already gone, removed when Task 4 closed it —
+      close each finding as it lands rather than in a batch, so the spec is never a document
+      that describes a defect the branch has already fixed. Re-check the token budget with
       `agent-tools count-tokens --file docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`
       (it must stay under 4000; it was 3719 when this plan was written).
 - [ ] Update `agent-tools/CLAUDE.md` with a short section on the merge rule: that the decision
