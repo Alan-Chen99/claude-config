@@ -25,12 +25,14 @@ cargo test --no-fail-fast
 `--no-fail-fast` is required: plain `cargo test` stops at the first failing test binary, so
 every suite after it silently never runs and any total you read is truncated. Measured, with
 the one known failure below: a bare `cargo test` prints nine result lines and 132 passing;
-`--no-fail-fast` prints thirteen and 156. The four suites it skips — `ps_test`,
+`--no-fail-fast` prints thirteen, and 156 at the time this was written — 171 once Task 8
+lands, since each task adds tests. The shape is the point, not the total. The four suites it skips — `ps_test`,
 `root_resolution_test`, `run_facts_test`, `run_test` — do not announce themselves, so the
 lower number reads as a green run with fewer tests rather than as a truncated one.
 
 `cargo fmt --check` exits non-zero on this tree whatever you do: rustfmt 1.9.0 disagrees with
-whoever formatted it, at 48 sites spread across files no task here touches. The only check
+whoever formatted it, at 48 sites when this was written and 47 from Task 8 on, spread across
+files no task here touches. The only check
 that means anything is that your change adds none — compare the site list before and after,
 rather than reading the exit code. To get a clean "before", check the base commit out with
 `git worktree add --detach /tmp/<unique> <sha>`; do not reach for `git stash`, for the reason
@@ -2412,6 +2414,12 @@ diagnostic line to its own command.
 - Modify: `sys_prompt/alan-default-next.md`
 - Modify: `agent-tools/CLAUDE.md` (the prompt-coupled strings table)
 
+**"One destination" is not the condition.** `agent-tools run … > f 2>&1` puts both descriptors
+on one open file description — one destination by any reading — and still splits, because
+`decide_merge` requires both appending or both FIFO. The spec states it correctly ("both
+pipes or both appending"); the paraphrase below is what has to match it, not the other way
+round.
+
 - [ ] **Step 1: Replace the claim**
 
 Substitute this for the bullet quoted above. It replaces `sys_prompt/alan-default-next.md:170`
@@ -2425,8 +2433,8 @@ line breaks here are this document's formatting, not the file's.
 > - The wrapper forwards the child's bytes unchanged, in order within each stream, and exits
 >   with the child's own code — `128 + signum` if the child was signalled, since the wrapper
 >   cannot die of its child's signal. Stdin is inherited. Where the caller's stdout and
->   stderr already reach one destination, the child gets one too, so ordinary calls keep
->   their interleaving and `2>&1` is a no-op. Three deliberate differences: a downstream that
+>   stderr already share one pipe or one appending file, the child gets one destination too,
+>   so ordinary calls keep their interleaving and `2>&1` is a no-op. Three deliberate differences: a downstream that
 >   quits stops neither the child nor the call, so `… | head -3` prints three lines while the
 >   whole result still lands on disk, and `pipefail` reports the producer's own status rather
 >   than `141`; the wrapper is a real process, so `pgrep -f` matches it and it outlives
@@ -2446,6 +2454,13 @@ and that its contents are facts rather than another status key.
 which `render` has always emitted and which is structurally identical to the notes — same
 brackets, same semicolons, distinguishable only by what it says. Measured on one line. Whatever
 the prompt teaches has to be true of all three, or teach the reader to tell them apart.
+
+**Whatever this step quotes becomes prompt-coupled, so Step 3 has to pin it too.** Teaching the
+segment means naming `streams split:`, `downstream closed`, `drain capped`, `capture failed:`
+and `stat failed:` — five more strings the prompt asserts and `status.rs::render` emits. By this
+script's own reason for existing, a promise with no guard is the thing it prevents. Add a
+`check` pair for each, prompt side and `status.rs` side, in the style of the existing `KEYS`
+loop.
 
 - [ ] **Step 2: Make the stderr prefix true**
 
@@ -2479,11 +2494,12 @@ appear in the file's fallback branches, doc comments, and test names":
 ```bash
 # The wrapper's own diagnostics. The prompt promises every one begins
 # `agent-tools:`, which is how the agent tells them from its command's output.
-# One needle per emit site: `capture.rs` names the prefix in doc comments and in
-# `state`'s own contract, so a bare prefix would still match a drifted emitter.
+# One needle per emit site. Not because the file mentions the prefix elsewhere —
+# all five occurrences are emit sites — but because a file-level grep stays green
+# while four of the five still carry it, so dropping one would go unnoticed.
 # Each needle is a fragment of one physical line — these format strings are
 # line-continued and `grep -qF` does not span lines.
-check 'always prefixed' "$prompt"
+check 'always prefixed `agent-tools:`' "$prompt"
 check '"agent-tools: {stream_name} downstream closed ({err}); still capturing to' "$src/capture.rs"
 check '"agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes' "$src/capture.rs"
 check '"agent-tools: capture to {} could not be opened (' "$src/capture.rs"
