@@ -52,6 +52,12 @@ impl Merge {
     }
 }
 
+/// The caller's descriptors provably reached two destinations, so bare kept the
+/// streams apart too. Named because `status::render` must not report it: it is
+/// the one split that explains nothing, and it is the shape of every harness
+/// that spawns with two pipes.
+pub const DESTINATIONS_ALREADY_DIFFERED: &str = "different destinations";
+
 /// Decide whether the child's two streams may share one destination.
 ///
 /// Whether two descriptors share an open file description is not decidable from
@@ -72,7 +78,7 @@ pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
         _ => return Merge::Split("descriptor could not be inspected"),
     };
     if s_out.st_dev != s_err.st_dev || s_out.st_ino != s_err.st_ino {
-        return Merge::Split("different destinations");
+        return Merge::Split(DESTINATIONS_ALREADY_DIFFERED);
     }
 
     let (f_out, f_err) = match (

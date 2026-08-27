@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use std::fmt;
 use std::path::Path;
 
+use crate::core;
 use crate::meta::{self, ChildMeta};
 use crate::procstat;
 
@@ -198,14 +199,21 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     // which is nearly every run: these lines land in every tool result, and a
     // note that is always there stops being read.
     let mut notes: Vec<String> = Vec::new();
-    // Only a split is the difference. Bare had one destination and one
-    // interleaving; splitting is what loses them, and merging is what restores
-    // them. `s.capture` is where the shape is known — it is read off the files
-    // that exist — and `meta.merge` supplies only the condition.
+    // A split says something only when the caller's own two descriptors reached
+    // one destination and the rule declined anyway: then the capture is two
+    // files where one would have been faithful, and the interleaving between
+    // them is gone. When the descriptors provably reached two destinations,
+    // bare kept them apart too and there is nothing to explain — and that is
+    // the shape every `Command::output()` harness has, so noting it would put a
+    // note on every line of every test run while production, which merges, got
+    // none. `s.capture` is where the shape is known, read off the files that
+    // exist; `meta.merge` supplies only the condition.
     if let (Capture::Split { .. }, Some(why)) =
         (&s.capture, s.meta.as_ref().and_then(|m| m.merge.as_deref()))
     {
-        notes.push(format!("streams split: {why}"));
+        if why != core::DESTINATIONS_ALREADY_DIFFERED {
+            notes.push(format!("streams split: {why}"));
+        }
     }
     if s.meta.as_ref().is_some_and(|m| m.forward_closed) {
         notes.push("downstream closed".to_string());
@@ -419,7 +427,7 @@ mod tests {
     fn a_difference_from_bare_is_readable_beside_the_key() {
         let d = TempDir::new().unwrap();
         let mut m = base();
-        m.merge = Some("different destinations".into());
+        m.merge = Some(core::DESTINATIONS_ALREADY_DIFFERED.into());
         m.forward_closed = true;
         // The bound applies only once forwarding has failed, so the two facts
         // are true together or the record describes a run that cannot happen.
@@ -430,14 +438,38 @@ mod tests {
 
         let now = Utc::now();
         let line = render(d.path(), &derive(d.path(), now), now);
-        assert!(
-            line.contains("streams split: different destinations"),
-            "line: {line}"
-        );
         assert!(line.contains("downstream closed"), "line: {line}");
         assert!(line.contains("drain capped"), "line: {line}");
         assert!(
             line.contains("capture failed: No space left on device"),
+            "line: {line}"
+        );
+        // The one split that is not a difference from bare: two destinations
+        // stayed two, so there is nothing to explain. This is also the shape of
+        // every harness that spawns with two pipes, which is why a note here
+        // would be on every test line and no production one.
+        assert!(
+            !line.contains("streams split"),
+            "a split that kept nothing apart explains nothing: {line}"
+        );
+    }
+
+    #[test]
+    fn a_split_that_lost_the_interleaving_is_noted() {
+        // The rule declined to merge two descriptors that did reach one
+        // destination: the capture is two files where one would have been
+        // faithful, and the order between them is gone. That is the split the
+        // note exists for, and it is the one no harness produces by accident.
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        m.merge = Some("same file, but not both appending".into());
+        write(&d, &m);
+        std::fs::write(d.path().join("stdout"), b"x").unwrap();
+
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(
+            line.contains("streams split: same file, but not both appending"),
             "line: {line}"
         );
     }
