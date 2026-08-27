@@ -91,11 +91,17 @@ pub async fn run(
     // without spawning one, so there is no child status for the write error to
     // stand in place of and no later fault it could be reported instead of.
     //
-    // The cost of discarding is specific, and different per fact. A lost
-    // `child_pid` shows as `pid -` in `ps` and in every pushed report, because
-    // `status::render` reads the pid from disk — until a later write lands the
-    // whole struct, or for the child's whole life if none does, while events
-    // from this same process still carry the pid from memory. A lost reap
+    // The cost of discarding is specific, and different per fact. The
+    // `child_pid` write carries two, and loses both together. A lost pid shows
+    // as `pid -` in `ps` and in every pushed report, because `status::render`
+    // reads the pid from disk — until a later write lands the whole struct, or
+    // for the child's whole life if none does, while events from this same
+    // process still carry the pid from memory. A lost `merge` costs the reason
+    // a capture has the shape it has: `status::render` reads the condition from
+    // disk to decide whether a split lost interleaving the caller had, so the
+    // note that split is owed goes unsaid, for exactly as long as the pid does.
+    // The write is named for the pid alone in the event stream, because that is
+    // the site's name and not an inventory of what rode on it. A lost reap
     // leaves disk saying `reaped: None`, and `status::derive` reads a live
     // wrapper with no reap as `producing`/`quiet` — a child that has already
     // exited, described as still running. A lost `drained_at` costs only the
@@ -125,9 +131,14 @@ pub async fn run(
         let parent = parent_dir.clone();
         let desc = desc.clone();
         let cmdv = cmd.clone();
-        move |pid: u32| {
+        move |pid: u32, merge: &'static str| {
             let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             m.child_pid = Some(pid);
+            // Decided before the spawn, so it lands with the first fact there is
+            // a child for: a capture's shape is explicable from the moment there
+            // is a capture, rather than only once the wrapper is done with it.
+            // The other three are true mid-run at the earliest and cannot.
+            m.merge = Some(merge.to_string());
             record_meta_write(&parent, wrapper_pid, "child_pid", meta::write_meta(&dir, &m));
             events::append(
                 &parent,
@@ -182,9 +193,10 @@ pub async fn run(
     {
         let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         m.drained_at = Some(chrono::Utc::now());
-        // The core's facts ride the same write as `drained_at`, so a reader
-        // never finds a drained capture whose difference from bare is missing.
-        m.merge = Some(outcome.merge.condition().to_string());
+        // The core's end-of-run facts ride the same write as `drained_at`, so a
+        // reader never finds a drained capture whose difference from bare is
+        // missing. `merge` is not among them: it was known before the child
+        // existed and went to disk with the pid.
         m.forward_closed = outcome.forward_closed;
         m.drain_capped = outcome.drain_capped;
         m.capture_error = outcome.capture_error.clone();

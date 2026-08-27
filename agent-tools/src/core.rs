@@ -129,11 +129,15 @@ enum Streams {
     Split,
 }
 
-/// What the core observed. Everything here explains a difference from bare.
+/// What the core observed by the end of the run. Everything here explains a
+/// difference from bare, and none of it is knowable before the tees finish. The
+/// merge condition explains a difference too and is not here: it is decided
+/// before the spawn and handed to `on_spawn`, so a caller that records it need
+/// not wait for the drain — and one fact with one delivery path cannot disagree
+/// with itself.
 #[derive(Debug, Clone)]
 pub struct Outcome {
     pub exit_code: i32,
-    pub merge: Merge,
     /// A downstream stopped accepting writes, on either stream, and forwarding
     /// to it stopped. The child ran on and the capture kept growing.
     pub forward_closed: bool,
@@ -174,9 +178,12 @@ impl From<anyhow::Error> for CoreError {
 /// Run `cmd`, capturing both streams under `capture_dir` and forwarding them to
 /// this process's own stdout/stderr.
 ///
-/// `on_spawn` receives the child pid the moment it exists; `on_reap` receives the
-/// exit code the moment the child is reaped, before any draining. `run` uses those
-/// to persist facts in the order the invariant requires; `run-core` ignores them.
+/// `on_spawn` receives the child pid the moment it exists, and with it the merge
+/// condition, which was decided before the spawn: it is the one fact explaining a
+/// capture's shape that is knowable this early, so a reader never finds a capture
+/// whose shape nothing accounts for. `on_reap` receives the exit code the moment
+/// the child is reaped, before any draining. `run` uses those to persist facts in
+/// the order the invariant requires; `run-core` ignores them.
 ///
 /// `drain_cap_bytes` bounds what the tee keeps capturing after a downstream has
 /// stopped accepting writes; `None` is `DEFAULT_DRAIN_CAP_BYTES`. Resolving it
@@ -190,7 +197,7 @@ pub async fn run_core<S, R>(
     on_reap: R,
 ) -> Result<Outcome, CoreError>
 where
-    S: FnOnce(u32),
+    S: FnOnce(u32, &'static str),
     R: FnOnce(i32),
 {
     // The only place the production default is applied. Both entry points pass
@@ -257,7 +264,7 @@ where
     let pid = child
         .id()
         .ok_or_else(|| CoreError::Other(anyhow::anyhow!("child pid unavailable")))?;
-    on_spawn(pid);
+    on_spawn(pid, merge.condition());
 
     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
     crate::signals::install_forwarding(pid as i32, cancel_rx.clone()).ok();
@@ -368,7 +375,6 @@ where
 
     Ok(Outcome {
         exit_code,
-        merge,
         // Either stream losing its downstream, or either drain reaching its
         // bound, is the same difference from bare; which one it was is already
         // on stderr, under the stream's own name. The first capture failure is
@@ -418,7 +424,7 @@ mod tests {
         let cap = tmp.path().join("cap");
         let cmd: Vec<String> = Vec::new();
 
-        let err = run_core(&cmd, &cap, None, |_| {}, |_| {})
+        let err = run_core(&cmd, &cap, None, |_, _| {}, |_| {})
             .await
             .expect_err("an empty command has nothing to run");
 

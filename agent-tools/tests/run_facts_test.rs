@@ -27,6 +27,33 @@ fn child_dir(parent: &std::path::Path) -> Option<std::path::PathBuf> {
         .find(|p| p.is_dir())
 }
 
+/// Assert the run under test actually merged, from both sides of the decision:
+/// the condition it recorded, and the shape the decision fixed on disk. A merged
+/// capture holds one `output` file, and the other names are absent rather than
+/// empty — an empty `stderr` would read as "no diagnostics".
+///
+/// The two tests that use this exist because a merged run's notice goes into the
+/// descriptor that closed, so only the record can carry it. Measured, they hold
+/// without this: `2>&1` puts both wrapper descriptors on the one dead pipe, so
+/// the split path reaches the same two facts by another route, and disabling the
+/// merge arm outright left both green.
+fn assert_merged(parent: &std::path::Path, meta: &serde_json::Value) {
+    assert_eq!(
+        meta.get("merge").and_then(|v| v.as_str()),
+        Some("both pipes, same destination"),
+        "the run merged, and says on what condition: {meta}"
+    );
+    let dir = child_dir(parent).expect("capture dir exists");
+    assert!(
+        dir.join("output").exists(),
+        "a merged capture is one file: {meta}"
+    );
+    assert!(
+        !dir.join("stdout").exists() && !dir.join("stderr").exists(),
+        "a merged run opens neither, and absent is not empty: {meta}"
+    );
+}
+
 /// Kills the wrapper and the detached daemon however the test exits, including
 /// on panic. `std::process::Child`'s own Drop does not kill the process, so an
 /// assertion failure would otherwise leave both running.
@@ -198,10 +225,74 @@ fn the_merge_condition_is_recorded_beside_the_capture() {
     assert_eq!(out.status.code(), Some(0));
 
     let meta = read_meta(&parent).expect("meta.json written");
-    assert!(
-        meta.get("merge").is_some(),
+    // Measured, not reasoned: `Command::output()` hands the wrapper two distinct
+    // pipes, which the rule can tell apart and declines to merge — so this is
+    // the condition every harness-driven run records, and the one
+    // `status::render` deliberately says nothing about. Asserting only that the
+    // key is present pinned nothing: hardcoding what `run.rs` writes left the
+    // whole suite green while falsifying every merged production run's record,
+    // and silencing the note on every genuinely lossy split.
+    assert_eq!(
+        meta.get("merge").and_then(|v| v.as_str()),
+        Some("different destinations"),
         "the merge decision is recorded per capture: {meta}"
     );
+}
+
+/// The condition is known before the child exists — `decide_merge` runs before
+/// `on_spawn` — so it has no reason to wait for the drain. It used to: measured
+/// on the branch before this one, a live child's record held `merge: null` for
+/// its whole run, and a wrapper killed before the drain left it null forever, on
+/// a capture then keyed `abandoned` — one whose shape can never be explained.
+#[test]
+fn the_merge_condition_is_on_disk_before_the_run_is_over() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    let release = home.path().join("release");
+
+    // The child waits on a file rather than sleeping a fixed time, so the
+    // mid-run window cannot close early on a loaded machine.
+    let script = format!(
+        "echo started; while [ ! -e {} ]; do sleep 0.02; done",
+        release.display()
+    );
+    let wrapper = Command::new(bin())
+        .args(["run", "--desc", "midrun", "bash", "-c", &script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut cleanup = Cleanup {
+        wrapper,
+        daemon_pid_file: home.path().join("no-daemon.pid"),
+    };
+
+    // The pid is the other fact on that write, so its arrival is the instant to
+    // read: both land together or neither does.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let meta = loop {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "child pid never recorded"
+        );
+        match read_meta(&parent) {
+            Some(m) if !m["child_pid"].is_null() => break m,
+            _ => std::thread::sleep(std::time::Duration::from_millis(20)),
+        }
+    };
+
+    assert!(
+        meta["drained_at"].is_null(),
+        "the child is still running, so this is the mid-run record: {meta}"
+    );
+    assert!(
+        meta["merge"].as_str().is_some(),
+        "the condition rides the pid write, not the drain: {meta}"
+    );
+
+    std::fs::write(&release, b"").unwrap();
+    assert_eq!(cleanup.wrapper.wait().unwrap().code(), Some(0));
 }
 
 #[test]
@@ -212,9 +303,10 @@ fn a_close_that_stderr_could_not_carry_is_still_in_the_record() {
 
     // `2>&1` makes both of the wrapper's descriptors the same pipe, which the
     // merge rule admits, so the notice `capture::state` writes goes into the
-    // pipe `head` just dropped and no reader ever sees it. Same for a split
-    // run whose stderr is the stream that closed. The record is the only place
-    // either can appear, which is why the spec asks for stderr *and* the status.
+    // pipe `head` just dropped and no reader ever sees it. The record is the
+    // only place it can appear, which is why the spec asks for stderr *and* the
+    // status. `a_close_on_the_stderr_side_of_a_split_run_is_in_the_record` drives
+    // the other shape the same clause covers.
     let script = format!(
         "{} run --desc probe -- bash -c 'seq 1 100000' 2>&1 | head -3",
         bin()
@@ -229,6 +321,7 @@ fn a_close_that_stderr_could_not_carry_is_still_in_the_record() {
     assert_eq!(String::from_utf8_lossy(&out.stdout), "1\n2\n3\n");
 
     let meta = read_meta(&parent).expect("meta.json written");
+    assert_merged(&parent, &meta);
     assert_eq!(
         meta.get("forward_closed").and_then(|v| v.as_bool()),
         Some(true),
@@ -259,10 +352,69 @@ fn a_capped_drain_is_in_the_record() {
     assert_eq!(String::from_utf8_lossy(&out.stdout), "1\n2\n3\n");
 
     let meta = read_meta(&parent).expect("meta.json written");
+    assert_merged(&parent, &meta);
     assert_eq!(
         meta.get("drain_capped").and_then(|v| v.as_bool()),
         Some(true),
         "the bound reached the record: {meta}"
+    );
+}
+
+#[test]
+fn a_close_on_the_stderr_side_of_a_split_run_is_in_the_record() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    std::fs::create_dir_all(&parent).unwrap();
+
+    // The other shape the record clause covers, and the one nothing drove: every
+    // close test on this branch is stdout-side. `2>&1 1>/dev/null` leaves the
+    // wrapper's stderr on the pipe and its stdout on `/dev/null`, so the rule
+    // splits — two destinations — and the stream that loses its downstream is
+    // stderr. `capture::state` writes the notice to that same descriptor, into
+    // the pipe the subshell already dropped, so the record is again the only
+    // place the close appears. The child writes on stderr because it is the
+    // stderr tee whose forward has to fail. Nothing is asserted about the
+    // pipeline's own status or output: both are the subshell's, and the record
+    // is what this is about.
+    let script = format!(
+        "{} run --desc probe -- bash -c 'seq 1 100000 1>&2' 2>&1 1>/dev/null | (exit 0)",
+        bin()
+    );
+    std::process::Command::new("bash")
+        .args(["-c", &script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+
+    let meta = read_meta(&parent).expect("meta.json written");
+    let dir = child_dir(&parent).expect("capture dir exists");
+    assert_eq!(
+        meta.get("merge").and_then(|v| v.as_str()),
+        Some("different destinations"),
+        "a pipe and /dev/null are two destinations, so the streams stay split: {meta}"
+    );
+    assert!(
+        dir.join("stdout").exists() && dir.join("stderr").exists(),
+        "a split run opens both capture files: {meta}"
+    );
+    assert!(
+        !dir.join("output").exists(),
+        "and never the merged name: {meta}"
+    );
+    assert_eq!(
+        meta.get("forward_closed").and_then(|v| v.as_bool()),
+        Some(true),
+        "the record carries what stderr could not: {meta}"
+    );
+    // The close cost the forwarding and nothing else: the child ran to its own
+    // end and every line it wrote is in the capture.
+    let captured = std::fs::read_to_string(dir.join("stderr")).unwrap();
+    assert!(
+        captured.ends_with("100000\n"),
+        "the capture kept growing past the close, to {} bytes",
+        captured.len()
     );
 }
 

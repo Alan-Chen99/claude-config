@@ -440,7 +440,7 @@ fn main() {
                     &cmd,
                     &capture_dir,
                     drain_cap_bytes,
-                    |_| {},
+                    |_, _| {},
                     |_| {},
                 ));
             match outcome {

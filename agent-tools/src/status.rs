@@ -222,7 +222,7 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         notes.push("drain capped".to_string());
     }
     if let Some(e) = s.meta.as_ref().and_then(|m| m.capture_error.as_deref()) {
-        notes.push(format!("capture failed: {e}"));
+        notes.push(format!("capture failed: {}", meta::escape_control(e)));
     }
     let notes = if notes.is_empty() {
         String::new()
@@ -230,7 +230,15 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         format!(" [{}]", notes.join("; "))
     };
     let (bytes, paths) = s.capture.detail(dir);
-    format!("{name} [{}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}", s.key)
+    // The key carries `spawn_error`, the third of this line's fields to come off
+    // the record, and it is bounded here rather than in `derive`: the raw string
+    // is the ledger identity, which is JSON and holds a newline harmlessly,
+    // while a line is a contract. Escaping the whole rendered key rather than
+    // the one variant carrying text is what stops a later variant reopening
+    // this. A record read off disk is not trustworthy input, whatever this
+    // process's own producers put there.
+    let key = meta::escape_control(&s.key.to_string());
+    format!("{name} [{key}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}")
 }
 
 #[cfg(test)]
@@ -535,6 +543,51 @@ mod tests {
         let now = Utc::now();
         let line = render(dir.path(), &derive(dir.path(), now), now);
         assert!(!line.contains('\n'), "rendered over two lines: {line}");
+    }
+
+    /// The reviewer's reproduction: a `meta.json` written by hand, carrying a
+    /// newline and an ANSI sequence in the two fields a line takes from the
+    /// record. `agent-tools ps` emitted a second physical line, reading as a
+    /// status line for a child that does not exist. Neither field is
+    /// child-controlled today — every producer is a wrapper-authored `io::Error`
+    /// or an anyhow chain — but a record read off disk is not trustworthy input,
+    /// and a malformed one costs that record, not the history.
+    #[test]
+    fn a_hand_written_record_cannot_forge_a_second_line() {
+        let d = TempDir::new().unwrap();
+        // pid 0 has no /proc entry, so nothing here depends on a live wrapper.
+        std::fs::write(
+            d.path().join("meta.json"),
+            r#"{
+              "wrapper_pid": 0,
+              "wrapper_started_ticks": 1,
+              "child_pid": 4242,
+              "desc": "probe",
+              "command": ["true"],
+              "started_at": "2026-08-26T12:00:00Z",
+              "spawn_error": "boom\n  forged [final(0)] pid 1\u001b[31m",
+              "reaped": null,
+              "drained_at": null,
+              "capture_error": "no space\n  forged [final(0)] pid 2\u001b[31m"
+            }"#,
+        )
+        .unwrap();
+
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(!line.contains('\n'), "rendered over two lines: {line}");
+        assert!(
+            !line.contains('\u{1b}'),
+            "an escape sequence reached the terminal: {line}"
+        );
+        assert!(
+            line.contains("boom\\n  forged"),
+            "the spawn error is shown, not obeyed: {line}"
+        );
+        assert!(
+            line.contains("no space\\n  forged"),
+            "the capture error is shown, not obeyed: {line}"
+        );
     }
 
     #[test]

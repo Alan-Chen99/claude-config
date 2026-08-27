@@ -666,6 +666,14 @@ Two clauses. "The decision is recorded per capture" is not met for a live child,
 is the cheap half: `decide_merge` runs at `core.rs:214`, before `on_spawn`, so the condition
 is known before the child exists and could ride the `child_pid` write.
 
+**The `merge` half closed 2026-08-27.** `on_spawn` now carries the condition alongside the
+pid, and `run.rs` writes both together; `Outcome` no longer holds it, so the one fact has one
+delivery path and cannot disagree with itself. Measured after: two seconds into the same
+merged run, `meta.json` holds `merge: "both pipes, same destination"` with `reaped` and
+`drained_at` still null, and `SIGKILL` on the wrapper leaves it there rather than null.
+`run_facts_test::the_merge_condition_is_on_disk_before_the_run_is_over` pins it. The
+reproduction above stands as the regression record.
+
 The other three are mid-run facts, and that is the harder half. "Either failure is stated on
 stderr and in the status" holds for a split run — stderr carried it when the failure happened
 — but for a merged run, or a split run whose *stderr* downstream quit, the notice went into

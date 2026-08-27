@@ -81,10 +81,20 @@ read as "nothing else changed".
 
 ### Report lines
 
-One line per child, always. The name — `--desc`, or the command when there is none —
-is the only field carrying arbitrary text, and it is bounded twice before it reaches
-a line: `meta::escape_control` escapes control characters, and `status.rs`'s
-`NAME_MAX` caps the rendered length.
+One line per child, always. Three of its fields come off the record and carry
+arbitrary text: the name — `--desc`, or the command when there is none — and the
+`capture_error` and `spawn_error` strings. All three pass through
+`meta::escape_control`, which escapes control characters; only the name is also
+bounded in length, by `status.rs`'s `NAME_MAX`.
+
+Neither error field is child-controlled today — every producer is a wrapper-authored
+`io::Error` or an anyhow chain — but a record read off disk is not trustworthy input:
+a hand-written `meta.json` carrying a newline in `capture_error` made `agent-tools ps`
+emit a second physical line, reading as a status line for a child that does not exist.
+A malformed record costs that record, not the history. `spawn_error` reaches a line
+inside the status key, so `render` escapes the rendered key rather than the single
+variant that carries text; the raw key stays the ledger identity, where a newline is
+harmless JSON.
 
 Both bounds exist because a line is a contract, not a display. A name containing a
 newline renders a second line that reads as a status line for a child that does not
