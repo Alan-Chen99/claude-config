@@ -114,11 +114,15 @@ fn file_facts(dir: &Path, name: &str) -> (u64, Option<DateTime<Utc>>, Option<Str
 }
 
 /// Truncate on a char boundary, marking that it happened.
-fn cap(name: &str) -> String {
-    if name.chars().count() <= NAME_MAX {
-        return name.to_string();
+pub(crate) fn cap_to(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        return s.to_string();
     }
-    name.chars().take(NAME_MAX).chain(['\u{2026}']).collect()
+    s.chars().take(max).chain(['\u{2026}']).collect()
+}
+
+fn cap(name: &str) -> String {
+    cap_to(name, NAME_MAX)
 }
 
 fn largest_bucket(age_secs: i64) -> Option<&'static str> {

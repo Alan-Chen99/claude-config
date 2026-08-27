@@ -423,3 +423,43 @@ fn a_capture_without_meta_is_shown_rather_than_dropped() {
         "ps must show the capture it cannot describe, with its derived key: {s}"
     );
 }
+
+/// Agents routinely wrap large heredoc scripts, and `ps` is the recovery path
+/// the prompt names after a compaction. Rendering the whole command puts a
+/// six-figure line into the tool result that carries it.
+#[test]
+fn a_long_command_is_capped_on_the_ps_line() {
+    let home = tempfile::tempdir().unwrap();
+    let long = "x".repeat(5000);
+    seed_capture(
+        home.path(),
+        "sid",
+        None,
+        "tuid",
+        4242,
+        Some(&long),
+        Some(0),
+        "",
+    );
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    let longest = s.lines().map(|l| l.chars().count()).max().unwrap_or(0);
+    assert!(
+        longest <= 2100,
+        "longest ps line is {longest} chars; a wrapped script must not reach the output whole"
+    );
+    assert!(
+        s.contains('\u{2026}'),
+        "a truncated command must say it was truncated: {s}"
+    );
+}

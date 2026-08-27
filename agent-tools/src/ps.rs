@@ -269,6 +269,13 @@ fn collect_pid_captures(
     }
 }
 
+/// Longest command `ps` renders on one line. A wrapped heredoc script reaches
+/// six figures, and `ps` is read through a tool result that truncates, so one
+/// child's source would displace every other child's status. The cap is far
+/// above any command an agent types, and the full text stays in `meta.json`
+/// beside the capture, whose path is on the same line.
+const CMD_MAX: usize = 2000;
+
 /// One capture block: the derived status line, then the facts a pushed report
 /// leaves out. `ps` has no size budget, so it can afford the full command, the
 /// wrapper pid, and the start time; a report has to fit under a cap.
@@ -288,7 +295,7 @@ fn write_capture(buf: &mut String, c: &Capture) -> Result<()> {
         writeln!(
             buf,
             "      cmd:     {}",
-            crate::meta::escape_control(&m.command.join(" "))
+            crate::status::cap_to(&crate::meta::escape_control(&m.command.join(" ")), CMD_MAX)
         )?;
         writeln!(buf, "      wrapper: pid {}", m.wrapper_pid)?;
         writeln!(
