@@ -2539,7 +2539,7 @@ git commit -m "prompt: it promised bare-equivalence the wrapper never had"
       still departing, three fixed by this branch (F1, F2, F3), two accepted differences
       (F9, F12), and F10 breaking no clause. Re-check the token budget with
       `agent-tools count-tokens --file docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`
-      (it must stay under 4000; it was 3979 after the F16 clause landed, so the headroom is
+      (it must stay under 4000; it was 3981 after the F16 clause landed, so the headroom is
       about 20 tokens and removing the F1 and F2 rows is what pays for the F16 one; it was
       3925 after the deviations table was reduced to a
       clause-to-finding map, so the headroom is about 145 tokens).
