@@ -190,14 +190,13 @@ it, so agents keep reaching for the entry point with observability.
 
 ## Current deviations
 
-The stress findings record fifteen measured behaviours of the shipped binary; eleven still depart
-from the above. Each is reproduced in `notes/agent-tools-run-stress-findings.md` under the
-id below, which states its symptom — this table says only which clause it breaks.
+The findings record sixteen measured behaviours; ten still depart from the above. Each is
+reproduced in `notes/agent-tools-run-stress-findings.md` under the id below, which states its
+symptom — this table says only which clause it breaks.
 
 | Clause | Open |
 | --- | --- |
-| the post-close drain is bounded | F1 |
-| capture failure never kills the child | F2 |
+| readable beside the key, for a live child | F16 |
 | never reported terminal while starting | F4 |
 | a change not shown is reported again | F5 |
 | the pull path's output | F6, F15 |

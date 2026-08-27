@@ -54,6 +54,40 @@ K3 + v8 + H17"` verbatim from `ps aux` (all runs pre-fix had the
 leak; the hide fix now exists but is behind a flag so we do not lose
 debugging clarity on non-probe work).
 
+## The merge rule
+
+A wrapped child gets **one** destination for both its streams exactly when the caller's own two
+descriptors provably reach one destination that cannot disagree about where the next byte goes:
+the same file (same device and inode), both writable, and either both pipes or both appending.
+Everything else stays split. `core::decide_merge` is the whole of it.
+
+Splitting destroys the order between the two streams and splices long lines, and neither is
+repairable afterwards — that order exists only in the kernel, and by the time the wrapper has
+two pipes it is gone. So the rule exists to keep it, not as an optimisation.
+
+**It declines rather than guesses.** Whether two descriptors share an open file description is
+not decidable from userspace, so the conditions make the question irrelevant: neither admissible
+destination has an offset to disagree about, and merging two distinct ones would misroute the
+caller's data. The enumeration is short for two different reasons, and the difference matters if
+you extend it. A tty or `/dev/null` cannot be admitted — character devices are not uniformly
+unseekable, so the class would be a guess. A socket *could* be, being provably unseekable like a
+pipe, and is left out only because no measured caller presents one on both descriptors. Add a
+destination when a caller needs it, not because it would be sound.
+
+There is no flag. The only decisive test would mean writing to the caller's own file, and a flag
+could only demand the merge the rule refused.
+
+**`core::Merge` and `status::Capture` are one fact recorded twice.** A merged run opens one
+`output` file; a split run opens `stdout` and `stderr`. `status::derive` reads the shape back off
+whichever files exist, and `meta.json`'s `merge` field supplies only the *condition*. A change to
+what either arm opens has to move both, or a report line describes files that are not there.
+
+**Its reach is an environment assumption, not a contract.** In the Claude Code Bash tool both
+descriptors are one appending description on one regular file, so ordinary calls merge and
+`2>&1` is a no-op. A harness that spawns with `Command::output()` gets two fresh pipes, two
+inodes, and a split — which is why almost every test in this repo sees the split path and almost
+no production run does. Measure before assuming which one your case takes.
+
 ## Status reporting
 
 `hook_post.rs` answers `PostToolUse` with an empty matcher (every tool) and
