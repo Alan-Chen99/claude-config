@@ -351,3 +351,27 @@ fn multibyte_desc_still_runs_the_command() {
         assert_eq!(String::from_utf8_lossy(&out.stdout), "hello-world\n");
     }
 }
+
+/// `paths::parent_dir_from_env` already distinguishes "unset" from "relative".
+/// Reporting both as "not set" sends the reader looking for a missing hook when
+/// the hook ran and set a path the wrapper refused.
+#[test]
+fn a_relative_parent_dir_is_not_reported_as_unset() {
+    let home = tempfile::tempdir().unwrap();
+    let out = agent_tools()
+        .args(["run", "--", "echo", "hi"])
+        .env("HOME", home.path())
+        .env("AGENT_TOOLS_PARENT_DIR", "relative/path")
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("absolute") && err.contains("relative/path"),
+        "must name the cause and the offending value: {err}"
+    );
+    assert!(
+        !err.contains("is not set"),
+        "the variable is set; saying otherwise blames the wrong thing: {err}"
+    );
+}
