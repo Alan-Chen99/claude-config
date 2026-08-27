@@ -26,6 +26,9 @@ pub struct TeeOutcome {
     /// the preceding one, still in flight when the downstream closed, and it is
     /// never counted here at all.
     pub bytes_since_close_detected: u64,
+    /// The drain reached `drain_cap_bytes` and the read end was dropped. The
+    /// capture is short of what the child went on to write, by design.
+    pub drain_capped: bool,
 }
 
 /// The tee's read size, and the boundary between the two capture-side regimes.
@@ -50,12 +53,19 @@ const READ_BUF: usize = 8192;
 /// is the point. It is still a difference from bare, so it is stated on stderr
 /// and returned rather than inferred from a short stream.
 ///
-/// Returns when the reader closes (EOF).
+/// Draining on alone is how a runaway producer fills the disk, so it is bounded:
+/// `drain_cap_bytes` past the close the reader is dropped, which closes the read
+/// end of the child's pipe and leaves the child facing the `SIGPIPE` bare would
+/// have given it. The bound applies only once forwarding has failed, so an
+/// ordinary run never approaches it. 0 is uncapped.
+///
+/// Returns when the reader closes (EOF), or when the drain reaches its bound.
 pub async fn tee<R, W>(
     stream_name: &'static str,
     mut reader: R,
     capture_path: PathBuf,
     mut forward: W,
+    drain_cap_bytes: u64,
     last_activity_unix_ms: Arc<AtomicI64>,
     events_dir: PathBuf,
 ) -> Result<TeeOutcome>
@@ -83,6 +93,14 @@ where
 
         if outcome.forward_closed {
             outcome.bytes_since_close_detected += n as u64;
+            if drain_cap_bytes > 0 && outcome.bytes_since_close_detected >= drain_cap_bytes {
+                outcome.drain_capped = true;
+                state(&format!(
+                    "agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes \
+                     reached; dropping the read end so the child sees SIGPIPE as bare\n"
+                ));
+                break;
+            }
         } else if let Err(e) = forward.write_all(chunk).await {
             outcome.forward_closed = true;
             outcome.bytes_since_close_detected += n as u64;
@@ -117,7 +135,7 @@ where
     Ok(outcome)
 }
 
-/// Say once, on stderr, that forwarding stopped and capturing did not.
+/// Say something once on the caller's stderr, from inside a tee.
 ///
 /// Not `eprintln!`: that panics when the write fails, and the stream that just
 /// closed can be this one — `cmd 2>&1 | head -3` puts both of the caller's
@@ -125,16 +143,21 @@ where
 /// rule admits. A panic there would kill the tee, stopping the capture the
 /// message is about, and the outcome would come back saying nothing happened.
 ///
-/// Formatted first and written once, so the notice cannot be spliced by the
-/// other stream's tee mid-line: one `write` under `PIPE_BUF` is atomic, while
-/// `write_fmt` emits a syscall per fragment.
-fn state_forward_closed(stream_name: &str, err: &std::io::Error, capture_path: &std::path::Path) {
+/// Formatted by the caller and written once, so a notice cannot be spliced by
+/// the other stream's tee mid-line: one `write` under `PIPE_BUF` is atomic,
+/// while `write_fmt` emits a syscall per fragment. Callers pass the trailing
+/// newline; nothing here adds one, because a second write would break that.
+fn state(msg: &str) {
     use std::io::Write as _;
-    let msg = format!(
+    let _ = std::io::stderr().write_all(msg.as_bytes());
+}
+
+/// Say that forwarding stopped and capturing did not.
+fn state_forward_closed(stream_name: &str, err: &std::io::Error, capture_path: &std::path::Path) {
+    state(&format!(
         "agent-tools: {stream_name} downstream closed ({err}); still capturing to {}\n",
         capture_path.display()
-    );
-    let _ = std::io::stderr().write_all(msg.as_bytes());
+    ));
 }
 
 /// Run a per-stream silence watcher. Polls every 1 s; if the gap between
@@ -224,6 +247,7 @@ mod tests {
             reader,
             cap.clone(),
             tokio::io::sink(),
+            0,
             last.clone(),
             evts_dir,
         ));
@@ -245,7 +269,7 @@ mod tests {
         let (forward_w, mut forward_r) = tokio::io::duplex(1024);
         let last = Arc::new(AtomicI64::new(now_unix_ms()));
 
-        let h = tokio::spawn(tee("stdout", reader, cap, forward_w, last, evts_dir));
+        let h = tokio::spawn(tee("stdout", reader, cap, forward_w, 0, last, evts_dir));
         writer.write_all(b"forward me\n").await.unwrap();
         drop(writer);
         h.await.unwrap().unwrap();
@@ -270,6 +294,7 @@ mod tests {
             reader,
             cap,
             tokio::io::sink(),
+            0,
             last,
             evts_dir.clone(),
         ));

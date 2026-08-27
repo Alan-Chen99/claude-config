@@ -483,3 +483,52 @@ fn a_close_seen_only_at_the_flush_is_stated_too() {
         "and the capture still holds everything the child wrote"
     );
 }
+
+/// Far more than the bound, and it ends on its own.
+///
+/// Ending on its own is the load-bearing half. `yes yes-line` never stops, so
+/// against an implementation that adds the flag but not the `break` the test
+/// does not fail — it hangs, writing at F1's measured 400 MB/s into the temp
+/// dir until the disk is gone. A test for a disk-filling bug must not be one.
+/// 10 MiB overruns a 64 KiB bound by 160x and takes about 25 ms either way.
+const OVERRUNS_THE_BOUND: &str = "bash -c 'yes yes-line | head -c 10485760'";
+
+#[test]
+fn post_close_drain_is_bounded_and_the_bound_is_recorded() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    let out = pipefail(&format!(
+        "{} run-core --drain-cap-bytes 65536 --capture-dir {} -- {OVERRUNS_THE_BOUND} | head -1",
+        bin(),
+        cap.display()
+    ));
+
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "yes-line\n");
+    // `stdout`, not a fallback to `output`: `Command::output()` hands the outer
+    // bash two independent pipes, so `decide_merge` sees two inodes and always
+    // splits. A hedge here would be a branch that cannot run.
+    let captured = std::fs::metadata(cap.join("stdout")).unwrap().len();
+    // Generous but not vacuous. At most the 64 KiB pipe buffer got through
+    // before the consumer quit, the counter starts up to two 8192-byte reads
+    // after that, and the bound then allows 64 KiB more: about 145 KiB worst
+    // case. 300 KB catches a bound that fires at twice its size; 10 MB, the
+    // producer's own length, would only catch one that never fires at all.
+    assert!(
+        captured < 300_000,
+        "the drain stops at the bound, not at the producer's end; \
+         captured {captured} bytes of 10485760"
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    // Position, not presence: the `agent-tools:` prefix begins a line is what
+    // the system prompt teaches, so nothing a child writes can forge it.
+    assert!(
+        err.lines()
+            .any(|l| l.starts_with("agent-tools: stdout drain bound")),
+        "reaching the bound is recorded, never silent; stderr was {err:?}"
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(141),
+        "at the bound the read end closes, so the child sees SIGPIPE as it would bare"
+    );
+}

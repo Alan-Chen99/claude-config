@@ -126,7 +126,15 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
         }
     };
 
-    let outcome = match core::run_core(&cmd, &child_dir, on_spawn, on_reap).await {
+    let outcome = match core::run_core(
+        &cmd,
+        &child_dir,
+        core::DEFAULT_DRAIN_CAP_BYTES,
+        on_spawn,
+        on_reap,
+    )
+    .await
+    {
         Ok(o) => o,
         Err(core::CoreError::Spawn(e)) => {
             let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());

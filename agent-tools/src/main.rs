@@ -137,6 +137,8 @@ enum Cmd {
     RunCore {
         #[arg(long)]
         capture_dir: std::path::PathBuf,
+        #[arg(long, default_value_t = core::DEFAULT_DRAIN_CAP_BYTES)]
+        drain_cap_bytes: u64,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         cmd: Vec<String>,
     },
@@ -406,7 +408,11 @@ fn main() {
                 }
             }
         }
-        Cmd::RunCore { capture_dir, cmd } => {
+        Cmd::RunCore {
+            capture_dir,
+            drain_cap_bytes,
+            cmd,
+        } => {
             if cmd.is_empty() {
                 eprintln!("agent-tools run-core: no command supplied after --");
                 std::process::exit(2);
@@ -415,7 +421,13 @@ fn main() {
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(core::run_core(&cmd, &capture_dir, |_| {}, |_| {}));
+                .block_on(core::run_core(
+                    &cmd,
+                    &capture_dir,
+                    drain_cap_bytes,
+                    |_| {},
+                    |_| {},
+                ));
             match outcome {
                 Ok(o) => std::process::exit(o.exit_code),
                 Err(e) => {

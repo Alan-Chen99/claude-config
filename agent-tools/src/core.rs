@@ -7,6 +7,10 @@ use tokio::process::Command;
 
 use crate::capture;
 
+/// Bytes captured after the downstream closed before the read end is dropped.
+/// Normal operation never reaches it: it only applies once forwarding has failed.
+pub const DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;
+
 /// Why the child's two streams did or did not share one destination.
 ///
 /// `status::Capture` is the same fact read back off disk: merged runs open one
@@ -99,6 +103,10 @@ pub struct Outcome {
     /// A downstream stopped accepting writes, on either stream, and forwarding
     /// to it stopped. The child ran on and the capture kept growing.
     pub forward_closed: bool,
+    /// A drain reached its bound, on either stream, and the read end was
+    /// dropped. The child met the `SIGPIPE` bare would have given it, and the
+    /// capture stops short of whatever it wrote after that.
+    pub drain_capped: bool,
 }
 
 /// Spawn failed, or something else did. Kept distinct so `run` can record the
@@ -133,6 +141,7 @@ impl From<anyhow::Error> for CoreError {
 pub async fn run_core<S, R>(
     cmd: &[String],
     capture_dir: &Path,
+    drain_cap_bytes: u64,
     on_spawn: S,
     on_reap: R,
 ) -> Result<Outcome, CoreError>
@@ -221,6 +230,7 @@ where
                 rx,
                 dir.join("output"),
                 tokio::io::stdout(),
+                drain_cap_bytes,
                 last_stdout.clone(),
                 dir.clone(),
             ));
@@ -247,6 +257,7 @@ where
                 stdout_pipe,
                 dir.join("stdout"),
                 tokio::io::stdout(),
+                drain_cap_bytes,
                 last_stdout.clone(),
                 dir.clone(),
             ));
@@ -255,6 +266,7 @@ where
                 stderr_pipe,
                 dir.join("stderr"),
                 tokio::io::stderr(),
+                drain_cap_bytes,
                 last_stderr.clone(),
                 dir.clone(),
             ));
@@ -311,9 +323,11 @@ where
     Ok(Outcome {
         exit_code,
         merge,
-        // Either stream losing its downstream is the same difference from bare;
-        // which one it was is already on stderr, under the stream's own name.
+        // Either stream losing its downstream, or either drain reaching its
+        // bound, is the same difference from bare; which one it was is already
+        // on stderr, under the stream's own name.
         forward_closed: a.forward_closed || b.forward_closed,
+        drain_capped: a.drain_capped || b.drain_capped,
     })
 }
 
@@ -332,7 +346,7 @@ mod tests {
         let cap = tmp.path().join("cap");
         let cmd: Vec<String> = Vec::new();
 
-        let err = run_core(&cmd, &cap, |_| {}, |_| {})
+        let err = run_core(&cmd, &cap, DEFAULT_DRAIN_CAP_BYTES, |_| {}, |_| {})
             .await
             .expect_err("an empty command has nothing to run");
 
