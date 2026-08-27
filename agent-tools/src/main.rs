@@ -127,6 +127,12 @@ enum Cmd {
         /// "`--desc` argv hiding (F88)".
         #[arg(long)]
         hide_cmdline: bool,
+        /// Bytes captured after the downstream closed before the read end is
+        /// dropped. Unset means the production default; the two entry points
+        /// never carry their own, or they can disagree about the one case the
+        /// bound exists for.
+        #[arg(long)]
+        drain_cap_bytes: Option<u64>,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         cmd: Vec<String>,
     },
@@ -137,8 +143,12 @@ enum Cmd {
     RunCore {
         #[arg(long)]
         capture_dir: std::path::PathBuf,
-        #[arg(long, default_value_t = core::DEFAULT_DRAIN_CAP_BYTES)]
-        drain_cap_bytes: u64,
+        /// Bytes captured after the downstream closed before the read end is
+        /// dropped. Unset means the production default; the two entry points
+        /// never carry their own, or they can disagree about the one case the
+        /// bound exists for.
+        #[arg(long)]
+        drain_cap_bytes: Option<u64>,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         cmd: Vec<String>,
     },
@@ -394,12 +404,12 @@ fn main() {
     let root = repo_root();
 
     match cli.command {
-        Cmd::Run { desc, hide_cmdline, cmd } => {
+        Cmd::Run { desc, hide_cmdline, drain_cap_bytes, cmd } => {
             let code = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run::run(desc, hide_cmdline, cmd));
+                .block_on(run::run(desc, hide_cmdline, drain_cap_bytes, cmd));
             match code {
                 Ok(c) => std::process::exit(c),
                 Err(e) => {

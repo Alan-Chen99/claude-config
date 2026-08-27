@@ -141,7 +141,7 @@ impl From<anyhow::Error> for CoreError {
 pub async fn run_core<S, R>(
     cmd: &[String],
     capture_dir: &Path,
-    drain_cap_bytes: u64,
+    drain_cap_bytes: Option<u64>,
     on_spawn: S,
     on_reap: R,
 ) -> Result<Outcome, CoreError>
@@ -149,6 +149,10 @@ where
     S: FnOnce(u32),
     R: FnOnce(i32),
 {
+    // The only place the production default is applied. Both entry points pass
+    // whatever their flag held, so there is no second copy to drift from.
+    let drain_cap_bytes = drain_cap_bytes.unwrap_or(DEFAULT_DRAIN_CAP_BYTES);
+
     // `cmd[0]` below would panic on an empty slice. Both callers check first,
     // but this is the contract the passthrough tests drive directly, so it
     // answers instead of aborting.
@@ -346,7 +350,7 @@ mod tests {
         let cap = tmp.path().join("cap");
         let cmd: Vec<String> = Vec::new();
 
-        let err = run_core(&cmd, &cap, DEFAULT_DRAIN_CAP_BYTES, |_| {}, |_| {})
+        let err = run_core(&cmd, &cap, None, |_| {}, |_| {})
             .await
             .expect_err("an empty command has nothing to run");
 

@@ -43,16 +43,6 @@ pub struct TeeOutcome {
 /// `read_buf_divides_the_two_regimes` below is what makes that loud.
 const READ_BUF: usize = 8192;
 
-/// A bound no capture can reach, for callers with no downstream to lose.
-/// Not a sentinel: `tee` compares against it like any other value, so there is
-/// no special case to leave untested. `0` is equally valid and means "stop at
-/// the first chunk after the close".
-// Part of `tee`'s contract rather than of any current caller's: the callers
-// with no downstream to lose are all tests, and a bin crate's `pub` does not
-// reach them from the non-test build.
-#[allow(dead_code)]
-pub const UNCAPPED: u64 = u64::MAX;
-
 /// Tee `reader` -> (capture file at `capture_path`) + (forward writer).
 /// Updates `last_activity_unix_ms` on each non-empty read. Appends
 /// `first_byte` + (later) `silence`/`silence_break` events to `events_dir`
@@ -69,7 +59,9 @@ pub const UNCAPPED: u64 = u64::MAX;
 /// have given it. The bound applies only once forwarding has failed, so an
 /// ordinary run never approaches it. Every value is a bound and every value
 /// means the same thing, `0` included — it stops at the first chunk read after
-/// the close. A caller with no downstream to lose passes `UNCAPPED`.
+/// the one that *detected* the close, which
+/// `TeeOutcome::bytes_since_close_detected` places up to two reads past the
+/// close itself. A caller with no downstream to lose passes `UNCAPPED`.
 ///
 /// Returns when the reader closes (EOF), or when the drain reaches its bound.
 pub async fn tee<R, W>(
@@ -228,6 +220,14 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
     use tokio::io::AsyncWriteExt;
+
+    /// A bound no capture can reach, for callers with no downstream to lose.
+    /// Not a sentinel: `tee` compares against it like any other value, so there
+    /// is no special case to leave untested. `0` is equally valid and means
+    /// "stop at the first chunk after the one that detected the close" — which
+    /// `TeeOutcome::bytes_since_close_detected` places up to two reads past the
+    /// close itself.
+    const UNCAPPED: u64 = u64::MAX;
 
     /// `core_test.rs` is an integration test against a binary-only crate, so it
     /// cannot name `READ_BUF` and cannot fail when it moves. Pinning the value

@@ -7,7 +7,12 @@ use crate::events;
 use crate::meta::{self, ChildMeta};
 use crate::paths;
 
-pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> Result<i32> {
+pub async fn run(
+    desc: Option<String>,
+    hide_cmdline: bool,
+    drain_cap_bytes: Option<u64>,
+    cmd: Vec<String>,
+) -> Result<i32> {
     if cmd.is_empty() {
         return Err(anyhow!("run: no command supplied after --"));
     }
@@ -126,15 +131,7 @@ pub async fn run(desc: Option<String>, hide_cmdline: bool, cmd: Vec<String>) -> 
         }
     };
 
-    let outcome = match core::run_core(
-        &cmd,
-        &child_dir,
-        core::DEFAULT_DRAIN_CAP_BYTES,
-        on_spawn,
-        on_reap,
-    )
-    .await
-    {
+    let outcome = match core::run_core(&cmd, &child_dir, drain_cap_bytes, on_spawn, on_reap).await {
         Ok(o) => o,
         Err(core::CoreError::Spawn(e)) => {
             let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
