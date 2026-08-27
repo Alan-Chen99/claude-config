@@ -1477,18 +1477,25 @@ fn post_close_drain_is_bounded_and_the_bound_is_recorded() {
     ));
 
     assert_eq!(String::from_utf8_lossy(&out.stdout), "yes-line\n");
-    let captured = std::fs::metadata(cap.join("stdout"))
-        .or_else(|_| std::fs::metadata(cap.join("output")))
-        .unwrap()
-        .len();
+    // `stdout`, not a fallback to `output`: `Command::output()` hands the outer
+    // bash two independent pipes, so `decide_merge` sees two inodes and always
+    // splits. A hedge here would be a branch that cannot run.
+    let captured = std::fs::metadata(cap.join("stdout")).unwrap().len();
+    // Generous but not vacuous. At most the 64 KiB pipe buffer got through
+    // before the consumer quit, the counter starts up to two 8192-byte reads
+    // after that, and the bound then allows 64 KiB more: about 145 KiB worst
+    // case. 300 KB catches a bound that fires at twice its size; 10 MB, the
+    // producer's own length, would only catch one that never fires at all.
     assert!(
-        captured < 1_000_000,
+        captured < 300_000,
         "the drain stops at the bound, not at the producer's end; \
          captured {captured} bytes of 10485760"
     );
     let err = String::from_utf8_lossy(&out.stderr);
+    // Position, not presence: the `agent-tools:` prefix begins a line is what
+    // the system prompt teaches, so nothing a child writes can forge it.
     assert!(
-        err.contains("agent-tools: stdout drain bound"),
+        err.lines().any(|l| l.starts_with("agent-tools: stdout drain bound")),
         "reaching the bound is recorded, never silent; stderr was {err:?}"
     );
     assert_eq!(
@@ -1704,15 +1711,15 @@ fn capture_failure_never_kills_the_child() {
         "the caller's stream is never cut short by the wrapper's own failure"
     );
     let err = String::from_utf8_lossy(&out.stderr);
-    assert!(
-        err.contains("agent-tools: capture to"),
-        "the failure is stated on stderr rather than inferred from a wrong exit code; \
-         stderr was {err:?}"
-    );
+    // Position, not presence, the same way the forward-close tests check it:
+    // the prefix beginning a line is the contract, not the substring.
     assert_eq!(
-        err.matches("agent-tools: capture to").count(),
+        err.lines()
+            .filter(|l| l.starts_with("agent-tools: capture to"))
+            .count(),
         1,
-        "said once, not once per chunk of 2000 lines; stderr was {err:?}"
+        "stated once on stderr, not once per chunk and not inferred from a wrong \
+         exit code; stderr was {err:?}"
     );
 }
 
@@ -1732,7 +1739,7 @@ fn a_capture_that_cannot_be_opened_is_stated_and_not_fatal() {
     assert!(String::from_utf8_lossy(&out.stdout).contains("line-2000\n"));
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        err.contains("agent-tools: capture to"),
+        err.lines().any(|l| l.starts_with("agent-tools: capture to")),
         "an open that failed is stated too; stderr was {err:?}"
     );
 }
@@ -1817,7 +1824,7 @@ fn a_capture_that_fails_only_at_the_flush_is_stated_too() {
     assert_eq!(out.stdout.len(), 2000, "the caller still gets everything");
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        err.contains("agent-tools: capture to"),
+        err.lines().any(|l| l.starts_with("agent-tools: capture to")),
         "a capture that failed with nothing left to write is still stated; stderr was {err:?}"
     );
 }
