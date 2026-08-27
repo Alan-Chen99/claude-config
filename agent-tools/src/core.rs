@@ -23,9 +23,13 @@ pub enum Merge {
 /// offset to disagree about — a pipe, or a file both descriptors append to —
 /// which makes the question irrelevant. Everything else splits. Declining costs
 /// interleaving; guessing wrong misroutes the caller's data.
+///
+/// `Split` therefore answers two different questions the same conservative way:
+/// *cannot tell*, when a descriptor would not be inspected at all, and *can
+/// tell, and merging would be unsound*. The reason string names which.
 pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
     use nix::fcntl::{fcntl, FcntlArg, OFlag};
-    use nix::sys::stat::{fstat, SFlag};
+    use nix::sys::stat::{fstat, FileStat, SFlag};
 
     let (s_out, s_err) = match (fstat(fd_out), fstat(fd_err)) {
         (Ok(a), Ok(b)) => (a, b),
@@ -43,6 +47,10 @@ pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
             OFlag::from_bits_truncate(a),
             OFlag::from_bits_truncate(b),
         ),
+        // No test drives this arm: both descriptors have just survived `fstat`,
+        // and F_GETFL on a valid fd fails only with EBADF, which that already
+        // screened. Reaching it needs a TOCTOU race no call site can produce.
+        // Unreachable in practice is not dead — keep the arm.
         _ => return Merge::Split("descriptor flags could not be read"),
     };
     let writable = |f: OFlag| {
@@ -53,7 +61,7 @@ pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
         return Merge::Split("not both writable");
     }
 
-    let is_fifo = |s: &nix::sys::stat::FileStat| {
+    let is_fifo = |s: &FileStat| {
         SFlag::from_bits_truncate(s.st_mode).contains(SFlag::S_IFIFO)
     };
     if is_fifo(&s_out) && is_fifo(&s_err) {
@@ -277,6 +285,18 @@ mod tests {
         assert_eq!(
             decide_merge(a.as_raw_fd(), b.as_raw_fd()),
             Merge::Split("different destinations")
+        );
+    }
+
+    /// `fstat(-1)` fails EBADF deterministically, so this branch needs no
+    /// fixture and cannot flake. It is pinned because an inverted arm here would
+    /// merge a pair the code never managed to inspect — the misrouting the
+    /// function's own doc comment refuses.
+    #[test]
+    fn an_uninspectable_descriptor_splits() {
+        assert_eq!(
+            decide_merge(-1, -1),
+            Merge::Split("descriptor could not be inspected")
         );
     }
 
