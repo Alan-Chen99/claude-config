@@ -701,17 +701,15 @@ This truth table was measured before this plan was written:
 
 **Files:**
 - Modify: `agent-tools/src/core.rs`
-- Modify: `agent-tools/Cargo.toml`
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `agent-tools/src/core.rs`:
+`core.rs` already has a `#[cfg(test)] mod tests` from Task 1, so a second one is
+`E0428: the name 'tests' is defined multiple times`. Add these cases **into** that module,
+and add `use std::os::fd::AsRawFd;` to its imports:
 
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::os::fd::AsRawFd;
+// inside the existing `#[cfg(test)] mod tests`
 
     #[test]
     fn two_pipes_to_one_destination_merge() {
@@ -837,7 +835,8 @@ pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `cargo test --bin agent-tools core::`
-Expected: PASS, 5 tests.
+Expected: PASS — the five cases below, plus Task 1's `empty_command_is_an_error_not_a_panic`
+already in that module, so `cargo test --bin agent-tools core::` reports 6.
 
 - [ ] **Step 5: Commit**
 
@@ -949,6 +948,12 @@ fn long_lines_survive_the_merge_uncorrupted() {
 Run: `cargo test --test core_test merged`
 Expected: FAIL — `cap/output` does not exist; both streams still go to two pipes, and
 `merged_streams_keep_their_relative_order` fails on interleaving.
+
+This task also retires the crate's three dead-code warnings, which nothing before it can:
+`decide_merge` has no non-test caller until `run_core` consults it, which keeps
+`Merge::Merged` unconstructed in the non-test build, and `Outcome.merge` is written but read
+by nobody. Do not silence any of them with `#[allow]` — wiring the decision in is what
+retires them, and a suppression would hide whether it worked.
 
 - [ ] **Step 3: Add the tokio `net` feature**
 
