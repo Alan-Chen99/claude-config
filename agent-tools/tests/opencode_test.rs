@@ -100,20 +100,29 @@ printf 'args=%s\n' "$*"
 }
 
 #[test]
-fn opencode_loads_prefixed_langfuse_env_and_forwards_args() {
+fn opencode_maps_langfuse_names_sets_git_identity_and_forwards_args() {
     let tmp = tempfile::tempdir().unwrap();
     let root = worktree_root();
     let bindir = tmp.path().join("bin");
     fs::create_dir_all(&bindir).unwrap();
 
+    // The child reports presence, not value, for the two credential variables.
+    // `agent-tools opencode` reads <root>/.env, and that file is machine-local:
+    // asserting exact values makes the test pass only where the file happens to
+    // lack these keys, and an assertion message interpolating them prints live
+    // secrets into test output. Which source wins, and what each value becomes,
+    // belongs to the langfuse_env tests in src/opencode.rs, which own a fixture
+    // .env they can control. What this test owns is the part those cannot see:
+    // that the wrapper reaches an exec'd child at all, under the names the
+    // plugin reads, carrying nothing beyond them.
     let fake_opencode = bindir.join("opencode");
     fs::write(
         &fake_opencode,
         r#"#!/usr/bin/env bash
 set -euo pipefail
-printf 'secret=%s\n' "${LANGFUSE_SECRET_KEY-}"
-printf 'public=%s\n' "${LANGFUSE_PUBLIC_KEY-}"
-printf 'baseurl=%s\n' "${LANGFUSE_BASEURL-}"
+printf 'secret_set=%s\n' "${LANGFUSE_SECRET_KEY:+yes}"
+printf 'public_set=%s\n' "${LANGFUSE_PUBLIC_KEY:+yes}"
+printf 'baseurl_set=%s\n' "${LANGFUSE_BASEURL:+yes}"
 printf 'base_url=%s\n' "${LANGFUSE_BASE_URL-unset}"
 printf 'extra=%s\n' "${LANGFUSE_EXTRA-unset}"
 printf 'author_name=%s\n' "${GIT_AUTHOR_NAME-}"
@@ -134,13 +143,15 @@ printf 'args=%s\n' "$*"
         std::env::var("PATH").unwrap_or_default()
     );
 
+    // The prefixed values are what a checkout without a .env falls back to, so
+    // the presence assertions below hold on any machine.
     let out = Command::new(bin())
         .arg("opencode")
         .args(["--model", "test/model", "prompt text"])
         .env("CLAUDE_CONFIG_ROOT", &root)
         .env("PATH", path)
-        .env("OPENCODE_LANGFUSE_SECRET_KEY", "secret from env")
-        .env("OPENCODE_LANGFUSE_PUBLIC_KEY", "public from env")
+        .env("OPENCODE_LANGFUSE_SECRET_KEY", "secret from process env")
+        .env("OPENCODE_LANGFUSE_PUBLIC_KEY", "public from process env")
         .env("OPENCODE_LANGFUSE_BASE_URL", "https://langfuse.example")
         .env("OPENCODE_LANGFUSE_EXTRA", "must not be stripped")
         .env_remove("LANGFUSE_SECRET_KEY")
@@ -157,18 +168,9 @@ printf 'args=%s\n' "$*"
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(
-        stdout.contains("secret=secret from env"),
-        "stdout: {stdout}"
-    );
-    assert!(
-        stdout.contains("public=public from env"),
-        "stdout: {stdout}"
-    );
-    assert!(
-        stdout.contains("baseurl=https://langfuse.example"),
-        "stdout: {stdout}"
-    );
+    assert!(stdout.contains("secret_set=yes"), "stdout: {stdout}");
+    assert!(stdout.contains("public_set=yes"), "stdout: {stdout}");
+    assert!(stdout.contains("baseurl_set=yes"), "stdout: {stdout}");
     assert!(stdout.contains("base_url=unset"), "stdout: {stdout}");
     assert!(stdout.contains("extra=unset"), "stdout: {stdout}");
     assert!(stdout.contains("author_name=opencode"), "stdout: {stdout}");
