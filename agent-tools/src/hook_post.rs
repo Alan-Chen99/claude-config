@@ -77,8 +77,10 @@ pub fn run() -> Result<()> {
             "additionalContext": parts.join("\n")
         }
     });
-    // Write, flush, and only then record what was delivered. `println!` would
-    // panic on a write error, after the commit that made the loss permanent.
+    // Write, flush, and only then record what was delivered: a key recorded
+    // before the write reaches the agent retires a change nobody saw.
+    // `println!` is unusable here because it panics on a write error rather
+    // than returning one.
     let mut stdout = std::io::stdout().lock();
     writeln!(stdout, "{}", serde_json::to_string(&out)?).context("write hook output")?;
     stdout.flush().context("flush hook output")?;
@@ -149,8 +151,6 @@ fn scope_dir(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
     Ok(p)
 }
 
-/// Scan every capture dir in this agent's scope, derive each status, and
-/// return one line per child whose key changed since it was last reported.
 /// The lines to deliver, and the ledger that has recorded them as delivered.
 ///
 /// The ledger is deliberately uncommitted: a key must be written down only
@@ -173,6 +173,9 @@ impl Report {
     }
 }
 
+/// Scan every capture dir in this agent's scope, derive each status, and
+/// return one line per child whose key changed since it was last reported,
+/// together with the ledger holding those keys for the caller to commit.
 pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Report> {
     let scope = scope_dir(session_id, agent_id)?;
     if !scope.is_dir() {
