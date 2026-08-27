@@ -11,6 +11,23 @@ use crate::capture;
 /// Normal operation never reaches it: it only applies once forwarding has failed.
 pub const DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;
 
+// The two properties that make that number a cap at all, checked where it is
+// written rather than by a test. Every test that exercises the bound names its
+// own, so the resolved default has no runtime coverage at its top end — and the
+// top end is where the incident was: with the default at `u64::MAX` the whole
+// suite stays green while a wrapped `yes` drains tens of gigabytes into the
+// capture directory. A `const` assertion fails the build instead, which is both
+// stronger than a failing test and the reason clippy does not call it constant.
+const _: () = assert!(
+    DEFAULT_DRAIN_CAP_BYTES < u64::MAX,
+    "an unbounded default is the disk-filling path the bound exists to close"
+);
+const _: () = assert!(
+    DEFAULT_DRAIN_CAP_BYTES <= 4 * 1024 * 1024 * 1024,
+    "a cap protects nothing it cannot reach before the disk does: at the \
+     measured 400 MB/s, 4 GiB is ten seconds of drain"
+);
+
 /// Why the child's two streams did or did not share one destination.
 ///
 /// `status::Capture` is the same fact read back off disk: merged runs open one
@@ -138,6 +155,11 @@ impl From<anyhow::Error> for CoreError {
 /// `on_spawn` receives the child pid the moment it exists; `on_reap` receives the
 /// exit code the moment the child is reaped, before any draining. `run` uses those
 /// to persist facts in the order the invariant requires; `run-core` ignores them.
+///
+/// `drain_cap_bytes` bounds what the tee keeps capturing after a downstream has
+/// stopped accepting writes; `None` is `DEFAULT_DRAIN_CAP_BYTES`. Resolving it
+/// here rather than at each entry point is what keeps `run` and `run-core` from
+/// disagreeing about it, which they once did.
 pub async fn run_core<S, R>(
     cmd: &[String],
     capture_dir: &Path,

@@ -61,7 +61,9 @@ const READ_BUF: usize = 8192;
 /// means the same thing, `0` included — it stops at the first chunk read after
 /// the one that *detected* the close, which
 /// `TeeOutcome::bytes_since_close_detected` places up to two reads past the
-/// close itself. A caller with no downstream to lose passes `UNCAPPED`.
+/// close itself. Only this file's own tests have a downstream that cannot go
+/// away, and they pass `UNCAPPED` from their module; no production caller wants
+/// one.
 ///
 /// Returns when the reader closes (EOF), or when the drain reaches its bound.
 pub async fn tee<R, W>(

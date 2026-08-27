@@ -131,6 +131,11 @@ enum Cmd {
         /// dropped. Unset means the production default; the two entry points
         /// never carry their own, or they can disagree about the one case the
         /// bound exists for.
+        ///
+        /// Nobody running a command has a reason to turn this. It is here
+        /// because `drain_capped` reaches `meta.json` only through `run`, so a
+        /// test that the bound is recorded would otherwise have to drive the
+        /// 256 MiB default to see it, and would not be written.
         #[arg(long)]
         drain_cap_bytes: Option<u64>,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
