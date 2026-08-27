@@ -23,7 +23,11 @@ cargo test --no-fail-fast
 ```
 
 `--no-fail-fast` is required: plain `cargo test` stops at the first failing test binary, so
-every suite after it silently never runs and any total you read is truncated.
+every suite after it silently never runs and any total you read is truncated. Measured, with
+the one known failure below: a bare `cargo test` prints nine result lines and 132 passing;
+`--no-fail-fast` prints thirteen and 156. The four suites it skips — `ps_test`,
+`root_resolution_test`, `run_facts_test`, `run_test` — do not announce themselves, so the
+lower number reads as a green run with fewer tests rather than as a truncated one.
 
 `cargo fmt --check` exits non-zero on this tree whatever you do: rustfmt 1.9.0 disagrees with
 whoever formatted it, at 48 sites spread across files no task here touches. The only check
