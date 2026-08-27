@@ -264,7 +264,10 @@ fn publish_child_dir(
     let child_dir = parent_dir.join(wrapper_pid.to_string());
     // A directory already under this name belongs to an earlier wrapper whose
     // pid this one reuses. It is already published with a meta in it, so there
-    // is no coming-into-existence for a scanner to catch; write in place.
+    // is no coming-into-existence for a scanner to catch; write in place. Two
+    // *live* wrappers holding one pid would need separate pid namespaces over a
+    // shared scope directory; there the rename below fails and the wrapper says
+    // so, rather than the two children silently sharing one capture.
     if child_dir.is_dir() {
         meta::write_meta(&child_dir, cm)?;
         return Ok(child_dir);
