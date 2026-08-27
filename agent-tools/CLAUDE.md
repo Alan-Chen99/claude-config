@@ -10,7 +10,7 @@ These strings are emitted by `agent-tools` and quoted verbatim in the system pro
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
 | `hook_post.rs` / `hook_prompt.rs` report header `"[agent-tools] run status:\n…"`, and the `"… unavailable this time"` fallback that shares its prefix | `sys_prompt/alan-default-next.md`, `# Using your tools`, the `agent-tools run` bullet list | Edit both sides together. `scripts/check-prompt-coupling.sh` fails if they drift. It matches the exact literal at each emit site, not the bare prefix: the prefix also occurs in the fallback branch, so a file-level grep passes over a drifted header. |
 | `status.rs`'s `Display for StatusKey` → `producing`, `quiet(<bucket>)`, `exited(<code>)`, `final(<code>)`, `abandoned`, `spawn-failed(<error>)` | Same bullet list, the sentence beginning "Keys are" | Same rule, with a second consumer: these strings are also the ledger identity that decides whether a change has already been reported, so renaming one re-reports every live child once. `key_strings_are_stable_ledger_identities` pins the text; the coupling script pins the prompt to it. |
-| `hook_post.rs::bg_notice` → `"BACKGROUNDED: Command was backgrounded. Cause: …"`                 | Same bullet list, closing sentence                     | The prompt keys off the bare substring `BACKGROUNDED:`, so only the prefix is coupled.             |
+| `hook_post.rs::bg_notice` → `"BACKGROUNDED: Command was backgrounded. Cause: …"`                 | Same bullet list, closing sentence                     | The prompt keys off `BACKGROUNDED:` at the *start of a line*, which couples position as well as the prefix: `run`'s two notices join with a newline for that reason, and joining them with anything else leaves the second header mid-line where the prompt's rule cannot reach it. `hook_post_test::the_status_header_begins_a_line_even_beside_a_backgrounding_notice` pins it; `check-prompt-coupling.sh` matches literals, not position. |
 | `capture.rs`'s five diagnostics, every one written through `state`: the downstream-closed notice, the drain-bound notice, and one each for the capture's open, write loop and flush failures | Same bullet list, the passthrough bullet — "always prefixed `agent-tools:`" | The prompt promises the prefix, not the wording, so the guard pins one exact literal per emit site rather than the prefix: measured, dropping `agent-tools:` at one site still leaves four matches in the file, so a bare-prefix grep passes while any four of the five drift. Five sites because the open, the write loop and the flush each need their own message; the `failed (` needle runs on to `forwarding continues` so it cannot also match the flush's line and leave that site unpinned. Drift costs the agent the only thing separating a wrapper diagnostic from its command's own stderr. The notes segment carries the same facts on the status channel, which is what covers the cases stderr cannot — a notice about stderr itself, or about the one destination a merge made of both, since that is the closed descriptor in exactly those. Measured: `… 2>&1 \| head -3` delivers no notice and still reports `[downstream closed]`. `main.rs`'s `run` and `run-core` failure prints are the only other diagnostics reachable once the tees are running, so they carry the same prefix under the same promise; the guard pins `capture.rs`'s five, and a comment at each of those two sites carries the reason its spelling differs from the other subcommands'. |
 | `status.rs::render`'s notes segment and `stat failed:` — `streams split: <why>`, `downstream closed`, `drain capped`, `capture failed: <err>`, `[stat failed: <err>]` | Same bullet list, the status bullet, the sentence beginning "`<detail>` is" | Guarded, one needle per emit site: `check-prompt-coupling.sh` pins the whole `format!` / `push` expression rather than the words, because the bare words also occur in `status.rs`'s own render assertions, so a word-level grep passes over a drifted emitter. Each needle matches exactly one place in the file, and each of the five was watched to fail — change the emitted string and the script names `status.rs`. The prompt teaches the agent that a bracket after the byte counts is facts rather than a second key, and names all five; renaming one leaves that bracket unexplained on a line the agent must still read. See "The notes segment" below for the emit conditions. |
 | `main.rs::GATE_STDOUT` (printed by `agent-tools opencode.gate`)                                  | `opencode/agents/alan-default-ids.md`, step 4 ("gate stdout returns instructions") and step 5 ("reason in a thinking block about what it instructs") of the Doing-tasks list; G1 reinforces R002 (big-picture target), G4 cites R043 (cheap-rejection transparency), G6 cites R090 (no implicit work-assignment), G7 stands alone (evidence-vs-claim), all rules defined in the same agent body | The agent prompt references "gate stdout" without quoting it. If GATE_STDOUT were emptied or removed, the agent prompt would still direct the agent to "follow nothing" — silently no-ops the R060 mistake-check. Pointer-style: items reference rules in the agent body rather than restating them. If the body's R002, R043, or R090 is renumbered or removed, the matching G silently loses its referent. The closing sentence ("re-enter the gate at the next version") is the consumer for the step-5 iterate-until-clean trigger; the body's heredoc uses `turn-<X>-version-<Y>` tags that share this vocabulary. Edit both sides together; rebuild `agent-tools` so the binary actually emits the new text. |
@@ -26,6 +26,15 @@ processes.
 `at:<hint>` where hint is `--desc` if given, else the wrapped
 command. Argv (`/proc/*/cmdline`, `ps aux`, `ps -o args=`) is
 untouched. Clarity for general debugging is the priority.
+
+`comm_for` stops before a character that would cross the 15 bytes
+rather than at 15 bytes, so a hint can end short of the cap. The
+kernel truncates without regard for character boundaries, and half a
+character is invalid UTF-8 in `/proc/<pid>/stat`, which `procstat`
+must read for every liveness check. `procstat` reads that file
+lossily for the same reason from the other side: `comm` holds
+arbitrary bytes for *any* process, and treating an unreadable stat as
+death would report a live wrapper as `final(<status>)`.
 
 **Opt-in** — `agent-tools run --hide-cmdline ...` calls
 `procname::hide_cmdline("agent-tools: <exe>")`. Zeros the argv
@@ -132,7 +141,7 @@ Four of its fields come off the record and carry arbitrary text: the name —
 `--desc`, or the command when there is none — and the `merge`, `capture_error`, and
 `spawn_error` strings. All four pass through `meta::escape_control`, which escapes
 control characters; only the name is also bounded in length, by `status.rs`'s
-`NAME_MAX`.
+`NAME_MAX` — one of the two callers of `cap_to`, the other being `ps`'s `CMD_MAX`.
 
 None of the three — `merge`, `capture_error`, `spawn_error` — is child-controlled
 today: every producer is a wrapper-authored `io::Error`, an anyhow chain, or one of
@@ -200,6 +209,21 @@ inability to read the capture files, and it alone is sourced from a live syscall
 rather than from `meta.json`. Bracket count is what separates a clean line from one
 carrying notes, and is asserted as such in `a_clean_run_carries_no_notes`.
 
+### What `ps` adds, and what it admits
+
+`ps` derives every capture's status the same way a report does, and shows one whether or
+not its `meta.json` reads: `Capture::meta` is optional, and a directory with no readable
+meta still derives `abandoned`. Dropping it instead would put the two consumers of one
+derivation in disagreement about whether a child exists, in the view an agent turns to
+after a compaction — the one place a child just called terminal must be findable.
+
+Events are read per line. A line that will not parse costs that line, and the count
+appears as `note: N unreadable event line(s) skipped`; a file that cannot be read at all is
+named, `note: events unreadable for <tool_use_id>: <err>`. Both exist because the reachable
+cause is a short write — the disk-full condition that also truncates a capture — so the
+history goes missing exactly when it is worth having, and silence about a dropped record
+reads as "nothing was written".
+
 ### A `TaskStop` result is not evidence about a child
 
 `TaskStop` dispatches a signal and marks its own registry entry `killed`. It does not
@@ -229,16 +253,22 @@ commit is write-to-temp-then-rename, which would strand a lock held on the JSON'
 fd.
 
 `flock` keys off the open file description rather than the process, so a second
-`Ledger::open` on a scope this process already holds would block forever on this
-process's own lock, with nothing able to release it. `open_scopes` turns that hang into
-an error.
+`Ledger::open` on a scope this process already holds waits on this process's own lock,
+which nothing can release. `open_scopes` turns that into an error at the door rather than
+leaving it to expire against the deadline below, which would spend a second of the hook's
+budget to reach the same answer with a worse message.
 
-Acquisition is non-blocking, retried until `LOCK_WAIT`. A foreign holder — anything that
-took the sentinel outside this code — would otherwise consume the hook's whole 5s timeout
-and deliver nothing, and a delivery point silent because it waited is indistinguishable
-from one with nothing to say. On expiry the error carries the holder's path and the
-caller renders its "unavailable this time" line; no commit has happened, so the changes
-are simply reported at the next delivery point.
+Acquisition is non-blocking, retried until `LOCK_WAIT`. Blocking would otherwise spend
+the hook's whole 5s timeout and deliver nothing, and a delivery point silent because it
+waited is indistinguishable from one with nothing to say. On expiry the error carries the
+holder's path and the caller renders its "unavailable this time" line; no commit has
+happened, so the changes are simply reported at the next delivery point.
+
+The deadline bounds legitimate parallel hooks, not just a foreign holder: past it, one of
+two racing delivery points announces the delay instead of serializing behind the other.
+Measured at 16 concurrent hooks over 40 children, none reaches it — one reporter takes
+every line, 0 duplicates, 0 losses — because the cycle it protects is a directory scan and
+one small write.
 
 An unreadable ledger is never quietly treated as empty. `reset_reason` is set, every
 child then looks new, and the report leads with why — otherwise the agent sees a burst

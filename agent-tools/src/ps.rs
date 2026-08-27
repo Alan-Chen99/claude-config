@@ -277,8 +277,9 @@ fn collect_pid_captures(
 const CMD_MAX: usize = 2000;
 
 /// One capture block: the derived status line, then the facts a pushed report
-/// leaves out. `ps` has no size budget, so it can afford the full command, the
-/// wrapper pid, and the start time; a report has to fit under a cap.
+/// leaves out — the command, the wrapper pid, and the start time. `ps` has no
+/// budget over the set of children, so it carries fields a report cannot; the
+/// command is still capped per line, for the reason `CMD_MAX` gives.
 ///
 /// Status is derived here rather than read from `c.meta`: the meta on disk is
 /// facts only, and liveness is the wrapper's, never the child pid's — a live

@@ -90,7 +90,9 @@ context was compacted after those keys were reported and retired.
   string, so selecting live children filters data rather than matching a display format,
   and the schema comes from the command, not the prompt.
 - **Its size is bounded by what is running, not by session history**, ordered newest first,
-  since the tool carrying it truncates. It sets no byte budget of its own.
+  since the tool carrying it truncates. It sets no budget over the set of children — every
+  live one appears — but a single field a caller chose is bounded per line, or one wrapped
+  script displaces every other child's status.
 - **Push and pull never describe one child differently, nor disagree that it exists.** `ps`
   shows a capture it cannot describe, with the reason, and never suppresses a future report.
 

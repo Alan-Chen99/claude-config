@@ -12,8 +12,9 @@ contention, the report budget, all four quiet buckets, flap collapse, subagent
 isolation, the detached-daemon lifecycle, and the invariant itself. See
 [Verified clean](#verified-clean).
 
-**What breaks is the passthrough contract**, plus two failure paths that lose data
-without saying so. The tool description in `sys_prompt/alan-default-next.md:170`
+**What broke, as measured, was the passthrough contract**, plus two failure paths that
+lost data without saying so — both since closed, along with seven others; the Status column
+below carries what is still open. The tool description in `sys_prompt/alan-default-next.md:170`
 promises:
 
 > The wrapper passes the child's stdout and stderr through byte-for-byte and
