@@ -16,6 +16,55 @@ pub enum Merge {
     Split(&'static str),
 }
 
+/// Decide whether the child's two streams may share one destination.
+///
+/// Whether two descriptors share an open file description is not decidable from
+/// userspace, so this does not try. It admits only destinations that have no
+/// offset to disagree about — a pipe, or a file both descriptors append to —
+/// which makes the question irrelevant. Everything else splits. Declining costs
+/// interleaving; guessing wrong misroutes the caller's data.
+pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
+    use nix::fcntl::{fcntl, FcntlArg, OFlag};
+    use nix::sys::stat::{fstat, SFlag};
+
+    let (s_out, s_err) = match (fstat(fd_out), fstat(fd_err)) {
+        (Ok(a), Ok(b)) => (a, b),
+        _ => return Merge::Split("descriptor could not be inspected"),
+    };
+    if s_out.st_dev != s_err.st_dev || s_out.st_ino != s_err.st_ino {
+        return Merge::Split("different destinations");
+    }
+
+    let (f_out, f_err) = match (
+        fcntl(fd_out, FcntlArg::F_GETFL),
+        fcntl(fd_err, FcntlArg::F_GETFL),
+    ) {
+        (Ok(a), Ok(b)) => (
+            OFlag::from_bits_truncate(a),
+            OFlag::from_bits_truncate(b),
+        ),
+        _ => return Merge::Split("descriptor flags could not be read"),
+    };
+    let writable = |f: OFlag| {
+        let m = f & OFlag::O_ACCMODE;
+        m == OFlag::O_WRONLY || m == OFlag::O_RDWR
+    };
+    if !writable(f_out) || !writable(f_err) {
+        return Merge::Split("not both writable");
+    }
+
+    let is_fifo = |s: &nix::sys::stat::FileStat| {
+        SFlag::from_bits_truncate(s.st_mode).contains(SFlag::S_IFIFO)
+    };
+    if is_fifo(&s_out) && is_fifo(&s_err) {
+        return Merge::Merged("both pipes, same destination");
+    }
+    if f_out.contains(OFlag::O_APPEND) && f_err.contains(OFlag::O_APPEND) {
+        return Merge::Merged("both appending, same file");
+    }
+    Merge::Split("same file, but not both appending")
+}
+
 /// What the core observed. Everything here explains a difference from bare.
 #[derive(Debug, Clone)]
 pub struct Outcome {
@@ -165,6 +214,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::fd::AsRawFd;
 
     /// The crate has no lib target, so `tests/core_test.rs` reaches `run_core`
     /// only through the binary — and an empty command cannot be spelled on a
@@ -182,5 +232,64 @@ mod tests {
 
         assert!(matches!(err, CoreError::Other(_)), "got: {err:?}");
         assert!(!cap.exists(), "nothing ran, so nothing should be captured");
+    }
+
+    #[test]
+    fn two_pipes_to_one_destination_merge() {
+        let (r, w) = nix::unistd::pipe().unwrap();
+        let w2 = w.try_clone().unwrap();
+        assert_eq!(
+            decide_merge(w.as_raw_fd(), w2.as_raw_fd()),
+            Merge::Merged("both pipes, same destination")
+        );
+        drop(r);
+    }
+
+    #[test]
+    fn one_appending_file_under_two_descriptors_merges() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("both");
+        let a = std::fs::OpenOptions::new().create(true).append(true).open(&path).unwrap();
+        let b = std::fs::OpenOptions::new().create(true).append(true).open(&path).unwrap();
+        assert_eq!(
+            decide_merge(a.as_raw_fd(), b.as_raw_fd()),
+            Merge::Merged("both appending, same file")
+        );
+    }
+
+    #[test]
+    fn same_file_without_append_splits() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("both");
+        let a = std::fs::File::create(&path).unwrap();
+        let b = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+        assert_eq!(
+            decide_merge(a.as_raw_fd(), b.as_raw_fd()),
+            Merge::Split("same file, but not both appending")
+        );
+    }
+
+    #[test]
+    fn different_files_split() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = std::fs::File::create(dir.path().join("a")).unwrap();
+        let b = std::fs::File::create(dir.path().join("b")).unwrap();
+        assert_eq!(
+            decide_merge(a.as_raw_fd(), b.as_raw_fd()),
+            Merge::Split("different destinations")
+        );
+    }
+
+    #[test]
+    fn a_read_only_descriptor_splits() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f");
+        std::fs::write(&path, b"x").unwrap();
+        let a = std::fs::File::open(&path).unwrap();
+        let b = std::fs::File::open(&path).unwrap();
+        assert_eq!(
+            decide_merge(a.as_raw_fd(), b.as_raw_fd()),
+            Merge::Split("not both writable")
+        );
     }
 }
