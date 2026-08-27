@@ -442,7 +442,7 @@ mod tests {
     fn a_difference_from_bare_is_readable_beside_the_key() {
         let d = TempDir::new().unwrap();
         let mut m = base();
-        m.merge = Some(core::DESTINATIONS_ALREADY_DIFFERED.into());
+        m.merge = Some("not both writable".into());
         m.forward_closed = true;
         // The bound applies only once forwarding has failed, so the two facts
         // are true together or the record describes a run that cannot happen.
@@ -453,16 +453,26 @@ mod tests {
 
         let now = Utc::now();
         let line = render(d.path(), &derive(d.path(), now), now);
-        assert!(line.contains("downstream closed"), "line: {line}");
-        assert!(line.contains("drain capped"), "line: {line}");
-        assert!(
-            line.contains("capture failed: No space left on device"),
-            "line: {line}"
-        );
+        // The whole bracket group, not one `contains` per note: the prompt
+        // promises this order, and a `contains` per note holds whichever order
+        // `render` emits them in, so swapping two `notes.push` blocks would
+        // leave every note present and this test green. The bounding spaces
+        // make this the group's entire content rather than a substring of it.
+        let segment = " [streams split: not both writable; downstream closed; drain capped; \
+             capture failed: No space left on device] ";
+        assert!(line.contains(segment), "line: {line}");
+
         // The one split that is not a difference from bare: two destinations
         // stayed two, so there is nothing to explain. This is also the shape of
         // every harness that spawns with two pipes, which is why a note here
-        // would be on every test line and no production one.
+        // would be on every test line and no production one. What remains
+        // closes up in the same order.
+        m.merge = Some(core::DESTINATIONS_ALREADY_DIFFERED.into());
+        write(&d, &m);
+        let line = render(d.path(), &derive(d.path(), now), now);
+        let segment =
+            " [downstream closed; drain capped; capture failed: No space left on device] ";
+        assert!(line.contains(segment), "line: {line}");
         assert!(
             !line.contains("streams split"),
             "a split that kept nothing apart explains nothing: {line}"

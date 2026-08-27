@@ -14,7 +14,7 @@ pub async fn run(
     cmd: Vec<String>,
 ) -> Result<i32> {
     if cmd.is_empty() {
-        return Err(anyhow!("run: no command supplied after --"));
+        return Err(anyhow!("no command supplied after --"));
     }
 
     // Default: set a helpful process title (`comm`) so `ps -o comm=`
