@@ -149,9 +149,11 @@ split.
 - **Sound, not probabilistic.** Whether two descriptors share an open file description is
   undecidable here, so the conditions make it irrelevant: neither admissible destination
   has an offset to disagree about, and merging distinct ones would misroute data. The
-  enumeration stays short on purpose — a tty or `/dev/null` has no offset either, but
-  character devices are not uniformly unseekable, so admitting them would be the guess this
-  rule refuses. An interactive caller keeps two streams.
+  enumeration stays short on purpose, for two different reasons. A tty or `/dev/null` cannot
+  be admitted: character devices are not uniformly unseekable, so the class would be a guess.
+  A socket could be — it is provably unseekable, like a pipe — and is left out only because
+  no measured caller presents one on both descriptors. Destinations are added when a caller
+  needs them, not because they could be. An interactive caller keeps two streams.
 - **Declines rather than guesses**, and takes no flag: the only decisive test would mean
   writing to the caller's own file, and a flag could only demand the merge it refused.
 - **The capture follows the decision** — merged, one file; split, two, the faithful record
