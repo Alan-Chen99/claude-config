@@ -70,6 +70,25 @@ check '"agent-tools: capture to {} could not be opened (' "$src/capture.rs"
 check '"agent-tools: capture to {} failed ({e}); forwarding continues' "$src/capture.rs"
 check '"agent-tools: capture to {} failed at the flush (' "$src/capture.rs"
 
+# The notes segment and the stat-failure group, both built by `status.rs::render`.
+# The prompt names all five so the agent reads a bracket after the byte counts as
+# facts about the run rather than as a second status key; rename one and that
+# bracket is unexplained on a line the agent must still read. Source-side needles
+# are whole `format!` / `push` expressions because the bare words also appear in
+# this file's own render assertions, so a word-level grep passes over a drifted
+# emitter. Each needle was verified to match exactly one place in `status.rs`.
+while IFS='|' read -r in_prompt in_source; do
+  [ -n "$in_prompt" ] || continue
+  check "$in_prompt" "$prompt"
+  check "$in_source" "$src/status.rs"
+done <<'NOTES'
+streams split: <why>|format!("streams split: {}", meta::escape_control(why))
+downstream closed|notes.push("downstream closed".to_string())
+drain capped|notes.push("drain capped".to_string())
+capture failed: <err>|format!("capture failed: {}", meta::escape_control(e))
+stat failed: <err>|format!(" [stat failed: {}]", s.stat_errors.join("; "))
+NOTES
+
 if [ "$status_source" -ne 0 ]; then
   echo "prompt coupling check FAILED" >&2
   exit 1

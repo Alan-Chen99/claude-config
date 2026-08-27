@@ -418,7 +418,23 @@ fn main() {
             match code {
                 Ok(c) => std::process::exit(c),
                 Err(e) => {
-                    eprintln!("agent-tools run: {e:#}");
+                    // `agent-tools: `, not the `agent-tools <sub>: ` the
+                    // other subcommands' arms spell. This print and
+                    // `run-core`'s are the only two a caller can meet *after*
+                    // it has already seen its command's output:
+                    // `core::run_core` raises its wait failure with the tees
+                    // running, `run::run` passes it through, and it lands
+                    // here. The system prompt promises the agent that a line
+                    // beginning `agent-tools:` is the wrapper's own rather
+                    // than its command's, which is the only thing separating
+                    // the two once they share a stream. The arms that can fail
+                    // only before a child exists never interleave with command
+                    // output, so the inconsistency is deliberate.
+                    // `scripts/check-prompt-coupling.sh` pins the prompt's
+                    // half of that promise and `capture.rs`'s five
+                    // diagnostics; these two carry it uncovered, which is why
+                    // the reason lives here.
+                    eprintln!("agent-tools: run: {e:#}");
                     std::process::exit(2);
                 }
             }
@@ -446,7 +462,12 @@ fn main() {
             match outcome {
                 Ok(o) => std::process::exit(o.exit_code),
                 Err(e) => {
-                    eprintln!("agent-tools run-core: {e}");
+                    // Prefixed `agent-tools:` for the reason `Cmd::Run`'s arm
+                    // spells out: reachable with the tees already running, so a
+                    // caller can meet it after its command's own output. The
+                    // no-command print above cannot — it fires before a child
+                    // exists — so it keeps the subcommand-qualified form.
+                    eprintln!("agent-tools: run-core: {e}");
                     std::process::exit(2);
                 }
             }
