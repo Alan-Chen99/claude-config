@@ -19,12 +19,28 @@ pub struct TeeOutcome {
     /// error surfaces one chunk late — `Blocking::poll_write` hands the chunk to
     /// a blocking task and returns `Ok` without waiting, so the *next* write is
     /// what reports it — and the write that failed was already past the close.
-    /// So this lags the real close by up to two of the 8192-byte reads below,
-    /// and it adds the whole trigger chunk even though `write_all` may have
-    /// accepted a prefix of it before failing. An anchor for a drain bound, not
-    /// a count of bytes the downstream missed.
+    /// So this lags the real close by up to two of the 8192-byte reads below.
+    /// Counting the trigger chunk whole is exact rather than approximate:
+    /// `Blocking::poll_write` fails that chunk from its Busy arm having accepted
+    /// none of it, so there is no accepted prefix to subtract. The chunk that
+    /// may have been delivered in part is the preceding one — the write that was
+    /// still in flight when the downstream closed — and it is never counted here
+    /// at all. An anchor for a drain bound, not a count of bytes the downstream
+    /// missed.
     pub post_close_bytes: u64,
 }
+
+/// The tee's read size, and the boundary between the two capture-side regimes.
+///
+/// A child whose output exceeds this is read in more than one chunk, so a
+/// forward write's error surfaces at the next write, inside the read loop. A
+/// child whose whole output fits in one read has no next write, so its error can
+/// appear nowhere but the flush at EOF. Which regime a test exercises is decided
+/// by this number and nothing else: `core_test.rs`'s `ARRIVES_IN_ONE_CHUNK` is
+/// 2000 bytes precisely because 2000 is under it. Changing it silently moves
+/// that test into the other regime, where it passes while guarding nothing —
+/// `read_buf_divides_the_two_regimes` below is what makes that loud.
+const READ_BUF: usize = 8192;
 
 /// Tee `reader` -> (capture file at `capture_path`) + (forward writer).
 /// Updates `last_activity_unix_ms` on each non-empty read. Appends
@@ -56,7 +72,7 @@ where
         .await
         .with_context(|| format!("open capture {}", capture_path.display()))?;
 
-    let mut buf = vec![0u8; 8192];
+    let mut buf = vec![0u8; READ_BUF];
     let mut wrote_first_byte = false;
     let mut outcome = TeeOutcome::default();
     loop {
@@ -181,6 +197,23 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
     use tokio::io::AsyncWriteExt;
+
+    /// `core_test.rs` is an integration test against a binary-only crate, so it
+    /// cannot name `READ_BUF` and cannot fail when it moves. Pinning the value
+    /// from this side is the only thing standing between a resized buffer and a
+    /// flush-regime test that quietly stops testing the flush.
+    #[test]
+    fn read_buf_divides_the_two_regimes() {
+        assert_eq!(
+            READ_BUF, 8192,
+            "core_test.rs's `a_close_seen_only_at_the_flush_is_stated_too` needs a \
+             child whose whole output arrives in one read, and its \
+             `ARRIVES_IN_ONE_CHUNK` producer is 2000 bytes only because 2000 is \
+             under 8192. Move READ_BUF below that and the error surfaces in the \
+             read loop instead: the test still passes, guarding nothing. Resize \
+             `ARRIVES_IN_ONE_CHUNK` in the same commit."
+        );
+    }
 
     #[tokio::test]
     async fn tee_writes_capture_file() {

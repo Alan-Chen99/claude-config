@@ -356,9 +356,7 @@ fn pipefail(script: &str) -> std::process::Output {
 /// whole output arrives in a single read therefore fails nothing in the loop;
 /// `ARRIVES_IN_ONE_CHUNK` covers that band. 588,895 bytes cannot arrive in one
 /// read however the producer paces it — it is seventy-two of them — so this one
-/// always fails in the loop. It also dwarfs the 65,536-byte pipe buffer, so the
-/// tee must block on a reader that has gone rather than handing the kernel
-/// everything and finishing before `head` exits.
+/// always fails in the loop.
 const OVERFLOWS_THE_PIPE: &str = "bash -c 'echo done >&2; seq 1 100000'";
 
 /// The producer is last on purpose: `bash` exits with the status of the last
