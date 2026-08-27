@@ -1631,7 +1631,7 @@ change.
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 14 tests. (13 before this task: Task 5 added two, not one.)
+Expected: PASS, 15 tests. (14 before this task: Task 5 landed three, not one.)
 
 - [ ] **Step 6: Commit**
 
