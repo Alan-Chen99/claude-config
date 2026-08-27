@@ -32,7 +32,13 @@ lower number reads as a green run with fewer tests rather than as a truncated on
 `cargo fmt --check` exits non-zero on this tree whatever you do: rustfmt 1.9.0 disagrees with
 whoever formatted it, at 48 sites spread across files no task here touches. The only check
 that means anything is that your change adds none — compare the site list before and after,
-rather than reading the exit code.
+rather than reading the exit code. To get a clean "before", check the base commit out with
+`git worktree add --detach /tmp/<unique> <sha>`; do not reach for `git stash`, for the reason
+above.
+
+**The code blocks below are not rustfmt output.** They are written to be read, and several have
+been measured to add sites when pasted verbatim — array literals and `err.lines().any(|l| ...)`
+closures especially. Run `cargo fmt` on what you paste, or reformat by hand, before comparing.
 
 **Expected:** exactly one failure,
 `opencode_test.rs::opencode_loads_prefixed_langfuse_env_and_forwards_args`, and no other.
@@ -1828,9 +1834,15 @@ propagating `file.write_all(chunk).await?` with:
 ```
 
 Opening the capture file must not abort the run either. Replace the `?` on `OpenOptions::open`
-with a branch that records the error into the outcome, states it through the same message,
-and continues with capture disabled — `a_capture_that_cannot_be_opened_is_stated_and_not_fatal`
-covers only this branch, and the loop's message is never reached when the open is what failed.
+with a branch that records the error into the outcome, says so, and continues with capture
+disabled — `a_capture_that_cannot_be_opened_is_stated_and_not_fatal` covers only this branch,
+and the loop's message is never reached when the open is what failed.
+
+**Three failures, three messages, one prefix.** The loop's wording — "the capture is incomplete
+from here" — is false for an open that never captured a byte, and for a flush it is not "from
+here" but "by whatever was still in flight". Say what actually happened in each. All three
+begin `agent-tools: capture to <path> `, which is what the tests assert on and what Task 9's
+prompt promises.
 
 **And the capture's flush, just above the forward's.** `file.flush().await.ok()` — around
 `capture.rs:131`, find it by name — has the same mechanism the forward side did, because
@@ -1897,10 +1909,16 @@ never sees `SIGPIPE`.
 try the write, and on failure record it once, say so once, and keep going — and this task
 adds the capture side's mirror image. Two inline `if`s doing the same thing with different
 nouns, in a loop that also carries the drain bound and the first-byte event, is where this
-function stops being readable. One helper per side, named for what it protects, called from a
-loop body that reads as: capture it, forward it, count it, say it started. Do not generalise
-the two into one — they differ in what failure means, and collapsing that is how "capture
-failure never kills the child" gets lost.
+function stops being readable. One helper per side, named for what it protects. Do not
+generalise the two into one — they differ in what failure means, and collapsing that is how
+"capture failure never kills the child" gets lost.
+
+**Keep the loop's existing branch structure.** It is `if forward_closed { count and compare }
+else { forward }`, and that shape is load-bearing: the chunk that *detects* the close is
+counted without being compared against the bound, which is why the lowest bound stops one
+read past the close rather than at it. `the_lowest_bound_stops_the_drain_at_the_first_read_past_the_close`
+asserts exactly that. Flattening the body into "capture it, forward it, count it" would compare
+on the detecting chunk and move the bound by a read.
 
 - [ ] **Step 4: Carry the error out of the core**
 
@@ -1935,10 +1953,19 @@ defaulting:
     }
 ```
 
+**Test it directly; nothing else can.** Reverting this to `.ok().and_then(|r| r.ok())
+.unwrap_or_default()` leaves the whole suite green — measured. Neither failing arm is reachable
+through a wrapped command: once a capture failure is isolated inside `tee`, the only error left
+is `reader.read(...).await?`, which no command can be made to produce, and nothing in `tee`
+panics. Add a unit test in `core.rs`'s own `mod tests` pinning the three answers — `Ok(Ok(o))`
+passes it through, `Ok(Err(_))` and `Err(_)` each yield a `capture_error` — and say in its doc
+that the arms it covers have no reachable caller today. Shipping the one failure the "loud
+failure" clause cannot tolerate with no coverage is the worse of the two options.
+
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 18 tests.
+Expected: PASS, 19 tests. (16 before; this task adds three.)
 
 - [ ] **Step 6: Commit**
 
