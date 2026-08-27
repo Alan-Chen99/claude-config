@@ -1117,14 +1117,14 @@ is stated on stderr and in the status."
 Append to `agent-tools/tests/core_test.rs`:
 
 ```rust
-/// A producer whose output cannot fit in the pipe the consumer just dropped.
+/// Enough output that the close is seen inside the read loop, not at the flush.
 ///
-/// The size is load-bearing. `seq 1 5000` is 23,893 bytes and even 5000 `echo`s
-/// of `line-$i` are 48,893 — both under the 65,536-byte pipe buffer, so the tee
-/// hands the kernel everything and finishes before `head` has exited, and no
-/// forward write ever fails. Nothing observes the close and the test cannot
-/// fail. `seq 1 100000` is 588,895 bytes, nine times the buffer, so the tee must
-/// block on a reader that has gone.
+/// The two regimes are 16 KiB apart, not 64. Forwarding goes through tokio's
+/// stdout, which holds 16,384 bytes before it writes, so a child with less than
+/// that still to come after the close fails nothing in the loop — the bytes are
+/// still in the buffer when the reader goes — and `EPIPE` appears only at the
+/// final flush. `FITS_IN_THE_FORWARD_BUFFER` covers that band. 588,895 bytes is
+/// 36x past it, so this one always fails in the loop.
 const OVERFLOWS_THE_PIPE: &str = "bash -c 'echo done >&2; seq 1 100000'";
 
 /// The producer is last on purpose: `bash` exits with the status of the last
@@ -1182,18 +1182,97 @@ fn downstream_quitting_neither_kills_the_child_nor_the_call() {
     );
 }
 
-The producer size is the whole test. The plan's first version emitted 48,893 bytes, under
-the 65,536-byte pipe buffer, so the tee handed the kernel everything and finished before
-`head` exited — no forward write ever failed, and the test passed against the unfixed
-binary. It also measures the bare side rather than asserting `!= 141` against nothing.
+**This test does not guard this task, and must not be described as if it does.** It passes
+10/10 against the unfixed code and against the real parent commit: a write to a pipe with no
+reader returns `EPIPE` at once rather than blocking, so discarding that error costs nothing
+any of these three assertions can see. Enlarging the producer did not change that, and the
+size was never the reason — the plan's original 48,893-byte producer fails its forward write
+5/5, measured. What this test does pin is the "differs from bare by design" clause, against a
+measured bare side rather than a bare assertion of `!= 141`, and it will catch a Task 6 drain
+bound that fires when it should not. The test that guards Task 5 is Step 1b.
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 1b: Write the test that does guard it**
 
-Run: `cargo test --test core_test downstream`
-Expected: FAIL. Today the forward error is discarded, so the tee keeps writing into a dead
-pipe for all 5000 lines. The assertion that fails first depends on timing; the point is that
-nothing observes the close.
+The observable this task adds is the notice, not the byte counts. Two tests are needed
+because the close reaches the tee by two different paths, and the second path is the one the
+common shape takes — a small command piped into `head`.
+
+```rust
+/// A child whose remaining output fits in the forward buffer, so no write in
+/// the loop ever fails and only the flush at EOF can see the close.
+///
+/// The consumer is gone before the first byte exists: `(exit 0)` forks, exits,
+/// and closes the read end while the child is still sleeping. Nothing races.
+/// `seq 1 3000` is 13,893 bytes, under tokio's 16,384-byte stdout buffer, so
+/// the whole stream is still buffered when the reader goes.
+const FITS_IN_THE_FORWARD_BUFFER: &str = "bash -c 'sleep 0.5; seq 1 3000'";
+
+#[test]
+fn a_close_seen_only_at_the_flush_is_stated_too() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    let out = pipefail(&format!(
+        "{} run-core --capture-dir {} -- {FITS_IN_THE_FORWARD_BUFFER} | (exit 0)",
+        bin(),
+        cap.display()
+    ));
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("agent-tools: stdout downstream closed"),
+        "a close only the flush can see is still stated; stderr was {err:?}"
+    );
+    let captured = std::fs::read_to_string(cap.join("stdout"))
+        .or_else(|_| std::fs::read_to_string(cap.join("output")))
+        .unwrap();
+    assert!(
+        captured.ends_with("3000\n"),
+        "and the capture still holds everything; got {} bytes",
+        captured.len()
+    );
+}
+
+#[test]
+fn a_closed_downstream_is_stated_on_stderr() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+
+    let out = pipefail(&wrapped_into_head(&cap));
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    let stated = err
+        .lines()
+        .find(|l| l.starts_with("agent-tools: stdout downstream closed"))
+        .unwrap_or_else(|| panic!("nothing said the forwarding stopped; stderr was {err:?}"));
+    assert!(
+        stated.contains(&cap.join("stdout").display().to_string()),
+        "the notice names where the output is still going; got {stated:?}"
+    );
+    assert_eq!(
+        err.lines()
+            .filter(|l| l.starts_with("agent-tools: stdout downstream closed"))
+            .count(),
+        1,
+        "said once, not once per chunk; stderr was {err:?}"
+    );
+}
+```
+
+The "said once" filter matches the whole notice prefix rather than any `agent-tools:` line,
+or Task 6's drain notice would count toward it and this assertion would start failing for a
+reason that has nothing to do with it.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `cargo test --test core_test downstream` and `cargo test --test core_test a_close`
+Expected: both `_is_stated_` tests FAIL — nothing writes a notice today. Expected:
+`downstream_quitting_neither_kills_the_child_nor_the_call` **passes**, because it does not
+guard this task; that is stated above and is not a reason to skip the other two.
+
+Run each of them ten times, not once. `a_close_seen_only_at_the_flush_is_stated_too` claims a
+regime boundary at 16,384 bytes that is a property of tokio's stdout rather than a documented
+contract, so 10/10 is the evidence that it sits inside the band and not near its edge.
 
 **Never `eprintln!` from inside the tee.** It panics when its own write fails, and the
 stream that just closed can be the one it writes to: `cmd 2>&1 | head -3` puts both of the
@@ -1245,7 +1324,20 @@ Change the signature to `-> Result<TeeOutcome>` and the loop body:
         // ... unchanged: last_activity store and first_byte event
     }
     file.flush().await.ok();
-    let _ = forward.flush().await;
+    // The same error, at the second write site. Everything above may have gone
+    // into tokio's 16,384-byte stdout buffer without a syscall, so for a child
+    // with less than that still to come after the close this is the only place
+    // `EPIPE` ever appears. Discarded, the caller's stream is silently short by
+    // whatever was still buffered and the outcome says forwarding was fine —
+    // which is the clause this task exists to keep.
+    match forward.flush().await {
+        Err(e) if !outcome.forward_closed => {
+            outcome.forward_closed = true;
+            state_forward_closed(stream_name, &e, &capture_path);
+        }
+        // Already reported in the loop, or nothing to report.
+        _ => {}
+    }
     Ok(outcome)
 ```
 
@@ -1278,9 +1370,16 @@ fn state_forward_closed(stream_name: &str, err: &std::io::Error, capture_path: &
 In `core.rs`, add to `Outcome`:
 
 ```rust
+    /// A downstream stopped accepting writes, on either stream, and forwarding
+    /// to it stopped. The child ran on and the capture kept growing.
     pub forward_closed: bool,
-    pub post_close_bytes: u64,
 ```
+
+`post_close_bytes` stays on `TeeOutcome`, where Task 6 compares it against the drain bound,
+and does not go on `Outcome`: no task in this plan reads it there, and it is not what its
+name suggests — it counts from the chunk whose forward write failed, which lags the real
+close by a buffer and includes bytes the downstream may have received. Say that where it is
+defined rather than leaving a later reader to infer a precision it does not have.
 
 and populate them from the awaited tee handles instead of discarding them:
 
@@ -1295,7 +1394,7 @@ and populate them from the awaited tee handles instead of discarding them:
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 10 tests.
+Expected: PASS, 14 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -1537,22 +1636,27 @@ status to preserve" ends the analysis.
 Append to `agent-tools/tests/core_test.rs`:
 
 ```rust
+/// The child F2 was measured against: enough output to keep writing well past
+/// the first failed capture write, and an exit code nothing else would produce.
+const TALKS_THEN_EXITS_5: [&str; 3] =
+    ["bash", "-c", "for i in $(seq 1 2000); do echo line-$i; done; exit 5"];
+
 #[test]
 fn capture_failure_never_kills_the_child() {
     let tmp = tempfile::tempdir().unwrap();
     let cap = tmp.path().join("cap");
     std::fs::create_dir_all(&cap).unwrap();
-    // Make the capture unwritable: a directory where the capture file must go.
-    // Any write to it fails, standing in for the realistic trigger, a full disk.
-    std::fs::create_dir_all(cap.join("stdout")).unwrap();
-    std::fs::create_dir_all(cap.join("output")).unwrap();
+    // `/dev/full` opens and then fails every write with ENOSPC, which is F2's
+    // own trigger — a full disk — reached without privileges or a mount. A
+    // directory in the same place would fail the *open* instead, and the open
+    // is a different branch from the one that kills the child; it gets its own
+    // test below. Two shapes are symlinked because the merge decision picks the
+    // capture name, and `stderr` deliberately is not, so the test can tell one
+    // failed stream from a wholly broken run.
+    std::os::unix::fs::symlink("/dev/full", cap.join("stdout")).unwrap();
+    std::os::unix::fs::symlink("/dev/full", cap.join("output")).unwrap();
 
-    let out = run_core_cmd(
-        &cap,
-        &["bash", "-c", "for i in $(seq 1 2000); do echo line-$i; done; exit 5"],
-    )
-    .output()
-    .unwrap();
+    let out = run_core_cmd(&cap, &TALKS_THEN_EXITS_5).output().unwrap();
 
     assert_eq!(
         out.status.code(),
@@ -1565,9 +1669,37 @@ fn capture_failure_never_kills_the_child() {
         stdout.contains("line-2000\n"),
         "the caller's stream is never cut short by the wrapper's own failure"
     );
+    let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        String::from_utf8_lossy(&out.stderr).contains("capture"),
-        "the failure is stated on stderr rather than inferred from a wrong exit code"
+        err.contains("agent-tools: capture to"),
+        "the failure is stated on stderr rather than inferred from a wrong exit code; \
+         stderr was {err:?}"
+    );
+    assert_eq!(
+        err.matches("agent-tools: capture to").count(),
+        1,
+        "said once, not once per chunk of 2000 lines; stderr was {err:?}"
+    );
+}
+
+#[test]
+fn a_capture_that_cannot_be_opened_is_stated_and_not_fatal() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    std::fs::create_dir_all(&cap).unwrap();
+    // A directory where the capture file goes: the open fails with EISDIR and
+    // the loop never runs, so this reaches the branch the test above cannot.
+    std::fs::create_dir_all(cap.join("stdout")).unwrap();
+    std::fs::create_dir_all(cap.join("output")).unwrap();
+
+    let out = run_core_cmd(&cap, &TALKS_THEN_EXITS_5).output().unwrap();
+
+    assert_eq!(out.status.code(), Some(5));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("line-2000\n"));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("agent-tools: capture to"),
+        "an open that failed is stated too; stderr was {err:?}"
     );
 }
 ```
@@ -1599,7 +1731,9 @@ propagating `file.write_all(chunk).await?` with:
 ```
 
 Opening the capture file must not abort the run either. Replace the `?` on `OpenOptions::open`
-with a branch that records the error into the outcome and continues with capture disabled.
+with a branch that records the error into the outcome, states it through the same message,
+and continues with capture disabled — `a_capture_that_cannot_be_opened_is_stated_and_not_fatal`
+covers only this branch, and the loop's message is never reached when the open is what failed.
 
 Because the loop no longer exits on a capture error, the pipe keeps draining and the child
 never sees `SIGPIPE`.
@@ -1609,10 +1743,38 @@ never sees `SIGPIPE`.
 Add `capture_error: Option<String>` to `core::Outcome`, populated from either tee outcome
 (prefer the first non-`None`).
 
+**And stop swallowing a tee that died.** `core.rs:303`/`:305` await the handles as
+`.ok().and_then(|r| r.ok()).unwrap_or_default()`. The `.ok()` discards a `JoinError` — the
+tee **panicked** — and `unwrap_or_default()` then reports `forward_closed: false` and no
+capture error: a clean outcome for a capture that stopped dead. Nothing else in this plan
+touches it, and it is the one failure the "loud failure" clause cannot tolerate, so close it
+here. A tee that panicked or errored sets `capture_error` to what went wrong instead of
+defaulting:
+
+```rust
+    fn tee_outcome(
+        joined: Result<Result<capture::TeeOutcome>, tokio::task::JoinError>,
+    ) -> capture::TeeOutcome {
+        match joined {
+            Ok(Ok(o)) => o,
+            // The tee stopped without finishing. It owns the capture, so the
+            // capture stopped with it, and the only honest outcome says so.
+            Ok(Err(e)) => capture::TeeOutcome {
+                capture_error: Some(format!("{e:#}")),
+                ..Default::default()
+            },
+            Err(e) => capture::TeeOutcome {
+                capture_error: Some(format!("tee task died: {e}")),
+                ..Default::default()
+            },
+        }
+    }
+```
+
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 15 tests.
+Expected: PASS, 17 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -1760,6 +1922,52 @@ and change the returned line to carry it, between the byte counts and the stat p
 ```rust
     format!("{name} [{}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}", s.key)
 ```
+
+- [ ] **Step 4b: Test the rendering, not just the record**
+
+Step 1 pins the fact reaching `meta.json`; nothing yet pins it reaching a line, which is what
+this task is named for. Add to `status.rs`'s inline tests, beside the others that call
+`render`:
+
+```rust
+    #[test]
+    fn a_difference_from_bare_is_readable_beside_the_key() {
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        m.merge = Some("different destinations".into());
+        m.forward_closed = true;
+        m.capture_error = Some("No space left on device".into());
+        write(&d, &m);
+        std::fs::write(d.path().join("stdout"), b"x").unwrap();
+
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(line.contains("streams split: different destinations"), "line: {line}");
+        assert!(line.contains("downstream closed"), "line: {line}");
+        assert!(line.contains("capture failed: No space left on device"), "line: {line}");
+    }
+
+    #[test]
+    fn a_clean_run_carries_no_notes() {
+        // Nearly every run is this one, and these lines land in every tool
+        // result: a note that is always there stops being read.
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        m.merge = Some("both appending, same file".into());
+        write(&d, &m);
+        std::fs::write(d.path().join("output"), b"x").unwrap();
+
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(!line.contains("merge"), "a merged run explains nothing: {line}");
+        assert!(!line.contains('['), "no bracketed notes at all: {line}");
+    }
+```
+
+The second test's `[` assertion is deliberately blunt and will fail if a future note is added
+unconditionally. That is the point; `base()` produces no `stat_errors`, so the only bracket a
+clean line could carry is the status key — check that assumption when you write it, and if
+the key does bracket, narrow the assertion to the notes segment rather than deleting it.
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
