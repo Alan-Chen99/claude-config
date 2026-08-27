@@ -1117,41 +1117,75 @@ is stated on stderr and in the status."
 Append to `agent-tools/tests/core_test.rs`:
 
 ```rust
+/// A producer whose output cannot fit in the pipe the consumer just dropped.
+///
+/// The size is load-bearing. `seq 1 5000` is 23,893 bytes and even 5000 `echo`s
+/// of `line-$i` are 48,893 — both under the 65,536-byte pipe buffer, so the tee
+/// hands the kernel everything and finishes before `head` has exited, and no
+/// forward write ever fails. Nothing observes the close and the test cannot
+/// fail. `seq 1 100000` is 588,895 bytes, nine times the buffer, so the tee must
+/// block on a reader that has gone.
+const OVERFLOWS_THE_PIPE: &str = "bash -c 'echo done >&2; seq 1 100000'";
+
+/// The producer is last on purpose: `bash` exits with the status of the last
+/// command, so bare it is `seq`'s death by SIGPIPE that the shell reports. Put
+/// the `echo` last and bare exits 0 too, and the differential proves nothing.
+fn wrapped_into_head(cap: &Path) -> String {
+    format!(
+        "{} run-core --capture-dir {} -- {OVERFLOWS_THE_PIPE} | head -3",
+        bin(),
+        cap.display()
+    )
+}
+
+/// Run `script` under `bash -c` with `pipefail`, so the pipeline reports the
+/// producer's status rather than the consumer's — which is the whole question a
+/// quitting downstream raises.
+fn pipefail(script: &str) -> std::process::Output {
+    Command::new("bash")
+        .args(["-c", &format!("set -o pipefail; {script}")])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .output()
+        .unwrap()
+}
+
 #[test]
 fn downstream_quitting_neither_kills_the_child_nor_the_call() {
     let tmp = tempfile::tempdir().unwrap();
     let cap = tmp.path().join("cap");
-    // `head -3` exits after three lines; bare, the producer would die of SIGPIPE.
-    let script = format!(
-        "{} run-core --capture-dir {} -- bash -c 'for i in $(seq 1 5000); do echo line-$i; done; echo done >&2' | head -3",
-        bin(),
-        cap.display()
-    );
-    let out = Command::new("bash")
-        .args(["-c", &script])
-        .env("CLAUDE_CONFIG_ROOT", worktree_root())
-        .output()
-        .unwrap();
 
+    let bare = pipefail(&format!("{OVERFLOWS_THE_PIPE} | head -3"));
+    assert_eq!(
+        bare.status.code(),
+        Some(141),
+        "bare: the producer dies of SIGPIPE and pipefail reports it"
+    );
+
+    let out = pipefail(&wrapped_into_head(&cap));
     assert_eq!(
         String::from_utf8_lossy(&out.stdout),
-        "line-1\nline-2\nline-3\n",
+        "1\n2\n3\n",
         "the caller still sees exactly what it asked for"
     );
     let captured = std::fs::read_to_string(cap.join("stdout"))
         .or_else(|_| std::fs::read_to_string(cap.join("output")))
         .unwrap();
     assert!(
-        captured.contains("line-5000"),
+        captured.ends_with("100000\n"),
         "the whole result still lands on disk; got {} bytes",
         captured.len()
     );
-    assert_ne!(
+    assert_eq!(
         out.status.code(),
-        Some(141),
-        "nothing died of SIGPIPE: the producer's own status is reported"
+        Some(0),
+        "nothing died of SIGPIPE: the producer's own status is reported, not 141"
     );
 }
+
+The producer size is the whole test. The plan's first version emitted 48,893 bytes, under
+the 65,536-byte pipe buffer, so the tee handed the kernel everything and finished before
+`head` exited — no forward write ever failed, and the test passed against the unfixed
+binary. It also measures the bare side rather than asserting `!= 141` against nothing.
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -1160,6 +1194,16 @@ Run: `cargo test --test core_test downstream`
 Expected: FAIL. Today the forward error is discarded, so the tee keeps writing into a dead
 pipe for all 5000 lines. The assertion that fails first depends on timing; the point is that
 nothing observes the close.
+
+**Never `eprintln!` from inside the tee.** It panics when its own write fails, and the
+stream that just closed can be the one it writes to: `cmd 2>&1 | head -3` puts both of the
+caller's descriptors on the pipe `head` drops, which is exactly the shape the merge rule
+admits. Measured with `eprintln!` in place — rc `141`, capture 32,773 B — against a plain
+`write_all` — rc `0`, capture 588,900 B: the panic kills the tee, the read end closes, and the
+child dies of SIGPIPE, which is both of the failures this task exists to prevent. Use a helper
+that formats once and writes once to `std::io::stderr()`, discarding the error; that is also
+atomic under `PIPE_BUF`, where `write_fmt` emits a syscall per fragment. Tasks 6 and 7 print
+from the same place and inherit this rule.
 
 - [ ] **Step 3: Detect and report the forward close**
 
@@ -1196,16 +1240,37 @@ Change the signature to `-> Result<TeeOutcome>` and the loop body:
             // but it is a difference from bare and is never inferred silently.
             outcome.forward_closed = true;
             outcome.post_close_bytes += n as u64;
-            eprintln!(
-                "agent-tools: {stream_name} downstream closed ({e}); still capturing to {}",
-                capture_path.display()
-            );
+            state_forward_closed(stream_name, &e, &capture_path);
         }
         // ... unchanged: last_activity store and first_byte event
     }
     file.flush().await.ok();
     let _ = forward.flush().await;
     Ok(outcome)
+```
+
+and the helper the loop calls:
+
+```rust
+/// Say once, on stderr, that forwarding stopped and capturing did not.
+///
+/// Not `eprintln!`: that panics when the write fails, and the stream that just
+/// closed can be this one — `cmd 2>&1 | head -3` puts both of the caller's
+/// descriptors on the pipe `head` drops, which is exactly the shape the merge
+/// rule admits. A panic there would kill the tee, stopping the capture the
+/// message is about, and the outcome would come back saying nothing happened.
+///
+/// Formatted first and written once, so the notice cannot be spliced by the
+/// other stream's tee mid-line: one `write` under `PIPE_BUF` is atomic, while
+/// `write_fmt` emits a syscall per fragment.
+fn state_forward_closed(stream_name: &str, err: &std::io::Error, capture_path: &std::path::Path) {
+    use std::io::Write as _;
+    let msg = format!(
+        "agent-tools: {stream_name} downstream closed ({err}); still capturing to {}\n",
+        capture_path.display()
+    );
+    let _ = std::io::stderr().write_all(msg.as_bytes());
+}
 ```
 
 - [ ] **Step 4: Carry the outcome out of the core**
@@ -1307,10 +1372,10 @@ In `capture.rs`, add a `drain_cap_bytes: u64` parameter to `tee` (0 meaning unca
             outcome.post_close_bytes += n as u64;
             if drain_cap_bytes > 0 && outcome.post_close_bytes >= drain_cap_bytes {
                 outcome.drain_capped = true;
-                eprintln!(
+                state(&format!(
                     "agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes reached; \
                      dropping the read end so the child sees SIGPIPE as it would bare"
-                );
+                ));
                 break;
             }
         }
@@ -1449,11 +1514,11 @@ propagating `file.write_all(chunk).await?` with:
                 // keep forwarding, and say so — a silent stop would let `final(0)`
                 // sit beside a capture that stopped growing an hour ago.
                 outcome.capture_error = Some(e.to_string());
-                eprintln!(
+                state(&format!(
                     "agent-tools: capture to {} failed ({e}); forwarding continues, \
                      the capture is incomplete from here",
                     capture_path.display()
-                );
+                ));
             }
         }
 ```
@@ -1649,7 +1714,9 @@ The text above promises every wrapper diagnostic begins `agent-tools:`. Check ea
 `eprintln!` added by Tasks 5, 6 and 7 actually carries that prefix, and fix any that does
 not. A promise the emitters do not keep is worse than the claim it replaced.
 
-Run: `grep -rn 'eprintln!' agent-tools/src/`
+Run: `grep -rn "eprintln!\\|stderr()" agent-tools/src/`
+The tee does not use `eprintln!` — it writes through a helper, for the reason given in
+Task 5 — so grepping only for the macro would miss every diagnostic that matters here.
 Expected: every line that reaches the caller's stderr starts its message with `agent-tools:`.
 
 - [ ] **Step 3: Record the coupling**
