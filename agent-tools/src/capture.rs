@@ -9,10 +9,24 @@ use tokio::time::{sleep, Duration};
 
 use crate::events;
 
+/// What a tee observed. Every field explains a difference from the bare command.
+#[derive(Debug, Default, Clone)]
+pub struct TeeOutcome {
+    /// The downstream stopped accepting writes; forwarding stopped here.
+    pub forward_closed: bool,
+    /// Bytes captured after the downstream closed.
+    pub post_close_bytes: u64,
+}
+
 /// Tee `reader` -> (capture file at `capture_path`) + (forward writer).
 /// Updates `last_activity_unix_ms` on each non-empty read. Appends
 /// `first_byte` + (later) `silence`/`silence_break` events to `events_dir`
 /// (the task or child dir that owns events.jsonl).
+///
+/// A downstream that stops accepting writes stops the forwarding, not the
+/// child and not the capture: a caller going away is expected and capturing on
+/// is the point. It is still a difference from bare, so it is stated on stderr
+/// and returned rather than inferred from a short stream.
 ///
 /// Returns when the reader closes (EOF).
 pub async fn tee<R, W>(
@@ -22,7 +36,7 @@ pub async fn tee<R, W>(
     mut forward: W,
     last_activity_unix_ms: Arc<AtomicI64>,
     events_dir: PathBuf,
-) -> Result<()>
+) -> Result<TeeOutcome>
 where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
@@ -36,6 +50,7 @@ where
 
     let mut buf = vec![0u8; 8192];
     let mut wrote_first_byte = false;
+    let mut outcome = TeeOutcome::default();
     loop {
         let n = reader.read(&mut buf).await?;
         if n == 0 {
@@ -43,7 +58,14 @@ where
         }
         let chunk = &buf[..n];
         file.write_all(chunk).await?;
-        let _ = forward.write_all(chunk).await;
+
+        if outcome.forward_closed {
+            outcome.post_close_bytes += n as u64;
+        } else if let Err(e) = forward.write_all(chunk).await {
+            outcome.forward_closed = true;
+            outcome.post_close_bytes += n as u64;
+            state_forward_closed(stream_name, &e, &capture_path);
+        }
         last_activity_unix_ms.store(now_unix_ms(), Ordering::SeqCst);
         if !wrote_first_byte {
             wrote_first_byte = true;
@@ -56,7 +78,27 @@ where
     }
     file.flush().await.ok();
     let _ = forward.flush().await;
-    Ok(())
+    Ok(outcome)
+}
+
+/// Say once, on stderr, that forwarding stopped and capturing did not.
+///
+/// Not `eprintln!`: that panics when the write fails, and the stream that just
+/// closed can be this one — `cmd 2>&1 | head -3` puts both of the caller's
+/// descriptors on the pipe `head` drops, which is exactly the shape the merge
+/// rule admits. A panic there would kill the tee, stopping the capture the
+/// message is about, and the outcome would come back saying nothing happened.
+///
+/// Formatted first and written once, so the notice cannot be spliced by the
+/// other stream's tee mid-line: one `write` under `PIPE_BUF` is atomic, while
+/// `write_fmt` emits a syscall per fragment.
+fn state_forward_closed(stream_name: &str, err: &std::io::Error, capture_path: &std::path::Path) {
+    use std::io::Write as _;
+    let msg = format!(
+        "agent-tools: {stream_name} downstream closed ({err}); still capturing to {}\n",
+        capture_path.display()
+    );
+    let _ = std::io::stderr().write_all(msg.as_bytes());
 }
 
 /// Run a per-stream silence watcher. Polls every 1 s; if the gap between

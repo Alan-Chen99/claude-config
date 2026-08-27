@@ -96,6 +96,11 @@ enum Streams {
 pub struct Outcome {
     pub exit_code: i32,
     pub merge: Merge,
+    /// A downstream stopped accepting writes, on either stream, and forwarding
+    /// to it stopped. The child ran on and the capture kept growing.
+    pub forward_closed: bool,
+    /// Bytes captured after that, summed over both streams.
+    pub post_close_bytes: u64,
 }
 
 /// Spawn failed, or something else did. Kept distinct so `run` can record the
@@ -290,16 +295,29 @@ where
     on_reap(exit_code);
 
     let _ = cancel_tx.send(true);
-    let _ = tee_a.await;
-    if let Some(tee_b) = tee_b {
-        let _ = tee_b.await;
-    }
+    // A tee that panicked or failed its capture reports nothing, exactly as
+    // before this returned anything: the exit code is guaranteed and the
+    // wrapper's own bookkeeping never decides what the caller learns the child
+    // did. Isolating a failed capture is its own fix; this only stops the
+    // forward close from being discarded.
+    let a = tee_a.await.ok().and_then(|r| r.ok()).unwrap_or_default();
+    let b = match tee_b {
+        Some(h) => h.await.ok().and_then(|r| r.ok()).unwrap_or_default(),
+        None => capture::TeeOutcome::default(),
+    };
     let _ = watch_a.await;
     if let Some(watch_b) = watch_b {
         let _ = watch_b.await;
     }
 
-    Ok(Outcome { exit_code, merge })
+    Ok(Outcome {
+        exit_code,
+        merge,
+        // Either stream losing its downstream is the same difference from bare;
+        // which one it was is already on stderr, under the stream's own name.
+        forward_closed: a.forward_closed || b.forward_closed,
+        post_close_bytes: a.post_close_bytes + b.post_close_bytes,
+    })
 }
 
 #[cfg(test)]

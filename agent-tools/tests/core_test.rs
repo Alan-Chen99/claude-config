@@ -334,3 +334,100 @@ fn a_merged_run_ends_when_the_child_closes_its_streams() {
         "the child closed its streams before writing"
     );
 }
+
+/// Run `script` under `bash -c` with `pipefail`, so the pipeline reports the
+/// producer's status rather than the consumer's — which is the whole question a
+/// quitting downstream raises.
+fn pipefail(script: &str) -> std::process::Output {
+    Command::new("bash")
+        .args(["-c", &format!("set -o pipefail; {script}")])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .output()
+        .unwrap()
+}
+
+/// A producer whose output cannot fit in the pipe the consumer just dropped.
+///
+/// The size is load-bearing. `seq 1 5000` is 23,893 bytes and even 5000 `echo`s
+/// of `line-$i` are 48,893 — both under the 65,536-byte pipe buffer, so the tee
+/// hands the kernel everything and finishes before `head` has exited, and no
+/// forward write ever fails. Nothing observes the close and the test cannot
+/// fail. `seq 1 100000` is 588,895 bytes, nine times the buffer, so the tee must
+/// block on a reader that has gone.
+const OVERFLOWS_THE_PIPE: &str = "bash -c 'echo done >&2; seq 1 100000'";
+
+/// The producer is last on purpose: `bash` exits with the status of the last
+/// command, so bare it is `seq`'s death by SIGPIPE that the shell reports. Put
+/// the `echo` last and bare exits 0 too, and the differential proves nothing.
+fn wrapped_into_head(cap: &Path) -> String {
+    format!(
+        "{} run-core --capture-dir {} -- {OVERFLOWS_THE_PIPE} | head -3",
+        bin(),
+        cap.display()
+    )
+}
+
+#[test]
+fn downstream_quitting_neither_kills_the_child_nor_the_call() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+
+    let bare = pipefail(&format!("{OVERFLOWS_THE_PIPE} | head -3"));
+    assert_eq!(
+        bare.status.code(),
+        Some(141),
+        "bare: the producer dies of SIGPIPE and pipefail reports it"
+    );
+
+    let out = pipefail(&wrapped_into_head(&cap));
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        "1\n2\n3\n",
+        "the caller still sees exactly what it asked for"
+    );
+    let captured = std::fs::read_to_string(cap.join("stdout"))
+        .or_else(|_| std::fs::read_to_string(cap.join("output")))
+        .unwrap();
+    assert!(
+        captured.ends_with("100000\n"),
+        "the whole result still lands on disk; got {} bytes",
+        captured.len()
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "nothing died of SIGPIPE: the producer's own status is reported, not 141"
+    );
+}
+
+/// The difference from bare is stated, never inferred: "a forwarded stream is
+/// never silently short … either failure is stated on stderr and in the status."
+///
+/// The `agent-tools:` prefix at the start of a line is the contract the system
+/// prompt teaches — that such a line is the wrapper speaking, not the command —
+/// so its position is asserted, not just its presence. The child writes to stderr
+/// too, which is why the diagnostic cannot be assumed to start the stream.
+#[test]
+fn a_closed_downstream_is_stated_on_stderr() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+
+    let out = pipefail(&wrapped_into_head(&cap));
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    let stated = err
+        .lines()
+        .find(|l| l.starts_with("agent-tools: stdout downstream closed"))
+        .unwrap_or_else(|| panic!("nothing said the forwarding stopped; stderr was {err:?}"));
+    assert!(
+        stated.contains(&cap.join("stdout").display().to_string()),
+        "the notice names where the output is still going; got {stated:?}"
+    );
+    assert_eq!(
+        err.lines()
+            .filter(|l| l.starts_with("agent-tools: stdout downstream closed"))
+            .count(),
+        1,
+        "said once, not once per chunk; stderr was {err:?}"
+    );
+}
