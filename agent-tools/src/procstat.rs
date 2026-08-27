@@ -21,9 +21,21 @@ pub fn parse_stat(line: &str) -> Result<(u8, u64)> {
     Ok((state.as_bytes()[0], starttime))
 }
 
+/// Read `/proc/<pid>/stat` as text without requiring it to be UTF-8.
+///
+/// Field 2 is `comm`, which holds arbitrary bytes for any process. Parsing
+/// anchors on the last `)`, past comm, and `)` is ASCII so it can never be part
+/// of a multi-byte sequence: replacing invalid sequences cannot move a field
+/// this reads. A strict read would instead make every reader fail on a process
+/// whose name is not UTF-8.
+fn read_stat(pid: u32) -> Result<String> {
+    let bytes =
+        fs::read(format!("/proc/{pid}/stat")).with_context(|| format!("read /proc/{pid}/stat"))?;
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
 pub fn start_ticks(pid: u32) -> Result<u64> {
-    let raw = fs::read_to_string(format!("/proc/{pid}/stat"))
-        .with_context(|| format!("read /proc/{pid}/stat"))?;
+    let raw = read_stat(pid)?;
     Ok(parse_stat(&raw)?.1)
 }
 
@@ -32,7 +44,7 @@ pub fn start_ticks(pid: u32) -> Result<u64> {
 /// The start-ticks comparison rejects a recycled pid. A zombie wrapper has
 /// already released its pipe fds, so it must not count as alive.
 pub fn is_alive(pid: u32, expected_ticks: u64) -> bool {
-    let Ok(raw) = fs::read_to_string(format!("/proc/{pid}/stat")) else {
+    let Ok(raw) = read_stat(pid) else {
         return false;
     };
     match parse_stat(&raw) {
@@ -61,6 +73,26 @@ mod tests {
             !is_alive(me, ticks + 1),
             "a recycled pid with different start ticks must read as dead"
         );
+    }
+
+    /// `comm` holds arbitrary bytes for any process, not just this crate's.
+    /// A stat file that is not valid UTF-8 must still be read: `is_alive`
+    /// answers `false` on a read error, so a live wrapper would derive as
+    /// `final(status)` — a terminal key for a running child.
+    #[test]
+    fn stat_with_a_non_utf8_comm_is_still_readable() {
+        use std::os::unix::ffi::OsStrExt;
+        let dir = tempfile::tempdir().unwrap();
+        let link = dir
+            .path()
+            .join(std::ffi::OsStr::from_bytes(b"sleep\xff\xfe"));
+        std::os::unix::fs::symlink("/bin/sleep", &link).unwrap();
+        let mut child = std::process::Command::new(&link).arg("30").spawn().unwrap();
+        let pid = child.id();
+        let ticks = start_ticks(pid).expect("start ticks readable for a non-UTF-8 comm");
+        assert!(is_alive(pid, ticks), "a live process must read as alive");
+        child.kill().ok();
+        child.wait().ok();
     }
 
     #[test]

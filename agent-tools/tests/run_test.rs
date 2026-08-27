@@ -326,3 +326,28 @@ fn hide_cmdline_hides_desc_and_argv_from_proc_self_cmdline() {
         "desc must remain in meta.json (the intended observability channel): {meta}"
     );
 }
+
+/// A `--desc` in ordinary prose can carry a non-ASCII character at any byte
+/// offset. The wrapper exists to protect the command, so no spelling of the
+/// description may decide whether the command runs.
+#[test]
+fn multibyte_desc_still_runs_the_command() {
+    for n in 0..14 {
+        let home = tempfile::tempdir().unwrap();
+        let parent_dir = make_task(home.path());
+        let desc = format!("{}鍵盘 driver", "x".repeat(n));
+        let out = agent_tools()
+            .args(["run", "--desc", &desc, "--", "echo", "hello-world"])
+            .env("HOME", home.path())
+            .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "--desc {desc:?} (offset {n}) exited {:?}: {}",
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&out.stdout), "hello-world\n");
+    }
+}

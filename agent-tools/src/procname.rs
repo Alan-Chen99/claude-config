@@ -34,19 +34,29 @@ use std::fs;
 /// `ps -o comm=` distinguishes the wrapper from an inline invocation
 /// while still leaving room for meaningful hint text under the
 /// kernel's 15-byte TASK_COMM_LEN - 1 limit.
-pub fn set_comm(hint: &str) {
-    if !cfg!(target_os = "linux") {
-        return;
-    }
-    // 15 bytes max on Linux. "at:" prefix leaves 12 chars for the hint.
+/// Build the `comm` string for `hint`: the `at:` prefix plus as much of the
+/// hint as the kernel's 15-byte `TASK_COMM_LEN - 1` limit holds.
+fn comm_for(hint: &str) -> String {
+    // 15 bytes max on Linux. "at:" prefix leaves 12 bytes for the hint.
+    // The bound is on bytes and the push is a whole character, so a character
+    // that would cross 15 ends the string: prctl cuts at 15 without regard for
+    // character boundaries, and a half character is invalid UTF-8 in every
+    // reader of /proc/<pid>/stat.
     let mut s = String::from("at:");
     for c in hint.chars() {
-        if s.len() >= 15 {
+        if s.len() + c.len_utf8() > 15 {
             break;
         }
         s.push(c);
     }
-    let c_short = match std::ffi::CString::new(s) {
+    s
+}
+
+pub fn set_comm(hint: &str) {
+    if !cfg!(target_os = "linux") {
+        return;
+    }
+    let c_short = match std::ffi::CString::new(comm_for(hint)) {
         Ok(v) => v,
         Err(_) => return,
     };
@@ -118,4 +128,29 @@ fn argv_range() -> Option<(usize, usize)> {
         return None;
     }
     Some((arg_start as usize, (arg_end - arg_start) as usize))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The kernel truncates `comm` at 15 bytes. A hint whose character
+    /// straddles that boundary must be cut before the character, not through
+    /// it: a half character leaves invalid UTF-8 in `/proc/<pid>/stat`, which
+    /// every reader of that file then fails on.
+    #[test]
+    fn comm_hint_never_straddles_the_kernel_limit() {
+        for n in 0..20 {
+            for tail in ["鍵盘 driver", "✅ tail", "école", "😀 x"] {
+                let hint = format!("{}{}", "x".repeat(n), tail);
+                let s = comm_for(&hint);
+                assert!(
+                    s.len() <= 15,
+                    "comm_for({hint:?}) = {s:?} is {} bytes, kernel keeps 15",
+                    s.len()
+                );
+                assert!(s.starts_with("at:"), "comm_for({hint:?}) = {s:?}");
+            }
+        }
+    }
 }
