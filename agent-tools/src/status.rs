@@ -6,10 +6,17 @@ use crate::core;
 use crate::meta::{self, ChildMeta};
 use crate::procstat;
 
-/// Longest name a report line carries. `--desc` and the command are the only
-/// unbounded fields in a line, and `hook_post::bound` can never select a line
-/// larger than the whole report budget: that child's change would be announced
-/// as omitted at every delivery point and never actually delivered.
+/// Longest name a report line carries, so `hook_post::bound` can never select a
+/// line larger than the whole report budget: that child's change would be
+/// announced as omitted at every delivery point and never actually delivered.
+///
+/// The name is capped because it is the field a caller chooses. It is not the
+/// only unbounded one — `merge`, `capture_error` and `spawn_error` all reach a
+/// line from `meta.json` at whatever length the record holds. They are escaped
+/// rather than capped, since every producer is a wrapper-authored `io::Error`
+/// or one of `decide_merge`'s own literals, so length is bounded in practice
+/// while a hand-edited record's newlines are not. `agent-tools/CLAUDE.md`,
+/// "Report lines", carries the same enumeration.
 const NAME_MAX: usize = 200;
 
 /// Quiet thresholds, ascending. Configuration, not contract.
