@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn bin() -> String {
     env!("CARGO_BIN_EXE_agent-tools").to_string()
@@ -185,4 +185,94 @@ fn core_agrees_with_bare_on_signalled_death_status() {
         Some(143),
         "wrapped: the spec promises 128+signum as the wrapper's own exit code"
     );
+}
+
+/// Run `script` with both of the caller's own descriptors on one appending file:
+/// the shape the merge rule admits, and the shape the Claude Code Bash tool has.
+/// The returned `TempDir` keeps `cap/` alive so the capture can be inspected.
+fn run_core_to_one_appending_file(script: &str) -> (String, tempfile::TempDir) {
+    let tmp = tempfile::tempdir().unwrap();
+    let sink = tmp.path().join("caller.log");
+    let f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&sink)
+        .unwrap();
+    let f2 = f.try_clone().unwrap();
+    let status = run_core_cmd(&tmp.path().join("cap"), &["bash", "-c", script])
+        .stdout(Stdio::from(f))
+        .stderr(Stdio::from(f2))
+        .status()
+        .unwrap();
+    assert!(status.code().is_some());
+    (std::fs::read_to_string(&sink).unwrap(), tmp)
+}
+
+#[test]
+fn merged_streams_keep_their_relative_order() {
+    let script = "for i in $(seq 1 200); do echo out-$i; echo err-$i >&2; done";
+    let (text, _tmp) = run_core_to_one_appending_file(script);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 400, "every line arrives exactly once");
+    for i in 0..200 {
+        assert_eq!(lines[i * 2], format!("out-{}", i + 1));
+        assert_eq!(lines[i * 2 + 1], format!("err-{}", i + 1));
+    }
+}
+
+#[test]
+fn merged_capture_holds_one_file_and_no_empty_stderr() {
+    let (_text, tmp) = run_core_to_one_appending_file("echo a; echo b >&2");
+    let cap = tmp.path().join("cap");
+    let merged = std::fs::read_to_string(cap.join("output")).unwrap();
+    assert_eq!(merged, "a\nb\n");
+    assert!(
+        !cap.join("stderr").exists(),
+        "an empty stderr file would read as 'no diagnostics'"
+    );
+    assert!(!cap.join("stdout").exists());
+}
+
+#[test]
+fn split_capture_holds_two_files() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    run_core_cmd(&cap, &["bash", "-c", "echo a; echo b >&2"])
+        .output()
+        .unwrap();
+    assert_eq!(std::fs::read_to_string(cap.join("stdout")).unwrap(), "a\n");
+    assert_eq!(std::fs::read_to_string(cap.join("stderr")).unwrap(), "b\n");
+    assert!(!cap.join("output").exists());
+}
+
+#[test]
+fn long_lines_survive_the_merge_uncorrupted() {
+    // The splice has to be forced. A long line crosses several of the tee's
+    // 8192-byte reads, and the other stream has to land a write between two of
+    // them, which only happens while the gap between the child's own two writes
+    // stays under roughly 50 us. One command substitution inside the loop is
+    // twenty times that by itself, so the long line is built once and the loop
+    // runs on builtins alone.
+    let script = "long=$(printf 'O%.0s' $(seq 1 12000)); i=0; \
+                  while ((i<200)); do echo \"$long\"; echo E >&2; ((i++)); done";
+    let (text, _tmp) = run_core_to_one_appending_file(script);
+    let (mut long_lines, mut short_lines) = (0, 0);
+    for line in text.lines() {
+        let first = *line
+            .as_bytes()
+            .first()
+            .expect("an empty line means one write was split in two");
+        assert!(
+            line.bytes().all(|b| b == first),
+            "a line mixing O and E is two writes spliced together"
+        );
+        if first == b'O' {
+            assert_eq!(line.len(), 12000, "a spliced line means the merge failed");
+            long_lines += 1;
+        } else {
+            assert_eq!(line, "E", "a spliced line means the merge failed");
+            short_lines += 1;
+        }
+    }
+    assert_eq!((long_lines, short_lines), (200, 200), "every line arrives whole, exactly once");
 }

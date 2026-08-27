@@ -131,27 +131,43 @@ where
     std::fs::create_dir_all(capture_dir)
         .map_err(|e| CoreError::Other(anyhow::anyhow!("mkdir {}: {e}", capture_dir.display())))?;
 
-    let mut child = Command::new(&cmd[0])
-        .args(&cmd[1..])
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(CoreError::Spawn)?;
+    // The wrapper's own descriptors: what the caller sees, and so what the
+    // decision must be about.
+    let merge = decide_merge(libc::STDOUT_FILENO, libc::STDERR_FILENO);
+
+    let mut command = Command::new(&cmd[0]);
+    command.args(&cmd[1..]).stdin(Stdio::inherit());
+
+    let merged_reader = if let Merge::Merged(_) = merge {
+        // O_CLOEXEC, as `Stdio::piped()` does for the split branch: the child
+        // gets fd 1 and fd 2 by `dup2`, which clears the flag, and the copies
+        // these came from close on exec. Left inheritable, a descendant of a
+        // child that closed its own stdout and stderr would still hold a write
+        // end, and the tee would wait on a pipe bare would already have closed.
+        let (r, w) = nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC)
+            .map_err(|e| CoreError::Other(anyhow::anyhow!("pipe: {e}")))?;
+        let w2 = w
+            .try_clone()
+            .map_err(|e| CoreError::Other(anyhow::anyhow!("dup: {e}")))?;
+        command.stdout(Stdio::from(w)).stderr(Stdio::from(w2));
+        Some(r)
+    } else {
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        None
+    };
+
+    let mut child = command.spawn().map_err(CoreError::Spawn)?;
+    // `command` still owns the write ends it was handed, and the child now has
+    // its own. A pipe reports EOF only once the last write end closes, so
+    // keeping these would leave the merged tee reading a pipe nobody will ever
+    // write to or close — a child that has already exited, and a wrapper that
+    // never returns.
+    drop(command);
 
     let pid = child
         .id()
         .ok_or_else(|| CoreError::Other(anyhow::anyhow!("child pid unavailable")))?;
     on_spawn(pid);
-
-    let stdout_pipe = child
-        .stdout
-        .take()
-        .ok_or_else(|| CoreError::Other(anyhow::anyhow!("no stdout pipe")))?;
-    let stderr_pipe = child
-        .stderr
-        .take()
-        .ok_or_else(|| CoreError::Other(anyhow::anyhow!("no stderr pipe")))?;
 
     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
     crate::signals::install_forwarding(pid as i32, cancel_rx.clone()).ok();
@@ -160,22 +176,48 @@ where
     let last_stderr = Arc::new(AtomicI64::new(chrono::Utc::now().timestamp_millis()));
 
     let dir: PathBuf = capture_dir.to_path_buf();
-    let stdout_tee = tokio::spawn(capture::tee(
-        "stdout",
-        stdout_pipe,
-        dir.join("stdout"),
-        tokio::io::stdout(),
-        last_stdout.clone(),
-        dir.clone(),
-    ));
-    let stderr_tee = tokio::spawn(capture::tee(
-        "stderr",
-        stderr_pipe,
-        dir.join("stderr"),
-        tokio::io::stderr(),
-        last_stderr.clone(),
-        dir.clone(),
-    ));
+    let (tee_a, tee_b) = match merged_reader {
+        Some(r) => {
+            let rx = tokio::net::unix::pipe::Receiver::from_owned_fd(r)
+                .map_err(|e| CoreError::Other(anyhow::anyhow!("async pipe: {e}")))?;
+            let a = tokio::spawn(capture::tee(
+                "output",
+                rx,
+                dir.join("output"),
+                tokio::io::stdout(),
+                last_stdout.clone(),
+                dir.clone(),
+            ));
+            (a, None)
+        }
+        None => {
+            let stdout_pipe = child
+                .stdout
+                .take()
+                .ok_or_else(|| CoreError::Other(anyhow::anyhow!("no stdout pipe")))?;
+            let stderr_pipe = child
+                .stderr
+                .take()
+                .ok_or_else(|| CoreError::Other(anyhow::anyhow!("no stderr pipe")))?;
+            let a = tokio::spawn(capture::tee(
+                "stdout",
+                stdout_pipe,
+                dir.join("stdout"),
+                tokio::io::stdout(),
+                last_stdout.clone(),
+                dir.clone(),
+            ));
+            let b = tokio::spawn(capture::tee(
+                "stderr",
+                stderr_pipe,
+                dir.join("stderr"),
+                tokio::io::stderr(),
+                last_stderr.clone(),
+                dir.clone(),
+            ));
+            (a, Some(b))
+        }
+    };
     let s1 = tokio::spawn(capture::watch_silence(
         "stdout",
         last_stdout,
@@ -208,15 +250,14 @@ where
     on_reap(exit_code);
 
     let _ = cancel_tx.send(true);
-    let _ = stdout_tee.await;
-    let _ = stderr_tee.await;
+    let _ = tee_a.await;
+    if let Some(tee_b) = tee_b {
+        let _ = tee_b.await;
+    }
     let _ = s1.await;
     let _ = s2.await;
 
-    Ok(Outcome {
-        exit_code,
-        merge: Merge::Split("not yet decided"),
-    })
+    Ok(Outcome { exit_code, merge })
 }
 
 #[cfg(test)]
