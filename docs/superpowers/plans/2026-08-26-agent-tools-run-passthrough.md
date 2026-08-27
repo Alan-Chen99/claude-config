@@ -25,6 +25,11 @@ cargo test --no-fail-fast
 `--no-fail-fast` is required: plain `cargo test` stops at the first failing test binary, so
 every suite after it silently never runs and any total you read is truncated.
 
+`cargo fmt --check` exits non-zero on this tree whatever you do: rustfmt 1.9.0 disagrees with
+whoever formatted it, at 48 sites spread across files no task here touches. The only check
+that means anything is that your change adds none — compare the site list before and after,
+rather than reading the exit code.
+
 **Expected:** exactly one failure,
 `opencode_test.rs::opencode_loads_prefixed_langfuse_env_and_forwards_args`, and no other.
 Judge yourself on the named tests in each task rather than on a total, which grows as the
@@ -1408,12 +1413,12 @@ In `core.rs`, add to `Outcome`:
     pub forward_closed: bool,
 ```
 
-`bytes_since_close_detected` stays on `TeeOutcome`, where Task 6 compares it against the drain bound,
-and does not go on `Outcome`: no task in this plan reads it there, and it is not what its
-name suggests — it counts from the chunk whose forward write returned the error, which is two
-of the tee's 8192-byte chunks after the real close, and it adds that whole chunk even though
-`write_all` may have accepted a prefix of it. Say that where it is defined rather than leaving
-a later reader to infer a precision it does not have.
+`bytes_since_close_detected` stays on `TeeOutcome`, where Task 6 compares it against the
+drain bound, and does not go on `Outcome`: no task in this plan reads it there, and it is an
+anchor rather than a count of what the downstream missed. Its precision is stated where the
+field is defined, and that comment is the authoritative one — do not restate the mechanism
+here or anywhere else. This paragraph carried a version of it that was already refuted, which
+is what four other copies made easy.
 
 and populate them from the awaited tee handles instead of discarding them:
 
