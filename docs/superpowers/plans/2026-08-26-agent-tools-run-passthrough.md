@@ -1355,12 +1355,14 @@ Change the signature to `-> Result<TeeOutcome>` and the loop body:
         // ... unchanged: last_activity store and first_byte event
     }
     file.flush().await.ok();
-    // The same error, at the second write site. Everything above may have gone
-    // into tokio's 16,384-byte stdout buffer without a syscall, so for a child
-    // with less than that still to come after the close this is the only place
-    // `EPIPE` ever appears. Discarded, the caller's stream is silently short by
-    // whatever was still buffered and the outcome says forwarding was fine —
-    // which is the clause this task exists to keep.
+    // The same error, at the second write site. A forwarded write's error
+    // surfaces one chunk after the write that caused it: `Blocking::poll_write`
+    // hands the chunk to a blocking task and returns `Ok` without waiting, and
+    // the next `poll_write` — or this flush — is what reports it. The last chunk
+    // has no next write, so its error can appear nowhere but here; and a child
+    // whose whole output arrives in one 8192-byte read has no earlier chunk
+    // either. Discarded, the caller's stream is silently short by whatever was
+    // still in flight and the outcome says forwarding was fine.
     match forward.flush().await {
         Err(e) if !outcome.forward_closed => {
             outcome.forward_closed = true;
@@ -1767,6 +1769,63 @@ with a branch that records the error into the outcome, states it through the sam
 and continues with capture disabled — `a_capture_that_cannot_be_opened_is_stated_and_not_fatal`
 covers only this branch, and the loop's message is never reached when the open is what failed.
 
+**And the capture's flush, one line above the forward's.** `capture.rs:87` is
+`file.flush().await.ok()`, and `tokio::fs::File` has the same mechanism the forward side did:
+`fs/file.rs:743-770` returns `Ok(n)` after spawning the blocking write, and `:1096-1108`
+reports that write's error at the flush. So the last chunk's capture error appears nowhere
+else, and a child whose whole output is one 8192-byte read has no earlier chunk either.
+Measured today, capture symlinked to `/dev/full`: a 2000-byte child gives exit 0, nothing on
+stderr, an empty capture, and `TeeOutcome::default()` — a clean outcome for a capture that
+never happened, which is "a capture never silently stops growing" failing in the most ordinary
+shape there is. Handle it the same way as the write:
+
+```rust
+    match file.flush().await {
+        Err(e) if outcome.capture_error.is_none() => {
+            outcome.capture_error = Some(e.to_string());
+            state(&format!(
+                "agent-tools: capture to {} failed at the flush ({e}); the capture is \
+                 short by whatever was still in flight\n",
+                capture_path.display()
+            ));
+        }
+        // Already reported in the loop, or nothing to report.
+        _ => {}
+    }
+```
+
+Both of this task's tests above use `TALKS_THEN_EXITS_5`, which is 18,893 bytes — three
+reads, so it lands in the loop and would ship without noticing this. Add the single-chunk
+case:
+
+```rust
+#[test]
+fn a_capture_that_fails_only_at_the_flush_is_stated_too() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    std::fs::create_dir_all(&cap).unwrap();
+    std::os::unix::fs::symlink("/dev/full", cap.join("stdout")).unwrap();
+    std::os::unix::fs::symlink("/dev/full", cap.join("output")).unwrap();
+
+    // 2000 bytes is one write under `PIPE_BUF`, so the tee reads it whole and
+    // there is no second chunk for the first chunk's error to surface at.
+    let out = run_core_cmd(&cap, &["bash", "-c", r#"printf "%01999d\n" 0; exit 5"#])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(5));
+    assert_eq!(out.stdout.len(), 2000, "the caller still gets everything");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("agent-tools: capture to"),
+        "a capture that failed with nothing left to write is still stated; stderr was {err:?}"
+    );
+}
+```
+
+Mutate it: restore `file.flush().await.ok()` and confirm this test fails while the other two
+pass. If all three pass, the producer is landing in more than one read.
+
 Because the loop no longer exits on a capture error, the pipe keeps draining and the child
 never sees `SIGPIPE`.
 
@@ -1806,7 +1865,7 @@ defaulting:
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 17 tests.
+Expected: PASS, 18 tests.
 
 - [ ] **Step 6: Commit**
 

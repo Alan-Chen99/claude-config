@@ -106,7 +106,9 @@ Three tiers: which differences are defects, which are trades, which are wishes.
   stream, unmodified and in order within it, as long as the caller accepts writes.
 - **Completeness, or a loud failure.** A forwarded stream is never silently short and a
   capture never silently stops growing; either failure is stated on stderr and in the
-  status.
+  status. Both, because neither reaches every case: stderr cannot carry a notice about
+  stderr, nor about the one destination a merge made of both, and it is the closed
+  descriptor in exactly those. The status is what covers them.
 - **Exit code and stdin.** The child's exit code, including `128 + signum`; stdin
   inherited, so pipelines and heredocs behave.
 - **The child's signal dispositions are its own** — notably the wrapper's ignored
