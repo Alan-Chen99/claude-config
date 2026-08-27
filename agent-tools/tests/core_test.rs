@@ -623,13 +623,25 @@ fn capture_failure_never_kills_the_child() {
     let err = String::from_utf8_lossy(&out.stderr);
     // Position, not presence, the same way the forward-close tests check it:
     // the prefix beginning a line is the contract, not the substring.
+    let stated: Vec<&str> = err
+        .lines()
+        .filter(|l| l.starts_with("agent-tools: capture to"))
+        .collect();
     assert_eq!(
-        err.lines()
-            .filter(|l| l.starts_with("agent-tools: capture to"))
-            .count(),
+        stated.len(),
         1,
         "stated once on stderr, not once per chunk and not inferred from a wrong \
          exit code; stderr was {err:?}"
+    );
+    // And the words after the prefix, which the open and the flush share with
+    // this one. A write that failed part-way is the only one of the three that
+    // captured a prefix and then stopped, so it is the only one "from here"
+    // describes.
+    assert!(
+        stated[0].contains("the capture is incomplete from here"),
+        "the message names a capture that stopped part-way, not one that never \
+         opened or one short by what was in flight; got {:?}",
+        stated[0]
     );
 }
 
@@ -648,12 +660,31 @@ fn a_capture_that_cannot_be_opened_is_stated_and_not_fatal() {
     assert_eq!(out.status.code(), Some(5));
     assert!(String::from_utf8_lossy(&out.stdout).contains("line-2000\n"));
     let err = String::from_utf8_lossy(&out.stderr);
+    let stated = err
+        .lines()
+        .find(|l| l.starts_with("agent-tools: capture to"))
+        .unwrap_or_else(|| panic!("an open that failed is stated too; stderr was {err:?}"));
+    // Nothing was ever captured here, so neither of the other two messages is
+    // true of it: there is no "here" for the capture to be incomplete from, and
+    // nothing was in flight to be short by.
     assert!(
-        err.lines()
-            .any(|l| l.starts_with("agent-tools: capture to")),
-        "an open that failed is stated too; stderr was {err:?}"
+        stated.contains("could not be opened"),
+        "the message names an open that failed, not a capture that stopped \
+         part-way; got {stated:?}"
     );
 }
+
+/// One chunk, one read, so only the flush can ever see the capture fail.
+///
+/// The capture-side counterpart to `ARRIVES_IN_ONE_CHUNK`, and 2000 bytes for
+/// the same reason: one `write` under `PIPE_BUF` reaches the tee whole, four
+/// times inside the 8192-byte read rather than near its edge, so the first
+/// chunk's error has no second chunk to surface at. `capture.rs`'s
+/// `read_buf_divides_the_two_regimes` names this constant, because a smaller
+/// `READ_BUF` moves the test into the loop's regime where it passes while
+/// guarding nothing. Argv rather than a shell string: this side needs no
+/// pipeline, only a capture it cannot write.
+const ONE_CHUNK_THEN_EXITS_5: [&str; 3] = ["bash", "-c", r#"printf "%01999d\n" 0; exit 5"#];
 
 #[test]
 fn a_capture_that_fails_only_at_the_flush_is_stated_too() {
@@ -663,18 +694,23 @@ fn a_capture_that_fails_only_at_the_flush_is_stated_too() {
     std::os::unix::fs::symlink("/dev/full", cap.join("stdout")).unwrap();
     std::os::unix::fs::symlink("/dev/full", cap.join("output")).unwrap();
 
-    // 2000 bytes is one write under `PIPE_BUF`, so the tee reads it whole and
-    // there is no second chunk for the first chunk's error to surface at.
-    let out = run_core_cmd(&cap, &["bash", "-c", r#"printf "%01999d\n" 0; exit 5"#])
+    let out = run_core_cmd(&cap, &ONE_CHUNK_THEN_EXITS_5)
         .output()
         .unwrap();
 
     assert_eq!(out.status.code(), Some(5));
     assert_eq!(out.stdout.len(), 2000, "the caller still gets everything");
     let err = String::from_utf8_lossy(&out.stderr);
+    let stated = err
+        .lines()
+        .find(|l| l.starts_with("agent-tools: capture to"))
+        .unwrap_or_else(|| panic!("a flush that failed is stated too; stderr was {err:?}"));
+    // Nothing was left to write, so the loop's wording would place the loss at a
+    // point in a stream that has already ended. What this one cost is whatever
+    // the last write had not yet reached disk with.
     assert!(
-        err.lines()
-            .any(|l| l.starts_with("agent-tools: capture to")),
-        "a capture that failed with nothing left to write is still stated; stderr was {err:?}"
+        stated.contains("short by whatever was still in flight"),
+        "the message names a flush that failed, not a capture that stopped \
+         part-way; got {stated:?}"
     );
 }

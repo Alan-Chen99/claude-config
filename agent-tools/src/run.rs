@@ -76,11 +76,16 @@ pub async fn run(
     // with the child's exit code, which the spec guarantees.
     let cm = Arc::new(Mutex::new(cm));
 
-    // A failed `write_meta` is recorded as an event and discarded, at every one
-    // of the four sites: both callbacks below, the `drained_at` write after the
-    // core returns, and the spawn-error write. Bookkeeping is the wrapper's
-    // failure, not the child's, and must not decide what the caller learns the
-    // child did.
+    // Five sites write `meta.json`. At four of them — both callbacks below, the
+    // `drained_at` write after the core returns, and the spawn-error write — a
+    // failed write is recorded as an event and discarded. Bookkeeping is the
+    // wrapper's failure, not the child's, and must not decide what the caller
+    // learns the child did.
+    //
+    // The fifth is the pre-spawn write above, which propagates, and displaces
+    // nothing by doing so: no child exists yet, and `run` returns from there
+    // without spawning one, so there is no child status for the write error to
+    // stand in place of and no later fault it could be reported instead of.
     //
     // The cost of discarding is specific, and different per fact. A lost
     // `child_pid` shows as `pid -` in `ps` and in every pushed report, because
@@ -101,6 +106,15 @@ pub async fn run(
     // propagating the write error would return that in its place and skip the
     // `spawn_failed` event below it, leaving the thing that actually went wrong
     // the one thing never said.
+    //
+    // That argument is the whole of the reason, and no test holds it up.
+    // `run_facts_test::spawn_failure_is_recorded` drives only this write's
+    // success path, and the failure path is out of an integration test's reach
+    // for the same cause the `child_pid` site's is: anything that makes this
+    // write fail also fails the pre-spawn write, which propagates and ends the
+    // run before a spawn is ever attempted. A `?` here would leave the whole
+    // suite green — measured — so the reason is written down rather than left
+    // to be found by mutating.
     let on_spawn = {
         let cm = cm.clone();
         let dir = child_dir.clone();
@@ -174,9 +188,11 @@ pub async fn run(
 }
 
 /// State a best-effort `meta.json` write that failed, so a fact lost to disk is
-/// still readable somewhere. Every site that writes `meta.json` comes through
-/// here: the fault that reaches the caller is the one the run had, never the
-/// one recording it had.
+/// still readable somewhere. Every write made once there is a child to report on
+/// comes through here: the fault that reaches the caller is the one the run had,
+/// never the one recording it had. The pre-spawn write in `run` is the fifth
+/// site and the exception, propagating because it has no child status to
+/// displace; the policy comment above it is where that is argued.
 fn record_meta_write(parent: &Path, wrapper_pid: u32, fact: &str, result: Result<()>) {
     if let Err(e) = result {
         events::append(

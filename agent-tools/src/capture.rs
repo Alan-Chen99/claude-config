@@ -42,10 +42,11 @@ pub struct TeeOutcome {
 /// forward write's error surfaces at the next write, inside the read loop. A
 /// child whose whole output fits in one read has no next write, so its error can
 /// appear nowhere but the flush at EOF. Which regime a test exercises is decided
-/// by this number and nothing else: `core_test.rs`'s `ARRIVES_IN_ONE_CHUNK` is
-/// 2000 bytes precisely because 2000 is under it. Changing it silently moves
-/// that test into the other regime, where it passes while guarding nothing —
-/// `read_buf_divides_the_two_regimes` below is what makes that loud.
+/// by this number and nothing else: `core_test.rs`'s `ARRIVES_IN_ONE_CHUNK` and
+/// `ONE_CHUNK_THEN_EXITS_5` are 2000 bytes precisely because 2000 is under it.
+/// Changing it silently moves their tests into the other regime, where they pass
+/// while guarding nothing — `read_buf_divides_the_two_regimes` below is what
+/// makes that loud.
 const READ_BUF: usize = 8192;
 
 /// Tee `reader` -> (capture file at `capture_path`) + (forward writer).
@@ -327,20 +328,49 @@ mod tests {
     /// close itself.
     const UNCAPPED: u64 = u64::MAX;
 
+    /// A downstream that is already gone: every write is `EPIPE`, with none of
+    /// `tokio::io::stdout`'s buffering, so the failure lands on the write that
+    /// caused it rather than a chunk later.
+    struct AlwaysBrokenPipe;
+
+    impl tokio::io::AsyncWrite for AlwaysBrokenPipe {
+        fn poll_write(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+            _: &[u8],
+        ) -> std::task::Poll<std::io::Result<usize>> {
+            std::task::Poll::Ready(Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe)))
+        }
+        fn poll_flush(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+        fn poll_shutdown(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+    }
+
     /// `core_test.rs` is an integration test against a binary-only crate, so it
     /// cannot name `READ_BUF` and cannot fail when it moves. Pinning the value
     /// from this side is the only thing standing between a resized buffer and a
-    /// flush-regime test that quietly stops testing the flush.
+    /// flush-regime test that quietly stops testing the flush. There are two of
+    /// those, one per side of the tee, and one `READ_BUF` decides both.
     #[test]
     fn read_buf_divides_the_two_regimes() {
         assert_eq!(
             READ_BUF, 8192,
-            "core_test.rs's `a_close_seen_only_at_the_flush_is_stated_too` needs a \
-             child whose whole output arrives in one read, and its \
-             `ARRIVES_IN_ONE_CHUNK` producer is 2000 bytes only because 2000 is \
-             under 8192. Move READ_BUF below that and the error surfaces in the \
-             read loop instead: the test still passes, guarding nothing. Resize \
-             `ARRIVES_IN_ONE_CHUNK` in the same commit."
+            "core_test.rs's `a_close_seen_only_at_the_flush_is_stated_too` and \
+             `a_capture_that_fails_only_at_the_flush_is_stated_too` each need a \
+             child whose whole output arrives in one read, and their producers \
+             `ARRIVES_IN_ONE_CHUNK` and `ONE_CHUNK_THEN_EXITS_5` are 2000 bytes \
+             only because 2000 is under 8192. Move READ_BUF below that and the \
+             error surfaces in the read loop instead: both tests still pass, \
+             guarding nothing. Resize both producers in the same commit."
         );
     }
 
@@ -391,6 +421,43 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(got, b"forward me\n");
+    }
+
+    /// The chunk that detects the close is counted, not compared.
+    ///
+    /// So the lowest bound stops one read past the close rather than at it. The
+    /// difference is a single read of capture, which no integration test can
+    /// see: the bytes that reached the consumer before it quit vary by more than
+    /// that. Here the forward fails on its first write and the reader hands over
+    /// whole `READ_BUF` chunks, so the count is exact.
+    /// `core_test.rs`'s `the_lowest_bound_stops_the_drain_at_the_first_read_past_the_close`
+    /// asserts the same behaviour from outside and passes either way.
+    #[tokio::test]
+    async fn the_chunk_that_detects_the_close_is_not_compared_against_the_bound() {
+        let dir = TempDir::new().unwrap();
+        let cap = dir.path().join("stdout");
+        let (reader, mut writer) = tokio::io::duplex(4 * READ_BUF);
+        let last = Arc::new(AtomicI64::new(now_unix_ms()));
+
+        let h = tokio::spawn(tee(
+            "stdout",
+            reader,
+            cap.clone(),
+            AlwaysBrokenPipe,
+            0,
+            last,
+            dir.path().to_path_buf(),
+        ));
+        writer.write_all(&[b'x'; 4 * READ_BUF]).await.ok();
+        drop(writer);
+        h.await.unwrap().unwrap();
+
+        assert_eq!(
+            std::fs::metadata(&cap).unwrap().len(),
+            2 * READ_BUF as u64,
+            "one read to detect the close and one to compare on; comparing on the \
+             detecting chunk would stop at one"
+        );
     }
 
     #[tokio::test]
