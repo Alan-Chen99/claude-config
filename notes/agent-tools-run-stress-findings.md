@@ -52,6 +52,12 @@ quoted inline.
 
 ### A wrapped producer never stops when its downstream consumer exits
 
+**Fixed 2026-08-27**, in two halves. Noticing the close: `fb77ca1`, and `3d638d2` for the
+flush at EOF, which is the only place the error appears when the child's remaining output is
+one read or less. Bounding what is captured afterwards: `6d9033b`, `22593d2` (removing a
+sentinel no caller reached), `0b737f5` (one production default rather than two). The
+reproduction below is the regression record; the behaviour it describes is gone.
+
 `capture.rs:46` discards the result of the forward write:
 
 ```rust
@@ -98,6 +104,11 @@ post-close drain, and drop the read end at the cap.
 
 ### A capture-file write failure silently truncates the caller's output and kills the child
 
+**Fixed 2026-08-27** by `fda98e6` and `d039c02`. The open, the loop write and the flush each
+fail in place, say so on stderr under the `agent-tools:` prefix, and record the error, while
+forwarding continues and the child's own exit status is reported. Reproduced before the fix at
+exit 141 with stdout cut at 159 bytes; after it, exit 5 with all 18,893 bytes delivered.
+
 `capture.rs:45` propagates a capture-write error out of `tee`, and `run.rs:165-166`
 discards it:
 
@@ -130,6 +141,11 @@ Disk-full is the realistic trigger — and F1 is a mechanism that produces disk-
 ## F3
 
 ### Every wrapped command's merged output is reordered, and long lines are corrupted
+
+**Fixed 2026-08-27** by `4fbcb15` (reading the caller's own descriptors), `1732853` (giving
+the child one pipe when they share one destination) and `b4955b2` (`ps` describing a merged
+capture instead of reporting it silent). A merged run now writes one `output` file and no
+empty `stderr` beside it.
 
 **Revised 2026-08-26.** The original entry scoped this to `2>&1` and to reordering.
 Both halves were too narrow.
