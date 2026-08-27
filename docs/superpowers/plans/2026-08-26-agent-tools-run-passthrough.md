@@ -1684,9 +1684,10 @@ git commit -m "agent-tools: an unbounded post-close drain was a disk-filling mec
 
 ## Task 7: A capture that cannot be written never kills the child
 
-F2: the capture write at `capture.rs:60` propagates its error out of `tee`; the task dies, nothing
-drains the pipe, and the child is killed by `SIGPIPE` — reported as `final(141)`, a plausible
-and wrong story. Spec, Guaranteed: "Capture failure never kills the child; forward failure
+F2: the capture write in `tee`'s read loop — `file.write_all(chunk).await?`, around
+`capture.rs:104`, though every task so far has moved it — propagates its error out of `tee`;
+the task dies, nothing drains the pipe, and the child is killed by `SIGPIPE` — reported as
+`final(141)`, a plausible and wrong story. Spec, Guaranteed: "Capture failure never kills the child; forward failure
 never stops the capture … a capture that cannot be written is the wrapper's failure, not the
 child's."
 
@@ -1809,8 +1810,9 @@ with a branch that records the error into the outcome, states it through the sam
 and continues with capture disabled — `a_capture_that_cannot_be_opened_is_stated_and_not_fatal`
 covers only this branch, and the loop's message is never reached when the open is what failed.
 
-**And the capture's flush, one line above the forward's.** `capture.rs:87` is
-`file.flush().await.ok()`, and `tokio::fs::File` has the same mechanism the forward side did:
+**And the capture's flush, just above the forward's.** `file.flush().await.ok()` — around
+`capture.rs:131`, find it by name — has the same mechanism the forward side did, because
+`tokio::fs::File` behaves like `Blocking`:
 `fs/file.rs:743-770` returns `Ok(n)` after spawning the blocking write, and `:1096-1108`
 reports that write's error at the flush. So the last chunk's capture error appears nowhere
 else, and a child whose whole output is one 8192-byte read has no earlier chunk either.
