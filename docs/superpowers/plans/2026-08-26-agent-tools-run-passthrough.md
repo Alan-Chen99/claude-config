@@ -36,6 +36,29 @@ whose `OPENCODE_LANGFUSE_*` values take precedence (`src/opencode.rs:23`) over t
 environment the test sets. Do not fix it here and do not let it block you. Every "expected:
 PASS" below refers to the named test, not to the whole suite.
 
+**Do not paste that test's output anywhere.** Its assertion message is `"stdout: {stdout}"`
+over a stdout carrying the repository's live `sk-lf-…` Langfuse secret, so a raw `cargo test`
+transcript contains a working credential. Filter it if you need to look:
+`cargo test --no-fail-fast 2>&1 | sed -E 's/(sk-lf|pk-lf)-[A-Za-z0-9-]+/\1-<REDACTED>/g'`.
+The full analysis is in `notes/agent-tools-run-stress-findings.md`, under "Outside the wrapper".
+
+## Mutation testing, and how to restore afterwards
+
+Every task here says to check that its test can fail. Three tests on this branch passed
+against the very bug they were written to catch, and a fourth was caught in review before it
+shipped — all four with the same shape: the setup never reached the regime the defect lives
+in. Reading the test is not evidence. Removing the fix and watching it fail is.
+
+Run the mutation ten times, not once, wherever the regime depends on a timing window, a
+buffer boundary or a race. A test that fails 9 times in 10 is telling you the setup sits near
+the edge of the regime rather than inside it; move the setup, do not add a retry.
+
+**`git checkout -- <path>` restores to HEAD, which is the state *before* an uncommitted fix.**
+Used to undo a mutation while the fix is still uncommitted, it deletes the fix and leaves the
+mutation's effect looking like the fix's. Save a copy of the file before mutating and restore
+from that, and confirm every restore with `git diff --stat` — an exit status only says the
+command ran.
+
 Run per-suite while working — it is faster and skips the known failure:
 
 ```bash
