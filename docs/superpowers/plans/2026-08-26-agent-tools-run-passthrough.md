@@ -1891,7 +1891,10 @@ git commit -m "prompt: it promised bare-equivalence the wrapper never had"
       `docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`: remove the F1 and F2
       rows, and correct the count. F3's row is already gone, removed when Task 4 closed it —
       close each finding as it lands rather than in a batch, so the spec is never a document
-      that describes a defect the branch has already fixed. Re-check the token budget with
+      that describes a defect the branch has already fixed. The count in the sentence above
+      the table goes from eleven to nine, and it must keep adding up to fifteen: nine still
+      departing, three fixed by this branch (F1, F2, F3), two accepted differences (F9, F12),
+      and F10 breaking no clause. Re-check the token budget with
       `agent-tools count-tokens --file docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`
       (it must stay under 4000; it was 3855 after the deviations table was reduced to a
       clause-to-finding map, so the headroom is about 145 tokens).
