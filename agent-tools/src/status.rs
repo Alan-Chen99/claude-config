@@ -103,7 +103,11 @@ pub struct Status {
 /// and reading it as "no output" would understate a child that is in fact busy.
 fn file_facts(dir: &Path, name: &str) -> (u64, Option<DateTime<Utc>>, Option<String>) {
     match std::fs::metadata(dir.join(name)) {
-        Ok(md) => (md.len(), md.modified().ok().map(DateTime::<Utc>::from), None),
+        Ok(md) => (
+            md.len(),
+            md.modified().ok().map(DateTime::<Utc>::from),
+            None,
+        ),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => (0, None, None),
         Err(e) => (0, None, Some(format!("{name}: {e}"))),
     }
@@ -136,11 +140,16 @@ pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
     // and the two-file form is what a line has always carried.
     let capture = match merged_mtime {
         Some(_) => Capture::Merged(merged_bytes),
-        None => Capture::Split { out: out_bytes, err: err_bytes },
+        None => Capture::Split {
+            out: out_bytes,
+            err: err_bytes,
+        },
     };
     let last_byte_at = out_mtime.max(err_mtime).max(merged_mtime);
-    let stat_errors: Vec<String> =
-        [out_err, err_err, merged_err].into_iter().flatten().collect();
+    let stat_errors: Vec<String> = [out_err, err_err, merged_err]
+        .into_iter()
+        .flatten()
+        .collect();
 
     let Ok(m) = meta::read_meta(dir) else {
         // A capture that cannot be described is never silently dropped.
@@ -175,12 +184,22 @@ pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
         }
     };
 
-    Status { key, meta: Some(m), last_byte_at, capture, stat_errors }
+    Status {
+        key,
+        meta: Some(m),
+        last_byte_at,
+        capture,
+        stat_errors,
+    }
 }
 
 /// One rendered line: name, key, detail, capture paths.
 pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
-    let name = s.meta.as_ref().map(|m| m.display_name()).unwrap_or_else(|| dir.display().to_string());
+    let name = s
+        .meta
+        .as_ref()
+        .map(|m| m.display_name())
+        .unwrap_or_else(|| dir.display().to_string());
     let name = cap(&name);
     // The capture files are created when the tee opens them, so an mtime exists
     // before any byte does. Byte counts, not mtime, decide whether output happened.
@@ -275,7 +294,11 @@ mod tests {
 
     fn dead() -> ChildMeta {
         // pid 0 has no /proc entry, so liveness is false.
-        ChildMeta { wrapper_pid: 0, wrapper_started_ticks: 1, ..base() }
+        ChildMeta {
+            wrapper_pid: 0,
+            wrapper_started_ticks: 1,
+            ..base()
+        }
     }
 
     fn write(dir: &TempDir, m: &ChildMeta) {
@@ -287,16 +310,25 @@ mod tests {
         let d = TempDir::new().unwrap();
         let mut m = base();
         m.spawn_error = Some("boom".into());
-        m.reaped = Some(Reaped { at: Utc::now(), status: 0 });
+        m.reaped = Some(Reaped {
+            at: Utc::now(),
+            status: 0,
+        });
         write(&d, &m);
-        assert!(matches!(derive(d.path(), Utc::now()).key, StatusKey::SpawnFailed(_)));
+        assert!(matches!(
+            derive(d.path(), Utc::now()).key,
+            StatusKey::SpawnFailed(_)
+        ));
     }
 
     #[test]
     fn drained_is_final() {
         let d = TempDir::new().unwrap();
         let mut m = base();
-        m.reaped = Some(Reaped { at: Utc::now(), status: 3 });
+        m.reaped = Some(Reaped {
+            at: Utc::now(),
+            status: 3,
+        });
         m.drained_at = Some(Utc::now());
         write(&d, &m);
         assert_eq!(derive(d.path(), Utc::now()).key, StatusKey::Final(3));
@@ -306,7 +338,10 @@ mod tests {
     fn reaped_with_live_wrapper_is_exited() {
         let d = TempDir::new().unwrap();
         let mut m = base();
-        m.reaped = Some(Reaped { at: Utc::now(), status: 0 });
+        m.reaped = Some(Reaped {
+            at: Utc::now(),
+            status: 0,
+        });
         write(&d, &m);
         assert_eq!(derive(d.path(), Utc::now()).key, StatusKey::Exited(0));
     }
@@ -315,7 +350,10 @@ mod tests {
     fn reaped_with_dead_wrapper_is_final() {
         let d = TempDir::new().unwrap();
         let mut m = dead();
-        m.reaped = Some(Reaped { at: Utc::now(), status: 5 });
+        m.reaped = Some(Reaped {
+            at: Utc::now(),
+            status: 5,
+        });
         write(&d, &m);
         assert_eq!(derive(d.path(), Utc::now()).key, StatusKey::Final(5));
     }
@@ -534,7 +572,10 @@ mod tests {
         std::fs::write(&not_a_dir, b"x").unwrap();
         let now = Utc::now();
         let s = derive(&not_a_dir, now);
-        assert!(!s.stat_errors.is_empty(), "a non-NotFound stat error must survive");
+        assert!(
+            !s.stat_errors.is_empty(),
+            "a non-NotFound stat error must survive"
+        );
         assert!(render(&not_a_dir, &s, now).contains("stat failed"));
     }
 
@@ -627,12 +668,21 @@ mod tests {
         // whole report budget can never be selected, so its change would be
         // announced as omitted at every delivery point and never delivered.
         let dir = TempDir::new().unwrap();
-        let m = ChildMeta { desc: Some("x".repeat(20_000)), ..base() };
+        let m = ChildMeta {
+            desc: Some("x".repeat(20_000)),
+            ..base()
+        };
         write(&dir, &m);
         let now = Utc::now();
         let line = render(dir.path(), &derive(dir.path(), now), now);
         assert!(line.len() < 1_000, "line is {} bytes: {line}", line.len());
-        assert!(line.contains('\u{2026}'), "truncation must be visible: {line}");
-        assert!(line.contains("{stdout,stderr}"), "the capture path survives: {line}");
+        assert!(
+            line.contains('\u{2026}'),
+            "truncation must be visible: {line}"
+        );
+        assert!(
+            line.contains("{stdout,stderr}"),
+            "the capture path survives: {line}"
+        );
     }
 }

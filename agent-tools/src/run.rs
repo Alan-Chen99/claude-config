@@ -139,7 +139,12 @@ pub async fn run(
             // is a capture, rather than only once the wrapper is done with it.
             // The other three are true mid-run at the earliest and cannot.
             m.merge = Some(merge.to_string());
-            record_meta_write(&parent, wrapper_pid, "child_pid", meta::write_meta(&dir, &m));
+            record_meta_write(
+                &parent,
+                wrapper_pid,
+                "child_pid",
+                meta::write_meta(&dir, &m),
+            );
             events::append(
                 &parent,
                 "child_started",
@@ -157,7 +162,10 @@ pub async fn run(
             // Before the drain, never after: a descendant holding the inherited
             // pipes can delay the drain indefinitely, and the status is known now.
             let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-            m.reaped = Some(meta::Reaped { at: chrono::Utc::now(), status: code });
+            m.reaped = Some(meta::Reaped {
+                at: chrono::Utc::now(),
+                status: code,
+            });
             record_meta_write(&parent, wrapper_pid, "reaped", meta::write_meta(&dir, &m));
             events::append(
                 &parent,
@@ -201,10 +209,19 @@ pub async fn run(
         m.drain_capped = outcome.drain_capped;
         m.capture_error = outcome.capture_error.clone();
         // Recorded and discarded, like the callbacks' writes: policy above.
-        record_meta_write(&parent_dir, wrapper_pid, "drained_at", meta::write_meta(&child_dir, &m));
+        record_meta_write(
+            &parent_dir,
+            wrapper_pid,
+            "drained_at",
+            meta::write_meta(&child_dir, &m),
+        );
     }
-    events::append(&parent_dir, "drained", serde_json::json!({"wrapper_pid": wrapper_pid}))
-        .ok();
+    events::append(
+        &parent_dir,
+        "drained",
+        serde_json::json!({"wrapper_pid": wrapper_pid}),
+    )
+    .ok();
 
     Ok(outcome.exit_code)
 }

@@ -13,10 +13,9 @@ pub const DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;
 
 // The two properties that make that number a cap at all, checked where it is
 // written rather than by a test. Every test that exercises the bound names its
-// own, so the resolved default has no runtime coverage at its top end — and the
-// top end is where the incident was: with the default at `u64::MAX` the whole
-// suite stays green while a wrapped `yes` drains tens of gigabytes into the
-// capture directory. A `const` assertion fails the build instead, which is both
+// own, so the resolved default has no runtime coverage at its top end, where an
+// unbounded value lets a wrapped `yes` drain tens of gigabytes into the capture
+// directory while the whole suite stays green. A `const` assertion fails the build instead, which is both
 // stronger than a failing test and the reason clippy does not call it constant.
 const _: () = assert!(
     DEFAULT_DRAIN_CAP_BYTES < u64::MAX,
@@ -85,10 +84,7 @@ pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
         fcntl(fd_out, FcntlArg::F_GETFL),
         fcntl(fd_err, FcntlArg::F_GETFL),
     ) {
-        (Ok(a), Ok(b)) => (
-            OFlag::from_bits_truncate(a),
-            OFlag::from_bits_truncate(b),
-        ),
+        (Ok(a), Ok(b)) => (OFlag::from_bits_truncate(a), OFlag::from_bits_truncate(b)),
         // No test drives this arm: both descriptors have just survived `fstat`,
         // and F_GETFL on a valid fd fails only with EBADF, which that already
         // screened. Reaching it needs a TOCTOU race no call site can produce.
@@ -103,9 +99,7 @@ pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
         return Merge::Split("not both writable");
     }
 
-    let is_fifo = |s: &FileStat| {
-        SFlag::from_bits_truncate(s.st_mode).contains(SFlag::S_IFIFO)
-    };
+    let is_fifo = |s: &FileStat| SFlag::from_bits_truncate(s.st_mode).contains(SFlag::S_IFIFO);
     if is_fifo(&s_out) && is_fifo(&s_err) {
         return Merge::Merged("both pipes, same destination");
     }
@@ -134,7 +128,9 @@ enum Streams {
 /// merge condition explains a difference too and is not here: it is decided
 /// before the spawn and handed to `on_spawn`, so a caller that records it need
 /// not wait for the drain — and one fact with one delivery path cannot disagree
-/// with itself.
+/// with itself. `TeeOutcome::bytes_since_close_detected` is not here either, for
+/// the opposite reason: it explains nothing to a reader, being the anchor the
+/// drain bound compares against and nothing a caller acts on.
 #[derive(Debug, Clone)]
 pub struct Outcome {
     pub exit_code: i32,
@@ -376,8 +372,13 @@ where
     Ok(Outcome {
         exit_code,
         // Either stream losing its downstream, or either drain reaching its
-        // bound, is the same difference from bare; which one it was is already
-        // on stderr, under the stream's own name. The first capture failure is
+        // bound, is the same difference from bare. Which one it was is on
+        // stderr under the stream's own name — except when stderr is the
+        // descriptor that closed, or the merge rule made it the same one as
+        // stdout, which are the two shapes this record exists to cover. There
+        // the boolean is all there is, and it does not say which stream.
+        // Splitting it per stream belongs with F16, which owns the rest of
+        // what a record cannot currently say. The first capture failure is
         // carried whole, because a path and an `errno` are what make it
         // actionable and there is nowhere else left to read them.
         forward_closed: a.forward_closed || b.forward_closed,
@@ -489,8 +490,16 @@ mod tests {
     fn one_appending_file_under_two_descriptors_merges() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("both");
-        let a = std::fs::OpenOptions::new().create(true).append(true).open(&path).unwrap();
-        let b = std::fs::OpenOptions::new().create(true).append(true).open(&path).unwrap();
+        let a = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .unwrap();
+        let b = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .unwrap();
         assert_eq!(
             decide_merge(a.as_raw_fd(), b.as_raw_fd()),
             Merge::Merged("both appending, same file")

@@ -409,7 +409,12 @@ fn main() {
     let root = repo_root();
 
     match cli.command {
-        Cmd::Run { desc, hide_cmdline, drain_cap_bytes, cmd } => {
+        Cmd::Run {
+            desc,
+            hide_cmdline,
+            drain_cap_bytes,
+            cmd,
+        } => {
             let code = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()

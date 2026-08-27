@@ -128,7 +128,10 @@ mod tests {
     fn reap_carries_time_and_status_together() {
         let dir = TempDir::new().unwrap();
         let mut m = sample();
-        m.reaped = Some(Reaped { at: chrono::Utc::now(), status: 3 });
+        m.reaped = Some(Reaped {
+            at: chrono::Utc::now(),
+            status: 3,
+        });
         write_meta(dir.path(), &m).unwrap();
         assert_eq!(read_meta(dir.path()).unwrap().reaped.unwrap().status, 3);
     }

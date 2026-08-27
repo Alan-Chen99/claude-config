@@ -205,10 +205,16 @@ fn records_child_started_and_child_exit_in_parent_events() {
         field_names(&started),
         ["child_pid", "command", "desc", "wrapper_pid"]
     );
-    assert_eq!(field_names(&exited), ["child_pid", "exit_code", "wrapper_pid"]);
+    assert_eq!(
+        field_names(&exited),
+        ["child_pid", "exit_code", "wrapper_pid"]
+    );
 
     assert_eq!(started["desc"], "compute things");
-    assert_eq!(started["command"], serde_json::json!(["bash", "-c", "echo ok"]));
+    assert_eq!(
+        started["command"],
+        serde_json::json!(["bash", "-c", "echo ok"])
+    );
     assert_eq!(exited["exit_code"], 0);
 
     // The exit must be attributable to the process that started: both events
@@ -243,7 +249,11 @@ fn default_leaves_argv_visible_and_sets_comm() {
         .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     // Default keeps the descriptive argv intact.
     assert!(
@@ -287,7 +297,11 @@ fn hide_cmdline_hides_desc_and_argv_from_proc_self_cmdline() {
         .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
         .output()
         .unwrap();
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
         !stdout.contains("F88-SECRET-CANARY-STRING"),

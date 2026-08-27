@@ -6,7 +6,10 @@ fn bin() -> String {
 }
 
 fn worktree_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
 /// Read the single capture dir's meta.json, if the wrapper has written it yet.
@@ -68,7 +71,9 @@ impl Drop for Cleanup {
         let _ = self.wrapper.wait();
         if let Ok(s) = std::fs::read_to_string(&self.daemon_pid_file) {
             if let Ok(pid) = s.trim().parse::<u32>() {
-                let _ = std::process::Command::new("kill").arg(pid.to_string()).status();
+                let _ = std::process::Command::new("kill")
+                    .arg(pid.to_string())
+                    .status();
             }
         }
     }
@@ -84,14 +89,21 @@ fn reap_is_recorded_before_the_pipes_drain() {
     let pid_file = home.path().join("daemon.pid");
     let wrapper = Command::new(bin())
         .args([
-            "run", "--desc", "leaky", "bash", "-c",
+            "run",
+            "--desc",
+            "leaky",
+            "bash",
+            "-c",
             &format!("sleep 30 & echo $! > {}; echo done", pid_file.display()),
         ])
         .env("CLAUDE_CONFIG_ROOT", worktree_root())
         .env("AGENT_TOOLS_PARENT_DIR", &parent)
         .spawn()
         .unwrap();
-    let _cleanup = Cleanup { wrapper, daemon_pid_file: pid_file };
+    let _cleanup = Cleanup {
+        wrapper,
+        daemon_pid_file: pid_file,
+    };
 
     // Poll for the reap facts rather than waiting on the wrapper, which is
     // blocked on the descendant.
@@ -107,7 +119,10 @@ fn reap_is_recorded_before_the_pipes_drain() {
     };
 
     assert_eq!(meta["reaped"]["status"].as_i64(), Some(0));
-    assert!(meta["drained_at"].is_null(), "must not claim drained while a writer holds the pipes");
+    assert!(
+        meta["drained_at"].is_null(),
+        "must not claim drained while a writer holds the pipes"
+    );
     assert!(meta["wrapper_pid"].as_u64().is_some());
 }
 
@@ -175,7 +190,10 @@ fn a_failed_meta_write_never_replaces_the_child_exit_code() {
     // reap and the drain rather than the ones that precede them.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
-        assert!(std::time::Instant::now() < deadline, "child pid never recorded");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "child pid never recorded"
+        );
         match read_meta(&parent) {
             Some(m) if !m["child_pid"].is_null() => break,
             _ => std::thread::sleep(std::time::Duration::from_millis(20)),
@@ -185,14 +203,20 @@ fn a_failed_meta_write_never_replaces_the_child_exit_code() {
     // Replace meta.json with a directory: `write_meta` renames its tmp file
     // onto that path, and rename(2) onto a directory fails with EISDIR. A
     // chmod would not do it — these tests can run as root, which writes anyway.
-    let meta_path = child_dir(&parent).expect("capture dir exists").join("meta.json");
+    let meta_path = child_dir(&parent)
+        .expect("capture dir exists")
+        .join("meta.json");
     std::fs::remove_file(&meta_path).unwrap();
     std::fs::create_dir(&meta_path).unwrap();
 
     std::fs::write(&release, b"").unwrap();
     let status = cleanup.wrapper.wait().unwrap();
 
-    assert_eq!(status.code(), Some(7), "the child's exit code, not the wrapper's");
+    assert_eq!(
+        status.code(),
+        Some(7),
+        "the child's exit code, not the wrapper's"
+    );
 
     let evts = std::fs::read_to_string(parent.join("events.jsonl")).unwrap();
     let failed_facts: Vec<String> = evts
@@ -205,8 +229,14 @@ fn a_failed_meta_write_never_replaces_the_child_exit_code() {
 
     // The drain write is the one that used to abort the run; the reap write
     // fails the same way for the same reason. Neither may be silent.
-    assert!(failed_facts.contains(&"drained_at".to_string()), "events: {evts}");
-    assert!(failed_facts.contains(&"reaped".to_string()), "events: {evts}");
+    assert!(
+        failed_facts.contains(&"drained_at".to_string()),
+        "events: {evts}"
+    );
+    assert!(
+        failed_facts.contains(&"reaped".to_string()),
+        "events: {evts}"
+    );
 }
 
 #[test]

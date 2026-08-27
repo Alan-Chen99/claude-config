@@ -35,15 +35,24 @@ fn run_core_forwards_both_streams_and_exit_code() {
     let tmp = tempfile::tempdir().unwrap();
     let cap = tmp.path().join("cap");
 
-    let out = run_core_cmd(&cap, &["bash", "-c", "echo to-out; echo to-err >&2; exit 7"])
-        .output()
-        .unwrap();
+    let out = run_core_cmd(
+        &cap,
+        &["bash", "-c", "echo to-out; echo to-err >&2; exit 7"],
+    )
+    .output()
+    .unwrap();
 
     assert_eq!(out.status.code(), Some(7), "exit code must be the child's");
     assert_eq!(String::from_utf8_lossy(&out.stdout), "to-out\n");
     assert_eq!(String::from_utf8_lossy(&out.stderr), "to-err\n");
-    assert_eq!(std::fs::read_to_string(cap.join("stdout")).unwrap(), "to-out\n");
-    assert_eq!(std::fs::read_to_string(cap.join("stderr")).unwrap(), "to-err\n");
+    assert_eq!(
+        std::fs::read_to_string(cap.join("stdout")).unwrap(),
+        "to-out\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(cap.join("stderr")).unwrap(),
+        "to-err\n"
+    );
 }
 
 #[test]
@@ -97,8 +106,16 @@ fn differential(script: &str, capture_dir: &Path) -> (Captured, Captured) {
         .output()
         .unwrap();
     (
-        Captured { stdout: bare.stdout, stderr: bare.stderr, code: bare.status.code() },
-        Captured { stdout: wrapped.stdout, stderr: wrapped.stderr, code: wrapped.status.code() },
+        Captured {
+            stdout: bare.stdout,
+            stderr: bare.stderr,
+            code: bare.status.code(),
+        },
+        Captured {
+            stdout: wrapped.stdout,
+            stderr: wrapped.stderr,
+            code: wrapped.status.code(),
+        },
     )
 }
 
@@ -122,7 +139,10 @@ fn first_difference(bare: &[u8], wrapped: &[u8]) -> String {
             "first difference at byte {i}: bare {:#04x}, wrapped {:#04x}",
             bare[i], wrapped[i]
         ),
-        None => format!("equal for {} bytes, then one side ends", bare.len().min(wrapped.len())),
+        None => format!(
+            "equal for {} bytes, then one side ends",
+            bare.len().min(wrapped.len())
+        ),
     }
 }
 
@@ -281,7 +301,11 @@ fn long_lines_survive_the_merge_uncorrupted() {
             short_lines += 1;
         }
     }
-    assert_eq!((long_lines, short_lines), (200, 200), "every line arrives whole, exactly once");
+    assert_eq!(
+        (long_lines, short_lines),
+        (200, 200),
+        "every line arrives whole, exactly once"
+    );
 }
 
 /// A child that closes its own stdout and stderr, leaving behind a descendant

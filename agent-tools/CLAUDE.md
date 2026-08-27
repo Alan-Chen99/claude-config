@@ -155,7 +155,11 @@ command is what `ps` exists to add.
 #### The notes segment
 
 Everything that explains a difference from bare, in one bracketed group sitting
-between the byte counts and the capture paths, `; `-separated, in this order — which
+between the byte counts and the capture paths, `; `-separated. None of them names a
+stream: `downstream closed` and `drain capped` are folded across both tees, so on a split
+run they do not say which side it was. Stderr usually does, under the stream's own name —
+but not when stderr is the descriptor that closed, which is one of the two shapes this
+record exists for. In this order — which
 `status::tests::a_difference_from_bare_is_readable_beside_the_key` pins by asserting the
 whole bracket group rather than each note independently, since the prompt teaches the order:
 

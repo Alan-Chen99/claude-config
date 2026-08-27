@@ -166,6 +166,11 @@ where
     // capture that never happened comes back as a clean outcome.
     if let Some(f) = file.as_mut() {
         match f.flush().await {
+            // Vacuous today and kept deliberately: `capture_or_stop_capturing`
+            // sets `capture_error` and clears `file` together, so reaching here
+            // at all means no error has been recorded. Its mirror on the
+            // forward side is not vacuous — nothing ever takes `forward` — so
+            // the two guards look symmetric and rest on different invariants.
             Err(e) if outcome.capture_error.is_none() => {
                 outcome.capture_error = Some(e.to_string());
                 state(&format!(
