@@ -1841,8 +1841,13 @@ and the loop's message is never reached when the open is what failed.
 **Three failures, three messages, one prefix.** The loop's wording — "the capture is incomplete
 from here" — is false for an open that never captured a byte, and for a flush it is not "from
 here" but "by whatever was still in flight". Say what actually happened in each. All three
-begin `agent-tools: capture to <path> `, which is what the tests assert on and what Task 9's
-prompt promises.
+begin `agent-tools: capture to <path> `, which is what Task 9's prompt promises.
+
+**Each test asserts its own message, not the prefix they share.** Asserting only the prefix
+leaves the whole reason for having three of them unguarded: reword the flush message to the
+loop's wording — the wording this paragraph calls wrong — and the suite stays green, measured.
+Pin the words that distinguish each: `could not be opened`, `incomplete from here`, `short by
+whatever was still in flight`.
 
 **And the capture's flush, just above the forward's.** `file.flush().await.ok()` — around
 `capture.rs:131`, find it by name — has the same mechanism the forward side did, because
@@ -1916,9 +1921,86 @@ generalise the two into one — they differ in what failure means, and collapsin
 **Keep the loop's existing branch structure.** It is `if forward_closed { count and compare }
 else { forward }`, and that shape is load-bearing: the chunk that *detects* the close is
 counted without being compared against the bound, which is why the lowest bound stops one
-read past the close rather than at it. `the_lowest_bound_stops_the_drain_at_the_first_read_past_the_close`
-asserts exactly that. Flattening the body into "capture it, forward it, count it" would compare
-on the detecting chunk and move the bound by a read.
+read past the close rather than at it.
+
+**Nothing guards that today, and the integration test cannot.** Flattening the body passes all
+of `core_test`, measured — the capture drops by exactly one 8192-byte read, 32,768 to 24,576,
+against a threshold of 150,000. Tightening that threshold is not the answer either: the
+pre-close bytes depend on how much reached the consumer before it quit, and that varies from
+20,480 to 98,304 under load, more than the one read the assertion would have to see. Guard it
+where the noise is not — an inline unit test on `tee`, whose reader and forward writer you
+construct:
+
+```rust
+    /// The chunk that detects the close is counted, not compared.
+    ///
+    /// So the lowest bound stops one read past the close rather than at it. The
+    /// difference is a single read of capture, which no integration test can
+    /// see: the bytes that reached the consumer before it quit vary by more than
+    /// that. Here the forward fails on its first write and the reader hands over
+    /// whole `READ_BUF` chunks, so the count is exact.
+    #[tokio::test]
+    async fn the_chunk_that_detects_the_close_is_not_compared_against_the_bound() {
+        let dir = TempDir::new().unwrap();
+        let cap = dir.path().join("stdout");
+        let (reader, mut writer) = tokio::io::duplex(4 * READ_BUF);
+        let last = Arc::new(AtomicI64::new(now_unix_ms()));
+
+        let h = tokio::spawn(tee(
+            "stdout",
+            reader,
+            cap.clone(),
+            AlwaysBrokenPipe,
+            0,
+            last,
+            dir.path().to_path_buf(),
+        ));
+        writer.write_all(&vec![b'x'; 4 * READ_BUF]).await.ok();
+        drop(writer);
+        h.await.unwrap().unwrap();
+
+        assert_eq!(
+            std::fs::metadata(&cap).unwrap().len(),
+            2 * READ_BUF as u64,
+            "one read to detect the close and one to compare on; comparing on the \
+             detecting chunk would stop at one"
+        );
+    }
+```
+
+with a forward writer that fails at once, beside the other test helpers:
+
+```rust
+    /// A downstream that is already gone: every write is `EPIPE`, with none of
+    /// `tokio::io::stdout`'s buffering, so the failure lands on the write that
+    /// caused it rather than a chunk later.
+    struct AlwaysBrokenPipe;
+
+    impl tokio::io::AsyncWrite for AlwaysBrokenPipe {
+        fn poll_write(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+            _: &[u8],
+        ) -> std::task::Poll<std::io::Result<usize>> {
+            std::task::Poll::Ready(Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe)))
+        }
+        fn poll_flush(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+        fn poll_shutdown(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+    }
+```
+
+Check the argument order against `tee`'s real signature before pasting, and mutate it: flatten
+the loop, confirm this test fails and that the integration tests still do not.
 
 - [ ] **Step 4: Carry the error out of the core**
 
