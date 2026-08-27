@@ -153,7 +153,7 @@ fn scope_dir(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
 
 /// The lines to deliver, and the ledger that has recorded them as delivered.
 ///
-/// The ledger is deliberately uncommitted: a key must be written down only
+/// The ledger is uncommitted: a key must be written down only
 /// after the report reaches the agent. Committing first means a failed write
 /// retires a change nobody was shown, and its key matches at every later
 /// delivery point, so it is never reported again. Committing after costs at

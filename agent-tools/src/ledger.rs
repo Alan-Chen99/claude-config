@@ -116,6 +116,10 @@ impl Ledger {
                     pending = f;
                     std::thread::sleep(std::time::Duration::from_millis(20));
                 }
+                // Only `EWOULDBLOCK` is evidence that someone holds the lock.
+                // An interrupted call that runs out of deadline reports its own
+                // errno through the arm below: naming a holder there would state
+                // a cause nothing observed.
                 Err((_, nix::errno::Errno::EWOULDBLOCK)) => anyhow::bail!(
                     "another delivery point holds {} — this one is reported at the next",
                     lock_path.display()
