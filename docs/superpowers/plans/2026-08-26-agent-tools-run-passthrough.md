@@ -1820,7 +1820,13 @@ diagnostic line to its own command.
 
 - [ ] **Step 1: Replace the claim**
 
-Substitute this for the bullet quoted above:
+Substitute this for the bullet quoted above. It replaces `sys_prompt/alan-default-next.md:170`
+in full — one bullet in, one bullet out, never a second one added beside it.
+
+**Write it as a single line, indented `  - ` like its neighbours.** Claude Code loads this
+file as text rather than rendered markdown, so the wrapping below would appear verbatim in
+the prompt, and every other bullet in that list is one unwrapped line. The blockquote and
+line breaks here are this document's formatting, not the file's.
 
 > - The wrapper forwards the child's bytes unchanged, in order within each stream, and exits
 >   with the child's own code — `128 + signum` if the child was signalled, since the wrapper
