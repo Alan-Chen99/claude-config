@@ -583,3 +583,98 @@ fn the_lowest_bound_stops_the_drain_at_the_first_read_past_the_close() {
         "at the bound the read end closes, so the child sees SIGPIPE as it would bare"
     );
 }
+
+/// The child F2 was measured against: enough output to keep writing well past
+/// the first failed capture write, and an exit code nothing else would produce.
+const TALKS_THEN_EXITS_5: [&str; 3] = [
+    "bash",
+    "-c",
+    "for i in $(seq 1 2000); do echo line-$i; done; exit 5",
+];
+
+#[test]
+fn capture_failure_never_kills_the_child() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    std::fs::create_dir_all(&cap).unwrap();
+    // `/dev/full` opens and then fails every write with ENOSPC, which is F2's
+    // own trigger — a full disk — reached without privileges or a mount. A
+    // directory in the same place would fail the *open* instead, and the open
+    // is a different branch from the one that kills the child; it gets its own
+    // test below. Two shapes are symlinked because the merge decision picks the
+    // capture name, and `stderr` deliberately is not, so the test can tell one
+    // failed stream from a wholly broken run.
+    std::os::unix::fs::symlink("/dev/full", cap.join("stdout")).unwrap();
+    std::os::unix::fs::symlink("/dev/full", cap.join("output")).unwrap();
+
+    let out = run_core_cmd(&cap, &TALKS_THEN_EXITS_5).output().unwrap();
+
+    assert_eq!(
+        out.status.code(),
+        Some(5),
+        "the child's own status is reported, not one the wrapper inflicted"
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("line-1\n"), "forwarding continues");
+    assert!(
+        stdout.contains("line-2000\n"),
+        "the caller's stream is never cut short by the wrapper's own failure"
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    // Position, not presence, the same way the forward-close tests check it:
+    // the prefix beginning a line is the contract, not the substring.
+    assert_eq!(
+        err.lines()
+            .filter(|l| l.starts_with("agent-tools: capture to"))
+            .count(),
+        1,
+        "stated once on stderr, not once per chunk and not inferred from a wrong \
+         exit code; stderr was {err:?}"
+    );
+}
+
+#[test]
+fn a_capture_that_cannot_be_opened_is_stated_and_not_fatal() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    std::fs::create_dir_all(&cap).unwrap();
+    // A directory where the capture file goes: the open fails with EISDIR and
+    // the loop never runs, so this reaches the branch the test above cannot.
+    std::fs::create_dir_all(cap.join("stdout")).unwrap();
+    std::fs::create_dir_all(cap.join("output")).unwrap();
+
+    let out = run_core_cmd(&cap, &TALKS_THEN_EXITS_5).output().unwrap();
+
+    assert_eq!(out.status.code(), Some(5));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("line-2000\n"));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.lines()
+            .any(|l| l.starts_with("agent-tools: capture to")),
+        "an open that failed is stated too; stderr was {err:?}"
+    );
+}
+
+#[test]
+fn a_capture_that_fails_only_at_the_flush_is_stated_too() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cap = tmp.path().join("cap");
+    std::fs::create_dir_all(&cap).unwrap();
+    std::os::unix::fs::symlink("/dev/full", cap.join("stdout")).unwrap();
+    std::os::unix::fs::symlink("/dev/full", cap.join("output")).unwrap();
+
+    // 2000 bytes is one write under `PIPE_BUF`, so the tee reads it whole and
+    // there is no second chunk for the first chunk's error to surface at.
+    let out = run_core_cmd(&cap, &["bash", "-c", r#"printf "%01999d\n" 0; exit 5"#])
+        .output()
+        .unwrap();
+
+    assert_eq!(out.status.code(), Some(5));
+    assert_eq!(out.stdout.len(), 2000, "the caller still gets everything");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.lines()
+            .any(|l| l.starts_with("agent-tools: capture to")),
+        "a capture that failed with nothing left to write is still stated; stderr was {err:?}"
+    );
+}

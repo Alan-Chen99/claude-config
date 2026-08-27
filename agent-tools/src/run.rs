@@ -76,12 +76,11 @@ pub async fn run(
     // with the child's exit code, which the spec guarantees.
     let cm = Arc::new(Mutex::new(cm));
 
-    // A failed `write_meta` is recorded as an event and discarded — in both
-    // callbacks below and at the `drained_at` write after the core returns.
-    // Bookkeeping is the wrapper's failure, not the child's, and must not
-    // decide what the caller learns the child did: the exit code is guaranteed.
-    // Only the spawn-error write still propagates, where there is no child
-    // status to preserve.
+    // A failed `write_meta` is recorded as an event and discarded, at every one
+    // of the four sites: both callbacks below, the `drained_at` write after the
+    // core returns, and the spawn-error write. Bookkeeping is the wrapper's
+    // failure, not the child's, and must not decide what the caller learns the
+    // child did.
     //
     // The cost of discarding is specific, and different per fact. A lost
     // `child_pid` shows as `pid -` in `ps` and in every pushed report, because
@@ -92,7 +91,16 @@ pub async fn run(
     // wrapper with no reap as `producing`/`quiet` — a child that has already
     // exited, described as still running. A lost `drained_at` costs only the
     // `exited` -> `final` transition: with the reap on disk and the wrapper
-    // gone, `derive` reaches `final(status)` anyway.
+    // gone, `derive` reaches `final(status)` anyway. A lost spawn error costs
+    // the reason: `derive` sees no spawn error, no reap and a wrapper that has
+    // already gone, and answers `abandoned` rather than `spawn-failed(...)`.
+    //
+    // A failed spawn is the one site with no child status to preserve, so
+    // nothing about the exit code argues for discarding there. What argues for
+    // it is the report: the spawn error is the only fault there is, and
+    // propagating the write error would return that in its place and skip the
+    // `spawn_failed` event below it, leaving the thing that actually went wrong
+    // the one thing never said.
     let on_spawn = {
         let cm = cm.clone();
         let dir = child_dir.clone();
@@ -136,7 +144,12 @@ pub async fn run(
         Err(core::CoreError::Spawn(e)) => {
             let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             m.spawn_error = Some(e.to_string());
-            meta::write_meta(&child_dir, &m)?;
+            record_meta_write(
+                &parent_dir,
+                wrapper_pid,
+                "spawn_error",
+                meta::write_meta(&child_dir, &m),
+            );
             events::append(
                 &parent_dir,
                 "spawn_failed",
@@ -161,8 +174,9 @@ pub async fn run(
 }
 
 /// State a best-effort `meta.json` write that failed, so a fact lost to disk is
-/// still readable somewhere. Shared by the three sites that discard the error;
-/// the spawn-error write propagates instead and does not come through here.
+/// still readable somewhere. Every site that writes `meta.json` comes through
+/// here: the fault that reaches the caller is the one the run had, never the
+/// one recording it had.
 fn record_meta_write(parent: &Path, wrapper_pid: u32, fact: &str, result: Result<()>) {
     if let Err(e) = result {
         events::append(
@@ -189,7 +203,7 @@ mod tests {
     // The `child_pid` call site cannot be driven from an integration test: any
     // way of making its write fail also fails the propagating write that
     // precedes it, aborting the run before the callback. This covers the
-    // sequence all three sites now share.
+    // sequence all four sites share.
     #[test]
     fn a_failed_write_names_the_fact_and_the_error() {
         let dir = TempDir::new().unwrap();

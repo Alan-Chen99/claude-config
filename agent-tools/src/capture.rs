@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
@@ -29,6 +29,11 @@ pub struct TeeOutcome {
     /// The drain reached `drain_cap_bytes` and the read end was dropped. The
     /// capture is short of what the child went on to write, by design.
     pub drain_capped: bool,
+    /// The capture could not be written, and capturing stopped there. Holds
+    /// what the OS said. Set once, by whichever of the open, a chunk write or
+    /// the flush reached it first — a capture that has already stopped cannot
+    /// stop again, and one message per stream is the contract the tests pin.
+    pub capture_error: Option<String>,
 }
 
 /// The tee's read size, and the boundary between the two capture-side regimes.
@@ -52,6 +57,14 @@ const READ_BUF: usize = 8192;
 /// child and not the capture: a caller going away is expected and capturing on
 /// is the point. It is still a difference from bare, so it is stated on stderr
 /// and returned rather than inferred from a short stream.
+///
+/// A capture that cannot be written stops the capturing, and neither the
+/// forwarding nor the child: the wrapper's disk is not the child's fault. A tee
+/// that gave up here would leave the pipe undrained, and the child would die of
+/// a `SIGPIPE` the wrapper inflicted and then be reported as `final(141)` — a
+/// plausible and wrong story about a failure that was never its own. Stated on
+/// stderr and returned for the same reason the forward close is, since `final(0)`
+/// beside a capture that stopped growing an hour ago reads as a complete record.
 ///
 /// Draining on alone is how a runaway producer fills the disk, so it is bounded:
 /// `drain_cap_bytes` past the close the reader is dropped, which closes the read
@@ -79,23 +92,38 @@ where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
 {
-    let mut file = OpenOptions::new()
+    let mut outcome = TeeOutcome::default();
+
+    // `None` is a capture that is not happening. An open that fails leaves the
+    // rest of the tee running against it, because forwarding the child's bytes
+    // and draining its pipe are worth more than the record of them.
+    let mut file = match OpenOptions::new()
         .create(true)
         .append(true)
         .open(&capture_path)
         .await
-        .with_context(|| format!("open capture {}", capture_path.display()))?;
+    {
+        Ok(f) => Some(f),
+        Err(e) => {
+            outcome.capture_error = Some(e.to_string());
+            state(&format!(
+                "agent-tools: capture to {} could not be opened ({e}); forwarding \
+                 continues, nothing is captured\n",
+                capture_path.display()
+            ));
+            None
+        }
+    };
 
     let mut buf = vec![0u8; READ_BUF];
     let mut wrote_first_byte = false;
-    let mut outcome = TeeOutcome::default();
     loop {
         let n = reader.read(&mut buf).await?;
         if n == 0 {
             break;
         }
         let chunk = &buf[..n];
-        file.write_all(chunk).await?;
+        capture_or_stop_capturing(&mut file, chunk, &capture_path, &mut outcome).await;
 
         if outcome.forward_closed {
             outcome.bytes_since_close_detected += n as u64;
@@ -107,10 +135,15 @@ where
                 ));
                 break;
             }
-        } else if let Err(e) = forward.write_all(chunk).await {
-            outcome.forward_closed = true;
-            outcome.bytes_since_close_detected += n as u64;
-            state_forward_closed(stream_name, &e, &capture_path);
+        } else {
+            forward_or_stop_forwarding(
+                &mut forward,
+                chunk,
+                stream_name,
+                &capture_path,
+                &mut outcome,
+            )
+            .await;
         }
         last_activity_unix_ms.store(now_unix_ms(), Ordering::SeqCst);
         if !wrote_first_byte {
@@ -122,14 +155,28 @@ where
             });
         }
     }
-    file.flush().await.ok();
-    // The second write site for the one-chunk-late error stated on
-    // `TeeOutcome::bytes_since_close_detected`. The last chunk has no next
-    // write, so its error can appear nowhere but here; and a child whose whole
-    // output arrives in one 8192-byte read has no earlier chunk either, so here
-    // is the only place `EPIPE` ever appears. Discarded, the caller's stream is
-    // silently short by whatever was still in flight and the outcome says
-    // forwarding was fine.
+    // Both flushes below are second write sites for the one-chunk-late error
+    // stated on `TeeOutcome::bytes_since_close_detected`, which `tokio::fs::File`
+    // has too: `Blocking::poll_write` hands the chunk to a blocking task and
+    // returns `Ok`, so the write's own error is reported at the next write or
+    // here. The last chunk has no next write, and a child whose whole output
+    // arrives in one 8192-byte read has no earlier chunk either, so for that
+    // child this is the only place either failure ever appears. Discarded, a
+    // capture that never happened comes back as a clean outcome.
+    if let Some(f) = file.as_mut() {
+        match f.flush().await {
+            Err(e) if outcome.capture_error.is_none() => {
+                outcome.capture_error = Some(e.to_string());
+                state(&format!(
+                    "agent-tools: capture to {} failed at the flush ({e}); the capture is \
+                     short by whatever was still in flight\n",
+                    capture_path.display()
+                ));
+            }
+            // Already reported in the loop, or nothing to report.
+            _ => {}
+        }
+    }
     match forward.flush().await {
         Err(e) if !outcome.forward_closed => {
             outcome.forward_closed = true;
@@ -139,6 +186,55 @@ where
         _ => {}
     }
     Ok(outcome)
+}
+
+/// Write one chunk to the capture. Failing costs the capture and nothing else.
+///
+/// The child is not at fault for the wrapper's disk, so its pipe keeps being
+/// drained and its bytes keep reaching the caller. `file` is taken to `None`, so
+/// there is no second write to fail and no second message: a stream states this
+/// once, naming where the record stops.
+async fn capture_or_stop_capturing(
+    file: &mut Option<tokio::fs::File>,
+    chunk: &[u8],
+    capture_path: &std::path::Path,
+    outcome: &mut TeeOutcome,
+) {
+    let Some(f) = file.as_mut() else {
+        return;
+    };
+    let Err(e) = f.write_all(chunk).await else {
+        return;
+    };
+    outcome.capture_error = Some(e.to_string());
+    state(&format!(
+        "agent-tools: capture to {} failed ({e}); forwarding continues, the capture \
+         is incomplete from here\n",
+        capture_path.display()
+    ));
+    *file = None;
+}
+
+/// Write one chunk to the downstream. Failing costs the forwarding and nothing
+/// else.
+///
+/// A caller going away is expected and capturing on is the point, so the loop
+/// keeps reading — under the drain bound the caller applies, which is why the
+/// trigger chunk is counted here and compared against only on the next one.
+async fn forward_or_stop_forwarding<W>(
+    forward: &mut W,
+    chunk: &[u8],
+    stream_name: &str,
+    capture_path: &std::path::Path,
+    outcome: &mut TeeOutcome,
+) where
+    W: AsyncWrite + Unpin,
+{
+    if let Err(e) = forward.write_all(chunk).await {
+        outcome.forward_closed = true;
+        outcome.bytes_since_close_detected += chunk.len() as u64;
+        state_forward_closed(stream_name, &e, capture_path);
+    }
 }
 
 /// Say something once on the caller's stderr, from inside a tee.

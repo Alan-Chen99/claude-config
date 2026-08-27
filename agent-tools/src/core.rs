@@ -124,6 +124,11 @@ pub struct Outcome {
     /// dropped. The child met the `SIGPIPE` bare would have given it, and the
     /// capture stops short of whatever it wrote after that.
     pub drain_capped: bool,
+    /// A capture could not be written, on either stream, and stopped there;
+    /// what the OS said about the first such failure. The child ran to its own
+    /// end and the caller's streams carry everything it wrote, so nothing else
+    /// distinguishes this run from a complete one.
+    pub capture_error: Option<String>,
 }
 
 /// Spawn failed, or something else did. Kept distinct so `run` can record the
@@ -331,14 +336,12 @@ where
     on_reap(exit_code);
 
     let _ = cancel_tx.send(true);
-    // A tee that panicked or failed its capture reports nothing, exactly as
-    // before this returned anything: the exit code is guaranteed and the
-    // wrapper's own bookkeeping never decides what the caller learns the child
-    // did. Isolating a failed capture is its own fix; this only stops the
-    // forward close from being discarded.
-    let a = tee_a.await.ok().and_then(|r| r.ok()).unwrap_or_default();
+    // Whatever a tee reports, and whatever became of the tee itself, the exit
+    // code above is already decided: the wrapper's own bookkeeping never
+    // decides what the caller learns the child did.
+    let a = tee_outcome(tee_a.await);
     let b = match tee_b {
-        Some(h) => h.await.ok().and_then(|r| r.ok()).unwrap_or_default(),
+        Some(h) => tee_outcome(h.await),
         None => capture::TeeOutcome::default(),
     };
     let _ = watch_a.await;
@@ -351,10 +354,36 @@ where
         merge,
         // Either stream losing its downstream, or either drain reaching its
         // bound, is the same difference from bare; which one it was is already
-        // on stderr, under the stream's own name.
+        // on stderr, under the stream's own name. The first capture failure is
+        // carried whole, because a path and an `errno` are what make it
+        // actionable and there is nowhere else left to read them.
         forward_closed: a.forward_closed || b.forward_closed,
         drain_capped: a.drain_capped || b.drain_capped,
+        capture_error: a.capture_error.or(b.capture_error),
     })
+}
+
+/// What one tee is known to have observed, including when the answer is that it
+/// stopped without finishing.
+///
+/// A tee owns its capture, so a tee that errored or panicked took the capture
+/// down with it. Defaulting there would report a clean outcome for a capture
+/// that stopped dead — the one shape "a capture never silently stops growing"
+/// cannot survive.
+fn tee_outcome(
+    joined: Result<Result<capture::TeeOutcome>, tokio::task::JoinError>,
+) -> capture::TeeOutcome {
+    match joined {
+        Ok(Ok(o)) => o,
+        Ok(Err(e)) => capture::TeeOutcome {
+            capture_error: Some(format!("{e:#}")),
+            ..Default::default()
+        },
+        Err(e) => capture::TeeOutcome {
+            capture_error: Some(format!("tee task died: {e}")),
+            ..Default::default()
+        },
+    }
 }
 
 #[cfg(test)]
@@ -378,6 +407,48 @@ mod tests {
 
         assert!(matches!(err, CoreError::Other(_)), "got: {err:?}");
         assert!(!cap.exists(), "nothing ran, so nothing should be captured");
+    }
+
+    /// The join result is the whole report: a tee that stopped early looks from
+    /// here exactly like one that finished with nothing to say, and defaulting
+    /// answers "nothing happened" for a capture that stopped dead.
+    ///
+    /// Neither failing arm is reachable through a wrapped command. With a
+    /// capture failure isolated inside `tee`, the only error left is a read
+    /// that fails, which no command can be made to produce, and nothing there
+    /// panics on purpose — so this drives the arms directly, and the arms are
+    /// all it reaches. Whether `run_core` still asks is beyond it: measured,
+    /// wiring the two call sites back to `.ok().and_then(|r| r.ok())`
+    /// `.unwrap_or_default()` leaves every test in the suite passing, and the
+    /// only thing that notices is a dead-code warning on this function.
+    #[tokio::test]
+    async fn a_tee_that_stopped_early_is_a_failed_capture() {
+        let finished = tee_outcome(Ok(Ok(capture::TeeOutcome {
+            forward_closed: true,
+            ..Default::default()
+        })));
+        assert_eq!(
+            finished.capture_error, None,
+            "a finished tee reports what it saw"
+        );
+        assert!(finished.forward_closed);
+
+        let errored = tee_outcome(Ok(Err(anyhow::anyhow!("read: Input/output error"))));
+        assert_eq!(
+            errored.capture_error.as_deref(),
+            Some("read: Input/output error"),
+            "what stopped the tee is what stopped the capture"
+        );
+
+        // A panic and an abort are one arm; a panic is the one that happens.
+        let panicked = tokio::spawn(async { panic!("tee") }).await.unwrap_err();
+        let died = tee_outcome(Err(panicked));
+        assert!(
+            died.capture_error
+                .unwrap_or_default()
+                .starts_with("tee task died:"),
+            "a capture whose task died says so rather than coming back clean"
+        );
     }
 
     #[test]
