@@ -41,7 +41,7 @@ wrapper can have. See [Structurally unachievable](#structurally-unachievable).
 | [F12](#f12) | low | the wrapper absorbs SIGTERM and SIGINT when the child ignores them | `signals.rs:18-30` | accepted |
 | [F13](#f13) | medium | `ps` hides the capture that `hook-post` reports as `abandoned` | `ps.rs:233-236` | fixed `f4e784b` |
 | [F14](#f14) | critical | a multi-byte character in `--desc` discards the command, leaving no trace on disk | `procname.rs:42-48` + `procstat.rs:25` | fixed `c7d3d13` |
-| [F15](#f15) | medium | `ps` output grows with session history and is ordered by an identifier uncorrelated with time | `ps.rs:49-54` | open |
+| [F15](#f15) | medium | `ps` output grows with session history and is ordered by an identifier uncorrelated with time | `ps.rs:49-54` | ordering fixed, growth open |
 | [F16](#f16) | medium | the facts that explain a capture reach the record only when the wrapper is done with it | `run.rs` after `core` returns | merge condition fixed, other three open |
 
 Findings after the original run — F13, F14, F15, and the revised F3 — were added
@@ -630,6 +630,13 @@ copies raw bytes and nothing in this repository reads `/proc/self/cmdline` back 
 ## F15
 
 ### `ps` output grows with session history and is ordered by an identifier uncorrelated with time
+
+**Ordering fixed 2026-08-27** by the commit that follows `262497f`; the growth half is
+open. Groups now sort by their newest capture and captures within a group by start time,
+both descending, so what the agent is still acting on is at the top. Measured on a live
+session: strictly descending from 18:28 to 17:40, where the same scope previously came out
+in tool-use-identifier order. `ps` still shows every capture in the session, which is the
+half of this finding that remains.
 
 **Added 2026-08-26.**
 

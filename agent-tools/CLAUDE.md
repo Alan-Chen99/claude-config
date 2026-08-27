@@ -217,6 +217,12 @@ meta still derives `abandoned`. Dropping it instead would put the two consumers 
 derivation in disagreement about whether a child exists, in the view an agent turns to
 after a compaction — the one place a child just called terminal must be findable.
 
+Ordering is newest first — groups by their newest capture, captures within a group by
+start time — because the output is read through a tool result that truncates, and what
+started most recently is what the agent is still acting on. Display groups by tool-use, so
+both levels sort the same direction or the newest capture could sit under a group buried
+below older ones.
+
 Events are read per line. A line that will not parse costs that line, and the count
 appears as `note: N unreadable event line(s) skipped`; a file that cannot be read at all is
 named, `note: events unreadable for <tool_use_id>: <err>`. Both exist because the reachable

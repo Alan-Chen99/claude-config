@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -50,17 +51,34 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
         captures.retain(|c| &c.tool_use_id == t);
     }
 
-    // Stable ordering: agent (None first), then tool_use_id, then start time, then pid.
+    // Newest first, because `ps` is read after a compaction through a tool
+    // result that truncates: what started most recently is what the agent is
+    // still acting on. Display groups by tool-use, so a group sorts by its own
+    // newest capture and its captures follow in the same direction — otherwise
+    // the newest capture could sit under a group buried below older ones.
+    let started = |c: &Capture| c.meta.as_ref().map(|m| m.started_at);
+    let mut group_newest: HashMap<(Option<String>, String), Option<DateTime<Utc>>> = HashMap::new();
+    for c in &captures {
+        let key = (c.agent_id.clone(), c.tool_use_id.clone());
+        let newest = group_newest.entry(key).or_default();
+        if started(c) > *newest {
+            *newest = started(c);
+        }
+    }
+    let newest_of = |c: &Capture| {
+        group_newest
+            .get(&(c.agent_id.clone(), c.tool_use_id.clone()))
+            .copied()
+            .flatten()
+    };
     captures.sort_by(|a, b| {
         a.agent_id
             .cmp(&b.agent_id)
+            .then_with(|| newest_of(b).cmp(&newest_of(a)))
+            // Two groups can share a newest time only if seeded that way; the
+            // identifier keeps their captures contiguous.
             .then_with(|| a.tool_use_id.cmp(&b.tool_use_id))
-            .then_with(|| {
-                a.meta
-                    .as_ref()
-                    .map(|m| m.started_at)
-                    .cmp(&b.meta.as_ref().map(|m| m.started_at))
-            })
+            .then_with(|| started(b).cmp(&started(a)))
             // A capture with no meta has no start time to sort by; its
             // directory is the wrapper pid, which is stable and unique.
             .then_with(|| a.capture_dir.cmp(&b.capture_dir))

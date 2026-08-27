@@ -66,6 +66,30 @@ fn seed_capture(
     dir
 }
 
+/// Seed a capture whose `started_at` is `started`, so ordering can be tested.
+#[allow(clippy::too_many_arguments)]
+fn seed_capture_at(
+    home: &Path,
+    session: &str,
+    agent: Option<&str>,
+    tuid: &str,
+    wrapper_pid: u32,
+    desc: Option<&str>,
+    exit: Option<i32>,
+    started: &str,
+) -> PathBuf {
+    let dir = seed_capture(home, session, agent, tuid, wrapper_pid, desc, exit, "");
+    let raw = std::fs::read_to_string(dir.join("meta.json")).unwrap();
+    let mut meta: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    meta["started_at"] = serde_json::Value::String(started.to_string());
+    std::fs::write(
+        dir.join("meta.json"),
+        serde_json::to_string_pretty(&meta).unwrap(),
+    )
+    .unwrap();
+    dir
+}
+
 /// Write an events.jsonl line at `<home>/.claude/agent-tools/<session>/[<agent>/]<tuid>/events.jsonl`.
 fn append_event(home: &Path, session: &str, agent: Option<&str>, tuid: &str, line: &str) {
     let mut dir = home.join(".claude/agent-tools").join(session);
@@ -461,5 +485,37 @@ fn a_long_command_is_capped_on_the_ps_line() {
     assert!(
         s.contains('\u{2026}'),
         "a truncated command must say it was truncated: {s}"
+    );
+}
+
+
+/// `ps` is read after a compaction, through a tool result that truncates. What
+/// started most recently is what the agent is still acting on, so it must be at
+/// the top rather than wherever the tool-use identifier happened to sort.
+#[test]
+fn captures_are_ordered_newest_first() {
+    let home = tempfile::tempdir().unwrap();
+    // Identifier order and time order disagree: the alphabetically first
+    // tool-use holds the oldest capture.
+    seed_capture_at(home.path(), "sid", None, "toolu_aaa", 100, Some("oldest"), Some(0), "2026-05-17T10:00:00Z");
+    seed_capture_at(home.path(), "sid", None, "toolu_zzz", 200, Some("middle"), Some(0), "2026-05-17T11:00:00Z");
+    seed_capture_at(home.path(), "sid", None, "toolu_zzz", 300, Some("newest"), Some(0), "2026-05-17T12:00:00Z");
+
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    let pos = |needle: &str| s.find(needle).unwrap_or_else(|| panic!("{needle} missing from: {s}"));
+    assert!(
+        pos("newest") < pos("middle") && pos("middle") < pos("oldest"),
+        "captures must read newest first: {s}"
     );
 }
