@@ -8,6 +8,10 @@ use tokio::process::Command;
 use crate::capture;
 
 /// Why the child's two streams did or did not share one destination.
+///
+/// `status::Capture` is the same fact read back off disk: merged runs open one
+/// capture file, split runs two. A change to what either arm opens has to move
+/// both, or a report line describes files that are not there.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Merge {
     /// One destination. The reason names the condition that made it sound.
@@ -73,6 +77,20 @@ pub fn decide_merge(fd_out: i32, fd_err: i32) -> Merge {
     Merge::Split("same file, but not both appending")
 }
 
+/// What the wrapper reads back from the child, which the merge decision fixes:
+/// the one pipe it made and owns, or the two the child was spawned with.
+///
+/// Matched in exactly one place, so a stream's tee and its silence watcher are
+/// spawned from the same arm and cannot drift apart, and so a new `Merge`
+/// variant is a compile error at the single site that builds this rather than a
+/// silent fall into the split path at three.
+enum Streams {
+    /// One pipe carrying both of the child's streams.
+    Merged(tokio::net::unix::pipe::Receiver),
+    /// The child's own two pipes, which live on the `Child` until taken.
+    Split,
+}
+
 /// What the core observed. Everything here explains a difference from bare.
 #[derive(Debug, Clone)]
 pub struct Outcome {
@@ -135,34 +153,46 @@ where
     // decision must be about.
     let merge = decide_merge(libc::STDOUT_FILENO, libc::STDERR_FILENO);
 
-    let mut command = Command::new(&cmd[0]);
-    command.args(&cmd[1..]).stdin(Stdio::inherit());
+    // `command` owns every write end it is handed, and a pipe reports EOF only
+    // once the last one closes. This block is that ownership: it ends at the
+    // brace, the moment the child holds its own copies. A `Command` still in
+    // scope is a write end still open, and a merged tee reading a pipe that
+    // nobody will write to or close again.
+    let (mut child, streams) = {
+        let mut command = Command::new(&cmd[0]);
+        command.args(&cmd[1..]).stdin(Stdio::inherit());
 
-    let merged_reader = if let Merge::Merged(_) = merge {
-        // O_CLOEXEC, as `Stdio::piped()` does for the split branch: the child
-        // gets fd 1 and fd 2 by `dup2`, which clears the flag, and the copies
-        // these came from close on exec. Left inheritable, a descendant of a
-        // child that closed its own stdout and stderr would still hold a write
-        // end, and the tee would wait on a pipe bare would already have closed.
-        let (r, w) = nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC)
-            .map_err(|e| CoreError::Other(anyhow::anyhow!("pipe: {e}")))?;
-        let w2 = w
-            .try_clone()
-            .map_err(|e| CoreError::Other(anyhow::anyhow!("dup: {e}")))?;
-        command.stdout(Stdio::from(w)).stderr(Stdio::from(w2));
-        Some(r)
-    } else {
-        command.stdout(Stdio::piped()).stderr(Stdio::piped());
-        None
+        let streams = match merge {
+            Merge::Merged(_) => {
+                // O_CLOEXEC, as `Stdio::piped()` does for the split arm: the
+                // child gets fd 1 and fd 2 by `dup2`, which clears the flag,
+                // and the copies these came from close on exec. Left
+                // inheritable, a descendant of a child that closed its own
+                // stdout and stderr would still hold a write end, and the tee
+                // would wait on a pipe bare would already have closed.
+                let (r, w) = nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC)
+                    .map_err(|e| CoreError::Other(anyhow::anyhow!("pipe: {e}")))?;
+                let w2 = w
+                    .try_clone()
+                    .map_err(|e| CoreError::Other(anyhow::anyhow!("dup: {e}")))?;
+                // Registered with the reactor before there is a child to
+                // strand. `EMFILE` or `ENOMEM` here returns while the only
+                // thing that exists is a pipe; after the spawn it would leave a
+                // running child wired to a pipe nobody drains, blocked forever
+                // on the write that fills it.
+                let rx = tokio::net::unix::pipe::Receiver::from_owned_fd(r)
+                    .map_err(|e| CoreError::Other(anyhow::anyhow!("async pipe: {e}")))?;
+                command.stdout(Stdio::from(w)).stderr(Stdio::from(w2));
+                Streams::Merged(rx)
+            }
+            Merge::Split(_) => {
+                command.stdout(Stdio::piped()).stderr(Stdio::piped());
+                Streams::Split
+            }
+        };
+
+        (command.spawn().map_err(CoreError::Spawn)?, streams)
     };
-
-    let mut child = command.spawn().map_err(CoreError::Spawn)?;
-    // `command` still owns the write ends it was handed, and the child now has
-    // its own. A pipe reports EOF only once the last write end closes, so
-    // keeping these would leave the merged tee reading a pipe nobody will ever
-    // write to or close — a child that has already exited, and a wrapper that
-    // never returns.
-    drop(command);
 
     let pid = child
         .id()
@@ -176,11 +206,14 @@ where
     let last_stderr = Arc::new(AtomicI64::new(chrono::Utc::now().timestamp_millis()));
 
     let dir: PathBuf = capture_dir.to_path_buf();
-    let (tee_a, tee_b) = match merged_reader {
-        Some(r) => {
-            let rx = tokio::net::unix::pipe::Receiver::from_owned_fd(r)
-                .map_err(|e| CoreError::Other(anyhow::anyhow!("async pipe: {e}")))?;
-            let a = tokio::spawn(capture::tee(
+    // A stream, the tee that carries it, and the watcher that times its silence
+    // are one arm each. A merged run has one of all three: it advances only
+    // `last_stdout`, so a second watcher would sit on a clock nobody winds and
+    // announce silence on a stream that is busy, under a name the run does not
+    // have.
+    let (tee_a, tee_b, watch_a, watch_b) = match streams {
+        Streams::Merged(rx) => {
+            let tee = tokio::spawn(capture::tee(
                 "output",
                 rx,
                 dir.join("output"),
@@ -188,9 +221,16 @@ where
                 last_stdout.clone(),
                 dir.clone(),
             ));
-            (a, None)
+            let watch = tokio::spawn(capture::watch_silence(
+                "output",
+                last_stdout,
+                30_000,
+                dir.clone(),
+                cancel_rx.clone(),
+            ));
+            (tee, None, watch, None)
         }
-        None => {
+        Streams::Split => {
             let stdout_pipe = child
                 .stdout
                 .take()
@@ -199,7 +239,7 @@ where
                 .stderr
                 .take()
                 .ok_or_else(|| CoreError::Other(anyhow::anyhow!("no stderr pipe")))?;
-            let a = tokio::spawn(capture::tee(
+            let tee_out = tokio::spawn(capture::tee(
                 "stdout",
                 stdout_pipe,
                 dir.join("stdout"),
@@ -207,7 +247,7 @@ where
                 last_stdout.clone(),
                 dir.clone(),
             ));
-            let b = tokio::spawn(capture::tee(
+            let tee_err = tokio::spawn(capture::tee(
                 "stderr",
                 stderr_pipe,
                 dir.join("stderr"),
@@ -215,40 +255,22 @@ where
                 last_stderr.clone(),
                 dir.clone(),
             ));
-            (a, Some(b))
-        }
-    };
-    // One stream, one watcher. A merged run advances only `last_stdout`, so a
-    // second watcher would sit on a clock nobody winds and announce silence on
-    // a stream that is busy — and name a stream the run does not have.
-    let (s1, s2) = if let Merge::Merged(_) = merge {
-        (
-            tokio::spawn(capture::watch_silence(
-                "output",
-                last_stdout,
-                30_000,
-                dir.clone(),
-                cancel_rx.clone(),
-            )),
-            None,
-        )
-    } else {
-        (
-            tokio::spawn(capture::watch_silence(
+            let watch_out = tokio::spawn(capture::watch_silence(
                 "stdout",
                 last_stdout,
                 30_000,
                 dir.clone(),
                 cancel_rx.clone(),
-            )),
-            Some(tokio::spawn(capture::watch_silence(
+            ));
+            let watch_err = tokio::spawn(capture::watch_silence(
                 "stderr",
                 last_stderr,
                 30_000,
                 dir.clone(),
                 cancel_rx,
-            ))),
-        )
+            ));
+            (tee_out, Some(tee_err), watch_out, Some(watch_err))
+        }
     };
 
     let status = child
@@ -272,9 +294,9 @@ where
     if let Some(tee_b) = tee_b {
         let _ = tee_b.await;
     }
-    let _ = s1.await;
-    if let Some(s2) = s2 {
-        let _ = s2.await;
+    let _ = watch_a.await;
+    if let Some(watch_b) = watch_b {
+        let _ = watch_b.await;
     }
 
     Ok(Outcome { exit_code, merge })

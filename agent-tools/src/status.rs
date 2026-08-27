@@ -19,6 +19,9 @@ pub const QUIET_BUCKETS: &[(i64, &str)] = &[(30, "30s"), (300, "5m"), (1800, "30
 /// and `stderr` when they did not. A line describing the other shape reports
 /// zero bytes for a child that is producing, and points the reader at files
 /// that were never opened.
+///
+/// `core::Merge` is the decision this records: it fixes how many files a run
+/// opens, and this is how many a reader finds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Capture {
     /// One file, `output`.
