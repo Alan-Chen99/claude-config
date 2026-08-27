@@ -1324,21 +1324,24 @@ F1's measured rate is 400 MB/s, so an unbounded drain is a disk-filling mechanis
 Append to `agent-tools/tests/core_test.rs`:
 
 ```rust
+/// Far more than the bound, and it ends on its own.
+///
+/// Ending on its own is the load-bearing half. `yes yes-line` never stops, so
+/// against an implementation that adds the flag but not the `break` the test
+/// does not fail — it hangs, writing at F1's measured 400 MB/s into the temp
+/// dir until the disk is gone. A test for a disk-filling bug must not be one.
+/// 10 MiB overruns a 64 KiB bound by 160x and takes about 25 ms either way.
+const OVERRUNS_THE_BOUND: &str = "bash -c 'yes yes-line | head -c 10485760'";
+
 #[test]
 fn post_close_drain_is_bounded_and_the_bound_is_recorded() {
     let tmp = tempfile::tempdir().unwrap();
     let cap = tmp.path().join("cap");
-    // 64 KiB bound, and a producer that will not stop on its own.
-    let script = format!(
-        "{} run-core --drain-cap-bytes 65536 --capture-dir {} -- bash -c 'yes yes-line' | head -1",
+    let out = pipefail(&format!(
+        "{} run-core --drain-cap-bytes 65536 --capture-dir {} -- {OVERRUNS_THE_BOUND} | head -1",
         bin(),
         cap.display()
-    );
-    let out = Command::new("bash")
-        .args(["-c", &script])
-        .env("CLAUDE_CONFIG_ROOT", worktree_root())
-        .output()
-        .unwrap();
+    ));
 
     assert_eq!(String::from_utf8_lossy(&out.stdout), "yes-line\n");
     let captured = std::fs::metadata(cap.join("stdout"))
@@ -1347,24 +1350,73 @@ fn post_close_drain_is_bounded_and_the_bound_is_recorded() {
         .len();
     assert!(
         captured < 1_000_000,
-        "the drain must stop at the bound, not fill the disk; captured {captured} bytes"
+        "the drain stops at the bound, not at the producer's end; \
+         captured {captured} bytes of 10485760"
     );
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        err.contains("drain bound"),
+        err.contains("agent-tools: stdout drain bound"),
         "reaching the bound is recorded, never silent; stderr was {err:?}"
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(141),
+        "at the bound the read end closes, so the child sees SIGPIPE as it would bare"
     );
 }
 ```
+
+`pipefail` is Task 5's helper, so the pipeline reports `run-core`'s status rather than
+`head`'s. Task 5's own test asserts the opposite exit code on a similar shape and both are
+right: there the whole 588 KB is under the bound and nothing is ever cut off, here the bound
+is deliberately set below the producer and cutting the child off is the behaviour under
+test.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `cargo test --test core_test post_close`
 Expected: FAIL — `unexpected argument '--drain-cap-bytes'`.
 
+Once the flag parses, check the test can still fail for the right reason: delete the `break`
+alone, rebuild, and re-run. It must fail on the byte count within a second or two. If it
+hangs instead, the producer is unbounded and the test is worthless — fix the producer, not
+the timeout.
+
 - [ ] **Step 3: Add the bound**
 
-In `capture.rs`, add a `drain_cap_bytes: u64` parameter to `tee` (0 meaning uncapped) and a
+First give the tee one place to speak from. Task 5 shipped `state_forward_closed`, a helper
+specialized to one message; this task and Task 7 both need to say something else, and the
+reason the tee may not use `eprintln!` should live in one place rather than three. In
+`capture.rs`, split it:
+
+```rust
+/// Say something once on the caller's stderr, from inside a tee.
+///
+/// Not `eprintln!`: that panics when the write fails, and the stream that just
+/// closed can be this one — `cmd 2>&1 | head -3` puts both of the caller's
+/// descriptors on the pipe `head` drops, which is exactly the shape the merge
+/// rule admits. A panic there would kill the tee, stopping the capture the
+/// message is about, and the outcome would come back saying nothing happened.
+///
+/// Formatted by the caller and written once, so a notice cannot be spliced by
+/// the other stream's tee mid-line: one `write` under `PIPE_BUF` is atomic,
+/// while `write_fmt` emits a syscall per fragment. Callers pass the trailing
+/// newline; nothing here adds one, because a second write would break that.
+fn state(msg: &str) {
+    use std::io::Write as _;
+    let _ = std::io::stderr().write_all(msg.as_bytes());
+}
+
+/// Say that forwarding stopped and capturing did not.
+fn state_forward_closed(stream_name: &str, err: &std::io::Error, capture_path: &std::path::Path) {
+    state(&format!(
+        "agent-tools: {stream_name} downstream closed ({err}); still capturing to {}\n",
+        capture_path.display()
+    ));
+}
+```
+
+Then add a `drain_cap_bytes: u64` parameter to `tee` (0 meaning uncapped) and a
 `drain_capped: bool` to `TeeOutcome`. In the post-close branch:
 
 ```rust
@@ -1373,8 +1425,8 @@ In `capture.rs`, add a `drain_cap_bytes: u64` parameter to `tee` (0 meaning unca
             if drain_cap_bytes > 0 && outcome.post_close_bytes >= drain_cap_bytes {
                 outcome.drain_capped = true;
                 state(&format!(
-                    "agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes reached; \
-                     dropping the read end so the child sees SIGPIPE as it would bare"
+                    "agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes \
+                     reached; dropping the read end so the child sees SIGPIPE as bare\n"
                 ));
                 break;
             }
@@ -1386,17 +1438,48 @@ child's next write then gets `EPIPE`/`SIGPIPE`, exactly as it would have without
 
 - [ ] **Step 4: Wire the flag**
 
+Define the production default in `core.rs`:
+
+```rust
+/// Bytes captured after the downstream closed before the read end is dropped.
+/// Normal operation never reaches it: it only applies once forwarding has failed.
+pub const DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;
+```
+
 In `main.rs`, add to the `RunCore` variant:
 
 ```rust
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = core::DEFAULT_DRAIN_CAP_BYTES)]
         drain_cap_bytes: u64,
 ```
 
-Thread it into `core::run_core` as a parameter and on to both `tee` calls. Adding a parameter
-to `tee` breaks every call site, so update all of them: the two (or one, when merged) in
-`core.rs`, the `run-core` dispatch arm in `main.rs`, the `core::run_core` call in `run.rs`, and
-the four inline tokio tests in `capture.rs:113-217`, which pass `0` for uncapped.
+**The default is the production one, not 0.** The spec makes `run-core` agree with `run`
+"byte for byte on both forwarded streams and on the exit code", and a `run-core` that drained
+without a bound while `run` capped at 256 MiB would disagree with it about exactly the case
+this task adds — the child that gets `SIGPIPE` at the bound. Only the test names a different
+bound, and it names it explicitly. Task 5's test drains 588 KB, far under 256 MiB, so it is
+unaffected.
+
+Then give `run_core` the parameter, ahead of the callbacks:
+
+```rust
+pub async fn run_core<S, R>(
+    cmd: &[String],
+    capture_dir: &Path,
+    drain_cap_bytes: u64,
+    on_spawn: S,
+    on_reap: R,
+) -> Result<Outcome, CoreError>
+```
+
+Adding a parameter to `tee` breaks every call site, so update all of them: the three in
+`core.rs` — `:221` on the merged arm, `:247` and `:255` on the split arm, of which only one
+arm runs; the `run-core` dispatch arm at
+`main.rs:409-418`; the `core::run_core` call in `run.rs`; and the three inline tokio tests in
+`capture.rs` that call `tee` — `tee_writes_capture_file`, `tee_forwards_through_to_writer`
+and `tee_records_first_byte_event` — which pass `0` for uncapped. The fourth test in that
+module, `silence_watcher_emits_event_after_threshold`, drives `watch_silence` and does not
+change.
 
 `run.rs`'s call becomes:
 
@@ -1410,20 +1493,12 @@ the four inline tokio tests in `capture.rs:113-217`, which pass `0` for uncapped
     )
     .await
     {
-``` `run` passes the
-production default, which is uncapped during normal operation and bounded only after the
-downstream has closed — define it in `core.rs`:
-
-```rust
-/// Bytes captured after the downstream closed before the read end is dropped.
-/// Normal operation never reaches it: it only applies once forwarding has failed.
-pub const DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;
 ```
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 11 tests.
+Expected: PASS, 14 tests. (13 before this task: Task 5 added two, not one.)
 
 - [ ] **Step 6: Commit**
 
@@ -1436,7 +1511,7 @@ git commit -m "agent-tools: an unbounded post-close drain was a disk-filling mec
 
 ## Task 7: A capture that cannot be written never kills the child
 
-F2: `capture.rs:45` propagates the capture-write error out of `tee`; the task dies, nothing
+F2: the capture write at `capture.rs:60` propagates its error out of `tee`; the task dies, nothing
 drains the pipe, and the child is killed by `SIGPIPE` — reported as `final(141)`, a plausible
 and wrong story. Spec, Guaranteed: "Capture failure never kills the child; forward failure
 never stops the capture … a capture that cannot be written is the wrapper's failure, not the
@@ -1516,7 +1591,7 @@ propagating `file.write_all(chunk).await?` with:
                 outcome.capture_error = Some(e.to_string());
                 state(&format!(
                     "agent-tools: capture to {} failed ({e}); forwarding continues, \
-                     the capture is incomplete from here",
+                     the capture is incomplete from here\n",
                     capture_path.display()
                 ));
             }
@@ -1537,12 +1612,12 @@ Add `capture_error: Option<String>` to `core::Outcome`, populated from either te
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 12 tests.
+Expected: PASS, 15 tests.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add agent-tools/src/capture.rs agent-tools/src/core.rs agent-tools/tests/core_test.rs
+git add agent-tools/src/capture.rs agent-tools/src/core.rs agent-tools/src/run.rs agent-tools/tests/core_test.rs
 git commit -m "agent-tools: the wrapper's own capture failure killed the child and blamed it"
 ```
 
@@ -1568,7 +1643,7 @@ Append to `agent-tools/tests/run_facts_test.rs`:
 
 ```rust
 #[test]
-fn a_capture_failure_is_rendered_beside_the_key() {
+fn the_merge_condition_is_recorded_beside_the_capture() {
     let home = tempfile::tempdir().unwrap();
     let parent = home.path().join("parent");
     std::fs::create_dir_all(&parent).unwrap();
@@ -1592,15 +1667,32 @@ fn a_capture_failure_is_rendered_beside_the_key() {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cargo test --test run_facts_test a_capture_failure`
+Run: `cargo test --test run_facts_test the_merge_condition`
 Expected: FAIL — `meta.json` has no `merge` field.
 
 - [ ] **Step 3: Record the facts**
 
+First give `core::Merge` a recorded form. It is an enum of two `&'static str` reasons and
+`meta.json` holds strings, so add to `core.rs`:
+
+```rust
+impl Merge {
+    /// The condition that decided it, for the record. Which way it was decided
+    /// is not carried with it: `status::Capture` already reads that off disk
+    /// from how many capture files exist, and two records of one fact drift.
+    pub fn condition(&self) -> &'static str {
+        match *self {
+            Merge::Merged(why) | Merge::Split(why) => why,
+        }
+    }
+}
+```
+
 Add to `ChildMeta` in `meta.rs` (all optional so old captures still parse):
 
 ```rust
-    /// Why the child's streams did or did not share one destination.
+    /// The condition that decided whether the child's streams shared one
+    /// destination. Whether they did is `status::Capture`, off the disk.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub merge: Option<String>,
     /// The downstream stopped accepting writes; forwarding stopped there.
@@ -1614,26 +1706,59 @@ Add to `ChildMeta` in `meta.rs` (all optional so old captures still parse):
     pub capture_error: Option<String>,
 ```
 
-In `run.rs`, copy them off the `Outcome` before the final `write_meta`.
+In `run.rs`, copy them off the `Outcome` in the same block that sets `drained_at`, before
+that final `write_meta`, so one write carries all of them:
+
+```rust
+        m.merge = Some(outcome.merge.condition().to_string());
+        m.forward_closed = outcome.forward_closed;
+        m.drain_capped = outcome.drain_capped;
+        m.capture_error = outcome.capture_error.clone();
+```
+
+That write is best-effort like the others — `record_meta_write` already logs and discards its
+error, and these facts must not decide the caller's exit code either.
 
 - [ ] **Step 4: Render them**
 
-In `status.rs::render`, append the facts after the existing byte counts, each only when it
-applies:
+`status.rs::render` builds one `format!` and has no list to push onto, so build the segment
+and splice it in. Add before the final `format!` at `status.rs:197`:
 
 ```rust
-    if let Some(m) = meta.and_then(|m| m.merge.as_deref()) {
-        parts.push(format!("merge={m}"));
+    // Everything that explains a difference from bare, so `final(0)` never sits
+    // beside a capture that stopped growing an hour ago. Empty on a clean run,
+    // which is nearly every run: these lines land in every tool result, and a
+    // note that is always there stops being read.
+    let mut notes: Vec<String> = Vec::new();
+    // Only a split is the difference. Bare had one destination and one
+    // interleaving; splitting is what loses them, and merging is what restores
+    // them. `s.capture` is where the shape is known — it is read off the files
+    // that exist — and `meta.merge` supplies only the condition.
+    if let (Capture::Split { .. }, Some(why)) =
+        (&s.capture, s.meta.as_ref().and_then(|m| m.merge.as_deref()))
+    {
+        notes.push(format!("streams split: {why}"));
     }
-    if meta.map(|m| m.forward_closed).unwrap_or(false) {
-        parts.push("downstream closed".to_string());
+    if s.meta.as_ref().is_some_and(|m| m.forward_closed) {
+        notes.push("downstream closed".to_string());
     }
-    if meta.map(|m| m.drain_capped).unwrap_or(false) {
-        parts.push("drain capped".to_string());
+    if s.meta.as_ref().is_some_and(|m| m.drain_capped) {
+        notes.push("drain capped".to_string());
     }
-    if let Some(e) = meta.and_then(|m| m.capture_error.as_deref()) {
-        parts.push(format!("capture failed: {e}"));
+    if let Some(e) = s.meta.as_ref().and_then(|m| m.capture_error.as_deref()) {
+        notes.push(format!("capture failed: {e}"));
     }
+    let notes = if notes.is_empty() {
+        String::new()
+    } else {
+        format!(" [{}]", notes.join("; "))
+    };
+```
+
+and change the returned line to carry it, between the byte counts and the stat problems:
+
+```rust
+    format!("{name} [{}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}", s.key)
 ```
 
 - [ ] **Step 5: Run the tests to verify they pass**
@@ -1711,13 +1836,18 @@ Substitute this for the bullet quoted above:
 - [ ] **Step 2: Make the stderr prefix true**
 
 The text above promises every wrapper diagnostic begins `agent-tools:`. Check each
-`eprintln!` added by Tasks 5, 6 and 7 actually carries that prefix, and fix any that does
-not. A promise the emitters do not keep is worse than the claim it replaced.
+diagnostic Tasks 5, 6 and 7 added actually carries it, and fix any that does not. A promise
+the emitters do not keep is worse than the claim it replaced.
 
 Run: `grep -rn "eprintln!\\|stderr()" agent-tools/src/`
-The tee does not use `eprintln!` — it writes through a helper, for the reason given in
+The tee does not use `eprintln!` — it writes through `capture::state`, for the reason given in
 Task 5 — so grepping only for the macro would miss every diagnostic that matters here.
-Expected: every line that reaches the caller's stderr starts its message with `agent-tools:`.
+
+The promise is scoped to a wrapped run, so judge each hit by whether it can reach the caller's
+stderr *while a child is running*: `capture::state` and its callers can, and must carry the
+prefix. `main.rs`'s argument-parsing and dispatch errors cannot — no child exists yet — and
+are out of scope, though they already read `agent-tools <subcommand>:` and should stay that
+way. Anything else that prints during a run either gets the prefix or stops printing.
 
 - [ ] **Step 3: Record the coupling**
 
@@ -1757,7 +1887,18 @@ git commit -m "prompt: it promised bare-equivalence the wrapper never had"
       close each finding as it lands rather than in a batch, so the spec is never a document
       that describes a defect the branch has already fixed. Re-check the token budget with
       `agent-tools count-tokens --file docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`
-      (it must stay under 4000; it was 3719 when this plan was written).
+      (it must stay under 4000; it was 3855 after the deviations table was reduced to a
+      clause-to-finding map, so the headroom is about 145 tokens).
+- [ ] Document the two things this branch added to the binary's public surface, neither of
+      which appears in any `CLAUDE.md` today — checked with
+      `grep -rn "run-core" CLAUDE.md agent-tools/CLAUDE.md`, which returns nothing:
+    - The root `CLAUDE.md` subcommand list gains `agent-tools run-core --capture-dir <dir>
+      [--drain-cap-bytes N] -- <cmd>`: the same run without the scope, ledger or hooks,
+      existing so passthrough can be tested against a real process. Say that root resolution
+      binds it like every other subcommand, and that the prompt deliberately does not teach it.
+    - `agent-tools/CLAUDE.md` gains the merge rule — when the child's two streams share one
+      destination, why the enumeration is short, and that `core::Merge` and `status::Capture`
+      are one fact recorded twice, so a change to what either arm opens has to move both.
 - [ ] Update `agent-tools/CLAUDE.md` with a short section on the merge rule: that the decision
       is read from the caller's own descriptors, that a merged capture is one `output` file,
       and that `run-core` exists for differential testing and is deliberately not taught by
