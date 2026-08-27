@@ -1618,30 +1618,44 @@ Define the production default in `core.rs`:
 pub const DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;
 ```
 
-In `main.rs`, add to the `RunCore` variant:
+**Both entry points take the flag, and neither carries the default.** The spec makes
+`run-core` agree with `run` "byte for byte on both forwarded streams and on the exit code",
+and a `run-core` that drained without a bound while `run` capped at 256 MiB would disagree
+about exactly the case this task adds. Writing the default at both call sites satisfies that
+by inspection and nothing else: changing `run.rs`'s one token to `u64::MAX` leaves the whole
+suite green, and a wrapped `yes` then drains 27 GiB in ten minutes with no notice — measured.
+So the default is applied in exactly one place, and neither caller can name a different one.
+
+Add the same argument to both variants in `main.rs` — `Run` as well as `RunCore`:
 
 ```rust
-        #[arg(long, default_value_t = core::DEFAULT_DRAIN_CAP_BYTES)]
-        drain_cap_bytes: u64,
+        /// Bytes captured after the downstream closed before the read end is
+        /// dropped. Unset means the production default; the two entry points
+        /// never carry their own, or they can disagree about the one case the
+        /// bound exists for.
+        #[arg(long)]
+        drain_cap_bytes: Option<u64>,
 ```
 
-**The default is the production one, not 0.** The spec makes `run-core` agree with `run`
-"byte for byte on both forwarded streams and on the exit code", and a `run-core` that drained
-without a bound while `run` capped at 256 MiB would disagree with it about exactly the case
-this task adds — the child that gets `SIGPIPE` at the bound. Only the test names a different
-bound, and it names it explicitly. Task 5's test drains 588 KB, far under 256 MiB, so it is
-unaffected.
+`run` needs it for the same reason `run-core` does: `drain_capped` is only observable through
+`run`, which is what writes the record, and a test cannot afford to drive 256 MiB to see it.
 
-Then give `run_core` the parameter, ahead of the callbacks:
+Then give `run_core` the parameter, ahead of the callbacks, and resolve it there:
 
 ```rust
 pub async fn run_core<S, R>(
     cmd: &[String],
     capture_dir: &Path,
-    drain_cap_bytes: u64,
+    drain_cap_bytes: Option<u64>,
     on_spawn: S,
     on_reap: R,
 ) -> Result<Outcome, CoreError>
+```
+
+```rust
+    // The only place the production default is applied. Both entry points pass
+    // whatever their flag held, so there is no second copy to drift from.
+    let drain_cap_bytes = drain_cap_bytes.unwrap_or(DEFAULT_DRAIN_CAP_BYTES);
 ```
 
 Adding a parameter to `tee` breaks every call site, so update all of them: the three in
@@ -1653,24 +1667,18 @@ and `tee_records_first_byte_event` — which pass `0` for uncapped. The fourth t
 module, `silence_watcher_emits_event_after_threshold`, drives `watch_silence` and does not
 change.
 
-`run.rs`'s call becomes:
+`run.rs` takes the flag as an argument and passes it through unchanged:
 
 ```rust
-    let outcome = match core::run_core(
-        &cmd,
-        &child_dir,
-        core::DEFAULT_DRAIN_CAP_BYTES,
-        on_spawn,
-        on_reap,
-    )
-    .await
+    let outcome = match core::run_core(&cmd, &child_dir, drain_cap_bytes, on_spawn, on_reap).await
     {
 ```
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --test core_test`
-Expected: PASS, 15 tests. (14 before this task: Task 5 landed three, not one.)
+Expected: PASS, 16 tests. (14 before this task; Task 6 lands two — the bound, and the lowest
+bound it admits.)
 
 - [ ] **Step 6: Commit**
 
@@ -2008,6 +2016,41 @@ fn a_close_that_stderr_could_not_carry_is_still_in_the_record() {
 `seq 1 100000` is 588,895 bytes — many reads, so the close is seen in the loop and does not
 depend on the flush path. It is also far under `DEFAULT_DRAIN_CAP_BYTES`, so Task 6's bound
 never fires here and the child still exits 0.
+
+And one for the bound, which is the other fact only the record can carry — the same merged
+shape cannot be told about its own cap on stderr either:
+
+```rust
+#[test]
+fn a_capped_drain_is_in_the_record() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    std::fs::create_dir_all(&parent).unwrap();
+
+    // 64 KiB rather than the 256 MiB default: the fact under test is that the
+    // bound reaches the record, not what the production number is, and no test
+    // can afford to drive a quarter of a gigabyte to find out.
+    let script = format!(
+        "{} run --desc probe --drain-cap-bytes 65536 -- bash -c 'seq 1 100000' 2>&1 | head -3",
+        bin()
+    );
+    let out = std::process::Command::new("bash")
+        .args(["-c", &script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "1\n2\n3\n");
+
+    let meta = read_meta(&parent).expect("meta.json written");
+    assert_eq!(
+        meta.get("drain_capped").and_then(|v| v.as_bool()),
+        Some(true),
+        "the bound reached the record: {meta}"
+    );
+}
+```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
