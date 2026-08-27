@@ -1520,7 +1520,11 @@ test.
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `cargo test --test core_test post_close`
-Expected: FAIL — `unexpected argument '--drain-cap-bytes'`.
+Expected: FAIL on `left: "" right: "yes-line\n"`, the first assertion. Not on an unknown-flag
+message: `cmd` is `trailing_var_arg = true, allow_hyphen_values = true`, so clap swallows
+`--drain-cap-bytes` and everything after it into `cmd` rather than rejecting it. What actually
+happens is that `--capture-dir` then looks missing, clap writes `the following required
+arguments were not provided` to stderr and exits 2, and the test sees empty stdout.
 
 Once the flag parses, check the test can still fail for the right reason: delete the `break`
 alone, rebuild, and re-run. It must fail on the byte count within a second or two. If it
@@ -1567,7 +1571,7 @@ Then add a `drain_cap_bytes: u64` parameter to `tee` (0 meaning uncapped) and a
 ```rust
         if outcome.forward_closed {
             outcome.bytes_since_close_detected += n as u64;
-            if drain_cap_bytes > 0 && outcome.bytes_since_close_detected >= drain_cap_bytes {
+            if outcome.bytes_since_close_detected >= drain_cap_bytes {
                 outcome.drain_capped = true;
                 state(&format!(
                     "agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes \
@@ -1580,6 +1584,29 @@ Then add a `drain_cap_bytes: u64` parameter to `tee` (0 meaning uncapped) and a
 
 Breaking out of the loop drops `reader`, which closes the read end of the child's pipe. The
 child's next write then gets `EPIPE`/`SIGPIPE`, exactly as it would have without the wrapper.
+
+`drain_capped` also goes on `core::Outcome`, folded across both tees the way Task 5 folds
+`forward_closed` — `a.drain_capped || b.drain_capped`. Task 8 reads `outcome.drain_capped`
+and nothing else would ever have set it. It is not optional bookkeeping: a merged run whose
+single destination closed cannot be told about its own bound on stderr, because the notice
+goes into the pipe that just closed, so the record is the only place that fact can appear.
+
+**There is no "uncapped" sentinel.** A `drain_cap_bytes > 0` guard, with `0` meaning uncapped,
+is a branch no production path reaches — `run` and `run-core` both pass
+`DEFAULT_DRAIN_CAP_BYTES` — and nothing fails if it is deleted, which was measured. Every
+value means the same thing instead: a bound. Define one in `capture.rs` for callers that do
+not want to reach it:
+
+```rust
+/// A bound no capture can reach, for callers with no downstream to lose.
+/// Not a sentinel: `tee` compares against it like any other value, so there is
+/// no special case to leave untested. `0` is equally valid and means "stop at
+/// the first chunk after the close".
+pub const UNCAPPED: u64 = u64::MAX;
+```
+
+The three inline `capture.rs` tests that drive `tee` pass `UNCAPPED`, and the comparison is
+`bytes_since_close_detected >= drain_cap_bytes` with no guard in front of it.
 
 - [ ] **Step 4: Wire the flag**
 
@@ -1648,7 +1675,8 @@ Expected: PASS, 15 tests. (14 before this task: Task 5 landed three, not one.)
 - [ ] **Step 6: Commit**
 
 ```bash
-git add agent-tools/src/capture.rs agent-tools/src/core.rs agent-tools/src/main.rs agent-tools/tests/core_test.rs
+git add agent-tools/src/capture.rs agent-tools/src/core.rs agent-tools/src/main.rs \
+        agent-tools/src/run.rs agent-tools/tests/core_test.rs
 git commit -m "agent-tools: an unbounded post-close drain was a disk-filling mechanism"
 ```
 
