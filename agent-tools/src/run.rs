@@ -58,10 +58,6 @@ pub async fn run(
     // reported from.
     let wrapper_pid = std::process::id();
     let wrapper_started_ticks = crate::procstat::start_ticks(wrapper_pid)?;
-    let child_dir = parent_dir.join(wrapper_pid.to_string());
-    std::fs::create_dir_all(&child_dir)
-        .with_context(|| format!("mkdir {}", child_dir.display()))?;
-
     let started_at = chrono::Utc::now();
     let cm = ChildMeta {
         wrapper_pid,
@@ -78,7 +74,7 @@ pub async fn run(
         drain_capped: false,
         capture_error: None,
     };
-    meta::write_meta(&child_dir, &cm)?;
+    let child_dir = publish_child_dir(&parent_dir, wrapper_pid, &cm)?;
 
     use std::sync::Mutex;
 
@@ -251,10 +247,105 @@ fn record_meta_write(parent: &Path, wrapper_pid: u32, fact: &str, result: Result
     }
 }
 
+/// Create the capture directory holding its first `meta.json`, so that no
+/// scanner ever sees the one without the other.
+///
+/// `hook_post` and `ps` both select capture directories by a numeric name and
+/// derive `abandoned` — a terminal key — from one whose meta will not read. A
+/// scan landing between a plain `mkdir` and the first meta write therefore
+/// reports a child that is merely starting as terminally gone. Building under a
+/// name those scanners skip and renaming into place closes that window: rename
+/// is atomic, so the pid-named directory only ever exists complete.
+fn publish_child_dir(
+    parent_dir: &std::path::Path,
+    wrapper_pid: u32,
+    cm: &ChildMeta,
+) -> Result<std::path::PathBuf> {
+    let child_dir = parent_dir.join(wrapper_pid.to_string());
+    // A directory already under this name belongs to an earlier wrapper whose
+    // pid this one reuses. It is already published with a meta in it, so there
+    // is no coming-into-existence for a scanner to catch; write in place.
+    if child_dir.is_dir() {
+        meta::write_meta(&child_dir, cm)?;
+        return Ok(child_dir);
+    }
+    let staging = parent_dir.join(format!(".starting-{wrapper_pid}"));
+    std::fs::create_dir_all(&staging).with_context(|| format!("mkdir {}", staging.display()))?;
+    meta::write_meta(&staging, cm)?;
+    std::fs::rename(&staging, &child_dir)
+        .with_context(|| format!("rename {} -> {}", staging.display(), child_dir.display()))?;
+    Ok(child_dir)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    /// Both scanners select capture directories by a numeric name and derive
+    /// `abandoned` — a terminal key — when the meta inside will not read. A
+    /// directory must therefore never carry its final name before its meta is
+    /// in it.
+    #[test]
+    fn a_capture_directory_is_never_visible_without_its_meta() {
+        use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let dir = TempDir::new().unwrap();
+        let parent = dir.path().to_path_buf();
+        let stop = Arc::new(AtomicBool::new(false));
+        let sightings = Arc::new(AtomicUsize::new(0));
+
+        let scanner = {
+            let parent = parent.clone();
+            let stop = Arc::clone(&stop);
+            let sightings = Arc::clone(&sightings);
+            std::thread::spawn(move || {
+                while !stop.load(Ordering::Relaxed) {
+                    let Ok(entries) = std::fs::read_dir(&parent) else {
+                        continue;
+                    };
+                    for e in entries.flatten() {
+                        let named_for_a_pid = e
+                            .file_name()
+                            .to_str()
+                            .map(|n| n.parse::<u32>().is_ok())
+                            .unwrap_or(false);
+                        if named_for_a_pid && !e.path().join("meta.json").exists() {
+                            sightings.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                }
+            })
+        };
+
+        for pid in 1..=500u32 {
+            let cm = ChildMeta {
+                wrapper_pid: pid,
+                wrapper_started_ticks: 1,
+                child_pid: None,
+                desc: None,
+                command: vec!["true".to_string()],
+                started_at: chrono::Utc::now(),
+                spawn_error: None,
+                reaped: None,
+                drained_at: None,
+                merge: None,
+                forward_closed: false,
+                drain_capped: false,
+                capture_error: None,
+            };
+            publish_child_dir(&parent, pid, &cm).unwrap();
+        }
+        stop.store(true, Ordering::Relaxed);
+        scanner.join().unwrap();
+
+        assert_eq!(
+            sightings.load(Ordering::Relaxed),
+            0,
+            "a scanner saw a capture directory with no meta.json in it"
+        );
+    }
 
     #[test]
     fn a_write_that_succeeded_is_not_worth_saying() {
