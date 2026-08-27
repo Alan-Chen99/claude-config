@@ -728,3 +728,70 @@ fn a_report_that_could_not_be_printed_is_reported_again() {
         "the undelivered change must be reported again, got: {ctx:?}"
     );
 }
+
+/// A delivery point that says nothing because a lock was held is
+/// indistinguishable from one with nothing to say. The hook's own timeout is 5s
+/// in `settings.json`, so blocking on the lock spends the whole budget and then
+/// prints nothing at all.
+#[test]
+fn a_held_scope_lock_is_announced_rather_than_waited_out() {
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "tuid", 424242, Some(0));
+    let scope = home.path().join(".claude/agent-tools/sid");
+    let f = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(scope.join(".reported.lock"))
+        .unwrap();
+    let _held = nix::fcntl::Flock::lock(f, nix::fcntl::FlockArg::LockExclusive)
+        .map_err(|(_, e)| e)
+        .unwrap();
+
+    let mut c = agent_tools()
+        .arg("hook-post")
+        .env("HOME", home.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    c.stdin
+        .as_mut()
+        .unwrap()
+        .write_all(post_body("Bash", "tuid").to_string().as_bytes())
+        .unwrap();
+    drop(c.stdin.take());
+
+    // The runtime kills the hook at 5s; a test that waits forever would hide
+    // exactly the failure being measured.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(4);
+    let finished = loop {
+        match c.try_wait().unwrap() {
+            Some(_) => break true,
+            None if std::time::Instant::now() >= deadline => break false,
+            None => std::thread::sleep(std::time::Duration::from_millis(50)),
+        }
+    };
+    if !finished {
+        let _ = c.kill();
+    }
+    let out = c.wait_with_output().unwrap();
+    assert!(
+        finished,
+        "the hook waited out a held lock; the runtime would have killed it at 5s"
+    );
+    let ctx = serde_json::from_str::<serde_json::Value>(&String::from_utf8_lossy(&out.stdout))
+        .map(|v| {
+            v["hookSpecificOutput"]["additionalContext"]
+                .as_str()
+                .unwrap_or("")
+                .to_string()
+        })
+        .unwrap_or_default();
+    assert!(
+        ctx.contains("unavailable this time"),
+        "a delivery point delayed by a lock must say so, got: {ctx:?}"
+    );
+}

@@ -5,6 +5,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+/// How long to wait for another delivery point to finish before announcing the
+/// delay instead. Well inside the 5s hook timeout in `settings.json`.
+const LOCK_WAIT: std::time::Duration = std::time::Duration::from_millis(1000);
+
 /// Scopes with a live `Ledger` in this process.
 ///
 /// `flock` keys off the open file description, not the process, so a second
@@ -96,8 +100,29 @@ impl Ledger {
             .truncate(false)
             .open(&lock_path)
             .with_context(|| format!("open lock {}", lock_path.display()))?;
-        let lock = Flock::lock(file, FlockArg::LockExclusive)
-            .map_err(|(_, e)| anyhow::anyhow!("flock {}: {e}", lock_path.display()))?;
+        // Never block indefinitely: `settings.json` kills this hook at 5s, and a
+        // delivery point silent because it waited is indistinguishable from one
+        // with nothing to say. Giving up well inside that budget leaves the
+        // caller time to announce the delay; nothing is lost, because no commit
+        // happens and the changes stay pending for the next delivery point.
+        let deadline = std::time::Instant::now() + LOCK_WAIT;
+        let mut pending = file;
+        let lock = loop {
+            match Flock::lock(pending, FlockArg::LockExclusiveNonblock) {
+                Ok(l) => break l,
+                Err((f, nix::errno::Errno::EWOULDBLOCK | nix::errno::Errno::EINTR))
+                    if std::time::Instant::now() < deadline =>
+                {
+                    pending = f;
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                Err((_, nix::errno::Errno::EWOULDBLOCK)) => anyhow::bail!(
+                    "another delivery point holds {} — this one is reported at the next",
+                    lock_path.display()
+                ),
+                Err((_, e)) => anyhow::bail!("flock {}: {e}", lock_path.display()),
+            }
+        };
         let path = scope.join(".reported.json");
         let (map, reset_reason) = load(&path);
         Ok(Ledger { scope, path, map, reset_reason, _lock: lock })
