@@ -1327,7 +1327,7 @@ pub struct TeeOutcome {
     /// The downstream stopped accepting writes; forwarding stopped here.
     pub forward_closed: bool,
     /// Bytes captured after the downstream closed.
-    pub post_close_bytes: u64,
+    pub bytes_since_close_detected: u64,
 }
 ```
 
@@ -1344,12 +1344,12 @@ Change the signature to `-> Result<TeeOutcome>` and the loop body:
         file.write_all(chunk).await?;
 
         if outcome.forward_closed {
-            outcome.post_close_bytes += n as u64;
+            outcome.bytes_since_close_detected += n as u64;
         } else if let Err(e) = forward.write_all(chunk).await {
             // A caller that went away is expected — capturing on is the point —
             // but it is a difference from bare and is never inferred silently.
             outcome.forward_closed = true;
-            outcome.post_close_bytes += n as u64;
+            outcome.bytes_since_close_detected += n as u64;
             state_forward_closed(stream_name, &e, &capture_path);
         }
         // ... unchanged: last_activity store and first_byte event
@@ -1408,7 +1408,7 @@ In `core.rs`, add to `Outcome`:
     pub forward_closed: bool,
 ```
 
-`post_close_bytes` stays on `TeeOutcome`, where Task 6 compares it against the drain bound,
+`bytes_since_close_detected` stays on `TeeOutcome`, where Task 6 compares it against the drain bound,
 and does not go on `Outcome`: no task in this plan reads it there, and it is not what its
 name suggests — it counts from the chunk whose forward write returned the error, which is two
 of the tee's 8192-byte chunks after the real close, and it adds that whole chunk even though
@@ -1554,8 +1554,8 @@ Then add a `drain_cap_bytes: u64` parameter to `tee` (0 meaning uncapped) and a
 
 ```rust
         if outcome.forward_closed {
-            outcome.post_close_bytes += n as u64;
-            if drain_cap_bytes > 0 && outcome.post_close_bytes >= drain_cap_bytes {
+            outcome.bytes_since_close_detected += n as u64;
+            if drain_cap_bytes > 0 && outcome.bytes_since_close_detected >= drain_cap_bytes {
                 outcome.drain_capped = true;
                 state(&format!(
                     "agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes \
@@ -1828,6 +1828,15 @@ pass. If all three pass, the producer is landing in more than one read.
 
 Because the loop no longer exits on a capture error, the pipe keeps draining and the child
 never sees `SIGPIPE`.
+
+**Now that there are two of them, extract both.** The forward side already has this shape —
+try the write, and on failure record it once, say so once, and keep going — and this task
+adds the capture side's mirror image. Two inline `if`s doing the same thing with different
+nouns, in a loop that also carries the drain bound and the first-byte event, is where this
+function stops being readable. One helper per side, named for what it protects, called from a
+loop body that reads as: capture it, forward it, count it, say it started. Do not generalise
+the two into one — they differ in what failure means, and collapsing that is how "capture
+failure never kills the child" gets lost.
 
 - [ ] **Step 4: Carry the error out of the core**
 
