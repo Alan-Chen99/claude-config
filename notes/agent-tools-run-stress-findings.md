@@ -647,6 +647,40 @@ Each of these is a falsification attempt that failed to break the implementation
 | Scan cost | 54 ms at 300 children; `ps` 19 ms — far under the 5 s hook timeout |
 | State growth | 77 MB across 131 sessions / 2,664 captures accumulated since 2026-05-17. No-GC is a stated non-goal and is currently harmless — but one F1 incident would add hundreds of GB |
 
+## F16
+
+### The facts that explain a capture reach the record only when the wrapper is done with it
+
+**Added 2026-08-27**, during the passthrough branch's Task 8 review. Not from the original
+stress run.
+
+`run.rs` writes `merge`, `forward_closed`, `drain_capped` and `capture_error` into `meta.json`
+in the same block that sets `drained_at` — after the core returns. Measured on a merged run
+whose downstream quit while the child slept 12 s: mid-flight, `ps` reports
+`longrun [producing] ... output=588895B ->` with no note, and `meta.json` holds
+`merge: null, forward_closed: null`. The note appears only once the wrapper exits. `SIGKILL`
+the wrapper before the drain and `merge` stays null forever, on a capture now keyed
+`abandoned` — a capture whose shape can never be explained.
+
+Two clauses. "The decision is recorded per capture" is not met for a live child, and `merge`
+is the cheap half: `decide_merge` runs at `core.rs:214`, before `on_spawn`, so the condition
+is known before the child exists and could ride the `child_pid` write.
+
+The other three are mid-run facts, and that is the harder half. "Either failure is stated on
+stderr and in the status" holds for a split run — stderr carried it when the failure happened
+— but for a merged run, or a split run whose *stderr* downstream quit, the notice went into
+the descriptor that closed, and the status will not carry it until the wrapper exits. So an
+agent can read `producing` beside a capture that stopped growing an hour ago, with nothing
+said anywhere. That is the generalisation of the record clause's own example, `final(0)`
+beside a stalled capture, to a child that has not finished yet.
+
+Closing it means the tees reporting a fact the moment it becomes true rather than at the end:
+another callback through `run_core`, or shared state the tees can touch, plus care that a fact
+never reaches the agent before the status change that caused it. That is a task's worth of
+work and it is not in this branch's scope, which was F1, F2 and F3.
+
+The narrower example the record clause names — `final(0)` beside a stalled capture — is met.
+
 ## Outside the wrapper
 
 - **`opencode_loads_prefixed_langfuse_env_and_forwards_args` fails, and prints a live

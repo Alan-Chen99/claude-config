@@ -2438,9 +2438,14 @@ line breaks here are this document's formatting, not the file's.
 Task 8 added a segment to the status line — `[streams split: …; downstream closed; drain
 capped; capture failed: …]`, between the byte counts and the paths — and nothing in the prompt
 says what it is. The line's shape is quoted there as `<name> [<key>] <detail> -> <paths>`, so a
-second bracketed group with no explanation reads as a second key. Say that the bracket after
-the byte counts holds whatever explains a difference from bare, that it is absent from an
-ordinary run, and that its contents are the facts, not another status key.
+bracketed group with no explanation reads as a second key. Say that a bracket after the byte
+counts holds whatever explains a difference from bare, that it is absent from an ordinary run,
+and that its contents are facts rather than another status key.
+
+**A line can carry three of them, not two.** `[<key>]`, the notes, and `[stat failed: …]`,
+which `render` has always emitted and which is structurally identical to the notes — same
+brackets, same semicolons, distinguishable only by what it says. Measured on one line. Whatever
+the prompt teaches has to be true of all three, or teach the reader to tell them apart.
 
 - [ ] **Step 2: Make the stderr prefix true**
 
@@ -2527,12 +2532,16 @@ git commit -m "prompt: it promised bare-equivalence the wrapper never had"
       `docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`: remove the F1 and F2
       rows, and correct the count. F3's row is already gone, removed when Task 4 closed it —
       close each finding as it lands rather than in a batch, so the spec is never a document
-      that describes a defect the branch has already fixed. The count in the sentence above
-      the table goes from eleven to nine, and it must keep adding up to fifteen: nine still
-      departing, three fixed by this branch (F1, F2, F3), two accepted differences (F9, F12),
-      and F10 breaking no clause. Re-check the token budget with
+      that describes a defect the branch has already fixed. Add a row for F16 — the clause
+      is "whatever explains a difference from bare is readable beside the key", which a live
+      child's record does not meet — and drop the F1 and F2 rows. The count in the sentence
+      above the table goes from eleven to ten, and it must keep adding up to sixteen: ten
+      still departing, three fixed by this branch (F1, F2, F3), two accepted differences
+      (F9, F12), and F10 breaking no clause. Re-check the token budget with
       `agent-tools count-tokens --file docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`
-      (it must stay under 4000; it was 3925 after the deviations table was reduced to a
+      (it must stay under 4000; it was 3979 after the F16 clause landed, so the headroom is
+      about 20 tokens and removing the F1 and F2 rows is what pays for the F16 one; it was
+      3925 after the deviations table was reduced to a
       clause-to-finding map, so the headroom is about 145 tokens).
 - [ ] Document the two things this branch added to the binary's public surface, neither of
       which appears in any `CLAUDE.md` today — checked with

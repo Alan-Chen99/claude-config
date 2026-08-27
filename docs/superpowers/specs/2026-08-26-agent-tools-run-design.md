@@ -181,8 +181,10 @@ it, so agents keep reaching for the entry point with observability.
 - **A merged capture holds one file; the other is absent, not empty** — an empty stderr
   file would read as "no diagnostics".
 - **Whatever explains a difference from bare is readable beside the key** — downstream
-  closed, drain capped, capture failed, streams merged and on which condition — so
-  `final(0)` never sits beside a stalled capture.
+  closed, drain capped, capture failed, and a split the caller's own descriptors did not
+  ask for, with the condition that forced it — so `final(0)` never sits beside a stalled
+  capture. A split the caller already had explains nothing, since bare kept those streams
+  apart too; the condition is recorded either way.
 - **A malformed record costs that record, not the history**; the loss is counted and
   stated.
 
