@@ -14,6 +14,40 @@ const NAME_MAX: usize = 200;
 /// Quiet thresholds, ascending. Configuration, not contract.
 pub const QUIET_BUCKETS: &[(i64, &str)] = &[(30, "30s"), (300, "5m"), (1800, "30m"), (7200, "2h")];
 
+/// What the capture directory holds. The merge decision fixes the shape: one
+/// `output` file when the child's two streams shared a destination, `stdout`
+/// and `stderr` when they did not. A line describing the other shape reports
+/// zero bytes for a child that is producing, and points the reader at files
+/// that were never opened.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Capture {
+    /// One file, `output`.
+    Merged(u64),
+    /// Two files, `stdout` and `stderr`.
+    Split { out: u64, err: u64 },
+}
+
+impl Capture {
+    /// What the child has written, however many files hold it.
+    pub fn bytes(&self) -> u64 {
+        match *self {
+            Capture::Merged(n) => n,
+            Capture::Split { out, err } => out + err,
+        }
+    }
+
+    /// The byte counts a line carries, and the capture paths it ends with.
+    fn detail(&self, dir: &Path) -> (String, String) {
+        match *self {
+            Capture::Merged(n) => (format!("output={n}B"), format!("{}/output", dir.display())),
+            Capture::Split { out, err } => (
+                format!("out={out}B err={err}B"),
+                format!("{}/{{stdout,stderr}}", dir.display()),
+            ),
+        }
+    }
+}
+
 /// A child's status. The rendered form is both the ledger identity that decides
 /// whether something is reported twice and text quoted in the system prompt.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,8 +79,7 @@ pub struct Status {
     pub key: StatusKey,
     pub meta: Option<ChildMeta>,
     pub last_byte_at: Option<DateTime<Utc>>,
-    pub out_bytes: u64,
-    pub err_bytes: u64,
+    pub capture: Capture,
     /// Stat failures that are not "file not created yet". Surfaced in the
     /// rendered line so a filesystem problem cannot pass for an idle child.
     pub stat_errors: Vec<String>,
@@ -86,8 +119,17 @@ fn largest_bucket(age_secs: i64) -> Option<&'static str> {
 pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
     let (out_bytes, out_mtime, out_err) = file_facts(dir, "stdout");
     let (err_bytes, err_mtime, err_err) = file_facts(dir, "stderr");
-    let last_byte_at = out_mtime.max(err_mtime);
-    let stat_errors: Vec<String> = [out_err, err_err].into_iter().flatten().collect();
+    let (merged_bytes, merged_mtime, merged_err) = file_facts(dir, "output");
+    // A merged run opens `output` and nothing else, so the file that is there
+    // names the shape. Before any tee has opened one there is nothing to name,
+    // and the two-file form is what a line has always carried.
+    let capture = match merged_mtime {
+        Some(_) => Capture::Merged(merged_bytes),
+        None => Capture::Split { out: out_bytes, err: err_bytes },
+    };
+    let last_byte_at = out_mtime.max(err_mtime).max(merged_mtime);
+    let stat_errors: Vec<String> =
+        [out_err, err_err, merged_err].into_iter().flatten().collect();
 
     let Ok(m) = meta::read_meta(dir) else {
         // A capture that cannot be described is never silently dropped.
@@ -95,8 +137,7 @@ pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
             key: StatusKey::Abandoned,
             meta: None,
             last_byte_at,
-            out_bytes,
-            err_bytes,
+            capture,
             stat_errors,
         };
     };
@@ -123,7 +164,7 @@ pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
         }
     };
 
-    Status { key, meta: Some(m), last_byte_at, out_bytes, err_bytes, stat_errors }
+    Status { key, meta: Some(m), last_byte_at, capture, stat_errors }
 }
 
 /// One rendered line: name, key, detail, capture paths.
@@ -133,7 +174,7 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     // The capture files are created when the tee opens them, so an mtime exists
     // before any byte does. Byte counts, not mtime, decide whether output happened.
     let age = match s.last_byte_at {
-        Some(t) if s.out_bytes + s.err_bytes > 0 => {
+        Some(t) if s.capture.bytes() > 0 => {
             format!("last byte {}s ago", (now - t).num_seconds().max(0))
         }
         _ => "no output".to_string(),
@@ -149,13 +190,8 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         .and_then(|m| m.child_pid)
         .map(|p| p.to_string())
         .unwrap_or_else(|| "-".into());
-    format!(
-        "{name} [{}] pid {pid}, {age}, out={}B err={}B{problems} -> {}/{{stdout,stderr}}",
-        s.key,
-        s.out_bytes,
-        s.err_bytes,
-        dir.display()
-    )
+    let (bytes, paths) = s.capture.detail(dir);
+    format!("{name} [{}] pid {pid}, {age}, {bytes}{problems} -> {paths}", s.key)
 }
 
 #[cfg(test)]
@@ -301,6 +337,47 @@ mod tests {
         assert!(line.contains("[producing]"), "line: {line}");
         assert!(line.contains("out=5B"), "line: {line}");
         assert!(line.contains("last byte"), "line: {line}");
+    }
+
+    #[test]
+    fn a_merged_capture_is_not_reported_silent_while_it_is_producing() {
+        // A merged run writes `output` and never opens `stdout` or `stderr`.
+        // Reading only the two split names finds nothing, falls back to
+        // `started_at` as the anchor, and keys a streaming child as quiet.
+        // Here `started_at` is old enough to reach the 30m bucket, so the key
+        // is decided by whether the merged file's mtime is seen at all.
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        m.started_at = Utc::now() - Duration::seconds(4000);
+        write(&d, &m);
+        std::fs::write(d.path().join("output"), b"hello").unwrap();
+
+        let now = Utc::now();
+        let s = derive(d.path(), now);
+        assert_eq!(s.key, StatusKey::Producing, "the merged file is the anchor");
+        assert_eq!(s.capture, Capture::Merged(5));
+
+        let line = render(d.path(), &s, now);
+        assert!(line.contains("output=5B"), "line: {line}");
+        assert!(line.contains("last byte"), "line: {line}");
+        assert!(!line.contains("no output"), "line: {line}");
+    }
+
+    #[test]
+    fn a_line_names_only_capture_files_that_are_there() {
+        let d = TempDir::new().unwrap();
+        write(&d, &base());
+        std::fs::write(d.path().join("output"), b"x").unwrap();
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(
+            line.ends_with(&format!("{}/output", d.path().display())),
+            "line: {line}"
+        );
+        assert!(
+            !line.contains("{stdout,stderr}"),
+            "a merged run opens neither: {line}"
+        );
     }
 
     #[test]

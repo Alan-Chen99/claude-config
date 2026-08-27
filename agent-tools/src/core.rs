@@ -218,20 +218,38 @@ where
             (a, Some(b))
         }
     };
-    let s1 = tokio::spawn(capture::watch_silence(
-        "stdout",
-        last_stdout,
-        30_000,
-        dir.clone(),
-        cancel_rx.clone(),
-    ));
-    let s2 = tokio::spawn(capture::watch_silence(
-        "stderr",
-        last_stderr,
-        30_000,
-        dir.clone(),
-        cancel_rx,
-    ));
+    // One stream, one watcher. A merged run advances only `last_stdout`, so a
+    // second watcher would sit on a clock nobody winds and announce silence on
+    // a stream that is busy — and name a stream the run does not have.
+    let (s1, s2) = if let Merge::Merged(_) = merge {
+        (
+            tokio::spawn(capture::watch_silence(
+                "output",
+                last_stdout,
+                30_000,
+                dir.clone(),
+                cancel_rx.clone(),
+            )),
+            None,
+        )
+    } else {
+        (
+            tokio::spawn(capture::watch_silence(
+                "stdout",
+                last_stdout,
+                30_000,
+                dir.clone(),
+                cancel_rx.clone(),
+            )),
+            Some(tokio::spawn(capture::watch_silence(
+                "stderr",
+                last_stderr,
+                30_000,
+                dir.clone(),
+                cancel_rx,
+            ))),
+        )
+    };
 
     let status = child
         .wait()
@@ -255,7 +273,9 @@ where
         let _ = tee_b.await;
     }
     let _ = s1.await;
-    let _ = s2.await;
+    if let Some(s2) = s2 {
+        let _ = s2.await;
+    }
 
     Ok(Outcome { exit_code, merge })
 }

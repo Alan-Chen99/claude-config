@@ -187,21 +187,28 @@ fn core_agrees_with_bare_on_signalled_death_status() {
     );
 }
 
+/// Both of the caller's own descriptors on one appending file, which is what
+/// the merge rule admits and what the Claude Code Bash tool presents.
+fn one_appending_file(path: &Path) -> (Stdio, Stdio) {
+    let f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .unwrap();
+    let f2 = f.try_clone().unwrap();
+    (Stdio::from(f), Stdio::from(f2))
+}
+
 /// Run `script` with both of the caller's own descriptors on one appending file:
 /// the shape the merge rule admits, and the shape the Claude Code Bash tool has.
 /// The returned `TempDir` keeps `cap/` alive so the capture can be inspected.
 fn run_core_to_one_appending_file(script: &str) -> (String, tempfile::TempDir) {
     let tmp = tempfile::tempdir().unwrap();
     let sink = tmp.path().join("caller.log");
-    let f = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&sink)
-        .unwrap();
-    let f2 = f.try_clone().unwrap();
+    let (out, err) = one_appending_file(&sink);
     let status = run_core_cmd(&tmp.path().join("cap"), &["bash", "-c", script])
-        .stdout(Stdio::from(f))
-        .stderr(Stdio::from(f2))
+        .stdout(out)
+        .stderr(err)
         .status()
         .unwrap();
     assert!(status.code().is_some());
@@ -275,4 +282,55 @@ fn long_lines_survive_the_merge_uncorrupted() {
         }
     }
     assert_eq!((long_lines, short_lines), (200, 200), "every line arrives whole, exactly once");
+}
+
+/// A child that closes its own stdout and stderr, leaving behind a descendant
+/// that inherited neither, is done as far as its streams are concerned. Bare
+/// returns at once and so must the wrapper.
+///
+/// This guards two single lines of the merged path that nothing else can see.
+/// The pipe is created with `O_CLOEXEC`, so the descriptors the child was
+/// spawned with do not survive into a descendant; and the `Command` is dropped
+/// once the child holds its own, so the wrapper is not left holding a write end
+/// itself. Take away either and a pipe with a live write end never reports EOF:
+/// measured at 20 s against `sleep 20` where bare and the split path both
+/// returned in 0 s. Neither shows up as a wrong byte anywhere — only as a wait.
+#[test]
+fn a_merged_run_ends_when_the_child_closes_its_streams() {
+    let tmp = tempfile::tempdir().unwrap();
+    let sink = tmp.path().join("caller.log");
+    let (out, err) = one_appending_file(&sink);
+    let mut child = run_core_cmd(
+        &tmp.path().join("cap"),
+        &["bash", "-c", "exec 1>&- 2>&-; sleep 5 & exit 0"],
+    )
+    .stdout(out)
+    .stderr(err)
+    .spawn()
+    .unwrap();
+
+    // Polled rather than waited on: a regression here is an unbounded hang, and
+    // a test that hangs reports nothing at all.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let finished = loop {
+        if child.try_wait().unwrap().is_some() {
+            break true;
+        }
+        if std::time::Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            break false;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    };
+
+    assert!(
+        finished,
+        "still waiting on a descendant that holds a descriptor it should never have had"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&sink).unwrap(),
+        "",
+        "the child closed its streams before writing"
+    );
 }
