@@ -970,7 +970,9 @@ In `agent-tools/src/core.rs`, replace the spawn and tee section of `run_core` wi
 the decision. Take the decision from this process's own fds 1 and 2 before spawning:
 
 ```rust
-    let merge = decide_merge(1, 2);
+    // The wrapper's own descriptors: what the caller sees, and so what the
+    // decision must be about.
+    let merge = decide_merge(libc::STDOUT_FILENO, libc::STDERR_FILENO);
 
     let mut command = Command::new(&cmd[0]);
     command.args(&cmd[1..]).stdin(Stdio::inherit());
