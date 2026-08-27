@@ -1918,10 +1918,51 @@ fn the_merge_condition_is_recorded_beside_the_capture() {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+Add a second test, for the two cases stderr cannot reach at all:
 
-Run: `cargo test --test run_facts_test the_merge_condition`
-Expected: FAIL — `meta.json` has no `merge` field.
+```rust
+#[test]
+fn a_close_that_stderr_could_not_carry_is_still_in_the_record() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    std::fs::create_dir_all(&parent).unwrap();
+
+    // `2>&1` makes both of the wrapper's descriptors the same pipe, which the
+    // merge rule admits, so the notice `capture::state` writes goes into the
+    // pipe `head` just dropped and no reader ever sees it. Same for a split
+    // run whose stderr is the stream that closed. The record is the only place
+    // either can appear, which is why the spec asks for stderr *and* the status.
+    let script = format!(
+        "{} run --desc probe -- bash -c 'seq 1 100000' 2>&1 | head -3",
+        bin()
+    );
+    let out = std::process::Command::new("bash")
+        .args(["-c", &script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "1\n2\n3\n");
+
+    let meta = read_meta(&parent).expect("meta.json written");
+    assert_eq!(
+        meta.get("forward_closed").and_then(|v| v.as_bool()),
+        Some(true),
+        "the record carries what stderr could not: {meta}"
+    );
+}
+```
+
+`seq 1 100000` is 588,895 bytes — many reads, so the close is seen in the loop and does not
+depend on the flush path. It is also far under `DEFAULT_DRAIN_CAP_BYTES`, so Task 6's bound
+never fires here and the child still exits 0.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `cargo test --test run_facts_test the_merge_condition` and
+`cargo test --test run_facts_test a_close_that_stderr`
+Expected: FAIL — `meta.json` has neither a `merge` nor a `forward_closed` field.
 
 - [ ] **Step 3: Record the facts**
 
