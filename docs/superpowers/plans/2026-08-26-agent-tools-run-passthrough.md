@@ -2067,8 +2067,14 @@ downstream closed, drain capped, capture failed, streams merged and on which con
 Until this task the facts exist only inside the core; the agent never sees them.
 
 **Files:**
+- Modify: `agent-tools/src/core.rs` (`Merge::condition`, `DESTINATIONS_ALREADY_DIFFERED`)
 - Modify: `agent-tools/src/meta.rs:16-28`
 - Modify: `agent-tools/src/run.rs`
+- Modify: `agent-tools/tests/end_to_end_test.rs` — `full_loop_hook_pre_run_hook_post_ps`
+  asserts `out=3B err=0B -> `, and the notes segment lands between those halves, so this task
+  breaks it. Replace the stale fragment rather than adding an assertion beside it. It is worth
+  more than a repair: it is the only place a note is read off a real wrapper run rather than a
+  hand-built `ChildMeta`, and the only test that catches `Merge::condition` returning wrong text.
 - Modify: `agent-tools/src/status.rs` — `render`, currently at `:174`, whose single `format!`
   is at `:197`; find them by name, since three tasks have already moved every line they named
 - Modify: `agent-tools/tests/run_facts_test.rs`
@@ -2233,6 +2239,17 @@ error, and these facts must not decide the caller's exit code either.
 
 - [ ] **Step 4: Render them**
 
+The one reason that must not render needs a name both sides share, so name it in `core.rs`
+and use it in `decide_merge`'s own arm:
+
+```rust
+/// The caller's descriptors provably reached two destinations, so bare kept the
+/// streams apart too. Named because `status::render` must not report it: it is
+/// the one split that explains nothing, and it is the shape of every harness
+/// that spawns with two pipes.
+pub const DESTINATIONS_ALREADY_DIFFERED: &str = "different destinations";
+```
+
 `status.rs::render` builds one `format!` and has no list to push onto, so build the segment
 and splice it in. Add before the final `format!` at `status.rs:197`:
 
@@ -2242,14 +2259,21 @@ and splice it in. Add before the final `format!` at `status.rs:197`:
     // which is nearly every run: these lines land in every tool result, and a
     // note that is always there stops being read.
     let mut notes: Vec<String> = Vec::new();
-    // Only a split is the difference. Bare had one destination and one
-    // interleaving; splitting is what loses them, and merging is what restores
-    // them. `s.capture` is where the shape is known — it is read off the files
-    // that exist — and `meta.merge` supplies only the condition.
+    // A split says something only when the caller's own two descriptors reached
+    // one destination and the rule declined anyway: then the capture is two
+    // files where one would have been faithful, and the interleaving between
+    // them is gone. When the descriptors provably reached two destinations,
+    // bare kept them apart too and there is nothing to explain — and that is
+    // the shape every `Command::output()` harness has, so noting it would put a
+    // note on every line of every test run while production, which merges, got
+    // none. `s.capture` is where the shape is known, read off the files that
+    // exist; `meta.merge` supplies only the condition.
     if let (Capture::Split { .. }, Some(why)) =
         (&s.capture, s.meta.as_ref().and_then(|m| m.merge.as_deref()))
     {
-        notes.push(format!("streams split: {why}"));
+        if why != core::DESTINATIONS_ALREADY_DIFFERED {
+            notes.push(format!("streams split: {why}"));
+        }
     }
     if s.meta.as_ref().is_some_and(|m| m.forward_closed) {
         notes.push("downstream closed".to_string());
@@ -2272,6 +2296,18 @@ and change the returned line to carry it, between the byte counts and the stat p
 ```rust
     format!("{name} [{}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}", s.key)
 ```
+
+Two of the four facts have no path to a test unless one is written for them.
+
+`capture_error`: cutting `m.capture_error = outcome.capture_error.clone()` leaves every other
+test green — measured. Add one to `run_facts_test.rs`. The trick `core_test.rs` uses for this
+does not transfer, because `run` names the capture directory after its own pid rather than
+taking `--capture-dir`; instead let the child be the wrapper, so the directory name is known
+before there is anything to race: `exec` hands the wrapper the shell's own `$$`, and `stdout`
+and `output` can be made directories under it beforehand.
+
+`drain_capped`: Step 4b's render test sets three of the four facts. Set the fourth, and assert
+its note.
 
 - [ ] **Step 4b: Test the rendering, not just the record**
 
@@ -2397,6 +2433,15 @@ line breaks here are this document's formatting, not the file's.
 >   signals its child ignores; and it writes its own diagnostics to stderr, always prefixed
 >   `agent-tools:`, when a stream or capture fails. `isatty` is false under the wrapper.
 
+- [ ] **Step 1b: Teach the bracketed note**
+
+Task 8 added a segment to the status line — `[streams split: …; downstream closed; drain
+capped; capture failed: …]`, between the byte counts and the paths — and nothing in the prompt
+says what it is. The line's shape is quoted there as `<name> [<key>] <detail> -> <paths>`, so a
+second bracketed group with no explanation reads as a second key. Say that the bracket after
+the byte counts holds whatever explains a difference from bare, that it is absent from an
+ordinary run, and that its contents are the facts, not another status key.
+
 - [ ] **Step 2: Make the stderr prefix true**
 
 The text above promises every wrapper diagnostic begins `agent-tools:`. Check each
@@ -2487,7 +2532,7 @@ git commit -m "prompt: it promised bare-equivalence the wrapper never had"
       departing, three fixed by this branch (F1, F2, F3), two accepted differences (F9, F12),
       and F10 breaking no clause. Re-check the token budget with
       `agent-tools count-tokens --file docs/superpowers/specs/2026-08-26-agent-tools-run-design.md`
-      (it must stay under 4000; it was 3855 after the deviations table was reduced to a
+      (it must stay under 4000; it was 3925 after the deviations table was reduced to a
       clause-to-finding map, so the headroom is about 145 tokens).
 - [ ] Document the two things this branch added to the binary's public surface, neither of
       which appears in any `CLAUDE.md` today — checked with
@@ -2499,6 +2544,12 @@ git commit -m "prompt: it promised bare-equivalence the wrapper never had"
     - `agent-tools/CLAUDE.md` gains the merge rule — when the child's two streams share one
       destination, why the enumeration is short, and that `core::Merge` and `status::Capture`
       are one fact recorded twice, so a change to what either arm opens has to move both.
+    - `agent-tools/CLAUDE.md`'s "Report lines" section says the name "is the only field
+      carrying arbitrary text". `capture_error` is now a second one. It is never child-
+      controlled — always a short `io::Error` Display like `Is a directory (os error 21)` — so
+      neither the newline-forgery hazard `escape_control` guards nor the `NAME_MAX` budget is
+      reachable through it today. Say both halves, or the next reader has to re-derive why the
+      guard does not cover it.
 - [ ] Update `agent-tools/CLAUDE.md` with a short section on the merge rule: that the decision
       is read from the caller's own descriptors, that a merged capture is one `output` file,
       and that `run-core` exists for differential testing and is deliberately not taught by
