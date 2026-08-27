@@ -487,7 +487,7 @@ mod tests {
         h.await.unwrap().unwrap();
 
         tokio::time::sleep(Duration::from_millis(100)).await;
-        let evts = events::read_all(&evts_dir).unwrap();
+        let evts = events::read_all(&evts_dir).unwrap().events;
         assert!(evts.iter().any(|e| e.kind == "first_byte"));
     }
 
@@ -511,7 +511,7 @@ mod tests {
         h.await.unwrap();
 
         tokio::time::sleep(Duration::from_millis(100)).await;
-        let evts = events::read_all(&evts_dir).unwrap();
+        let evts = events::read_all(&evts_dir).unwrap().events;
         assert!(
             evts.iter().any(|e| e.kind == "silence"),
             "events: {:?}",

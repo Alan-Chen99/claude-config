@@ -102,6 +102,8 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
     // tool_use_id dirs. Each tool_use_id dir owns a single events.jsonl.
     let mut seen_tuid_dirs: Vec<PathBuf> = Vec::new();
     let mut all_events: Vec<(String, Event)> = Vec::new();
+    let mut unreadable_lines = 0usize;
+    let mut event_errors: Vec<String> = Vec::new();
     for c in &captures {
         let tuid_dir = c
             .capture_dir
@@ -112,14 +114,20 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
             continue;
         }
         seen_tuid_dirs.push(tuid_dir.clone());
-        if let Ok(evts) = events::read_all(&tuid_dir) {
-            for e in evts {
-                all_events.push((c.tool_use_id.clone(), e));
+        // A line that will not parse costs that line, and the count is stated
+        // below: silence about a dropped record reads as "nothing was written".
+        match events::read_all(&tuid_dir) {
+            Ok(log) => {
+                unreadable_lines += log.unreadable;
+                for e in log.events {
+                    all_events.push((c.tool_use_id.clone(), e));
+                }
             }
+            Err(e) => event_errors.push(format!("{}: {e}", c.tool_use_id)),
         }
     }
     all_events.sort_by_key(|(_, e)| e.ts);
-    if !all_events.is_empty() {
+    if !all_events.is_empty() || unreadable_lines > 0 || !event_errors.is_empty() {
         writeln!(buf, "\nevents (chronological, all captures):")?;
         for (tid, e) in &all_events {
             writeln!(
@@ -130,6 +138,16 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
                 tid,
                 e.data
             )?;
+        }
+        if unreadable_lines > 0 {
+            writeln!(
+                buf,
+                "  note: {unreadable_lines} unreadable event line{} skipped",
+                if unreadable_lines == 1 { "" } else { "s" }
+            )?;
+        }
+        for err in &event_errors {
+            writeln!(buf, "  note: events unreadable for {err}")?;
         }
     }
 

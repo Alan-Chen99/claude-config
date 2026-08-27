@@ -260,7 +260,7 @@ mod tests {
     fn a_write_that_succeeded_is_not_worth_saying() {
         let dir = TempDir::new().unwrap();
         record_meta_write(dir.path(), 42, "reaped", Ok(()));
-        assert!(events::read_all(dir.path()).unwrap().is_empty());
+        assert!(events::read_all(dir.path()).unwrap().events.is_empty());
     }
 
     // The `child_pid` call site cannot be driven from an integration test: any
@@ -277,7 +277,7 @@ mod tests {
             Err(anyhow!("rename meta.json.tmp -> meta.json: Is a directory")),
         );
 
-        let evts = events::read_all(dir.path()).unwrap();
+        let evts = events::read_all(dir.path()).unwrap().events;
         assert_eq!(evts.len(), 1);
         assert_eq!(evts[0].kind, "meta_write_failed");
         assert_eq!(evts[0].data["wrapper_pid"], 42);

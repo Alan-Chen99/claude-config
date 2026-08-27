@@ -343,3 +343,55 @@ fn ps_shows_status_for_every_child_and_never_consumes_the_ledger() {
          and takes an exclusive flock on it"
     );
 }
+
+/// A record that cannot be parsed costs that record. Failing the whole file
+/// instead deletes a tool call's entire history from the one view an agent has
+/// after a compaction, and says nothing about having done so.
+#[test]
+fn a_malformed_event_line_costs_that_line_not_the_file() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture(
+        home.path(),
+        "sid",
+        None,
+        "tuid",
+        4242,
+        Some("seeded"),
+        Some(0),
+        "",
+    );
+    append_event(
+        home.path(),
+        "sid",
+        None,
+        "tuid",
+        r#"{"ts":"2026-05-17T10:00:00Z","kind":"child_started","data":{"child_pid":4243}}"#,
+    );
+    append_event(home.path(), "sid", None, "tuid", "this line is not json");
+    append_event(
+        home.path(),
+        "sid",
+        None,
+        "tuid",
+        r#"{"ts":"2026-05-17T10:00:05Z","kind":"child_exit","data":{"exit_code":0}}"#,
+    );
+
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("child_started"), "surviving event missing: {s}");
+    assert!(s.contains("child_exit"), "surviving event missing: {s}");
+    assert!(
+        s.contains("1 unreadable event line"),
+        "the loss must be counted and stated: {s}"
+    );
+}
