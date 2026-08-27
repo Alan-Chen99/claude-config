@@ -24,27 +24,32 @@ Three of those clauses are false (F1, F2, F3). The last sentence is worse than f
 "behave exactly as if you had run the bare command" names a property no tee-based
 wrapper can have. See [Structurally unachievable](#structurally-unachievable).
 
-| ID | Severity | Finding | Site |
-| --- | --- | --- | --- |
-| [F1](#f1) | critical | a wrapped producer never stops when its downstream consumer exits | `capture.rs:46` |
-| [F3](#f3) | critical | every wrapped command's merged output is reordered, and long lines are corrupted mid-line | `capture.rs:37` + the two-pipe tee |
-| [F2](#f2) | high | a capture-file write failure silently truncates the caller's output and kills the child | `run.rs:165-166` |
-| [F4](#f4) | medium | a child that is merely starting can be reported `abandoned`, a terminal key | `run.rs:52` before `run.rs:67` |
-| [F5](#f5) | medium | the ledger commits before the report prints, so a failed write retires changes forever | `hook_post.rs:207` before `:71` |
-| [F6](#f6) | medium | `agent-tools ps` has no output bound | `ps.rs:265` |
-| [F7](#f7) | low | one malformed line in `events.jsonl` silently drops every event in that file | `ps.rs:114` |
-| [F8](#f8) | low | a held scope flock stalls every delivery point, with no timeout | `ledger.rs:99` |
-| [F9](#f9) | low | `pgrep -f` / `pkill -f` aimed at a wrapped process also match the wrapper | `run.rs:29-34` (by design) |
-| [F10](#f10) | low | a relative `AGENT_TOOLS_PARENT_DIR` is misdiagnosed as "not set" | `run.rs:36` |
-| [F11](#f11) | low | the `BACKGROUNDED:` notice and the status header are joined onto one line | `hook_post.rs:68` |
-| [F12](#f12) | low | the wrapper absorbs SIGTERM and SIGINT when the child ignores them | `signals.rs:18-30` |
-| [F13](#f13) | medium | `ps` hides the capture that `hook-post` reports as `abandoned` | `ps.rs:233-236` |
-| [F14](#f14) | critical | a multi-byte character in `--desc` discards the command, leaving no trace on disk | `procname.rs:42-48` + `procstat.rs:25` |
-| [F15](#f15) | medium | `ps` output grows with session history and is ordered by an identifier uncorrelated with time | `ps.rs:49-54` |
+| ID | Severity | Finding | Site | Status |
+| --- | --- | --- | --- | --- |
+| [F1](#f1) | critical | a wrapped producer never stops when its downstream consumer exits | `capture.rs:46` | fixed `fb77ca1`+`3d638d2` |
+| [F3](#f3) | critical | every wrapped command's merged output is reordered, and long lines are corrupted mid-line | `capture.rs:37` + the two-pipe tee | fixed `4fbcb15`+`1732853` |
+| [F2](#f2) | high | a capture-file write failure silently truncates the caller's output and kills the child | `run.rs:165-166` | fixed `fda98e6`+`d039c02` |
+| [F4](#f4) | medium | a child that is merely starting can be reported `abandoned`, a terminal key | `run.rs:52` before `run.rs:67` | fixed `cccdadc` (read-order half open) |
+| [F5](#f5) | medium | the ledger commits before the report prints, so a failed write retires changes forever | `hook_post.rs:207` before `:71` | fixed `4dd6532` |
+| [F6](#f6) | medium | `agent-tools ps` has no output bound | `ps.rs:265` | fixed `933b603` |
+| [F7](#f7) | low | one malformed line in `events.jsonl` silently drops every event in that file | `ps.rs:114` | fixed `0ff983a` |
+| [F8](#f8) | low | a held scope flock stalls every delivery point, with no timeout | `ledger.rs:99` | fixed `9973b96` |
+| [F9](#f9) | low | `pgrep -f` / `pkill -f` aimed at a wrapped process also match the wrapper | `run.rs:29-34` (by design) | accepted |
+| [F10](#f10) | low | a relative `AGENT_TOOLS_PARENT_DIR` is misdiagnosed as "not set" | `run.rs:36` | fixed `70e04e5` |
+| [F11](#f11) | low | the `BACKGROUNDED:` notice and the status header are joined onto one line | `hook_post.rs:68` | fixed `afe488d` |
+| [F12](#f12) | low | the wrapper absorbs SIGTERM and SIGINT when the child ignores them | `signals.rs:18-30` | accepted |
+| [F13](#f13) | medium | `ps` hides the capture that `hook-post` reports as `abandoned` | `ps.rs:233-236` | fixed `f4e784b` |
+| [F14](#f14) | critical | a multi-byte character in `--desc` discards the command, leaving no trace on disk | `procname.rs:42-48` + `procstat.rs:25` | fixed `c7d3d13` |
+| [F15](#f15) | medium | `ps` output grows with session history and is ordered by an identifier uncorrelated with time | `ps.rs:49-54` | open |
+| [F16](#f16) | medium | the facts that explain a capture reach the record only when the wrapper is done with it | `run.rs` after `core` returns | merge condition fixed, other three open |
 
 Findings after the original run — F13, F14, F15, and the revised F3 — were added
-2026-08-26 while scoping the fixes, under the same conditions. Their reproductions are
-quoted inline.
+2026-08-26 while scoping the fixes, under the same conditions; F16 on 2026-08-27. Their
+reproductions are quoted inline.
+
+Every entry below is the measurement as taken, kept whole as the regression record. What
+has changed since is the Status column above and a dated line at the head of each entry
+that names the commit and what was re-measured after it.
 
 ---
 
@@ -260,6 +265,15 @@ every case it merges is provably indistinguishable from bare. Specified in
 
 ### A child that is merely starting can be reported `abandoned`, a terminal key
 
+**Fixed 2026-08-27** by `cccdadc`. `run::publish_child_dir` builds the directory as
+`.starting-<pid>`, a name both scanners skip, writes the meta into it, and renames it
+into place; rename is atomic, so the pid-named directory only ever exists complete. A
+polling scanner saw 38 meta-less capture dirs in 500 publications before and none after
+(`run::tests::a_capture_directory_is_never_visible_without_its_meta`), and the live
+harness above went from 2 sightings in 32,710 observations to 0 in 32,055. The
+`status.rs` read-order half of this entry — meta read before the liveness check — is
+still open; see the closing paragraph.
+
 `run.rs:52` creates the capture directory; `run.rs:67` writes the first `meta.json`.
 A scan landing between them reads no meta and `status.rs:92-102` derives `abandoned` —
 which the spec's key table marks terminal and the system prompt teaches as
@@ -320,6 +334,12 @@ window is a serde parse plus one `/proc` read. Re-reading meta once before concl
 
 ### The ledger commits before the report prints, so a failed write retires changes forever
 
+**Fixed 2026-08-27** by `4dd6532`. `report_changes` returns the lines together with the
+uncommitted ledger, and both hooks write, flush, and only then commit; the write is
+checked rather than left to `println!`'s panic. Re-measured with stdout on `/dev/full`:
+the delivery exits 1 naming the write error, the ledger file stays empty, and the next
+delivery point carries the change.
+
 `hook_post::report_changes` calls `ledger.commit()?` at `hook_post.rs:207`; the hook
 serializes and prints at `hook_post.rs:71`. If the print fails, the keys are already
 recorded as delivered — they match next time and are never reported again.
@@ -346,6 +366,10 @@ risk into a harmless duplicate report.
 
 ### `agent-tools ps` has no output bound
 
+**Fixed 2026-08-27** by `933b603`. `ps` caps its `cmd:` line at `CMD_MAX = 2000` chars
+through `status::cap_to`, which is `cap`'s bound made reusable. The full command stays in
+`meta.json`, whose directory the same line names.
+
 `status.rs:12` caps a report line's name at `NAME_MAX = 200` chars. `ps.rs:265` caps
 nothing — it escapes and prints the full command for every capture in the session:
 
@@ -367,6 +391,11 @@ documented recovery path the prompt tells the agent to run after a compaction.
 
 ### One malformed line in `events.jsonl` silently drops every event in that file
 
+**Fixed 2026-08-27** by `0ff983a`. `events::read_all` parses line by line and returns
+an `EventLog` carrying the records that read and a count of the lines that did not; `ps`
+renders the survivors and states `note: N unreadable event line(s) skipped`, and names a
+file it could not open at all instead of discarding the error.
+
 `events::read_all` fails the whole file on the first unparseable line, and `ps.rs:114`
 discards the error:
 
@@ -385,6 +414,14 @@ i.e. the same disk-full condition as F2.
 ## F8
 
 ### A held scope flock stalls every delivery point, with no timeout
+
+**Fixed 2026-08-27** by `9973b96`. `Ledger::acquire` takes the lock with
+`LockExclusiveNonblock` and gives up after `LOCK_WAIT` (1s), well inside the 5s hook
+timeout, so the caller's existing "unavailable this time" line reaches the agent. Nothing
+is lost: no commit happens and the changes stay pending. Re-measured under the same
+foreign holder: `rc=0` after 1.0s carrying the announcement, where it previously spent
+the whole 5s and printed nothing. Contention is unchanged — 16 concurrent hooks over 40
+children still yield exactly one reporter, 40 distinct lines, 0 duplicates, 0 losses.
 
 `ledger.rs:99` uses `Flock::lock(file, FlockArg::LockExclusive)`, which blocks
 indefinitely. With a foreign holder on `.reported.lock`:
@@ -421,6 +458,10 @@ difference from "drop-in replacement".
 
 ### A relative `AGENT_TOOLS_PARENT_DIR` is misdiagnosed as "not set"
 
+**Fixed 2026-08-27** by `70e04e5`. `run` no longer replaces the error
+`parent_dir_from_env` produced; the hook advice is appended only when the variable is
+genuinely absent. A relative value now reports `must be an absolute path, got: …`.
+
 `paths::parent_dir_from_env` distinguishes "unset" from "must be an absolute path".
 `run.rs:36` throws that away:
 
@@ -437,6 +478,10 @@ one line.
 ## F11
 
 ### The `BACKGROUNDED:` notice and the status header are joined onto one line
+
+**Fixed 2026-08-27** by `afe488d`. The parts join with a newline, so both headers begin
+their own line. `hook_post_test::the_status_header_begins_a_line_even_beside_a_backgrounding_notice`
+pins the position; the test that asserted the single space now asserts the ordering.
 
 `hook_post.rs:68` joins the parts with a space:
 
@@ -476,6 +521,11 @@ table.
 
 ### `ps` hides the capture that `hook-post` reports as `abandoned`
 
+**Fixed 2026-08-27** by `f4e784b`. `Capture::meta` is optional and `collect` keeps the
+directory whichever way `read_meta` goes; rendering already derived status independently
+and already tolerated a missing meta. Both consumers now emit the same line for a
+meta-less capture dir.
+
 **Added 2026-08-26**, found while reproducing F4 rather than in the original run.
 
 `ps.rs:233-236` skips a capture whose `meta.json` will not parse:
@@ -506,6 +556,13 @@ look up.
 ## F14
 
 ### A multi-byte character in `--desc` discards the command, leaving no trace on disk
+
+**Fixed 2026-08-27** by `c7d3d13`. `procname::comm_for` stops before a character that
+would cross the kernel's 15-byte limit, and `procstat` reads `/proc/<pid>/stat` as bytes:
+`comm` holds arbitrary bytes for any process, and parsing anchors on the last `)`, which
+no lossy replacement can move. The whole sweep now runs — `n=8..13` for a 3-byte
+character and for an emoji, and the phrasing quoted below — and `is_alive` no longer
+reads a live process with a non-UTF-8 `comm` as dead.
 
 **Added 2026-08-26**, found while auditing paths the original run did not exercise.
 

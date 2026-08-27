@@ -106,7 +106,9 @@ delivery points for one report, produced by `hook_post::report_changes`:
    breaking ties so the output is reproducible rather than in `read_dir` order — and
    record in the ledger only the lines that fit under the `additionalContext` budget.
    A dropped line stays pending and lands at the next delivery point; recording a line
-   the agent never saw would retire that change permanently.
+   the agent never saw would retire that change permanently. For the same reason the
+   ledger travels back to the hook uncommitted and is committed only once the write and
+   flush have succeeded: a failed write must cost a repeat, never a loss.
 
 Nothing polls and nothing is scheduled: status is computed at the moment of delivery,
 so a report cannot describe a state older than the tool result it rides on.
@@ -149,8 +151,12 @@ than `REPORT_BUDGET` can never be selected by `bound`, so it is never recorded, 
 that child's change is announced as omitted at every delivery point without ever
 being delivered; a 9,000-character command produces one.
 
-`ps` escapes its `cmd:` line for the same reason. It does not cap, because the full
-command is what `ps` exists to add.
+`ps` escapes its `cmd:` line for the same reason, and caps it at `ps.rs`'s `CMD_MAX`
+through the same `status::cap_to`. A wrapped heredoc script runs to six figures, and `ps`
+is read through a tool result that truncates, so one child's source would displace every
+other child's status in the view an agent reaches for after a compaction. The cap is far
+above any typed command, and the full text stays in `meta.json` beside the capture, whose
+path the same line carries.
 
 #### The notes segment
 
@@ -227,6 +233,13 @@ fd.
 process's own lock, with nothing able to release it. `open_scopes` turns that hang into
 an error.
 
+Acquisition is non-blocking, retried until `LOCK_WAIT`. A foreign holder — anything that
+took the sentinel outside this code — would otherwise consume the hook's whole 5s timeout
+and deliver nothing, and a delivery point silent because it waited is indistinguishable
+from one with nothing to say. On expiry the error carries the holder's path and the
+caller renders its "unavailable this time" line; no commit has happened, so the changes
+are simply reported at the next delivery point.
+
 An unreadable ledger is never quietly treated as empty. `reset_reason` is set, every
 child then looks new, and the report leads with why — otherwise the agent sees a burst
 of unexplained repeats.
@@ -243,6 +256,15 @@ The discriminator is the directory name: under a `<tool_use_id>` dir a capture d
 named for the wrapper pid, so an entry whose name does not parse as a `u32` is a
 subagent dir and not this scope's to report. Real ids are `toolu_<base62>`, so the
 assumption holds — but it is an assumption, not a check.
+
+`run::publish_child_dir` relies on that same numeric test from the other side. It builds
+the capture dir as `.starting-<wrapper_pid>`, writes the first `meta.json` into it, and
+renames it onto its pid name; both scanners skip the staging name for the reason above,
+and rename is atomic, so a scan sees the directory only once the meta that describes it is
+inside. An attempt that dies before the rename leaves a `.starting-<pid>` holding at most
+a meta and no output, which both scanners pass over: nothing was captured, and a child
+that never got a capture has no fate to report. Nothing collects those remains — garbage
+collection is a stated non-goal — and a later wrapper reusing the pid overwrites them.
 
 ### Why the matcher is empty
 

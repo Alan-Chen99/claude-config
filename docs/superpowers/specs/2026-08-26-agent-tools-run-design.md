@@ -190,21 +190,25 @@ it, so agents keep reaching for the entry point with observability.
 
 ## Current deviations
 
-The findings record sixteen measured behaviours; ten still depart from the above. Each is
-reproduced in `notes/agent-tools-run-stress-findings.md` under the id below, which states its
-symptom — this table says only which clause it breaks.
+The findings record sixteen measured behaviours; two still depart from the above, plus the
+unobserved half of a third. Each is reproduced in
+`notes/agent-tools-run-stress-findings.md` under the id below, which states its symptom —
+this table says only which clause it breaks.
 
 | Clause | Open |
 | --- | --- |
-| readable beside the key, for a live child | F16 |
-| never reported terminal while starting | F4 |
-| a change not shown is reported again | F5 |
-| the pull path's output | F6, F15 |
-| a malformed record costs that record | F7 |
-| a delay is announced | F8 |
-| the prefix begins a line | F11 |
-| push and pull never disagree | F13 |
-| the command runs | F14 |
+| readable beside the key, for a live child | F16, except the merge condition |
+| the pull path's output | F15 |
+| never reported terminal while starting | F4's read-order half |
 
-F9 and F12 are accepted differences, not deviations. F10 breaks no clause above: a relative
-`AGENT_TOOLS_PARENT_DIR` is reported as unset, blaming the wrong cause.
+F16's other three facts — a closed forward, a capped drain, a failed capture — reach the
+record only when the wrapper exits, so a live child can read `producing` beside a capture
+that stopped growing. F15 is `ps` ordered by an identifier uncorrelated with time and
+sized by session history rather than by what is running; the clause that its output be
+carried as fields rather than a rendered string is also unmet, and no finding records it.
+F4's remaining half is the read order in `status.rs`: meta is read before wrapper
+liveness, so a wrapper that records its reap and exits between the two reads derives
+`abandoned` rather than `final(<status>)`. Never observed in roughly 7,000 wrapper starts,
+and closing it means re-reading the meta before concluding `abandoned`.
+
+F9 and F12 are accepted differences, not deviations.
