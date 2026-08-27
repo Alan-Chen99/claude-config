@@ -41,6 +41,17 @@ pub enum Merge {
     Split(&'static str),
 }
 
+impl Merge {
+    /// The condition that decided it, for the record. Which way it was decided
+    /// is not carried with it: `status::Capture` already reads that off disk
+    /// from how many capture files exist, and two records of one fact drift.
+    pub fn condition(&self) -> &'static str {
+        match *self {
+            Merge::Merged(why) | Merge::Split(why) => why,
+        }
+    }
+}
+
 /// Decide whether the child's two streams may share one destination.
 ///
 /// Whether two descriptors share an open file description is not decidable from

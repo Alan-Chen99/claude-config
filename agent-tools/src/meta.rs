@@ -25,6 +25,19 @@ pub struct ChildMeta {
     pub spawn_error: Option<String>,
     pub reaped: Option<Reaped>,
     pub drained_at: Option<DateTime<Utc>>,
+    /// The condition that decided whether the child's streams shared one
+    /// destination. Whether they did is `status::Capture`, off the disk.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub merge: Option<String>,
+    /// The downstream stopped accepting writes; forwarding stopped there.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub forward_closed: bool,
+    /// The post-close drain hit its bound; the capture is short by design.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub drain_capped: bool,
+    /// The capture could not be written; it is incomplete from that point.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capture_error: Option<String>,
 }
 
 impl ChildMeta {
@@ -93,6 +106,10 @@ mod tests {
             spawn_error: None,
             reaped: None,
             drained_at: None,
+            merge: None,
+            forward_closed: false,
+            drain_capped: false,
+            capture_error: None,
         }
     }
 

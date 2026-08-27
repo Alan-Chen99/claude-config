@@ -261,9 +261,14 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         ctx.contains("probe [final(0)] pid "),
         "additionalContext missing `probe [final(0)] pid ` fragment; got: {ctx}"
     );
+    // `.output()` hands the wrapper two pipes, so the merge rule splits and the
+    // line carries that between the byte counts and the capture paths. The only
+    // place a note is read off a real wrapper run rather than a hand-written
+    // `meta.json`.
     assert!(
-        ctx.contains("out=3B err=0B -> "),
-        "additionalContext missing byte-size fragment `out=3B err=0B -> `; got: {ctx}"
+        ctx.contains("out=3B err=0B [streams split: different destinations] -> "),
+        "additionalContext missing byte-size fragment \
+         `out=3B err=0B [streams split: different destinations] -> `; got: {ctx}"
     );
     assert!(
         ctx.contains("{stdout,stderr}"),

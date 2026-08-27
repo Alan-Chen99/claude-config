@@ -65,6 +65,10 @@ pub async fn run(
         spawn_error: None,
         reaped: None,
         drained_at: None,
+        merge: None,
+        forward_closed: false,
+        drain_capped: false,
+        capture_error: None,
     };
     meta::write_meta(&child_dir, &cm)?;
 
@@ -178,6 +182,12 @@ pub async fn run(
     {
         let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         m.drained_at = Some(chrono::Utc::now());
+        // The core's facts ride the same write as `drained_at`, so a reader
+        // never finds a drained capture whose difference from bare is missing.
+        m.merge = Some(outcome.merge.condition().to_string());
+        m.forward_closed = outcome.forward_closed;
+        m.drain_capped = outcome.drain_capped;
+        m.capture_error = outcome.capture_error.clone();
         // Recorded and discarded, like the callbacks' writes: policy above.
         record_meta_write(&parent_dir, wrapper_pid, "drained_at", meta::write_meta(&child_dir, &m));
     }

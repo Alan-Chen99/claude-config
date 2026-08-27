@@ -181,3 +181,124 @@ fn a_failed_meta_write_never_replaces_the_child_exit_code() {
     assert!(failed_facts.contains(&"drained_at".to_string()), "events: {evts}");
     assert!(failed_facts.contains(&"reaped".to_string()), "events: {evts}");
 }
+
+#[test]
+fn the_merge_condition_is_recorded_beside_the_capture() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    std::fs::create_dir_all(&parent).unwrap();
+
+    let out = std::process::Command::new(bin())
+        .args(["run", "--desc", "probe", "--", "bash", "-c", "echo hi"])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(0));
+
+    let meta = read_meta(&parent).expect("meta.json written");
+    assert!(
+        meta.get("merge").is_some(),
+        "the merge decision is recorded per capture: {meta}"
+    );
+}
+
+#[test]
+fn a_close_that_stderr_could_not_carry_is_still_in_the_record() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    std::fs::create_dir_all(&parent).unwrap();
+
+    // `2>&1` makes both of the wrapper's descriptors the same pipe, which the
+    // merge rule admits, so the notice `capture::state` writes goes into the
+    // pipe `head` just dropped and no reader ever sees it. Same for a split
+    // run whose stderr is the stream that closed. The record is the only place
+    // either can appear, which is why the spec asks for stderr *and* the status.
+    let script = format!(
+        "{} run --desc probe -- bash -c 'seq 1 100000' 2>&1 | head -3",
+        bin()
+    );
+    let out = std::process::Command::new("bash")
+        .args(["-c", &script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "1\n2\n3\n");
+
+    let meta = read_meta(&parent).expect("meta.json written");
+    assert_eq!(
+        meta.get("forward_closed").and_then(|v| v.as_bool()),
+        Some(true),
+        "the record carries what stderr could not: {meta}"
+    );
+}
+
+#[test]
+fn a_capped_drain_is_in_the_record() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    std::fs::create_dir_all(&parent).unwrap();
+
+    // 64 KiB rather than the 256 MiB default: the fact under test is that the
+    // bound reaches the record, not what the production number is, and no test
+    // can afford to drive a quarter of a gigabyte to find out.
+    let script = format!(
+        "{} run --desc probe --drain-cap-bytes 65536 -- bash -c 'seq 1 100000' 2>&1 | head -3",
+        bin()
+    );
+    let out = std::process::Command::new("bash")
+        .args(["-c", &script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "1\n2\n3\n");
+
+    let meta = read_meta(&parent).expect("meta.json written");
+    assert_eq!(
+        meta.get("drain_capped").and_then(|v| v.as_bool()),
+        Some(true),
+        "the bound reached the record: {meta}"
+    );
+}
+
+#[test]
+fn a_capture_that_never_opened_is_in_the_record() {
+    let home = tempfile::tempdir().unwrap();
+    let parent = home.path().join("parent");
+    std::fs::create_dir_all(&parent).unwrap();
+
+    // `exec` hands the wrapper the shell's own pid, and the capture dir is
+    // named for it, so the directories that fail the tee's open with EISDIR are
+    // in place before there is anything to race. Both names, since the merge
+    // rule decides which one the tee reaches for.
+    let script = format!(
+        "mkdir -p '{p}'/$$/stdout '{p}'/$$/output; \
+         exec {bin} run --desc probe -- bash -c 'echo hi'",
+        p = parent.display(),
+        bin = bin()
+    );
+    let out = std::process::Command::new("bash")
+        .args(["-c", &script])
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent)
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    // The wrapper's disk is not the child's fault: the command ran, its bytes
+    // reached the caller, and its exit code is the one bare would have given.
+    assert_eq!(out.status.code(), Some(0));
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "hi\n");
+
+    let meta = read_meta(&parent).expect("meta.json written");
+    assert!(
+        meta.get("capture_error")
+            .and_then(|v| v.as_str())
+            .is_some_and(|e| e.contains("Is a directory")),
+        "the capture that never opened is in the record: {meta}"
+    );
+}

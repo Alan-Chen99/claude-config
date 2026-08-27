@@ -193,8 +193,36 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         .and_then(|m| m.child_pid)
         .map(|p| p.to_string())
         .unwrap_or_else(|| "-".into());
+    // Everything that explains a difference from bare, so `final(0)` never sits
+    // beside a capture that stopped growing an hour ago. Empty on a clean run,
+    // which is nearly every run: these lines land in every tool result, and a
+    // note that is always there stops being read.
+    let mut notes: Vec<String> = Vec::new();
+    // Only a split is the difference. Bare had one destination and one
+    // interleaving; splitting is what loses them, and merging is what restores
+    // them. `s.capture` is where the shape is known — it is read off the files
+    // that exist — and `meta.merge` supplies only the condition.
+    if let (Capture::Split { .. }, Some(why)) =
+        (&s.capture, s.meta.as_ref().and_then(|m| m.merge.as_deref()))
+    {
+        notes.push(format!("streams split: {why}"));
+    }
+    if s.meta.as_ref().is_some_and(|m| m.forward_closed) {
+        notes.push("downstream closed".to_string());
+    }
+    if s.meta.as_ref().is_some_and(|m| m.drain_capped) {
+        notes.push("drain capped".to_string());
+    }
+    if let Some(e) = s.meta.as_ref().and_then(|m| m.capture_error.as_deref()) {
+        notes.push(format!("capture failed: {e}"));
+    }
+    let notes = if notes.is_empty() {
+        String::new()
+    } else {
+        format!(" [{}]", notes.join("; "))
+    };
     let (bytes, paths) = s.capture.detail(dir);
-    format!("{name} [{}] pid {pid}, {age}, {bytes}{problems} -> {paths}", s.key)
+    format!("{name} [{}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}", s.key)
 }
 
 #[cfg(test)]
@@ -215,6 +243,10 @@ mod tests {
             spawn_error: None,
             reaped: None,
             drained_at: None,
+            merge: None,
+            forward_closed: false,
+            drain_capped: false,
+            capture_error: None,
         }
     }
 
@@ -380,6 +412,59 @@ mod tests {
         assert!(
             !line.contains("{stdout,stderr}"),
             "a merged run opens neither: {line}"
+        );
+    }
+
+    #[test]
+    fn a_difference_from_bare_is_readable_beside_the_key() {
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        m.merge = Some("different destinations".into());
+        m.forward_closed = true;
+        // The bound applies only once forwarding has failed, so the two facts
+        // are true together or the record describes a run that cannot happen.
+        m.drain_capped = true;
+        m.capture_error = Some("No space left on device".into());
+        write(&d, &m);
+        std::fs::write(d.path().join("stdout"), b"x").unwrap();
+
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(
+            line.contains("streams split: different destinations"),
+            "line: {line}"
+        );
+        assert!(line.contains("downstream closed"), "line: {line}");
+        assert!(line.contains("drain capped"), "line: {line}");
+        assert!(
+            line.contains("capture failed: No space left on device"),
+            "line: {line}"
+        );
+    }
+
+    #[test]
+    fn a_clean_run_carries_no_notes() {
+        // Nearly every run is this one, and these lines land in every tool
+        // result: a note that is always there stops being read.
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        m.merge = Some("both appending, same file".into());
+        write(&d, &m);
+        std::fs::write(d.path().join("output"), b"x").unwrap();
+
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(
+            !line.contains("merge"),
+            "a merged run explains nothing: {line}"
+        );
+        // The status key is bracketed too, so counting is what distinguishes a
+        // clean line from one carrying notes. Blunt on purpose: a note added
+        // unconditionally fails here rather than in the field.
+        assert_eq!(
+            line.matches('[').count(),
+            1,
+            "the key is the only bracketed segment: {line}"
         );
     }
 
