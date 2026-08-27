@@ -2553,12 +2553,11 @@ git commit -m "prompt: it promised bare-equivalence the wrapper never had"
     - `agent-tools/CLAUDE.md` gains the merge rule — when the child's two streams share one
       destination, why the enumeration is short, and that `core::Merge` and `status::Capture`
       are one fact recorded twice, so a change to what either arm opens has to move both.
-    - `agent-tools/CLAUDE.md`'s "Report lines" section says the name "is the only field
-      carrying arbitrary text". `capture_error` is now a second one. It is never child-
-      controlled — always a short `io::Error` Display like `Is a directory (os error 21)` — so
-      neither the newline-forgery hazard `escape_control` guards nor the `NAME_MAX` budget is
-      reachable through it today. Say both halves, or the next reader has to re-derive why the
-      guard does not cover it.
+    - `agent-tools/CLAUDE.md`'s "Report lines" section: done during Task 8's fixes, which is
+      where the premise changed — `capture_error` and the rendered key now go through
+      `escape_control` too, so the sentence claiming the name is the only field carrying
+      arbitrary text was false twice over. Check it says which of the three is also length-
+      capped, since only the name is.
 - [ ] Update `agent-tools/CLAUDE.md` with a short section on the merge rule: that the decision
       is read from the caller's own descriptors, that a merged capture is one `output` file,
       and that `run-core` exists for differential testing and is deliberately not taught by
