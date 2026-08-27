@@ -649,10 +649,32 @@ Each of these is a falsification attempt that failed to break the implementation
 
 ## Outside the wrapper
 
-- **`opencode_loads_prefixed_langfuse_env_and_forwards_args` fails** on this checkout.
-  The repo's real `.env` leaks into the test environment (`base_url=unset` where the
-  test expects a value). Pre-existing and unrelated to `run`. Every other suite is
-  green: 59 + 4 + 1 + 19 + 7 + 6 + 1 passing.
+- **`opencode_loads_prefixed_langfuse_env_and_forwards_args` fails, and prints a live
+  credential when it does.** Pre-existing and unrelated to `run`.
+
+  The test asserts the process environment reaches the child (`secret=secret from env`).
+  It cannot: `src/opencode.rs:22-23` prefers the repo `.env` and falls back to the
+  environment only for keys that file does not define, and it defines all three. The
+  test cannot point the lookup elsewhere either, because `CLAUDE_CONFIG_ROOT` is an
+  assertion rather than an override, so `worktree_root()` is the only root it may name
+  and that root's `.env` is the real one. The assertion at `tests/opencode_test.rs:160`
+  therefore fails on every run, and its message is `"stdout: {stdout}"` over a stdout
+  holding the live `sk-lf-…` secret key — so a plain `cargo test` prints a working
+  Langfuse credential to the terminal and into any agent context reading that output.
+
+  An earlier version of this note blamed `base_url=unset`. That is wrong: the test
+  expects exactly that string (`:171`) and that assertion passes.
+
+  Two things are wrong and they are separable. The message must not print the value —
+  true whichever precedence is correct. And the test asserts a precedence the code does
+  not have and is not documented to have: the root `CLAUDE.md` says `agent-tools
+  opencode` exists to load the repo `.env`, so `.env`-wins is the contract and the test
+  is the thing that is wrong. Fixing it needs a root whose `.env` the test controls,
+  which today's root resolution does not allow — that is the design question to settle,
+  not a one-line edit.
+
+  Every other suite is green: 59 + 4 + 1 + 19 + 7 + 6 + 1 passing at the time of the
+  original measurement.
 - **No CI runs `scripts/check-prompt-coupling.sh` or `cargo test`.**
   `.github/workflows/skills-test.yml` is the only workflow and it runs pytest under
   `skills/scripts/**`. The guard exists and passes when invoked by hand, but nothing
