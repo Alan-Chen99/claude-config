@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use crate::hook_input;
@@ -40,9 +40,14 @@ pub fn run() -> Result<()> {
     // The backgrounding notice is independent of status reporting and is the one
     // message this hook must not lose. A `?` here would discard an
     // already-computed notice because something unrelated failed.
+    let mut delivered: Option<Report> = None;
     match report_changes(&input.session_id, input.agent_id.as_deref()) {
-        Ok(changes) if !changes.is_empty() => {
-            parts.push(format!("[agent-tools] run status:\n{}", changes.join("\n")));
+        Ok(report) if !report.lines.is_empty() => {
+            parts.push(format!(
+                "[agent-tools] run status:\n{}",
+                report.lines.join("\n")
+            ));
+            delivered = Some(report);
         }
         Ok(_) => {}
         Err(e) => {
@@ -72,7 +77,14 @@ pub fn run() -> Result<()> {
             "additionalContext": parts.join("\n")
         }
     });
-    println!("{}", serde_json::to_string(&out)?);
+    // Write, flush, and only then record what was delivered. `println!` would
+    // panic on a write error, after the commit that made the loss permanent.
+    let mut stdout = std::io::stdout().lock();
+    writeln!(stdout, "{}", serde_json::to_string(&out)?).context("write hook output")?;
+    stdout.flush().context("flush hook output")?;
+    if let Some(report) = delivered {
+        report.commit()?;
+    }
     Ok(())
 }
 
@@ -139,10 +151,35 @@ fn scope_dir(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
 
 /// Scan every capture dir in this agent's scope, derive each status, and
 /// return one line per child whose key changed since it was last reported.
-pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Vec<String>> {
+/// The lines to deliver, and the ledger that has recorded them as delivered.
+///
+/// The ledger is deliberately uncommitted: a key must be written down only
+/// after the report reaches the agent. Committing first means a failed write
+/// retires a change nobody was shown, and its key matches at every later
+/// delivery point, so it is never reported again. Committing after costs at
+/// worst a duplicate report, which the design already accepts.
+pub(crate) struct Report {
+    pub(crate) lines: Vec<String>,
+    ledger: Option<crate::ledger::Ledger>,
+}
+
+impl Report {
+    /// Persist the delivered keys. Call only after the write succeeded.
+    pub(crate) fn commit(self) -> Result<()> {
+        match self.ledger {
+            Some(mut l) => l.commit(),
+            None => Ok(()),
+        }
+    }
+}
+
+pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Report> {
     let scope = scope_dir(session_id, agent_id)?;
     if !scope.is_dir() {
-        return Ok(Vec::new());
+        return Ok(Report {
+            lines: Vec::new(),
+            ledger: None,
+        });
     }
     let now = chrono::Utc::now();
     let mut ledger = crate::ledger::Ledger::open(&scope)?;
@@ -208,8 +245,10 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
     for note in notes.into_iter().rev() {
         lines.insert(0, note);
     }
-    ledger.commit()?;
-    Ok(lines)
+    Ok(Report {
+        lines,
+        ledger: Some(ledger),
+    })
 }
 
 /// Keep the report lines that fit under the additionalContext cap, and record in

@@ -680,3 +680,51 @@ fn the_status_header_begins_a_line_even_beside_a_backgrounding_notice() {
         "the header must begin its line, got: {header:?}"
     );
 }
+
+/// The ledger records what the agent has been *shown*. Committing before the
+/// write succeeds retires a change that never arrived: its key matches at the
+/// next delivery point, so it is never reported again. Duplicates are cheap and
+/// the spec accepts them; a silently dropped terminal status is not.
+#[test]
+fn a_report_that_could_not_be_printed_is_reported_again() {
+    let home = tempfile::tempdir().unwrap();
+    seed(home.path(), "tuid", 424242, Some(0));
+
+    let full = std::fs::OpenOptions::new()
+        .write(true)
+        .open("/dev/full")
+        .unwrap();
+    let mut c = agent_tools()
+        .arg("hook-post")
+        .env("HOME", home.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::from(full))
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    c.stdin
+        .as_mut()
+        .unwrap()
+        .write_all(post_body("Bash", "tuid").to_string().as_bytes())
+        .unwrap();
+    let first = c.wait_with_output().unwrap();
+    assert!(
+        !first.status.success(),
+        "a delivery that could not be written must fail loudly"
+    );
+
+    let (status, stdout, stderr) = run_post(home.path(), post_body("Bash", "tuid"));
+    assert!(status.success(), "stderr: {stderr}");
+    assert!(
+        !stdout.trim().is_empty(),
+        "the next delivery point said nothing: the change was retired without being shown"
+    );
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap_or("");
+    assert!(
+        ctx.contains("seeded [final(0)]"),
+        "the undelivered change must be reported again, got: {ctx:?}"
+    );
+}
