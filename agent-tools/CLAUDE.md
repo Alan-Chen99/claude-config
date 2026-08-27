@@ -81,20 +81,30 @@ read as "nothing else changed".
 
 ### Report lines
 
-One line per child, always. Three of its fields come off the record and carry
-arbitrary text: the name — `--desc`, or the command when there is none — and the
-`capture_error` and `spawn_error` strings. All three pass through
-`meta::escape_control`, which escapes control characters; only the name is also
-bounded in length, by `status.rs`'s `NAME_MAX`.
+One line per child, always:
 
-Neither error field is child-controlled today — every producer is a wrapper-authored
-`io::Error` or an anyhow chain — but a record read off disk is not trustworthy input:
-a hand-written `meta.json` carrying a newline in `capture_error` made `agent-tools ps`
-emit a second physical line, reading as a status line for a child that does not exist.
-A malformed record costs that record, not the history. `spawn_error` reaches a line
-inside the status key, so `render` escapes the rendered key rather than the single
-variant that carries text; the raw key stays the ledger identity, where a newline is
-harmless JSON.
+```
+<name> [<key>] pid <pid>, <age>, <bytes> [<notes>] [stat failed: <errors>] -> <paths>
+```
+
+The two trailing bracketed groups are omitted entirely — brackets included — when
+they hold nothing; the key's brackets are always there.
+
+Four of its fields come off the record and carry arbitrary text: the name —
+`--desc`, or the command when there is none — and the `merge`, `capture_error`, and
+`spawn_error` strings. All four pass through `meta::escape_control`, which escapes
+control characters; only the name is also bounded in length, by `status.rs`'s
+`NAME_MAX`.
+
+None of the three — `merge`, `capture_error`, `spawn_error` — is child-controlled
+today: every producer is a wrapper-authored `io::Error`, an anyhow chain, or one of
+`core::decide_merge`'s static conditions. A record read off disk is still not
+trustworthy input: a hand-written `meta.json` carrying a newline in `capture_error`
+made `agent-tools ps` emit a second physical line, reading as a status line for a
+child that does not exist. A malformed record costs that record, not the history.
+`spawn_error` reaches a line inside the status key, so `render` escapes the rendered
+key rather than the single variant that carries text; the raw key stays the ledger
+identity, where a newline is harmless JSON.
 
 Both bounds exist because a line is a contract, not a display. A name containing a
 newline renders a second line that reads as a status line for a child that does not
@@ -105,6 +115,42 @@ being delivered; a 9,000-character command produces one.
 
 `ps` escapes its `cmd:` line for the same reason. It does not cap, because the full
 command is what `ps` exists to add.
+
+#### The notes segment
+
+Everything that explains a difference from bare, in one bracketed group sitting
+between the byte counts and the capture paths, `; `-separated, in this order:
+
+| Note                    | Emitted when                                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `streams split: <why>`  | The capture is two files **and** `meta.merge` holds a condition other than `different destinations`.                 |
+| `downstream closed`     | `meta.forward_closed` — a caller descriptor stopped accepting writes, so forwarding stopped there.                   |
+| `drain capped`          | `meta.drain_capped` — post-close capture reached `core::DEFAULT_DRAIN_CAP_BYTES`, so the capture is short by design. |
+| `capture failed: <err>` | `meta.capture_error` — a capture file could not be written, so it is incomplete from that point on.                  |
+
+The whole group is absent, brackets included, when none of the four applies —
+which is nearly every run. These lines land in every tool result, and a note that
+is always there stops being read. `drain capped` is reachable only inside the
+forwarding-failed branch, so it never appears without `downstream closed`.
+
+`<why>` is `core::decide_merge`'s condition string: `descriptor could not be
+inspected`, `descriptor flags could not be read`, `not both writable`, or `same
+file, but not both appending`. It is never `different destinations`, the one
+condition `render` suppresses: there the caller's own two descriptors already
+reached two destinations, so bare kept the streams apart too and the split explains
+nothing — and that is the shape of every harness spawning with two pipes, so noting
+it would put a note on every line of every test run and none on production, which
+merges. Whether the capture is one file or two is read off the files that exist
+(`status::Capture`), never off the record; `meta.merge` supplies only the condition.
+
+A line therefore carries up to **three** bracketed groups, in this order: the status
+key (always), the notes (only when something differed from bare), and `[stat failed:
+…]` (only when stat'ing a capture file failed with something other than *not created
+yet*). The last two share bracket shape and `; ` separators while meaning different
+things — the notes describe the run, `stat failed` describes this process's own
+inability to read the capture files, and it alone is sourced from a live syscall
+rather than from `meta.json`. Bracket count is what separates a clean line from one
+carrying notes, and is asserted as such in `a_clean_run_carries_no_notes`.
 
 ### A `TaskStop` result is not evidence about a child
 

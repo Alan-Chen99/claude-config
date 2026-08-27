@@ -212,7 +212,7 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         (&s.capture, s.meta.as_ref().and_then(|m| m.merge.as_deref()))
     {
         if why != core::DESTINATIONS_ALREADY_DIFFERED {
-            notes.push(format!("streams split: {why}"));
+            notes.push(format!("streams split: {}", meta::escape_control(why)));
         }
     }
     if s.meta.as_ref().is_some_and(|m| m.forward_closed) {
@@ -230,13 +230,13 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         format!(" [{}]", notes.join("; "))
     };
     let (bytes, paths) = s.capture.detail(dir);
-    // The key carries `spawn_error`, the third of this line's fields to come off
-    // the record, and it is bounded here rather than in `derive`: the raw string
-    // is the ledger identity, which is JSON and holds a newline harmlessly,
-    // while a line is a contract. Escaping the whole rendered key rather than
-    // the one variant carrying text is what stops a later variant reopening
-    // this. A record read off disk is not trustworthy input, whatever this
-    // process's own producers put there.
+    // The key carries `spawn_error`, the last of this line's four fields to
+    // come off the record, and it is bounded here rather than in `derive`: the
+    // raw string is the ledger identity, which is JSON and holds a newline
+    // harmlessly, while a line is a contract. Escaping the whole rendered key
+    // rather than the one variant carrying text is what stops a later variant
+    // reopening this. A record read off disk is not trustworthy input, whatever
+    // this process's own producers put there.
     let key = meta::escape_control(&s.key.to_string());
     format!("{name} [{key}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}")
 }
@@ -495,7 +495,7 @@ mod tests {
         let now = Utc::now();
         let line = render(d.path(), &derive(d.path(), now), now);
         assert!(
-            !line.contains("merge"),
+            !line.contains("streams split"),
             "a merged run explains nothing: {line}"
         );
         // The status key is bracketed too, so counting is what distinguishes a
@@ -545,29 +545,35 @@ mod tests {
         assert!(!line.contains('\n'), "rendered over two lines: {line}");
     }
 
-    /// The reviewer's reproduction: a `meta.json` written by hand, carrying a
-    /// newline and an ANSI sequence in the two fields a line takes from the
-    /// record. `agent-tools ps` emitted a second physical line, reading as a
-    /// status line for a child that does not exist. Neither field is
-    /// child-controlled today — every producer is a wrapper-authored `io::Error`
-    /// or an anyhow chain — but a record read off disk is not trustworthy input,
-    /// and a malformed one costs that record, not the history.
+    /// A `meta.json` written by hand, carrying a newline and an ANSI sequence
+    /// in every field a line takes from the record: the name, and the
+    /// `spawn_error`, `merge`, and `capture_error` strings. One such record
+    /// made `agent-tools ps` emit a second physical line, reading as a status
+    /// line for a child that does not exist. No field here is child-controlled
+    /// — every producer is a wrapper-authored `io::Error`, an anyhow chain, or
+    /// one of `decide_merge`'s static conditions — but a record read off disk
+    /// is not trustworthy input, and a malformed one costs that record, not the
+    /// history. All four fields in one test, because a field left plain here is
+    /// a field nothing covers.
     #[test]
     fn a_hand_written_record_cannot_forge_a_second_line() {
         let d = TempDir::new().unwrap();
         // pid 0 has no /proc entry, so nothing here depends on a live wrapper.
+        // No capture file is written either, so the shape is `Capture::Split` —
+        // which is what the `merge` note needs in order to be rendered at all.
         std::fs::write(
             d.path().join("meta.json"),
             r#"{
               "wrapper_pid": 0,
               "wrapper_started_ticks": 1,
               "child_pid": 4242,
-              "desc": "probe",
+              "desc": "probe\n  forged [final(0)] pid 3\u001b[31m",
               "command": ["true"],
               "started_at": "2026-08-26T12:00:00Z",
               "spawn_error": "boom\n  forged [final(0)] pid 1\u001b[31m",
               "reaped": null,
               "drained_at": null,
+              "merge": "same file\n  forged [final(0)] pid 4\u001b[31m",
               "capture_error": "no space\n  forged [final(0)] pid 2\u001b[31m"
             }"#,
         )
@@ -581,8 +587,16 @@ mod tests {
             "an escape sequence reached the terminal: {line}"
         );
         assert!(
+            line.contains("probe\\n  forged"),
+            "the name is shown, not obeyed: {line}"
+        );
+        assert!(
             line.contains("boom\\n  forged"),
             "the spawn error is shown, not obeyed: {line}"
+        );
+        assert!(
+            line.contains("streams split: same file\\n  forged"),
+            "the merge condition is shown, not obeyed: {line}"
         );
         assert!(
             line.contains("no space\\n  forged"),
