@@ -2431,17 +2431,24 @@ appear in the file's fallback branches, doc comments, and test names":
 # `agent-tools:`, which is how the agent tells them from its command's output.
 # One needle per emit site: `capture.rs` names the prefix in doc comments and in
 # `state`'s own contract, so a bare prefix would still match a drifted emitter.
+# Each needle is a fragment of one physical line — these format strings are
+# line-continued and `grep -qF` does not span lines.
 check 'always prefixed' "$prompt"
-check '"agent-tools: {stream_name} downstream closed' "$src/capture.rs"
-check '"agent-tools: {stream_name} drain bound' "$src/capture.rs"
-check '"agent-tools: capture to {} failed' "$src/capture.rs"
+check '"agent-tools: {stream_name} downstream closed ({err}); still capturing to' "$src/capture.rs"
+check '"agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes' "$src/capture.rs"
+check '"agent-tools: capture to {} could not be opened (' "$src/capture.rs"
+check '"agent-tools: capture to {} failed ({e}); forwarding continues' "$src/capture.rs"
+check '"agent-tools: capture to {} failed at the flush (' "$src/capture.rs"
 ```
 
-Take the needles from the source as it actually reads after Tasks 5-7, not from this block —
-each must be a fragment that sits on **one physical line**, since these format strings are
-line-continued and `grep -qF` does not span lines. Verify each needle matches exactly one emit
-site, and prove the block fails when it should: change one emitted string, run the script, see
-it fail, change it back.
+Five emit sites, not three: the capture has one message per failure — the open, the loop, and
+the flush — because one cannot be right for all three. The fourth needle carries
+`forwarding continues` rather than stopping at `failed`, or it would also match the flush's
+line and leave that site unpinned.
+
+Each of these was verified against the source with `grep -cF` at one match apiece. Re-check
+rather than trusting that, and prove the block fails when it should: change one emitted string,
+run the script, see it name that file, change it back.
 
 Then add the `agent-tools/CLAUDE.md` row naming the emitters, the prompt location, the guard,
 and what breaks if they drift: the agent stops being able to tell the wrapper's diagnostics
