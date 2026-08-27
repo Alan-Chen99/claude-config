@@ -68,6 +68,16 @@ mutation's effect looking like the fix's. Save a copy of the file before mutatin
 from that, and confirm every restore with `git diff --stat` — an exit status only says the
 command ran.
 
+**Do not use `git stash` here at all.** This repository carries seventeen stash entries that
+belong to the user and predate this branch. `git stash` on a clean tree saves nothing and
+still exits 0, so a chained `git stash pop` pops whatever is at `stash@{0}` — someone else's
+work — applies it to your tree and drops the entry. That has happened twice on this branch,
+once to a subagent and once to the session driving it. Recovery is possible because the entry
+is still a reachable commit (`git fsck --unreachable`, or the sha from `git reflog stash`),
+and `git stash store -m "<its original message>" <sha>` puts it back at `stash@{0}` — but the
+recovery is only obvious if you noticed, and nothing about the failure announces itself. Use
+`cp` to a scratch file instead; it cannot touch anything but the file you named.
+
 Run per-suite while working — it is faster and skips the known failure:
 
 ```bash
