@@ -395,3 +395,31 @@ fn a_malformed_event_line_costs_that_line_not_the_file() {
         "the loss must be counted and stated: {s}"
     );
 }
+
+/// `hook-post` derives `abandoned` for a capture whose meta cannot be read and
+/// reports it. `ps` is the documented recovery path after a compaction, so the
+/// child the report just called terminal must not be the one child `ps` cannot
+/// look up.
+#[test]
+fn a_capture_without_meta_is_shown_rather_than_dropped() {
+    let home = tempfile::tempdir().unwrap();
+    let dir = home.path().join(".claude/agent-tools/sid/tuid/999999");
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        s.contains("999999") && s.contains("[abandoned]"),
+        "ps must show the capture it cannot describe, with its derived key: {s}"
+    );
+}

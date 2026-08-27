@@ -16,7 +16,11 @@ struct Capture {
     /// split, `output` when they were merged, plus `meta.json` either way.
     /// Layout: `<tool_use_id_dir>/<pid>/`.
     capture_dir: PathBuf,
-    meta: ChildMeta,
+    /// `None` when `meta.json` is absent or will not parse. The capture still
+    /// exists and `status::derive` still has an answer for it — `abandoned` —
+    /// so dropping it here would leave `ps` disagreeing with the report about
+    /// whether the child exists at all.
+    meta: Option<ChildMeta>,
 }
 
 pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Result<()> {
@@ -51,8 +55,15 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
         a.agent_id
             .cmp(&b.agent_id)
             .then_with(|| a.tool_use_id.cmp(&b.tool_use_id))
-            .then_with(|| a.meta.started_at.cmp(&b.meta.started_at))
-            .then_with(|| a.meta.wrapper_pid.cmp(&b.meta.wrapper_pid))
+            .then_with(|| {
+                a.meta
+                    .as_ref()
+                    .map(|m| m.started_at)
+                    .cmp(&b.meta.as_ref().map(|m| m.started_at))
+            })
+            // A capture with no meta has no start time to sort by; its
+            // directory is the wrapper pid, which is stable and unique.
+            .then_with(|| a.capture_dir.cmp(&b.capture_dir))
     });
 
     let mut buf = String::new();
@@ -249,15 +260,11 @@ fn collect_pid_captures(
         if !is_pid {
             continue;
         }
-        let m = match meta::read_meta(&p) {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
         out.push(Capture {
             agent_id: agent_id.clone(),
             tool_use_id: tool_use_id.to_string(),
+            meta: meta::read_meta(&p).ok(),
             capture_dir: p,
-            meta: m,
         });
     }
 }
