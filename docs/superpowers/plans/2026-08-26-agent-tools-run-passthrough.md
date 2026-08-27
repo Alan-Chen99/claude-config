@@ -2216,19 +2216,45 @@ prefix. `main.rs`'s argument-parsing and dispatch errors cannot — no child exi
 are out of scope, though they already read `agent-tools <subcommand>:` and should stay that
 way. Anything else that prints during a run either gets the prefix or stops printing.
 
-- [ ] **Step 3: Record the coupling**
+- [ ] **Step 3: Enforce the coupling, then record it**
 
-`agent-tools/CLAUDE.md` has a table of strings emitted by the binary and quoted in the system
-prompt, so drift between them can be caught. The `agent-tools:` diagnostic prefix is now such
-a string. Add a row naming the emitters (`capture.rs`, `core.rs`), the prompt location, and
-what breaks if they drift: the agent stops being able to tell the wrapper's diagnostics from
-its own command's output.
+`scripts/check-prompt-coupling.sh` is what actually catches drift — it fails when a string the
+binary emits stops matching the prompt that teaches the agent to recognize it. It pins the
+status header, the degraded-report fallback, `BACKGROUNDED:`, and the six status keys. It does
+**not** pin the `agent-tools:` diagnostic prefix, which Step 1's text turns into a promise. A
+promise with no guard is what this script exists to prevent, so add it there first; the
+`CLAUDE.md` row is documentation, and documentation does not fail a build.
+
+Add a block in the script's own style. Its stated convention is that source-side needles are
+the exact literal at each emit site rather than a bare prefix, "since the same words also
+appear in the file's fallback branches, doc comments, and test names":
+
+```bash
+# The wrapper's own diagnostics. The prompt promises every one begins
+# `agent-tools:`, which is how the agent tells them from its command's output.
+# One needle per emit site: `capture.rs` names the prefix in doc comments and in
+# `state`'s own contract, so a bare prefix would still match a drifted emitter.
+check 'always prefixed' "$prompt"
+check '"agent-tools: {stream_name} downstream closed' "$src/capture.rs"
+check '"agent-tools: {stream_name} drain bound' "$src/capture.rs"
+check '"agent-tools: capture to {} failed' "$src/capture.rs"
+```
+
+Take the needles from the source as it actually reads after Tasks 5-7, not from this block —
+each must be a fragment that sits on **one physical line**, since these format strings are
+line-continued and `grep -qF` does not span lines. Verify each needle matches exactly one emit
+site, and prove the block fails when it should: change one emitted string, run the script, see
+it fail, change it back.
+
+Then add the `agent-tools/CLAUDE.md` row naming the emitters, the prompt location, the guard,
+and what breaks if they drift: the agent stops being able to tell the wrapper's diagnostics
+from its own command's output.
 
 - [ ] **Step 4: Verify**
 
 Run: `bash scripts/check-prompt-coupling.sh`
-Expected: exit 0. This script pins the status-key literals and headers, not this bullet, so
-it should pass unchanged — confirm that rather than assume it.
+Expected: exit 0, now including the block Step 3 added. The status-key and header checks are
+unaffected by this bullet — confirm that rather than assume it.
 
 Run: `agent-tools count-tokens --file sys_prompt/alan-default-next.md`
 Expected: the file is a system prompt loaded on every session; note the before and after so
