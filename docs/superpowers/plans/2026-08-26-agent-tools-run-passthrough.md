@@ -1117,14 +1117,14 @@ is stated on stderr and in the status."
 Append to `agent-tools/tests/core_test.rs`:
 
 ```rust
-/// Enough output that the close is seen inside the read loop, not at the flush.
+/// Many chunks, so the close is seen inside the read loop rather than at the
+/// flush.
 ///
-/// The two regimes are 16 KiB apart, not 64. Forwarding goes through tokio's
-/// stdout, which holds 16,384 bytes before it writes, so a child with less than
-/// that still to come after the close fails nothing in the loop — the bytes are
-/// still in the buffer when the reader goes — and `EPIPE` appears only at the
-/// final flush. `FITS_IN_THE_FORWARD_BUFFER` covers that band. 588,895 bytes is
-/// 36x past it, so this one always fails in the loop.
+/// A forwarded write's error appears one chunk after the write that caused it:
+/// `Blocking::poll_write` hands the chunk to a blocking task and returns `Ok`
+/// without waiting, and the next `poll_write` — or the flush — reports it. At
+/// 588,895 bytes there is always a next chunk, so the loop is where it lands.
+/// `ARRIVES_IN_ONE_CHUNK` covers the case where there is not.
 const OVERFLOWS_THE_PIPE: &str = "bash -c 'echo done >&2; seq 1 100000'";
 
 /// The producer is last on purpose: `bash` exits with the status of the last
@@ -1199,21 +1199,26 @@ because the close reaches the tee by two different paths, and the second path is
 common shape takes — a small command piped into `head`.
 
 ```rust
-/// A child whose remaining output fits in the forward buffer, so no write in
-/// the loop ever fails and only the flush at EOF can see the close.
+/// One chunk, one read, so only the flush can see the close.
 ///
-/// The consumer is gone before the first byte exists: `(exit 0)` forks, exits,
-/// and closes the read end while the child is still sleeping. Nothing races.
-/// `seq 1 3000` is 13,893 bytes, under tokio's 16,384-byte stdout buffer, so
-/// the whole stream is still buffered when the reader goes.
-const FITS_IN_THE_FORWARD_BUFFER: &str = "bash -c 'sleep 0.5; seq 1 3000'";
+/// The error from a forwarded write appears one chunk after the write that
+/// caused it: `Blocking::poll_write` hands the chunk to a blocking task and
+/// returns `Ok` without waiting, and the next `poll_write` — or the flush —
+/// is what reports it. So a child whose whole output is a single chunk fails
+/// nothing in the loop, and `EPIPE` has exactly one place left to appear.
+///
+/// 2000 bytes is one `write` under `PIPE_BUF`, so it reaches the tee whole in
+/// a single read rather than in however many pieces the producer chose. The
+/// consumer is gone before any of it exists: `(exit 0)` forks, exits and closes
+/// the read end while the child is still sleeping.
+const ARRIVES_IN_ONE_CHUNK: &str = r#"bash -c 'sleep 0.5; printf "%01999d\n" 0'"#;
 
 #[test]
 fn a_close_seen_only_at_the_flush_is_stated_too() {
     let tmp = tempfile::tempdir().unwrap();
     let cap = tmp.path().join("cap");
     let out = pipefail(&format!(
-        "{} run-core --capture-dir {} -- {FITS_IN_THE_FORWARD_BUFFER} | (exit 0)",
+        "{} run-core --capture-dir {} -- {ARRIVES_IN_ONE_CHUNK} | (exit 0)",
         bin(),
         cap.display()
     ));
@@ -1223,13 +1228,13 @@ fn a_close_seen_only_at_the_flush_is_stated_too() {
         err.contains("agent-tools: stdout downstream closed"),
         "a close only the flush can see is still stated; stderr was {err:?}"
     );
-    let captured = std::fs::read_to_string(cap.join("stdout"))
-        .or_else(|_| std::fs::read_to_string(cap.join("output")))
+    let captured = std::fs::read(cap.join("stdout"))
+        .or_else(|_| std::fs::read(cap.join("output")))
         .unwrap();
-    assert!(
-        captured.ends_with("3000\n"),
-        "and the capture still holds everything; got {} bytes",
-        captured.len()
+    assert_eq!(
+        captured.len(),
+        2000,
+        "and the capture still holds everything the child wrote"
     );
 }
 
@@ -1270,9 +1275,12 @@ Expected: both `_is_stated_` tests FAIL — nothing writes a notice today. Expec
 `downstream_quitting_neither_kills_the_child_nor_the_call` **passes**, because it does not
 guard this task; that is stated above and is not a reason to skip the other two.
 
-Run each of them ten times, not once. `a_close_seen_only_at_the_flush_is_stated_too` claims a
-regime boundary at 16,384 bytes that is a property of tokio's stdout rather than a documented
-contract, so 10/10 is the evidence that it sits inside the band and not near its edge.
+Run each of them ten times, not once. `a_close_seen_only_at_the_flush_is_stated_too` depends
+on the child's whole output reaching the tee in a single read, which is an argument about
+`PIPE_BUF` and the tee's 8192-byte buffer rather than a documented contract, so 10/10 is the
+evidence that it holds. Confirm the regime as well as the result: with only the loop fixed and
+the flush still discarded, this test must fail while `_is_stated_on_stderr` passes. If both
+pass, the producer is landing in two chunks and the test is guarding nothing.
 
 **Never `eprintln!` from inside the tee.** It panics when its own write fails, and the
 stream that just closed can be the one it writes to: `cmd 2>&1 | head -3` puts both of the
@@ -1377,9 +1385,10 @@ In `core.rs`, add to `Outcome`:
 
 `post_close_bytes` stays on `TeeOutcome`, where Task 6 compares it against the drain bound,
 and does not go on `Outcome`: no task in this plan reads it there, and it is not what its
-name suggests — it counts from the chunk whose forward write failed, which lags the real
-close by a buffer and includes bytes the downstream may have received. Say that where it is
-defined rather than leaving a later reader to infer a precision it does not have.
+name suggests — it counts from the chunk whose forward write returned the error, which is two
+of the tee's 8192-byte chunks after the real close, and it adds that whole chunk even though
+`write_all` may have accepted a prefix of it. Say that where it is defined rather than leaving
+a later reader to infer a precision it does not have.
 
 and populate them from the awaited tee handles instead of discarding them:
 
