@@ -429,7 +429,13 @@ fn main() {
                     // than its command's, which is the only thing separating
                     // the two once they share a stream. The arms that can fail
                     // only before a child exists never interleave with command
-                    // output, so the inconsistency is deliberate.
+                    // output, so the inconsistency is deliberate — except
+                    // `run::run`'s own empty-command check, which reaches this
+                    // print before any child exists and keeps the prefix
+                    // anyway. Harmless: nothing else is writing to stderr at
+                    // that point for it to be confused with, and the promise
+                    // runs one way — a line beginning `agent-tools:` is the
+                    // wrapper's, not that every wrapper line begins one.
                     // `scripts/check-prompt-coupling.sh` pins the prompt's
                     // half of that promise and `capture.rs`'s five
                     // diagnostics; these two carry it uncovered, which is why

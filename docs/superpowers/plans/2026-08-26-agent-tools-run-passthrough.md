@@ -2430,16 +2430,14 @@ file as text rather than rendered markdown, so the wrapping below would appear v
 the prompt, and every other bullet in that list is one unwrapped line. The blockquote and
 line breaks here are this document's formatting, not the file's.
 
-> - The wrapper forwards the child's bytes unchanged, in order within each stream, and exits
->   with the child's own code — `128 + signum` if the child was signalled, since the wrapper
->   cannot die of its child's signal. Stdin is inherited. Where the caller's stdout and
->   stderr already share one pipe or one appending file, the child gets one destination too,
->   so ordinary calls keep their interleaving and `2>&1` is a no-op. Three deliberate differences: a downstream that
->   quits stops neither the child nor the call, so `… | head -3` prints three lines while the
->   whole result still lands on disk, and `pipefail` reports the producer's own status rather
->   than `141`; the wrapper is a real process, so `pgrep -f` matches it and it outlives
->   signals its child ignores; and it writes its own diagnostics to stderr, always prefixed
->   `agent-tools:`, when a stream or capture fails. `isatty` is false under the wrapper.
+> - The wrapper forwards the child's bytes unchanged, in order within each stream, and exits with the child's own code. Stdin is inherited. Where the caller's stdout and stderr already share one pipe or one appending file, the child gets one destination too, so ordinary calls keep their interleaving and `2>&1` is a no-op. Four differences from bare: (1) a downstream that quits stops neither the child nor the call — `… | head -3` still prints three lines while the whole result lands on disk, and `pipefail` reports the producer's own status rather than `141`, until the post-close drain passes its 256 MiB bound, where the read end closes, the child takes the `SIGPIPE` bare would have given it, and the status line shows `141` beside `drain capped`; (2) the wrapper is a separate process, so a `pkill -f` aimed at the command matches it too; (3) it writes its own diagnostics to stderr, always prefixed `agent-tools:`, when a stream or capture fails; (4) `isatty` is false, which is inherent to a tee rather than chosen.
+
+Reproduced verbatim from what shipped, and it must stay that way: a plan that quotes a
+bullet as "substitute this in full" is the text a later editor will trust, so a stale copy
+here is a live instruction to undo the fixes that followed. This one said "three deliberate
+differences" after the drain bound made four, kept a `128 + signum` clause measurement showed
+distinguished nothing from bare, and said `pgrep -f` where the prompt says `pkill -f` — the
+passive form of the same fact, which tells an agent nothing to do differently.
 
 - [ ] **Step 1b: Teach the bracketed note**
 

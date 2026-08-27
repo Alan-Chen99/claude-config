@@ -126,8 +126,8 @@ Three tiers: which differences are defects, which are trades, which are wishes.
 - **The post-close drain is bounded, and reaching the bound is recorded**, or a runaway
   producer fills the disk and a capped capture passes for complete. At the bound the read
   end closes, so the child sees `SIGPIPE` as bare would; normal operation is uncapped.
-- **The wrapper is visible and durable**: `pgrep -f` matches it, and it survives signals
-  its child ignores. Visible argv makes `ps aux` diagnosis work, with an opt-out; outliving
+- **The wrapper is visible and durable**: `pgrep -f` matches it — so a `pkill -f` aimed at
+  the command matches it too — and it survives signals its child ignores. Visible argv makes `ps aux` diagnosis work, with an opt-out; outliving
   the child lets it reap, drain and record completeness.
 - **Unmerged streams have best-effort relative order.** That order was lost in the kernel
   before the wrapper saw it.
