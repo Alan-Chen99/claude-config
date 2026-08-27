@@ -155,7 +155,9 @@ command is what `ps` exists to add.
 #### The notes segment
 
 Everything that explains a difference from bare, in one bracketed group sitting
-between the byte counts and the capture paths, `; `-separated, in this order:
+between the byte counts and the capture paths, `; `-separated, in this order — which
+`status::tests::a_difference_from_bare_is_readable_beside_the_key` pins by asserting the
+whole bracket group rather than each note independently, since the prompt teaches the order:
 
 | Note                    | Emitted when                                                                                                         |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |

@@ -70,6 +70,13 @@ check '"agent-tools: capture to {} could not be opened (' "$src/capture.rs"
 check '"agent-tools: capture to {} failed ({e}); forwarding continues' "$src/capture.rs"
 check '"agent-tools: capture to {} failed at the flush (' "$src/capture.rs"
 
+# The drain bound's size. The prompt names 256 MiB because "bounded" alone leaves
+# an agent unable to predict which of two behaviours a runaway producer gets —
+# `pipefail` reporting the producer's status, or the `141` the bound forces. That
+# number is a constant in `core.rs`, and nothing else would notice it moving.
+check '256 MiB bound' "$prompt"
+check 'DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;' "$src/core.rs"
+
 # The notes segment and the stat-failure group, both built by `status.rs::render`.
 # The prompt names all five so the agent reads a bracket after the byte counts as
 # facts about the run rather than as a second status key; rename one and that
