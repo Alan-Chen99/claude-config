@@ -108,16 +108,28 @@ survives only a call that returns on its own. Both halves of the pattern carry w
 killed instead of returning:
 
 ```bash
-d=/tmp/bg/<name>; mkdir -p "$d"; rm -f "$d/rc"
-{ <command> >"$d/log" 2>&1; echo $? >"$d/rc"; } &
-echo $! >"$d/pid"
-timeout <seconds> tail --pid="$(cat "$d/pid")" -f /dev/null
-[ -f "$d/rc" ] && { echo "rc=$(cat "$d/rc")"; cat "$d/log"; } || echo "still running: $(cat "$d/pid")"
+agent-tools run --desc "<description>" <executable> <args..> & echo $! >/tmp/<name>.pid
+timeout <seconds> tail --pid="$(cat /tmp/<name>.pid)" -f /dev/null
 ```
 
-Measured end to end in a flagged session: a job finishing inside the wait reported
-`DONE rc=7` with its output inline; a job outrunning a 5-second wait reported `RUNNING`,
-survived the call, and was collected by a later one as `DONE rc=3`.
+`agent-tools run` supplies the rest, so no log file or exit-status file is needed. It
+returns from the call in 0s even unredirected — the Bash tool waits on the process, not on
+its stdout pipe — captures output to the file its status line names, and reports the child
+as `final(<code>)`: a job exiting 42 was reported `[final(42)]` on the next delivery point,
+with `RC-JOB-OUT` in the named capture file. A second job left running reported `[final(0)]`
+at the same point without ever being waited on. `$!` is the wrapper pid, not the child's;
+the wrapper lives exactly as long as the child, which is what makes it the right thing to
+pass to `tail --pid`. A bounded wait on a still-running job exited 124 at its limit and 0
+immediately once the job had finished.
+
+`agent-tools ps --task <tool_use_id>` narrows the report to one wrapped call — 923 bytes
+against 27,480 for the bare `ps` at this point in the session, which is enough to matter.
+
+An earlier draft of this pattern hand-rolled the capture: `{ cmd >log 2>&1; echo $? >rc; } &`
+with its own pid, log and rc files. It worked — a job finishing inside the wait reported
+`DONE rc=7`, and one outrunning a five-second wait reported `RUNNING`, survived the call and
+was collected later as `DONE rc=3` — but every part of it duplicated something the wrapper
+already does.
 
 ## Known defect in the flagged configuration
 
