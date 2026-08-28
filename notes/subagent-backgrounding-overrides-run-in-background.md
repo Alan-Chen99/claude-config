@@ -103,8 +103,9 @@ variants spawned in one call â€” plain `&`, `setsid --wait`, and bare `setsid` â
 advancing the moment the call returned `Exit code 143`. A process-group kill run outside
 Claude Code kills only the plain `&` variant and leaves both `setsid` variants running, so
 whatever Claude Code does reaches a new session as well. A backgrounded job therefore
-survives only a call that returns on its own, which makes the bounded wait the load-bearing
-part of the pattern rather than the `&`:
+survives only a call that returns on its own. Both halves of the pattern carry weight: the
+`&` is what outlives the call, and the bounded wait is what keeps the call from being
+killed instead of returning:
 
 ```bash
 d=/tmp/bg/<name>; mkdir -p "$d"; rm -f "$d/rc"
