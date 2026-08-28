@@ -97,6 +97,27 @@ own status channel. Waiting needs `timeout <s> tail --pid=<pid> -f /dev/null`, n
 `wait`: each Bash call gets a fresh shell, so `wait` answers
 `pid <n> is not a child of this shell`.
 
+The kill on timeout is broader than the process group, and this bounds how backgrounding
+can be used. A call killed at its `timeout` takes down every process it started: three
+variants spawned in one call — plain `&`, `setsid --wait`, and bare `setsid` — all stopped
+advancing the moment the call returned `Exit code 143`. A process-group kill run outside
+Claude Code kills only the plain `&` variant and leaves both `setsid` variants running, so
+whatever Claude Code does reaches a new session as well. A backgrounded job therefore
+survives only a call that returns on its own, which makes the bounded wait the load-bearing
+part of the pattern rather than the `&`:
+
+```bash
+d=/tmp/bg/<name>; mkdir -p "$d"; rm -f "$d/rc"
+{ <command> >"$d/log" 2>&1; echo $? >"$d/rc"; } &
+echo $! >"$d/pid"
+timeout <seconds> tail --pid="$(cat "$d/pid")" -f /dev/null
+[ -f "$d/rc" ] && { echo "rc=$(cat "$d/rc")"; cat "$d/log"; } || echo "still running: $(cat "$d/pid")"
+```
+
+Measured end to end in a flagged session: a job finishing inside the wait reported
+`DONE rc=7` with its output inline; a job outrunning a 5-second wait reported `RUNNING`,
+survived the call, and was collected by a later one as `DONE rc=3`.
+
 ## Known defect in the flagged configuration
 
 The Agent tool description keeps this paragraph while nothing backgrounds:

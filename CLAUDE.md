@@ -92,7 +92,7 @@ What the flag costs, in the same session:
 | Effect | Consequence |
 | --- | --- |
 | Bash loses `run_in_background` | Long commands need `&`, and `timeout <s> tail --pid=<pid> -f /dev/null` to wait |
-| A Bash command outliving its `timeout` is killed, not backgrounded | `agent-tools run` alone no longer keeps a >2 min command alive |
+| A Bash command outliving its `timeout` is killed, not backgrounded | The kill reaches `&`, `nohup` and `setsid` children too, so a job survives only a call that returns on its own — see the backgrounding bullet in `sys_prompt/alan-default-next.md` |
 | MCP auto-background, ctrl+b backgrounding, observer agents | Unavailable |
 | Skills declaring `background: true` | Run inline |
 
