@@ -74,6 +74,37 @@ cd agent-tools && cargo build --release
 CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module> [args...]
 ```
 
+### `settings.json` — `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS`
+
+`env` sets `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which makes every subagent run in
+the foreground and return its report as the tool result of the call that launched it.
+
+The flag is the only lever that does this. Claude Code decides subagent backgrounding in
+the Agent tool with a disjunction whose terms include the fork-subagent feature gate, and
+that gate is on by default; a `run_in_background: false` supplied by the model or injected
+by a `PreToolUse` hook is therefore ignored. Only this flag cancels the disjunction. Turning
+the fork gate off instead (`CLAUDE_CODE_FORK_SUBAGENT=0`) also restores foreground agents,
+at the cost of the `fork` subagent type. Measured evidence and the source reading are in
+`notes/subagent-backgrounding-overrides-run-in-background.md`.
+
+What the flag costs, in the same session:
+
+| Effect | Consequence |
+| --- | --- |
+| Bash loses `run_in_background` | Long commands need `&`, and `timeout <s> tail --pid=<pid> -f /dev/null` to wait |
+| A Bash command outliving its `timeout` is killed, not backgrounded | `agent-tools run` alone no longer keeps a >2 min command alive |
+| MCP auto-background, ctrl+b backgrounding, observer agents | Unavailable |
+| Skills declaring `background: true` | Run inline |
+
+Foreground `sleep` becomes available, because the block on it is conditioned on background
+tasks being enabled. Monitor, `TaskOutput` and `TaskStop` are unaffected, so a Monitor whose
+command exits still delivers a completion notification.
+
+The Agent tool's own description continues to say that subagents run in the background and
+that a notification follows — that fragment is gated on the fork feature, not on this flag,
+so it is emitted while nothing backgrounds. `sys_prompt/alan-default-next.md` contradicts it
+explicitly for that reason.
+
 ### `scripts/claude.sh`
 
 The launcher. Exports the `Claude` git identity, sets `IS_SANDBOX=1` and
