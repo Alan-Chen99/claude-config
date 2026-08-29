@@ -114,7 +114,7 @@ Add to the `mod tests` block at the bottom of `agent-tools/src/status.rs`:
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd agent-tools && cargo test --lib status:: 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools status:: 2>&1 | tail -20`
 Expected: FAIL — `no method named 'is_terminal'`, `no method named 'duration_s'`.
 
 - [ ] **Step 3: Implement**
@@ -164,7 +164,7 @@ impl Status {
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `cd agent-tools && cargo test --lib status:: 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools status:: 2>&1 | tail -20`
 Expected: PASS, all status tests green.
 
 - [ ] **Step 5: Commit**
@@ -256,7 +256,7 @@ Add to `mod tests` in `agent-tools/src/status.rs`:
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd agent-tools && cargo test --lib status:: 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools status:: 2>&1 | tail -20`
 Expected: FAIL — `cannot find function 'fmt_duration'`.
 
 - [ ] **Step 3: Implement**
@@ -315,8 +315,36 @@ Then in `render`, replace the `let age = ...` block and the final `format!` with
         (Some(m), Some(d)) => {
             format!("started {} (+{}), ", fmt_local_hms(m.started_at), fmt_duration(d))
         }
-        _ => String::new(),
+        // A terminal child with no reap — `abandoned` or `spawn-failed`. The
+        // start is known; the end was never observed, and a duration here would
+        // assert one. The start alone is what there is.
+        (Some(m), None) => format!("started {}, ", fmt_local_hms(m.started_at)),
+        // No meta to read a start from.
+        (None, _) => String::new(),
     };
+```
+
+Add a test for that third arm, since `Status::duration_s` returns `None` for a terminal status with no reap (established in Task 1) and a line must not silently lose the start time it does know:
+
+```rust
+    #[test]
+    fn an_abandoned_line_still_says_when_it_started() {
+        let dir = TempDir::new().unwrap();
+        let mut m = dead();
+        let started = Utc::now() - Duration::seconds(4020);
+        m.started_at = started;
+        m.reaped = None;
+        m.drained_at = None;
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        assert_eq!(st.key, StatusKey::Abandoned);
+        let line = render(dir.path(), &st, now);
+        let expected = started.with_timezone(&chrono::Local).format("%H:%M:%S").to_string();
+        assert!(line.contains(&format!("started {expected}")), "line: {line}");
+        assert!(!line.contains("ran "), "nothing observed an end: {line}");
+        assert!(!line.contains("(+"), "a settled child is not accumulating: {line}");
+    }
 ```
 
 and the return expression:
@@ -327,7 +355,7 @@ and the return expression:
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `cd agent-tools && cargo test --lib status:: 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools status:: 2>&1 | tail -20`
 Expected: PASS.
 
 Then run the full suite, because integration tests assert on line shape:
@@ -375,9 +403,12 @@ fn a_report_header_carries_the_clock_it_was_made_at() {
         chrono::NaiveTime::parse_from_str(&stamp[..8], "%H:%M:%S").is_ok(),
         "stamp did not start with HH:MM:SS: {stamp}"
     );
+    let offset = &stamp[9..];
     assert!(
-        stamp.len() > 9 && (stamp.contains('+') || stamp.contains('-')),
-        "stamp carried no offset: {stamp}"
+        offset.len() == 5
+            && (offset.starts_with('+') || offset.starts_with('-'))
+            && offset[1..].chars().all(|c| c.is_ascii_digit()),
+        "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
     );
 }
 ```
@@ -689,7 +720,7 @@ Add to `mod tests` in `agent-tools/src/status.rs`:
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd agent-tools && cargo test --lib status::tests::orphan 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools status::tests::orphan 2>&1 | tail -20`
 Expected: FAIL — `no field 'claude_pid'`.
 
 - [ ] **Step 3: Implement**
@@ -874,7 +905,7 @@ mod tests {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd agent-tools && cargo test --lib psrecord 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools psrecord 2>&1 | tail -20`
 Expected: FAIL to compile — `psrecord` is not a module, `Record` and `Withheld` do not exist.
 
 - [ ] **Step 3: Implement**
@@ -944,6 +975,11 @@ pub struct Record {
     pub tool_use_id: Option<String>,
     pub wrapper_pid: u32,
     pub child_pid: Option<u32>,
+    /// When the *wrapper* started, which is what `meta.json` records — it is
+    /// stamped before the exec is attempted. For every key but `spawn-failed`
+    /// that is within milliseconds of the child's own start. For
+    /// `spawn-failed` there was no child, so this dates the attempt and
+    /// nothing else; `child_pid` is `null` there, which is what says so.
     pub started_at: Option<DateTime<chrono::Local>>,
     /// Present only while the child is live.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1065,7 +1101,7 @@ pub struct Capture {
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd agent-tools && cargo test --lib psrecord 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools psrecord 2>&1 | tail -20`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1370,6 +1406,18 @@ fn render_json(
     }
 ```
 
+4. **`write_capture` carries the second UTC formatter, and it must go through `fmt_local_hms` too.** Task 2 routed `status::render`'s times through local rendering, but `write_capture` in `ps.rs` formats `m.started_at` with its own `format("%H:%M:%S%.3f")` on a UTC instant. Left alone, `ps --format text` keeps printing a UTC time that reads as local — the exact hazard the spec's timing section exists to close, surviving in the one renderer nobody looked at. Replace it:
+
+```rust
+        writeln!(
+            buf,
+            "      started: {}",
+            crate::status::fmt_local_hms(m.started_at)
+        )?;
+```
+
+   The sub-second precision goes with it. It was never load-bearing — a capture's start is read against a wall clock, and milliseconds on a wrong-by-four-hours value bought nothing. Add a test asserting the text renderer's start matches the local rendering of the stored instant, mirroring `a_rendered_start_is_local_time` in `status.rs`, and update `ps_test.rs`'s existing `"started: 10:00:00.000"` assertion, which encodes both the UTC reading and the millisecond format.
+
 - [ ] **Step 4: Run to verify they pass**
 
 Run: `cd agent-tools && cargo test --test ps_test 2>&1 | tail -25`
@@ -1471,7 +1519,7 @@ mod tests {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd agent-tools && cargo test --lib statusline 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools statusline 2>&1 | tail -20`
 Expected: FAIL to compile — no `statusline` module, no `render_records`.
 
 - [ ] **Step 3: Implement**
@@ -1542,7 +1590,7 @@ fn truncate(s: &str, max: usize) -> String {
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd agent-tools && cargo test --lib statusline 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools statusline 2>&1 | tail -20`
 Expected: PASS.
 
 Then verify the wiring end to end:
@@ -1676,11 +1724,11 @@ Add to `mod tests` in `agent-tools/src/paths.rs`:
     }
 ```
 
-These tests mutate process-global environment; run this module's tests single-threaded (`cargo test --lib paths:: -- --test-threads=1`) or the existing suite convention if the file already has one.
+These tests mutate process-global environment; run this module's tests single-threaded (`cargo test --bin agent-tools paths:: -- --test-threads=1`) or the existing suite convention if the file already has one.
 
 - [ ] **Step 2: Run to verify they fail**
 
-Run: `cd agent-tools && cargo test --lib paths:: -- --test-threads=1 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools paths:: -- --test-threads=1 2>&1 | tail -20`
 Expected: FAIL — `cannot find function 'scope_for_run'`.
 
 - [ ] **Step 3: Implement**
@@ -1929,7 +1977,7 @@ mod tests {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd agent-tools && cargo test --lib background 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools background 2>&1 | tail -20`
 Expected: FAIL to compile — no `background` module, no `detach`, no `Detached`, no `Reporter`.
 
 - [ ] **Step 3: Implement**
@@ -2053,7 +2101,7 @@ pub fn detach() -> Detached {
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd agent-tools && cargo test --lib background 2>&1 | tail -20`
+Run: `cd agent-tools && cargo test --bin agent-tools background 2>&1 | tail -20`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -2499,9 +2547,21 @@ Replace it so it teaches `--background` and states the measured truth. The bulle
 
 Remove the `timeout <seconds> tail --pid=…` incantation from the recommended path — it remains correct for a bare `&`, but `--background` is what the prompt should teach.
 
+**Also fix the status-line shape in the same file.** It states `<detail>` is `pid <pid>, <age>, <bytes>`, which Task 2 superseded — a `timing` fragment now sits between the pid and the age. That sentence is the one the agent actually reads, and the spec requires the prompt's quoted lines to match what is emitted. Update it to the three real forms:
+
+- `pid <pid>, started <t>, ran <d>, <age>, <bytes>` for a terminal child
+- `pid <pid>, started <t> (+<d>), <age>, <bytes>` for a live one
+- `pid <pid>, started <t>, <age>, <bytes>` for a terminal child with no reap
+
+Then check `scripts/check-prompt-coupling.sh`: it has no needle for `<detail>`, `pid <pid>` or `<age>`, so nothing currently catches this drift. Add one, or the next change to the line shape breaks the prompt silently again.
+
 - [ ] **Step 3: Update `agent-tools/CLAUDE.md`**
 
-Add `--background` to the `run` entry, and replace the `ps` entry with one naming `--format <json|text|statusline>` (default `json`), `--all`, `--events`, and the live-only default. Add a `psrecord.rs`, `statusline.rs` and `background.rs` row to the file index. State the two rules that are easy to break later:
+Add `--background` to the `run` entry, and replace the `ps` entry with one naming `--format <json|text|statusline>` (default `json`), `--all`, `--events`, and the live-only default. Add a `psrecord.rs`, `statusline.rs` and `background.rs` row to the file index.
+
+**Update the "Report lines" section.** It documents the line shape as `<name> [<key>] pid <pid>, <age>, <bytes> …`, which Task 2 superseded: a `timing` fragment now sits between the pid and the age, in one of three forms — `started <t>, ran <d>, ` for a terminal child, `started <t> (+<d>), ` for a live one, and `started <t>, ` for a terminal child with no reap, whose end nobody observed. That section also enumerates which fields are capped versus escaped; check the enumeration still holds.
+
+State the two rules that are easy to break later:
 
 - `ps` never commits the ledger, in any format. Whether its output reached the agent is not something it can observe.
 - Push report, `ps` and statusline read `psrecord::Record`; none derives a status of its own.
