@@ -196,12 +196,27 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// List or filter live tasks for this session.
+    /// List tasks for this session. JSON by default, with a settled
+    /// capture's detail withheld unless asked for: most captures in a long
+    /// session are already finished, and printing all of them costs far more
+    /// of a size-limited tool result than the ones still running are worth.
     Ps {
         #[arg(long)]
         task: Option<String>,
         #[arg(long = "session-id")]
         session_id: Option<String>,
+        /// json (default) or text.
+        #[arg(long, default_value = "json")]
+        format: String,
+        /// Include captures whose fate is already settled. Off by default:
+        /// what is running is what a reader is still acting on.
+        #[arg(long)]
+        all: bool,
+        /// Include the chronological event log. Off by default: on a real
+        /// session it was more than half the output, and it answers a
+        /// different question than what is running.
+        #[arg(long)]
+        events: bool,
     },
     /// Launch Claude Code against this checkout's config without installing it.
     Claude {
@@ -505,8 +520,14 @@ fn main() {
             }
             std::process::exit(0);
         }
-        Cmd::Ps { task, session_id } => {
-            if let Err(e) = ps::run(task, session_id) {
+        Cmd::Ps {
+            task,
+            session_id,
+            format,
+            all,
+            events,
+        } => {
+            if let Err(e) = ps::run(task, session_id, &format, all, events) {
                 eprintln!("agent-tools ps: {e:#}");
                 std::process::exit(1);
             }

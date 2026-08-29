@@ -8,27 +8,17 @@ use std::path::{Path, PathBuf};
 use crate::events::{self, Event};
 use crate::meta;
 use crate::paths;
-use crate::psrecord::Capture;
+use crate::psrecord::{Capture, Envelope, Record, Withheld};
 
-pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Result<()> {
-    let session_id = match session_override {
-        Some(s) => s,
-        None => {
-            let parent_dir = paths::parent_dir_from_env().context(
-                "AGENT_TOOLS_PARENT_DIR is not set; pass --session-id when invoking ps \
-                 outside a Claude Code Bash tool",
-            )?;
-            let (sid, _, _) = paths::parse_parent_dir(&parent_dir)?;
-            sid
-        }
-    };
-
+pub fn run(
+    task_filter: Option<String>,
+    session_override: Option<String>,
+    format: &str,
+    all: bool,
+    events: bool,
+) -> Result<()> {
+    let session_id = resolve_session(session_override)?;
     let session_dir = paths::state_root()?.join(&session_id);
-    if !session_dir.is_dir() {
-        println!("session: {session_id}");
-        println!("(no state on disk)");
-        return Ok(());
-    }
 
     let mut captures: Vec<Capture> = Vec::new();
     collect_captures(&session_dir, &mut captures)?;
@@ -70,6 +60,80 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
             .then_with(|| a.capture_dir.cmp(&b.capture_dir))
     });
 
+    let now = Utc::now();
+    match format {
+        "json" => render_json(&session_id, &captures, all, now),
+        "text" => render_text(&session_id, &captures, all, events, now),
+        other => anyhow::bail!("unknown --format {other}; expected json or text"),
+    }
+}
+
+/// The session `ps` reports on, in priority order: an explicit
+/// `--session-id`; otherwise the scope a hook already set for this Bash call
+/// (`AGENT_TOOLS_PARENT_DIR`); otherwise the id every Claude Code shell
+/// carries in its own environment, which is what lets `! agent-tools ps`
+/// answer even where no hook ran to set a scope.
+fn resolve_session(session_override: Option<String>) -> Result<String> {
+    if let Some(s) = session_override {
+        return Ok(s);
+    }
+    if let Ok(parent_dir) = paths::parent_dir_from_env() {
+        let (sid, _, _) = paths::parse_parent_dir(&parent_dir)?;
+        return Ok(sid);
+    }
+    std::env::var("CLAUDE_CODE_SESSION_ID").context(
+        "no session: pass --session-id, or run where AGENT_TOOLS_PARENT_DIR or \
+         CLAUDE_CODE_SESSION_ID is set",
+    )
+}
+
+/// `ps --format json` (the default): one `psrecord::Record` per capture,
+/// sorted into `live` or (under `--all`) `settled` — never both, since a
+/// consumer selects a settled child by which array carries it, not by a field
+/// on the record.
+fn render_json(
+    session_id: &str,
+    captures: &[Capture],
+    all: bool,
+    now: DateTime<Utc>,
+) -> Result<()> {
+    let mut live = Vec::new();
+    let mut settled = Vec::new();
+    let mut withheld = Withheld::default();
+    for c in captures {
+        let r = Record::build(&c.capture_dir, c.agent_id.clone(), &c.tool_use_id, now);
+        match (r.terminal, all) {
+            (false, _) => live.push(r),
+            // Asked for, so shown in full — its own array, because `live`
+            // means live.
+            (true, true) => settled.push(r),
+            // Not asked for, so counted rather than dropped: a spawn failure
+            // among a hundred clean exits must stay visible even withheld.
+            (true, false) => withheld.add(&r.key),
+        }
+    }
+    let envelope = Envelope {
+        now: now.with_timezone(&chrono::Local),
+        session: session_id.to_string(),
+        live,
+        settled: all.then_some(settled),
+        withheld,
+    };
+    println!("{}", serde_json::to_string_pretty(&envelope)?);
+    Ok(())
+}
+
+/// `ps --format text`. A settled capture is skipped unless `--all`, and the
+/// event log is skipped unless `--events`: what is running is the question a
+/// reader brings to this command, and an unfiltered dump answers a
+/// different one.
+fn render_text(
+    session_id: &str,
+    captures: &[Capture],
+    all: bool,
+    events: bool,
+    now: DateTime<Utc>,
+) -> Result<()> {
     let mut buf = String::new();
     writeln!(buf, "session: {session_id}")?;
 
@@ -79,13 +143,30 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
         return Ok(());
     }
 
+    // A settled capture is skipped here on the same terms JSON withholds it —
+    // a silent skip reads as "there were none", so the count survives the
+    // filter and is stated once the groups below are drawn.
+    let mut withheld = 0usize;
+    let visible: Vec<&Capture> = captures
+        .iter()
+        .filter(|c| {
+            let keep = all || !crate::status::derive(&c.capture_dir, now).is_terminal();
+            if !keep {
+                withheld += 1;
+            }
+            keep
+        })
+        .collect();
+
     // Group captures by (agent_id, tool_use_id) for display.
     let mut current_agent: Option<Option<String>> = None;
     let mut current_tuid: Option<String> = None;
 
-    // Precompute group sizes keyed by (agent_id, tool_use_id).
+    // Precompute group sizes keyed by (agent_id, tool_use_id), over the
+    // captures that survived the filter above — sizing a header off the full
+    // set would announce a group of four and then show one of them.
     let mut group_sizes: Vec<((Option<String>, String), usize)> = Vec::new();
-    for c in &captures {
+    for c in &visible {
         let key = (c.agent_id.clone(), c.tool_use_id.clone());
         if let Some(last) = group_sizes.last_mut() {
             if last.0 == key {
@@ -97,7 +178,7 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
     }
     let mut group_iter = group_sizes.iter();
 
-    for c in &captures {
+    for c in &visible {
         if current_agent.as_ref() != Some(&c.agent_id) {
             current_agent = Some(c.agent_id.clone());
             current_tuid = None;
@@ -113,56 +194,68 @@ pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Res
         write_capture(&mut buf, c)?;
     }
 
-    // Chronological merge of events.jsonl across all surviving captures'
-    // tool_use_id dirs. Each tool_use_id dir owns a single events.jsonl.
-    let mut seen_tuid_dirs: Vec<PathBuf> = Vec::new();
-    let mut all_events: Vec<(String, Event)> = Vec::new();
-    let mut unreadable_lines = 0usize;
-    let mut event_errors: Vec<String> = Vec::new();
-    for c in &captures {
-        let tuid_dir = c
-            .capture_dir
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| c.capture_dir.clone());
-        if seen_tuid_dirs.contains(&tuid_dir) {
-            continue;
-        }
-        seen_tuid_dirs.push(tuid_dir.clone());
-        // A line that will not parse costs that line, and the count is stated
-        // below: silence about a dropped record reads as "nothing was written".
-        match events::read_all(&tuid_dir) {
-            Ok(log) => {
-                unreadable_lines += log.unreadable;
-                for e in log.events {
-                    all_events.push((c.tool_use_id.clone(), e));
-                }
-            }
-            Err(e) => event_errors.push(format!("{}: {e}", c.tool_use_id)),
-        }
+    if withheld > 0 {
+        writeln!(
+            buf,
+            "{withheld} settled capture{} withheld -> agent-tools ps --all",
+            if withheld == 1 { "" } else { "s" }
+        )?;
     }
-    all_events.sort_by_key(|(_, e)| e.ts);
-    if !all_events.is_empty() || unreadable_lines > 0 || !event_errors.is_empty() {
-        writeln!(buf, "\nevents (chronological, all captures):")?;
-        for (tid, e) in &all_events {
-            writeln!(
-                buf,
-                "  {}  {:<14} {:<20} {}",
-                e.ts.format("%H:%M:%S%.3f"),
-                e.kind,
-                tid,
-                e.data
-            )?;
+
+    // Chronological merge of events.jsonl across every collected capture's
+    // tool_use_id dir — regardless of `--all`, since the log answers a
+    // different question than which capture's status is shown above. Each
+    // tool_use_id dir owns a single events.jsonl.
+    if events {
+        let mut seen_tuid_dirs: Vec<PathBuf> = Vec::new();
+        let mut all_events: Vec<(String, Event)> = Vec::new();
+        let mut unreadable_lines = 0usize;
+        let mut event_errors: Vec<String> = Vec::new();
+        for c in captures {
+            let tuid_dir = c
+                .capture_dir
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| c.capture_dir.clone());
+            if seen_tuid_dirs.contains(&tuid_dir) {
+                continue;
+            }
+            seen_tuid_dirs.push(tuid_dir.clone());
+            // A line that will not parse costs that line, and the count is stated
+            // below: silence about a dropped record reads as "nothing was written".
+            match events::read_all(&tuid_dir) {
+                Ok(log) => {
+                    unreadable_lines += log.unreadable;
+                    for e in log.events {
+                        all_events.push((c.tool_use_id.clone(), e));
+                    }
+                }
+                Err(e) => event_errors.push(format!("{}: {e}", c.tool_use_id)),
+            }
         }
-        if unreadable_lines > 0 {
-            writeln!(
-                buf,
-                "  note: {unreadable_lines} unreadable event line{} skipped",
-                if unreadable_lines == 1 { "" } else { "s" }
-            )?;
-        }
-        for err in &event_errors {
-            writeln!(buf, "  note: events unreadable for {err}")?;
+        all_events.sort_by_key(|(_, e)| e.ts);
+        if !all_events.is_empty() || unreadable_lines > 0 || !event_errors.is_empty() {
+            writeln!(buf, "\nevents (chronological, all captures):")?;
+            for (tid, e) in &all_events {
+                writeln!(
+                    buf,
+                    "  {}  {:<14} {:<20} {}",
+                    e.ts.format("%H:%M:%S%.3f"),
+                    e.kind,
+                    tid,
+                    e.data
+                )?;
+            }
+            if unreadable_lines > 0 {
+                writeln!(
+                    buf,
+                    "  note: {unreadable_lines} unreadable event line{} skipped",
+                    if unreadable_lines == 1 { "" } else { "s" }
+                )?;
+            }
+            for err in &event_errors {
+                writeln!(buf, "  note: events unreadable for {err}")?;
+            }
         }
     }
 
@@ -306,7 +399,7 @@ fn write_capture(buf: &mut String, c: &Capture) -> Result<()> {
         writeln!(
             buf,
             "      started: {}",
-            m.started_at.format("%H:%M:%S%.3f")
+            crate::status::fmt_local_hms(m.started_at)
         )?;
     }
     Ok(())

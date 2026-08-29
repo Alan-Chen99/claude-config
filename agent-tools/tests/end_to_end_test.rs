@@ -280,6 +280,9 @@ fn full_loop_hook_pre_run_hook_post_ps() {
     // --- Step 5: ps --session-id lists the capture. -------------------------
     let ps_out = Command::new(bin())
         .arg("ps")
+        .arg("--format")
+        .arg("text")
+        .arg("--all")
         .arg("--session-id")
         .arg(sid)
         .env("HOME", home.path())
