@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::core;
 use crate::meta::{self, ChildMeta};
@@ -47,15 +47,42 @@ impl Capture {
         }
     }
 
-    /// The byte counts a line carries, and the capture paths it ends with.
-    fn detail(&self, dir: &Path) -> (String, String) {
+    /// The real, openable file(s) this shape holds: one for the merged case,
+    /// two for the split one. The one place that names `output`, `stdout`,
+    /// and `stderr` — `detail`'s glob and `psrecord::Record::build`'s
+    /// `capture` field both read this instead of keeping their own copy of
+    /// the file names, so a rename here cannot leave one of them pointing at
+    /// a file that no longer exists.
+    pub fn paths(&self, dir: &Path) -> Vec<PathBuf> {
         match *self {
-            Capture::Merged(n) => (format!("output={n}B"), format!("{}/output", dir.display())),
-            Capture::Split { out, err } => (
-                format!("out={out}B err={err}B"),
-                format!("{}/{{stdout,stderr}}", dir.display()),
-            ),
+            Capture::Merged(_) => vec![dir.join("output")],
+            Capture::Split { .. } => vec![dir.join("stdout"), dir.join("stderr")],
         }
+    }
+
+    /// The byte counts a line carries, and the capture path it ends with, in
+    /// the compact glob form a line reads at a glance — `paths` returns the
+    /// list a consumer could actually open; a line just needs to say there
+    /// are two.
+    fn detail(&self, dir: &Path) -> (String, String) {
+        let bytes = match *self {
+            Capture::Merged(n) => format!("output={n}B"),
+            Capture::Split { out, err } => format!("out={out}B err={err}B"),
+        };
+        let paths = self.paths(dir);
+        let shown = match paths.as_slice() {
+            [p] => p.display().to_string(),
+            ps => format!(
+                "{}/{{{}}}",
+                dir.display(),
+                ps.iter()
+                    .filter_map(|p| p.file_name())
+                    .map(|n| n.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+        };
+        (bytes, shown)
     }
 }
 

@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use crate::meta::ChildMeta;
 use crate::status;
 
-/// Not a tool-use id, and never pretends to be one: a `!` command has no tool
-/// call to name, and a `Record` naming one anyway would send a caller looking
-/// for a tool result that was never produced.
+/// The directory name a capture gets when no hook set a scope. It is not a
+/// tool-use id and never pretends to be one: `Record::origin` says so, and
+/// `tool_use_id` is null.
 pub const USER_SHELL: &str = "user-shell";
 
 /// One child's status, in the single shape a report, `ps --json`, and a
@@ -19,13 +19,21 @@ pub const USER_SHELL: &str = "user-shell";
 #[derive(Debug, Serialize)]
 pub struct Record {
     pub name: String,
+    /// Raw, unlike `name` and the entries of `notes`: this is the same
+    /// ledger identity `status::render` computes its own copy of, and
+    /// `status.rs`'s policy for that identity is that a raw string is
+    /// harmless to hold in JSON — only a terminal line is a contract. A
+    /// consumer that prints `key` to a terminal must route it through
+    /// `meta::escape_control` itself, exactly as `render` does before
+    /// putting its escaped copy on a line.
     pub key: String,
     pub origin: &'static str, // "tool" | "user-shell"
     pub agent: Option<String>,
     /// `None` for a `!` command: there is no tool use to name.
     pub tool_use_id: Option<String>,
-    /// `None` when `meta.json` will not read: there is then no wrapper pid to
-    /// report, and `0` is a real pid, not a stand-in for that absence.
+    /// `None` when `meta.json` will not read: there is no wrapper pid to
+    /// report in that case, and `0` is a real pid, not a stand-in for that
+    /// absence.
     pub wrapper_pid: Option<u32>,
     pub child_pid: Option<u32>,
     /// The wrapper's own start, stamped before the exec is attempted. For
@@ -34,39 +42,77 @@ pub struct Record {
     /// dates the attempt instead, and a null `child_pid` is what tells the
     /// two cases apart.
     pub started_at: Option<DateTime<chrono::Local>>,
-    /// Never present alongside `ran_s` — see `ran_s`.
+    /// Present only while the child is running and clocked; never alongside
+    /// `ran_s`. Both are absent when `duration_s` has nothing to report: no
+    /// meta was ever read, or the child is terminal with no reap recorded —
+    /// `abandoned` and `spawn-failed`, in practice.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub elapsed_s: Option<f64>,
-    /// Never present alongside `elapsed_s`: whichever of the two a record
-    /// carries is itself the statement of whether the child is still running.
+    /// Present only once the child has settled and a reap recorded when;
+    /// never alongside `elapsed_s`. Absent for the same two keys `elapsed_s`
+    /// is absent for — see `elapsed_s`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ran_s: Option<f64>,
     pub last_byte_at: Option<DateTime<chrono::Local>>,
     pub last_byte_s: Option<f64>,
     pub bytes: u64,
-    pub capture: String,
+    /// The real, openable file(s) backing this capture: one path for the
+    /// merged shape, two for the split one — never the glob a rendered line
+    /// carries, which nothing can `open()`. Always a list, even with one
+    /// entry: a consumer that special-cased a bare string against a list
+    /// would have to already know the merge decision just to parse this
+    /// field, which is the one fact this field exists to carry.
+    pub capture: Vec<String>,
     pub notes: Vec<String>,
-    /// A fact about the session, not the child. Every record carries it, a
-    /// terminal one included, so a child that exited hours ago reading `true`
-    /// once its session ends is correct, not a leak — the leak would be
-    /// `Some(true)` on a record whose child is not terminal. `null` means the
-    /// record has nothing on it that could answer the question either way.
+    /// Stat failures that are not "file not created yet" — see
+    /// `Status::stat_errors`. Omitted, not an empty array, on every normal
+    /// run: a broken filesystem is the rare exception this field exists to
+    /// surface, not a check every reader should have to make.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub stat_errors: Vec<String>,
+    /// Whether the session that started this child is gone — a fact about
+    /// the session, not about the child. Every record carries it, terminal
+    /// ones included, so a child that finished normally hours ago reading
+    /// `true` once its session ends is correct, not a leak. The leak is
+    /// `Some(true)` on a record whose child is not terminal. `null` means
+    /// the record cannot support the question.
     pub orphaned: Option<bool>,
+    /// Not serialized: renderers select on it, readers read `key`. A JSON
+    /// reader tells a settled child from a running one by which array of the
+    /// `Envelope` carries the record — `live` or `settled` — not by a field
+    /// on the record itself.
     #[serde(skip)]
     pub terminal: bool,
 }
 
 impl Record {
+    /// Derive one record from a capture directory. `group` is the third path
+    /// component — a tool-use id, or `USER_SHELL`.
     pub fn build(dir: &Path, agent: Option<String>, group: &str, now: DateTime<Utc>) -> Record {
         let st = status::derive(dir, now);
         let key = st.key.to_string();
         let terminal = st.is_terminal();
         let duration = st.duration_s(now);
+        // `status::name` is the one place that decides what a child is
+        // called, cap included. Re-deriving the meta -> display_name ->
+        // directory chain here would drop the 200-char cap `render` applies,
+        // so the same status core would emit a capped name on one surface
+        // and an uncapped one on the other.
         let name = status::name(dir, &st);
-        let capture = match st.capture {
-            status::Capture::Merged(_) => format!("{}/output", dir.display()),
-            status::Capture::Split { .. } => format!("{}/{{stdout,stderr}}", dir.display()),
-        };
+        let capture: Vec<String> = st
+            .capture
+            .paths(dir)
+            .iter()
+            .map(|p| p.display().to_string())
+            .collect();
+        // The tee opens a capture file before any byte reaches it, so an
+        // mtime can exist with nothing written yet. `render`'s `age` line
+        // gates on the byte count for the same reason; a record disagreeing
+        // with it here would have a statusline and a report describe one
+        // child differently at the same instant.
+        let last_byte = (st.capture.bytes() > 0)
+            .then_some(st.last_byte_at)
+            .flatten();
         let user_shell = group == USER_SHELL;
         Record {
             name,
@@ -82,13 +128,12 @@ impl Record {
                 .map(|m| m.started_at.with_timezone(&chrono::Local)),
             elapsed_s: (!terminal).then_some(duration).flatten(),
             ran_s: terminal.then_some(duration).flatten(),
-            last_byte_at: st.last_byte_at.map(|t| t.with_timezone(&chrono::Local)),
-            last_byte_s: st
-                .last_byte_at
-                .map(|t| ((now - t).num_milliseconds() as f64 / 1000.0).max(0.0)),
+            last_byte_at: last_byte.map(|t| t.with_timezone(&chrono::Local)),
+            last_byte_s: last_byte.map(|t| ((now - t).num_milliseconds() as f64 / 1000.0).max(0.0)),
             bytes: st.capture.bytes(),
             capture,
             notes: status::notes(&st),
+            stat_errors: st.stat_errors.clone(),
             orphaned: st.orphaned(),
             terminal,
         }
@@ -99,11 +144,25 @@ impl Record {
 /// byte budget and a busy session can hold far more children than that
 /// affords. Grouped by key rather than listed by name, so the group itself
 /// never grows past what the budget already refused to carry in full.
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Withheld {
     pub by_key: BTreeMap<String, usize>,
     /// The command that shows every withheld child in full.
     pub retrieve_with: &'static str,
+}
+
+impl Default for Withheld {
+    // A derived `Default` would give `retrieve_with` an empty string, and
+    // `Envelope.withheld` has no `skip_serializing_if`, so a clean envelope
+    // — nothing withheld — would carry an unusable command. `retrieve_with`
+    // names how to see what this struct is short for; it is not a fact
+    // `add` learns, and it holds even when `add` is never called.
+    fn default() -> Self {
+        Withheld {
+            by_key: BTreeMap::new(),
+            retrieve_with: "agent-tools ps --all",
+        }
+    }
 }
 
 impl Withheld {
@@ -117,7 +176,6 @@ impl Withheld {
             key.to_string()
         };
         *self.by_key.entry(bucket).or_insert(0) += 1;
-        self.retrieve_with = "agent-tools ps --all";
     }
 }
 
@@ -136,7 +194,11 @@ pub struct Envelope {
     pub withheld: Withheld,
 }
 
-/// One captured `agent-tools run` invocation on disk.
+/// One captured `agent-tools run` invocation on disk, as `ps` finds it.
+///
+/// It lives here rather than in `ps.rs` because it is the input every
+/// renderer takes: the statusline builds records from it too, and a type two
+/// modules need does not belong inside one of them.
 pub struct Capture {
     pub agent_id: Option<String>,
     pub tool_use_id: String,
@@ -188,13 +250,13 @@ mod tests {
         assert_eq!(v["wrapper_pid"], 4709);
         assert_eq!(v["child_pid"], 4711);
         assert_eq!(v["bytes"], 5);
-        assert!(v["capture"].as_str().unwrap().ends_with("/output"));
+        assert!(v["capture"][0].as_str().unwrap().ends_with("/output"));
         assert!(v["started_at"].as_str().unwrap().contains('T'));
         // `seed` writes no `claude_pid`/`claude_started_ticks` at all — the
-        // shape any wrapper that never recorded a session writes — and Task 5
-        // made both fields default on read. A renderer surfaces `orphaned`
-        // directly, so a record with nothing to answer the question must
-        // carry `null`, not a guess in either direction.
+        // shape any wrapper that never recorded a session writes — and both
+        // fields default on read. A renderer surfaces `orphaned` directly,
+        // so a record with nothing to answer the question must carry
+        // `null`, not a guess in either direction.
         assert!(
             v["orphaned"].is_null(),
             "no claude_pid was ever recorded for this fixture: {v}"
@@ -257,9 +319,11 @@ mod tests {
         let r = Record::build(d.path(), None, "toolu_x", Utc::now());
         let v = serde_json::to_value(&r).unwrap();
         assert_eq!(v["key"], "final(1)");
+        // `seed`'s reap sits 131s after its start (191s ago to 60s ago): the
+        // clock must stop there, not keep running to `now`.
         assert!(
-            v.get("ran_s").is_some(),
-            "a settled child reports what it ran: {v}"
+            (v["ran_s"].as_f64().unwrap() - 131.0).abs() < 1.0,
+            "the clock must stop at the reap: {v}"
         );
         assert!(
             v.get("elapsed_s").is_none(),
@@ -282,6 +346,66 @@ mod tests {
             Some(&2),
             "free-text messages must not each open a bucket: {:?}",
             w.by_key
+        );
+        assert_eq!(
+            w.retrieve_with, "agent-tools ps --all",
+            "the command must hold regardless of what add saw"
+        );
+    }
+
+    /// The shape every `Command::output()` harness produces, and almost no
+    /// production run does — `paths` must still name both real files, not
+    /// the `{stdout,stderr}` glob a rendered line carries.
+    #[test]
+    fn a_split_capture_lists_both_real_paths_not_a_glob() {
+        let d = TempDir::new().unwrap();
+        let now = Utc::now();
+        let meta = serde_json::json!({
+            "wrapper_pid": 4709u32,
+            "wrapper_started_ticks": 1u64,
+            "child_pid": 4711u32,
+            "desc": "build",
+            "command": ["make", "-j8"],
+            "started_at": (now - Duration::seconds(191)).to_rfc3339(),
+            "spawn_error": serde_json::Value::Null,
+            "reaped": serde_json::json!({
+                "at": (now - Duration::seconds(60)).to_rfc3339(), "status": 0
+            }),
+            "drained_at": (now - Duration::seconds(60)).to_rfc3339(),
+        });
+        std::fs::write(
+            d.path().join("meta.json"),
+            serde_json::to_vec(&meta).unwrap(),
+        )
+        .unwrap();
+        // No merged `output` file, so the shape is `Capture::Split`.
+        std::fs::write(d.path().join("stdout"), "out").unwrap();
+        std::fs::write(d.path().join("stderr"), "err").unwrap();
+
+        let r = Record::build(d.path(), None, "toolu_x", Utc::now());
+        assert_eq!(
+            r.capture,
+            vec![
+                d.path().join("stdout").display().to_string(),
+                d.path().join("stderr").display().to_string(),
+            ],
+            "a split capture must list both real paths, not a `{{stdout,stderr}}` glob"
+        );
+    }
+
+    /// Mirrors `status::tests::a_stat_failure_is_reported_not_read_as_no_output`:
+    /// a filesystem problem must reach the pulled record, not just the pushed
+    /// line, or a broken capture reads as a healthy idle child on one surface.
+    #[test]
+    fn a_stat_failure_reaches_the_record_not_just_the_line() {
+        let d = TempDir::new().unwrap();
+        let not_a_dir = d.path().join("regular_file");
+        std::fs::write(&not_a_dir, b"x").unwrap();
+        let r = Record::build(&not_a_dir, None, "toolu_x", Utc::now());
+        let v = serde_json::to_value(&r).unwrap();
+        assert!(
+            v["stat_errors"].as_array().is_some_and(|a| !a.is_empty()),
+            "a broken filesystem must not read as a healthy idle child: {v}"
         );
     }
 }
