@@ -35,21 +35,12 @@ pub async fn run(
         crate::procname::set_comm(comm_hint);
     }
 
-    // The two failures have different cures, and `parent_dir_from_env` already
-    // tells them apart: an absent variable means no hook ran, a rejected one
-    // means a hook ran and set something unusable. Substituting one message for
-    // both sends the reader after a missing hook that is installed and working.
-    let parent_dir = paths::parent_dir_from_env().map_err(|e| {
-        if std::env::var_os("AGENT_TOOLS_PARENT_DIR").is_none() {
-            anyhow!(
-                "{e}\n\
-                 The PreToolUse hook (agent-tools hook-pre) must run before this command.\n\
-                 If you see this from inside a Claude Code Bash tool, the hook is not installed."
-            )
-        } else {
-            e
-        }
-    })?;
+    // `scope_for_run` picks the capture's home: a hook-set AGENT_TOOLS_PARENT_DIR
+    // when one ran, otherwise the session's `user-shell` bucket for a `!` command
+    // (which fires no hook at all), and a loud failure rather than a silent
+    // demotion when the hook ran but left something unusable — see its doc
+    // comment in paths.rs for why the three cases stay apart.
+    let (parent_dir, _origin) = paths::scope_for_run()?;
     std::fs::create_dir_all(&parent_dir)
         .with_context(|| format!("mkdir {}", parent_dir.display()))?;
 

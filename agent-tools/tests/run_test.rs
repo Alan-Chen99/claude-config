@@ -31,6 +31,11 @@ fn errors_when_env_not_set() {
         .args(["run", "--", "echo", "hi"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
+        // Every Claude Code shell exports this too, including whichever shell
+        // is running this test suite; leaving it in place would answer through
+        // the user-shell fallback instead of exercising the case this test
+        // means to cover, where neither route is available.
+        .env_remove("CLAUDE_CODE_SESSION_ID")
         .output()
         .unwrap();
     assert!(!out.status.success());
