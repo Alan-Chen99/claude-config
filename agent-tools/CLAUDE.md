@@ -13,6 +13,7 @@ These strings are emitted by `agent-tools` and quoted verbatim in the system pro
 | `hook_post.rs::bg_notice` → `"BACKGROUNDED: Command was backgrounded. Cause: …"`                 | Same bullet list, closing sentence                     | The prompt keys off `BACKGROUNDED:` at the *start of a line*, which couples position as well as the prefix: `run`'s two notices join with a newline for that reason, and joining them with anything else leaves the second header mid-line where the prompt's rule cannot reach it. `hook_post_test::the_status_header_begins_a_line_even_beside_a_backgrounding_notice` pins it; `check-prompt-coupling.sh` matches literals, not position. The repo's `settings.json` sets `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, under which the Bash tool never returns a `backgroundTaskId`, so `bg_notice` returns `None` on every call and the prompt's `BACKGROUNDED:` sentence describes a line the agent will not see. Both sides stay in place because the setting is a session-level choice rather than a property of this binary, and the coupling guard checks the pair regardless. See the repo-root `CLAUDE.md`. |
 | `capture.rs`'s five diagnostics, every one written through `state`: the downstream-closed notice, the drain-bound notice, and one each for the capture's open, write loop and flush failures | Same bullet list, the passthrough bullet — "always prefixed `agent-tools:`" | The prompt promises the prefix, not the wording, so the guard pins one exact literal per emit site rather than the prefix: measured, dropping `agent-tools:` at one site still leaves four matches in the file, so a bare-prefix grep passes while any four of the five drift. Five sites because the open, the write loop and the flush each need their own message; the `failed (` needle runs on to `forwarding continues` so it cannot also match the flush's line and leave that site unpinned. Drift costs the agent the only thing separating a wrapper diagnostic from its command's own stderr. The notes segment carries the same facts on the status channel, which is what covers the cases stderr cannot — a notice about stderr itself, or about the one destination a merge made of both, since that is the closed descriptor in exactly those. Measured: `… 2>&1 \| head -3` delivers no notice and still reports `[downstream closed]`. `main.rs`'s `run` and `run-core` failure prints are the only other diagnostics reachable once the tees are running, so they carry the same prefix under the same promise; the guard pins `capture.rs`'s five, and a comment at each of those two sites carries the reason its spelling differs from the other subcommands'. |
 | `status.rs::render`'s notes segment and `stat failed:` — `streams split: <why>`, `downstream closed`, `drain capped`, `capture failed: <err>`, `[stat failed: <err>]` | Same bullet list, the status bullet, the sentence beginning "`<detail>` is" | Guarded, one needle per emit site: `check-prompt-coupling.sh` pins the whole `format!` / `push` expression rather than the words, because the bare words also occur in `status.rs`'s own render assertions, so a word-level grep passes over a drifted emitter. Each needle matches exactly one place in the file, and each of the five was watched to fail — change the emitted string and the script names `status.rs`. The prompt teaches the agent that a bracket after the byte counts is facts rather than a second key, and names all five; renaming one leaves that bracket unexplained on a line the agent must still read. See "The notes segment" below for the emit conditions. |
+| `hook_post.rs::collapse_running` → `"  still running: {body}  -> agent-tools ps"` | Same bullet list, the bullet beginning "Children still running" | The bare words `still running` also occur in `bg_notice`'s `"Process is still running (task_id: …)"` and in this file's own comments, so the guard pins the whole `format!` literal rather than the prefix — the same rule the notes-segment row above uses. `running_children_collapse_to_one_line_that_still_names_each_of_them` and `a_dropped_collapsed_line_is_announced_rather_than_silent` pin the behavior the prompt describes; the coupling script pins only the text describing it, and needs its own row because that text is not one of the render-line fields the row above already covers. |
 | `main.rs::GATE_STDOUT` (printed by `agent-tools opencode.gate`)                                  | `opencode/agents/alan-default-ids.md`, step 4 ("gate stdout returns instructions") and step 5 ("reason in a thinking block about what it instructs") of the Doing-tasks list; G1 reinforces R002 (big-picture target), G4 cites R043 (cheap-rejection transparency), G6 cites R090 (no implicit work-assignment), G7 stands alone (evidence-vs-claim), all rules defined in the same agent body | The agent prompt references "gate stdout" without quoting it. If GATE_STDOUT were emptied or removed, the agent prompt would still direct the agent to "follow nothing" — silently no-ops the R060 mistake-check. Pointer-style: items reference rules in the agent body rather than restating them. If the body's R002, R043, or R090 is renumbered or removed, the matching G silently loses its referent. The closing sentence ("re-enter the gate at the next version") is the consumer for the step-5 iterate-until-clean trigger; the body's heredoc uses `turn-<X>-version-<Y>` tags that share this vocabulary. Edit both sides together; rebuild `agent-tools` so the binary actually emits the new text. |
 | `main.rs::MIN_GATE_STDOUT` (printed by `agent-tools min.gate`)                                   | `opencode/agents/min.md`, step 4/5/6 wording; G1 reinforces R002 (big-picture target), G4 cites R043 (cheap-rejection transparency), G6 cites R090 (no implicit work-assignment), all defined in the same agent body | Diagnostic baseline counterpart to GATE_STDOUT — identical text minus G7 (the evidence-vs-claim check). Pointer-style: items reference rules in the agent body rather than restating them, so the gate is a reminder list rather than a complete checklist. If the body's R002, R043, or R090 is renumbered or removed, the matching G silently loses its referent. Edit both sides together; rebuild `agent-tools`. Cite layout was G3→R070 / G5→R090 before round 7 of the failure-mode investigation. |
 
@@ -111,13 +112,17 @@ delivery points for one report, produced by `hook_post::report_changes`:
 2. **Diff.** Compare each key against the per-scope ledger of what the agent was last
    told about that child. An unchanged key produces no line, so silence means nothing
    changed rather than nothing being watched.
-3. **Report.** Render one line per changed child — terminal keys first, identity
-   breaking ties so the output is reproducible rather than in `read_dir` order — and
-   record in the ledger only the lines that fit under the `additionalContext` budget.
-   A dropped line stays pending and lands at the next delivery point; recording a line
-   the agent never saw would retire that change permanently. For the same reason the
-   ledger travels back to the hook uncommitted and is committed only once the write and
-   flush have succeeded: a failed write must cost a repeat, never a loss.
+3. **Report.** Render one line per changed child that is not merely still running
+   (`producing`, `quiet(<bucket>)`) — identity order makes the output reproducible
+   rather than in `read_dir` order — and record in the ledger only the lines that fit
+   under the `additionalContext` budget, settled children claiming it first. Children
+   still running instead share one collapsed line, naming each of them under its key;
+   if even that line does not fit what settled children left of the budget, a count of
+   them is announced instead of dropped in silence. A dropped line — either form —
+   stays pending and lands at the next delivery point; recording a line the agent never
+   saw would retire that change permanently. For the same reason the ledger travels
+   back to the hook uncommitted and is committed only once the write and flush have
+   succeeded: a failed write must cost a repeat, never a loss.
 
 Nothing polls and nothing is scheduled: status is computed at the moment of delivery,
 so a report cannot describe a state older than the tool result it rides on.
@@ -128,11 +133,16 @@ read as "nothing else changed".
 
 ### Report lines
 
-One line per child, always:
+One line per child whose status is anything but merely still running (`producing`,
+`quiet(<bucket>)`), always:
 
 ```
 <name> [<key>] pid <pid>, <age>, <bytes> [<notes>] [stat failed: <errors>] -> <paths>
 ```
+
+Children still running share one collapsed line instead — `still running: [<key>]
+<name>, <name>  -> agent-tools ps` — naming each of them under its key rather than
+getting a line of this shape.
 
 The two trailing bracketed groups are omitted entirely — brackets included — when
 they hold nothing; the key's brackets are always there.

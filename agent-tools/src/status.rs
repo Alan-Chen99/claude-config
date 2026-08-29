@@ -87,12 +87,25 @@ impl fmt::Display for StatusKey {
 impl StatusKey {
     /// Terminal keys end watching: the child's fate is settled and cannot change.
     /// The set is the 2026-08-26 spec's, not a second definition — `ps` selects
-    /// live children by the negation of this, and the report ranks by it.
+    /// live children by the negation of this. The report's own partition is a
+    /// different boundary, deliberately: see `is_still_running`.
     pub fn is_terminal(&self) -> bool {
         match self {
             StatusKey::SpawnFailed(_) | StatusKey::Final(_) | StatusKey::Abandoned => true,
             StatusKey::Producing | StatusKey::Quiet(_) | StatusKey::Exited(_) => false,
         }
+    }
+
+    /// True for a key whose process has not finished executing.
+    ///
+    /// Deliberately not `!is_terminal()`: `Exited` is not terminal (its drain
+    /// may still be open) but it is also not "still running" in the sense a
+    /// report cares about — the process itself is done, and its exit code is
+    /// the most valuable fact on the line. Unifying the two predicates would
+    /// fold `Exited` into `hook_post::collapse_running`'s grouped line, which
+    /// has no field to show an exit code in.
+    pub fn is_still_running(&self) -> bool {
+        matches!(self, StatusKey::Producing | StatusKey::Quiet(_))
     }
 }
 
@@ -911,6 +924,21 @@ mod tests {
         assert!(!StatusKey::Producing.is_terminal());
         assert!(!StatusKey::Quiet("30s").is_terminal());
         assert!(!StatusKey::Exited(0).is_terminal());
+    }
+
+    #[test]
+    fn is_still_running_disagrees_with_is_terminal_on_exited_by_design() {
+        // `Exited` is not terminal (its drain may still be open) but it is not
+        // "still running" either: the process is done, and the report must
+        // keep its exit code on a full line rather than sweep it into
+        // `collapse_running`'s grouped one, which has no room for it.
+        assert!(!StatusKey::Exited(0).is_terminal());
+        assert!(!StatusKey::Exited(0).is_still_running());
+        assert!(StatusKey::Producing.is_still_running());
+        assert!(StatusKey::Quiet("30s").is_still_running());
+        assert!(!StatusKey::Final(0).is_still_running());
+        assert!(!StatusKey::Abandoned.is_still_running());
+        assert!(!StatusKey::SpawnFailed("x".into()).is_still_running());
     }
 
     #[test]

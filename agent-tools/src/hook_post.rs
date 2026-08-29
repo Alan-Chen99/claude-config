@@ -206,10 +206,11 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
         });
     }
     let mut ledger = crate::ledger::Ledger::open(&scope)?;
-    // (id, key, rendered line, name) — name travels with the other three
-    // rather than being recovered later by re-parsing the line: see
-    // `collapse_running`.
-    let mut pending: Vec<(String, String, String, String)> = Vec::new();
+    // (id, key, rendered line, name, still running) — name and the running
+    // flag both travel with the other fields rather than being recovered
+    // later from the string `key` or the rendered `line`: see
+    // `collapse_running` and `StatusKey::is_still_running`.
+    let mut pending: Vec<(String, String, String, String, bool)> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
 
     for tuid_entry in fs::read_dir(&scope)?.flatten() {
@@ -249,23 +250,29 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
                     key,
                     format!("  {}", crate::status::render(&cap_dir, &st, now)),
                     crate::status::name(&cap_dir, &st),
+                    st.key.is_still_running(),
                 ));
             }
         }
     }
-    // Terminal keys first when the budget forces a choice: "this finished" matters
-    // more to an agent than "this is still running". Identity breaks ties, so a
-    // report is reproducible instead of in whatever order read_dir happened to
-    // yield — which would also make the dropped set arbitrary.
-    pending.sort_by(|a, b| rank(&a.1).cmp(&rank(&b.1)).then_with(|| a.0.cmp(&b.0)));
-    let (terminal, running): (Vec<_>, Vec<_>) = pending
+    // Identity order, so the report is reproducible rather than in whatever
+    // order `read_dir` happened to yield — which would also make the dropped
+    // set arbitrary. Terminal-first is no longer this sort's job; see the
+    // partition below.
+    pending.sort_by(|a, b| a.0.cmp(&b.0));
+    // A hard split, not a sort: a still-running child can never edge out a
+    // settled one for budget by sorting earlier. "This finished" matters more
+    // to an agent than "this is still running", so settled children —
+    // including `exited`, whose fate is not yet terminal but whose exit code
+    // is worth a full line — always get first claim on the budget.
+    let (running, terminal): (Vec<_>, Vec<_>) = pending
         .into_iter()
-        .partition(|(_, key, _, _)| rank(key) == 0);
+        .partition(|(_, _, _, _, still_running)| *still_running);
     let mut lines = bound(
         &mut ledger,
         terminal
             .into_iter()
-            .map(|(id, key, line, _)| (id, key, line))
+            .map(|(id, key, line, _, _)| (id, key, line))
             .collect(),
     );
     // `collapse_running` gets only what `bound` left of the budget, not the
@@ -274,10 +281,31 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
     // it, and a report over `REPORT_BUDGET` is replaced whole by the
     // runtime's stub — which reads to the agent as nothing else changed.
     let used: usize = lines.iter().map(|l| l.len() + 1).sum();
-    if let Some(collapsed) =
-        collapse_running(&mut ledger, running, REPORT_BUDGET.saturating_sub(used))
-    {
-        lines.push(collapsed);
+    let running: Vec<(String, String, String, String)> = running
+        .into_iter()
+        .map(|(id, key, line, name, _)| (id, key, line, name))
+        .collect();
+    match collapse_running(&mut ledger, running, REPORT_BUDGET.saturating_sub(used)) {
+        Collapsed::None => {}
+        Collapsed::Line(line) => lines.push(line),
+        // Distinct from `Collapsed::None`, for the reason `bound`'s own
+        // "omitted for size" note exists: a silently dropped change is
+        // indistinguishable from no change at all, which is the exact failure
+        // `REPORT_BUDGET` exists to prevent. The note itself spends budget
+        // too, and is checked against what `bound` left rather than pushed
+        // unconditionally — a `Dropped` this close to a full budget is rare,
+        // but the announcement replacing the very silence it exists to avoid
+        // would not be. In that corner nothing is recorded either way, so
+        // these children are simply retried at the next delivery point.
+        Collapsed::Dropped(n) => {
+            let note = format!(
+                "  ... {n} still-running children changed, omitted for size; they are \
+                 reported at the next delivery point, or run `agent-tools ps` now"
+            );
+            if used + note.len() < REPORT_BUDGET {
+                lines.push(note);
+            }
+        }
     }
     // A reset ledger makes every child look new. Say why, or the agent sees a
     // burst of repeats with no explanation.
@@ -307,16 +335,6 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
 /// dropped line stays pending instead, and lands at the next delivery point.
 /// The count of dropped lines is stated, because a silently truncated report is
 /// indistinguishable from a report of no change.
-/// Ordering weight: 0 for keys that say a child is done, 1 for keys that say it
-/// is still going.
-fn rank(key: &str) -> u8 {
-    if key.starts_with("producing") || key.starts_with("quiet(") {
-        1
-    } else {
-        0
-    }
-}
-
 fn bound(
     ledger: &mut crate::ledger::Ledger,
     pending: Vec<(String, String, String)>,
@@ -335,12 +353,40 @@ fn bound(
         kept.push(line);
     }
     if dropped > 0 {
-        kept.push(format!(
+        let note = format!(
             "  ... {dropped} more changed, omitted for size; they are reported at the \
              next delivery point, or run `agent-tools ps` now"
-        ));
+        );
+        // The note itself spends budget too. Pushing it unconditionally could
+        // let `kept`'s own total exceed REPORT_BUDGET by the note's length —
+        // the same gap `collapse_running`'s `Dropped` case had, in reverse:
+        // there the fix was discovered by a test that packed this function
+        // this tightly. In the corner where even the note does not fit,
+        // saying nothing is the only honest option left; every dropped line
+        // already stayed unrecorded, so it is retried at the next delivery
+        // point regardless.
+        if used + note.len() < REPORT_BUDGET {
+            kept.push(note);
+        }
     }
     kept
+}
+
+/// What became of the still-running children: nothing to say, something said
+/// in full, or something that had to be left out.
+///
+/// `None` and `Dropped` are kept apart for the reason `bound`'s own "omitted
+/// for size" note exists: collapsing "nothing was running" and "something was
+/// running but did not fit" into one `None` would make a dropped change
+/// indistinguishable from no change at all — the exact failure `REPORT_BUDGET`
+/// exists to prevent, arriving through the code meant to prevent it.
+#[derive(Debug)]
+enum Collapsed {
+    None,
+    /// This many children changed but could not be named without exceeding
+    /// the budget; none of them were recorded, so all stay pending.
+    Dropped(usize),
+    Line(String),
 }
 
 /// One line for every child that is merely still running, grouping them by key
@@ -360,15 +406,18 @@ fn bound(
 ///
 /// `budget` is what `bound` did not already spend on terminal lines, not
 /// `REPORT_BUDGET` again — the caller charges both against one ceiling so the
-/// two together can never exceed it.
+/// two together can never exceed it. The caller also decides, once, which
+/// children are "running": this function trusts that partition rather than
+/// re-deriving it, so there is exactly one place a key is classified.
 fn collapse_running(
     ledger: &mut crate::ledger::Ledger,
     running: Vec<(String, String, String, String)>,
     budget: usize,
-) -> Option<String> {
+) -> Collapsed {
     if running.is_empty() {
-        return None;
+        return Collapsed::None;
     }
+    let count = running.len();
     let mut groups: std::collections::BTreeMap<String, Vec<(String, String)>> =
         std::collections::BTreeMap::new();
     for (id, key, _line, name) in running {
@@ -384,19 +433,19 @@ fn collapse_running(
         .join("; ");
     let line = format!("  still running: {body}  -> agent-tools ps");
     if line.len() + 1 > budget {
-        return None;
+        return Collapsed::Dropped(count);
     }
     for (key, members) in &groups {
         for (id, _) in members {
             ledger.record(id, key);
         }
     }
-    Some(line)
+    Collapsed::Line(line)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{rank, report_header};
+    use super::{report_header, Collapsed};
 
     #[test]
     fn a_header_stamps_the_instant_it_is_handed() {
@@ -430,18 +479,35 @@ mod tests {
     }
 
     #[test]
-    fn finished_keys_outrank_running_ones() {
-        for key in [
-            "final(0)",
-            "exited(1)",
-            "abandoned",
-            "spawn-failed(No such file)",
-        ] {
-            assert_eq!(rank(key), 0, "{key} says the child is done");
-        }
-        for key in ["producing", "quiet(30s)", "quiet(2h)"] {
-            assert_eq!(rank(key), 1, "{key} says the child is still going");
-        }
+    fn bounds_own_dropped_count_note_never_pushes_the_kept_total_past_the_budget() {
+        // Uniform lines that pack tightly enough that some are dropped and the
+        // remainder left over is smaller than the note announcing the drop —
+        // the same shape of gap `collapse_running`'s `Dropped` case had,
+        // discovered in this sibling function by a test that packed it
+        // exactly this tightly. Announcing the drop is `bound`'s preference
+        // (see the test below, which has room for the note and gets one), but
+        // never at the cost of the one invariant that actually matters here:
+        // `kept`'s own total staying inside the budget it exists to enforce.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let mut ledger = crate::ledger::Ledger::open(tmp.path()).unwrap();
+        let line_len = 100;
+        let count = super::REPORT_BUDGET / (line_len + 1) + 6;
+        let pending: Vec<(String, String, String)> = (0..count)
+            .map(|i| {
+                (
+                    format!("a/{i}"),
+                    "final(0)".to_string(),
+                    "x".repeat(line_len),
+                )
+            })
+            .collect();
+        let kept = super::bound(&mut ledger, pending);
+        let total: usize = kept.iter().map(|l| l.len() + 1).sum();
+        assert!(
+            total <= super::REPORT_BUDGET,
+            "the dropped-count note must not itself push the kept total past \
+             the budget: {total} bytes, kept: {kept:?}"
+        );
     }
 
     #[test]
@@ -497,9 +563,11 @@ mod tests {
         )];
         let collapsed = super::collapse_running(&mut ledger, running, super::REPORT_BUDGET - used);
         assert!(
-            collapsed.is_none(),
+            matches!(collapsed, Collapsed::Dropped(1)),
             "a collapsed line that does not fit what bound left behind must be \
-             dropped whole, not appended on top of an already-full budget"
+             dropped whole and counted, not silently appended on top of an \
+             already-full budget, and not folded into Collapsed::None either: \
+             got {collapsed:?}"
         );
     }
 }
