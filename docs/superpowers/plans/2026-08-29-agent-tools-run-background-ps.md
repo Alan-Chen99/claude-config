@@ -1462,7 +1462,7 @@ mod tests {
             origin: "tool",
             agent: None,
             tool_use_id: Some("toolu_x".into()),
-            wrapper_pid: 1,
+            wrapper_pid: Some(1),
             child_pid: Some(2),
             started_at: None,
             elapsed_s: Some(elapsed),
@@ -1470,12 +1470,18 @@ mod tests {
             last_byte_at: None,
             last_byte_s: None,
             bytes: 0,
-            capture: "/tmp/x/output".into(),
+            capture: vec!["/tmp/x/output".into()],
             notes: vec![],
+            stat_errors: vec![],
             orphaned: None,
             terminal: key.starts_with("final") || key == "abandoned",
         }
     }
+```
+
+**This literal is a hostage to `Record`'s shape and will drift again.** Check it against the struct as it actually stands before transcribing — `wrapper_pid` became `Option<u32>` so `0` could stop impersonating a real pid, `capture` became `Vec<String>` so a split capture lists openable paths instead of a shell glob, and `stat_errors` was added so a broken filesystem stops reading as a healthy idle child. If the struct has moved again, follow the struct.
+
+```rust
 
     #[test]
     fn nothing_running_prints_nothing() {
