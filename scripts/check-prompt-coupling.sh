@@ -84,6 +84,14 @@ check '"{name} [{key}] pid {pid}, {timing}{age}, {bytes}{notes}{problems} -> {pa
 check 'unwrap_or_else(|| "-".into())' "$src/status.rs"
 check '.and_then(|m| m.child_pid)' "$src/status.rs"
 
+# The collapsed running-children line. `producing`/`quiet(<bucket>)` children
+# do not reach the standard per-child line above; `collapse_running` in
+# hook_post.rs groups them into this one instead. The prompt must say so, or
+# an agent reads a `still running: [...]` line as a malformed single-child one
+# rather than the deliberate group it is.
+check 'still running: [<key>] <name>, <name>; [<key>] <name>  -> agent-tools ps' "$prompt"
+check '"  still running: {body}  -> agent-tools ps"' "$src/hook_post.rs"
+
 # The wrapper's own diagnostics. The prompt promises every one begins
 # `agent-tools:`, which is how the agent tells them from its command's output.
 # The prompt-side needle carries the prefix, not just the promise, or a reworded
