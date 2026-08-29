@@ -51,6 +51,20 @@ impl Merge {
     }
 }
 
+/// The condition recorded when the wrapper, not the caller, owns where the
+/// child's bytes go. Not an exception to the merge rule but an instance of it:
+/// one appending regular file has no offset to disagree about.
+pub const BACKGROUNDED: &str = "backgrounded: wrapper owns the destination";
+
+/// Where the child's streams are forwarded, beyond the capture.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Destination {
+    /// This process's own stdout and stderr, which the merge rule inspects.
+    Caller,
+    /// The caller has gone; the capture is the whole record.
+    Nowhere,
+}
+
 /// The caller's descriptors provably reached two destinations, so bare kept the
 /// streams apart too. Named because `status::render` must not report it: it is
 /// the one split that explains nothing, and it is the shape of every harness
@@ -171,8 +185,8 @@ impl From<anyhow::Error> for CoreError {
     }
 }
 
-/// Run `cmd`, capturing both streams under `capture_dir` and forwarding them to
-/// this process's own stdout/stderr.
+/// Run `cmd`, capturing both streams under `capture_dir` and, per `destination`,
+/// forwarding them to this process's own stdout/stderr or to nowhere at all.
 ///
 /// `on_spawn` receives the child pid the moment it exists, and with it the merge
 /// condition, which was decided before the spawn: it is the one fact explaining a
@@ -189,6 +203,7 @@ pub async fn run_core<S, R>(
     cmd: &[String],
     capture_dir: &Path,
     drain_cap_bytes: Option<u64>,
+    destination: Destination,
     on_spawn: S,
     on_reap: R,
 ) -> Result<Outcome, CoreError>
@@ -212,9 +227,13 @@ where
     std::fs::create_dir_all(capture_dir)
         .map_err(|e| CoreError::Other(anyhow::anyhow!("mkdir {}: {e}", capture_dir.display())))?;
 
-    // The wrapper's own descriptors: what the caller sees, and so what the
-    // decision must be about.
-    let merge = decide_merge(libc::STDOUT_FILENO, libc::STDERR_FILENO);
+    let merge = match destination {
+        Destination::Caller => decide_merge(libc::STDOUT_FILENO, libc::STDERR_FILENO),
+        // Nothing to inspect: there is no caller destination for the streams to
+        // agree or disagree about, and the one this wrapper opens is a single
+        // appending regular file.
+        Destination::Nowhere => Merge::Merged(BACKGROUNDED),
+    };
 
     // `command` owns every write end it is handed, and a pipe reports EOF only
     // once the last one closes. This block is that ownership: it ends at the
@@ -276,15 +295,30 @@ where
     // have.
     let (tee_a, tee_b, watch_a, watch_b) = match streams {
         Streams::Merged(rx) => {
-            let tee = tokio::spawn(capture::tee(
-                "output",
-                rx,
-                dir.join("output"),
-                tokio::io::stdout(),
-                drain_cap_bytes,
-                last_stdout.clone(),
-                dir.clone(),
-            ));
+            let tee = match destination {
+                Destination::Caller => tokio::spawn(capture::tee(
+                    "output",
+                    rx,
+                    dir.join("output"),
+                    tokio::io::stdout(),
+                    drain_cap_bytes,
+                    last_stdout.clone(),
+                    dir.clone(),
+                )),
+                // `tee` always needs a forward writer; with no caller to carry
+                // bytes to, `sink()` is the one that discards every write and
+                // never errs, so a run nobody is watching never reports a
+                // closed downstream it never had.
+                Destination::Nowhere => tokio::spawn(capture::tee(
+                    "output",
+                    rx,
+                    dir.join("output"),
+                    tokio::io::sink(),
+                    drain_cap_bytes,
+                    last_stdout.clone(),
+                    dir.clone(),
+                )),
+            };
             let watch = tokio::spawn(capture::watch_silence(
                 "output",
                 last_stdout,
@@ -425,12 +459,46 @@ mod tests {
         let cap = tmp.path().join("cap");
         let cmd: Vec<String> = Vec::new();
 
-        let err = run_core(&cmd, &cap, None, |_, _| {}, |_| {})
+        let err = run_core(&cmd, &cap, None, Destination::Caller, |_, _| {}, |_| {})
             .await
             .expect_err("an empty command has nothing to run");
 
         assert!(matches!(err, CoreError::Other(_)), "got: {err:?}");
         assert!(!cap.exists(), "nothing ran, so nothing should be captured");
+    }
+
+    /// The one caller of `Destination::Nowhere` today, and the whole of its
+    /// contract: one capture file rather than two, the `BACKGROUNDED` condition
+    /// handed to `on_spawn` before the child is even reaped, and nothing set
+    /// downstream for `forward_closed` to ever notice missing.
+    #[tokio::test]
+    async fn a_run_with_no_destination_captures_both_streams_and_forwards_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let out = run_core(
+            &["sh".into(), "-c".into(), "echo out; echo err 1>&2".into()],
+            dir.path(),
+            None,
+            Destination::Nowhere,
+            |_pid, merge| {
+                assert_eq!(
+                    merge, BACKGROUNDED,
+                    "a run with no caller records why it merged"
+                )
+            },
+            |_code| {},
+        )
+        .await
+        .unwrap();
+        assert_eq!(out.exit_code, 0);
+        let captured = std::fs::read_to_string(dir.path().join("output")).unwrap();
+        assert!(captured.contains("out"), "{captured}");
+        assert!(captured.contains("err"), "{captured}");
+        assert!(
+            !dir.path().join("stdout").exists(),
+            "a merged capture holds one file; the other is absent, not empty"
+        );
+        assert!(!out.forward_closed, "there was no downstream to close");
     }
 
     /// The join result is the whole report: a tee that stopped early looks from

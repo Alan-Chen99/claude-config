@@ -483,6 +483,7 @@ fn main() {
                     &cmd,
                     &capture_dir,
                     drain_cap_bytes,
+                    core::Destination::Caller,
                     |_, _| {},
                     |_| {},
                 ));

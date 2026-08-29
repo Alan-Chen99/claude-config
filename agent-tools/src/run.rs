@@ -180,7 +180,16 @@ pub async fn run(
         }
     };
 
-    let outcome = match core::run_core(&cmd, &child_dir, drain_cap_bytes, on_spawn, on_reap).await {
+    let outcome = match core::run_core(
+        &cmd,
+        &child_dir,
+        drain_cap_bytes,
+        core::Destination::Caller,
+        on_spawn,
+        on_reap,
+    )
+    .await
+    {
         Ok(o) => o,
         Err(core::CoreError::Spawn(e)) => {
             let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
