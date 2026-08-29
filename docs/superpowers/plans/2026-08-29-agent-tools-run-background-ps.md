@@ -1627,12 +1627,26 @@ git commit -m "statusline: the bar said nothing about the jobs the session had r
 **Files:**
 - Modify: `statusline.sh`
 
+**Read this before running any step below.** Two facts make the obvious verification lie, and both were measured:
+
+- `~/.claude/statusline.sh` resolves to the **canonical** checkout's copy, not this worktree's. Editing the file here changes nothing about the running session's bar, by design — worktrees must never `install.sh`.
+- Bare `agent-tools` on `PATH` resolves to the canonical build, which predates `--format` entirely and exits 2 with `unexpected argument '--format' found`.
+
+So the script under test must be run with this worktree's binary ahead of the installed one, or every check below reports the failure marker rather than the feature:
+
+```bash
+PATH=/root/claude-config-work/agent-tools/target/release:$PATH ./statusline.sh
+```
+
+**The live status bar will not change until the canonical checkout is rebuilt from this branch.** That is a merge-time action and is deliberately outside this branch's reach; do not attempt it, and do not treat an unchanged live bar as a defect in this task.
+
 - [ ] **Step 1: Verify the current script runs**
 
 Run:
 ```bash
 cd /root/claude-config-work
-echo '{"model":{"display_name":"Opus"},"session_id":"probe-none","transcript_path":"/tmp/t.jsonl","workspace":{"current_dir":"/tmp"},"context_window":{}}' | ./statusline.sh
+echo '{"model":{"display_name":"Opus"},"session_id":"probe-none","transcript_path":"/tmp/t.jsonl","workspace":{"current_dir":"/tmp"},"context_window":{}}' \
+  | PATH=/root/claude-config-work/agent-tools/target/release:$PATH ./statusline.sh
 ```
 Expected: four lines, the first beginning `Context: 0K`.
 
@@ -1668,7 +1682,7 @@ and after the existing `printf` block:
 Run:
 ```bash
 cd /root/claude-config-work
-echo '{"model":{"display_name":"Opus"},"session_id":"probe-none","transcript_path":"/tmp/t.jsonl","workspace":{"current_dir":"/tmp"},"context_window":{}}' | ./statusline.sh
+echo '{"model":{"display_name":"Opus"},"session_id":"probe-none","transcript_path":"/tmp/t.jsonl","workspace":{"current_dir":"/tmp"},"context_window":{}}' | PATH=/root/claude-config-work/agent-tools/target/release:$PATH ./statusline.sh
 ```
 Expected: the same four lines, no fifth.
 
@@ -1679,7 +1693,7 @@ Run:
 cd /root/claude-config-work
 agent-tools run --desc "statusline-probe" sleep 20 &
 sleep 1
-echo "{\"model\":{\"display_name\":\"Opus\"},\"session_id\":\"$CLAUDE_CODE_SESSION_ID\",\"transcript_path\":\"/tmp/t.jsonl\",\"workspace\":{\"current_dir\":\"/tmp\"},\"context_window\":{}}" | ./statusline.sh
+echo "{\"model\":{\"display_name\":\"Opus\"},\"session_id\":\"$CLAUDE_CODE_SESSION_ID\",\"transcript_path\":\"/tmp/t.jsonl\",\"workspace\":{\"current_dir\":\"/tmp\"},\"context_window\":{}}" | PATH=/root/claude-config-work/agent-tools/target/release:$PATH ./statusline.sh
 ```
 Expected: a fifth line beginning `▶ @` and containing `statusline-probe`.
 
