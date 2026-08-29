@@ -144,11 +144,30 @@ The values above are illustrative. Measured counts from a real session appear un
 - **`origin` distinguishes `tool` from `user-shell`**, and `tool_use_id` is `null` for the
   latter rather than fabricated.
 - **`orphaned` is true when the session that started the child is gone.** The wrapper records
-  `CLAUDE_PID` at start; `ps` reports the absence. Information, not action — nothing is
-  killed automatically, and this spec still does no garbage collection. `CLAUDE_PID` was
-  observed in a main-thread Bash shell and in a subagent's; its presence under `!` is
-  reported by the v2.1.235 decompile but was not directly observed. **Absent, the field is
-  `null`, never `false`** — "the session is gone" and "nobody looked" are different answers.
+  `CLAUDE_PID` **and that process's start ticks** at start; `ps` compares both. Information,
+  not action — nothing is killed automatically, and this spec still does no garbage
+  collection. `CLAUDE_PID` was observed in a main-thread Bash shell and in a subagent's; its
+  presence under `!` is reported by the v2.1.235 decompile but was not directly observed.
+
+  **The ticks are not optional.** A pid alone is recyclable, and measurably so: this host's
+  `pid_max` is 4,194,304, and a live process was found at pid 4,100,738 started 5.8 hours
+  ago while new pids were allocating around 1.92M — the counter had wrapped inside that
+  window. A backgrounded wrapper's lifetime is unbounded, so pid-only comparison fails in
+  exactly the case the field exists for: the session exits, the pid space wraps, an
+  unrelated process takes the number, and the leaked child reports as belonging to a live
+  session forever. `procstat::is_alive` already rejects a recycled pid for wrappers; a
+  session gets the same treatment, and gets the zombie exclusion with it.
+
+  **Three answers, not two.** `Some(true)` when the recorded session is gone, `Some(false)`
+  when it is the same process that was recorded, and **`null` when the record cannot support
+  the question** — no session recorded, or a pid recorded without its ticks. "The session is
+  gone", "the session is alive" and "nobody looked" are different answers, and a record that
+  names a pid it cannot verify supports the third, not the second.
+
+  **Orphanhood is a fact about the session, not about the child.** Every record carries the
+  field, terminal ones included, so a child that finished normally hours ago reports
+  `orphaned: true` once its session ends — correct, and not a leak. The leak is the pair:
+  `orphaned == Some(true)` on a child that is not terminal.
 
 Flags: `--format <json|text|statusline>` selects the renderer and defaults to `json` — `text`
 is today's grouped-by-tool-use human layout, `statusline` is the single line specified below;

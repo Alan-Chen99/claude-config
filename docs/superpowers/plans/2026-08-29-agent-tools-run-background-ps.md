@@ -993,6 +993,12 @@ pub struct Record {
     pub bytes: u64,
     pub capture: String,
     pub notes: Vec<String>,
+    /// Whether the session that started this child is gone — a fact about the
+    /// session, not about the child. Every record carries it, terminal ones
+    /// included, so a child that finished normally hours ago reads
+    /// `orphaned: true` once its session ends. That is correct and is not a
+    /// leak. The leak is the pair: `Some(true)` on a child that is not terminal.
+    /// `null` means the record cannot support the question.
     pub orphaned: Option<bool>,
     /// Not serialized: renderers select on it, readers read `key`.
     #[serde(skip)]
