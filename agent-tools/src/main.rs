@@ -205,9 +205,8 @@ enum Cmd {
         task: Option<String>,
         #[arg(long = "session-id")]
         session_id: Option<String>,
-        /// json (default) or text.
-        #[arg(long, default_value = "json")]
-        format: String,
+        #[arg(long, value_enum, default_value_t = ps::PsFormat::Json)]
+        format: ps::PsFormat,
         /// Include captures whose fate is already settled. Off by default:
         /// what is running is what a reader is still acting on.
         #[arg(long)]
@@ -527,7 +526,7 @@ fn main() {
             all,
             events,
         } => {
-            if let Err(e) = ps::run(task, session_id, &format, all, events) {
+            if let Err(e) = ps::run(task, session_id, format, all, events) {
                 eprintln!("agent-tools ps: {e:#}");
                 std::process::exit(1);
             }

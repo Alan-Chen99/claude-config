@@ -116,6 +116,12 @@ check '"agent-tools: capture to {} failed at the flush (' "$src/capture.rs"
 check '256 MiB bound' "$prompt"
 check 'DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;' "$src/core.rs"
 
+# Bare `agent-tools ps`'s output shape: JSON by default, live captures only.
+# An agent deciding whether it needs `--all` reads this sentence, so it must
+# match the flag's actual default rather than the shape the default replaced.
+check 'bare `agent-tools ps` reports what is running now, as JSON' "$prompt"
+check 'default_value_t = ps::PsFormat::Json' "$src/main.rs"
+
 # The notes segment and the stat-failure group, both built by `status.rs::render`.
 # The prompt names all five so the agent reads a bracket after the byte counts as
 # facts about the run rather than as a second status key; rename one and that

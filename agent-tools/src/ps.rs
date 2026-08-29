@@ -10,10 +10,24 @@ use crate::meta;
 use crate::paths;
 use crate::psrecord::{Capture, Envelope, Record, Withheld};
 
+/// `--format`'s value set, as a `clap::ValueEnum` rather than a bare
+/// `String`: the set was spelled three times over — the help text, the
+/// dispatch match, and a hand-written rejection message — and only two of
+/// those three could ever be checked against each other. `ValueEnum` makes
+/// an unrecognized value clap's rejection to issue, the dispatch match
+/// exhaustive under the compiler, and the third format the next spelling
+/// arrives at needs one variant added, not a fallback arm's text edited to
+/// still be true.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum PsFormat {
+    Json,
+    Text,
+}
+
 pub fn run(
     task_filter: Option<String>,
     session_override: Option<String>,
-    format: &str,
+    format: PsFormat,
     all: bool,
     events: bool,
 ) -> Result<()> {
@@ -29,42 +43,15 @@ pub fn run(
 
     // Newest first, because `ps` is read after a compaction through a tool
     // result that truncates: what started most recently is what the agent is
-    // still acting on. Display groups by tool-use, so a group sorts by its own
-    // newest capture and its captures follow in the same direction — otherwise
-    // the newest capture could sit under a group buried below older ones.
-    let started = |c: &Capture| c.meta.as_ref().map(|m| m.started_at);
-    let mut group_newest: HashMap<(Option<String>, String), Option<DateTime<Utc>>> = HashMap::new();
-    for c in &captures {
-        let key = (c.agent_id.clone(), c.tool_use_id.clone());
-        let newest = group_newest.entry(key).or_default();
-        if started(c) > *newest {
-            *newest = started(c);
-        }
-    }
-    let newest_of = |c: &Capture| {
-        group_newest
-            .get(&(c.agent_id.clone(), c.tool_use_id.clone()))
-            .copied()
-            .flatten()
-    };
-    captures.sort_by(|a, b| {
-        a.agent_id
-            .cmp(&b.agent_id)
-            .then_with(|| newest_of(b).cmp(&newest_of(a)))
-            // Two groups can share a newest time only if seeded that way; the
-            // identifier keeps their captures contiguous.
-            .then_with(|| a.tool_use_id.cmp(&b.tool_use_id))
-            .then_with(|| started(b).cmp(&started(a)))
-            // A capture with no meta has no start time to sort by; its
-            // directory is the wrapper pid, which is stable and unique.
-            .then_with(|| a.capture_dir.cmp(&b.capture_dir))
-    });
+    // still acting on. This is the grouped ranking the text layout needs —
+    // `render_json`'s flat arrays rank themselves again below, since a
+    // group's newest member is routinely not the member either array holds.
+    sort_newest_group_first(&mut captures, |c| c);
 
     let now = Utc::now();
     match format {
-        "json" => render_json(&session_id, &captures, all, now),
-        "text" => render_text(&session_id, &captures, all, events, now),
-        other => anyhow::bail!("unknown --format {other}; expected json or text"),
+        PsFormat::Json => render_json(&session_id, &captures, all, now),
+        PsFormat::Text => render_text(&session_id, &captures, all, events, now),
     }
 }
 
@@ -85,6 +72,47 @@ fn resolve_session(session_override: Option<String>) -> Result<String> {
         "no session: pass --session-id, or run where AGENT_TOOLS_PARENT_DIR or \
          CLAUDE_CODE_SESSION_ID is set",
     )
+}
+
+/// Newest first, by group: an (agent, tool-use) group ranks by its own
+/// newest member's start, and its captures follow in the same direction —
+/// otherwise a group's newest capture could sit under a group buried below
+/// older ones. Takes a projection instead of committing to `&mut [Capture]`
+/// so `run` can rank everything it collected and `render_text` can rank
+/// again over only what its `--all` filter kept — the latter over
+/// `(&Capture, Status)` pairs, without either caller reshaping its data to
+/// match the other's element type.
+fn sort_newest_group_first<T>(items: &mut [T], capture_of: impl Fn(&T) -> &Capture) {
+    let started = |c: &Capture| c.meta.as_ref().map(|m| m.started_at);
+    let mut group_newest: HashMap<(Option<String>, String), Option<DateTime<Utc>>> = HashMap::new();
+    for item in items.iter() {
+        let c = capture_of(item);
+        let key = (c.agent_id.clone(), c.tool_use_id.clone());
+        let newest = group_newest.entry(key).or_default();
+        if started(c) > *newest {
+            *newest = started(c);
+        }
+    }
+    let newest_of = |c: &Capture| {
+        group_newest
+            .get(&(c.agent_id.clone(), c.tool_use_id.clone()))
+            .copied()
+            .flatten()
+    };
+    items.sort_by(|x, y| {
+        let a = capture_of(x);
+        let b = capture_of(y);
+        a.agent_id
+            .cmp(&b.agent_id)
+            .then_with(|| newest_of(b).cmp(&newest_of(a)))
+            // Two groups can share a newest time only if seeded that way; the
+            // identifier keeps their captures contiguous.
+            .then_with(|| a.tool_use_id.cmp(&b.tool_use_id))
+            .then_with(|| started(b).cmp(&started(a)))
+            // A capture with no meta has no start time to sort by; its
+            // directory is the wrapper pid, which is stable and unique.
+            .then_with(|| a.capture_dir.cmp(&b.capture_dir))
+    });
 }
 
 /// `ps --format json` (the default): one `psrecord::Record` per capture,
@@ -112,6 +140,16 @@ fn render_json(
             (true, false) => withheld.add(&r.key),
         }
     }
+    // `captures` arrives ranked by group, the key the grouped text layout
+    // needs and the wrong one here: `live` and `settled` are flat, and a
+    // group's rank can be set by a sibling neither array carries — under
+    // `--background`, routinely a settled one sitting next to a live one in
+    // the same tool-use. Rank each record by its own start instead; stable,
+    // so a tie keeps the group order above, and a capture with no readable
+    // meta (`started_at: None`) sorts last rather than first.
+    let newest_first = |a: &Record, b: &Record| b.started_at.cmp(&a.started_at);
+    live.sort_by(newest_first);
+    settled.sort_by(newest_first);
     let envelope = Envelope {
         now: now.with_timezone(&chrono::Local),
         session: session_id.to_string(),
@@ -143,20 +181,29 @@ fn render_text(
         return Ok(());
     }
 
-    // A settled capture is skipped here on the same terms JSON withholds it —
-    // a silent skip reads as "there were none", so the count survives the
-    // filter and is stated once the groups below are drawn.
-    let mut withheld = 0usize;
-    let visible: Vec<&Capture> = captures
-        .iter()
-        .filter(|c| {
-            let keep = all || !crate::status::derive(&c.capture_dir, now).is_terminal();
-            if !keep {
-                withheld += 1;
-            }
-            keep
-        })
-        .collect();
+    // One `Status` derivation per capture, at the one `now` this render
+    // shares, kept for both the filter decision below and the printed line
+    // further down: a second derivation at a later instant reads whatever
+    // the filesystem holds at that later moment, which for a capture near
+    // the live/terminal boundary need not be what the filter just saw — an
+    // `exited(0)` kept as live could print as `final(0)` moments later, on
+    // the same line the filter approved as non-terminal.
+    let mut withheld = Withheld::default();
+    let mut visible: Vec<(&Capture, crate::status::Status)> = Vec::new();
+    for c in captures {
+        let st = crate::status::derive(&c.capture_dir, now);
+        if all || !st.is_terminal() {
+            visible.push((c, st));
+        } else {
+            withheld.add(&st.key.to_string());
+        }
+    }
+
+    // `captures` arrived ranked over everything collected; a group's rank
+    // there can be set by a capture the filter above just withheld. Ranking
+    // again, over only what will be shown, is what keeps a hidden sibling
+    // from setting a visible group's place in the listing.
+    sort_newest_group_first(&mut visible, |(c, _)| *c);
 
     // Group captures by (agent_id, tool_use_id) for display.
     let mut current_agent: Option<Option<String>> = None;
@@ -166,7 +213,7 @@ fn render_text(
     // captures that survived the filter above — sizing a header off the full
     // set would announce a group of four and then show one of them.
     let mut group_sizes: Vec<((Option<String>, String), usize)> = Vec::new();
-    for c in &visible {
+    for (c, _) in &visible {
         let key = (c.agent_id.clone(), c.tool_use_id.clone());
         if let Some(last) = group_sizes.last_mut() {
             if last.0 == key {
@@ -178,7 +225,7 @@ fn render_text(
     }
     let mut group_iter = group_sizes.iter();
 
-    for c in &visible {
+    for (c, st) in &visible {
         if current_agent.as_ref() != Some(&c.agent_id) {
             current_agent = Some(c.agent_id.clone());
             current_tuid = None;
@@ -187,18 +234,36 @@ fn render_text(
         }
         if current_tuid.as_ref() != Some(&c.tool_use_id) {
             current_tuid = Some(c.tool_use_id.clone());
-            let n = group_iter.next().map(|(_, n)| *n).unwrap_or(1);
+            // `group_sizes` holds exactly one entry per group boundary this
+            // same walk of `visible` crosses, in the order it crosses them —
+            // a `None` here means the two walks disagree about what
+            // `visible` holds, which a fallback would paper over with a
+            // plausible wrong count rather than surface.
+            let n = group_iter.next().map(|(_, n)| *n).expect(
+                "group_sizes has one entry per group boundary crossed in this walk of `visible`",
+            );
             let plural = if n == 1 { "capture" } else { "captures" };
             writeln!(buf, "  tool-use {} ({} {})", c.tool_use_id, n, plural)?;
         }
-        write_capture(&mut buf, c)?;
+        write_capture(&mut buf, c, st, now)?;
     }
 
-    if withheld > 0 {
+    // By key, on the same terms JSON withholds a capture: a bare total would
+    // hide a `spawn-failed` sitting among a hundred clean exits exactly as a
+    // bare count would in the JSON envelope, and reusing `Withheld` is what
+    // keeps the two surfaces from bucketing it differently.
+    if !withheld.by_key.is_empty() {
+        let total: usize = withheld.by_key.values().sum();
+        let by_key = withheld
+            .by_key
+            .iter()
+            .map(|(k, n)| format!("{}: {n}", meta::escape_control(k)))
+            .collect::<Vec<_>>()
+            .join(", ");
         writeln!(
             buf,
-            "{withheld} settled capture{} withheld -> agent-tools ps --all",
-            if withheld == 1 { "" } else { "s" }
+            "{total} settled capture{} withheld -> agent-tools ps --all ({by_key})",
+            if total == 1 { "" } else { "s" }
         )?;
     }
 
@@ -378,16 +443,20 @@ const CMD_MAX: usize = 2000;
 /// budget over the set of children, so it carries fields a report cannot; the
 /// command is still capped per line, for the reason `CMD_MAX` gives.
 ///
-/// Status is derived here rather than read from `c.meta`: the meta on disk is
-/// facts only, and liveness is the wrapper's, never the child pid's — a live
-/// wrapper that has not recorded a reap means the child is alive by definition.
-fn write_capture(buf: &mut String, c: &Capture) -> Result<()> {
-    let now = Utc::now();
-    let st = crate::status::derive(&c.capture_dir, now);
+/// Takes an already-derived `Status` rather than deriving its own: the caller
+/// has just used that same derivation to decide whether this capture is shown
+/// at all, and a fresh derivation here, at a later instant, could disagree
+/// with the one the caller already acted on.
+fn write_capture(
+    buf: &mut String,
+    c: &Capture,
+    st: &crate::status::Status,
+    now: DateTime<Utc>,
+) -> Result<()> {
     writeln!(
         buf,
         "    {}",
-        crate::status::render(&c.capture_dir, &st, now)
+        crate::status::render(&c.capture_dir, st, now)
     )?;
     if let Some(m) = &st.meta {
         writeln!(
