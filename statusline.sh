@@ -16,6 +16,21 @@ CACHE_WR=$(echo "$input" | jq -r '.context_window.current_usage.cache_creation_i
 CACHE_RD=$(echo "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // 0' 2>/dev/null)
 TRANSCRIPT=$(echo "$input" | jq -r '.transcript_path // "N/A"' 2>/dev/null)
 
+SESSION=$(echo "$input" | jq -r '.session_id // empty' 2>/dev/null)
+
+# Open tasks. `ps` prints nothing when nothing is running, so the row appears
+# only when there is something to say. A failure must be visible: an empty line
+# and a broken one are otherwise identical, and silence reads as "nothing is
+# running".
+TASKS=""
+if [ -n "$SESSION" ]; then
+    if TASKS=$(agent-tools ps --format statusline --session-id "$SESSION" 2>/dev/null); then
+        :
+    else
+        TASKS="▶ ?"
+    fi
+fi
+
 COST_FMT=$(printf "%.4f" "$COST" 2>/dev/null || echo "0.0000")
 
 # Context window capacity and absolute usage in K
@@ -35,3 +50,6 @@ printf "%s\n" "Context: ${USED_K}K | \$${COST_FMT} | ${MODEL}"
 printf "%s\n" "Session: ${TOTAL_IN} in / ${TOTAL_OUT} out | Last: ${CURR_IN} in / ${CURR_OUT} out"
 printf "%s\n" "Cache: ${CACHE_WR} write / ${CACHE_RD} read"
 printf "%s\n" "${TRANSCRIPT}"
+[ -n "$TASKS" ] && printf "%s\n" "$TASKS"
+
+exit 0
