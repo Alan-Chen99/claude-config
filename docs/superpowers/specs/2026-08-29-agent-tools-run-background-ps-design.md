@@ -119,10 +119,22 @@ the event log out.
           "tool_use_id":"toolu_01AbC…","wrapper_pid":4709,"child_pid":4711,
           "started_at":"2026-08-29T14:02:11.412+00:00","elapsed_s":191.7,
           "last_byte_at":"2026-08-29T14:05:19.032+00:00","last_byte_s":4.1,
-          "bytes":8134,"capture":"…/4709/output","notes":[],"orphaned":false}],
+          "bytes":8134,"capture":["…/4709/output"],"notes":[],"orphaned":false}],
  "withheld":{"by_key":{"final(0)":12,"final(1)":3,"final(143)":1,"spawn-failed":1},
              "retrieve_with":"agent-tools ps --all"}}
 ```
+
+**`capture` is a list even when it holds one path.** The rendered line writes a split
+capture as `<dir>/{stdout,stderr}`, which is shell brace expansion — fine for a human
+reading a line, unusable to a program, which cannot open it. A consumer that had to
+special-case a string against a list would need to know the merge decision in order to parse
+the field that reports it. One entry for a merged capture, two for a split one.
+
+**`stat_errors` is present when a capture file could not be stat'd** for any reason other
+than not existing yet, and absent otherwise. Without it a broken filesystem reads as a
+healthy idle child — zero bytes, no last byte — which is the divergence between push and
+pull that the shared record exists to prevent, since the rendered line carries the same fact
+as `[stat failed: …]`.
 
 The values above are illustrative. Measured counts from a real session appear under
 "Why this size, measured".

@@ -1593,6 +1593,8 @@ fn truncate(s: &str, max: usize) -> String {
 }
 ```
 
+**Escaping.** `Record` is a JSON sink, so it carries `key` raw — a newline in a spawn error is harmless there. This renderer is not a JSON sink: its output is one line in a terminal, where a newline splits the status bar and a terminal escape sequence is executed. `Record.name` arrives already escaped, because `status::name` routes through `meta::escape_control`; `key` does not. Anything this renderer prints that did not come through `name` must go through `meta::escape_control` first. Add a test seeding a `--desc` and a spawn error containing a newline and an ANSI escape, asserting the rendered line contains neither.
+
 `Capture` already lives in `psrecord.rs` as of Task 6, so `use crate::psrecord::{Capture, Record};` at the top of this file and write `&[Capture]` rather than `&[crate::Capture]` in `render`'s signature.
 
 - [ ] **Step 4: Run to verify it passes**
