@@ -10,6 +10,10 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 prompt="$root/sys_prompt/alan-default-next.md"
+# The exhaustive grammar lives in a reference doc rather than in every request's
+# system prompt; the prompt carries only the subset that changes what an agent
+# types. Both are pinned, so a rename in the source still fails this check.
+ref="$root/docs/agent-tools-status-reference.md"
 src="$root/agent-tools/src"
 status_source="0"
 
@@ -24,6 +28,7 @@ check() {
 # The status report header. Emitted on both delivery channels: tool results
 # (hook-post) and user turns (hook-prompt).
 check '[agent-tools] run status:' "$prompt"
+check '[agent-tools] run status:' "$ref"
 check '"[agent-tools] run status:\n{}"' "$src/hook_post.rs"
 check '"[agent-tools] run status:\n{}"' "$src/hook_prompt.rs"
 
@@ -32,8 +37,12 @@ check '"[agent-tools] run status:\n{}"' "$src/hook_prompt.rs"
 check '"[agent-tools] run status: unavailable' "$src/hook_post.rs"
 check '"[agent-tools] run status: unavailable' "$src/hook_prompt.rs"
 
-# The backgrounding notice. The prompt keys off the prefix alone.
-check 'BACKGROUNDED:' "$prompt"
+# The backgrounding notice. `hook_post.rs` gates it on `backgroundTaskId`, which
+# Bash never returns under `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (settings.json),
+# so the line cannot reach the agent in this configuration and the system prompt
+# does not spend tokens teaching it. The emit site is still pinned, and the
+# reference doc records why the prompt is silent about it.
+check 'BACKGROUNDED:' "$ref"
 check '"BACKGROUNDED: Command was backgrounded.' "$src/hook_post.rs"
 
 # Status keys. The prompt lists the key names; `status.rs`'s Display impl emits
@@ -42,7 +51,7 @@ check '"BACKGROUNDED: Command was backgrounded.' "$src/hook_post.rs"
 # failure — the fix is a one-word edit to the needle below.
 while IFS='|' read -r in_prompt in_source; do
   [ -n "$in_prompt" ] || continue
-  check "$in_prompt" "$prompt"
+  check "$in_prompt" "$ref"
   check "$in_source" "$src/status.rs"
 done <<'KEYS'
 producing|write!(f, "producing")
@@ -63,7 +72,8 @@ KEYS
 # so it cannot also match the flush's line and leave that site unpinned. Each
 # needle is a fragment of one physical line — these format strings are
 # line-continued and `grep -qF` does not span lines.
-check 'always prefixed `agent-tools:`' "$prompt"
+check 'prefixed `agent-tools:`' "$prompt"
+check 'always prefixed `agent-tools:`' "$ref"
 check '"agent-tools: {stream_name} downstream closed ({err}); still capturing to' "$src/capture.rs"
 check '"agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes' "$src/capture.rs"
 check '"agent-tools: capture to {} could not be opened (' "$src/capture.rs"
@@ -74,7 +84,7 @@ check '"agent-tools: capture to {} failed at the flush (' "$src/capture.rs"
 # an agent unable to predict which of two behaviours a runaway producer gets —
 # `pipefail` reporting the producer's status, or the `141` the bound forces. That
 # number is a constant in `core.rs`, and nothing else would notice it moving.
-check '256 MiB bound' "$prompt"
+check '256 MiB bound' "$ref"
 check 'DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;' "$src/core.rs"
 
 # The notes segment and the stat-failure group, both built by `status.rs::render`.
@@ -86,7 +96,7 @@ check 'DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;' "$src/core.rs"
 # emitter. Each needle was verified to match exactly one place in `status.rs`.
 while IFS='|' read -r in_prompt in_source; do
   [ -n "$in_prompt" ] || continue
-  check "$in_prompt" "$prompt"
+  check "$in_prompt" "$ref"
   check "$in_source" "$src/status.rs"
 done <<'NOTES'
 streams split: <why>|format!("streams split: {}", meta::escape_control(why))

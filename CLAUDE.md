@@ -92,7 +92,7 @@ What the flag costs, in the same session:
 | Effect | Consequence |
 | --- | --- |
 | Bash loses `run_in_background` | Long commands need `&`, and `timeout <s> tail --pid=<pid> -f /dev/null` to wait |
-| A Bash command outliving its `timeout` is killed, not backgrounded | The kill reaches `&`, `nohup` and `setsid` children too, so a job survives only a call that returns on its own — see the backgrounding bullet in `sys_prompt/alan-default-next.md` |
+| A Bash command outliving its `timeout` is killed, not backgrounded | The kill reaches the call's live descendants — `&`, `nohup` and `setsid --wait` children included — so a job survives only a call that returns on its own, or a double-fork that reparents it to init before the kill (bare `setsid`). See the backgrounding bullet in `sys_prompt/alan-default-next.md` |
 | MCP auto-background, ctrl+b backgrounding, observer agents | Unavailable |
 | Skills declaring `background: true` | Run inline |
 
@@ -155,3 +155,4 @@ Style-matched content generation from any style reference file. 3-phase iterativ
 | `system-prompt-snapshot/`                  | Captured system prompts and full API requests — live capture, cc 2.1.235   | Comparing prompt versions, understanding API parameters, spawning a `claude` child that must authenticate |
 | `background-sessions.md`                   | How a session moves to the agent view (FleetView), what the fork inherits, disable knobs — cc 2.1.235 | Diagnosing a session that backgrounded itself, or a custom system prompt that stopped applying |
 | `tool-token-limits.md`                     | Token counting, truncation, and size limits per tool | Understanding tool output constraints, debugging limits |
+| `agent-tools-status-reference.md`          | Full `agent-tools run` status grammar, passthrough differences from bare, and the kill boundary — the exhaustive half of what `sys_prompt/alan-default-next.md` states in brief; pinned to source by `scripts/check-prompt-coupling.sh` | Reading a status line in detail, diagnosing a wrapped run, or editing either side of the prompt/source coupling |
