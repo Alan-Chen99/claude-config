@@ -141,6 +141,11 @@ enum Cmd {
         /// 256 MiB default to see it, and would not be written.
         #[arg(long)]
         drain_cap_bytes: Option<u64>,
+        /// Return as soon as the child has started, then detach. Exit 0 means
+        /// started, not succeeded: the child's own status reaches the caller
+        /// through the status channel and nowhere else.
+        #[arg(long)]
+        background: bool,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         cmd: Vec<String>,
     },
@@ -432,6 +437,63 @@ fn uv_run(
     std::process::exit(1);
 }
 
+/// Take the detached wrapper off the caller's descriptors.
+///
+/// stdout and stderr go to `/dev/null`, and the quieter of the two reasons is
+/// the worse one. A forked child inherits fd 1 and fd 2 as the very open file
+/// description the caller is using — measured: parent and detached child both
+/// showing fd 1 on one pipe object — so a caller reading to EOF, which is
+/// Claude Code's Bash tool, `Command::output` and `$(...)` alike, waits for
+/// this process rather than for the parent that already answered it, and
+/// `--background` returns no sooner than a foreground run. The louder reason is
+/// that anything written here afterwards lands in the middle of whatever the
+/// caller ran next. The wrapped command's own bytes are unaffected: they go to
+/// the capture, which is the whole record of a backgrounded run. This process's
+/// own later failures are not in that record — `main` prints them, and past
+/// this point nobody reads them — so a backgrounded run that fails after its
+/// child started shows up as `abandoned` and says no more than that.
+///
+/// stdin is left alone unless it is a terminal, so `< file` and heredocs still
+/// feed the child — measured: a heredoc reaches a `setsid` child that reads it
+/// after the parent has moved on. A terminal is replaced, because a detached
+/// process must not read one: it has left the foreground process group, and the
+/// read would stop it with `SIGTTIN`.
+///
+/// Failing is loud rather than best-effort, and the caller is still blocking
+/// when it fails, so the reason can still reach it. A partial redirect is a
+/// failure too: fd 2 left on the caller's pipe holds it open exactly as fd 1
+/// would.
+fn detach_std_fds() -> anyhow::Result<()> {
+    use std::os::fd::AsRawFd;
+
+    let devnull = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/null")
+        .map_err(|e| anyhow::anyhow!("open /dev/null: {e}"))?;
+
+    let point_at_devnull = |target: i32| -> anyhow::Result<()> {
+        // SAFETY: `dup2` is safe to call for any two integers; it is `unsafe`
+        // only as a raw FFI declaration. The source is a descriptor this scope
+        // owns and the target is one of this process's own standard three.
+        if unsafe { libc::dup2(devnull.as_raw_fd(), target) } == -1 {
+            return Err(anyhow::anyhow!(
+                "point fd {target} at /dev/null: {}",
+                io::Error::last_os_error()
+            ));
+        }
+        Ok(())
+    };
+    point_at_devnull(libc::STDOUT_FILENO)?;
+    point_at_devnull(libc::STDERR_FILENO)?;
+    // SAFETY: as above. `isatty` answers 0 for a closed descriptor too, which
+    // is the right answer here: there is nothing to take this process off.
+    if unsafe { libc::isatty(libc::STDIN_FILENO) } == 1 {
+        point_at_devnull(libc::STDIN_FILENO)?;
+    }
+    Ok(())
+}
+
 /// Subcommand names `settings.json` may wire a hook to.
 ///
 /// Hidden subcommands are excluded. `get_subcommands` yields them too, so
@@ -456,13 +518,52 @@ fn main() {
             desc,
             hide_cmdline,
             drain_cap_bytes,
+            background,
             cmd,
         } => {
+            // Ahead of the runtime, and that ordering is the whole reason this
+            // arm is shaped this way: a tokio runtime's worker threads do not
+            // cross `fork`, and `detach` refuses to fork a process that has
+            // started any thread at all rather than hand the child an address
+            // space where a departed thread still holds a lock. Anything added
+            // above this line that starts a thread turns `--background` into a
+            // hard failure — which is the good outcome, and the one that guard
+            // buys.
+            let mut reporter = None;
+            if background {
+                match background::detach() {
+                    // The child said it started, and saying so is all that is
+                    // left for this process to do.
+                    background::Detached::Parent(Ok(line)) => {
+                        println!("{line}");
+                        std::process::exit(0);
+                    }
+                    background::Detached::Parent(Err(e)) => {
+                        eprintln!("agent-tools: run: {e:#}");
+                        std::process::exit(2);
+                    }
+                    // Detached, in a session of its own, holding the one channel
+                    // back to a caller that is still blocking on it.
+                    background::Detached::Child(r) => {
+                        if let Err(e) = detach_std_fds() {
+                            // Reported rather than shrugged off: a wrapper that
+                            // cannot leave the caller's descriptors is not
+                            // backgrounded at all — the caller's read ends when
+                            // this process does, which is the wait the flag
+                            // exists to remove — and it presents as a hang
+                            // rather than as a failure. The caller is still
+                            // listening here, so it can be told instead.
+                            r.failed(&e);
+                        }
+                        reporter = Some(r);
+                    }
+                }
+            }
             let code = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run::run(desc, hide_cmdline, drain_cap_bytes, cmd));
+                .block_on(run::run(desc, hide_cmdline, drain_cap_bytes, reporter, cmd));
             match code {
                 Ok(c) => std::process::exit(c),
                 Err(e) => {

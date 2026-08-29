@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+use crate::background;
 use crate::core;
 use crate::events;
 use crate::meta::{self, ChildMeta};
@@ -11,10 +12,35 @@ pub async fn run(
     desc: Option<String>,
     hide_cmdline: bool,
     drain_cap_bytes: Option<u64>,
+    reporter: Option<background::Reporter>,
     cmd: Vec<String>,
 ) -> Result<i32> {
+    // A caller that asked for `--background` is blocked on this and on nothing
+    // else, and its presence is the whole of "is this run backgrounded" — one
+    // fact with one representation, rather than a flag beside it that could
+    // come to disagree. Shared because the two sites that finish the protocol,
+    // the spawn callback and the spawn-error arm below, are exclusive in fact
+    // and not in a way the borrow checker can see: `on_spawn` is `FnOnce` and
+    // must own what it consumes, while the error arm runs only if it never
+    // fired.
+    let reporter = Arc::new(Mutex::new(reporter));
+
+    // A failure before the spawn is the caller's to hear about while it is
+    // still listening. Without this every early return below reaches it as
+    // "exited before saying whether it started" — the reason lost, and with it
+    // the difference from the shell's `&` this flag exists to be.
+    macro_rules! bail_to_caller {
+        ($e:expr) => {{
+            let e: anyhow::Error = $e;
+            match take_reporter(&reporter) {
+                Some(r) => r.failed(&e),
+                None => return Err(e),
+            }
+        }};
+    }
+
     if cmd.is_empty() {
-        return Err(anyhow!("no command supplied after --"));
+        bail_to_caller!(anyhow!("no command supplied after --"));
     }
 
     // Default: set a helpful process title (`comm`) so `ps -o comm=`
@@ -40,15 +66,25 @@ pub async fn run(
     // (which fires no hook at all), and a loud failure rather than a silent
     // demotion when the hook ran but left something unusable — see its doc
     // comment in paths.rs for why the three cases stay apart.
-    let (parent_dir, _origin) = paths::scope_for_run()?;
-    std::fs::create_dir_all(&parent_dir)
-        .with_context(|| format!("mkdir {}", parent_dir.display()))?;
+    let (parent_dir, _origin) = match paths::scope_for_run() {
+        Ok(v) => v,
+        Err(e) => bail_to_caller!(e),
+    };
+    match std::fs::create_dir_all(&parent_dir)
+        .with_context(|| format!("mkdir {}", parent_dir.display()))
+    {
+        Ok(()) => {}
+        Err(e) => bail_to_caller!(e),
+    }
 
     // The capture dir is named by the WRAPPER's pid: it exists before the
     // child does, so a command that fails to exec still has a directory to be
     // reported from.
     let wrapper_pid = std::process::id();
-    let wrapper_started_ticks = crate::procstat::start_ticks(wrapper_pid)?;
+    let wrapper_started_ticks = match crate::procstat::start_ticks(wrapper_pid) {
+        Ok(t) => t,
+        Err(e) => bail_to_caller!(e),
+    };
     let started_at = chrono::Utc::now();
     // Parsed once so `claude_pid` and `claude_started_ticks` cannot end up
     // describing two different pids if one of these call sites is edited
@@ -74,9 +110,10 @@ pub async fn run(
         claude_pid,
         claude_started_ticks,
     };
-    let child_dir = publish_child_dir(&parent_dir, wrapper_pid, &cm)?;
-
-    use std::sync::Mutex;
+    let child_dir = match publish_child_dir(&parent_dir, wrapper_pid, &cm) {
+        Ok(d) => d,
+        Err(e) => bail_to_caller!(e),
+    };
 
     // Shared with the callbacks below, which the core calls at the instant each
     // fact becomes true. Every lock site takes a poisoned guard rather than
@@ -90,10 +127,11 @@ pub async fn run(
     // wrapper's failure, not the child's, and must not decide what the caller
     // learns the child did.
     //
-    // The fifth is the pre-spawn write above, which propagates, and displaces
-    // nothing by doing so: no child exists yet, and `run` returns from there
-    // without spawning one, so there is no child status for the write error to
-    // stand in place of and no later fault it could be reported instead of.
+    // The fifth is the pre-spawn write above, whose failure reaches the caller
+    // — by return, or through the reporter when the run is backgrounded — and
+    // displaces nothing by doing so: no child exists yet, and `run` goes no
+    // further, so there is no child status for the write error to stand in
+    // place of and no later fault it could be reported instead of.
     //
     // The cost of discarding is specific, and different per fact. The
     // `child_pid` write carries two, and loses both together. A lost pid shows
@@ -135,6 +173,7 @@ pub async fn run(
         let parent = parent_dir.clone();
         let desc = desc.clone();
         let cmdv = cmd.clone();
+        let reporter = reporter.clone();
         move |pid: u32, merge: &'static str| {
             let mut m = cm.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             m.child_pid = Some(pid);
@@ -155,6 +194,24 @@ pub async fn run(
                 serde_json::json!({"wrapper_pid": wrapper_pid, "child_pid": pid, "desc": desc, "command": cmdv}),
             )
             .ok();
+            // Last, so everything a reader goes looking for on the strength of
+            // this line is already on disk when the caller receives it. Here
+            // rather than anywhere earlier because this is where the child pid
+            // becomes knowable, and a start nobody can name is one nobody can
+            // watch, kill, or wait for.
+            //
+            // The directory is escaped for the reason `ChildMeta::display_name`
+            // escapes: this line is read one line at a time, so a scope
+            // directory whose name carries a newline would print a second line
+            // that reads as a status line for a run that does not exist.
+            // Nothing else here can — the pids are numbers, and `--desc` never
+            // reaches this line.
+            if let Some(r) = take_reporter(&reporter) {
+                r.started(&format!(
+                    "{}  wrapper pid {wrapper_pid}  child pid {pid}",
+                    meta::escape_control(&dir.display().to_string())
+                ));
+            }
         }
     };
 
@@ -180,11 +237,26 @@ pub async fn run(
         }
     };
 
+    // The same fact as the reporter's presence, read off the same cell rather
+    // than off a second flag beside it: a run with a report still to make is a
+    // run whose caller has already been answered and moved on, so forwarding to
+    // this process's descriptors would write into whatever it ran next. The
+    // capture is the whole record there.
+    let destination = if reporter
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .is_some()
+    {
+        core::Destination::Nowhere
+    } else {
+        core::Destination::Caller
+    };
+
     let outcome = match core::run_core(
         &cmd,
         &child_dir,
         drain_cap_bytes,
-        core::Destination::Caller,
+        destination,
         on_spawn,
         on_reap,
     )
@@ -206,9 +278,28 @@ pub async fn run(
                 serde_json::json!({"wrapper_pid": wrapper_pid, "command": cmd, "error": e.to_string()}),
             )
             .ok();
-            return Err(anyhow!("spawn {:?}: {e}", cmd));
+            // The spawn is the last thing that can fail before a child exists,
+            // so `on_spawn` never ran and the report is still unmade. Without
+            // this the caller learns only that the wrapper exited, and the one
+            // thing that actually went wrong is the one thing never said.
+            let failed = anyhow!("spawn {:?}: {e}", cmd);
+            if let Some(r) = take_reporter(&reporter) {
+                r.failed(&failed);
+            }
+            return Err(failed);
         }
-        Err(core::CoreError::Other(e)) => return Err(e),
+        Err(core::CoreError::Other(e)) => {
+            // Raised on both sides of the spawn: `run_core` reports its pipe
+            // and directory failures under this name as well as its failures to
+            // wait on a running child. Which one this is needs no test here,
+            // because the cell answers it — `on_spawn` empties it the instant a
+            // child exists — so a failure before any start is reported, and one
+            // after it is not reported twice.
+            if let Some(r) = take_reporter(&reporter) {
+                r.failed(&e);
+            }
+            return Err(e);
+        }
     };
 
     {
@@ -237,6 +328,24 @@ pub async fn run(
     .ok();
 
     Ok(outcome.exit_code)
+}
+
+/// Take the one report the caller is still blocking on, if nothing has made it
+/// yet.
+///
+/// Presence is the whole state of the protocol: the reporter stays here until
+/// either there is a child to name or the run has failed before there was one,
+/// and exactly one of those consumes it. A site that finds it gone is a site
+/// running after the caller has already been answered, and its silence is
+/// correct — a second report would be written to a pipe nobody is reading.
+///
+/// A poisoned lock is taken rather than unwrapped, for the reason the `cm`
+/// lock's sites give and one more: a panic here would leave the caller blocked
+/// on a pipe until this process dies, and then reading nothing.
+fn take_reporter(cell: &Mutex<Option<background::Reporter>>) -> Option<background::Reporter> {
+    cell.lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take()
 }
 
 /// State a best-effort `meta.json` write that failed, so a fact lost to disk is
