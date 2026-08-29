@@ -116,7 +116,12 @@ fn the_report_is_carried_in_the_envelope_the_runtime_reads() {
         .get("additionalContext")
         .and_then(|s| s.as_str())
         .unwrap_or_else(|| panic!("additionalContext must be a string: {stdout}"));
-    assert!(ctx.starts_with("[agent-tools] run status:\n"), "ctx: {ctx}");
+    let first = ctx.lines().next().unwrap();
+    assert!(
+        first.starts_with("[agent-tools] run status @ "),
+        "ctx: {ctx}"
+    );
+    assert!(first.ends_with(':'), "ctx: {ctx}");
     assert!(ctx.contains("orphaned build [abandoned]"), "ctx: {ctx}");
 }
 

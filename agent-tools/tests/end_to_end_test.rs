@@ -251,7 +251,7 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         .as_str()
         .expect("additionalContext is a string");
     assert!(
-        ctx.contains("[agent-tools] run status:"),
+        ctx.contains("[agent-tools] run status @ "),
         "additionalContext missing status header; got: {ctx}"
     );
     // The wrapper exited, so it is reaped, drained, and dead: `final(0)`. The

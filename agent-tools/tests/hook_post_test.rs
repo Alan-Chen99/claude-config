@@ -207,7 +207,7 @@ fn bg_notice_and_status_report_combined() {
     assert!(ctx.contains("KAIROS"), "ctx: {ctx}");
     assert!(ctx.contains("bt-9"), "ctx: {ctx}");
     // Notice first, then the report, each header beginning its own line.
-    assert!(ctx.contains("\n[agent-tools] run status:\n"), "ctx: {ctx}");
+    assert!(ctx.contains("\n[agent-tools] run status @ "), "ctx: {ctx}");
     assert!(ctx.contains("seeded [final(0)]"), "ctx: {ctx}");
 }
 
@@ -229,7 +229,7 @@ fn a_non_backgroundable_tool_gets_no_backgrounded_notice() {
     );
     assert!(status.success(), "stderr: {stderr}");
     assert!(
-        stdout.contains("[agent-tools] run status:"),
+        stdout.contains("[agent-tools] run status @ "),
         "stdout: {stdout}"
     );
     assert!(!stdout.contains("BACKGROUNDED"), "stdout: {stdout}");
@@ -280,7 +280,7 @@ fn abandoned_child_is_reported_without_any_five_minute_wait() {
     seed(home.path(), "toolu_prior", 0, None);
     let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
     assert!(
-        stdout.contains("[agent-tools] run status:"),
+        stdout.contains("[agent-tools] run status @ "),
         "stdout: {stdout}"
     );
     assert!(stdout.contains("abandoned"), "stdout: {stdout}");
@@ -673,10 +673,10 @@ fn the_status_header_begins_a_line_even_beside_a_backgrounding_notice() {
     assert!(ctx.contains("BACKGROUNDED:"), "context: {ctx}");
     let header = ctx
         .lines()
-        .find(|l| l.contains("[agent-tools] run status:"))
+        .find(|l| l.contains("[agent-tools] run status @ "))
         .unwrap_or_else(|| panic!("no status header in: {ctx}"));
     assert!(
-        header.starts_with("[agent-tools] run status:"),
+        header.starts_with("[agent-tools] run status @ "),
         "the header must begin its line, got: {header:?}"
     );
 }
@@ -793,5 +793,41 @@ fn a_held_scope_lock_is_announced_rather_than_waited_out() {
     assert!(
         ctx.contains("unavailable this time"),
         "a delivery point delayed by a lock must say so, got: {ctx:?}"
+    );
+}
+
+#[test]
+fn a_report_header_carries_the_clock_it_was_made_at() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed(home.path(), "toolu_hdr", 4242, Some(0));
+    let (status, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_hdr"));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+    let first = ctx.lines().next().unwrap();
+    assert!(
+        first.starts_with("[agent-tools] run status @ "),
+        "header must carry a stamp, got: {first}"
+    );
+    assert!(
+        first.ends_with(':'),
+        "header ends with a colon, got: {first}"
+    );
+    // A stamp with an offset, so the line still resolves after a compaction.
+    let stamp = first
+        .trim_start_matches("[agent-tools] run status @ ")
+        .trim_end_matches(':');
+    assert!(
+        chrono::NaiveTime::parse_from_str(&stamp[..8], "%H:%M:%S").is_ok(),
+        "stamp did not start with HH:MM:SS: {stamp}"
+    );
+    let offset = &stamp[9..];
+    assert!(
+        offset.len() == 5
+            && (offset.starts_with('+') || offset.starts_with('-'))
+            && offset[1..].chars().all(|c| c.is_ascii_digit()),
+        "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
     );
 }

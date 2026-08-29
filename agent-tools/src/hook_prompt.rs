@@ -27,7 +27,11 @@ pub fn run() -> Result<()> {
     let ctx = match crate::hook_post::report_changes(session_id, None) {
         Ok(report) if report.lines.is_empty() => return Ok(()),
         Ok(report) => {
-            let ctx = format!("[agent-tools] run status:\n{}", report.lines.join("\n"));
+            let ctx = format!(
+                "{}\n{}",
+                crate::hook_post::report_header(report.at),
+                report.lines.join("\n")
+            );
             delivered = Some(report);
             ctx
         }

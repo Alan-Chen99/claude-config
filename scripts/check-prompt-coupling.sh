@@ -21,14 +21,19 @@ check() {
   fi
 }
 
-# The status report header. Emitted on both delivery channels: tool results
-# (hook-post) and user turns (hook-prompt).
-check '[agent-tools] run status:' "$prompt"
-check '"[agent-tools] run status:\n{}"' "$src/hook_post.rs"
-check '"[agent-tools] run status:\n{}"' "$src/hook_prompt.rs"
+# The status report header. `report_header` in hook_post.rs is the one place
+# that builds it; hook_post's own success arm and hook_prompt.rs both call it,
+# so the two delivery channels (tool results and user turns) emit the same
+# text. The hook_prompt.rs check has no header literal to look for there —
+# none exists — so it looks for the call instead, catching a hook_prompt.rs
+# that grew its own inline header rather than calling the shared constructor.
+check '[agent-tools] run status @ ' "$prompt"
+check '"[agent-tools] run status @ {}:"' "$src/hook_post.rs"
+check 'hook_post::report_header(' "$src/hook_prompt.rs"
 
-# The degraded-report fallback carries the same header prefix, so the agent
-# recognizes a failed report as status rather than as command output.
+# The degraded-report fallback keeps the bare header, without the stamp: it
+# carries no relative figure for a stamp to anchor. The agent reads it as status
+# via the "lines beginning [agent-tools]" rule, not via the stamped header's shape.
 check '"[agent-tools] run status: unavailable' "$src/hook_post.rs"
 check '"[agent-tools] run status: unavailable' "$src/hook_prompt.rs"
 
@@ -52,6 +57,32 @@ final(|write!(f, "final({c})")
 abandoned|write!(f, "abandoned")
 spawn-failed(|write!(f, "spawn-failed({e})")
 KEYS
+
+# The `<detail>` field, also built by `render`. Five shapes, not four: a
+# settled duration, a live running total, a settled child with no reap to
+# time, a spawn that never produced a pid (`spawn-failed`, but still
+# `started`), and — only when the record itself did not read — no start at
+# all and `pid -` (`abandoned`). The fourth and fifth both render `pid -`;
+# what tells them apart is that `timing`'s arms and the `pid` fallback are
+# independent of each other, so the shape is the crossing of the two, not the
+# arm alone — the mistake that once had this prompt calling `spawn-failed` a
+# `pid <pid>` line. `render`'s final `format!` supplies the skeleton every
+# shape shares; each `timing` arm supplies the span text, and the two `pid`
+# checks below pin the field the fallback reads and the fallback itself,
+# since a needle on either alone would let the other drift. Each source
+# needle here was verified to match exactly one place in `status.rs`.
+check 'started <t>, ran <d>' "$prompt"
+check '"started {}, ran {}"' "$src/status.rs"
+check 'started <t> (+<d>)' "$prompt"
+check '"started {} (+{})"' "$src/status.rs"
+check 'started <t>, <age>, <bytes>' "$prompt"
+check 'pid -, started <t>' "$prompt"
+check '"started {}"' "$src/status.rs"
+check 'pid -, <age>, <bytes>' "$prompt"
+check '<name> [<key>] <detail> -> <paths>' "$prompt"
+check '"{name} [{key}] pid {pid}, {timing}{age}, {bytes}{notes}{problems} -> {paths}"' "$src/status.rs"
+check 'unwrap_or_else(|| "-".into())' "$src/status.rs"
+check '.and_then(|m| m.child_pid)' "$src/status.rs"
 
 # The wrapper's own diagnostics. The prompt promises every one begins
 # `agent-tools:`, which is how the agent tells them from its command's output.

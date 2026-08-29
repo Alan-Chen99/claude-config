@@ -13,6 +13,20 @@ use crate::paths;
 /// BACKGROUNDED notice sharing the same field.
 const REPORT_BUDGET: usize = 9_000;
 
+/// The one place a report header is built. Both delivery points use it, so the
+/// prompt's quoted form matches what either emits rather than one of them.
+///
+/// `at` is the instant the report's lines were measured against, not the
+/// instant the header is built: the stamp is what a re-read report resolves
+/// `last byte 4s ago` against, and a second clock read here would put the
+/// anchor however long the scan took after the figures it anchors.
+pub(crate) fn report_header(at: chrono::DateTime<chrono::Utc>) -> String {
+    format!(
+        "[agent-tools] run status @ {}:",
+        crate::status::fmt_local_stamp(at)
+    )
+}
+
 pub fn run() -> Result<()> {
     let mut buf = String::new();
     std::io::stdin()
@@ -44,7 +58,8 @@ pub fn run() -> Result<()> {
     match report_changes(&input.session_id, input.agent_id.as_deref()) {
         Ok(report) if !report.lines.is_empty() => {
             parts.push(format!(
-                "[agent-tools] run status:\n{}",
+                "{}\n{}",
+                report_header(report.at),
                 report.lines.join("\n")
             ));
             delivered = Some(report);
@@ -160,6 +175,10 @@ fn scope_dir(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
 /// worst a duplicate report, which the design already accepts.
 pub(crate) struct Report {
     pub(crate) lines: Vec<String>,
+    /// The instant every relative figure in `lines` was derived against. The
+    /// header stamps this, so `last byte 4s ago` and the stamp above it name
+    /// one moment.
+    pub(crate) at: chrono::DateTime<chrono::Utc>,
     ledger: Option<crate::ledger::Ledger>,
 }
 
@@ -178,13 +197,14 @@ impl Report {
 /// together with the ledger holding those keys for the caller to commit.
 pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Report> {
     let scope = scope_dir(session_id, agent_id)?;
+    let now = chrono::Utc::now();
     if !scope.is_dir() {
         return Ok(Report {
             lines: Vec::new(),
+            at: now,
             ledger: None,
         });
     }
-    let now = chrono::Utc::now();
     let mut ledger = crate::ledger::Ledger::open(&scope)?;
     let mut pending: Vec<(String, String, String)> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
@@ -250,6 +270,7 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
     }
     Ok(Report {
         lines,
+        at: now,
         ledger: Some(ledger),
     })
 }
@@ -300,7 +321,38 @@ fn bound(
 
 #[cfg(test)]
 mod tests {
-    use super::rank;
+    use super::{rank, report_header};
+
+    #[test]
+    fn a_header_stamps_the_instant_it_is_handed() {
+        // The stamp is the anchor a compacted report is re-read against, so it
+        // must name the instant the lines were measured at. A header reading
+        // its own clock still looks right in isolation and is wrong by however
+        // long the scan took, which is why the instant is asserted rather than
+        // the shape.
+        let at = chrono::DateTime::from_timestamp(chrono::Utc::now().timestamp() - 11_237, 0)
+            .expect("a timestamp in range");
+        let header = report_header(at);
+        let stamp = header
+            .strip_prefix("[agent-tools] run status @ ")
+            .and_then(|s| s.strip_suffix(':'))
+            .unwrap_or_else(|| panic!("header shape: {header:?}"));
+        // Read back through the offset the stamp itself carries, so the
+        // assertion holds in whatever zone the test runs in. The date comes
+        // from `at` because the stamp does not carry one; a header stamping a
+        // different instant lands on a different time of day and fails here.
+        let local_date = at.with_timezone(&chrono::Local).format("%Y-%m-%d");
+        let parsed = chrono::DateTime::parse_from_str(
+            &format!("{local_date} {stamp}"),
+            "%Y-%m-%d %H:%M:%S %z",
+        )
+        .unwrap_or_else(|e| panic!("stamp {stamp:?} did not parse: {e}"));
+        assert_eq!(
+            parsed.with_timezone(&chrono::Utc),
+            at,
+            "the header stamped {stamp:?}, which is not the instant it was handed"
+        );
+    }
 
     #[test]
     fn finished_keys_outrank_running_ones() {
