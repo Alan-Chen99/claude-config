@@ -66,10 +66,18 @@ debugging clarity on non-probe work).
 
 ## The merge rule
 
-A wrapped child gets **one** destination for both its streams exactly when the caller's own two
-descriptors provably reach one destination that cannot disagree about where the next byte goes:
-the same file (same device and inode), both writable, and either both pipes or both appending.
-Everything else stays split. `core::decide_merge` is the whole of it.
+A wrapped child gets **one** destination for both its streams when either of two things is true.
+The ordinary one: the caller's own two descriptors provably reach one destination that cannot
+disagree about where the next byte goes — the same file (same device and inode), both writable,
+and either both pipes or both appending. `core::decide_merge` decides that case, by inspecting
+`STDOUT_FILENO`/`STDERR_FILENO`, and is the whole of it *for a run that has a caller*. The other:
+there is no caller to inspect, because the wrapper detached from one. `core::run_core`'s
+`destination: Destination` parameter carries the distinction — `Destination::Caller` routes to
+`decide_merge`; `Destination::Nowhere`, set for a `--background` run whose caller has gone, always
+merges instead of asking. Asking would get the wrong answer: `detach_std_fds` has by then pointed
+fd 1/2 at one `/dev/null` opened without `O_APPEND`, and `decide_merge` on that shape answers
+split — correct for a real caller on a character device, and wrong for one that no longer exists.
+`core::BACKGROUNDED`'s doc carries the rest of that argument. Everything else stays split.
 
 Splitting destroys the order between the two streams and splices long lines, and neither is
 repairable afterwards — that order exists only in the kernel, and by the time the wrapper has
@@ -84,8 +92,10 @@ unseekable, so the class would be a guess. A socket *could* be, being provably u
 pipe, and is left out only because no measured caller presents one on both descriptors. Add a
 destination when a caller needs it, not because it would be sound.
 
-There is no flag. The only decisive test would mean writing to the caller's own file, and a flag
-could only demand the merge the rule refused.
+No flag overrides the decision for a run with a caller. The only decisive test would mean writing
+to the caller's own file, and a flag could only demand the merge the rule refused. A run with no
+caller is the one case a parameter *does* decide the outcome outright — `Destination::Nowhere`, not
+a flag a caller sets, since a run that reaches it has no caller left to set one.
 
 **`core::Merge` and `status::Capture` are one fact recorded twice.** A merged run opens one
 `output` file; a split run opens `stdout` and `stderr`. `status::derive` reads the shape back off

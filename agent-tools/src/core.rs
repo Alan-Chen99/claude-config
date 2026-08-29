@@ -8,7 +8,10 @@ use tokio::process::Command;
 use crate::capture;
 
 /// Bytes captured after the downstream closed before the read end is dropped.
-/// Normal operation never reaches it: it only applies once forwarding has failed.
+/// Normal operation never reaches it: it only applies once forwarding has
+/// failed. A forward target that cannot fail — `Destination::Nowhere`'s
+/// `sink()` — never reaches it at all, so it bounds nothing there; the bound
+/// only ever arms behind a real downstream's refusal.
 pub const DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;
 
 // The two properties that make that number a cap at all, checked where it is
@@ -52,8 +55,14 @@ impl Merge {
 }
 
 /// The condition recorded when the wrapper, not the caller, owns where the
-/// child's bytes go. Not an exception to the merge rule but an instance of it:
-/// one appending regular file has no offset to disagree about.
+/// child's bytes go. Sound for the reason the merge rule already states, not
+/// as an exception to it — but the reason is the pipe, not appendingness: the
+/// capture file is opened `create` + `append` in every arm, split included
+/// (twice, there), so that cannot be what tells merged apart from split. What
+/// does is that this pipe is one the wrapper creates itself and hands the
+/// child *both* write ends of — fd 1 and fd 2 both `dup2`'d from the same end
+/// — so no descriptor obtained from outside this process participates, and
+/// there is nothing left for two independent ends to disagree about.
 pub const BACKGROUNDED: &str = "backgrounded: wrapper owns the destination";
 
 /// Where the child's streams are forwarded, beyond the capture.
@@ -61,7 +70,11 @@ pub const BACKGROUNDED: &str = "backgrounded: wrapper owns the destination";
 pub enum Destination {
     /// This process's own stdout and stderr, which the merge rule inspects.
     Caller,
-    /// The caller has gone; the capture is the whole record.
+    /// The caller has gone; the capture is the whole record. It is also
+    /// unbounded: `drain_cap_bytes` arms only after a downstream stops
+    /// accepting writes, and a sink never does — so a wrapped `yes` writes
+    /// until the disk is full, and `ps`'s byte count is the whole of the
+    /// mitigation.
     Nowhere,
 }
 
@@ -158,7 +171,9 @@ pub struct Outcome {
     /// A capture could not be written, on either stream, and stopped there;
     /// what the OS said about the first such failure. The child ran to its own
     /// end and the caller's streams carry everything it wrote, so nothing else
-    /// distinguishes this run from a complete one.
+    /// distinguishes this run from a complete one — except under
+    /// `Destination::Nowhere`, where there are no caller streams to carry
+    /// anything and this failure is total loss, not a difference from bare.
     pub capture_error: Option<String>,
 }
 
@@ -229,9 +244,17 @@ where
 
     let merge = match destination {
         Destination::Caller => decide_merge(libc::STDOUT_FILENO, libc::STDERR_FILENO),
-        // Nothing to inspect: there is no caller destination for the streams to
-        // agree or disagree about, and the one this wrapper opens is a single
-        // appending regular file.
+        // Asking would get the wrong answer, not merely a redundant one. Under
+        // `--background`, `detach_std_fds` has already pointed this process's
+        // own stdout and stderr at one `/dev/null`, opened `O_RDWR` with no
+        // `O_APPEND` — and `decide_merge` on that shape returns
+        // `Split("same file, but not both appending")`, correct for a real
+        // caller on a character device but wrong here: it would make every
+        // backgrounded run a two-file capture and print `streams split:
+        // backgrounded: wrapper owns the destination` on every one of them.
+        // "Split because nobody was watching" explains nothing a reader
+        // needed explained, and would appear on every such run rather than
+        // the rare one worth flagging.
         Destination::Nowhere => Merge::Merged(BACKGROUNDED),
     };
 
@@ -288,6 +311,22 @@ where
     let last_stderr = Arc::new(AtomicI64::new(chrono::Utc::now().timestamp_millis()));
 
     let dir: PathBuf = capture_dir.to_path_buf();
+
+    // One writer per stream, chosen once from `destination` rather than
+    // re-decided per `Streams` arm below. Before this, `Streams::Split`
+    // hardcoded the caller's own stdout/stderr regardless of `destination`,
+    // correct only because `Nowhere` never (today) produces `Merge::Split` —
+    // an invariant enforced by the match above and nothing in this arm.
+    // Boxing erases the writer type behind one trait so both arms draw from
+    // the same two bindings and neither can fall back to the caller's
+    // descriptors on its own.
+    trait Fwd: tokio::io::AsyncWrite + Unpin + Send {}
+    impl<T: tokio::io::AsyncWrite + Unpin + Send> Fwd for T {}
+    let (fwd_out, fwd_err): (Box<dyn Fwd>, Box<dyn Fwd>) = match destination {
+        Destination::Caller => (Box::new(tokio::io::stdout()), Box::new(tokio::io::stderr())),
+        Destination::Nowhere => (Box::new(tokio::io::sink()), Box::new(tokio::io::sink())),
+    };
+
     // A stream, the tee that carries it, and the watcher that times its silence
     // are one arm each. A merged run has one of all three: it advances only
     // `last_stdout`, so a second watcher would sit on a clock nobody winds and
@@ -295,30 +334,15 @@ where
     // have.
     let (tee_a, tee_b, watch_a, watch_b) = match streams {
         Streams::Merged(rx) => {
-            let tee = match destination {
-                Destination::Caller => tokio::spawn(capture::tee(
-                    "output",
-                    rx,
-                    dir.join("output"),
-                    tokio::io::stdout(),
-                    drain_cap_bytes,
-                    last_stdout.clone(),
-                    dir.clone(),
-                )),
-                // `tee` always needs a forward writer; with no caller to carry
-                // bytes to, `sink()` is the one that discards every write and
-                // never errs, so a run nobody is watching never reports a
-                // closed downstream it never had.
-                Destination::Nowhere => tokio::spawn(capture::tee(
-                    "output",
-                    rx,
-                    dir.join("output"),
-                    tokio::io::sink(),
-                    drain_cap_bytes,
-                    last_stdout.clone(),
-                    dir.clone(),
-                )),
-            };
+            let tee = tokio::spawn(capture::tee(
+                "output",
+                rx,
+                dir.join("output"),
+                fwd_out,
+                drain_cap_bytes,
+                last_stdout.clone(),
+                dir.clone(),
+            ));
             let watch = tokio::spawn(capture::watch_silence(
                 "output",
                 last_stdout,
@@ -341,7 +365,7 @@ where
                 "stdout",
                 stdout_pipe,
                 dir.join("stdout"),
-                tokio::io::stdout(),
+                fwd_out,
                 drain_cap_bytes,
                 last_stdout.clone(),
                 dir.clone(),
@@ -350,7 +374,7 @@ where
                 "stderr",
                 stderr_pipe,
                 dir.join("stderr"),
-                tokio::io::stderr(),
+                fwd_err,
                 drain_cap_bytes,
                 last_stderr.clone(),
                 dir.clone(),
@@ -467,29 +491,53 @@ mod tests {
         assert!(!cap.exists(), "nothing ran, so nothing should be captured");
     }
 
-    /// The one caller of `Destination::Nowhere` today, and the whole of its
-    /// contract: one capture file rather than two, the `BACKGROUNDED` condition
-    /// handed to `on_spawn` before the child is even reaped, and nothing set
-    /// downstream for `forward_closed` to ever notice missing.
+    /// Pins what a unit test can check about `Destination::Nowhere` without
+    /// touching the process's real fd 1: a single merged capture file rather
+    /// than a split pair, the `BACKGROUNDED` condition delivered to `on_spawn`
+    /// before the child is even reaped, and `forward_closed` reading false
+    /// because the writer behind it never refuses a write.
+    ///
+    /// It does not pin *which* writer that is. Swapping `sink()` for
+    /// `tokio::io::stdout()` in the `Nowhere` arm leaves this test, and the
+    /// whole suite, green: a sink and a real stdout both accept every write in
+    /// a test process, so nothing here would notice bytes reaching the
+    /// caller's descriptors instead of nowhere. That property has no lever in
+    /// this file — the only fd it could show up on is the process's own
+    /// stdout, which `libtest` is concurrently writing progress lines to, so
+    /// redirecting it here would be flaky rather than wrong.
     #[tokio::test]
-    async fn a_run_with_no_destination_captures_both_streams_and_forwards_nothing() {
+    async fn a_run_with_no_destination_merges_into_one_capture_and_records_why() {
         let dir = tempfile::tempdir().unwrap();
+        // `on_spawn` is `FnOnce`; the assertion inside it only runs if
+        // `run_core` actually calls it. Without this flag, a `run_core` that
+        // silently stopped calling `on_spawn` would leave this test green
+        // while pinning nothing.
+        let spawned = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
         let out = run_core(
             &["sh".into(), "-c".into(), "echo out; echo err 1>&2".into()],
             dir.path(),
             None,
             Destination::Nowhere,
-            |_pid, merge| {
-                assert_eq!(
-                    merge, BACKGROUNDED,
-                    "a run with no caller records why it merged"
-                )
+            {
+                let spawned = spawned.clone();
+                move |_pid, merge| {
+                    assert_eq!(
+                        merge, BACKGROUNDED,
+                        "a run with no caller records why it merged"
+                    );
+                    spawned.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
             },
             |_code| {},
         )
         .await
         .unwrap();
+
+        assert!(
+            spawned.load(std::sync::atomic::Ordering::SeqCst),
+            "on_spawn must run, or the assertion inside it never does"
+        );
         assert_eq!(out.exit_code, 0);
         let captured = std::fs::read_to_string(dir.path().join("output")).unwrap();
         assert!(captured.contains("out"), "{captured}");
