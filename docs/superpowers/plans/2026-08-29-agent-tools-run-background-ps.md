@@ -2230,6 +2230,21 @@ fn a_start_that_fails_is_loud_and_nothing_is_left_running() {
     );
 }
 
+**This test must assert at the descriptor level, not on captured output.** Measured on the
+detached wrapper: parent and child both showed `fd1 -> pipe:[676329205]` — the *same* pipe
+object. So a `--background` run that skips `detach_std_fds()` holds the caller's stdout open,
+and any caller reading to EOF (Claude Code's Bash tool, `Command::output()`, `$(...)`) waits
+for the **wrapper**, not the parent — returning no sooner than a foreground run while every
+output-content assertion still passes. `!line.contains('O')` cannot see that, because under
+`detach_std_fds()` fd 1 is `/dev/null` anyway and the assertion passes with
+`Destination::Caller` too.
+
+Assert instead that the detached child's fd 1 and fd 2 no longer name what the parent's named:
+read `/proc/<child>/fd/1` and `/proc/<child>/fd/2` and require they differ from the caller's.
+This is the guard the fork module states as its third rule and could not test, because no
+child took over its descriptors until now.
+
+```rust
 #[test]
 fn a_backgrounded_child_captures_both_streams_into_one_file_and_forwards_neither() {
     let home = tempfile::TempDir::new().unwrap();
