@@ -227,11 +227,21 @@ meta still derives `abandoned`. Dropping it instead would put the two consumers 
 derivation in disagreement about whether a child exists, in the view an agent turns to
 after a compaction — the one place a child just called terminal must be findable.
 
-Ordering is newest first — groups by their newest capture, captures within a group by
-start time — because the output is read through a tool result that truncates, and what
-started most recently is what the agent is still acting on. Display groups by tool-use, so
-both levels sort the same direction or the newest capture could sit under a group buried
-below older ones.
+For `--format json`/`text`, ordering is newest first — groups by their newest capture,
+captures within a group by start time — because the output is read through a tool result
+that truncates, and what started most recently is what the agent is still acting on.
+Display groups by tool-use, so both levels sort the same direction or the newest capture
+could sit under a group buried below older ones.
+
+`--format statusline` orders the opposite way — see `statusline::render_records`. JSON's
+`live` array ranks every running child and order there is only reading order; the bar
+instead *selects*, dropping everything past its third slot to a bare count, so "which do I
+list first" and "which three do I keep" are different questions that correctly get
+different answers. The statusline also has no timer and freezes the instant the agent goes
+idle, so its three slots go to the jobs most likely to still need watching — the ones
+running longest, not the ones easiest for a person to remember unaided — and Claude Code
+truncates the rendered line from the right, so oldest-first also keeps the job that matters
+in the slot a narrow pane loses last.
 
 Events are read per line. A line that will not parse costs that line, and the count
 appears as `note: N unreadable event line(s) skipped`; a file that cannot be read at all is

@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use crate::meta::ChildMeta;
-use crate::status;
+use crate::status::{self, StatusKey};
 
 /// The directory name a capture gets when no hook set a scope. It is not a
 /// tool-use id and never pretends to be one: `Record::origin` says so, and
@@ -77,6 +77,13 @@ pub struct Record {
     /// `Some(true)` on a record whose child is not terminal. `null` means
     /// the record cannot support the question.
     pub orphaned: Option<bool>,
+    /// Not serialized: renderers select on it, readers read `key`. `key` is
+    /// this same value's `Display`, kept for a Rust caller that wants to
+    /// match the enum instead of a second string check that can drift from
+    /// that `Display` — the statusline's `~` marker is `StatusKey::is_quiet`,
+    /// not `key.starts_with(...)`.
+    #[serde(skip)]
+    pub status: StatusKey,
     /// Not serialized: renderers select on it, readers read `key`. A JSON
     /// reader tells a settled child from a running one by which array of the
     /// `Envelope` carries the record — `live` or `settled` — not by a field
@@ -135,6 +142,7 @@ impl Record {
             notes: status::notes(&st),
             stat_errors: st.stat_errors.clone(),
             orphaned: st.orphaned(),
+            status: st.key.clone(),
             terminal,
         }
     }

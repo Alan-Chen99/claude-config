@@ -1087,3 +1087,86 @@ fn live_interleaves_a_subagents_child_with_the_main_threads_by_start_time() {
     );
     assert_eq!(live[1]["name"], "main-child", "{v}");
 }
+
+/// `ps --format statusline` is the one format that selects rather than ranks:
+/// past `NAMES` slots a job is dropped to a bare count, so which of several
+/// live children sorts first is not cosmetic. `statusline::render_records`
+/// picks oldest-first, the opposite of this file's own
+/// `live_is_ordered_by_its_own_start_not_by_a_withheld_siblings_group_rank`,
+/// so a mistaken copy-paste of that direction into the statusline renderer
+/// would pass every unit test built on the same fixed clock and only show up
+/// against a real, ordinary `ps` invocation such as this one.
+#[test]
+fn statusline_orders_the_oldest_live_child_first() {
+    let home = tempfile::tempdir().unwrap();
+    seed_live_capture(
+        home.path(),
+        "sid-statusline-order",
+        None,
+        "toolu_new",
+        "new-job",
+        "2026-05-17T11:00:00Z",
+    );
+    seed_live_capture(
+        home.path(),
+        "sid-statusline-order",
+        None,
+        "toolu_old",
+        "old-job",
+        "2026-05-17T09:00:00Z",
+    );
+
+    let out = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "statusline",
+            "--session-id",
+            "sid-statusline-order",
+        ])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("old-job"), "{s}");
+    assert!(s.contains("new-job"), "{s}");
+    let pos_old = s.find("old-job").unwrap();
+    let pos_new = s.find("new-job").unwrap();
+    assert!(pos_old < pos_new, "the oldest live child must lead: {s}");
+}
+
+/// A session with no state on disk must produce zero bytes of output, not a
+/// bare newline: a caller checking for empty output (`[ -z "$(agent-tools ps
+/// --format statusline)" ]`) must see none either way.
+#[test]
+fn statusline_prints_zero_bytes_for_an_empty_session() {
+    let home = tempfile::tempdir().unwrap();
+    let out = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "statusline",
+            "--session-id",
+            "sid-statusline-empty",
+        ])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        out.stdout,
+        Vec::<u8>::new(),
+        "empty output means zero bytes, not a bare newline"
+    );
+}

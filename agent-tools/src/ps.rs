@@ -169,7 +169,15 @@ fn render_json(
 /// and `--events` do not apply: the bar exists to show what is running, and a
 /// settled child or an event log answers a different question than that one.
 fn render_statusline(captures: &[Capture], now: DateTime<Utc>) -> Result<()> {
-    print!("{}", statusline::render(captures, now));
+    // Zero bytes when nothing is live, not a bare newline: a caller checking
+    // for empty output must see none. A real line does get its newline —
+    // `print!` alone leaves the terminal's next prompt mid-line, and a
+    // pipeline reading line-by-line (`| while read`) drops an unterminated
+    // last line entirely.
+    let line = statusline::render(captures, now);
+    if !line.is_empty() {
+        println!("{line}");
+    }
     Ok(())
 }
 

@@ -134,6 +134,18 @@ impl StatusKey {
     pub fn is_still_running(&self) -> bool {
         matches!(self, StatusKey::Producing | StatusKey::Quiet(_))
     }
+
+    /// True only for `Quiet`, the one key a `~`-style marker means to select.
+    /// Neither `is_terminal` nor `is_still_running` is that axis: both group
+    /// `Quiet` with `Producing`, which is exactly the pair a quiet marker
+    /// exists to tell apart. A caller matching on `Display` text instead —
+    /// `key.starts_with("quiet")` — has to spell the variant's whole shape
+    /// correctly by hand (the omitted `(` once matched `quietly-broken` too)
+    /// and stops compiling nothing when the shape changes; matching the enum
+    /// does both for free.
+    pub fn is_quiet(&self) -> bool {
+        matches!(self, StatusKey::Quiet(_))
+    }
 }
 
 /// A child's current status: the key that decides reporting, plus the detail
@@ -258,6 +270,17 @@ pub fn fmt_local_hms(t: DateTime<Utc>) -> String {
     t.with_timezone(&chrono::Local)
         .format("%H:%M:%S")
         .to_string()
+}
+
+/// The statusline's timestamp: hour and minute, no seconds. That bar does not
+/// re-render on a timer, so by the time anyone reads it some seconds have
+/// already passed — showing seconds would promise a precision a frozen line
+/// cannot honor. Lives beside `fmt_local_hms` rather than in `statusline.rs`
+/// for the reason given above: no site should render the instant raw, and a
+/// second local-time formatter off in its own file is exactly the drift that
+/// rule exists to prevent.
+pub fn fmt_local_hm(t: DateTime<Utc>) -> String {
+    t.with_timezone(&chrono::Local).format("%H:%M").to_string()
 }
 
 /// The stamp a pushed report carries in its header. Local, with the offset,
