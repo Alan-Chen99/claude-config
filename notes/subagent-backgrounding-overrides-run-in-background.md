@@ -98,12 +98,20 @@ own status channel. Waiting needs `timeout <s> tail --pid=<pid> -f /dev/null`, n
 `pid <n> is not a child of this shell`.
 
 The kill on timeout is broader than the process group, and this bounds how backgrounding
-can be used. A call killed at its `timeout` takes down every process it started: three
-variants spawned in one call — plain `&`, `setsid --wait`, and bare `setsid` — all stopped
-advancing the moment the call returned `Exit code 143`. A process-group kill run outside
-Claude Code kills only the plain `&` variant and leaves both `setsid` variants running, so
-whatever Claude Code does reaches a new session as well. A backgrounded job therefore
-survives only a call that returns on its own. Both halves of the pattern carry weight: the
+can be used. It reaches the call's live descendants, not its process group: each `&` job
+already has a process group of its own, yet a plain `&` child still dies. Three variants
+spawned in one call, each appending a line per second to its own file, were compared after
+the call returned `Exit code 143` — plain `&` stopped at 10 lines, `setsid --wait` stopped
+at 10, and bare `setsid` went on from 15 to 23. `setsid --wait` dies because the waiting
+intermediate keeps it in the descendant tree; bare `setsid` survives because its double
+fork reparents the worker to init before the kill arrives. The same boundary shows up
+without `setsid` at all: `&` children spawned inside a subshell that then exits are
+orphaned, and they survive too.
+
+A backgrounded job therefore survives only a call that returns on its own, or a spawn that
+leaves the descendant tree before the call is killed. The guidance stays "let the call
+return", because that is the only form that keeps the job reachable through the status
+channel and the pid file. Both halves of the pattern carry weight: the
 `&` is what outlives the call, and the bounded wait is what keeps the call from being
 killed instead of returning:
 
