@@ -2397,7 +2397,14 @@ fork inherits every lock held by a thread that did not cross — and this child 
 work (it allocates, opens files, builds a runtime), not the async-signal-safe subset. The
 prologue before this point is measured single-threaded, so the guard costs nothing today. But
 anything added ahead of the fork that starts a thread turns `--background` into a hard, loud
-failure rather than a silent hang at the child's first allocation. That is the intended trade;
+failure rather than a silent wedge on the first lock a departed thread held. Measured:
+`println!` alone is enough, std's stdout lock being one such. Note it is **not** the allocator
+— glibc brackets `fork` with `__malloc_fork_lock_parent`/`__malloc_fork_unlock_child`, and
+3000 forks from a process with three threads hammering `malloc` produced 3000 children that
+allocated fine. Leaning on that is still wrong, because POSIX promises only the
+async-signal-safe subset after a threaded fork and nothing resets an ordinary lock; but a
+maintainer who tests the allocator claim finds it false and concludes the guard is
+over-cautious. That is the intended trade;
 know it before adding work above this line.
 
 The `Run` arm currently builds a tokio runtime and blocks on `run::run(...)`. Restructure it so the fork happens before the runtime exists:
