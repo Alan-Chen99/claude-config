@@ -84,6 +84,18 @@ impl fmt::Display for StatusKey {
     }
 }
 
+impl StatusKey {
+    /// Terminal keys end watching: the child's fate is settled and cannot change.
+    /// The set is the 2026-08-26 spec's, not a second definition — `ps` selects
+    /// live children by the negation of this, and the report ranks by it.
+    pub fn is_terminal(&self) -> bool {
+        match self {
+            StatusKey::SpawnFailed(_) | StatusKey::Final(_) | StatusKey::Abandoned => true,
+            StatusKey::Producing | StatusKey::Quiet(_) | StatusKey::Exited(_) => false,
+        }
+    }
+}
+
 /// A child's current status: the key that decides reporting, plus the detail
 /// rendered alongside it.
 pub struct Status {
@@ -94,6 +106,38 @@ pub struct Status {
     /// Stat failures that are not "file not created yet". Surfaced in the
     /// rendered line so a filesystem problem cannot pass for an idle child.
     pub stat_errors: Vec<String>,
+}
+
+impl Status {
+    pub fn is_terminal(&self) -> bool {
+        self.key.is_terminal()
+    }
+
+    /// How long the child has run: to `now` while it is live, to the reap once it
+    /// is terminal. A settled child's clock has stopped, and a duration that kept
+    /// growing after it would describe waiting, not running.
+    ///
+    /// `None` when there is nothing to measure. Two shapes have nothing: a
+    /// capture whose `meta.json` will not read, and a terminal status with no
+    /// reap. `abandoned` is the second: the wrapper vanished without observing an
+    /// end, so the child may still be running, and any number here would assert an
+    /// end nobody saw. `spawn-failed` is the second too, for the opposite reason —
+    /// nothing ran. A status without a duration is not a missing answer; it is the
+    /// answer.
+    pub fn duration_s(&self, now: DateTime<Utc>) -> Option<f64> {
+        let m = self.meta.as_ref()?;
+        let end = match (self.is_terminal(), m.reaped) {
+            (true, Some(r)) => r.at,
+            (true, None) => return None,
+            // Live, whether or not a reap exists. `exited` has one and is still
+            // open: the child is gone but the drain is not, so the capture can
+            // still grow. Testing `reaped` here instead of the key would freeze
+            // that child at its reap for however long a descendant holds the
+            // inherited pipes.
+            (false, _) => now,
+        };
+        Some(((end - m.started_at).num_milliseconds() as f64 / 1000.0).max(0.0))
+    }
 }
 
 /// Returns (bytes, mtime, stat failure other than "not created yet").
@@ -688,5 +732,104 @@ mod tests {
             line.contains("{stdout,stderr}"),
             "the capture path survives: {line}"
         );
+    }
+
+    #[test]
+    fn a_live_child_measures_to_now() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let now = Utc::now();
+        m.started_at = now - Duration::seconds(191);
+        write(&dir, &m);
+        let st = derive(dir.path(), now);
+        assert!(!st.is_terminal(), "a live wrapper with no reap is not terminal");
+        let d = st.duration_s(now).expect("a started child has a duration");
+        assert!((d - 191.0).abs() < 1.0, "duration was {d}");
+    }
+
+    #[test]
+    fn a_terminal_child_measures_to_its_reap_not_to_now() {
+        let dir = TempDir::new().unwrap();
+        let mut m = dead();
+        let started = Utc::now() - Duration::seconds(4020);
+        m.started_at = started;
+        m.reaped = Some(Reaped {
+            at: started + Duration::seconds(242),
+            status: 1,
+        });
+        m.drained_at = Some(started + Duration::seconds(242));
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        assert!(st.is_terminal(), "a drained, reaped, dead wrapper is terminal");
+        let d = st.duration_s(now).expect("a reaped child has a duration");
+        assert!(
+            (d - 242.0).abs() < 1.0,
+            "the clock must stop at the reap, got {d}"
+        );
+    }
+
+    #[test]
+    fn a_draining_child_measures_to_now_not_to_its_reap() {
+        // `exited` is the only key where a reap exists and the status is not
+        // settled: the child is gone, the wrapper is still draining, and a
+        // descendant holding the inherited pipes can stretch that out
+        // indefinitely. The clock stops because the status is terminal, not
+        // because a reap was recorded -- branch on `m.reaped` instead and this
+        // child's duration freezes at a few seconds while the task stays open.
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        let started = Utc::now() - Duration::seconds(600);
+        m.started_at = started;
+        m.reaped = Some(Reaped {
+            at: started + Duration::seconds(5),
+            status: 0,
+        });
+        m.drained_at = None;
+        write(&d, &m);
+        let now = Utc::now();
+        let st = derive(d.path(), now);
+        assert_eq!(st.key, StatusKey::Exited(0));
+        assert!(!st.is_terminal(), "a draining capture can still grow");
+        let secs = st.duration_s(now).expect("a started child has a duration");
+        assert!(
+            (secs - 600.0).abs() < 1.0,
+            "a draining child is still open, got {secs}"
+        );
+    }
+
+    #[test]
+    fn an_abandoned_child_has_no_duration_because_nothing_observed_an_end() {
+        // The wrapper vanished without recording a reap, so this child's fate is
+        // unknown -- it may still be running. A duration here would grow without
+        // bound under a key that says the watching is over.
+        let d = TempDir::new().unwrap();
+        let mut m = dead();
+        m.started_at = Utc::now() - Duration::seconds(4020);
+        m.reaped = None;
+        m.drained_at = None;
+        write(&d, &m);
+        let now = Utc::now();
+        let st = derive(d.path(), now);
+        assert_eq!(st.key, StatusKey::Abandoned);
+        assert_eq!(st.duration_s(now), None);
+    }
+
+    #[test]
+    fn a_child_with_no_meta_has_no_duration() {
+        let dir = TempDir::new().unwrap();
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.key, StatusKey::Abandoned);
+        assert_eq!(st.duration_s(Utc::now()), None);
+    }
+
+    #[test]
+    fn every_key_is_classified_as_terminal_or_not() {
+        assert!(StatusKey::Final(0).is_terminal());
+        assert!(StatusKey::Abandoned.is_terminal());
+        assert!(StatusKey::SpawnFailed("x".into()).is_terminal());
+        assert!(!StatusKey::Producing.is_terminal());
+        assert!(!StatusKey::Quiet("30s").is_terminal());
+        assert!(!StatusKey::Exited(0).is_terminal());
     }
 }
