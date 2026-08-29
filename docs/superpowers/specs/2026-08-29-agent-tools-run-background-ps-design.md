@@ -118,8 +118,18 @@ a millisecond, and the specified form is a syscall.
 
 ### Composition
 
-`--background` composes with `--desc`, `--hide-cmdline` and `--drain-cap-bytes` unchanged.
-It is the phase structure that differs, not what the wrapper records or how it names itself.
+`--background` composes with `--desc` and `--hide-cmdline` unchanged — the phase structure
+differs, not what the wrapper records or how it names itself.
+
+**`--drain-cap-bytes` is accepted and inert**, and that is a consequence of the section above
+rather than an oversight. The bound arms only once a downstream stops accepting writes, and a
+backgrounded run forwards to a sink, which never does. So the flag parses, and nothing it
+names can happen. It is not rejected, because the two flags are orthogonal everywhere else and
+a hard error would make a composed command line fail for a reason the caller cannot act on;
+it is not recorded either, because `meta.json` has no field for it and adding one would reach
+`status`, `ps` and the report for a flag that exists so a test can drive a bound without
+producing 256 MiB. The honest position is that a backgrounded capture is unbounded — stated
+under Consequences — and this flag does not change that.
 
 ## The pull path is data
 
