@@ -73,6 +73,9 @@ pub async fn run(
         forward_closed: false,
         drain_capped: false,
         capture_error: None,
+        claude_pid: std::env::var("CLAUDE_PID")
+            .ok()
+            .and_then(|s| s.parse().ok()),
     };
     let child_dir = publish_child_dir(&parent_dir, wrapper_pid, &cm)?;
 
@@ -337,6 +340,7 @@ mod tests {
                 forward_closed: false,
                 drain_capped: false,
                 capture_error: None,
+                claude_pid: None,
             };
             publish_child_dir(&parent, pid, &cm).unwrap();
         }

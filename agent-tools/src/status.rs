@@ -151,6 +151,19 @@ impl Status {
         };
         Some(((end - m.started_at).num_milliseconds() as f64 / 1000.0).max(0.0))
     }
+
+    /// Whether the session that started this child is gone. `None` when no
+    /// session was recorded: absence of an answer is not a negative one, and a
+    /// `false` here would assert the session is alive on no evidence at all.
+    pub fn orphaned(&self) -> Option<bool> {
+        let pid = self.meta.as_ref()?.claude_pid?;
+        // Liveness by pid alone, deliberately: unlike a wrapper, whose start
+        // ticks this process recorded, nothing here observed the session
+        // starting, so there are no ticks to compare and a recycled pid cannot
+        // be ruled out. Reporting a recycled pid as "still running" errs toward
+        // not calling a live child an orphan.
+        Some(!std::path::Path::new(&format!("/proc/{pid}")).exists())
+    }
 }
 
 /// Returns (bytes, mtime, stat failure other than "not created yet").
@@ -424,6 +437,7 @@ mod tests {
             forward_closed: false,
             drain_capped: false,
             capture_error: None,
+            claude_pid: None,
         }
     }
 
@@ -1058,5 +1072,40 @@ mod tests {
                 && offset[1..].chars().all(|c| c.is_ascii_digit()),
             "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
         );
+    }
+
+    #[test]
+    fn orphanhood_is_unknown_when_nobody_recorded_a_session() {
+        let dir = TempDir::new().unwrap();
+        let m = base();
+        assert_eq!(m.claude_pid, None);
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(
+            st.orphaned(),
+            None,
+            "\"the session is gone\" and \"nobody looked\" are different answers"
+        );
+    }
+
+    #[test]
+    fn a_child_whose_session_is_gone_is_orphaned() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        // pid 0 has no /proc entry, so it can never be alive.
+        m.claude_pid = Some(0);
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.orphaned(), Some(true));
+    }
+
+    #[test]
+    fn a_child_whose_session_still_runs_is_not_orphaned() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        m.claude_pid = Some(std::process::id());
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.orphaned(), Some(false));
     }
 }
