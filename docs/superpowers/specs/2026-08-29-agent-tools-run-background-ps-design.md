@@ -51,12 +51,25 @@ is the marker that says so.
 **No forwarding.** Both of the child's streams go to one appending regular file, `output`,
 and nowhere else.
 
-This is not an exception to the merge rule but an instance of it: the wrapper owns a single
-appending regular file, so both streams provably reach one destination that cannot disagree
-about where the next byte goes. `meta.merge` records `backgrounded: wrapper owns the
-destination`. `forward_closed` becomes structurally impossible for a backgrounded child,
-which is the point — under `&` it fires on nearly every run and a note that is always there
-stops being read.
+This is not an exception to the merge rule but its `both pipes, same destination` case, held
+by construction rather than inferred: the wrapper makes the pipe and hands the child both
+write ends, so no foreign descriptor participates and nothing can be misrouted. The appending
+capture file is not what makes it sound — the tee opens that file the same way in the split
+case too, twice.
+
+**It is forced rather than decided, and that is the point.** By the time a detached wrapper's
+child produces a byte, the wrapper's own stdout and stderr are one `/dev/null`, opened
+`O_RDWR` without `O_APPEND`. Measured, `decide_merge` answers `Split("same file, but not both
+appending")` for exactly that shape — the character-device carve-out the rule states
+deliberately, since character devices are not uniformly unseekable. So asking the rule would
+split every backgrounded capture. The decisive cost of that is not only the lost interleaving:
+`status::notes` renders any non-default split condition, so every backgrounded run would carry
+`streams split: backgrounded: wrapper owns the destination` — "the streams were split because
+nobody was watching", which explains nothing and would appear on every line.
+
+`meta.merge` records `backgrounded: wrapper owns the destination`. `forward_closed` becomes
+structurally impossible for a backgrounded child, which is the point — under `&` it fires on
+nearly every run and a note that is always there stops being read.
 
 The cost is real and is accepted: **stderr is no longer separable** from stdout for a
 backgrounded child. The interleaving is worth more than the separation, because it is the
