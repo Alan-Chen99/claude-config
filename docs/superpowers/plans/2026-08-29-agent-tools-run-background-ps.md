@@ -1007,11 +1007,12 @@ impl Record {
         let key = st.key.to_string();
         let terminal = st.is_terminal();
         let duration = st.duration_s(now);
-        let name = st
-            .meta
-            .as_ref()
-            .map(|m| m.display_name())
-            .unwrap_or_else(|| dir.display().to_string());
+        // `status::name` (extracted in Task 4) is the one place that decides
+        // what a child is called, cap included. Re-deriving the
+        // meta -> display_name -> directory chain here would drop the 200-char
+        // cap `render` applies, so the same status core would emit a capped name
+        // on one surface and an uncapped one on the other.
+        let name = status::name(dir, &st);
         let capture = match st.capture {
             Capture::Merged(_) => format!("{}/output", dir.display()),
             Capture::Split { .. } => format!("{}/{{stdout,stderr}}", dir.display()),
@@ -2554,6 +2555,8 @@ Remove the `timeout <seconds> tail --pid=…` incantation from the recommended p
 - `pid <pid>, started <t>, <age>, <bytes>` for a terminal child with no reap
 
 Then check `scripts/check-prompt-coupling.sh`: it has no needle for `<detail>`, `pid <pid>` or `<age>`, so nothing currently catches this drift. Add one, or the next change to the line shape breaks the prompt silently again.
+
+**Close the recurring hole rather than patching it a fourth time.** Tasks 2, 3 and 4 each shipped agent-facing text the script had no needle for, and each time the gate stayed green while the prompt went false — the failure mode the script exists to prevent, arriving through the one route it cannot see. Patching needle-by-needle has now failed three times, so add the coverage check instead: require a marker comment (`// PROMPT-COUPLED`) directly above every literal in `hook_post.rs` and `status.rs` that reaches `additionalContext`, and have the script assert that the number of markers equals the number of `check` lines targeting those files. A new prompt-facing literal shipped without a needle then fails as a count mismatch at the top of the script, before any individual `check` runs. One extra grep; it does not touch the existing needle list, its ordering, or its comments.
 
 - [ ] **Step 3: Update `agent-tools/CLAUDE.md`**
 
