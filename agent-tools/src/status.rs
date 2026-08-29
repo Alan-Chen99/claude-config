@@ -169,6 +169,41 @@ fn cap(name: &str) -> String {
     cap_to(name, NAME_MAX)
 }
 
+/// A duration a reader takes in without arithmetic. Seconds below a minute,
+/// minutes and zero-padded seconds below an hour, hours and zero-padded minutes
+/// above. Never a bare float: `191.7s` makes a reader do the division that this
+/// is here to have already done.
+pub fn fmt_duration(secs: f64) -> String {
+    let s = secs.max(0.0).round() as i64;
+    if s < 60 {
+        format!("{s}s")
+    } else if s < 3600 {
+        format!("{}m{:02}s", s / 60, s % 60)
+    } else {
+        format!("{}h{:02}m", s / 3600, (s % 3600) / 60)
+    }
+}
+
+/// The local rendering of an instant, for a time read in the terminal it was
+/// printed to. A UTC instant rendered with no zone reads as local: a reader
+/// correlating it against `date` is wrong by the offset with nothing on the
+/// line saying so. The conversion is here rather than at each display site so
+/// that no site can render the instant raw.
+pub fn fmt_local_hms(t: DateTime<Utc>) -> String {
+    t.with_timezone(&chrono::Local)
+        .format("%H:%M:%S")
+        .to_string()
+}
+
+/// The stamp a pushed report carries in its header. Local, with the offset,
+/// because a report line outlives the terminal it was printed to and is re-read
+/// after a compaction, when nothing else on the line says when "4s ago" was.
+pub fn fmt_local_stamp(t: DateTime<Utc>) -> String {
+    t.with_timezone(&chrono::Local)
+        .format("%H:%M:%S %z")
+        .to_string()
+}
+
 fn largest_bucket(age_secs: i64) -> Option<&'static str> {
     QUIET_BUCKETS
         .iter()
@@ -312,7 +347,33 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     // reopening this. A record read off disk is not trustworthy input, whatever
     // this process's own producers put there.
     let key = meta::escape_control(&s.key.to_string());
-    format!("{name} [{key}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}")
+    // Start and duration, in the two shapes the spec fixes: a live child is
+    // still accumulating and says so with `+`; a terminal one reports the total
+    // it finished with.
+    let timing = match (s.meta.as_ref(), s.duration_s(now)) {
+        (Some(m), Some(d)) if s.is_terminal() => Some(format!(
+            "started {}, ran {}",
+            fmt_local_hms(m.started_at),
+            fmt_duration(d)
+        )),
+        (Some(m), Some(d)) => Some(format!(
+            "started {} (+{})",
+            fmt_local_hms(m.started_at),
+            fmt_duration(d)
+        )),
+        // A terminal child with no duration: `abandoned`, where the wrapper
+        // vanished before observing an end, and `spawn-failed`, where nothing
+        // ran to have one. Neither has a span to report, and a number here
+        // would assert one. The record's start is what there is.
+        (Some(m), None) => Some(format!("started {}", fmt_local_hms(m.started_at))),
+        // No meta to read a start from.
+        (None, _) => None,
+    };
+    // The separator lives here, not in the arms: an arm that returned its own
+    // trailing `, ` would let the next arm added omit it and splice `started
+    // 12:00:00` onto the age with nothing between them.
+    let timing = timing.map_or(String::new(), |t| format!("{t}, "));
+    format!("{name} [{key}] pid {pid}, {timing}{age}, {bytes}{notes}{problems} -> {paths}")
 }
 
 #[cfg(test)]
@@ -742,7 +803,10 @@ mod tests {
         m.started_at = now - Duration::seconds(191);
         write(&dir, &m);
         let st = derive(dir.path(), now);
-        assert!(!st.is_terminal(), "a live wrapper with no reap is not terminal");
+        assert!(
+            !st.is_terminal(),
+            "a live wrapper with no reap is not terminal"
+        );
         let d = st.duration_s(now).expect("a started child has a duration");
         assert!((d - 191.0).abs() < 1.0, "duration was {d}");
     }
@@ -761,7 +825,10 @@ mod tests {
         write(&dir, &m);
         let now = Utc::now();
         let st = derive(dir.path(), now);
-        assert!(st.is_terminal(), "a drained, reaped, dead wrapper is terminal");
+        assert!(
+            st.is_terminal(),
+            "a drained, reaped, dead wrapper is terminal"
+        );
         let d = st.duration_s(now).expect("a reaped child has a duration");
         assert!(
             (d - 242.0).abs() < 1.0,
@@ -831,5 +898,124 @@ mod tests {
         assert!(!StatusKey::Producing.is_terminal());
         assert!(!StatusKey::Quiet("30s").is_terminal());
         assert!(!StatusKey::Exited(0).is_terminal());
+    }
+
+    #[test]
+    fn a_duration_reads_at_a_glance() {
+        assert_eq!(fmt_duration(4.0), "4s");
+        assert_eq!(fmt_duration(59.4), "59s");
+        assert_eq!(fmt_duration(191.0), "3m11s");
+        assert_eq!(fmt_duration(242.0), "4m02s");
+        assert_eq!(fmt_duration(3720.0), "1h02m");
+        assert_eq!(fmt_duration(0.0), "0s");
+        // Rounding runs before the tier is chosen. Choosing the tier from the
+        // unrounded seconds instead passes every assertion above and renders
+        // these two as `60s` and `60m00s`.
+        assert_eq!(fmt_duration(59.6), "1m00s");
+        assert_eq!(fmt_duration(3599.6), "1h00m");
+    }
+
+    #[test]
+    fn a_live_line_carries_its_start_and_how_long_so_far() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let now = Utc::now();
+        m.started_at = now - Duration::seconds(191);
+        write(&dir, &m);
+        let st = derive(dir.path(), now);
+        let line = render(dir.path(), &st, now);
+        assert!(line.contains("started "), "line: {line}");
+        assert!(line.contains("(+3m11s), "), "line: {line}");
+        assert!(!line.contains("ran "), "a live child has not `ran`: {line}");
+    }
+
+    #[test]
+    fn a_terminal_line_says_how_long_it_ran() {
+        let dir = TempDir::new().unwrap();
+        let mut m = dead();
+        let started = Utc::now() - Duration::seconds(4020);
+        m.started_at = started;
+        m.reaped = Some(Reaped {
+            at: started + Duration::seconds(242),
+            status: 1,
+        });
+        m.drained_at = Some(started + Duration::seconds(242));
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        let line = render(dir.path(), &st, now);
+        assert!(line.contains("ran 4m02s, "), "line: {line}");
+        assert!(
+            !line.contains("(+"),
+            "a terminal child has no running total: {line}"
+        );
+    }
+
+    /// The start time must be the local rendering of the stored instant, not the
+    /// UTC one wearing local clothes.
+    #[test]
+    fn a_rendered_start_is_local_time() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let started = Utc::now() - Duration::seconds(30);
+        m.started_at = started;
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        let line = render(dir.path(), &st, now);
+        let expected = started
+            .with_timezone(&chrono::Local)
+            .format("%H:%M:%S")
+            .to_string();
+        assert!(
+            line.contains(&format!("started {expected}")),
+            "line {line} did not carry the local start {expected}"
+        );
+    }
+
+    #[test]
+    fn an_abandoned_line_still_says_when_it_started() {
+        let dir = TempDir::new().unwrap();
+        let mut m = dead();
+        let started = Utc::now() - Duration::seconds(4020);
+        m.started_at = started;
+        m.reaped = None;
+        m.drained_at = None;
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        assert_eq!(st.key, StatusKey::Abandoned);
+        let line = render(dir.path(), &st, now);
+        let expected = started
+            .with_timezone(&chrono::Local)
+            .format("%H:%M:%S")
+            .to_string();
+        assert!(
+            line.contains(&format!("started {expected}")),
+            "line: {line}"
+        );
+        assert!(!line.contains("ran "), "nothing observed an end: {line}");
+        assert!(
+            !line.contains("(+"),
+            "a settled child is not accumulating: {line}"
+        );
+    }
+
+    /// A header stamp is re-read after a compaction, so it carries the offset
+    /// that an in-line time leaves out.
+    #[test]
+    fn a_header_stamp_carries_the_offset_an_in_line_time_omits() {
+        let t = Utc::now();
+        let stamp = fmt_local_stamp(t);
+        let hms = fmt_local_hms(t);
+        let offset = stamp
+            .strip_prefix(&format!("{hms} "))
+            .unwrap_or_else(|| panic!("stamp {stamp} does not extend the in-line time {hms}"));
+        assert!(
+            offset.len() == 5
+                && (offset.starts_with('+') || offset.starts_with('-'))
+                && offset[1..].chars().all(|c| c.is_ascii_digit()),
+            "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
+        );
     }
 }
