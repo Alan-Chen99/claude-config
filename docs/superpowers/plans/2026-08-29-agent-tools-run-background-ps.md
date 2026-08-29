@@ -2391,6 +2391,15 @@ In `agent-tools/src/main.rs`, add to the `Run` variant:
         background: bool,
 ```
 
+**A constraint this arm inherits: `detach()` refuses to fork a multi-threaded process.** It
+counts `/proc/self/task` and fails rather than forking, because a child of a multi-threaded
+fork inherits every lock held by a thread that did not cross — and this child does ordinary
+work (it allocates, opens files, builds a runtime), not the async-signal-safe subset. The
+prologue before this point is measured single-threaded, so the guard costs nothing today. But
+anything added ahead of the fork that starts a thread turns `--background` into a hard, loud
+failure rather than a silent hang at the child's first allocation. That is the intended trade;
+know it before adding work above this line.
+
 The `Run` arm currently builds a tokio runtime and blocks on `run::run(...)`. Restructure it so the fork happens before the runtime exists:
 
 ```rust
@@ -2599,6 +2608,8 @@ Then check `scripts/check-prompt-coupling.sh`: it has no needle for `<detail>`, 
 - [ ] **Step 3: Update `agent-tools/CLAUDE.md`**
 
 Add `--background` to the `run` entry, and replace the `ps` entry with one naming `--format <json|text|statusline>` (default `json`), `--all`, `--events`, and the live-only default. Add a `psrecord.rs`, `statusline.rs` and `background.rs` row to the file index.
+
+**Document the hidden `background-probe` subcommand**, on the same terms this file already documents `run-core`: it exists because detaching is a property of processes, so testing it means driving a real binary rather than calling a function. Say that it is hidden from `--help`, that it is for tests only, and that agents should never reach for it — the same sentence `run-core`'s entry carries.
 
 **Update the "Report lines" section.** It documents the line shape as `<name> [<key>] pid <pid>, <age>, <bytes> …`, which Task 2 superseded: a `timing` fragment now sits between the pid and the age, in one of three forms — `started <t>, ran <d>, ` for a terminal child, `started <t> (+<d>), ` for a live one, and `started <t>, ` for a terminal child with no reap, whose end nobody observed. That section also enumerates which fields are capped versus escaped; check the enumeration still holds.
 
