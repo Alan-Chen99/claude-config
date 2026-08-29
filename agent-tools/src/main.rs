@@ -538,6 +538,12 @@ fn main() {
                         println!("{line}");
                         std::process::exit(0);
                     }
+                    // Not a promise that nothing is running. The report is
+                    // made after the child exists — `on_spawn` in run.rs argues
+                    // why that order is the right one — so a wrapper killed in
+                    // between leaves this caller reading an empty pipe while the
+                    // child it spawned runs on, reparented to init in the
+                    // wrapper's own session. `agent-tools ps` is where to check.
                     background::Detached::Parent(Err(e)) => {
                         eprintln!("agent-tools: run: {e:#}");
                         std::process::exit(2);

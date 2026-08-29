@@ -302,10 +302,28 @@ where
     let pid = child
         .id()
         .ok_or_else(|| CoreError::Other(anyhow::anyhow!("child pid unavailable")))?;
-    on_spawn(pid, merge.condition());
-
+    // Before `on_spawn`, not after. `run`'s `on_spawn` is what answers a
+    // `--background` caller, and a caller holding the pid may signal at once.
+    // In the other order the wrapper is briefly signallable and unprotected —
+    // for as long as it takes to register four handlers — and a SIGTERM landing
+    // there takes its default disposition, killing the wrapper and leaving the
+    // child alive at PPID 1, the exact opposite of the one-signal-ends-both
+    // property the wrapper exists to provide. Narrow, and not a race anyone has
+    // seen bite: with the installation after the report, `SigCgt` already
+    // carried SIGTERM at the caller's first possible read in 20 runs of 20,
+    // because the caller's own path — parent print, exit, reap, wake, `/proc`
+    // open — is the slower of the two. This ordering closes it by construction
+    // instead, which is the only way it can be closed: no test can observe a
+    // window the observer is too slow to enter.
+    //
+    // Its own failure is discarded rather than raised, and that is what keeps
+    // it out of the gap's other constraint: nothing between the spawn and
+    // `on_spawn` may return `Err`, or a failed start is reported for a child
+    // that is running. The `CoreError::Other` arm in `run` argues that in full.
     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
     crate::signals::install_forwarding(pid as i32, cancel_rx.clone()).ok();
+
+    on_spawn(pid, merge.condition());
 
     let last_stdout = Arc::new(AtomicI64::new(chrono::Utc::now().timestamp_millis()));
     let last_stderr = Arc::new(AtomicI64::new(chrono::Utc::now().timestamp_millis()));

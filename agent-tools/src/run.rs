@@ -25,22 +25,11 @@ pub async fn run(
     // fired.
     let reporter = Arc::new(Mutex::new(reporter));
 
-    // A failure before the spawn is the caller's to hear about while it is
-    // still listening. Without this every early return below reaches it as
-    // "exited before saying whether it started" — the reason lost, and with it
-    // the difference from the shell's `&` this flag exists to be.
-    macro_rules! bail_to_caller {
-        ($e:expr) => {{
-            let e: anyhow::Error = $e;
-            match take_reporter(&reporter) {
-                Some(r) => r.failed(&e),
-                None => return Err(e),
-            }
-        }};
-    }
-
     if cmd.is_empty() {
-        bail_to_caller!(anyhow!("no command supplied after --"));
+        return Err(tell_caller(
+            &reporter,
+            anyhow!("no command supplied after --"),
+        ));
     }
 
     // Default: set a helpful process title (`comm`) so `ps -o comm=`
@@ -68,13 +57,12 @@ pub async fn run(
     // comment in paths.rs for why the three cases stay apart.
     let (parent_dir, _origin) = match paths::scope_for_run() {
         Ok(v) => v,
-        Err(e) => bail_to_caller!(e),
+        Err(e) => return Err(tell_caller(&reporter, e)),
     };
-    match std::fs::create_dir_all(&parent_dir)
+    if let Err(e) = std::fs::create_dir_all(&parent_dir)
         .with_context(|| format!("mkdir {}", parent_dir.display()))
     {
-        Ok(()) => {}
-        Err(e) => bail_to_caller!(e),
+        return Err(tell_caller(&reporter, e));
     }
 
     // The capture dir is named by the WRAPPER's pid: it exists before the
@@ -83,7 +71,7 @@ pub async fn run(
     let wrapper_pid = std::process::id();
     let wrapper_started_ticks = match crate::procstat::start_ticks(wrapper_pid) {
         Ok(t) => t,
-        Err(e) => bail_to_caller!(e),
+        Err(e) => return Err(tell_caller(&reporter, e)),
     };
     let started_at = chrono::Utc::now();
     // Parsed once so `claude_pid` and `claude_started_ticks` cannot end up
@@ -112,7 +100,7 @@ pub async fn run(
     };
     let child_dir = match publish_child_dir(&parent_dir, wrapper_pid, &cm) {
         Ok(d) => d,
-        Err(e) => bail_to_caller!(e),
+        Err(e) => return Err(tell_caller(&reporter, e)),
     };
 
     // Shared with the callbacks below, which the core calls at the instant each
@@ -200,12 +188,24 @@ pub async fn run(
             // becomes knowable, and a start nobody can name is one nobody can
             // watch, kill, or wait for.
             //
+            // That order has a price, and it is not removable: a wrapper killed
+            // between the spawn and this line — SIGKILL, or the OOM killer —
+            // closes the report pipe with nothing on it, so its caller reads
+            // "exited before saying whether it started" and exits 2 while the
+            // child it spawned runs on, reparented to init in the wrapper's
+            // session. A failed start is therefore not a promise that nothing
+            // is running, and `agent-tools ps` is where to check. Reporting
+            // first would only trade that for a worse one: a caller told where
+            // to look before there is anything to find there.
+            //
             // The directory is escaped for the reason `ChildMeta::display_name`
             // escapes: this line is read one line at a time, so a scope
             // directory whose name carries a newline would print a second line
             // that reads as a status line for a run that does not exist.
             // Nothing else here can — the pids are numbers, and `--desc` never
-            // reaches this line.
+            // reaches this line. The cost falls in exactly the case it fires:
+            // the printed path is then not the path on disk, and the capture
+            // has to be found by the wrapper pid instead.
             if let Some(r) = take_reporter(&reporter) {
                 r.started(&format!(
                     "{}  wrapper pid {wrapper_pid}  child pid {pid}",
@@ -282,23 +282,32 @@ pub async fn run(
             // so `on_spawn` never ran and the report is still unmade. Without
             // this the caller learns only that the wrapper exited, and the one
             // thing that actually went wrong is the one thing never said.
-            let failed = anyhow!("spawn {:?}: {e}", cmd);
-            if let Some(r) = take_reporter(&reporter) {
-                r.failed(&failed);
-            }
-            return Err(failed);
+            return Err(tell_caller(&reporter, anyhow!("spawn {:?}: {e}", cmd)));
         }
         Err(core::CoreError::Other(e)) => {
-            // Raised on both sides of the spawn: `run_core` reports its pipe
-            // and directory failures under this name as well as its failures to
-            // wait on a running child. Which one this is needs no test here,
-            // because the cell answers it — `on_spawn` empties it the instant a
-            // child exists — so a failure before any start is reported, and one
-            // after it is not reported twice.
-            if let Some(r) = take_reporter(&reporter) {
-                r.failed(&e);
-            }
-            return Err(e);
+            // Raised on both sides of the spawn: `run_core` reports its pipe,
+            // dup and capture-directory failures under this name as well as its
+            // failure to wait on a child already running. The cell is what
+            // tells those apart, and it does so only while nothing between the
+            // spawn and `on_spawn` can raise this — `on_spawn` is what empties
+            // it, so a failure raised in that gap would find it full.
+            //
+            // One fallible step is in that gap already: `child.id()`, which
+            // `run_core` turns into `Other("child pid unavailable")`. It cannot
+            // fire there — tokio answers `None` only once `wait` has polled the
+            // child to completion (`FusedChild::Done`, tokio 1.52.3), and
+            // nothing has awaited it yet — so the routing holds by that fact
+            // rather than by construction. The signal-forwarding installer sits
+            // in the gap too and discards its own failure, which is what keeps
+            // it out of this arm.
+            //
+            // What a reachable step there would cost, so the next person to add
+            // one can price it: this arm would report a failed start for a
+            // child that is running. The caller exits 2 believing nothing
+            // started; the child is orphaned to init holding a pipe nobody
+            // drains; `meta.json` never receives its `child_pid`; and
+            // `status::derive` publishes `spawn-failed` for a live process.
+            return Err(tell_caller(&reporter, e));
         }
     };
 
@@ -328,6 +337,34 @@ pub async fn run(
     .ok();
 
     Ok(outcome.exit_code)
+}
+
+/// Hand the caller the reason its start failed, and yield the error the
+/// ordinary path returns.
+///
+/// Every failure before the spawn comes through here, because the caller of a
+/// backgrounded run is blocking on that report and on nothing else: an early
+/// return that skipped it would reach that caller as "exited before saying
+/// whether it started", the reason gone — and losing the reason is the whole of
+/// what the shell's `&` does wrong.
+///
+/// This does not come back for a backgrounded run: `Reporter::failed` ends the
+/// process, a wrapper that started no child having nothing left to supervise.
+/// The error it yields is the foreground answer, where there is no reporter and
+/// the failure is simply `run`'s to return.
+///
+/// A function yielding the error, rather than a macro diverging inside it,
+/// because the macro form makes control flow rest on `Reporter::failed` keeping
+/// its `!` return. Only three of the five bail sites are match arms whose type
+/// enforces that; the other two are statements, where a `failed` that returned
+/// would fall through and carry on to spawn the child it had just reported
+/// failing to start. In this shape that same change is a type error here, at one
+/// site, and every caller spells its own `return`.
+fn tell_caller(cell: &Mutex<Option<background::Reporter>>, e: anyhow::Error) -> anyhow::Error {
+    match take_reporter(cell) {
+        Some(r) => r.failed(&e),
+        None => e,
+    }
 }
 
 /// Take the one report the caller is still blocking on, if nothing has made it

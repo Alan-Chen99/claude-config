@@ -93,6 +93,25 @@ fn still_running(pid: u32, argv_needle: &str) -> bool {
     }
 }
 
+/// Has this process installed a handler for SIGTERM?
+///
+/// `SigCgt` in `/proc/<pid>/status` is the mask of caught signals, numbered
+/// from 1, so SIGTERM (15) is bit 14. Read off `/proc` rather than inferred
+/// from behaviour because the alternative — signalling and watching — cannot
+/// tell "handler installed" from "handler installed just now".
+fn catches_sigterm(pid: u32) -> bool {
+    const SIGTERM: u32 = 15;
+    let status = std::fs::read_to_string(format!("/proc/{pid}/status"))
+        .unwrap_or_else(|e| panic!("the wrapper should still be running: {e}"));
+    let caught = status
+        .lines()
+        .find_map(|l| l.strip_prefix("SigCgt:"))
+        .unwrap_or_else(|| panic!("no SigCgt in /proc/{pid}/status"));
+    let caught =
+        u64::from_str_radix(caught.trim(), 16).unwrap_or_else(|e| panic!("SigCgt {caught:?}: {e}"));
+    caught & (1 << (SIGTERM - 1)) != 0
+}
+
 /// Kills the wrapper a test started, however that test ends. A backgrounded
 /// wrapper outlives its caller by design, so an assertion that fails before the
 /// kill would otherwise leave it and its child running past the suite. The
@@ -151,6 +170,51 @@ fn wait_until_gone(pid: u32, argv_needle: &str) {
             "pid {pid} was still running {argv_needle:?} {DEADLINE:?} after it reported"
         );
         std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// A backgrounded run this test keeps alive: the wrapped command reads a stdin
+/// the caller holds open, so the wrapper is still there to be read from `/proc`
+/// when the start line comes back. Closing `stdin` ends the command, and with
+/// it the run.
+struct Held {
+    started: Started,
+    stdin: std::process::ChildStdin,
+    caller_out: PathBuf,
+    caller_err: PathBuf,
+}
+
+/// Start one, with the caller's stdout and stderr on files.
+///
+/// Files rather than pipes, for two reasons that both bite. They give the
+/// caller's two descriptors names for `/proc/<wrapper>/fd/{1,2}` to be compared
+/// against. And `wait` on a file-backed caller depends on nothing but that
+/// caller's own exit, where waiting on a pipe waits for every copy of the write
+/// end to close — including the copy a wrapper that skipped `detach_std_fds`
+/// would still be holding. That wrapper is running a command that reads a stdin
+/// this test closes only afterwards, so the pipe form does not fail under that
+/// mutation, it deadlocks: measured, a ten-minute run that never finished.
+fn start_holding_stdin(home: &Path, scope: &Path, args: &[&str]) -> Held {
+    let caller_out = home.join("caller-stdout");
+    let caller_err = home.join("caller-stderr");
+    let mut caller = agent_tools(home, scope)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(std::fs::File::create(&caller_out).unwrap())
+        .stderr(std::fs::File::create(&caller_err).unwrap())
+        .spawn()
+        .unwrap();
+    let stdin = caller.stdin.take().expect("piped");
+    assert!(
+        caller.wait().unwrap().success(),
+        "stderr: {}",
+        std::fs::read_to_string(&caller_err).unwrap_or_default()
+    );
+    Held {
+        started: Started::parse(&std::fs::read_to_string(&caller_out).unwrap()),
+        stdin,
+        caller_out,
+        caller_err,
     }
 }
 
@@ -336,14 +400,12 @@ fn a_backgrounded_child_captures_both_streams_into_one_file_and_forwards_neither
     let home = tempfile::TempDir::new().unwrap();
     let scope = scope(home.path(), "sid-bm", "toolu_bm");
 
-    // Files rather than pipes, so the caller's two descriptors have names to
-    // compare the wrapper's against — and so a wrapper that kept them fails
-    // here by assertion instead of by making this call wait for the child it
-    // was just told had started.
-    let caller_out = home.path().join("caller-stdout");
-    let caller_err = home.path().join("caller-stderr");
-    let mut caller = agent_tools(home.path(), &scope)
-        .args([
+    // The child ends when the held stdin closes, so the wrapper is still alive
+    // for the descriptor read below without anything sleeping for it.
+    let held = start_holding_stdin(
+        home.path(),
+        &scope,
+        &[
             "run",
             "--background",
             "--desc",
@@ -351,23 +413,10 @@ fn a_backgrounded_child_captures_both_streams_into_one_file_and_forwards_neither
             "sh",
             "-c",
             &format!("echo {OUT_MARKER}; echo {ERR_MARKER} 1>&2; exec cat"),
-        ])
-        // The child ends when this closes, so the wrapper stays alive for the
-        // descriptor read below without anything sleeping for it.
-        .stdin(Stdio::piped())
-        .stdout(std::fs::File::create(&caller_out).unwrap())
-        .stderr(std::fs::File::create(&caller_err).unwrap())
-        .spawn()
-        .unwrap();
-    let caller_stdin = caller.stdin.take().expect("piped");
-    assert!(
-        caller.wait().unwrap().success(),
-        "stderr: {}",
-        std::fs::read_to_string(&caller_err).unwrap_or_default()
+        ],
     );
-
-    let line = std::fs::read_to_string(&caller_out).unwrap();
-    let s = Started::parse(&line);
+    let s = &held.started;
+    let line = std::fs::read_to_string(&held.caller_out).unwrap();
 
     let fd = |n: u32| {
         std::fs::read_link(format!("/proc/{}/fd/{n}", s.wrapper_pid))
@@ -375,12 +424,12 @@ fn a_backgrounded_child_captures_both_streams_into_one_file_and_forwards_neither
     };
     assert_ne!(
         fd(1),
-        caller_out.canonicalize().unwrap(),
+        held.caller_out.canonicalize().unwrap(),
         "the detached wrapper still holds the caller's stdout open"
     );
     assert_ne!(
         fd(2),
-        caller_err.canonicalize().unwrap(),
+        held.caller_err.canonicalize().unwrap(),
         "the detached wrapper still holds the caller's stderr open"
     );
 
@@ -391,13 +440,13 @@ fn a_backgrounded_child_captures_both_streams_into_one_file_and_forwards_neither
         "the child's stdout reached the caller: {line}"
     );
     assert!(
-        !std::fs::read_to_string(&caller_err)
+        !std::fs::read_to_string(&held.caller_err)
             .unwrap()
             .contains(ERR_MARKER),
         "the child's stderr reached the caller"
     );
 
-    drop(caller_stdin);
+    drop(held.stdin);
     let meta = wait_for_drain(&s.dir);
 
     assert_eq!(meta["merge"], "backgrounded: wrapper owns the destination");
@@ -480,49 +529,109 @@ fn a_non_tty_stdin_is_inherited_so_redirection_still_works() {
     );
 }
 
-/// `--background` changes when the caller is answered, not what the run is.
+/// `--background` changes when the caller is answered, not what the run is —
+/// with one exception worth being exact about.
+///
+/// `--desc` still reaches the record, and `--hide-cmdline` still takes the desc
+/// and the argv out of `/proc/<pid>/cmdline`. That one needs the detached
+/// wrapper read directly: the foreground test for it has the child read
+/// `/proc/$PPID/cmdline`, and a backgrounded run has no such reader — nothing
+/// of the wrapper's is on the caller's streams at all.
+///
+/// `--drain-cap-bytes` is accepted and inert here, and nothing below pretends
+/// otherwise. The bound arms only once a downstream has refused a write, and a
+/// backgrounded run forwards to `tokio::io::sink()`, which never refuses one;
+/// the value is not recorded either. That is `Destination::Nowhere`'s stated
+/// trade — the capture is unbounded and `ps`'s byte count is the mitigation —
+/// so what this pins for that flag is parsing, and only parsing.
 #[test]
 fn background_composes_with_the_flags_run_already_had() {
+    const CANARY: &str = "composed-canary-k4";
+
     let home = tempfile::TempDir::new().unwrap();
     let scope = scope(home.path(), "sid-bc", "toolu_bc");
 
-    let out = agent_tools(home.path(), &scope)
-        .args([
+    // `cat` against a stdin this test holds open, so the wrapper is still there
+    // to be read when the caller comes back.
+    let mut held = start_holding_stdin(
+        home.path(),
+        &scope,
+        &[
             "run",
             "--background",
             "--hide-cmdline",
             "--drain-cap-bytes",
             "4096",
             "--desc",
-            "composed",
-            "echo",
-            "ok",
-        ])
-        .output()
-        .unwrap();
-
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
+            CANARY,
+            "cat",
+        ],
     );
-    let s = Started::parse(&String::from_utf8_lossy(&out.stdout));
+    held.stdin.write_all(b"ok\n").unwrap();
+    let s = &held.started;
+
+    let argv = std::fs::read(format!("/proc/{}/cmdline", s.wrapper_pid))
+        .expect("the detached wrapper should still be running `cat`");
+    let argv = String::from_utf8_lossy(&argv);
+    assert!(
+        !argv.contains(CANARY),
+        "--hide-cmdline left the desc readable in the detached wrapper's argv: {argv:?}"
+    );
+
+    drop(held.stdin);
     let meta = wait_for_drain(&s.dir);
-    assert_eq!(meta["desc"], "composed", "--desc still reaches the record");
+    assert_eq!(meta["desc"], CANARY, "--desc still reaches the record");
     assert_eq!(meta["reaped"]["status"], 0, "the run still ran: {meta}");
     assert_eq!(merged_capture(&s.dir), "ok\n");
 }
 
+/// The wrapper forwards SIGTERM to the child it supervises, and one signal has
+/// to end both — which holds only once the handler is installed. `KillWhenDone`
+/// above rests on it, and so does anyone who kills what a start line named.
+///
+/// What this pins is that the handler is there by the time a caller can use the
+/// pid: forwarding removed, or moved to after the drain, fails here. It does
+/// **not** pin the ordering inside `run_core`, and cannot. With
+/// `install_forwarding` moved back below `on_spawn`, the handler was still
+/// present at the caller's first read in 20 runs out of 20 — the caller's own
+/// path, being parent print, exit, reap, wake and `/proc` open, is slower than
+/// the wrapper's registration of four handlers. That window is real in the
+/// wrapper's own timeline and is closed there by construction, which is the
+/// only place it can be closed.
+#[test]
+fn the_wrapper_catches_sigterm_by_the_time_a_caller_can_use_the_pid() {
+    let home = tempfile::TempDir::new().unwrap();
+    let scope = scope(home.path(), "sid-bs", "toolu_bs");
+
+    let held = start_holding_stdin(
+        home.path(),
+        &scope,
+        &["run", "--background", "--desc", "bg-signals-k4", "cat"],
+    );
+    let s = &held.started;
+
+    // Read at once and once only: a poll would pass on an ordering that merely
+    // gets there quickly, and quickly is what the caller can already outrun.
+    assert!(
+        catches_sigterm(s.wrapper_pid),
+        "the caller has a pid the wrapper cannot forward a signal to"
+    );
+    drop(held.stdin);
+    wait_for_drain(&s.dir);
+}
+
 /// The start line is read a line at a time, by an agent taught which lines are
-/// the wrapper's own. So nothing that reaches it may carry a newline: a second
-/// line would read as a status line for a run that does not exist. The scope
-/// directory is the only part a caller can choose — `--desc` never reaches this
-/// line, and the pids are numbers — and it is escaped rather than refused,
-/// since a path with a newline in it cannot be printed honestly either way.
+/// the wrapper's own. So no control character may reach it intact: a newline
+/// forges a second line that reads as a status line for a run that does not
+/// exist, and an ESC drives the terminal that prints it. The scope directory is
+/// the only part a caller can choose — `--desc` never reaches this line, and
+/// the pids are numbers — and it is escaped rather than refused, since a path
+/// named this way cannot be printed honestly either way. All three below are
+/// one class, which is what `meta::escape_control` treats them as.
 #[test]
 fn the_start_line_stays_one_line_whatever_the_scope_was_named() {
     let home = tempfile::TempDir::new().unwrap();
-    let scope = scope(home.path(), "sid-be", "toolu\nforged");
+    let scope = scope(home.path(), "sid-be", "toolu\nforged\rand\x1b[2Kwiped");
 
     let out = agent_tools(home.path(), &scope)
         .args(["run", "--background", "--desc", "bg\nforged-desc", "true"])
@@ -540,9 +649,11 @@ fn the_start_line_stays_one_line_whatever_the_scope_was_named() {
         1,
         "a newline reached the start line and forged a second one: {printed:?}"
     );
-    assert!(
-        printed.contains("toolu\\nforged"),
-        "the newline is shown rather than obeyed: {printed:?}"
-    );
+    for shown in ["toolu\\nforged", "\\rand", "\\x1b[2Kwiped"] {
+        assert!(
+            printed.contains(shown),
+            "{shown} is shown rather than obeyed: {printed:?}"
+        );
+    }
     wait_for_drain(&only_capture_dir(&scope));
 }
