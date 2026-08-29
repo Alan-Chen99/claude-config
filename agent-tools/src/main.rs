@@ -53,6 +53,7 @@ const MIN_GATE_STDOUT: &str = "\
 If this surfaced new work or a revision, do it and re-enter the gate at the next version. Otherwise send the final response.
 ";
 
+mod background;
 mod capture;
 mod claude;
 mod core;
@@ -240,6 +241,17 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Exercise `background::detach` once and print what the parent learned.
+    ///
+    /// Hidden, because it is not a thing to run: it exists so the fork's
+    /// process-level properties can be tested at all. `tests/` drives it —
+    /// `background.rs` explains why none of those properties is reachable from
+    /// a `#[cfg(test)]` module.
+    #[command(name = "background-probe", hide = true)]
+    BackgroundProbe {
+        /// Which property the detached half exercises.
+        mode: String,
+    },
 }
 
 /// Resolve the claude-config repository root from the binary's build root.
@@ -420,6 +432,21 @@ fn uv_run(
     std::process::exit(1);
 }
 
+/// Subcommand names `settings.json` may wire a hook to.
+///
+/// Hidden subcommands are excluded. `get_subcommands` yields them too, so
+/// taking the list unfiltered widens what a settings file is allowed to name
+/// every time a hidden one is added — a decision nobody makes and nobody sees.
+/// A hook wired to `background-probe` is a mistake worth the loud failure
+/// `assert_wired_subcommands` gives it.
+fn wireable_subcommands() -> Vec<String> {
+    Cli::command()
+        .get_subcommands()
+        .filter(|c| !c.is_hide_set())
+        .map(|c| c.get_name().to_string())
+        .collect()
+}
+
 fn main() {
     let cli = Cli::parse();
     let root = repo_root();
@@ -534,10 +561,7 @@ fn main() {
             }
         }
         Cmd::Claude { args } => {
-            let known: Vec<String> = Cli::command()
-                .get_subcommands()
-                .map(|c| c.get_name().to_string())
-                .collect();
+            let known = wireable_subcommands();
             if let Err(e) = claude::run(&root, &known, args) {
                 eprintln!("agent-tools claude: {e:#}");
                 std::process::exit(1);
@@ -554,6 +578,13 @@ fn main() {
             print!("{MIN_GATE_STDOUT}");
             std::process::exit(0);
         }
+        // Reached with this binary's whole prologue behind it — `Cli::parse`
+        // and `repo_root`, neither of which starts a thread — and no setup of
+        // its own. That is not incidental: `detach` forks only from a
+        // single-threaded process, so a probe that forks has measured the
+        // startup every subcommand shares, rather than a tidier path arranged
+        // for the test.
+        Cmd::BackgroundProbe { mode } => background::probe(&mode),
         cmd => match cmd {
             Cmd::Skill { module, args } => {
                 let full_module = format!("skills.{module}");
@@ -639,6 +670,27 @@ fn main() {
             Cmd::OpencodeGate { .. } => unreachable!(),
             Cmd::MinGate { .. } => unreachable!(),
             Cmd::Claude { .. } => unreachable!(),
+            Cmd::BackgroundProbe { .. } => unreachable!(),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The list guards which subcommands `settings.json` may wire a hook to,
+    /// so a hidden one leaking into it silently widens that surface.
+    #[test]
+    fn a_hidden_subcommand_is_not_wireable_from_settings() {
+        let wireable = wireable_subcommands();
+        assert!(
+            wireable.iter().any(|s| s == "hook-post"),
+            "an ordinary subcommand stays wireable: {wireable:?}"
+        );
+        assert!(
+            !wireable.iter().any(|s| s == "background-probe"),
+            "a hidden subcommand must not be wireable: {wireable:?}"
+        );
     }
 }
