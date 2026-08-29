@@ -363,3 +363,10 @@ Newly accepted, and not deviations:
 - **A backgrounded wrapper does not return its child's exit status.** Stated above.
 - **A backgrounded child's stderr is not separable.** Stated above.
 - **A subagent whose hook failed is attributed to `user-shell`.** Stated above.
+- **A backgrounded capture has no size bound.** The drain bound arms only once a downstream
+  has stopped accepting writes; a backgrounded run has no downstream, so it never arms, and
+  `drain_capped` is inert for the life of the child. This is the same shape any forwarded run
+  has while its caller keeps reading — normal operation is uncapped by design — but detaching
+  removes the two things that used to end it in practice: the caller going away, and the
+  wrapper dying with the call. A wrapped `yes` started with `--background` writes until the
+  disk is full. `ps` reports the growing byte count, and that is the whole of the mitigation.

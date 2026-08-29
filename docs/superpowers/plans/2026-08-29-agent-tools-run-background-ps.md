@@ -1855,7 +1855,7 @@ async fn a_run_with_no_destination_captures_one_merged_file_and_forwards_nothing
         &["sh".into(), "-c".into(), "echo out; echo err 1>&2".into()],
         dir.path(),
         None,
-        agent_tools::core::Destination::None,
+        agent_tools::core::Destination::Nowhere,
         |_pid, merge| {
             assert_eq!(
                 merge, agent_tools::core::BACKGROUNDED,
@@ -1913,7 +1913,7 @@ Change `run_core`'s signature to take `destination: Destination` after `drain_ca
         // Nothing to inspect: there is no caller destination for the streams to
         // agree or disagree about, and the one this wrapper opens is a single
         // appending regular file.
-        Destination::None => Merge::Merged(BACKGROUNDED),
+        Destination::Nowhere => Merge::Merged(BACKGROUNDED),
     };
 ```
 
@@ -1926,7 +1926,7 @@ In the `Streams::Merged(rx)` arm, make the forward target depend on the destinat
                     "output", rx, dir.join("output"), tokio::io::stdout(),
                     drain_cap_bytes, last_stdout.clone(), dir.clone(),
                 )),
-                Destination::None => tokio::spawn(capture::tee(
+                Destination::Nowhere => tokio::spawn(capture::tee(
                     "output", rx, dir.join("output"), tokio::io::sink(),
                     drain_cap_bytes, last_stdout.clone(), dir.clone(),
                 )),
@@ -2497,7 +2497,7 @@ The destination follows the same fact:
 
 ```rust
     let destination = if reporter.is_some() {
-        core::Destination::None
+        core::Destination::Nowhere
     } else {
         core::Destination::Caller
     };
