@@ -43,6 +43,15 @@ pub struct ChildMeta {
     /// being gone — `status::orphaned` keeps those apart.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_pid: Option<u32>,
+    /// `claude_pid`'s start ticks, read from `/proc/<claude_pid>/stat` when
+    /// this wrapper starts — the one moment the session named by
+    /// `claude_pid` is certainly alive, since it is what started this
+    /// wrapper. `status::orphaned` compares these against that pid's current
+    /// ticks rather than trusting the bare pid, for the reason
+    /// `wrapper_started_ticks` above exists: a wrapped `pid_max` can land an
+    /// unrelated process on a recycled pid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_started_ticks: Option<u64>,
 }
 
 impl ChildMeta {
@@ -116,6 +125,7 @@ mod tests {
             drain_capped: false,
             capture_error: None,
             claude_pid: None,
+            claude_started_ticks: None,
         }
     }
 
@@ -161,11 +171,12 @@ mod tests {
     }
 
     #[test]
-    fn a_record_written_before_claude_pid_existed_still_reads() {
+    fn a_record_missing_claude_fields_still_reads() {
         let dir = TempDir::new().unwrap();
-        // A hand-written record with no `claude_pid` key at all, as every
-        // meta.json on disk before this field existed reads. A record that
-        // stops parsing turns every existing capture into `abandoned`.
+        // A record with no `claude_pid` or `claude_started_ticks` key at
+        // all — the shape any wrapper that does not set them writes. A
+        // record that stops parsing turns every existing capture into
+        // `abandoned`.
         std::fs::write(
             dir.path().join("meta.json"),
             r#"{
@@ -181,7 +192,9 @@ mod tests {
             }"#,
         )
         .unwrap();
-        assert_eq!(read_meta(dir.path()).unwrap().claude_pid, None);
+        let m = read_meta(dir.path()).unwrap();
+        assert_eq!(m.claude_pid, None);
+        assert_eq!(m.claude_started_ticks, None);
     }
 
     #[test]

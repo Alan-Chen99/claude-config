@@ -152,17 +152,29 @@ impl Status {
         Some(((end - m.started_at).num_milliseconds() as f64 / 1000.0).max(0.0))
     }
 
-    /// Whether the session that started this child is gone. `None` when no
-    /// session was recorded: absence of an answer is not a negative one, and a
-    /// `false` here would assert the session is alive on no evidence at all.
+    /// Whether the session that started this child is gone. This is a fact
+    /// about the session, not about the child: a child that exited hours ago
+    /// still carries whatever this returns, so a terminal record reading
+    /// `Some(true)` is not on its own a leak — pair it with `!is_terminal()`
+    /// to mean one.
+    ///
+    /// `None` when there is not enough on record to answer safely: no
+    /// session was named, or one was named but its start ticks were not —
+    /// the shape a record takes when its own `/proc/<claude_pid>/stat` read
+    /// failed, or when nothing populated the field at all. A bare pid is not
+    /// evidence either way once `pid_max` has wrapped, so guessing
+    /// `Some(false)` here would assert liveness on exactly the evidence this
+    /// field exists to stop trusting.
     pub fn orphaned(&self) -> Option<bool> {
-        let pid = self.meta.as_ref()?.claude_pid?;
-        // Liveness by pid alone, deliberately: unlike a wrapper, whose start
-        // ticks this process recorded, nothing here observed the session
-        // starting, so there are no ticks to compare and a recycled pid cannot
-        // be ruled out. Reporting a recycled pid as "still running" errs toward
-        // not calling a live child an orphan.
-        Some(!std::path::Path::new(&format!("/proc/{pid}")).exists())
+        let m = self.meta.as_ref()?;
+        let pid = m.claude_pid?;
+        let ticks = m.claude_started_ticks?;
+        // The same recycled-pid guard `wrapper_pid` gets from `is_alive`
+        // elsewhere in this module. A detached wrapper can outlive the
+        // session that started it long enough for `pid_max` to wrap and land
+        // an unrelated process on `claude_pid`; ticks are what tell that
+        // process apart from the session actually named here.
+        Some(!procstat::is_alive(pid, ticks))
     }
 }
 
@@ -438,6 +450,7 @@ mod tests {
             drain_capped: false,
             capture_error: None,
             claude_pid: None,
+            claude_started_ticks: None,
         }
     }
 
@@ -1089,11 +1102,28 @@ mod tests {
     }
 
     #[test]
+    fn orphanhood_is_unknown_when_a_pid_was_recorded_without_its_start_ticks() {
+        // A named session with no ticks to check it against is exactly the
+        // shape a bare-pid check cannot tell from a live one: a `false`
+        // answer here would assert liveness on the one kind of evidence this
+        // field exists to stop trusting.
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        m.claude_pid = Some(std::process::id());
+        assert_eq!(m.claude_started_ticks, None);
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.orphaned(), None);
+    }
+
+    #[test]
     fn a_child_whose_session_is_gone_is_orphaned() {
         let dir = TempDir::new().unwrap();
         let mut m = base();
-        // pid 0 has no /proc entry, so it can never be alive.
+        // pid 0 has no /proc entry, so it can never be alive regardless of
+        // the ticks recorded against it.
         m.claude_pid = Some(0);
+        m.claude_started_ticks = Some(1);
         write(&dir, &m);
         let st = derive(dir.path(), Utc::now());
         assert_eq!(st.orphaned(), Some(true));
@@ -1104,8 +1134,26 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let mut m = base();
         m.claude_pid = Some(std::process::id());
+        m.claude_started_ticks = Some(crate::procstat::start_ticks(std::process::id()).unwrap());
         write(&dir, &m);
         let st = derive(dir.path(), Utc::now());
         assert_eq!(st.orphaned(), Some(false));
+    }
+
+    #[test]
+    fn a_recycled_pid_is_not_mistaken_for_the_session_that_recorded_it() {
+        // Wrong start ticks against a pid that does exist: the same shape
+        // `procstat::tests::wrong_start_ticks_reads_as_dead` guards for a
+        // wrapper, here for the session that named this child. A bare
+        // `/proc/<pid>` existence check cannot see this at all.
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let pid = std::process::id();
+        let ticks = crate::procstat::start_ticks(pid).unwrap();
+        m.claude_pid = Some(pid);
+        m.claude_started_ticks = Some(ticks + 1);
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.orphaned(), Some(true));
     }
 }

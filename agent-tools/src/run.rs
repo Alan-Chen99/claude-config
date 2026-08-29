@@ -59,6 +59,13 @@ pub async fn run(
     let wrapper_pid = std::process::id();
     let wrapper_started_ticks = crate::procstat::start_ticks(wrapper_pid)?;
     let started_at = chrono::Utc::now();
+    // Parsed once so `claude_pid` and `claude_started_ticks` cannot end up
+    // describing two different pids if one of these call sites is edited
+    // later without the other.
+    let claude_pid: Option<u32> = std::env::var("CLAUDE_PID")
+        .ok()
+        .and_then(|s| s.parse().ok());
+    let claude_started_ticks = claude_pid.and_then(|pid| crate::procstat::start_ticks(pid).ok());
     let cm = ChildMeta {
         wrapper_pid,
         wrapper_started_ticks,
@@ -73,9 +80,8 @@ pub async fn run(
         forward_closed: false,
         drain_capped: false,
         capture_error: None,
-        claude_pid: std::env::var("CLAUDE_PID")
-            .ok()
-            .and_then(|s| s.parse().ok()),
+        claude_pid,
+        claude_started_ticks,
     };
     let child_dir = publish_child_dir(&parent_dir, wrapper_pid, &cm)?;
 
@@ -341,6 +347,7 @@ mod tests {
                 drain_capped: false,
                 capture_error: None,
                 claude_pid: None,
+                claude_started_ticks: None,
             };
             publish_child_dir(&parent, pid, &cm).unwrap();
         }
