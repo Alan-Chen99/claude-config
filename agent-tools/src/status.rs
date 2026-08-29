@@ -332,32 +332,14 @@ pub fn name(dir: &Path, s: &Status) -> String {
     cap(&raw)
 }
 
-/// One rendered line: name, key, detail, capture paths.
-pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
-    let name = name(dir, s);
-    // The capture files are created when the tee opens them, so an mtime exists
-    // before any byte does. Byte counts, not mtime, decide whether output happened.
-    let age = match s.last_byte_at {
-        Some(t) if s.capture.bytes() > 0 => {
-            format!("last byte {}s ago", (now - t).num_seconds().max(0))
-        }
-        _ => "no output".to_string(),
-    };
-    let problems = if s.stat_errors.is_empty() {
-        String::new()
-    } else {
-        format!(" [stat failed: {}]", s.stat_errors.join("; "))
-    };
-    let pid = s
-        .meta
-        .as_ref()
-        .and_then(|m| m.child_pid)
-        .map(|p| p.to_string())
-        .unwrap_or_else(|| "-".into());
-    // Everything that explains a difference from bare, so `final(0)` never sits
-    // beside a capture that stopped growing an hour ago. Empty on a clean run,
-    // which is nearly every run: these lines land in every tool result, and a
-    // note that is always there stops being read.
+/// Everything that explains a difference from bare, so `final(0)` never sits
+/// beside a capture that stopped growing an hour ago. Empty on a clean run,
+/// which is nearly every run: these lines land in every tool result, and a
+/// note that is always there stops being read.
+///
+/// Shared by `render` and `psrecord::Record::build`, so a rendered line and a
+/// JSON record can never name a different set of notes for the same child.
+pub fn notes(s: &Status) -> Vec<String> {
     let mut notes: Vec<String> = Vec::new();
     // A split says something only when the caller's own two descriptors reached
     // one destination and the rule declined anyway: then the capture is two
@@ -384,6 +366,32 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     if let Some(e) = s.meta.as_ref().and_then(|m| m.capture_error.as_deref()) {
         notes.push(format!("capture failed: {}", meta::escape_control(e)));
     }
+    notes
+}
+
+/// One rendered line: name, key, detail, capture paths.
+pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
+    let name = name(dir, s);
+    // The capture files are created when the tee opens them, so an mtime exists
+    // before any byte does. Byte counts, not mtime, decide whether output happened.
+    let age = match s.last_byte_at {
+        Some(t) if s.capture.bytes() > 0 => {
+            format!("last byte {}s ago", (now - t).num_seconds().max(0))
+        }
+        _ => "no output".to_string(),
+    };
+    let problems = if s.stat_errors.is_empty() {
+        String::new()
+    } else {
+        format!(" [stat failed: {}]", s.stat_errors.join("; "))
+    };
+    let pid = s
+        .meta
+        .as_ref()
+        .and_then(|m| m.child_pid)
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| "-".into());
+    let notes = notes(s);
     let notes = if notes.is_empty() {
         String::new()
     } else {

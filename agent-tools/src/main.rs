@@ -68,6 +68,7 @@ mod paths;
 mod procname;
 mod procstat;
 mod ps;
+mod psrecord;
 mod run;
 mod signals;
 mod status;

@@ -6,23 +6,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::events::{self, Event};
-use crate::meta::{self, ChildMeta};
+use crate::meta;
 use crate::paths;
-
-/// One captured `agent-tools run` invocation on disk.
-struct Capture {
-    agent_id: Option<String>,
-    tool_use_id: String,
-    /// Directory holding this capture: `stdout` and `stderr` when the streams were
-    /// split, `output` when they were merged, plus `meta.json` either way.
-    /// Layout: `<tool_use_id_dir>/<pid>/`.
-    capture_dir: PathBuf,
-    /// `None` when `meta.json` is absent or will not parse. The capture still
-    /// exists and `status::derive` still has an answer for it — `abandoned` —
-    /// so dropping it here would leave `ps` disagreeing with the report about
-    /// whether the child exists at all.
-    meta: Option<ChildMeta>,
-}
+use crate::psrecord::Capture;
 
 pub fn run(task_filter: Option<String>, session_override: Option<String>) -> Result<()> {
     let session_id = match session_override {
