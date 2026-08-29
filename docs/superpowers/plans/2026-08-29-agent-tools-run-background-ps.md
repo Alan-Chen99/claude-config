@@ -1675,7 +1675,15 @@ and after the existing `printf` block:
 
 ```bash
 [ -n "$TASKS" ] && printf "%s\n" "$TASKS"
+exit 0
 ```
+
+**The `exit 0` is load-bearing, not tidiness.** `[ -n "$TASKS" ] && printf …` as the last
+statement returns non-zero whenever `TASKS` is empty — the ordinary case, when nothing is
+running. `executeStatusLineCommand` in `/repos/claude-code-src/src/utils/hooks.ts` reads
+stdout only `if (result.status === 0)` and otherwise returns undefined, which blanks the
+**whole** bar rather than just omitting the new row. Without the explicit exit, adding a
+status row deletes the status line for every session that has no wrapped job running.
 
 - [ ] **Step 3: Verify it prints nothing when nothing runs**
 
@@ -1695,7 +1703,9 @@ agent-tools run --desc "statusline-probe" sleep 20 &
 sleep 1
 echo "{\"model\":{\"display_name\":\"Opus\"},\"session_id\":\"$CLAUDE_CODE_SESSION_ID\",\"transcript_path\":\"/tmp/t.jsonl\",\"workspace\":{\"current_dir\":\"/tmp\"},\"context_window\":{}}" | PATH=/root/claude-config-work/agent-tools/target/release:$PATH ./statusline.sh
 ```
-Expected: a fifth line beginning `▶ @` and containing `statusline-probe`.
+Expected: a fifth line beginning `▶ @` and naming the probe. Note the name is cut at
+`NAME_MAX = 14`, so a 16-character `--desc` renders as `statusline-pro…` — assert on the
+truncated form, not the full string.
 
 - [ ] **Step 5: Commit**
 
