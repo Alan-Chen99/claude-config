@@ -206,7 +206,10 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
         });
     }
     let mut ledger = crate::ledger::Ledger::open(&scope)?;
-    let mut pending: Vec<(String, String, String)> = Vec::new();
+    // (id, key, rendered line, name) — name travels with the other three
+    // rather than being recovered later by re-parsing the line: see
+    // `collapse_running`.
+    let mut pending: Vec<(String, String, String, String)> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
 
     for tuid_entry in fs::read_dir(&scope)?.flatten() {
@@ -245,6 +248,7 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
                     id,
                     key,
                     format!("  {}", crate::status::render(&cap_dir, &st, now)),
+                    crate::status::name(&cap_dir, &st),
                 ));
             }
         }
@@ -254,7 +258,27 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
     // report is reproducible instead of in whatever order read_dir happened to
     // yield — which would also make the dropped set arbitrary.
     pending.sort_by(|a, b| rank(&a.1).cmp(&rank(&b.1)).then_with(|| a.0.cmp(&b.0)));
-    let mut lines = bound(&mut ledger, pending);
+    let (terminal, running): (Vec<_>, Vec<_>) = pending
+        .into_iter()
+        .partition(|(_, key, _, _)| rank(key) == 0);
+    let mut lines = bound(
+        &mut ledger,
+        terminal
+            .into_iter()
+            .map(|(id, key, line, _)| (id, key, line))
+            .collect(),
+    );
+    // `collapse_running` gets only what `bound` left of the budget, not the
+    // module ceiling again: checking its one line against the whole of
+    // `REPORT_BUDGET` a second time would let the two sums together exceed
+    // it, and a report over `REPORT_BUDGET` is replaced whole by the
+    // runtime's stub — which reads to the agent as nothing else changed.
+    let used: usize = lines.iter().map(|l| l.len() + 1).sum();
+    if let Some(collapsed) =
+        collapse_running(&mut ledger, running, REPORT_BUDGET.saturating_sub(used))
+    {
+        lines.push(collapsed);
+    }
     // A reset ledger makes every child look new. Say why, or the agent sees a
     // burst of repeats with no explanation.
     if let Some(reason) = ledger.reset_reason.clone() {
@@ -317,6 +341,57 @@ fn bound(
         ));
     }
     kept
+}
+
+/// One line for every child that is merely still running, grouping them by key
+/// and naming each one under its own.
+///
+/// Naming is not decoration. Counts alone — "17 producing, 2 quiet" — would
+/// tell the agent that two children are quiet without telling it which, and
+/// the ledger could then not honestly retire them: a key would be recorded as
+/// reported when the child holding it was never named. So a child is recorded
+/// only once its name is in the line, and if the line will not fit, nothing is
+/// recorded and every one of them stays pending for the next delivery point.
+///
+/// The name is the caller's fourth tuple field, not something recovered here
+/// by re-splitting the rendered line: a `--desc` is free text and
+/// `escape_control` does not touch `[`, so a name like `build [stage 2]`
+/// would split at its own bracket and report the child as `build`.
+///
+/// `budget` is what `bound` did not already spend on terminal lines, not
+/// `REPORT_BUDGET` again — the caller charges both against one ceiling so the
+/// two together can never exceed it.
+fn collapse_running(
+    ledger: &mut crate::ledger::Ledger,
+    running: Vec<(String, String, String, String)>,
+    budget: usize,
+) -> Option<String> {
+    if running.is_empty() {
+        return None;
+    }
+    let mut groups: std::collections::BTreeMap<String, Vec<(String, String)>> =
+        std::collections::BTreeMap::new();
+    for (id, key, _line, name) in running {
+        groups.entry(key).or_default().push((id, name));
+    }
+    let body = groups
+        .iter()
+        .map(|(key, members)| {
+            let names: Vec<&str> = members.iter().map(|(_, n)| n.as_str()).collect();
+            format!("[{}] {}", key, names.join(", "))
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    let line = format!("  still running: {body}  -> agent-tools ps");
+    if line.len() + 1 > budget {
+        return None;
+    }
+    for (key, members) in &groups {
+        for (id, _) in members {
+            ledger.record(id, key);
+        }
+    }
+    Some(line)
 }
 
 #[cfg(test)]
@@ -391,5 +466,40 @@ mod tests {
         assert!(ledger.changed("b/2", "final(0)"), "a dropped line must stay pending");
         assert!(!ledger.changed("a/1", "final(0)"), "a kept line must be recorded");
         assert!(!ledger.changed("c/3", "final(0)"), "a kept line must be recorded");
+    }
+
+    #[test]
+    fn a_collapsed_line_is_dropped_rather_than_pushing_the_total_past_the_budget() {
+        // `bound` and the collapsed line share one ceiling. Checking the
+        // collapsed line against the whole of it — the same ceiling `bound`
+        // already spent part of on terminal lines — would let the two sum
+        // past REPORT_BUDGET, and a report over that size is replaced whole by
+        // the runtime's stub, which reads to the agent as nothing changed.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let mut ledger = crate::ledger::Ledger::open(tmp.path()).unwrap();
+
+        // One terminal line sized so only a sliver of the budget remains.
+        let terminal = vec![(
+            "a/1".to_string(),
+            "final(0)".to_string(),
+            "x".repeat(super::REPORT_BUDGET - 40),
+        )];
+        let lines = super::bound(&mut ledger, terminal);
+        let used: usize = lines.iter().map(|l| l.len() + 1).sum();
+
+        // Comfortably under REPORT_BUDGET on its own, but not under the
+        // sliver `bound` left behind.
+        let running = vec![(
+            "b/2".to_string(),
+            "producing".to_string(),
+            "irrelevant".to_string(),
+            "y".repeat(80),
+        )];
+        let collapsed = super::collapse_running(&mut ledger, running, super::REPORT_BUDGET - used);
+        assert!(
+            collapsed.is_none(),
+            "a collapsed line that does not fit what bound left behind must be \
+             dropped whole, not appended on top of an already-full budget"
+        );
     }
 }

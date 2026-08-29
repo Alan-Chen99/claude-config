@@ -276,14 +276,27 @@ pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
     }
 }
 
-/// One rendered line: name, key, detail, capture paths.
-pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
-    let name = s
+/// The name a report line — or a group in a collapsed report line — identifies
+/// a child by: its `--desc`, capped and escaped, or the capture directory when
+/// no meta could be read at all.
+///
+/// A shared function rather than two call sites computing it separately. A
+/// `--desc` is free text and `escape_control` does not touch `[`, so recovering
+/// a name by re-splitting an already-rendered line at " [" cuts a desc like
+/// `build [stage 2]` at its own bracket; reading it once here and passing it
+/// along is what keeps a child's name the same everywhere it is shown.
+pub fn name(dir: &Path, s: &Status) -> String {
+    let raw = s
         .meta
         .as_ref()
         .map(|m| m.display_name())
         .unwrap_or_else(|| dir.display().to_string());
-    let name = cap(&name);
+    cap(&raw)
+}
+
+/// One rendered line: name, key, detail, capture paths.
+pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
+    let name = name(dir, s);
     // The capture files are created when the tee opens them, so an mtime exists
     // before any byte does. Byte counts, not mtime, decide whether output happened.
     let age = match s.last_byte_at {
