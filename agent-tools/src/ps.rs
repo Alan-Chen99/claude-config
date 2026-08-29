@@ -9,6 +9,7 @@ use crate::events::{self, Event};
 use crate::meta;
 use crate::paths;
 use crate::psrecord::{Capture, Envelope, Record, Withheld};
+use crate::statusline;
 
 /// `--format`'s value set, as a `clap::ValueEnum` rather than a bare
 /// `String`: the set was spelled three times over — the help text, the
@@ -22,6 +23,7 @@ use crate::psrecord::{Capture, Envelope, Record, Withheld};
 pub enum PsFormat {
     Json,
     Text,
+    Statusline,
 }
 
 pub fn run(
@@ -52,6 +54,7 @@ pub fn run(
     match format {
         PsFormat::Json => render_json(&session_id, &captures, all, now),
         PsFormat::Text => render_text(&session_id, &captures, all, events, now),
+        PsFormat::Statusline => render_statusline(&captures, now),
     }
 }
 
@@ -158,6 +161,15 @@ fn render_json(
         withheld,
     };
     println!("{}", serde_json::to_string_pretty(&envelope)?);
+    Ok(())
+}
+
+/// `ps --format statusline`. One line for the Claude Code status bar, or
+/// nothing at all when no capture is live — see `statusline::render`. `--all`
+/// and `--events` do not apply: the bar exists to show what is running, and a
+/// settled child or an event log answers a different question than that one.
+fn render_statusline(captures: &[Capture], now: DateTime<Utc>) -> Result<()> {
+    print!("{}", statusline::render(captures, now));
     Ok(())
 }
 

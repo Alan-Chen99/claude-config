@@ -72,6 +72,7 @@ mod psrecord;
 mod run;
 mod signals;
 mod status;
+mod statusline;
 
 #[derive(Parser)]
 #[command(name = "agent-tools")]
