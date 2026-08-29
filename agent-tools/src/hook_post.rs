@@ -22,6 +22,7 @@ const REPORT_BUDGET: usize = 9_000;
 /// anchor however long the scan took after the figures it anchors.
 pub(crate) fn report_header(at: chrono::DateTime<chrono::Utc>) -> String {
     format!(
+        // PROMPT-COUPLED
         "[agent-tools] run status @ {}:",
         crate::status::fmt_local_stamp(at)
     )
@@ -68,6 +69,7 @@ pub fn run() -> Result<()> {
         Err(e) => {
             eprintln!("agent-tools hook-post: status report failed: {e:#}");
             parts.push(format!(
+                // PROMPT-COUPLED
                 "[agent-tools] run status: unavailable this time ({e}); \
                  run `agent-tools ps` for the current state"
             ));
@@ -147,6 +149,7 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
     // "Backgrounded" (not "involuntarily backgrounded") — auto/user/timeout are
     // involuntary from the model's view, but explicit run_in_background is
     // voluntary; the `Cause:` line carries the distinction.
+    // PROMPT-COUPLED
     Some(format!(
         "BACKGROUNDED: Command was backgrounded. Cause: {cause}. \
          Process is still running (task_id: {bg_task_id}). \
@@ -431,6 +434,7 @@ fn collapse_running(
         })
         .collect::<Vec<_>>()
         .join("; ");
+    // PROMPT-COUPLED
     let line = format!("  still running: {body}  -> agent-tools ps");
     if line.len() + 1 > budget {
         return Collapsed::Dropped(count);

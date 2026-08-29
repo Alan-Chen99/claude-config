@@ -127,7 +127,7 @@ enum Cmd {
         /// `/proc/*/cmdline`. Opt-in because the default cmdline is
         /// load-bearing for debugging; only enable for probe /
         /// contamination-sensitive work. See agent-tools CLAUDE.md
-        /// "`--desc` argv hiding (F88)".
+        /// "Process identity: `comm` (default) vs `--hide-cmdline` (opt-in)".
         #[arg(long)]
         hide_cmdline: bool,
         /// Bytes captured after the downstream closed before the read end is

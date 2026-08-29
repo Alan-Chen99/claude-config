@@ -101,11 +101,17 @@ pub enum StatusKey {
 impl fmt::Display for StatusKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            // PROMPT-COUPLED
             StatusKey::SpawnFailed(e) => write!(f, "spawn-failed({e})"),
+            // PROMPT-COUPLED
             StatusKey::Producing => write!(f, "producing"),
+            // PROMPT-COUPLED
             StatusKey::Quiet(b) => write!(f, "quiet({b})"),
+            // PROMPT-COUPLED
             StatusKey::Exited(c) => write!(f, "exited({c})"),
+            // PROMPT-COUPLED
             StatusKey::Final(c) => write!(f, "final({c})"),
+            // PROMPT-COUPLED
             StatusKey::Abandoned => write!(f, "abandoned"),
         }
     }
@@ -404,16 +410,20 @@ pub fn notes(s: &Status) -> Vec<String> {
         (&s.capture, s.meta.as_ref().and_then(|m| m.merge.as_deref()))
     {
         if why != core::DESTINATIONS_ALREADY_DIFFERED {
+            // PROMPT-COUPLED
             notes.push(format!("streams split: {}", meta::escape_control(why)));
         }
     }
     if s.meta.as_ref().is_some_and(|m| m.forward_closed) {
+        // PROMPT-COUPLED
         notes.push("downstream closed".to_string());
     }
     if s.meta.as_ref().is_some_and(|m| m.drain_capped) {
+        // PROMPT-COUPLED
         notes.push("drain capped".to_string());
     }
     if let Some(e) = s.meta.as_ref().and_then(|m| m.capture_error.as_deref()) {
+        // PROMPT-COUPLED
         notes.push(format!("capture failed: {}", meta::escape_control(e)));
     }
     notes
@@ -433,13 +443,16 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     let problems = if s.stat_errors.is_empty() {
         String::new()
     } else {
+        // PROMPT-COUPLED
         format!(" [stat failed: {}]", s.stat_errors.join("; "))
     };
     let pid = s
         .meta
         .as_ref()
+        // PROMPT-COUPLED
         .and_then(|m| m.child_pid)
         .map(|p| p.to_string())
+        // PROMPT-COUPLED
         .unwrap_or_else(|| "-".into());
     let notes = notes(s);
     let notes = if notes.is_empty() {
@@ -460,11 +473,13 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     // still accumulating and says so with `+`; a terminal one reports the total
     // it finished with.
     let timing = match (s.meta.as_ref(), s.duration_s(now)) {
+        // PROMPT-COUPLED
         (Some(m), Some(d)) if s.is_terminal() => Some(format!(
             "started {}, ran {}",
             fmt_local_hms(m.started_at),
             fmt_duration(d)
         )),
+        // PROMPT-COUPLED
         (Some(m), Some(d)) => Some(format!(
             "started {} (+{})",
             fmt_local_hms(m.started_at),
@@ -474,6 +489,7 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         // vanished before observing an end, and `spawn-failed`, where nothing
         // ran to have one. Neither has a span to report, and a number here
         // would assert one. The record's start is what there is.
+        // PROMPT-COUPLED
         (Some(m), None) => Some(format!("started {}", fmt_local_hms(m.started_at))),
         // No meta to read a start from.
         (None, _) => None,
@@ -482,6 +498,7 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     // trailing `, ` would let the next arm added omit it and splice `started
     // 12:00:00` onto the age with nothing between them.
     let timing = timing.map_or(String::new(), |t| format!("{t}, "));
+    // PROMPT-COUPLED
     format!("{name} [{key}] pid {pid}, {timing}{age}, {bytes}{notes}{problems} -> {paths}")
 }
 

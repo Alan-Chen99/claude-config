@@ -13,12 +13,15 @@ prompt="$root/sys_prompt/alan-default-next.md"
 src="$root/agent-tools/src"
 status_source="0"
 
+# A needle is registered here and grepped at the bottom, after the coverage
+# assertion in between has run. A prompt-facing literal with no needle behind it
+# is then reported on its own terms, instead of being read as whichever
+# individual needle happens to fail beside it.
+needle=()
+target=()
 check() {
-  local needle="$1" where="$2"
-  if ! grep -qF -- "$needle" "$where"; then
-    echo "MISSING in $where: $needle" >&2
-    status_source=1
-  fi
+  needle+=("$1")
+  target+=("$2")
 }
 
 # The status report header. `report_header` in hook_post.rs is the one place
@@ -140,6 +143,62 @@ drain capped|notes.push("drain capped".to_string())
 capture failed: <err>|format!("capture failed: {}", meta::escape_control(e))
 stat failed: <err>|format!(" [stat failed: {}]", s.stat_errors.join("; "))
 NOTES
+
+# The `--background` start line: the whole of what a backgrounded run tells its
+# caller, being the capture directory and the two pids on one line. It carries no
+# `[agent-tools]` prefix, because it is the command's own stdout rather than the
+# status channel, so the prompt shows its shape instead — which is the only thing
+# separating it from the child's first line of output. Drift makes that shape a
+# lie and the capture directory unfindable. The needle is the whole format
+# literal: the bare words also occur in `run.rs`'s own comments and in the test
+# asserting the line, so a word-level grep passes over a drifted emitter.
+check '<capture_dir>  wrapper pid <n>  child pid <n>' "$prompt"
+check '"{}  wrapper pid {wrapper_pid}  child pid {pid}"' "$src/run.rs"
+
+# Coverage, for the literal nobody pinned.
+#
+# The list above is what someone remembered to pin. What it cannot see is a new
+# prompt-facing literal shipped with its prompt sentence and no needle: the gate
+# stays green while the prompt goes false, which is the failure this script exists
+# to prevent arriving by the one route a needle list cannot see. So every literal
+# in `hook_post.rs` and `status.rs` whose text the prompt quotes carries a
+# `// PROMPT-COUPLED` marker on the line above it, and the counts must agree.
+#
+# The marker means the prompt quotes this text rather than standing a placeholder
+# in for it: `started {}, ran {}` is quoted and marked, while `last byte {}s ago`
+# only fills the prompt's `<age>` slot and is not. The marker is the author's
+# declaration and this script cannot tell that an unmarked literal should have
+# been marked; what it enforces is that a declared coupling is pinned, and what
+# prompts the declaration is the marker standing beside every neighbour.
+#
+# Only these two files: they are the ones whose text reaches the agent through
+# `additionalContext`, where a string is read rather than shown. Needles aimed at
+# any other file are outside the count, so `hook_prompt.rs` sharing the
+# `unavailable` needle does not have to carry a marker for it.
+coverage() {
+  local file="$1" markers registered=0 t
+  markers=$(grep -c '^[[:space:]]*// PROMPT-COUPLED$' "$src/$file" || true)
+  for t in "${target[@]}"; do
+    if [ "$t" = "$src/$file" ]; then
+      registered=$((registered + 1))
+    fi
+  done
+  if [ "$markers" -ne "$registered" ]; then
+    echo "COVERAGE $file: $markers // PROMPT-COUPLED marker(s), $registered needle(s)" >&2
+    echo "  a marked literal needs a check line for it; a check line needs its marker" >&2
+    status_source=1
+  fi
+}
+coverage hook_post.rs
+coverage status.rs
+
+# The registered needles, grepped last.
+for i in "${!needle[@]}"; do
+  if ! grep -qF -- "${needle[$i]}" "${target[$i]}"; then
+    echo "MISSING in ${target[$i]}: ${needle[$i]}" >&2
+    status_source=1
+  fi
+done
 
 if [ "$status_source" -ne 0 ]; then
   echo "prompt coupling check FAILED" >&2

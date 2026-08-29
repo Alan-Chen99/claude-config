@@ -97,15 +97,19 @@ own status channel. Waiting needs `timeout <s> tail --pid=<pid> -f /dev/null`, n
 `wait`: each Bash call gets a fresh shell, so `wait` answers
 `pid <n> is not a child of this shell`.
 
-The kill on timeout is broader than the process group, and this bounds how backgrounding
-can be used. A call killed at its `timeout` takes down every process it started: three
-variants spawned in one call — plain `&`, `setsid --wait`, and bare `setsid` — all stopped
-advancing the moment the call returned `Exit code 143`. A process-group kill run outside
-Claude Code kills only the plain `&` variant and leaves both `setsid` variants running, so
-whatever Claude Code does reaches a new session as well. A backgrounded job therefore
-survives only a call that returns on its own. Both halves of the pattern carry weight: the
-`&` is what outlives the call, and the bounded wait is what keeps the call from being
-killed instead of returning:
+The kill on timeout reaches the whole process group the call started and stops at the
+session boundary, and that boundary is what bounds how backgrounding can be used. Three
+variants spawned in one call and left to the kill: the `&` child and the `nohup` child both stop advancing at the instant
+the call returns `Exit code 143`, each having written 8 of its 90 heartbeats, while a bare
+`setsid` child keeps writing, reparented to init at PPID 1 with PGID and session both equal
+to its own pid. So a job started with `&` survives only a call that returns on its own, and
+`nohup` does not change that; a job that has left the session survives the kill itself.
+
+`agent-tools run --background` is the second of those: it returns as soon as the child has
+started and puts its wrapper in a session of its own, so it needs no bounded wait at all.
+The `&` pattern below is what a command that is not being wrapped still needs, and both
+halves of it carry weight: the `&` is what outlives the call, and the bounded wait is what
+keeps the call from being killed instead of returning:
 
 ```bash
 agent-tools run --desc "<description>" <executable> <args..> & echo $! >/tmp/<name>.pid
