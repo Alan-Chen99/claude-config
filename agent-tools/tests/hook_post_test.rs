@@ -207,7 +207,7 @@ fn bg_notice_and_status_report_combined() {
     assert!(ctx.contains("KAIROS"), "ctx: {ctx}");
     assert!(ctx.contains("bt-9"), "ctx: {ctx}");
     // Notice first, then the report, each header beginning its own line.
-    assert!(ctx.contains("\n[agent-tools] run status:\n"), "ctx: {ctx}");
+    assert!(ctx.contains("\n[agent-tools] run status @ "), "ctx: {ctx}");
     assert!(ctx.contains("seeded [final(0)]"), "ctx: {ctx}");
 }
 
@@ -229,7 +229,7 @@ fn a_non_backgroundable_tool_gets_no_backgrounded_notice() {
     );
     assert!(status.success(), "stderr: {stderr}");
     assert!(
-        stdout.contains("[agent-tools] run status:"),
+        stdout.contains("[agent-tools] run status @ "),
         "stdout: {stdout}"
     );
     assert!(!stdout.contains("BACKGROUNDED"), "stdout: {stdout}");
@@ -280,7 +280,7 @@ fn abandoned_child_is_reported_without_any_five_minute_wait() {
     seed(home.path(), "toolu_prior", 0, None);
     let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
     assert!(
-        stdout.contains("[agent-tools] run status:"),
+        stdout.contains("[agent-tools] run status @ "),
         "stdout: {stdout}"
     );
     assert!(stdout.contains("abandoned"), "stdout: {stdout}");
@@ -514,66 +514,117 @@ fn a_failed_status_report_does_not_discard_the_backgrounded_notice() {
     );
 }
 
-/// This process's own start ticks, so a fixture can name a wrapper that is
-/// genuinely alive. `seed`'s hardcoded ticks never match a real process, which
-/// is why every other fixture derives `abandoned`.
-fn own_start_ticks() -> u64 {
-    let raw = std::fs::read_to_string("/proc/self/stat").unwrap();
-    let tail = raw.rsplit_once(')').unwrap().1;
-    tail.split_whitespace().nth(19).unwrap().parse().unwrap()
-}
-
-/// Seed a child whose wrapper is this live test process, so it derives
-/// `producing` rather than `abandoned`.
-fn seed_live(home: &std::path::Path, tuid: &str) -> String {
-    let pid = std::process::id();
-    let parent = parent_dir(home, "sid", None, tuid);
-    let dir = parent.join(pid.to_string());
+/// A capture whose wrapper is this test process — alive, with no reap — so it
+/// derives to `producing` rather than to a terminal key.
+///
+/// The directory is named for `child_pid` alone, not the wrapper: the scan
+/// only needs the name to parse as `u32` and be unique among siblings, and a
+/// real wrapper pid concatenated with a child pid routinely exceeds `u32::MAX`
+/// — this process's own pid already did, on the machine this was written on.
+/// The liveness check reads `wrapper_pid` from `meta.json`, never from the
+/// directory name, so several such captures can still share one live wrapper.
+fn seed_live_capture(
+    home: &std::path::Path,
+    session: &str,
+    tuid: &str,
+    child_pid: u32,
+    desc: &str,
+) -> PathBuf {
+    let wrapper_pid = std::process::id();
+    let dir = home
+        .join(".claude/agent-tools")
+        .join(session)
+        .join(tuid)
+        .join(child_pid.to_string());
     std::fs::create_dir_all(&dir).unwrap();
-    let meta = format!(
-        r#"{{"wrapper_pid":{pid},"wrapper_started_ticks":{},"child_pid":4242,
-            "desc":"live child","command":["true"],"started_at":"{}",
-            "spawn_error":null,"reaped":null,"drained_at":null}}"#,
-        own_start_ticks(),
-        chrono::Utc::now().to_rfc3339()
-    );
-    std::fs::write(dir.join("meta.json"), meta).unwrap();
-    format!("{tuid}/{pid}")
+    let ticks = std::fs::read_to_string(format!("/proc/{wrapper_pid}/stat"))
+        .ok()
+        .and_then(|s| s.rsplit_once(')').map(|(_, rest)| rest.to_string()))
+        .and_then(|rest| rest.split_whitespace().nth(19).map(|t| t.to_string()))
+        .expect("field 22 of /proc/<pid>/stat is the start time in ticks");
+    let meta = serde_json::json!({
+        "wrapper_pid": wrapper_pid,
+        "wrapper_started_ticks": ticks.parse::<u64>().unwrap(),
+        "child_pid": child_pid,
+        "desc": desc,
+        "command": ["sleep", "9999"],
+        "started_at": chrono::Utc::now().to_rfc3339(),
+        "spawn_error": serde_json::Value::Null,
+        "reaped": serde_json::Value::Null,
+        "drained_at": serde_json::Value::Null,
+    });
+    std::fs::write(
+        dir.join("meta.json"),
+        serde_json::to_string_pretty(&meta).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(dir.join("output"), "").unwrap();
+    dir
 }
 
-#[test]
-fn still_running_children_are_reported_after_finished_ones() {
-    // Four of each. With one of each, a read_dir order that happens to satisfy
-    // the assertion is a coin flip, so removing the sort passes by luck; with
-    // four it is a 1-in-70 accident. Identity order alone interleaves them,
-    // since `toolu_a1_running` sorts before `toolu_b1_done`.
-    let home = tempfile::tempdir().unwrap();
-    for i in 1..=4u32 {
-        seed(home.path(), &format!("toolu_b{i}_done"), i, Some(0));
-        seed_live(home.path(), &format!("toolu_a{i}_running"));
-    }
+/// A capture whose wrapper is this test process — alive — but which has
+/// already been reaped: `exited`, not `producing`. `derive` classifies a
+/// reaped, live wrapper as `Exited`; a reaped, dead one would be `Final`
+/// instead, which needs the wrapper itself to have exited too.
+fn seed_exited_capture(
+    home: &std::path::Path,
+    session: &str,
+    tuid: &str,
+    child_pid: u32,
+    desc: &str,
+    exit_code: i32,
+) -> PathBuf {
+    let wrapper_pid = std::process::id();
+    let dir = home
+        .join(".claude/agent-tools")
+        .join(session)
+        .join(tuid)
+        .join(child_pid.to_string());
+    std::fs::create_dir_all(&dir).unwrap();
+    let ticks = std::fs::read_to_string(format!("/proc/{wrapper_pid}/stat"))
+        .ok()
+        .and_then(|s| s.rsplit_once(')').map(|(_, rest)| rest.to_string()))
+        .and_then(|rest| rest.split_whitespace().nth(19).map(|t| t.to_string()))
+        .expect("field 22 of /proc/<pid>/stat is the start time in ticks");
+    let meta = serde_json::json!({
+        "wrapper_pid": wrapper_pid,
+        "wrapper_started_ticks": ticks.parse::<u64>().unwrap(),
+        "child_pid": child_pid,
+        "desc": desc,
+        "command": ["sleep", "9999"],
+        "started_at": chrono::Utc::now().to_rfc3339(),
+        "spawn_error": serde_json::Value::Null,
+        "reaped": {"at": chrono::Utc::now().to_rfc3339(), "status": exit_code},
+        "drained_at": serde_json::Value::Null,
+    });
+    std::fs::write(
+        dir.join("meta.json"),
+        serde_json::to_string_pretty(&meta).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(dir.join("output"), "").unwrap();
+    dir
+}
 
-    let (_, stdout, _) = run_post(home.path(), post_body("Grep", "toolu_now"));
-    let last_done = (1..=4)
-        .map(|i| {
-            stdout
-                .find(&format!("toolu_b{i}_done"))
-                .expect("finished child reported")
-        })
-        .max()
-        .unwrap();
-    let first_running = (1..=4)
-        .map(|i| {
-            stdout
-                .find(&format!("toolu_a{i}_running"))
-                .expect("running child reported")
-        })
-        .min()
-        .unwrap();
-    assert!(
-        last_done < first_running,
-        "every finished child must reach the agent before every running one: {stdout}"
-    );
+/// `count` terminal children, each named a string of `desc_len` characters —
+/// long enough that a handful of them push `bound`'s own packing close to
+/// REPORT_BUDGET, without depending on the exact byte count any one real
+/// capture happens to render to (which includes this tempdir's own path).
+fn seed_many_terminal(home: &std::path::Path, tuid_prefix: &str, count: u32, desc_len: usize) {
+    for i in 0..count {
+        let tuid = format!("{tuid_prefix}_{i:04}");
+        let wrapper_pid = 2_000_000 + i;
+        seed(home, &tuid, wrapper_pid, Some(0));
+        let dir = parent_dir(home, "sid", None, &tuid).join(wrapper_pid.to_string());
+        let meta = format!(
+            r#"{{"wrapper_pid":{wrapper_pid},"wrapper_started_ticks":1,"child_pid":4242,
+                "desc":"{d}","command":["true"],"started_at":"{t}",
+                "spawn_error":null,"reaped":{{"at":"{t}","status":0}},"drained_at":null}}"#,
+            d = "x".repeat(desc_len),
+            t = chrono::Utc::now().to_rfc3339(),
+        );
+        std::fs::write(dir.join("meta.json"), meta).unwrap();
+    }
 }
 
 #[test]
@@ -673,10 +724,10 @@ fn the_status_header_begins_a_line_even_beside_a_backgrounding_notice() {
     assert!(ctx.contains("BACKGROUNDED:"), "context: {ctx}");
     let header = ctx
         .lines()
-        .find(|l| l.contains("[agent-tools] run status:"))
+        .find(|l| l.contains("[agent-tools] run status @ "))
         .unwrap_or_else(|| panic!("no status header in: {ctx}"));
     assert!(
-        header.starts_with("[agent-tools] run status:"),
+        header.starts_with("[agent-tools] run status @ "),
         "the header must begin its line, got: {header:?}"
     );
 }
@@ -793,5 +844,235 @@ fn a_held_scope_lock_is_announced_rather_than_waited_out() {
     assert!(
         ctx.contains("unavailable this time"),
         "a delivery point delayed by a lock must say so, got: {ctx:?}"
+    );
+}
+
+#[test]
+fn a_report_header_carries_the_clock_it_was_made_at() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed(home.path(), "toolu_hdr", 4242, Some(0));
+    let (status, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_hdr"));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+    let first = ctx.lines().next().unwrap();
+    assert!(
+        first.starts_with("[agent-tools] run status @ "),
+        "header must carry a stamp, got: {first}"
+    );
+    assert!(
+        first.ends_with(':'),
+        "header ends with a colon, got: {first}"
+    );
+    // A stamp with an offset, so the line still resolves after a compaction.
+    let stamp = first
+        .trim_start_matches("[agent-tools] run status @ ")
+        .trim_end_matches(':');
+    assert!(
+        chrono::NaiveTime::parse_from_str(&stamp[..8], "%H:%M:%S").is_ok(),
+        "stamp did not start with HH:MM:SS: {stamp}"
+    );
+    let offset = &stamp[9..];
+    assert!(
+        offset.len() == 5
+            && (offset.starts_with('+') || offset.starts_with('-'))
+            && offset[1..].chars().all(|c| c.is_ascii_digit()),
+        "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
+    );
+}
+
+#[test]
+fn running_children_collapse_to_one_line_that_still_names_each_of_them() {
+    // Four of each. With one of each, an ordering test would pass by luck;
+    // here it is folded into this test instead, because ordering is no
+    // longer a property a sort provides — `bound` runs on the settled
+    // children before `collapse_running` is even called, so "settled before
+    // running" is now structural, and this test's real job is what it is
+    // named for: naming.
+    let home = tempfile::TempDir::new().unwrap();
+    for (i, name) in ["alpha", "beta", "gamma"].iter().enumerate() {
+        seed_live_capture(home.path(), "sid", "toolu_coll", 9000 + i as u32, name);
+    }
+    seed(home.path(), "toolu_coll", 9500, Some(1));
+
+    let (status, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("additionalContext");
+
+    let terminal_line = ctx
+        .lines()
+        .find(|l| l.contains("seeded [final(1)]"))
+        .expect("a terminal change is reported");
+    assert!(
+        terminal_line.contains("-> "),
+        "a terminal change keeps full detail: {terminal_line}"
+    );
+    let collapsed: Vec<&str> = ctx
+        .lines()
+        .filter(|l| l.contains("still running:"))
+        .collect();
+    assert_eq!(
+        collapsed.len(),
+        1,
+        "running children collapse to one line:\n{ctx}"
+    );
+    let line = collapsed[0];
+    assert!(
+        ctx.find(terminal_line) < ctx.find(line),
+        "a settled child's line must land before the running summary: {ctx}"
+    );
+    assert!(line.contains("[producing]"), "key names the group: {line}");
+    for name in ["alpha", "beta", "gamma"] {
+        assert!(line.contains(name), "{name} was not named: {line}");
+    }
+    assert!(
+        line.contains("agent-tools ps"),
+        "the collapsed line points at ps: {line}"
+    );
+}
+
+#[test]
+fn a_collapsed_child_is_recorded_as_told_and_does_not_repeat() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed_live_capture(home.path(), "sid", "toolu_once", 9600, "alpha");
+
+    let (status, first, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    assert!(status.success(), "stderr: {stderr}");
+    assert!(first.contains("alpha"), "stdout: {first}");
+
+    let (status, second, stderr) = run_post(home.path(), post_body("Grep", "toolu_next"));
+    assert!(status.success(), "stderr: {stderr}");
+    assert!(
+        second.trim().is_empty(),
+        "an already-reported child must not repeat: {second}"
+    );
+}
+
+/// A `--desc` is free text and `meta::escape_control` does not touch `[`.
+/// Recovering a collapsed group's names by re-splitting the rendered line at
+/// " [" would cut this desc at its own bracket and report the child as
+/// "build" instead of naming it whole.
+#[test]
+fn a_desc_containing_a_bracket_is_named_whole_in_the_collapsed_line() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed_live_capture(home.path(), "sid", "toolu_br", 9700, "build [stage 2]");
+
+    let (status, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("additionalContext");
+    let line = ctx
+        .lines()
+        .find(|l| l.contains("still running:"))
+        .unwrap_or_else(|| panic!("no collapsed line: {ctx}"));
+    assert!(
+        line.contains("build [stage 2]"),
+        "a desc containing \" [\" must be named whole: {line}"
+    );
+}
+
+/// `Exited` is not terminal (`status.rs`: the drain may still be open) but it
+/// is not grouped into `collapse_running`'s line either: the process itself
+/// is done, and its exit code is the one fact that line has no room for.
+#[test]
+fn an_exited_child_keeps_its_own_full_line_rather_than_joining_the_running_summary() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed_exited_capture(home.path(), "sid", "toolu_exit", 7777, "exited-child", 3);
+    seed_live_capture(home.path(), "sid", "toolu_run", 8888, "runner");
+
+    let (status, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("additionalContext");
+
+    let exited_line = ctx
+        .lines()
+        .find(|l| l.contains("exited-child"))
+        .unwrap_or_else(|| panic!("exited child not reported at all:\n{ctx}"));
+    assert!(
+        exited_line.contains("[exited(3)]") && exited_line.contains("-> "),
+        "an exited child keeps its own full line, exit code included: {exited_line}"
+    );
+    assert!(
+        !exited_line.contains("still running:"),
+        "an exited child must not be swept into the running summary: {exited_line}"
+    );
+    let collapsed = ctx
+        .lines()
+        .find(|l| l.contains("still running:"))
+        .unwrap_or_else(|| panic!("running child not reported: {ctx}"));
+    assert!(
+        !collapsed.contains("exited"),
+        "the running summary must not also claim the exited child: {collapsed}"
+    );
+}
+
+#[test]
+fn the_combined_report_never_exceeds_the_budget_the_runtime_enforces() {
+    // 25 terminal children with 200-char names, sized so `bound` alone
+    // consumes most of REPORT_BUDGET (9,000 — mirrored here since the
+    // constant is private to hook_post.rs) without dropping any of them,
+    // plus 3 running ones. `collapse_running` must be checked against what
+    // `bound` left over, not against the whole budget again: reverting that
+    // arithmetic measurably pushes this scenario's additionalContext past
+    // 9,000, into territory the runtime replaces whole with a ~2,000-char
+    // stub — which reads to the agent as nothing changed at all.
+    let home = tempfile::TempDir::new().unwrap();
+    seed_many_terminal(home.path(), "toolu_wide", 25, 200);
+    for i in 0..3u32 {
+        seed_live_capture(home.path(), "sid", "toolu_live", 9_800 + i, "runner");
+    }
+
+    let (status, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("additionalContext");
+    assert!(
+        ctx.len() <= 9_000,
+        "additionalContext must stay under the 9,000-char REPORT_BUDGET, or the \
+         runtime replaces the whole thing with a ~2,000-char stub; got {} bytes",
+        ctx.len()
+    );
+}
+
+/// `bound` already refuses to drop a line silently — "... N more changed,
+/// omitted for size" — because a silent drop reads as no change at all, which
+/// is the one failure REPORT_BUDGET exists to prevent. `collapse_running`
+/// must keep the same promise for the children it groups.
+#[test]
+fn a_dropped_collapsed_line_is_announced_rather_than_silent() {
+    // Enough terminal weight that `bound` leaves only a sliver of the budget,
+    // and running children whose names alone are long enough to exceed
+    // whatever sliver remains regardless of its exact size.
+    let home = tempfile::TempDir::new().unwrap();
+    seed_many_terminal(home.path(), "toolu_fill", 24, 200);
+    for i in 0..4u32 {
+        seed_live_capture(home.path(), "sid", "toolu_run", 9_800 + i, &"n".repeat(150));
+    }
+
+    let (status, stdout, stderr) = run_post(home.path(), post_body("Grep", "toolu_now"));
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("additionalContext");
+    assert!(
+        !ctx.contains("still running:"),
+        "the collapsed line was expected not to fit in this scenario: {ctx}"
+    );
+    assert!(
+        ctx.contains("still-running children changed, omitted for size"),
+        "a dropped collapsed line must be announced, not silent:\n{ctx}"
     );
 }

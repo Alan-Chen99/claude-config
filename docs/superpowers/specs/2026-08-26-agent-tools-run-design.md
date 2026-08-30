@@ -192,22 +192,26 @@ it, so agents keep reaching for the entry point with observability.
 
 ## Current deviations
 
-The findings record sixteen measured behaviours; two still depart from the above, plus the
-unobserved half of a third. Each is reproduced in
+The findings record sixteen measured behaviours; one still departs from the above, plus the
+unobserved half of a second — `2026-08-29-agent-tools-run-background-ps-design.md` closes
+F15 under "Deviations closed and opened", by making the pull path live-only by default and
+its output a JSON envelope. Each is reproduced in
 `notes/agent-tools-run-stress-findings.md` under the id below, which states its symptom —
 this table says only which clause it breaks.
 
 | Clause | Open |
 | --- | --- |
 | readable beside the key, for a live child | F16, except the merge condition |
-| the pull path's output | F15's growth half |
+| the pull path's output | closed by the 2026-08-29 spec |
 | never reported terminal while starting | F4's read-order half |
 
 F16's other three facts — a closed forward, a capped drain, a failed capture — reach the
 record only when the wrapper exits, so a live child can read `producing` beside a capture
-that stopped growing. F15 is now only the size half: `ps` reads newest first, but shows every capture the
-session ever made rather than what is running. The clause that its output be carried as
-fields rather than a rendered string is also unmet, and no finding records it.
+that stopped growing. F15's remaining half was the size one — `ps` read newest first but
+showed every capture the session ever made rather than what is running — along with the
+unrecorded clause that its output be carried as fields rather than a rendered string. The
+2026-08-29 spec closes both together: `live` by default, `settled` only under `--all`, and
+a JSON envelope in place of the rendered lines.
 F4's remaining half is the read order in `status.rs`: meta is read before wrapper
 liveness, so a wrapper that records its reap and exits between the two reads derives
 `abandoned` rather than `final(<status>)`. Never observed in roughly 7,000 wrapper starts,

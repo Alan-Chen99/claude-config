@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::core;
 use crate::meta::{self, ChildMeta};
@@ -47,15 +47,42 @@ impl Capture {
         }
     }
 
-    /// The byte counts a line carries, and the capture paths it ends with.
-    fn detail(&self, dir: &Path) -> (String, String) {
+    /// The real, openable file(s) this shape holds: one for the merged case,
+    /// two for the split one. The one place that names `output`, `stdout`,
+    /// and `stderr` — `detail`'s glob and `psrecord::Record::build`'s
+    /// `capture` field both read this instead of keeping their own copy of
+    /// the file names, so a rename here cannot leave one of them pointing at
+    /// a file that no longer exists.
+    pub fn paths(&self, dir: &Path) -> Vec<PathBuf> {
         match *self {
-            Capture::Merged(n) => (format!("output={n}B"), format!("{}/output", dir.display())),
-            Capture::Split { out, err } => (
-                format!("out={out}B err={err}B"),
-                format!("{}/{{stdout,stderr}}", dir.display()),
-            ),
+            Capture::Merged(_) => vec![dir.join("output")],
+            Capture::Split { .. } => vec![dir.join("stdout"), dir.join("stderr")],
         }
+    }
+
+    /// The byte counts a line carries, and the capture path it ends with, in
+    /// the compact glob form a line reads at a glance — `paths` returns the
+    /// list a consumer could actually open; a line just needs to say there
+    /// are two.
+    fn detail(&self, dir: &Path) -> (String, String) {
+        let bytes = match *self {
+            Capture::Merged(n) => format!("output={n}B"),
+            Capture::Split { out, err } => format!("out={out}B err={err}B"),
+        };
+        let paths = self.paths(dir);
+        let shown = match paths.as_slice() {
+            [p] => p.display().to_string(),
+            ps => format!(
+                "{}/{{{}}}",
+                dir.display(),
+                ps.iter()
+                    .filter_map(|p| p.file_name())
+                    .map(|n| n.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+        };
+        (bytes, shown)
     }
 }
 
@@ -74,13 +101,72 @@ pub enum StatusKey {
 impl fmt::Display for StatusKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            // PROMPT-COUPLED
             StatusKey::SpawnFailed(e) => write!(f, "spawn-failed({e})"),
+            // PROMPT-COUPLED
             StatusKey::Producing => write!(f, "producing"),
+            // PROMPT-COUPLED
             StatusKey::Quiet(b) => write!(f, "quiet({b})"),
+            // PROMPT-COUPLED
             StatusKey::Exited(c) => write!(f, "exited({c})"),
+            // PROMPT-COUPLED
             StatusKey::Final(c) => write!(f, "final({c})"),
+            // PROMPT-COUPLED
             StatusKey::Abandoned => write!(f, "abandoned"),
         }
+    }
+}
+
+impl StatusKey {
+    /// Terminal keys end watching: the child's fate is settled and cannot change.
+    /// The set is the 2026-08-26 spec's, not a second definition — `ps` and the
+    /// statusline both select live children by the negation of this, which is
+    /// why the two agree about `exited`. The report's own partition is a
+    /// different boundary, deliberately: see `is_still_running`.
+    pub fn is_terminal(&self) -> bool {
+        match self {
+            StatusKey::SpawnFailed(_) | StatusKey::Final(_) | StatusKey::Abandoned => true,
+            StatusKey::Producing | StatusKey::Quiet(_) | StatusKey::Exited(_) => false,
+        }
+    }
+
+    /// True for a key whose process has not finished executing.
+    ///
+    /// Deliberately not `!is_terminal()`: `Exited` is not terminal (its drain
+    /// may still be open) but it is also not "still running" in the sense a
+    /// report cares about — the process itself is done, and its exit code is
+    /// the most valuable fact on the line. Unifying the two predicates would
+    /// fold `Exited` into `hook_post::collapse_running`'s grouped line, which
+    /// has no field to show an exit code in.
+    pub fn is_still_running(&self) -> bool {
+        matches!(self, StatusKey::Producing | StatusKey::Quiet(_))
+    }
+
+    /// True only for `Quiet`, the one key a `~`-style marker means to select.
+    /// Neither `is_terminal` nor `is_still_running` is that axis: both group
+    /// `Quiet` with `Producing`, which is exactly the pair a quiet marker
+    /// exists to tell apart. A caller matching on `Display` text instead —
+    /// `key.starts_with("quiet")` — has to spell the variant's whole shape
+    /// correctly by hand (the omitted `(` once matched `quietly-broken` too)
+    /// and stops compiling nothing when the shape changes; matching the enum
+    /// does both for free.
+    pub fn is_quiet(&self) -> bool {
+        matches!(self, StatusKey::Quiet(_))
+    }
+
+    /// True only for `Exited`, the one key whose process has finished while its
+    /// capture has not. Its own axis for the reason `is_quiet` is one: neither
+    /// `is_terminal` nor `is_still_running` can name it, since the first groups
+    /// it with the running keys and the second with the settled ones, and a
+    /// renderer marking it needs the key itself. The statusline is that
+    /// renderer — it shows this child, whose wrapper is alive and whose capture
+    /// is still growing, and must not let it pass for one still executing.
+    ///
+    /// Never true at the same time as `is_quiet`: `derive` reaches `Exited`
+    /// only with a reap recorded and `Quiet` only without one, so the two are
+    /// exclusive at the source rather than by an ordering a caller has to keep.
+    pub fn is_exited(&self) -> bool {
+        matches!(self, StatusKey::Exited(_))
     }
 }
 
@@ -94,6 +180,63 @@ pub struct Status {
     /// Stat failures that are not "file not created yet". Surfaced in the
     /// rendered line so a filesystem problem cannot pass for an idle child.
     pub stat_errors: Vec<String>,
+}
+
+impl Status {
+    pub fn is_terminal(&self) -> bool {
+        self.key.is_terminal()
+    }
+
+    /// How long the child has run: to `now` while it is live, to the reap once it
+    /// is terminal. A settled child's clock has stopped, and a duration that kept
+    /// growing after it would describe waiting, not running.
+    ///
+    /// `None` when there is nothing to measure. Two shapes have nothing: a
+    /// capture whose `meta.json` will not read, and a terminal status with no
+    /// reap. `abandoned` is the second: the wrapper vanished without observing an
+    /// end, so the child may still be running, and any number here would assert an
+    /// end nobody saw. `spawn-failed` is the second too, for the opposite reason —
+    /// nothing ran. A status without a duration is not a missing answer; it is the
+    /// answer.
+    pub fn duration_s(&self, now: DateTime<Utc>) -> Option<f64> {
+        let m = self.meta.as_ref()?;
+        let end = match (self.is_terminal(), m.reaped) {
+            (true, Some(r)) => r.at,
+            (true, None) => return None,
+            // Live, whether or not a reap exists. `exited` has one and is still
+            // open: the child is gone but the drain is not, so the capture can
+            // still grow. Testing `reaped` here instead of the key would freeze
+            // that child at its reap for however long a descendant holds the
+            // inherited pipes.
+            (false, _) => now,
+        };
+        Some(((end - m.started_at).num_milliseconds() as f64 / 1000.0).max(0.0))
+    }
+
+    /// Whether the session that started this child is gone. This is a fact
+    /// about the session, not about the child: a child that exited hours ago
+    /// still carries whatever this returns, so a terminal record reading
+    /// `Some(true)` is not on its own a leak — pair it with `!is_terminal()`
+    /// to mean one.
+    ///
+    /// `None` when there is not enough on record to answer safely: no
+    /// session was named, or one was named but its start ticks were not —
+    /// the shape a record takes when its own `/proc/<claude_pid>/stat` read
+    /// failed, or when nothing populated the field at all. A bare pid is not
+    /// evidence either way once `pid_max` has wrapped, so guessing
+    /// `Some(false)` here would assert liveness on exactly the evidence this
+    /// field exists to stop trusting.
+    pub fn orphaned(&self) -> Option<bool> {
+        let m = self.meta.as_ref()?;
+        let pid = m.claude_pid?;
+        let ticks = m.claude_started_ticks?;
+        // The same recycled-pid guard `wrapper_pid` gets from `is_alive`
+        // elsewhere in this module. A detached wrapper can outlive the
+        // session that started it long enough for `pid_max` to wrap and land
+        // an unrelated process on `claude_pid`; ticks are what tell that
+        // process apart from the session actually named here.
+        Some(!procstat::is_alive(pid, ticks))
+    }
 }
 
 /// Returns (bytes, mtime, stat failure other than "not created yet").
@@ -123,6 +266,52 @@ pub(crate) fn cap_to(s: &str, max: usize) -> String {
 
 fn cap(name: &str) -> String {
     cap_to(name, NAME_MAX)
+}
+
+/// A duration a reader takes in without arithmetic. Seconds below a minute,
+/// minutes and zero-padded seconds below an hour, hours and zero-padded minutes
+/// above. Never a bare float: `191.7s` makes a reader do the division that this
+/// is here to have already done.
+pub fn fmt_duration(secs: f64) -> String {
+    let s = secs.max(0.0).round() as i64;
+    if s < 60 {
+        format!("{s}s")
+    } else if s < 3600 {
+        format!("{}m{:02}s", s / 60, s % 60)
+    } else {
+        format!("{}h{:02}m", s / 3600, (s % 3600) / 60)
+    }
+}
+
+/// The local rendering of an instant, for a time read in the terminal it was
+/// printed to. A UTC instant rendered with no zone reads as local: a reader
+/// correlating it against `date` is wrong by the offset with nothing on the
+/// line saying so. The conversion is here rather than at each display site so
+/// that no site can render the instant raw.
+pub fn fmt_local_hms(t: DateTime<Utc>) -> String {
+    t.with_timezone(&chrono::Local)
+        .format("%H:%M:%S")
+        .to_string()
+}
+
+/// The statusline's timestamp: hour and minute, no seconds. That bar does not
+/// re-render on a timer, so by the time anyone reads it some seconds have
+/// already passed — showing seconds would promise a precision a frozen line
+/// cannot honor. Lives beside `fmt_local_hms` rather than in `statusline.rs`
+/// for the reason given above: no site should render the instant raw, and a
+/// second local-time formatter off in its own file is exactly the drift that
+/// rule exists to prevent.
+pub fn fmt_local_hm(t: DateTime<Utc>) -> String {
+    t.with_timezone(&chrono::Local).format("%H:%M").to_string()
+}
+
+/// The stamp a pushed report carries in its header. Local, with the offset,
+/// because a report line outlives the terminal it was printed to and is re-read
+/// after a compaction, when nothing else on the line says when "4s ago" was.
+pub fn fmt_local_stamp(t: DateTime<Utc>) -> String {
+    t.with_timezone(&chrono::Local)
+        .format("%H:%M:%S %z")
+        .to_string()
 }
 
 fn largest_bucket(age_secs: i64) -> Option<&'static str> {
@@ -197,37 +386,32 @@ pub fn derive(dir: &Path, now: DateTime<Utc>) -> Status {
     }
 }
 
-/// One rendered line: name, key, detail, capture paths.
-pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
-    let name = s
+/// The name a report line — or a group in a collapsed report line — identifies
+/// a child by: its `--desc`, capped and escaped, or the capture directory when
+/// no meta could be read at all.
+///
+/// A shared function rather than two call sites computing it separately. A
+/// `--desc` is free text and `escape_control` does not touch `[`, so recovering
+/// a name by re-splitting an already-rendered line at " [" cuts a desc like
+/// `build [stage 2]` at its own bracket; reading it once here and passing it
+/// along is what keeps a child's name the same everywhere it is shown.
+pub fn name(dir: &Path, s: &Status) -> String {
+    let raw = s
         .meta
         .as_ref()
         .map(|m| m.display_name())
         .unwrap_or_else(|| dir.display().to_string());
-    let name = cap(&name);
-    // The capture files are created when the tee opens them, so an mtime exists
-    // before any byte does. Byte counts, not mtime, decide whether output happened.
-    let age = match s.last_byte_at {
-        Some(t) if s.capture.bytes() > 0 => {
-            format!("last byte {}s ago", (now - t).num_seconds().max(0))
-        }
-        _ => "no output".to_string(),
-    };
-    let problems = if s.stat_errors.is_empty() {
-        String::new()
-    } else {
-        format!(" [stat failed: {}]", s.stat_errors.join("; "))
-    };
-    let pid = s
-        .meta
-        .as_ref()
-        .and_then(|m| m.child_pid)
-        .map(|p| p.to_string())
-        .unwrap_or_else(|| "-".into());
-    // Everything that explains a difference from bare, so `final(0)` never sits
-    // beside a capture that stopped growing an hour ago. Empty on a clean run,
-    // which is nearly every run: these lines land in every tool result, and a
-    // note that is always there stops being read.
+    cap(&raw)
+}
+
+/// Everything that explains a difference from bare, so `final(0)` never sits
+/// beside a capture that stopped growing an hour ago. Empty on a clean run,
+/// which is nearly every run: these lines land in every tool result, and a
+/// note that is always there stops being read.
+///
+/// Shared by `render` and `psrecord::Record::build`, so a rendered line and a
+/// JSON record can never name a different set of notes for the same child.
+pub fn notes(s: &Status) -> Vec<String> {
     let mut notes: Vec<String> = Vec::new();
     // A split says something only when the caller's own two descriptors reached
     // one destination and the rule declined anyway: then the capture is two
@@ -242,18 +426,60 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         (&s.capture, s.meta.as_ref().and_then(|m| m.merge.as_deref()))
     {
         if why != core::DESTINATIONS_ALREADY_DIFFERED {
+            // PROMPT-COUPLED
             notes.push(format!("streams split: {}", meta::escape_control(why)));
         }
     }
     if s.meta.as_ref().is_some_and(|m| m.forward_closed) {
+        // PROMPT-COUPLED
         notes.push("downstream closed".to_string());
     }
     if s.meta.as_ref().is_some_and(|m| m.drain_capped) {
+        // PROMPT-COUPLED
         notes.push("drain capped".to_string());
     }
+    // Its own note rather than a second producer of `drain capped`: this bound
+    // counts from the first byte and no downstream ever closed, so a reader
+    // told the drain was capped would go looking for a caller that went away.
+    // The two are exclusive on any one record — `capture::Bound` is one value
+    // per run — so which one is present also says which shape the run had.
+    if s.meta.as_ref().is_some_and(|m| m.capture_capped) {
+        // PROMPT-COUPLED
+        notes.push("capture capped".to_string());
+    }
     if let Some(e) = s.meta.as_ref().and_then(|m| m.capture_error.as_deref()) {
+        // PROMPT-COUPLED
         notes.push(format!("capture failed: {}", meta::escape_control(e)));
     }
+    notes
+}
+
+/// One rendered line: name, key, detail, capture paths.
+pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
+    let name = name(dir, s);
+    // The capture files are created when the tee opens them, so an mtime exists
+    // before any byte does. Byte counts, not mtime, decide whether output happened.
+    let age = match s.last_byte_at {
+        Some(t) if s.capture.bytes() > 0 => {
+            format!("last byte {}s ago", (now - t).num_seconds().max(0))
+        }
+        _ => "no output".to_string(),
+    };
+    let problems = if s.stat_errors.is_empty() {
+        String::new()
+    } else {
+        // PROMPT-COUPLED
+        format!(" [stat failed: {}]", s.stat_errors.join("; "))
+    };
+    let pid = s
+        .meta
+        .as_ref()
+        // PROMPT-COUPLED
+        .and_then(|m| m.child_pid)
+        .map(|p| p.to_string())
+        // PROMPT-COUPLED
+        .unwrap_or_else(|| "-".into());
+    let notes = notes(s);
     let notes = if notes.is_empty() {
         String::new()
     } else {
@@ -268,7 +494,37 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
     // reopening this. A record read off disk is not trustworthy input, whatever
     // this process's own producers put there.
     let key = meta::escape_control(&s.key.to_string());
-    format!("{name} [{key}] pid {pid}, {age}, {bytes}{notes}{problems} -> {paths}")
+    // Start and duration, in the two shapes the spec fixes: a live child is
+    // still accumulating and says so with `+`; a terminal one reports the total
+    // it finished with.
+    let timing = match (s.meta.as_ref(), s.duration_s(now)) {
+        // PROMPT-COUPLED
+        (Some(m), Some(d)) if s.is_terminal() => Some(format!(
+            "started {}, ran {}",
+            fmt_local_hms(m.started_at),
+            fmt_duration(d)
+        )),
+        // PROMPT-COUPLED
+        (Some(m), Some(d)) => Some(format!(
+            "started {} (+{})",
+            fmt_local_hms(m.started_at),
+            fmt_duration(d)
+        )),
+        // A terminal child with no duration: `abandoned`, where the wrapper
+        // vanished before observing an end, and `spawn-failed`, where nothing
+        // ran to have one. Neither has a span to report, and a number here
+        // would assert one. The record's start is what there is.
+        // PROMPT-COUPLED
+        (Some(m), None) => Some(format!("started {}", fmt_local_hms(m.started_at))),
+        // No meta to read a start from.
+        (None, _) => None,
+    };
+    // The separator lives here, not in the arms: an arm that returned its own
+    // trailing `, ` would let the next arm added omit it and splice `started
+    // 12:00:00` onto the age with nothing between them.
+    let timing = timing.map_or(String::new(), |t| format!("{t}, "));
+    // PROMPT-COUPLED
+    format!("{name} [{key}] pid {pid}, {timing}{age}, {bytes}{notes}{problems} -> {paths}")
 }
 
 #[cfg(test)]
@@ -292,7 +548,10 @@ mod tests {
             merge: None,
             forward_closed: false,
             drain_capped: false,
+            capture_capped: false,
             capture_error: None,
+            claude_pid: None,
+            claude_started_ticks: None,
         }
     }
 
@@ -521,6 +780,35 @@ mod tests {
         );
     }
 
+    /// The other capped note, in the only company it can keep. A backgrounded
+    /// run merges its streams and forwards neither, so `streams split` and
+    /// `downstream closed` are both structurally impossible beside it, and
+    /// `drain capped` names the bound this run does not have. What can sit
+    /// beside it is a capture that also failed, and the order of those two is
+    /// what this pins — bound first, because it is the deliberate stop and the
+    /// failure is the accident.
+    #[test]
+    fn a_capture_stopped_at_its_bound_is_not_reported_as_a_capped_drain() {
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        m.merge = Some(core::BACKGROUNDED.into());
+        m.capture_capped = true;
+        m.capture_error = Some("No space left on device".into());
+        write(&d, &m);
+        std::fs::write(d.path().join("output"), b"x").unwrap();
+
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(
+            line.contains(" [capture capped; capture failed: No space left on device] "),
+            "line: {line}"
+        );
+        assert!(
+            !line.contains("drain capped"),
+            "nothing drained past a close here; there was no close: {line}"
+        );
+    }
+
     #[test]
     fn a_split_that_lost_the_interleaving_is_noted() {
         // The rule declined to merge two descriptors that did reach one
@@ -688,5 +976,314 @@ mod tests {
             line.contains("{stdout,stderr}"),
             "the capture path survives: {line}"
         );
+    }
+
+    #[test]
+    fn a_live_child_measures_to_now() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let now = Utc::now();
+        m.started_at = now - Duration::seconds(191);
+        write(&dir, &m);
+        let st = derive(dir.path(), now);
+        assert!(
+            !st.is_terminal(),
+            "a live wrapper with no reap is not terminal"
+        );
+        let d = st.duration_s(now).expect("a started child has a duration");
+        assert!((d - 191.0).abs() < 1.0, "duration was {d}");
+    }
+
+    #[test]
+    fn a_terminal_child_measures_to_its_reap_not_to_now() {
+        let dir = TempDir::new().unwrap();
+        let mut m = dead();
+        let started = Utc::now() - Duration::seconds(4020);
+        m.started_at = started;
+        m.reaped = Some(Reaped {
+            at: started + Duration::seconds(242),
+            status: 1,
+        });
+        m.drained_at = Some(started + Duration::seconds(242));
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        assert!(
+            st.is_terminal(),
+            "a drained, reaped, dead wrapper is terminal"
+        );
+        let d = st.duration_s(now).expect("a reaped child has a duration");
+        assert!(
+            (d - 242.0).abs() < 1.0,
+            "the clock must stop at the reap, got {d}"
+        );
+    }
+
+    #[test]
+    fn a_draining_child_measures_to_now_not_to_its_reap() {
+        // `exited` is the only key where a reap exists and the status is not
+        // settled: the child is gone, the wrapper is still draining, and a
+        // descendant holding the inherited pipes can stretch that out
+        // indefinitely. The clock stops because the status is terminal, not
+        // because a reap was recorded -- branch on `m.reaped` instead and this
+        // child's duration freezes at a few seconds while the task stays open.
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        let started = Utc::now() - Duration::seconds(600);
+        m.started_at = started;
+        m.reaped = Some(Reaped {
+            at: started + Duration::seconds(5),
+            status: 0,
+        });
+        m.drained_at = None;
+        write(&d, &m);
+        let now = Utc::now();
+        let st = derive(d.path(), now);
+        assert_eq!(st.key, StatusKey::Exited(0));
+        assert!(!st.is_terminal(), "a draining capture can still grow");
+        let secs = st.duration_s(now).expect("a started child has a duration");
+        assert!(
+            (secs - 600.0).abs() < 1.0,
+            "a draining child is still open, got {secs}"
+        );
+    }
+
+    #[test]
+    fn an_abandoned_child_has_no_duration_because_nothing_observed_an_end() {
+        // The wrapper vanished without recording a reap, so this child's fate is
+        // unknown -- it may still be running. A duration here would grow without
+        // bound under a key that says the watching is over.
+        let d = TempDir::new().unwrap();
+        let mut m = dead();
+        m.started_at = Utc::now() - Duration::seconds(4020);
+        m.reaped = None;
+        m.drained_at = None;
+        write(&d, &m);
+        let now = Utc::now();
+        let st = derive(d.path(), now);
+        assert_eq!(st.key, StatusKey::Abandoned);
+        assert_eq!(st.duration_s(now), None);
+    }
+
+    #[test]
+    fn a_child_with_no_meta_has_no_duration() {
+        let dir = TempDir::new().unwrap();
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.key, StatusKey::Abandoned);
+        assert_eq!(st.duration_s(Utc::now()), None);
+    }
+
+    #[test]
+    fn every_key_is_classified_as_terminal_or_not() {
+        assert!(StatusKey::Final(0).is_terminal());
+        assert!(StatusKey::Abandoned.is_terminal());
+        assert!(StatusKey::SpawnFailed("x".into()).is_terminal());
+        assert!(!StatusKey::Producing.is_terminal());
+        assert!(!StatusKey::Quiet("30s").is_terminal());
+        assert!(!StatusKey::Exited(0).is_terminal());
+    }
+
+    #[test]
+    fn is_still_running_disagrees_with_is_terminal_on_exited_by_design() {
+        // `Exited` is not terminal (its drain may still be open) but it is not
+        // "still running" either: the process is done, and the report must
+        // keep its exit code on a full line rather than sweep it into
+        // `collapse_running`'s grouped one, which has no room for it.
+        assert!(!StatusKey::Exited(0).is_terminal());
+        assert!(!StatusKey::Exited(0).is_still_running());
+        assert!(StatusKey::Producing.is_still_running());
+        assert!(StatusKey::Quiet("30s").is_still_running());
+        assert!(!StatusKey::Final(0).is_still_running());
+        assert!(!StatusKey::Abandoned.is_still_running());
+        assert!(!StatusKey::SpawnFailed("x".into()).is_still_running());
+    }
+
+    #[test]
+    fn a_duration_reads_at_a_glance() {
+        assert_eq!(fmt_duration(4.0), "4s");
+        assert_eq!(fmt_duration(59.4), "59s");
+        assert_eq!(fmt_duration(191.0), "3m11s");
+        assert_eq!(fmt_duration(242.0), "4m02s");
+        assert_eq!(fmt_duration(3720.0), "1h02m");
+        assert_eq!(fmt_duration(0.0), "0s");
+        // Rounding runs before the tier is chosen. Choosing the tier from the
+        // unrounded seconds instead passes every assertion above and renders
+        // these two as `60s` and `60m00s`.
+        assert_eq!(fmt_duration(59.6), "1m00s");
+        assert_eq!(fmt_duration(3599.6), "1h00m");
+    }
+
+    #[test]
+    fn a_live_line_carries_its_start_and_how_long_so_far() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let now = Utc::now();
+        m.started_at = now - Duration::seconds(191);
+        write(&dir, &m);
+        let st = derive(dir.path(), now);
+        let line = render(dir.path(), &st, now);
+        assert!(line.contains("started "), "line: {line}");
+        assert!(line.contains("(+3m11s), "), "line: {line}");
+        assert!(!line.contains("ran "), "a live child has not `ran`: {line}");
+    }
+
+    #[test]
+    fn a_terminal_line_says_how_long_it_ran() {
+        let dir = TempDir::new().unwrap();
+        let mut m = dead();
+        let started = Utc::now() - Duration::seconds(4020);
+        m.started_at = started;
+        m.reaped = Some(Reaped {
+            at: started + Duration::seconds(242),
+            status: 1,
+        });
+        m.drained_at = Some(started + Duration::seconds(242));
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        let line = render(dir.path(), &st, now);
+        assert!(line.contains("ran 4m02s, "), "line: {line}");
+        assert!(
+            !line.contains("(+"),
+            "a terminal child has no running total: {line}"
+        );
+    }
+
+    /// The start time must be the local rendering of the stored instant, not the
+    /// UTC one wearing local clothes.
+    #[test]
+    fn a_rendered_start_is_local_time() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let started = Utc::now() - Duration::seconds(30);
+        m.started_at = started;
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        let line = render(dir.path(), &st, now);
+        let expected = started
+            .with_timezone(&chrono::Local)
+            .format("%H:%M:%S")
+            .to_string();
+        assert!(
+            line.contains(&format!("started {expected}")),
+            "line {line} did not carry the local start {expected}"
+        );
+    }
+
+    #[test]
+    fn an_abandoned_line_still_says_when_it_started() {
+        let dir = TempDir::new().unwrap();
+        let mut m = dead();
+        let started = Utc::now() - Duration::seconds(4020);
+        m.started_at = started;
+        m.reaped = None;
+        m.drained_at = None;
+        write(&dir, &m);
+        let now = Utc::now();
+        let st = derive(dir.path(), now);
+        assert_eq!(st.key, StatusKey::Abandoned);
+        let line = render(dir.path(), &st, now);
+        let expected = started
+            .with_timezone(&chrono::Local)
+            .format("%H:%M:%S")
+            .to_string();
+        assert!(
+            line.contains(&format!("started {expected}")),
+            "line: {line}"
+        );
+        assert!(!line.contains("ran "), "nothing observed an end: {line}");
+        assert!(
+            !line.contains("(+"),
+            "a settled child is not accumulating: {line}"
+        );
+    }
+
+    /// A header stamp is re-read after a compaction, so it carries the offset
+    /// that an in-line time leaves out.
+    #[test]
+    fn a_header_stamp_carries_the_offset_an_in_line_time_omits() {
+        let t = Utc::now();
+        let stamp = fmt_local_stamp(t);
+        let hms = fmt_local_hms(t);
+        let offset = stamp
+            .strip_prefix(&format!("{hms} "))
+            .unwrap_or_else(|| panic!("stamp {stamp} does not extend the in-line time {hms}"));
+        assert!(
+            offset.len() == 5
+                && (offset.starts_with('+') || offset.starts_with('-'))
+                && offset[1..].chars().all(|c| c.is_ascii_digit()),
+            "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
+        );
+    }
+
+    #[test]
+    fn orphanhood_is_unknown_when_nobody_recorded_a_session() {
+        let dir = TempDir::new().unwrap();
+        let m = base();
+        assert_eq!(m.claude_pid, None);
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(
+            st.orphaned(),
+            None,
+            "\"the session is gone\" and \"nobody looked\" are different answers"
+        );
+    }
+
+    #[test]
+    fn orphanhood_is_unknown_when_a_pid_was_recorded_without_its_start_ticks() {
+        // A named session with no ticks to check it against is exactly the
+        // shape a bare-pid check cannot tell from a live one: a `false`
+        // answer here would assert liveness on the one kind of evidence this
+        // field exists to stop trusting.
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        m.claude_pid = Some(std::process::id());
+        assert_eq!(m.claude_started_ticks, None);
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.orphaned(), None);
+    }
+
+    #[test]
+    fn a_child_whose_session_is_gone_is_orphaned() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        // pid 0 has no /proc entry, so it can never be alive regardless of
+        // the ticks recorded against it.
+        m.claude_pid = Some(0);
+        m.claude_started_ticks = Some(1);
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.orphaned(), Some(true));
+    }
+
+    #[test]
+    fn a_child_whose_session_still_runs_is_not_orphaned() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        m.claude_pid = Some(std::process::id());
+        m.claude_started_ticks = Some(crate::procstat::start_ticks(std::process::id()).unwrap());
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.orphaned(), Some(false));
+    }
+
+    #[test]
+    fn a_recycled_pid_is_not_mistaken_for_the_session_that_recorded_it() {
+        // Wrong start ticks against a pid that does exist: the same shape
+        // `procstat::tests::wrong_start_ticks_reads_as_dead` guards for a
+        // wrapper, here for the session that named this child. A bare
+        // `/proc/<pid>` existence check cannot see this at all.
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let pid = std::process::id();
+        let ticks = crate::procstat::start_ticks(pid).unwrap();
+        m.claude_pid = Some(pid);
+        m.claude_started_ticks = Some(ticks + 1);
+        write(&dir, &m);
+        let st = derive(dir.path(), Utc::now());
+        assert_eq!(st.orphaned(), Some(true));
     }
 }

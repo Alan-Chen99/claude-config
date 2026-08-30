@@ -90,6 +90,64 @@ fn seed_capture_at(
     dir
 }
 
+/// This test binary's own start-ticks, read the same way `procstat::parse_stat`
+/// does (field 22 of `/proc/<pid>/stat`, past the `)` closing `comm`). No
+/// `crate::procstat` here: this file is a separate binary with no access to
+/// agent-tools's internals, and the test process is the one pid this file can
+/// always prove is alive without spawning and babysitting a child.
+fn own_start_ticks() -> u64 {
+    let pid = std::process::id();
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap();
+    let (_, tail) = stat.rsplit_once(')').unwrap();
+    tail.split_whitespace()
+        .nth(19)
+        .unwrap()
+        .parse()
+        .expect("starttime is numeric")
+}
+
+/// Seed a *live* capture: `wrapper_pid`/`wrapper_started_ticks` name this test
+/// process itself, which is alive for as long as the test runs, so
+/// `procstat::is_alive` reads it as a live wrapper with nothing reaped.
+/// `started` is free to be any fixture time — liveness never reads it.
+fn seed_live_capture(
+    home: &Path,
+    session: &str,
+    agent: Option<&str>,
+    tuid: &str,
+    desc: &str,
+    started: &str,
+) -> PathBuf {
+    let pid = std::process::id();
+    let ticks = own_start_ticks();
+    let mut dir = home.join(".claude/agent-tools").join(session);
+    if let Some(a) = agent {
+        dir.push(a);
+    }
+    dir.push(tuid);
+    dir.push(pid.to_string());
+    std::fs::create_dir_all(&dir).unwrap();
+    let meta = serde_json::json!({
+        "wrapper_pid": pid,
+        "wrapper_started_ticks": ticks,
+        "child_pid": pid,
+        "desc": desc,
+        "command": ["sleep", "9999"],
+        "started_at": started,
+        "spawn_error": serde_json::Value::Null,
+        "reaped": serde_json::Value::Null,
+        "drained_at": serde_json::Value::Null,
+    });
+    std::fs::write(
+        dir.join("meta.json"),
+        serde_json::to_string_pretty(&meta).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(dir.join("stdout"), "").unwrap();
+    std::fs::write(dir.join("stderr"), "").unwrap();
+    dir
+}
+
 /// Write an events.jsonl line at `<home>/.claude/agent-tools/<session>/[<agent>/]<tuid>/events.jsonl`.
 fn append_event(home: &Path, session: &str, agent: Option<&str>, tuid: &str, line: &str) {
     let mut dir = home.join(".claude/agent-tools").join(session);
@@ -107,7 +165,7 @@ fn append_event(home: &Path, session: &str, agent: Option<&str>, tuid: &str, lin
 fn no_state_on_disk_prints_session_and_marker() {
     let home = tempfile::tempdir().unwrap();
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid-fresh"])
+        .args(["ps", "--format", "text", "--session-id", "sid-fresh"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -147,8 +205,15 @@ fn main_thread_two_captures_under_one_tool_use_id() {
     );
 
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid"])
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid"])
         .env("HOME", home.path())
+        // UTC+9 (POSIX `TZ` offsets are the negative of the zone's offset from
+        // UTC), a zone this test host is most likely not already in: on a host
+        // that is coincidentally UTC, comparing a Local-converted expectation
+        // against a Local-converted rendering agrees by construction even with
+        // a bare-UTC formatter bug, which is exactly why that comparison must
+        // not be how this is checked.
+        .env("TZ", "XXX-9")
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
         .unwrap();
@@ -171,7 +236,10 @@ fn main_thread_two_captures_under_one_tool_use_id() {
     assert!(s.contains("wrapper: pid 22222"), "{s}");
     assert!(s.contains("cmd:     echo probe-a"), "{s}");
     assert!(s.contains("cmd:     echo probe-b"), "{s}");
-    assert!(s.contains("started: 10:00:00.000"), "{s}");
+    // The fixture's stored "2026-05-17T10:00:00Z" in UTC+9: a bare UTC
+    // formatter reads "10:00:00" here regardless of the host's own zone,
+    // since it never looks at one.
+    assert!(s.contains("started: 19:00:00"), "{s}");
 }
 
 #[test]
@@ -189,7 +257,7 @@ fn subagent_capture_listed_under_subagent_header() {
     );
 
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid"])
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -234,7 +302,16 @@ fn task_filter_limits_to_one_tool_use_id() {
     );
 
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid", "--task", "tuid-keep"])
+        .args([
+            "ps",
+            "--format",
+            "text",
+            "--all",
+            "--session-id",
+            "sid",
+            "--task",
+            "tuid-keep",
+        ])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -292,7 +369,15 @@ fn events_appear_in_chronological_order() {
     );
 
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid"])
+        .args([
+            "ps",
+            "--format",
+            "text",
+            "--all",
+            "--events",
+            "--session-id",
+            "sid",
+        ])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -343,7 +428,7 @@ fn ps_shows_status_for_every_child_and_never_consumes_the_ledger() {
     );
 
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid"])
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -401,7 +486,15 @@ fn a_malformed_event_line_costs_that_line_not_the_file() {
     );
 
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid"])
+        .args([
+            "ps",
+            "--format",
+            "text",
+            "--all",
+            "--events",
+            "--session-id",
+            "sid",
+        ])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -431,7 +524,7 @@ fn a_capture_without_meta_is_shown_rather_than_dropped() {
     std::fs::create_dir_all(&dir).unwrap();
 
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid"])
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -466,7 +559,7 @@ fn a_long_command_is_capped_on_the_ps_line() {
         "",
     );
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid"])
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -513,7 +606,7 @@ fn captures_are_ordered_newest_first() {
     at("toolu_zzz", 300, "newest", "2026-05-17T12:00:00Z");
 
     let out = agent_tools()
-        .args(["ps", "--session-id", "sid"])
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid"])
         .env("HOME", home.path())
         .env_remove("AGENT_TOOLS_PARENT_DIR")
         .output()
@@ -531,5 +624,789 @@ fn captures_are_ordered_newest_first() {
     assert!(
         pos("newest") < pos("middle") && pos("middle") < pos("oldest"),
         "captures must read newest first: {s}"
+    );
+}
+
+#[test]
+fn ps_prints_json_and_withholds_terminal_children_by_default() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-j",
+        None,
+        "toolu_a",
+        100,
+        Some("one"),
+        Some(0),
+        "x",
+    );
+    seed_capture(
+        home.path(),
+        "sid-j",
+        None,
+        "toolu_a",
+        101,
+        Some("two"),
+        Some(1),
+        "y",
+    );
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid-j"])
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_slice(&out.stdout).expect("ps emits json by default");
+    assert_eq!(v["session"], "sid-j");
+    assert!(
+        v["now"].as_str().unwrap().contains('T'),
+        "now is an instant: {v}"
+    );
+    assert_eq!(
+        v["live"].as_array().unwrap().len(),
+        0,
+        "nothing here is running"
+    );
+    assert_eq!(v["withheld"]["by_key"]["final(0)"], 1);
+    assert_eq!(v["withheld"]["by_key"]["final(1)"], 1);
+    assert_eq!(v["withheld"]["retrieve_with"], "agent-tools ps --all");
+}
+
+#[test]
+fn ps_all_brings_the_withheld_children_back() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-all",
+        None,
+        "toolu_a",
+        100,
+        Some("one"),
+        Some(0),
+        "x",
+    );
+    let out = agent_tools()
+        .args(["ps", "--all", "--session-id", "sid-all"])
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(
+        v["live"].as_array().unwrap().len(),
+        0,
+        "`live` must not gain children that have finished: {v}"
+    );
+    let settled = v["settled"].as_array().expect("--all fills settled");
+    assert_eq!(settled.len(), 1);
+    assert_eq!(settled[0]["name"], "one");
+    assert_eq!(settled[0]["key"], "final(0)");
+    assert!(settled[0]["ran_s"].is_number());
+    assert!(settled[0].get("elapsed_s").is_none());
+    assert!(
+        v["withheld"]["by_key"].as_object().unwrap().is_empty(),
+        "nothing was withheld: {v}"
+    );
+}
+
+#[test]
+fn without_all_there_is_no_settled_array_to_mistake_for_an_empty_one() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-ns",
+        None,
+        "toolu_a",
+        100,
+        Some("one"),
+        Some(0),
+        "x",
+    );
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid-ns"])
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!(v.get("settled").is_none(), "{v}");
+    assert_eq!(v["withheld"]["by_key"]["final(0)"], 1);
+}
+
+#[test]
+fn ps_text_still_renders_the_human_layout() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-t",
+        None,
+        "toolu_a",
+        100,
+        Some("one"),
+        Some(0),
+        "x",
+    );
+    let out = agent_tools()
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid-t"])
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.starts_with("session: sid-t"), "{s}");
+    assert!(s.contains("one [final(0)]"), "{s}");
+}
+
+#[test]
+fn the_event_log_is_out_of_the_way_until_asked_for() {
+    let home = tempfile::TempDir::new().unwrap();
+    let dir = seed_capture(
+        home.path(),
+        "sid-e",
+        None,
+        "toolu_a",
+        100,
+        Some("one"),
+        Some(0),
+        "x",
+    );
+    let events = dir.parent().unwrap().join("events.jsonl");
+    std::fs::write(
+        &events,
+        "{\"ts\":\"2026-05-17T10:00:01Z\",\"kind\":\"child_started\",\"data\":{}}\n",
+    )
+    .unwrap();
+
+    let without = agent_tools()
+        .args(["ps", "--all", "--session-id", "sid-e"])
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert!(
+        !String::from_utf8_lossy(&without.stdout).contains("child_started"),
+        "the event log is not what \"what is running\" means"
+    );
+
+    let with = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "text",
+            "--all",
+            "--events",
+            "--session-id",
+            "sid-e",
+        ])
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&with.stdout).contains("child_started"));
+}
+
+#[test]
+fn ps_never_retires_a_pending_report() {
+    let home = tempfile::TempDir::new().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-led",
+        None,
+        "toolu_a",
+        100,
+        Some("one"),
+        Some(0),
+        "x",
+    );
+    let ledger = home
+        .path()
+        .join(".claude/agent-tools/sid-led/.reported.json");
+    assert!(!ledger.exists());
+    agent_tools()
+        .args(["ps", "--all", "--session-id", "sid-led"])
+        .env("HOME", home.path())
+        .output()
+        .unwrap();
+    assert!(
+        !ledger.exists(),
+        "ps must not mark anything as told: whether its output reached the agent \
+         is not something it can observe"
+    );
+}
+
+/// `write_capture` renders `started_at` through `fmt_local_hms`: a bare UTC
+/// formatter here would read as local and be wrong by the reader's offset,
+/// the same hazard every other renderer avoids by going through it.
+#[test]
+fn ps_text_renders_the_start_in_local_time_not_bare_utc() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-tz",
+        None,
+        "tuid",
+        70000,
+        Some("timed"),
+        Some(0),
+        "",
+    );
+    let out = agent_tools()
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid-tz"])
+        .env("HOME", home.path())
+        // See the identical pin in `main_thread_two_captures_under_one_tool_use_id`
+        // for why this must be a fixed foreign zone and a literal, not a
+        // Local-converted expectation compared against a Local-converted
+        // rendering: that agrees with the bug this test exists to catch on
+        // any host whose own zone happens to be UTC.
+        .env("TZ", "XXX-9")
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        s.contains("started: 19:00:00"),
+        "expected the UTC+9 rendering of the fixture's stored 10:00:00Z: {s}"
+    );
+}
+
+#[test]
+fn a_group_header_counts_what_is_shown_not_what_was_withheld() {
+    let home = tempfile::tempdir().unwrap();
+    for (pid, name) in [(100, "a"), (101, "b"), (102, "c")] {
+        seed_capture(
+            home.path(),
+            "sid-g",
+            None,
+            "toolu_a",
+            pid,
+            Some(name),
+            Some(0),
+            "x",
+        );
+    }
+    let out = agent_tools()
+        .args(["ps", "--format", "text", "--session-id", "sid-g"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !s.contains("tool-use"),
+        "a group with nothing to show is not announced: {s}"
+    );
+    assert!(
+        s.contains("3 settled captures withheld -> agent-tools ps --all"),
+        "{s}"
+    );
+}
+
+/// Mirrors the all-withheld shape above but with one live sibling kept: the
+/// header must count only the survivor, not the group's full membership —
+/// the same bug as above, on the shape where a naive fix could still pass by
+/// counting `captures` when `visible` and `captures` happen to have the same
+/// length (there all four are absent; here one is present either way).
+#[test]
+fn a_group_header_counts_the_live_child_only_when_its_siblings_are_withheld() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-mix",
+        None,
+        "toolu_a",
+        100,
+        Some("a"),
+        Some(0),
+        "x",
+    );
+    seed_capture(
+        home.path(),
+        "sid-mix",
+        None,
+        "toolu_a",
+        101,
+        Some("b"),
+        Some(0),
+        "x",
+    );
+    seed_capture(
+        home.path(),
+        "sid-mix",
+        None,
+        "toolu_a",
+        102,
+        Some("c"),
+        Some(0),
+        "x",
+    );
+    seed_live_capture(
+        home.path(),
+        "sid-mix",
+        None,
+        "toolu_a",
+        "d-live",
+        "2026-05-17T10:00:00Z",
+    );
+
+    let out = agent_tools()
+        .args(["ps", "--format", "text", "--session-id", "sid-mix"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        s.contains("tool-use toolu_a (1 capture)"),
+        "the header must count the one survivor, not the group's four members: {s}"
+    );
+    assert!(s.contains("d-live"), "{s}");
+    assert!(
+        s.contains("3 settled captures withheld -> agent-tools ps --all"),
+        "{s}"
+    );
+}
+
+/// Reproduces the exact counterexample: `toolu_bbb`'s group-newest member
+/// (its settled capture at 12:00) is newer than `toolu_aaa`'s (its live
+/// capture at 11:00), so a sort keyed on group rank ranks `toolu_bbb`'s live
+/// child (10:00) ahead of `toolu_aaa`'s (11:00) in the flat `live` array —
+/// backwards, since 11:00 is the more recent of the two children this array
+/// actually carries. `live` must rank each record by its own start.
+#[test]
+fn live_is_ordered_by_its_own_start_not_by_a_withheld_siblings_group_rank() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture_at(
+        home.path(),
+        "sid-ord",
+        None,
+        "toolu_bbb",
+        300,
+        Some("settled-bbb"),
+        Some(0),
+        "2026-05-17T12:00:00Z",
+    );
+    seed_live_capture(
+        home.path(),
+        "sid-ord",
+        None,
+        "toolu_bbb",
+        "live-bbb",
+        "2026-05-17T10:00:00Z",
+    );
+    seed_capture_at(
+        home.path(),
+        "sid-ord",
+        None,
+        "toolu_aaa",
+        100,
+        Some("settled-aaa"),
+        Some(0),
+        "2026-05-17T09:00:00Z",
+    );
+    seed_live_capture(
+        home.path(),
+        "sid-ord",
+        None,
+        "toolu_aaa",
+        "live-aaa",
+        "2026-05-17T11:00:00Z",
+    );
+
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid-ord"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let live = v["live"].as_array().unwrap();
+    assert_eq!(live.len(), 2, "{v}");
+    assert_eq!(
+        live[0]["name"], "live-aaa",
+        "the 11:00 live child ranks first, not the sibling in the group with \
+         the newer overall (but withheld, settled) member: {v}"
+    );
+    assert_eq!(live[1]["name"], "live-bbb", "{v}");
+}
+
+/// A flat array has no groups to partition by, so `agent_id` must not act as
+/// a primary sort key ahead of recency: a subagent's child that started more
+/// recently than every main-thread child must still rank above them.
+#[test]
+fn live_interleaves_a_subagents_child_with_the_main_threads_by_start_time() {
+    let home = tempfile::tempdir().unwrap();
+    seed_live_capture(
+        home.path(),
+        "sid-sub",
+        None,
+        "toolu_main",
+        "main-child",
+        "2026-05-17T08:00:00Z",
+    );
+    seed_live_capture(
+        home.path(),
+        "sid-sub",
+        Some("agent-x"),
+        "toolu_sub",
+        "sub-child",
+        "2026-05-17T09:00:00Z",
+    );
+
+    let out = agent_tools()
+        .args(["ps", "--session-id", "sid-sub"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let live = v["live"].as_array().unwrap();
+    assert_eq!(live.len(), 2, "{v}");
+    assert_eq!(
+        live[0]["name"], "sub-child",
+        "a subagent's newer child must not sort below every main-thread child: {v}"
+    );
+    assert_eq!(live[1]["name"], "main-child", "{v}");
+}
+
+/// `ps --format statusline` is the one format that selects rather than ranks:
+/// past `NAMES` slots a job is dropped to a bare count, so which of several
+/// live children sorts first is not cosmetic. `statusline::render_records`
+/// picks oldest-first, the opposite of this file's own
+/// `live_is_ordered_by_its_own_start_not_by_a_withheld_siblings_group_rank`,
+/// so a mistaken copy-paste of that direction into the statusline renderer
+/// would pass every unit test built on the same fixed clock and only show up
+/// against a real, ordinary `ps` invocation such as this one.
+#[test]
+fn statusline_orders_the_oldest_live_child_first() {
+    let home = tempfile::tempdir().unwrap();
+    seed_live_capture(
+        home.path(),
+        "sid-statusline-order",
+        None,
+        "toolu_new",
+        "new-job",
+        "2026-05-17T11:00:00Z",
+    );
+    seed_live_capture(
+        home.path(),
+        "sid-statusline-order",
+        None,
+        "toolu_old",
+        "old-job",
+        "2026-05-17T09:00:00Z",
+    );
+
+    let out = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "statusline",
+            "--session-id",
+            "sid-statusline-order",
+        ])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("old-job"), "{s}");
+    assert!(s.contains("new-job"), "{s}");
+    let pos_old = s.find("old-job").unwrap();
+    let pos_new = s.find("new-job").unwrap();
+    assert!(pos_old < pos_new, "the oldest live child must lead: {s}");
+}
+
+/// A session with no state on disk must produce zero bytes of output, not a
+/// bare newline: a caller checking for empty output (`[ -z "$(agent-tools ps
+/// --format statusline)" ]`) must see none either way.
+#[test]
+fn statusline_prints_zero_bytes_for_an_empty_session() {
+    let home = tempfile::tempdir().unwrap();
+    let out = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "statusline",
+            "--session-id",
+            "sid-statusline-empty",
+        ])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        out.stdout,
+        Vec::<u8>::new(),
+        "empty output means zero bytes, not a bare newline"
+    );
+}
+
+/// A capture whose wrapper is this test process — alive — and whose child has
+/// already been reaped with nothing drained: `exited`, the one key that is
+/// neither terminal nor still running. `derive` reads a reaped child under a
+/// live wrapper that way; a dead wrapper would answer `final` instead.
+fn seed_exited_capture(home: &Path, session: &str, tuid: &str, desc: &str, exit: i32) -> PathBuf {
+    let dir = seed_live_capture(home, session, None, tuid, desc, "2026-05-17T10:00:00Z");
+    let raw = std::fs::read_to_string(dir.join("meta.json")).unwrap();
+    let mut meta: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    meta["reaped"] = serde_json::json!({"at": "2026-05-17T10:00:05Z", "status": exit});
+    std::fs::write(
+        dir.join("meta.json"),
+        serde_json::to_string_pretty(&meta).unwrap(),
+    )
+    .unwrap();
+    dir
+}
+
+/// The three surfaces have to agree about one child, and `exited` is where they
+/// can most easily stop: the push report gives it a line of its own naming the
+/// exit code, `ps --format json` puts it in `live` under that key, and the bar
+/// selects on the same axis `json` does. Unmarked, it would sit on the bar
+/// indistinguishable from a child still executing — and because the bar is
+/// oldest-first, in the leading slot, which is the one that survives a narrow
+/// pane.
+#[test]
+fn the_statusline_marks_an_exited_child_that_ps_still_calls_live() {
+    let home = tempfile::tempdir().unwrap();
+    seed_exited_capture(home.path(), "sid-exited", "toolu_exited", "migrate", 0);
+
+    let bar = agent_tools()
+        .args(["ps", "--format", "statusline", "--session-id", "sid-exited"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        bar.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&bar.stderr)
+    );
+    let bar = String::from_utf8_lossy(&bar.stdout);
+    assert!(
+        bar.contains("\u{25a0}migrate"),
+        "an exited child must not read as one still running: {bar}"
+    );
+
+    let json = agent_tools()
+        .args(["ps", "--session-id", "sid-exited"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
+    assert_eq!(
+        v["live"][0]["key"], "exited(0)",
+        "the bar shows what `live` holds, so the two must agree it is here: {v}"
+    );
+}
+
+/// The bar is scoped to the whole session, subagent children included: a person
+/// reading it wants to know what is running, not who started it. Nothing else
+/// shows them a subagent's job at all — the push report goes to the agent that
+/// started it, and its scope is that subagent's own.
+#[test]
+fn the_statusline_names_a_subagents_child_because_the_bar_is_the_whole_session() {
+    let home = tempfile::tempdir().unwrap();
+    seed_live_capture(
+        home.path(),
+        "sid-sub-bar",
+        Some("agent-7"),
+        "toolu_sub",
+        "sub-only-job",
+        "2026-05-17T10:00:00Z",
+    );
+
+    let out = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "statusline",
+            "--session-id",
+            "sid-sub-bar",
+        ])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        s.contains("sub-only-job"),
+        "a subagent's running child must reach the bar: {s:?}"
+    );
+}
+
+/// `user-shell` is the directory a capture lands in when no hook set a scope,
+/// and `Record::tool_use_id` is null for it. The text layout must not put it
+/// where a tool-use id goes: a reader copying that header into `ps --task`
+/// would be quoting an identifier no tool use ever had.
+#[test]
+fn the_user_shell_group_is_not_rendered_as_a_tool_use_id() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-ushell",
+        None,
+        "user-shell",
+        700,
+        Some("shell-job"),
+        Some(0),
+        "",
+    );
+
+    let out = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "text",
+            "--all",
+            "--session-id",
+            "sid-ushell",
+        ])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !s.contains("tool-use user-shell"),
+        "text must not fabricate the identifier JSON refuses to invent: {s}"
+    );
+    assert!(
+        s.contains("user-shell (no tool use) (1 capture)"),
+        "the group still has to be named, and named for what it is: {s}"
+    );
+}
+
+/// `settled` is flat, so it ranks by each record's own start — the same reason
+/// `live` does. A group's rank is set by its newest member, and under `--all`
+/// that member is routinely one array while an older sibling is in the same
+/// one: leaving `settled` in group order interleaves the two groups' captures
+/// and puts a 09:00 capture above an 11:00 one.
+#[test]
+fn settled_is_ordered_by_its_own_start_not_by_the_group_it_arrived_in() {
+    let home = tempfile::tempdir().unwrap();
+    for (tuid, pid, desc, started) in [
+        ("toolu_aaa", 100u32, "settled-1200", "2026-05-17T12:00:00Z"),
+        ("toolu_aaa", 101, "settled-0900", "2026-05-17T09:00:00Z"),
+        ("toolu_bbb", 200, "settled-1100", "2026-05-17T11:00:00Z"),
+        ("toolu_bbb", 201, "settled-1000", "2026-05-17T10:00:00Z"),
+    ] {
+        seed_capture_at(
+            home.path(),
+            "sid-settled-ord",
+            None,
+            tuid,
+            pid,
+            Some(desc),
+            Some(0),
+            started,
+        );
+    }
+
+    let out = agent_tools()
+        .args(["ps", "--all", "--session-id", "sid-settled-ord"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let names: Vec<&str> = v["settled"]
+        .as_array()
+        .expect("--all carries a settled array")
+        .iter()
+        .map(|r| r["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            "settled-1200",
+            "settled-1100",
+            "settled-1000",
+            "settled-0900"
+        ],
+        "group order here is aaa(12:00, 09:00) then bbb(11:00, 10:00), which is \
+         not newest-first: {v}"
+    );
+}
+
+/// `--events` reaches the text renderer alone, and the default format is JSON:
+/// the documented invocation is therefore one that does nothing. It stays
+/// accepted — the flags are orthogonal everywhere else — but it says so, because
+/// an envelope with no event log in it and an envelope whose event log is empty
+/// are otherwise the same bytes.
+#[test]
+fn events_at_a_format_that_cannot_carry_them_says_so_rather_than_doing_nothing() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-events-json",
+        None,
+        "toolu_ev",
+        800,
+        Some("job"),
+        Some(0),
+        "",
+    );
+
+    let out = agent_tools()
+        .args(["ps", "--events", "--session-id", "sid-events-json"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "an ignored flag is not a failure: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("--events applies to --format text"),
+        "a flag that does nothing must say so: {err:?}"
+    );
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!(
+        v.get("events").is_none(),
+        "the notice is the whole of the change; the envelope keeps its shape: {v}"
     );
 }

@@ -99,21 +99,32 @@ own status channel. Waiting needs `timeout <s> tail --pid=<pid> -f /dev/null`, n
 
 The kill on timeout is broader than the process group, and this bounds how backgrounding
 can be used. It reaches the call's live descendants, not its process group: each `&` job
-already has a process group of its own, yet a plain `&` child still dies. Three variants
-spawned in one call, each appending a line per second to its own file, were compared after
-the call returned `Exit code 143` — plain `&` stopped at 10 lines, `setsid --wait` stopped
-at 10, and bare `setsid` went on from 15 to 23. `setsid --wait` dies because the waiting
-intermediate keeps it in the descendant tree; bare `setsid` survives because its double
-fork reparents the worker to init before the kill arrives. The same boundary shows up
-without `setsid` at all: `&` children spawned inside a subshell that then exits are
-orphaned, and they survive too.
+already has a process group of its own — the Bash tool's shell runs with job control on,
+`$-` containing `m` — yet a plain `&` child still dies. Three variants spawned in one call,
+each appending a line per second to its own file, were compared after the call returned
+`Exit code 143` — plain `&` stopped at 10 lines, `setsid --wait` stopped at 10, and bare
+`setsid` went on from 15 to 23. A separate run measured `nohup` beside plain `&`: both
+stopped after 8 of their 90 heartbeats, while a bare `setsid` child kept writing, reparented
+to init at PPID 1 with PGID and session both equal to its own pid. `setsid --wait` dies
+because the waiting intermediate keeps it in the descendant tree; bare `setsid` survives
+because its double fork reparents the worker to init before the kill arrives. The same
+boundary shows up without `setsid` at all: `&` children spawned inside a subshell that then
+exits are orphaned, and they survive too. The session boundary is not the one that bounds
+the kill — `setsid --wait` leaves its worker in a session of its own and the worker dies
+anyway.
 
 A backgrounded job therefore survives only a call that returns on its own, or a spawn that
-leaves the descendant tree before the call is killed. The guidance stays "let the call
-return", because that is the only form that keeps the job reachable through the status
-channel and the pid file. Both halves of the pattern carry weight: the
-`&` is what outlives the call, and the bounded wait is what keeps the call from being
-killed instead of returning:
+leaves the descendant tree before the call is killed.
+
+`agent-tools run --background` is the second of those. It forks; the child calls `setsid`
+and goes on to be the wrapper, while the original process exits as soon as that child
+reports it has started. The wrapper is therefore an orphan at PPID 1 by the time the call
+returns, and needs no bounded wait at all. Its exit code says the child started, not that
+it succeeded; the child's own code arrives later on the status channel as `final(<code>)`.
+
+The `&` pattern below is what a command that is not being wrapped still needs. Both halves
+of it carry weight: the `&` is what outlives the call, and the bounded wait is what keeps
+the call from being killed instead of returning:
 
 ```bash
 agent-tools run --desc "<description>" <executable> <args..> & echo $! >/tmp/<name>.pid
