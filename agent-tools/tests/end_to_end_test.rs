@@ -323,3 +323,93 @@ fn full_loop_hook_pre_run_hook_post_ps() {
         "ps output missing start time; got:\n{ps_stdout}"
     );
 }
+
+/// The `!` shell shortcut fires no hook, so nothing sets
+/// `AGENT_TOOLS_PARENT_DIR` and `run` falls back to the session's `user-shell`
+/// bucket. The claim that follows — that such a child is a main-thread citizen
+/// — is only worth anything end to end: `paths::scope_from` choosing the bucket
+/// and `hook_post` walking the scope are separately unit-tested and prove
+/// nothing about each other. This joins them, from a real `run` with only the
+/// environment a `!` command has, to the report the agent's next tool call
+/// carries. A scope walk that skipped this bucket would leave every other test
+/// in the suite green.
+#[test]
+fn a_shell_started_child_is_reported_at_the_agents_next_delivery_point() {
+    let home = tempfile::tempdir().unwrap();
+    let sid = "sid-user-shell-e2e";
+    let path_with_bin = format!(
+        "{}:{}",
+        bin_dir().display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+
+    // Exactly what a `!` command's shell carries: the session id every Claude
+    // Code shell exports, and no hook-set scope at all.
+    let run = Command::new(bin())
+        .args(["run", "--desc", "shell-probe", "--", "echo", "hi"])
+        .env("HOME", home.path())
+        .env("PATH", &path_with_bin)
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .env("CLAUDE_CODE_SESSION_ID", sid)
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        run.status.success(),
+        "run failed; stderr: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&run.stdout), "hi\n");
+
+    let bucket = home
+        .path()
+        .join(".claude/agent-tools")
+        .join(sid)
+        .join("user-shell");
+    assert!(
+        bucket.is_dir(),
+        "a hookless run belongs in the session's user-shell bucket; missing {}",
+        bucket.display()
+    );
+
+    // The next tool call the agent makes. Its own `tool_use_id` has nothing to
+    // do with the child above — that is the point: the delivery point is the
+    // agent's next result, whatever tool produced it.
+    let post_input = serde_json::json!({
+        "session_id": sid,
+        "tool_name": "Read",
+        "tool_input": {},
+        "tool_use_id": "toolu_unrelated",
+        "tool_response": {},
+    })
+    .to_string();
+    let mut c = Command::new(bin())
+        .arg("hook-post")
+        .env("HOME", home.path())
+        .env("PATH", &path_with_bin)
+        .env("CLAUDE_CONFIG_ROOT", worktree_root())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    c.stdin
+        .as_mut()
+        .unwrap()
+        .write_all(post_input.as_bytes())
+        .unwrap();
+    let post_out = c.wait_with_output().unwrap();
+    assert!(
+        post_out.status.success(),
+        "hook-post failed; stderr: {}",
+        String::from_utf8_lossy(&post_out.stderr)
+    );
+    let parsed: serde_json::Value = serde_json::from_slice(&post_out.stdout).unwrap();
+    let ctx = parsed["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap_or_else(|| panic!("no additionalContext: {parsed}"));
+    assert!(
+        ctx.contains("shell-probe [final(0)] pid "),
+        "a `!`-started child must reach the agent like any other; got: {ctx}"
+    );
+}

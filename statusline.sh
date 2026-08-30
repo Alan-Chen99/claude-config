@@ -24,7 +24,13 @@ SESSION=$(echo "$input" | jq -r '.session_id // empty' 2>/dev/null)
 # running".
 TASKS=""
 if [ -n "$SESSION" ]; then
-    if TASKS=$(agent-tools ps --format statusline --session-id "$SESSION" 2>/dev/null); then
+    # `timeout`, because all four rows below share one 5000 ms budget: a `ps`
+    # that hangs takes the whole status line down with it, which is a louder
+    # version of the same failure the fallback below exists to prevent. 2s is
+    # comfortably inside the budget and far above what this costs even on a
+    # session with a hundred captures. A timeout exits 124, so it lands in the
+    # same branch every other failure does.
+    if TASKS=$(timeout 2 agent-tools ps --format statusline --session-id "$SESSION" 2>/dev/null); then
         :
     else
         TASKS="▶ ?"

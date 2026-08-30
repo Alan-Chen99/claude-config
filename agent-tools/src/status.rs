@@ -119,8 +119,9 @@ impl fmt::Display for StatusKey {
 
 impl StatusKey {
     /// Terminal keys end watching: the child's fate is settled and cannot change.
-    /// The set is the 2026-08-26 spec's, not a second definition — `ps` selects
-    /// live children by the negation of this. The report's own partition is a
+    /// The set is the 2026-08-26 spec's, not a second definition — `ps` and the
+    /// statusline both select live children by the negation of this, which is
+    /// why the two agree about `exited`. The report's own partition is a
     /// different boundary, deliberately: see `is_still_running`.
     pub fn is_terminal(&self) -> bool {
         match self {
@@ -151,6 +152,21 @@ impl StatusKey {
     /// does both for free.
     pub fn is_quiet(&self) -> bool {
         matches!(self, StatusKey::Quiet(_))
+    }
+
+    /// True only for `Exited`, the one key whose process has finished while its
+    /// capture has not. Its own axis for the reason `is_quiet` is one: neither
+    /// `is_terminal` nor `is_still_running` can name it, since the first groups
+    /// it with the running keys and the second with the settled ones, and a
+    /// renderer marking it needs the key itself. The statusline is that
+    /// renderer — it shows this child, whose wrapper is alive and whose capture
+    /// is still growing, and must not let it pass for one still executing.
+    ///
+    /// Never true at the same time as `is_quiet`: `derive` reaches `Exited`
+    /// only with a reap recorded and `Quiet` only without one, so the two are
+    /// exclusive at the source rather than by an ordering a caller has to keep.
+    pub fn is_exited(&self) -> bool {
+        matches!(self, StatusKey::Exited(_))
     }
 }
 
@@ -422,6 +438,15 @@ pub fn notes(s: &Status) -> Vec<String> {
         // PROMPT-COUPLED
         notes.push("drain capped".to_string());
     }
+    // Its own note rather than a second producer of `drain capped`: this bound
+    // counts from the first byte and no downstream ever closed, so a reader
+    // told the drain was capped would go looking for a caller that went away.
+    // The two are exclusive on any one record — `capture::Bound` is one value
+    // per run — so which one is present also says which shape the run had.
+    if s.meta.as_ref().is_some_and(|m| m.capture_capped) {
+        // PROMPT-COUPLED
+        notes.push("capture capped".to_string());
+    }
     if let Some(e) = s.meta.as_ref().and_then(|m| m.capture_error.as_deref()) {
         // PROMPT-COUPLED
         notes.push(format!("capture failed: {}", meta::escape_control(e)));
@@ -523,6 +548,7 @@ mod tests {
             merge: None,
             forward_closed: false,
             drain_capped: false,
+            capture_capped: false,
             capture_error: None,
             claude_pid: None,
             claude_started_ticks: None,
@@ -751,6 +777,35 @@ mod tests {
         assert!(
             !line.contains("streams split"),
             "a split that kept nothing apart explains nothing: {line}"
+        );
+    }
+
+    /// The other capped note, in the only company it can keep. A backgrounded
+    /// run merges its streams and forwards neither, so `streams split` and
+    /// `downstream closed` are both structurally impossible beside it, and
+    /// `drain capped` names the bound this run does not have. What can sit
+    /// beside it is a capture that also failed, and the order of those two is
+    /// what this pins — bound first, because it is the deliberate stop and the
+    /// failure is the accident.
+    #[test]
+    fn a_capture_stopped_at_its_bound_is_not_reported_as_a_capped_drain() {
+        let d = TempDir::new().unwrap();
+        let mut m = base();
+        m.merge = Some(core::BACKGROUNDED.into());
+        m.capture_capped = true;
+        m.capture_error = Some("No space left on device".into());
+        write(&d, &m);
+        std::fs::write(d.path().join("output"), b"x").unwrap();
+
+        let now = Utc::now();
+        let line = render(d.path(), &derive(d.path(), now), now);
+        assert!(
+            line.contains(" [capture capped; capture failed: No space left on device] "),
+            "line: {line}"
+        );
+        assert!(
+            !line.contains("drain capped"),
+            "nothing drained past a close here; there was no close: {line}"
         );
     }
 

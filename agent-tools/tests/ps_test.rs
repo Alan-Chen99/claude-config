@@ -1170,3 +1170,243 @@ fn statusline_prints_zero_bytes_for_an_empty_session() {
         "empty output means zero bytes, not a bare newline"
     );
 }
+
+/// A capture whose wrapper is this test process — alive — and whose child has
+/// already been reaped with nothing drained: `exited`, the one key that is
+/// neither terminal nor still running. `derive` reads a reaped child under a
+/// live wrapper that way; a dead wrapper would answer `final` instead.
+fn seed_exited_capture(home: &Path, session: &str, tuid: &str, desc: &str, exit: i32) -> PathBuf {
+    let dir = seed_live_capture(home, session, None, tuid, desc, "2026-05-17T10:00:00Z");
+    let raw = std::fs::read_to_string(dir.join("meta.json")).unwrap();
+    let mut meta: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    meta["reaped"] = serde_json::json!({"at": "2026-05-17T10:00:05Z", "status": exit});
+    std::fs::write(
+        dir.join("meta.json"),
+        serde_json::to_string_pretty(&meta).unwrap(),
+    )
+    .unwrap();
+    dir
+}
+
+/// The three surfaces have to agree about one child, and `exited` is where they
+/// can most easily stop: the push report gives it a line of its own naming the
+/// exit code, `ps --format json` puts it in `live` under that key, and the bar
+/// selects on the same axis `json` does. Unmarked, it would sit on the bar
+/// indistinguishable from a child still executing — and because the bar is
+/// oldest-first, in the leading slot, which is the one that survives a narrow
+/// pane.
+#[test]
+fn the_statusline_marks_an_exited_child_that_ps_still_calls_live() {
+    let home = tempfile::tempdir().unwrap();
+    seed_exited_capture(home.path(), "sid-exited", "toolu_exited", "migrate", 0);
+
+    let bar = agent_tools()
+        .args(["ps", "--format", "statusline", "--session-id", "sid-exited"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        bar.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&bar.stderr)
+    );
+    let bar = String::from_utf8_lossy(&bar.stdout);
+    assert!(
+        bar.contains("\u{25a0}migrate"),
+        "an exited child must not read as one still running: {bar}"
+    );
+
+    let json = agent_tools()
+        .args(["ps", "--session-id", "sid-exited"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
+    assert_eq!(
+        v["live"][0]["key"], "exited(0)",
+        "the bar shows what `live` holds, so the two must agree it is here: {v}"
+    );
+}
+
+/// The bar is scoped to the whole session, subagent children included: a person
+/// reading it wants to know what is running, not who started it. Nothing else
+/// shows them a subagent's job at all — the push report goes to the agent that
+/// started it, and its scope is that subagent's own.
+#[test]
+fn the_statusline_names_a_subagents_child_because_the_bar_is_the_whole_session() {
+    let home = tempfile::tempdir().unwrap();
+    seed_live_capture(
+        home.path(),
+        "sid-sub-bar",
+        Some("agent-7"),
+        "toolu_sub",
+        "sub-only-job",
+        "2026-05-17T10:00:00Z",
+    );
+
+    let out = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "statusline",
+            "--session-id",
+            "sid-sub-bar",
+        ])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        s.contains("sub-only-job"),
+        "a subagent's running child must reach the bar: {s:?}"
+    );
+}
+
+/// `user-shell` is the directory a capture lands in when no hook set a scope,
+/// and `Record::tool_use_id` is null for it. The text layout must not put it
+/// where a tool-use id goes: a reader copying that header into `ps --task`
+/// would be quoting an identifier no tool use ever had.
+#[test]
+fn the_user_shell_group_is_not_rendered_as_a_tool_use_id() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-ushell",
+        None,
+        "user-shell",
+        700,
+        Some("shell-job"),
+        Some(0),
+        "",
+    );
+
+    let out = agent_tools()
+        .args([
+            "ps",
+            "--format",
+            "text",
+            "--all",
+            "--session-id",
+            "sid-ushell",
+        ])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !s.contains("tool-use user-shell"),
+        "text must not fabricate the identifier JSON refuses to invent: {s}"
+    );
+    assert!(
+        s.contains("user-shell (no tool use) (1 capture)"),
+        "the group still has to be named, and named for what it is: {s}"
+    );
+}
+
+/// `settled` is flat, so it ranks by each record's own start — the same reason
+/// `live` does. A group's rank is set by its newest member, and under `--all`
+/// that member is routinely one array while an older sibling is in the same
+/// one: leaving `settled` in group order interleaves the two groups' captures
+/// and puts a 09:00 capture above an 11:00 one.
+#[test]
+fn settled_is_ordered_by_its_own_start_not_by_the_group_it_arrived_in() {
+    let home = tempfile::tempdir().unwrap();
+    for (tuid, pid, desc, started) in [
+        ("toolu_aaa", 100u32, "settled-1200", "2026-05-17T12:00:00Z"),
+        ("toolu_aaa", 101, "settled-0900", "2026-05-17T09:00:00Z"),
+        ("toolu_bbb", 200, "settled-1100", "2026-05-17T11:00:00Z"),
+        ("toolu_bbb", 201, "settled-1000", "2026-05-17T10:00:00Z"),
+    ] {
+        seed_capture_at(
+            home.path(),
+            "sid-settled-ord",
+            None,
+            tuid,
+            pid,
+            Some(desc),
+            Some(0),
+            started,
+        );
+    }
+
+    let out = agent_tools()
+        .args(["ps", "--all", "--session-id", "sid-settled-ord"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let names: Vec<&str> = v["settled"]
+        .as_array()
+        .expect("--all carries a settled array")
+        .iter()
+        .map(|r| r["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            "settled-1200",
+            "settled-1100",
+            "settled-1000",
+            "settled-0900"
+        ],
+        "group order here is aaa(12:00, 09:00) then bbb(11:00, 10:00), which is \
+         not newest-first: {v}"
+    );
+}
+
+/// `--events` reaches the text renderer alone, and the default format is JSON:
+/// the documented invocation is therefore one that does nothing. It stays
+/// accepted — the flags are orthogonal everywhere else — but it says so, because
+/// an envelope with no event log in it and an envelope whose event log is empty
+/// are otherwise the same bytes.
+#[test]
+fn events_at_a_format_that_cannot_carry_them_says_so_rather_than_doing_nothing() {
+    let home = tempfile::tempdir().unwrap();
+    seed_capture(
+        home.path(),
+        "sid-events-json",
+        None,
+        "toolu_ev",
+        800,
+        Some("job"),
+        Some(0),
+        "",
+    );
+
+    let out = agent_tools()
+        .args(["ps", "--events", "--session-id", "sid-events-json"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "an ignored flag is not a failure: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("--events applies to --format text"),
+        "a flag that does nothing must say so: {err:?}"
+    );
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!(
+        v.get("events").is_none(),
+        "the notice is the whole of the change; the envelope keeps its shape: {v}"
+    );
+}

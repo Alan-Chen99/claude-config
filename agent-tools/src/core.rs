@@ -7,11 +7,12 @@ use tokio::process::Command;
 
 use crate::capture;
 
-/// Bytes captured after the downstream closed before the read end is dropped.
-/// Normal operation never reaches it: it only applies once forwarding has
-/// failed. A forward target that cannot fail — `Destination::Nowhere`'s
-/// `sink()` — never reaches it at all, so it bounds nothing there; the bound
-/// only ever arms behind a real downstream's refusal.
+/// How much the tee captures once capturing is the only thing still happening.
+/// Which byte the count runs from is `capture::Bound`'s to say, and it follows
+/// from the destination: after a downstream refuses a write for a forwarded
+/// run, from the first byte for one with nowhere to forward to. A forwarded run
+/// in normal operation never approaches this, because forwarding does not fail;
+/// a backgrounded one is past the starting line from its first byte.
 pub const DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;
 
 // The two properties that make that number a cap at all, checked where it is
@@ -70,11 +71,12 @@ pub const BACKGROUNDED: &str = "backgrounded: wrapper owns the destination";
 pub enum Destination {
     /// This process's own stdout and stderr, which the merge rule inspects.
     Caller,
-    /// The caller has gone; the capture is the whole record. It is also
-    /// unbounded: `drain_cap_bytes` arms only after a downstream stops
-    /// accepting writes, and a sink never does — so a wrapped `yes` writes
-    /// until the disk is full, and `ps`'s byte count is the whole of the
-    /// mitigation.
+    /// The caller has gone; the capture is the whole record. Nothing here can
+    /// refuse a write, so a bound counting from a refusal would never arm — and
+    /// the case that needs one is precisely a wrapper outliving its session,
+    /// where nobody is left to read `ps`'s byte count and stop a wrapped `yes`
+    /// by hand. The bound counts from the first byte instead:
+    /// `capture::Bound::Captured`.
     Nowhere,
 }
 
@@ -168,6 +170,12 @@ pub struct Outcome {
     /// dropped. The child met the `SIGPIPE` bare would have given it, and the
     /// capture stops short of whatever it wrote after that.
     pub drain_capped: bool,
+    /// A capture reached its bound with nothing downstream, on either stream,
+    /// and the read end was dropped. `drain_capped`'s sibling and never its
+    /// synonym: the two name different bounds, and a backgrounded child
+    /// reported under the other one would send its reader looking for the
+    /// downstream that closed, of which there was none.
+    pub capture_capped: bool,
     /// A capture could not be written, on either stream, and stopped there;
     /// what the OS said about the first such failure. The child ran to its own
     /// end and the caller's streams carry everything it wrote, so nothing else
@@ -229,6 +237,18 @@ where
     // The only place the production default is applied. Both entry points pass
     // whatever their flag held, so there is no second copy to drift from.
     let drain_cap_bytes = drain_cap_bytes.unwrap_or(DEFAULT_DRAIN_CAP_BYTES);
+
+    // Which byte the bound counts from follows from where the bytes go, so it
+    // is decided here beside the destination rather than inside the tee: a
+    // forwarded run has a downstream whose refusal is the only thing that makes
+    // capturing the whole of what the tee is doing, while a run with nowhere to
+    // forward to is in that state from its first byte. One bound serves both
+    // streams and each counts its own, which is the arithmetic the drain bound
+    // already did on a split run.
+    let bound = match destination {
+        Destination::Caller => capture::Bound::AfterForwardCloses(drain_cap_bytes),
+        Destination::Nowhere => capture::Bound::Captured(drain_cap_bytes),
+    };
 
     // `cmd[0]` below would panic on an empty slice. Both callers check first,
     // but this is the contract the passthrough tests drive directly, so it
@@ -357,7 +377,7 @@ where
                 rx,
                 dir.join("output"),
                 fwd_out,
-                drain_cap_bytes,
+                bound,
                 last_stdout.clone(),
                 dir.clone(),
             ));
@@ -384,7 +404,7 @@ where
                 stdout_pipe,
                 dir.join("stdout"),
                 fwd_out,
-                drain_cap_bytes,
+                bound,
                 last_stdout.clone(),
                 dir.clone(),
             ));
@@ -393,7 +413,7 @@ where
                 stderr_pipe,
                 dir.join("stderr"),
                 fwd_err,
-                drain_cap_bytes,
+                bound,
                 last_stderr.clone(),
                 dir.clone(),
             ));
@@ -459,6 +479,7 @@ where
         // actionable and there is nowhere else left to read them.
         forward_closed: a.forward_closed || b.forward_closed,
         drain_capped: a.drain_capped || b.drain_capped,
+        capture_capped: a.capture_capped || b.capture_capped,
         capture_error: a.capture_error.or(b.capture_error),
     })
 }

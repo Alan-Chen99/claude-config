@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use crate::events::{self, Event};
 use crate::meta;
 use crate::paths;
-use crate::psrecord::{Capture, Envelope, Record, Withheld};
+use crate::psrecord::{Capture, Envelope, Record, Withheld, USER_SHELL};
 use crate::statusline;
 
 /// `--format`'s value set, as a `clap::ValueEnum` rather than a bare
@@ -33,6 +33,21 @@ pub fn run(
     all: bool,
     events: bool,
 ) -> Result<()> {
+    // `--events` reaches the text renderer alone. The JSON envelope is fixed
+    // data with no event log in it and the statusline is one line about what is
+    // running, so at either of those the flag parses and nothing it names can
+    // happen. Accepted rather than rejected, because the flags are orthogonal
+    // everywhere else and a hard error makes a composed command line fail for a
+    // reason the caller cannot act on — but said out loud, because a flag that
+    // silently does nothing teaches its reader that the log is empty rather
+    // than absent, and a note in a document cannot reach the person who has
+    // already typed the command.
+    if events && format != PsFormat::Text {
+        eprintln!(
+            "agent-tools ps: --events applies to --format text; this format carries \
+             no event log, so the flag is ignored"
+        );
+    }
     let session_id = resolve_session(session_override)?;
     let session_dir = paths::state_root()?.join(&session_id);
 
@@ -263,7 +278,17 @@ fn render_text(
                 "group_sizes has one entry per group boundary crossed in this walk of `visible`",
             );
             let plural = if n == 1 { "capture" } else { "captures" };
-            writeln!(buf, "  tool-use {} ({} {})", c.tool_use_id, n, plural)?;
+            // A `!`-started child has no tool use to name: `USER_SHELL` is the
+            // directory name a capture gets when no hook set a scope, and
+            // `Record::tool_use_id` is null for exactly this group. A header
+            // reading `tool-use user-shell` would print as an identifier on one
+            // surface the very thing the other surface refuses to invent.
+            let group = if c.tool_use_id == USER_SHELL {
+                format!("{USER_SHELL} (no tool use)")
+            } else {
+                format!("tool-use {}", c.tool_use_id)
+            };
+            writeln!(buf, "  {group} ({n} {plural})")?;
         }
         write_capture(&mut buf, c, st, now)?;
     }

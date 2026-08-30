@@ -94,6 +94,7 @@ pub async fn run(
         merge: None,
         forward_closed: false,
         drain_capped: false,
+        capture_capped: false,
         capture_error: None,
         claude_pid,
         claude_started_ticks,
@@ -320,6 +321,7 @@ pub async fn run(
         // existed and went to disk with the pid.
         m.forward_closed = outcome.forward_closed;
         m.drain_capped = outcome.drain_capped;
+        m.capture_capped = outcome.capture_capped;
         m.capture_error = outcome.capture_error.clone();
         // Recorded and discarded, like the callbacks' writes: policy above.
         record_meta_write(
@@ -491,6 +493,7 @@ mod tests {
                 merge: None,
                 forward_closed: false,
                 drain_capped: false,
+                capture_capped: false,
                 capture_error: None,
                 claude_pid: None,
                 claude_started_ticks: None,

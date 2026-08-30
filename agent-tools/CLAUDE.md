@@ -63,8 +63,8 @@ the next author one is due.
 | `hook_post.rs` / `hook_prompt.rs` report header `"[agent-tools] run status:\n…"`, and the `"… unavailable this time"` fallback that shares its prefix | `sys_prompt/alan-default-next.md`, `# Using your tools`, the `agent-tools run` bullet list | Edit both sides together. `scripts/check-prompt-coupling.sh` fails if they drift. It matches the exact literal at each emit site, not the bare prefix: the prefix also occurs in the fallback branch, so a file-level grep passes over a drifted header. |
 | `status.rs`'s `Display for StatusKey` → `producing`, `quiet(<bucket>)`, `exited(<code>)`, `final(<code>)`, `abandoned`, `spawn-failed(<error>)` | Same bullet list, the sentence beginning "Keys are" | Same rule, with a second consumer: these strings are also the ledger identity that decides whether a change has already been reported, so renaming one re-reports every live child once. `key_strings_are_stable_ledger_identities` pins the text; the coupling script pins the prompt to it. |
 | `hook_post.rs::bg_notice` → `"BACKGROUNDED: Command was backgrounded. Cause: …"`                 | Same bullet list, closing sentence                     | The prompt keys off `BACKGROUNDED:` at the *start of a line*, which couples position as well as the prefix: `run`'s two notices join with a newline for that reason, and joining them with anything else leaves the second header mid-line where the prompt's rule cannot reach it. `hook_post_test::the_status_header_begins_a_line_even_beside_a_backgrounding_notice` pins it; `check-prompt-coupling.sh` matches literals, not position. The repo's `settings.json` sets `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, under which the Bash tool never returns a `backgroundTaskId`, so `bg_notice` returns `None` on every call and the prompt's `BACKGROUNDED:` sentence describes a line the agent will not see. Both sides stay in place because the setting is a session-level choice rather than a property of this binary, and the coupling guard checks the pair regardless. See the repo-root `CLAUDE.md`. |
-| `capture.rs`'s five diagnostics, every one written through `state`: the downstream-closed notice, the drain-bound notice, and one each for the capture's open, write loop and flush failures | Same bullet list, the passthrough bullet — "always prefixed `agent-tools:`" | The prompt promises the prefix, not the wording, so the guard pins one exact literal per emit site rather than the prefix: measured, dropping `agent-tools:` at one site still leaves four matches in the file, so a bare-prefix grep passes while any four of the five drift. Five sites because the open, the write loop and the flush each need their own message; the `failed (` needle runs on to `forwarding continues` so it cannot also match the flush's line and leave that site unpinned. Drift costs the agent the only thing separating a wrapper diagnostic from its command's own stderr. The notes segment carries the same facts on the status channel, which is what covers the cases stderr cannot — a notice about stderr itself, or about the one destination a merge made of both, since that is the closed descriptor in exactly those. Measured: `… 2>&1 \| head -3` delivers no notice and still reports `[downstream closed]`. `main.rs`'s `run` and `run-core` failure prints are the only other diagnostics reachable once the tees are running, so they carry the same prefix under the same promise; the guard pins `capture.rs`'s five, and a comment at each of those two sites carries the reason its spelling differs from the other subcommands'. |
-| `status.rs::render`'s notes segment and `stat failed:` — `streams split: <why>`, `downstream closed`, `drain capped`, `capture failed: <err>`, `[stat failed: <err>]` | Same bullet list, the status bullet, the sentence beginning "`<detail>` is" | Guarded, one needle per emit site: `check-prompt-coupling.sh` pins the whole `format!` / `push` expression rather than the words, because the bare words also occur in `status.rs`'s own render assertions, so a word-level grep passes over a drifted emitter. Each needle matches exactly one place in the file, and each of the five was watched to fail — change the emitted string and the script names `status.rs`. The prompt teaches the agent that a bracket after the byte counts is facts rather than a second key, and names all five; renaming one leaves that bracket unexplained on a line the agent must still read. See "The notes segment" below for the emit conditions. |
+| `capture.rs`'s five diagnostics, every one written through `state`: the downstream-closed notice, the bound-reached notice (which names which bound), and one each for the capture's open, write loop and flush failures | Same bullet list, the passthrough bullet — "always prefixed `agent-tools:`" | The prompt promises the prefix, not the wording, so the guard pins one exact literal per emit site rather than the prefix: measured, dropping `agent-tools:` at one site still leaves four matches in the file, so a bare-prefix grep passes while any four of the five drift. Five sites because the open, the write loop and the flush each need their own message; the `failed (` needle runs on to `forwarding continues` so it cannot also match the flush's line and leave that site unpinned. Drift costs the agent the only thing separating a wrapper diagnostic from its command's own stderr. The notes segment carries the same facts on the status channel, which is what covers the cases stderr cannot — a notice about stderr itself, or about the one destination a merge made of both, since that is the closed descriptor in exactly those. Measured: `… 2>&1 \| head -3` delivers no notice and still reports `[downstream closed]`. `main.rs`'s `run` and `run-core` failure prints are the only other diagnostics reachable once the tees are running, so they carry the same prefix under the same promise; the guard pins `capture.rs`'s five, and a comment at each of those two sites carries the reason its spelling differs from the other subcommands'. |
+| `status.rs::render`'s notes segment and `stat failed:` — `streams split: <why>`, `downstream closed`, `drain capped`, `capture capped`, `capture failed: <err>`, `[stat failed: <err>]` | Same bullet list, the status bullet, the sentence beginning "`<detail>` is" | Guarded, one needle per emit site: `check-prompt-coupling.sh` pins the whole `format!` / `push` expression rather than the words, because the bare words also occur in `status.rs`'s own render assertions, so a word-level grep passes over a drifted emitter. Each needle matches exactly one place in the file, and each was watched to fail — change the emitted string and the script names `status.rs`. The prompt teaches the agent that a bracket after the byte counts is facts rather than a second key, and names every one of them; renaming one leaves that bracket unexplained on a line the agent must still read. See "The notes segment" below for the emit conditions. |
 | `hook_post.rs::collapse_running` → `"  still running: {body}  -> agent-tools ps"` | Same bullet list, the bullet beginning "Children still running" | The bare words `still running` also occur in `bg_notice`'s `"Process is still running (task_id: …)"` and in this file's own comments, so the guard pins the whole `format!` literal rather than the prefix — the same rule the notes-segment row above uses. `running_children_collapse_to_one_line_that_still_names_each_of_them` and `a_dropped_collapsed_line_is_announced_rather_than_silent` pin the behavior the prompt describes; the coupling script pins only the text describing it, and needs its own row because that text is not one of the render-line fields the row above already covers. |
 | `run.rs`'s `--background` start line — `"{}  wrapper pid {wrapper_pid}  child pid {pid}"` | `sys_prompt/alan-default-next.md`, `# Using your tools`, the backgrounding bullet | The one line a backgrounded start prints, and the agent's only handle on the capture directory and the wrapper pid. It carries no `[agent-tools]` or `BACKGROUNDED:` marker — it is the command's own stdout — so an agent tells it from its child's first line of output by shape alone, and the prompt shows that shape. The needle is the whole format literal: the bare words also occur in this file and in the test that asserts the line, so a word-level grep passes over a drifted emitter. It sits outside the marker convention above, which covers the two files whose text reaches `additionalContext`; this one reaches the agent as stdout. |
 | `main.rs::GATE_STDOUT` (printed by `agent-tools opencode.gate`)                                  | `opencode/agents/alan-default-ids.md`, step 4 ("gate stdout returns instructions") and step 5 ("reason in a thinking block about what it instructs") of the Doing-tasks list; G1 reinforces R002 (big-picture target), G4 cites R043 (cheap-rejection transparency), G6 cites R090 (no implicit work-assignment), G7 stands alone (evidence-vs-claim), all rules defined in the same agent body | The agent prompt references "gate stdout" without quoting it. If GATE_STDOUT were emptied or removed, the agent prompt would still direct the agent to "follow nothing" — silently no-ops the R060 mistake-check. Pointer-style: items reference rules in the agent body rather than restating them. If the body's R002, R043, or R090 is renumbered or removed, the matching G silently loses its referent. The closing sentence ("re-enter the gate at the next version") is the consumer for the step-5 iterate-until-clean trigger; the body's heredoc uses `turn-<X>-version-<Y>` tags that share this vocabulary. Edit both sides together; rebuild `agent-tools` so the binary actually emits the new text. |
@@ -194,14 +194,35 @@ so a report cannot describe a state older than the tool result it rides on.
 because anything longer is silently replaced with a short stub — which the agent would
 read as "nothing else changed".
 
-### One derivation, three renderers
+### One derivation, four renderers
 
-The push report, `ps` and the statusline all read `psrecord::Record`, and none of them
-derives a status of its own. `Record::build` is the single place a capture directory
-becomes a status, so a renderer that disagreed with a report about the same child would
-have to be a missing field — a compile error — rather than a drift between call sites that
-nothing catches. A renderer chooses what to *show*; it never chooses what is true. Adding a
-fourth consumer means reading the record, not re-deriving from disk beside it.
+`status::derive` is the single place a capture directory becomes a status, and every
+renderer goes through it. None re-derives, and none decides what is true — a renderer
+chooses only what to *show*.
+
+What holds them together is shared helpers, not a shared type, and the difference matters
+to whoever adds the next one:
+
+| Renderer | Reaches `derive` via | Selects live by |
+| --- | --- | --- |
+| push report (`hook_post::report_changes`) | `status::derive` directly, rendering with `status::render` | `StatusKey::is_still_running` — a partition, so `exited` gets a full line of its own |
+| `ps --format text` (`ps::render_text`) | `status::derive` directly, rendering with `status::render` | `Status::is_terminal` |
+| `ps --format json` (`ps::render_json`) | `psrecord::Record::build` | `Record::terminal` |
+| statusline (`statusline::render_records`) | `psrecord::Record::build` | `Record::terminal`, plus a marker per key |
+
+Two of the four never construct a `Record` at all, so nothing about a missing field
+compiles or fails to compile for them: `derive`, `status::name`, `status::notes` and
+`Status::duration_s` are what keep the facts identical, and `Record::build` is a fifth
+helper that assembles those same four for the two renderers that want them as data.
+
+So the guarantee is over the facts, and not over the *selection*: three different
+predicates over one `StatusKey` are in use above, and a renderer picking the wrong one
+disagrees with the others while every fact on it stays true. `exited` is where they part —
+its process is finished and its wrapper is not — so a fourth renderer has to answer, by
+hand, which of the three axes it means and what an `exited` child looks like under it.
+`StatusKey::is_terminal`, `is_still_running`, `is_quiet` and `is_exited` each carry the
+argument for their own axis; that is the reading a new renderer owes, and no compiler
+prompts it.
 
 ### Report lines
 
@@ -278,8 +299,8 @@ path the same line carries.
 
 Everything that explains a difference from bare, in one bracketed group sitting
 between the byte counts and the capture paths, `; `-separated. None of them names a
-stream: `downstream closed` and `drain capped` are folded across both tees, so on a split
-run they do not say which side it was. Stderr usually does, under the stream's own name —
+stream: `downstream closed` and the two capped notes are folded across both tees, so on a
+split run they do not say which side it was. Stderr usually does, under the stream's own name —
 but not when stderr is the descriptor that closed, which is one of the two shapes this
 record exists for. In this order — which
 `status::tests::a_difference_from_bare_is_readable_beside_the_key` pins by asserting the
@@ -290,12 +311,15 @@ whole bracket group rather than each note independently, since the prompt teache
 | `streams split: <why>`  | The capture is two files **and** `meta.merge` holds a condition other than `different destinations`.                 |
 | `downstream closed`     | `meta.forward_closed` — a caller descriptor stopped accepting writes, so forwarding stopped there.                   |
 | `drain capped`          | `meta.drain_capped` — post-close capture reached `core::DEFAULT_DRAIN_CAP_BYTES`, so the capture is short by design. |
+| `capture capped`        | `meta.capture_capped` — the same size, counted from the first byte, for a run with nowhere to forward to (`--background`). Never beside `drain capped`: `capture::Bound` is one value per run. |
 | `capture failed: <err>` | `meta.capture_error` — a capture file could not be written, so it is incomplete from that point on.                  |
 
-The whole group is absent, brackets included, when none of the four applies —
+The whole group is absent, brackets included, when none of them applies —
 which is nearly every run. These lines land in every tool result, and a note that
 is always there stops being read. `drain capped` is reachable only inside the
-forwarding-failed branch, so it never appears without `downstream closed`.
+forwarding-failed branch, so it never appears without `downstream closed`;
+`capture capped` is the opposite shape, reachable only where nothing is forwarded
+at all, so it never appears with either.
 
 `<why>` is `core::decide_merge`'s condition string: `descriptor could not be
 inspected`, `descriptor flags could not be read`, `not both writable`, or `same

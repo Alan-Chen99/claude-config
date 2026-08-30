@@ -28,9 +28,14 @@ program, a compaction survivor, a context window, and a person glancing at a sta
 **The synchronous phase runs while the caller is still reading.** In order: resolve the
 scope, create the capture directory, open `output`, write `meta.json`, spawn the child.
 
-- **A failure anywhere up to and including the spawn is loud and total.** The reason goes to
-  stderr while the caller can still receive it, the exit status is non-zero, and no child is
-  running. Nothing is left for a later reader to discover, because there is nothing to find.
+- **A failure anywhere up to and including the spawn is loud, and it is also recorded.** The
+  reason goes to stderr while the caller can still receive it, the exit status is non-zero, and
+  no child is running. The capture directory is published before the spawn is attempted, so a
+  failed spawn leaves one holding `spawn_error`: `ps --all` shows it as `spawn-failed(<err>)`,
+  the next delivery point pushes that line, and the `withheld.by_key` example below counts a
+  `"spawn-failed"` for exactly this. Both halves are the point — under `&` a failed start is
+  loud to nobody and leaves nothing to find; here the answer the caller gets and the record on
+  disk say the same thing.
 - **Success prints one line and one line only** — the capture directory, the wrapper pid and
   the child pid — then detaches via `setsid(2)` and exits 0.
 - **The capture exists on disk before the call returns.** This is what `&` cannot promise:
@@ -121,15 +126,20 @@ a millisecond, and the specified form is a syscall.
 `--background` composes with `--desc` and `--hide-cmdline` unchanged — the phase structure
 differs, not what the wrapper records or how it names itself.
 
-**`--drain-cap-bytes` is accepted and inert**, and that is a consequence of the section above
-rather than an oversight. The bound arms only once a downstream stops accepting writes, and a
-backgrounded run forwards to a sink, which never does. So the flag parses, and nothing it
-names can happen. It is not rejected, because the two flags are orthogonal everywhere else and
-a hard error would make a composed command line fail for a reason the caller cannot act on;
-it is not recorded either, because `meta.json` has no field for it and adding one would reach
-`status`, `ps` and the report for a flag that exists so a test can drive a bound without
-producing 256 MiB. The honest position is that a backgrounded capture is unbounded — stated
-under Consequences — and this flag does not change that.
+**`--drain-cap-bytes` bounds the capture, counted from its first byte.** Everywhere else the
+count starts when a downstream stops accepting writes; a backgrounded run forwards to a sink,
+which never does, so a bound waiting for that moment would never arm at all and the flag would
+name something that cannot happen. The count therefore starts where the capture does. One
+constant serves both regimes — the same 256 MiB — and one flag, so a test can drive either
+bound without producing 256 MiB of output.
+
+Reaching it does what reaching the drain bound does: the read end is dropped, and the child
+meets the `SIGPIPE` bare would have given it. It is recorded as `capture_capped` and rendered
+as `capture capped`, not folded into `drain_capped`, because the two send a reader to
+different places — one says a caller went away and the wrapper kept reading past it, the other
+that nothing was ever forwarded and the capture itself ran out of room. A backgrounded child
+reported as `drain capped` would have its reader hunting a downstream that never existed. The
+two never share a line: a run has one bound.
 
 ## The pull path is data
 
@@ -302,8 +312,15 @@ failed". Both present an unset `AGENT_TOOLS_PARENT_DIR` and a session id.
 
 The design does not hide this. Both land in `user-shell`, and `origin: "user-shell"` is honest
 in both cases, because what it asserts is exactly what was observed: **no hook set a scope.**
-A subagent's child is then misattributed to the main thread — over-reported, never lost, which
-is the direction the invariant already prefers.
+What follows for a misattributed subagent child is worth stating plainly rather than as
+"over-reported, never lost". The capture lands in the session's `user-shell` bucket, which is
+the main thread's scope. A subagent's own scope carries its agent id, so its `hook-post` scans
+a directory this capture is not in and emits nothing for it, while the main thread reports it
+and commits it to the main thread's ledger. The child is therefore over-reported **to the
+session** — an agent that did not start it is told about it — and **lost to the agent that
+did**: the subagent never learns its child's exit code, and no later delivery point will tell
+it, because the ledger entry retiring that change belongs to another scope. Someone is always
+told, which is the direction the invariant prefers. The subagent is not that someone.
 
 ## The statusline carries what is running
 
@@ -318,7 +335,14 @@ A line, omitted entirely when nothing is running so the bar never grows a perman
   debounced 300 ms), so its figures freeze the moment the agent goes idle — which is exactly
   when a person is most likely to be reading them. The stamp is what makes a frozen line
   self-describing rather than merely wrong.
-- `~` marks a `quiet(*)` child: alive, producing nothing.
+- `~` marks a `quiet(*)` child: alive, producing nothing. `■` marks an `exited(*)` one: its
+  process is finished, its wrapper is not, and its capture is still growing because a
+  descendant holds the inherited pipes. Both are markers rather than omissions. The bar selects
+  the children `ps --format json` puts in `live`, so dropping an `exited` one would leave the
+  two surfaces describing one child differently — and an `npm start &`-shaped command holds
+  that state for hours, over which the bar would show nothing at all while a process tree ran
+  on. Neither marker says anything about an exit code, which no slot has room for: a `✓` or an
+  `✗` in that position would assert one.
 - `(+2)` is the overflow. Three names, each capped at about fourteen characters. **The cap is
   fixed, not computed**: terminal width is absent from the statusline payload, and `tput cols`
   cannot supply it. It does not fail against the pipe the command's stdout is — it returns
@@ -336,7 +360,9 @@ upper bound on a renderer that reads only the live ones.
 
 **Its failure is visible.** On error or timeout it emits `▶ ?`, never nothing. An empty line
 and a broken line are otherwise identical, and silence reads as "nothing is running" — the
-failure this design forbids everywhere else.
+failure this design forbids everywhere else. The timeout is the caller's: `statusline.sh`
+wraps the call in `timeout 2`, well inside the 5000 ms the whole script has, so a hung `ps`
+costs this row and not the four above it.
 
 ## Three renderers, one derivation
 
@@ -386,10 +412,12 @@ Newly accepted, and not deviations:
 - **A backgrounded wrapper does not return its child's exit status.** Stated above.
 - **A backgrounded child's stderr is not separable.** Stated above.
 - **A subagent whose hook failed is attributed to `user-shell`.** Stated above.
-- **A backgrounded capture has no size bound.** The drain bound arms only once a downstream
-  has stopped accepting writes; a backgrounded run has no downstream, so it never arms, and
-  `drain_capped` is inert for the life of the child. This is the same shape any forwarded run
-  has while its caller keeps reading — normal operation is uncapped by design — but detaching
-  removes the two things that used to end it in practice: the caller going away, and the
-  wrapper dying with the call. A wrapped `yes` started with `--background` writes until the
-  disk is full. `ps` reports the growing byte count, and that is the whole of the mitigation.
+
+One hazard is closed rather than accepted. A backgrounded capture had no size bound, because
+the drain bound arms only once a downstream has stopped accepting writes and a backgrounded
+run has none. That is not the shape a forwarded run has: there a caller going away *closes*
+the downstream, which is what arms the bound, so a runaway ends by itself — detaching removed
+the only thing that ever ended one. And the case it mattered for was precisely the orphaned
+wrapper, where the stated mitigation, `ps`'s growing byte count, is a command nobody is left
+to run: a wrapped `yes` started from a session that then exits filled the disk with nothing
+watching. Composition above has the bound that replaced it.

@@ -35,6 +35,11 @@ pub struct ChildMeta {
     /// The post-close drain hit its bound; the capture is short by design.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub drain_capped: bool,
+    /// The capture hit its bound with nothing downstream — a backgrounded run,
+    /// where capturing is all the tee ever does. Short by design, and recorded
+    /// under its own name so it cannot be read as a caller that went away.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub capture_capped: bool,
     /// The capture could not be written; it is incomplete from that point.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capture_error: Option<String>,
@@ -123,6 +128,7 @@ mod tests {
             merge: None,
             forward_closed: false,
             drain_capped: false,
+            capture_capped: false,
             capture_error: None,
             claude_pid: None,
             claude_started_ticks: None,

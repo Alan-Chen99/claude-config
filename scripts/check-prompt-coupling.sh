@@ -107,15 +107,17 @@ check '"  still running: {body}  -> agent-tools ps"' "$src/hook_post.rs"
 # line-continued and `grep -qF` does not span lines.
 check 'always prefixed `agent-tools:`' "$prompt"
 check '"agent-tools: {stream_name} downstream closed ({err}); still capturing to' "$src/capture.rs"
-check '"agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes' "$src/capture.rs"
+check '"agent-tools: {stream_name} {what} bound of {size} bytes reached' "$src/capture.rs"
 check '"agent-tools: capture to {} could not be opened (' "$src/capture.rs"
 check '"agent-tools: capture to {} failed ({e}); forwarding continues' "$src/capture.rs"
 check '"agent-tools: capture to {} failed at the flush (' "$src/capture.rs"
 
-# The drain bound's size. The prompt names 256 MiB because "bounded" alone leaves
-# an agent unable to predict which of two behaviours a runaway producer gets —
-# `pipefail` reporting the producer's status, or the `141` the bound forces. That
-# number is a constant in `core.rs`, and nothing else would notice it moving.
+# The bound's size. The prompt names 256 MiB because "bounded" alone leaves an
+# agent unable to predict which of two behaviours a runaway producer gets —
+# `pipefail` reporting the producer's status, or the `141` the bound forces. One
+# number serves both bounds, the post-close drain and a backgrounded run's
+# capture, and the prompt quotes it under each; it is a constant in `core.rs`,
+# and nothing else would notice it moving.
 check '256 MiB bound' "$prompt"
 check 'DEFAULT_DRAIN_CAP_BYTES: u64 = 256 * 1024 * 1024;' "$src/core.rs"
 
@@ -140,6 +142,7 @@ done <<'NOTES'
 streams split: <why>|format!("streams split: {}", meta::escape_control(why))
 downstream closed|notes.push("downstream closed".to_string())
 drain capped|notes.push("drain capped".to_string())
+capture capped|notes.push("capture capped".to_string())
 capture failed: <err>|format!("capture failed: {}", meta::escape_control(e))
 stat failed: <err>|format!(" [stat failed: {}]", s.stat_errors.join("; "))
 NOTES

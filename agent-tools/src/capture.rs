@@ -26,9 +26,17 @@ pub struct TeeOutcome {
     /// the preceding one, still in flight when the downstream closed, and it is
     /// never counted here at all.
     pub bytes_since_close_detected: u64,
-    /// The drain reached `drain_cap_bytes` and the read end was dropped. The
-    /// capture is short of what the child went on to write, by design.
+    /// The post-close drain reached its bound and the read end was dropped.
+    /// The capture is short of what the child went on to write, by design.
     pub drain_capped: bool,
+    /// The capture reached its bound with no downstream ever in the picture,
+    /// and the read end was dropped. Kept apart from `drain_capped` because the
+    /// two send a reader to different places: one says a caller went away and
+    /// the wrapper kept reading past it, the other that nothing was ever
+    /// forwarded and the capture itself is what ran out of room. A backgrounded
+    /// child reported as `drain capped` would have its reader hunting a
+    /// downstream that never existed.
+    pub capture_capped: bool,
     /// The capture could not be written, and capturing stopped there. Holds
     /// what the OS said. Set once, by whichever of the open, a chunk write or
     /// the flush reached it first — a capture that has already stopped cannot
@@ -49,6 +57,44 @@ pub struct TeeOutcome {
 /// makes that loud.
 const READ_BUF: usize = 8192;
 
+/// What stops a tee, and from which byte it counts.
+///
+/// Not a policy toggle: the two arms are the two shapes a run has, and each
+/// names the only thing that can end a runaway producer in its own shape. A
+/// forwarded run ends one because the caller goes away and the drain past that
+/// point is bounded. A run with nowhere to forward to has no downstream that
+/// can go away, so a bound counting from a refusal never arms — the count has
+/// to start at the first byte or nothing ever stops it. `run --background` is
+/// that second shape, and its wrapper outlives the session that started it, so
+/// the case the bound exists for is exactly the case with nobody left watching.
+#[derive(Debug, Clone, Copy)]
+pub enum Bound {
+    /// Bytes captured after the downstream stopped accepting writes. An
+    /// ordinary run never approaches it: forwarding does not fail.
+    AfterForwardCloses(u64),
+    /// Bytes captured at all, counted from the first. There is no downstream to
+    /// lose, so the whole run is what a bound has to cover.
+    Captured(u64),
+}
+
+impl Bound {
+    /// The bound's size, for the notice that says it was reached.
+    fn bytes(self) -> u64 {
+        match self {
+            Bound::AfterForwardCloses(n) | Bound::Captured(n) => n,
+        }
+    }
+
+    /// What the bound counts, so its notice names the thing that ran out rather
+    /// than the mechanism both share.
+    fn what(self) -> &'static str {
+        match self {
+            Bound::AfterForwardCloses(_) => "drain",
+            Bound::Captured(_) => "capture",
+        }
+    }
+}
+
 /// Tee `reader` -> (capture file at `capture_path`) + (forward writer).
 /// Updates `last_activity_unix_ms` on each non-empty read. Appends
 /// `first_byte` + (later) `silence`/`silence_break` events to `events_dir`
@@ -67,25 +113,24 @@ const READ_BUF: usize = 8192;
 /// stderr and returned for the same reason the forward close is, since `final(0)`
 /// beside a capture that stopped growing an hour ago reads as a complete record.
 ///
-/// Draining on alone is how a runaway producer fills the disk, so it is bounded:
-/// `drain_cap_bytes` past the close the reader is dropped, which closes the read
-/// end of the child's pipe and leaves the child facing the `SIGPIPE` bare would
-/// have given it. The bound applies only once forwarding has failed, so an
-/// ordinary run never approaches it. Every value is a bound and every value
-/// means the same thing, `0` included — it stops at the first chunk read after
-/// the one that *detected* the close, which
-/// `TeeOutcome::bytes_since_close_detected` places up to two reads past the
-/// close itself. Only this file's own tests have a downstream that cannot go
-/// away, and they pass `UNCAPPED` from their module; no production caller wants
-/// one.
+/// Capturing on alone is how a runaway producer fills the disk, so it is
+/// bounded, and `bound` says from which byte the count runs. Reaching it drops
+/// the reader either way, which closes the read end of the child's pipe and
+/// leaves the child facing the `SIGPIPE` bare would have given it. Every value
+/// is a bound and every value means the same thing, `0` included — under
+/// `Bound::AfterForwardCloses` it stops at the first chunk read after the one
+/// that *detected* the close, which `TeeOutcome::bytes_since_close_detected`
+/// places up to two reads past the close itself. Only this file's own tests
+/// want a bound nothing can reach, and they pass `UNCAPPED` from their
+/// module.
 ///
-/// Returns when the reader closes (EOF), or when the drain reaches its bound.
+/// Returns when the reader closes (EOF), or when `bound` is reached.
 pub async fn tee<R, W>(
     stream_name: &'static str,
     mut reader: R,
     capture_path: PathBuf,
     mut forward: W,
-    drain_cap_bytes: u64,
+    bound: Bound,
     last_activity_unix_ms: Arc<AtomicI64>,
     events_dir: PathBuf,
 ) -> Result<TeeOutcome>
@@ -118,6 +163,7 @@ where
 
     let mut buf = vec![0u8; READ_BUF];
     let mut wrote_first_byte = false;
+    let mut captured = 0u64;
     loop {
         let n = reader.read(&mut buf).await?;
         if n == 0 {
@@ -126,17 +172,19 @@ where
         let chunk = &buf[..n];
         capture_or_stop_capturing(&mut file, chunk, &capture_path, &mut outcome).await;
 
-        if outcome.forward_closed {
-            outcome.bytes_since_close_detected += n as u64;
-            if outcome.bytes_since_close_detected >= drain_cap_bytes {
-                outcome.drain_capped = true;
-                state(&format!(
-                    "agent-tools: {stream_name} drain bound of {drain_cap_bytes} bytes \
-                     reached; dropping the read end so the child sees SIGPIPE as bare\n"
-                ));
-                break;
-            }
-        } else {
+        // Snapshot before the write, because the write is what can change it:
+        // the chunk that *detects* a close is counted by
+        // `forward_or_stop_forwarding` and must not also be compared against
+        // the bound on the same pass. That is the lag
+        // `TeeOutcome::bytes_since_close_detected` describes, and
+        // `the_chunk_that_detects_the_close_is_not_compared_against_the_bound`
+        // is what holds it. Reading `outcome.forward_closed` after the write
+        // instead would stop the drain one read early.
+        let was_closed = outcome.forward_closed;
+        // A stream that has already lost its downstream is not written to
+        // again: `forward_or_stop_forwarding` states the close where it happens,
+        // and one message per stream is the contract.
+        if !was_closed {
             forward_or_stop_forwarding(
                 &mut forward,
                 chunk,
@@ -145,6 +193,37 @@ where
                 &mut outcome,
             )
             .await;
+        }
+        // Which bound is in force decides only when the tee stops, never where
+        // the bytes go — so the arms below count, and nothing else.
+        let over_bound = match bound {
+            Bound::AfterForwardCloses(cap) => {
+                if was_closed {
+                    outcome.bytes_since_close_detected += n as u64;
+                    outcome.bytes_since_close_detected >= cap
+                } else {
+                    false
+                }
+            }
+            Bound::Captured(cap) => {
+                captured += n as u64;
+                captured >= cap
+            }
+        };
+        if over_bound {
+            // One flag per bound, so the note a reader ends up with names the
+            // bound that actually stopped this capture.
+            match bound {
+                Bound::AfterForwardCloses(_) => outcome.drain_capped = true,
+                Bound::Captured(_) => outcome.capture_capped = true,
+            }
+            let what = bound.what();
+            let size = bound.bytes();
+            state(&format!(
+                "agent-tools: {stream_name} {what} bound of {size} bytes reached; \
+                 dropping the read end so the child sees SIGPIPE as bare\n"
+            ));
+            break;
         }
         last_activity_unix_ms.store(now_unix_ms(), Ordering::SeqCst);
         if !wrote_first_byte {
@@ -325,13 +404,13 @@ mod tests {
     use tempfile::TempDir;
     use tokio::io::AsyncWriteExt;
 
-    /// A bound no capture can reach, for callers with no downstream to lose.
-    /// Not a sentinel: `tee` compares against it like any other value, so there
-    /// is no special case to leave untested. `0` is equally valid and means
-    /// "stop at the first chunk after the one that detected the close" — which
-    /// `TeeOutcome::bytes_since_close_detected` places up to two reads past the
-    /// close itself.
-    const UNCAPPED: u64 = u64::MAX;
+    /// A bound no capture can reach, for the tests here that are about
+    /// something else. Not a sentinel: `tee` compares against it like any other
+    /// value, so there is no special case to leave untested. `0` is equally
+    /// valid and means "stop at the first chunk after the one that detected the
+    /// close" — which `TeeOutcome::bytes_since_close_detected` places up to two
+    /// reads past the close itself.
+    const UNCAPPED: Bound = Bound::AfterForwardCloses(u64::MAX);
 
     /// A downstream that is already gone: every write is `EPIPE`, with none of
     /// `tokio::io::stdout`'s buffering, so the failure lands on the write that
@@ -449,7 +528,7 @@ mod tests {
             reader,
             cap.clone(),
             AlwaysBrokenPipe,
-            0,
+            Bound::AfterForwardCloses(0),
             last,
             dir.path().to_path_buf(),
         ));
@@ -463,6 +542,46 @@ mod tests {
             "one read to detect the close and one to compare on; comparing on the \
              detecting chunk would stop at one"
         );
+    }
+
+    /// The bound that arms with no downstream in the picture. Nothing here can
+    /// ever set `forward_closed` — `sink()` accepts every write, exactly as
+    /// `Destination::Nowhere` hands the tee — so a bound counting from a close
+    /// would never fire and the capture would grow to whatever the child wrote.
+    #[tokio::test]
+    async fn a_capture_with_nowhere_to_forward_still_stops_at_its_bound() {
+        let dir = TempDir::new().unwrap();
+        let cap = dir.path().join("output");
+        let (reader, mut writer) = tokio::io::duplex(8 * READ_BUF);
+        let last = Arc::new(AtomicI64::new(now_unix_ms()));
+
+        let h = tokio::spawn(tee(
+            "output",
+            reader,
+            cap.clone(),
+            tokio::io::sink(),
+            Bound::Captured(2 * READ_BUF as u64),
+            last,
+            dir.path().to_path_buf(),
+        ));
+        writer.write_all(&[b'y'; 6 * READ_BUF]).await.ok();
+        drop(writer);
+        let outcome = h.await.unwrap().unwrap();
+
+        assert_eq!(
+            std::fs::metadata(&cap).unwrap().len(),
+            2 * READ_BUF as u64,
+            "the capture must stop at its bound, not at what the child wrote"
+        );
+        assert!(
+            outcome.capture_capped,
+            "a capture stopped short must say so: {outcome:?}"
+        );
+        assert!(
+            !outcome.drain_capped,
+            "nothing drained past a close here; there was no close: {outcome:?}"
+        );
+        assert!(!outcome.forward_closed, "a sink never refuses a write");
     }
 
     #[tokio::test]

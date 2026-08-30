@@ -11,11 +11,19 @@ use crate::status::{self, StatusKey};
 /// `tool_use_id` is null.
 pub const USER_SHELL: &str = "user-shell";
 
-/// One child's status, in the single shape a report, `ps --json`, and a
-/// statusline all read. `build` is the one place that computes it, so a
-/// renderer disagreeing with a report about the same child is a compile
-/// error — a missing field — rather than a drift between call sites that
-/// nothing catches.
+/// One child's status as data, for the two renderers that want it that way:
+/// `ps --format json` and the statusline. The push report and `ps --format
+/// text` never build one — they call `status::derive` and `status::render`
+/// directly — so this is not a shape every surface reads, and nothing here
+/// makes a disagreement between them a compile error.
+///
+/// What keeps them agreeing is that `build` computes nothing of its own:
+/// `status::derive`, `status::name`, `status::notes` and `Status::duration_s`
+/// are the same four helpers the other two renderers call, and this assembles
+/// their answers rather than re-deriving beside them. What that does not cover
+/// is which children a renderer *selects* — see `agent-tools/CLAUDE.md`, "One
+/// derivation, four renderers", for the three axes in use and the one key they
+/// disagree about.
 #[derive(Debug, Serialize)]
 pub struct Record {
     pub name: String,
@@ -337,6 +345,51 @@ mod tests {
             v.get("elapsed_s").is_none(),
             "a settled child's clock stopped: {v}"
         );
+    }
+
+    /// `orphaned` is the whole of the mitigation for a wrapper outliving its
+    /// session, and it reaches a reader through this field alone. Both
+    /// directions, because a field hardwired to either answer — or to `null` —
+    /// still satisfies a test that only checks one of them, and every other
+    /// test in this file seeds a fixture with no session recorded at all.
+    #[test]
+    fn a_record_says_whether_the_session_that_started_it_is_gone() {
+        let live_session = std::process::id();
+        let ticks = crate::procstat::start_ticks(live_session).unwrap();
+
+        let d = TempDir::new().unwrap();
+        seed(d.path(), Some(0));
+        with_session(d.path(), live_session, ticks);
+        let v = serde_json::to_value(Record::build(d.path(), None, "toolu_x", Utc::now())).unwrap();
+        assert_eq!(
+            v["orphaned"], false,
+            "the session named here is this test process, which is running: {v}"
+        );
+
+        // The same pid, with start ticks that cannot be its own: the shape a
+        // record takes once `pid_max` has wrapped and something else holds the
+        // number. The session this record names is gone whatever now answers to
+        // its pid.
+        let e = TempDir::new().unwrap();
+        seed(e.path(), Some(0));
+        with_session(e.path(), live_session, ticks + 1);
+        let v = serde_json::to_value(Record::build(e.path(), None, "toolu_x", Utc::now())).unwrap();
+        assert_eq!(
+            v["orphaned"], true,
+            "a pid whose start time is not the recorded one is not that session: {v}"
+        );
+    }
+
+    /// Add the session fields to a seeded capture's `meta.json`. Rewriting the
+    /// file rather than taking parameters on `seed`, so every other fixture here
+    /// keeps recording no session at all — which is the third answer
+    /// `orphaned` has and the one those tests pin.
+    fn with_session(dir: &std::path::Path, pid: u32, ticks: u64) {
+        let raw = std::fs::read(dir.join("meta.json")).unwrap();
+        let mut meta: serde_json::Value = serde_json::from_slice(&raw).unwrap();
+        meta["claude_pid"] = serde_json::json!(pid);
+        meta["claude_started_ticks"] = serde_json::json!(ticks);
+        std::fs::write(dir.join("meta.json"), serde_json::to_vec(&meta).unwrap()).unwrap();
     }
 
     #[test]

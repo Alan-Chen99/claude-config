@@ -538,12 +538,12 @@ fn a_non_tty_stdin_is_inherited_so_redirection_still_works() {
 /// `/proc/$PPID/cmdline`, and a backgrounded run has no such reader — nothing
 /// of the wrapper's is on the caller's streams at all.
 ///
-/// `--drain-cap-bytes` is accepted and inert here, and nothing below pretends
-/// otherwise. The bound arms only once a downstream has refused a write, and a
-/// backgrounded run forwards to `tokio::io::sink()`, which never refuses one;
-/// the value is not recorded either. That is `Destination::Nowhere`'s stated
-/// trade — the capture is unbounded and `ps`'s byte count is the mitigation —
-/// so what this pins for that flag is parsing, and only parsing.
+/// `--drain-cap-bytes` is live here rather than decorative: under
+/// `--background` it bounds the capture from the first byte, since there is no
+/// downstream whose refusal a bound could count from. What this pins for that
+/// flag is only that it composes — three bytes of `cat` output come nowhere
+/// near 4096. The bound actually stopping a producer is
+/// `a_backgrounded_capture_stops_at_its_bound_rather_than_at_the_disk`.
 #[test]
 fn background_composes_with_the_flags_run_already_had() {
     const CANARY: &str = "composed-canary-k4";
@@ -656,4 +656,81 @@ fn the_start_line_stays_one_line_whatever_the_scope_was_named() {
         );
     }
     wait_for_drain(&only_capture_dir(&scope));
+}
+
+/// Far more than the bound, and it ends on its own — the same shape, and for
+/// the same reason, as `core_test`'s `OVERRUNS_THE_BOUND`. A bare `yes` never
+/// stops, so against an implementation that never reaches its bound this test
+/// would not fail; it would write until the disk was gone, which is the very
+/// failure it exists to catch.
+const OVERRUNS_THE_BOUND: &str = "yes yes-line | head -c 10485760";
+
+/// The bound a backgrounded capture needs, and the case it needs it for: the
+/// wrapper outlives the session that started it, so the only mitigation a
+/// reader has — `ps`'s growing byte count — is a command nobody is left to run.
+/// Nothing here can close a downstream, since there is none; a bound counting
+/// from a close would never arm and a wrapped `yes` would fill the disk.
+///
+/// The child's own status is the other half. At the bound the read end is
+/// dropped, so the child meets the `SIGPIPE` it would have met bare — and 141
+/// is what says the bound stopped the producer rather than the producer
+/// stopping itself.
+#[test]
+fn a_backgrounded_capture_stops_at_its_bound_rather_than_at_the_disk() {
+    let home = tempfile::TempDir::new().unwrap();
+    let scope = scope(home.path(), "sid-bg-cap", "toolu_bg_cap");
+
+    let out = agent_tools(home.path(), &scope)
+        .args([
+            "run",
+            "--background",
+            "--drain-cap-bytes",
+            "65536",
+            "--desc",
+            "bg-bound-k4",
+            "bash",
+            "-c",
+            OVERRUNS_THE_BOUND,
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = Started::parse(&String::from_utf8_lossy(&out.stdout));
+    let _cleanup = KillWhenDone {
+        wrapper_pid: s.wrapper_pid,
+        argv_needle: "bg-bound-k4",
+    };
+
+    let meta = wait_for_drain(&s.dir);
+    assert_eq!(
+        meta["capture_capped"], true,
+        "a capture stopped short of what the child wrote must say so, or a \
+         truncated record passes for a complete one: {meta}"
+    );
+    // Absent, because `false` is skipped on the way to disk — which is what a
+    // reader sees for a run that never had a downstream at all.
+    assert!(
+        meta.get("drain_capped").is_none_or(|v| v == false),
+        "nothing drained past a close here; there was no downstream to close: {meta}"
+    );
+    assert_eq!(
+        meta["reaped"]["status"], 141,
+        "at the bound the read end closes, so the child sees SIGPIPE as it would \
+         bare: {meta}"
+    );
+
+    let captured = std::fs::metadata(s.dir.join("output")).unwrap().len();
+    // Generous but not vacuous. The count starts at the first byte, so the only
+    // slack is the read that crosses the bound — one 8192-byte chunk, which
+    // this file cannot name. 200 KB catches a bound firing at three times its
+    // size; the producer's own 10 MiB would only catch one that never fires.
+    assert!(
+        (65_536..200_000).contains(&captured),
+        "the capture stops at the bound, not at the producer's end: {captured} \
+         bytes of 10485760"
+    );
 }

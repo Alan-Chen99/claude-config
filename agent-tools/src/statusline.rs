@@ -15,7 +15,9 @@ const NAMES: usize = 3;
 /// quiet children, each named past the cap, each running long enough that
 /// `fmt_duration` reaches two digits of hours — `▶ @14:05 ` is 9, `~<14
 /// chars>… <Nh00m>` is 23 per child, two ` · ` separators are 6, `  (+N)` is
-/// 6 (see `the_width_budget_holds_at_the_worst_case`). A third digit of hours
+/// 6 (see `the_width_budget_holds_at_the_worst_case`). Every marker
+/// `format_one` can put in that leading slot is one character, so which one a
+/// child wears does not move this arithmetic. A third digit of hours
 /// grows it further; `fmt_duration` has no cap to match this one against.
 /// Claude Code renders this line as `<Text wrap="truncate">`, which cuts from
 /// the *right*, so a narrow pane loses `(+N)` first — the one thing telling a
@@ -38,6 +40,17 @@ pub fn render(captures: &[Capture], now: DateTime<Utc>) -> String {
 /// The line, from records. Separate from `render` so the formatting rules can be
 /// driven without a filesystem.
 pub fn render_records(records: &[Record], now: DateTime<Utc>) -> String {
+    // `!terminal`, the same axis `ps --format json` sorts into `live`, and
+    // deliberately not `StatusKey::is_still_running`, which the push report
+    // partitions on. An `exited` child's process is finished, but its wrapper
+    // is not: a descendant holding the inherited pipes keeps the drain open,
+    // and an `npm start &`-shaped command holds that state for hours. Dropping
+    // it here would empty the bar while a process tree lives on — silence
+    // reading as "nothing is running", the failure this design forbids
+    // everywhere else — and would leave the bar and `ps` describing one child
+    // differently at the same instant. It is shown under a marker of its own
+    // instead, so it cannot pass for one still executing; `format_one` decides
+    // that.
     let mut live: Vec<&Record> = records.iter().filter(|r| !r.terminal).collect();
     if live.is_empty() {
         // Nothing running means no row at all. A bar that always carries an
@@ -85,12 +98,12 @@ pub fn render_records(records: &[Record], now: DateTime<Utc>) -> String {
     )
 }
 
-/// One shown job: `~` for a quiet child, the name capped to `NAME_MAX`, and its
-/// running time. Nothing here reads `key` — `status.is_quiet()` decides the
-/// marker off the typed enum instead of a second string check that could
-/// drift from `Display` — and `name` is the one field `status::name` already
-/// routed through `meta::escape_control` on its way into the record, so
-/// nothing this function prints needs a second escape.
+/// One shown job: its marker, the name capped to `NAME_MAX`, and its running
+/// time. Nothing here reads `key` — the markers are decided off the typed enum
+/// instead of a second string check that could drift from `Display` — and
+/// `name` is the one field `status::name` already routed through
+/// `meta::escape_control` on its way into the record, so nothing this function
+/// prints needs a second escape.
 ///
 /// Deliberately silent about `stat_errors`: a capture whose file cannot be
 /// stat'd reports zero bytes, so `derive`'s quiet anchor falls back to
@@ -102,7 +115,22 @@ pub fn render_records(records: &[Record], now: DateTime<Utc>) -> String {
 /// yet" is rare, and `agent-tools ps` is one command away for the reader who
 /// needs to know why.
 fn format_one(r: &Record) -> String {
-    let prefix = if r.status.is_quiet() { "~" } else { "" };
+    // Two markers, and a slot never carries both: `StatusKey::is_exited`'s own
+    // doc has why the keys are exclusive at the source, so the order here is
+    // not a precedence rule and neither arm can hide the other.
+    //
+    // `■` pairs with the `▶` opening the row: that one says what is running,
+    // this one that a job's process has stopped even though its capture has
+    // not. Neutral about the exit code, which no slot has room for — an `x` or
+    // a `✗` would read as failure on an `exited(0)`, and a `✓` as success on an
+    // `exited(1)`. `~` keeps its own meaning: alive, and producing nothing.
+    let prefix = if r.status.is_quiet() {
+        "~"
+    } else if r.status.is_exited() {
+        "■"
+    } else {
+        ""
+    };
     let name = status::cap_to(&r.name, NAME_MAX);
     // `Record::build` always populates `elapsed_s` for a non-terminal record
     // (see its own field doc); a hand-assembled `Record` need not. `"?"`
@@ -212,6 +240,60 @@ mod tests {
             now_fixed(),
         );
         assert!(line.contains("~deploy 12m04s"), "{line}");
+    }
+
+    /// The `~` belongs to `quiet` and to nothing else. Widen `is_quiet` to take
+    /// `Producing` as well and every running child wears the marker meaning
+    /// "alive, producing nothing" — a bar that then says the opposite of what
+    /// is happening. The name-and-duration assertion catches it on its own,
+    /// since a marker takes the space that would otherwise sit before the name;
+    /// the marker assertions say which failure it is.
+    #[test]
+    fn a_producing_child_carries_no_marker_at_all() {
+        let line = render_records(&[rec("build", StatusKey::Producing, 61.0)], now_fixed());
+        assert!(line.contains(" build 1m01s"), "{line}");
+        assert!(
+            !line.contains('~'),
+            "only a quiet child is marked `~`: {line}"
+        );
+        assert!(
+            !line.contains('\u{25a0}'),
+            "only an exited child is marked: {line}"
+        );
+    }
+
+    /// An `exited` child is live by this bar's own selector — its wrapper is
+    /// still running and its capture still growing — and unmarked it is
+    /// indistinguishable from a child still executing. The push report gives it
+    /// a full line naming its exit code and `ps --format json` puts it in
+    /// `live` under `key: "exited(0)"`; a bar silent about it is the one
+    /// surface of the three that describes it wrongly rather than partially.
+    #[test]
+    fn an_exited_child_is_marked_rather_than_passing_for_one_still_running() {
+        let line = render_records(&[rec("migrate", StatusKey::Exited(0), 5.0)], now_fixed());
+        assert!(
+            line.contains('\u{25a0}'),
+            "an exited child needs a marker of its own: {line}"
+        );
+        assert!(line.contains("\u{25a0}migrate 5s"), "{line}");
+        assert!(
+            !line.contains('~'),
+            "`~` means alive and silent, which this child is not: {line}"
+        );
+    }
+
+    /// The other half of the same decision: the marker is worth nothing if the
+    /// child is dropped instead. A wrapper whose descendant holds the inherited
+    /// pipes sits at `exited` for as long as that descendant lives, which for an
+    /// `npm start &`-shaped command is hours — and an empty bar over a live
+    /// process tree reads as "nothing is running".
+    #[test]
+    fn an_exited_child_stays_on_the_bar_because_its_wrapper_has_not_finished() {
+        let line = render_records(&[rec("migrate", StatusKey::Exited(0), 5.0)], now_fixed());
+        assert!(
+            line.contains("migrate"),
+            "a child whose drain is still open must not vanish from the bar: {line:?}"
+        );
     }
 
     #[test]
