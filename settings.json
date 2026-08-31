@@ -144,7 +144,7 @@
       }
     }
   },
-  "outputStyle": "alan-default-next",
+  "outputStyle": "default",
   "effortLevel": "high",
   "showClearContextOnPlanAccept": true,
   "tui": "default",
