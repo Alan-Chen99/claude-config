@@ -16,6 +16,7 @@ from claude_config.cc_pretty.parse import (
     Message,
     ToolResultBlock,
     Usage,
+    UserRecord,
 )
 from claude_config.cc_pretty.render import (
     C,
@@ -396,3 +397,112 @@ def test_cc_tool_result_truncation_hint_uses_sed_and_content_leaf() -> None:
     )
     out = r._render_tool_result(block, lineno=9, block_idx=0)
     assert "…full: sed -n '9p' /tmp/s.jsonl | jq -r '.message.content[0].content'" in out
+
+
+# ─── MCP array-shaped toolUseResult ────────────────────────────────────────
+# MCP tools store their raw content-block array in toolUseResult, and the
+# tool_result block carries that same array — so the body appears once.
+
+
+def _mcp_array_record() -> tuple[UserRecord, int]:
+    blocks = [
+        {"type": "text", "text": "Navigated to https://example.com"},
+        {"type": "text", "text": "<system-reminder>Prefer browser_batch.</system-reminder>"},
+    ]
+    rec = UserRecord(
+        type="user",
+        message=Message(
+            role="user",
+            content=[{
+                "type": "tool_result",
+                "tool_use_id": "toolu_mcp1",
+                "content": blocks,
+            }],
+        ),
+        toolUseResult=blocks,
+    )
+    return rec, 12
+
+
+def test_parse_tool_use_result_accepts_mcp_content_block_array() -> None:
+    rec, _ = _mcp_array_record()
+    assert rec.parsed_tool_use_result() == [
+        {"type": "text", "text": "Navigated to https://example.com"},
+        {"type": "text", "text": "<system-reminder>Prefer browser_batch.</system-reminder>"},
+    ]
+
+
+def test_tool_output_renders_mcp_array_result_body_once() -> None:
+    r = Renderer("/tmp/s.jsonl", tool_output_max=500, tool_input_max=500)
+    out = r.render_tool_output([_mcp_array_record()], ts="00:00:00")
+    assert out.count("Navigated to https://example.com") == 1
+    assert out.count("Prefer browser_batch") == 1
+
+
+def test_cli_renders_session_with_mcp_array_tool_use_result(tmp_path) -> None:
+    blocks = [{"type": "text", "text": "Navigated to https://example.com"}]
+    jsonl = tmp_path / "mcp.jsonl"
+    jsonl.write_text(json.dumps({
+        "type": "user",
+        "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "toolu_mcp1", "content": blocks},
+        ]},
+        "toolUseResult": blocks,
+    }) + "\n")
+    proc = _run_cli(jsonl)
+    assert proc.returncode == 0, proc.stderr
+    assert "Navigated to https://example.com" in proc.stdout
+
+
+def test_tool_output_omits_mcp_array_result_that_diverges_from_body() -> None:
+    # An oversized MCP result is the one shape where toolUseResult holds more
+    # than the tool_result block. The block states the elision and names the
+    # file, so the array stays unrendered — see
+    # notes/mcp-tool-use-result-array.md.
+    rec = UserRecord(
+        type="user",
+        message=Message(
+            role="user",
+            content=[{
+                "type": "tool_result",
+                "tool_use_id": "toolu_big",
+                "content": "Output too large (60013 chars). "
+                           "Full output saved to: /tmp/mcp-out.txt",
+            }],
+        ),
+        toolUseResult=[{"type": "text", "text": "SPILLED-BODY-" + "x" * 60000}],
+    )
+    r = Renderer("/tmp/s.jsonl", tool_output_max=500, tool_input_max=500)
+    out = r.render_tool_output([(rec, 3)], ts="00:00:00")
+    assert "SPILLED-BODY" not in out
+    assert "Full output saved to: /tmp/mcp-out.txt" in out
+
+
+# The plugin-eval tools JSON.parse arbitrary output into toolUseResult, so
+# every JSON value is legal there. Only the object form is modelled.
+@pytest.mark.parametrize("value", [42, 0, -1.5, True, False, "text", [],
+                                   ["a", 1], [{"type": "text", "text": "x"}],
+                                   None])
+def test_parse_tool_use_result_returns_non_object_json_unchanged(value) -> None:
+    rec = UserRecord(type="user", message=Message(role="user", content=[]),
+                     toolUseResult=value)
+    assert rec.parsed_tool_use_result() == value
+
+
+def test_parse_tool_use_result_models_the_object_form() -> None:
+    rec = UserRecord(type="user", message=Message(role="user", content=[]),
+                     toolUseResult={"stdout": "out", "stderr": "err"})
+    assert rec.parsed_tool_use_result().stderr == "err"
+
+
+def test_cli_renders_session_with_scalar_tool_use_result(tmp_path) -> None:
+    jsonl = tmp_path / "scalar.jsonl"
+    jsonl.write_text(json.dumps({
+        "type": "user",
+        "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "toolu_s", "content": "42"},
+        ]},
+        "toolUseResult": 42,
+    }) + "\n")
+    proc = _run_cli(jsonl)
+    assert proc.returncode == 0, proc.stderr

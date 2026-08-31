@@ -5,6 +5,8 @@ Handles all record types found in Claude Code JSONL logs:
   queue-operation, attachment, permission-mode
 
 Content block types: thinking, text, tool_use, tool_result
+toolUseResult: arbitrary tool-defined JSON — only the object form is
+  modelled; see notes/tool-use-result-shapes.md
 Progress data types: bash_progress, agent_progress, hook_progress
 Attachment types: hook_additional_context (model-visible system-reminder text
   produced by SessionStart / PostToolUse / etc.), hook_success (raw hook
@@ -111,14 +113,22 @@ class ToolUseResultDict(_Base):
     stderr: str = ""
     interrupted: bool = False
 
-def parse_tool_use_result(raw: Any) -> str | ToolUseResultDict | None:
-    if raw is None:
-        return None
-    if isinstance(raw, str):
-        return raw
+def parse_tool_use_result(raw: Any) -> Any:
+    """Parse a user record's top-level toolUseResult.
+
+    The field is whatever a tool put in its result `data`, so it has no
+    closed shape: Bash writes an object, MCP tools write the string or
+    content-block array their server returned, and the plugin-eval tools
+    JSON.parse arbitrary output into it — a bare number or boolean included.
+
+    Only the object form is modelled, because it is the only one the
+    renderer reads a field out of. Every other value is returned untouched:
+    the tool_result block is built from that same value, so the renderer has
+    it already. See notes/tool-use-result-shapes.md.
+    """
     if isinstance(raw, dict):
         return ToolUseResultDict.model_validate(raw)
-    raise ValueError(f"unexpected toolUseResult type: {type(raw)}")
+    return raw
 
 
 # ─── Progress data variants ─────────────────────────────────────────────────
@@ -199,7 +209,7 @@ class UserRecord(_Base):
     sessionId: str = ""
     parentUuid: str | None = None
     message: Message = Field(default_factory=Message)
-    toolUseResult: Any = None  # str | dict | None — parsed separately
+    toolUseResult: Any = None  # arbitrary tool-defined JSON — parsed separately
     sourceToolAssistantUUID: str = ""
     sourceToolUseID: str = ""
     version: str = ""
@@ -207,7 +217,7 @@ class UserRecord(_Base):
     cwd: str = ""
     gitBranch: str = ""
 
-    def parsed_tool_use_result(self) -> str | ToolUseResultDict | None:
+    def parsed_tool_use_result(self) -> Any:
         return parse_tool_use_result(self.toolUseResult)
 
 class SystemRecord(_Base):

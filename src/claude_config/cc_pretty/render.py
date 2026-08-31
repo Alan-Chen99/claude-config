@@ -365,7 +365,7 @@ class Renderer:
         return "\n".join(lines)
 
     def _render_tool_result(self, block: ToolResultBlock, lineno: int, block_idx: int,
-                            tur: str | ToolUseResultDict | None = None) -> str:
+                            tur: Any = None) -> str:
         tool_name = self._tool_id_to_name.get(block.tool_use_id, "")
         name_suffix = f" ({tool_name})" if tool_name else ""
 
