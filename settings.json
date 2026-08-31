@@ -132,7 +132,7 @@
   },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
-    "playwright-skill@playwright-skill": true,
+    "playwright-skill@playwright-skill": false,
     "commit-commands@claude-plugins-official": false,
     "ralph-loop@claude-plugins-official": false,
     "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false,

@@ -155,6 +155,14 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 
 Style-matched content generation from any style reference file. 3-phase iterative workflow: (1) extract ranked distinguishing features, (2) draft targeting top features, (3) iterate with self-critique loop (max 3 rounds). Uses `steps.md` with `<!-- step N -->` markers, minimal Python in `scripts/skills/copy_writing_style/do.py`.
 
+### `skills/playwright-cli/`
+
+Vendored from the `@playwright/cli` npm package, not hand-written. Generated from upstream tag `v0.1.18` by `playwright-cli install --skills --global`, which writes through the `~/.claude/skills` symlink into this repo.
+
+`git diff` is the only drift signal: the CLI's own staleness check (`skillCheck.js`) inspects cwd-relative `.claude/skills` only, so a `--global` install is never warned about. After `npm update -g @playwright/cli`, re-run the install and review the diff.
+
+The binary itself is installed by the container image (`/workspace/docker/Dockerfile`), not by this repo.
+
 ### `docs/`
 
 | Path                                       | What                                          | When to read                                            |
