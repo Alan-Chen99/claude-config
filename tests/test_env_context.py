@@ -55,11 +55,10 @@ def test_zsh_preferred_when_shell_unset(tmp_path: Path) -> None:
 
 def test_bash_preferred_when_shell_names_bash(tmp_path: Path) -> None:
     _fake_tree(tmp_path, ["/bin/bash", "/bin/zsh"])
-    # SHELL must name bash without itself resolving on the real filesystem:
-    # a real, executable path here (e.g. the literal "/bin/bash") would win
-    # outright via the override-wins-when-valid branch, short-circuiting
-    # before the ordering behaviour this test targets ever runs.
     result = environment.resolve_shell(
+        # Names bash, so it drives the ordering, but does not exist — a real
+        # path here would be prepended as a valid $SHELL and win outright,
+        # returning the machine's own bash instead of the fixture's.
         env={"SHELL": "/nonexistent/bash"},
         search_dirs=[str(tmp_path / "bin")],
         found={},
