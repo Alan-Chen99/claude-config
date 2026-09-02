@@ -803,15 +803,40 @@ if i < 0:
     raise SystemExit(f"anchor not found in {b}")
 window = data[max(0, i - 3000): i + 1500]
 literals = sorted({m.decode() for m in re.findall(rb"[\x20-\x7e]{12,}", window)})
+# The window cannot see these two: Kml()'s strings, behind the Shell field, sit
+# in a different region of the string table at any window size, and
+# "Platform: " is under the scan's 12-character floor. They are tracked by
+# whole-binary occurrence count instead, so a rename scoped to cc's env
+# builders shows up as a drop even though the string survives elsewhere.
+required = {lit: data.count(lit.encode()) for lit in ("Platform: ", "Shell: PowerShell")}
+assert all(required.values()), required
 version = subprocess.run(["claude", "--version"], capture_output=True, text=True).stdout.split()[0]
 Path("docs/env-context-manifest.json").write_text(
-    json.dumps({"version": version, "literals": literals}, indent=2) + "\n"
+    json.dumps(
+        {"version": version, "window_literals": literals, "required_literals": required},
+        indent=2,
+    )
+    + "\n"
 )
-print("version:", version, "literals:", len(literals))
+print("version:", version, "literals:", len(literals), "required:", required)
 PY
 ```
 
-Expected: `version: 2.1.235 literals: 13`
+Expected: `version: 2.1.235 literals: 13 required: {'Platform: ': 14, 'Shell: PowerShell': 3}`
+
+> **Amended during review.** Task 5 as first written pinned one flat `literals`
+> list, and the implementer found the window cannot see two of the fields this
+> hook reimplements: `Platform: ` is 10 characters, under the scan's
+> 12-character floor, and `Shell: ` never appears in the window at all because
+> `Kml()`'s literals occupy a different region of the string table. A drift
+> check blind to `Shell: ` is blind to the field the whole rewrite exists to
+> correct. The manifest therefore carries two lists with different jobs, and
+> the committed file (`9db623b`, `8e9daa5`, `1e910d7`) also carries a
+> `_comment` explaining them, which the script above does not write — preserve
+> it when re-pinning. `required_literals` maps to occurrence counts rather than
+> being a presence list because both strings also occur in unrelated parts of
+> the binary: `Platform: ` has 14 whole-binary hits of which only 6 are cc's env
+> builders, so presence survives a rename while the count does not.
 
 - [ ] **Step 2: Inspect what was pinned**
 
@@ -851,14 +876,35 @@ import json
 from claude_config.env_context import drift
 
 
-def _binary(tmp_path: Path, literals: list[str]) -> Path:
-    """A stand-in binary: padding, the anchor, then the literals."""
+def _binary(tmp_path: Path, literals: list[str], far: list[str] | None = None) -> Path:
+    """A stand-in binary: padding, the anchor, the literals, then far strings.
+
+    `far` lands well past the scan window, standing in for the string-table
+    region `Kml()`'s literals occupy in the real binary.
+    """
     blob = b"\x00" * 100
     blob += b"You have been invoked in the following environment: "
     for text in literals:
         blob += b"\x00" + text.encode()
+    blob += b"\x00" * 8000
+    for text in far or []:
+        blob += b"\x00" + text.encode()
     path = tmp_path / "claude.exe"
     path.write_bytes(blob)
+    return path
+
+
+def _manifest(tmp_path: Path, window: list[str], required: dict[str, int]) -> Path:
+    path = tmp_path / "manifest.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": "2.1.235",
+                "window_literals": sorted(window),
+                "required_literals": required,
+            }
+        )
+    )
     return path
 
 
@@ -882,20 +928,23 @@ def test_extract_raises_without_anchor(tmp_path: Path) -> None:
 
 def test_compare_matches_pinned_manifest(tmp_path: Path) -> None:
     literals = ["Primary working directory: ", "Is a git repository: "]
-    binary = _binary(tmp_path, literals)
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"version": "2.1.235", "literals": sorted(literals)}))
+    binary = _binary(tmp_path, literals, far=["Shell: PowerShell"])
+    manifest = _manifest(tmp_path, literals, {"Shell: PowerShell": 1})
     result = drift.compare(binary, manifest, version="2.1.235")
     assert result.matches
     assert result.added == []
     assert result.removed == []
+    assert result.count_changes == {}
 
 
 def test_compare_reports_a_new_field(tmp_path: Path) -> None:
-    binary = _binary(tmp_path, ["Primary working directory: ", "Current sandbox mode: "])
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps({"version": "2.1.235", "literals": ["Primary working directory: "]})
+    binary = _binary(
+        tmp_path,
+        ["Primary working directory: ", "Current sandbox mode: "],
+        far=["Shell: PowerShell"],
+    )
+    manifest = _manifest(
+        tmp_path, ["Primary working directory: "], {"Shell: PowerShell": 1}
     )
     result = drift.compare(binary, manifest, version="2.1.240")
     assert not result.matches
@@ -903,11 +952,21 @@ def test_compare_reports_a_new_field(tmp_path: Path) -> None:
     assert result.installed_version == "2.1.240"
 
 
+def test_compare_reports_a_count_drop_outside_the_window(tmp_path: Path) -> None:
+    """A rename scoped to cc's env builders leaves the string present elsewhere."""
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals, far=["Shell: PowerShell"])
+    manifest = _manifest(tmp_path, literals, {"Shell: PowerShell": 3})
+    result = drift.compare(binary, manifest, version="2.1.235")
+    assert not result.matches
+    assert result.count_changes == {"Shell: PowerShell": (3, 1)}
+    assert result.added == []
+
+
 def test_cache_avoids_a_second_scan(tmp_path: Path) -> None:
     literals = ["Primary working directory: "]
     binary = _binary(tmp_path, literals)
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"version": "2.1.235", "literals": literals}))
+    manifest = _manifest(tmp_path, literals, {})
     cache = tmp_path / "cache.json"
 
     calls: list[int] = []
@@ -925,8 +984,7 @@ def test_cache_avoids_a_second_scan(tmp_path: Path) -> None:
 
 def test_cached_note_text_names_the_script(tmp_path: Path) -> None:
     binary = _binary(tmp_path, ["Current sandbox mode: "])
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"version": "2.1.235", "literals": ["Old field: "]}))
+    manifest = _manifest(tmp_path, ["Old field: "], {})
     cache = tmp_path / "cache.json"
     note = drift.cached_note(binary, manifest, cache, lambda: "2.1.240")
     assert note is not None
@@ -981,6 +1039,7 @@ class Comparison:
     pinned_version: str
     added: list[str] = field(default_factory=list)
     removed: list[str] = field(default_factory=list)
+    count_changes: dict[str, tuple[int, int]] = field(default_factory=dict)
 
 
 def find_binary(env: Mapping[str, str] | None = None) -> Path:
@@ -1009,13 +1068,16 @@ def find_binary(env: Mapping[str, str] | None = None) -> Path:
     )
 
 
-def extract_literals(binary: Path) -> list[str]:
-    data = binary.read_bytes()
+def literals_in(data: bytes, source: str) -> list[str]:
     index = data.find(ANCHOR)
     if index < 0:
-        raise RuntimeError(f"env-block anchor not found in {binary}")
+        raise RuntimeError(f"env-block anchor not found in {source}")
     window = data[max(0, index - WINDOW_BEFORE) : index + WINDOW_AFTER]
     return sorted({m.decode() for m in PRINTABLE.findall(window)})
+
+
+def extract_literals(binary: Path) -> list[str]:
+    return literals_in(binary.read_bytes(), str(binary))
 
 
 def installed_version() -> str:
@@ -1026,17 +1088,41 @@ def installed_version() -> str:
 
 
 def compare(binary: Path, manifest: Path, version: str) -> Comparison:
+    """Diff the installed binary against the pinned manifest.
+
+    The binary is 331 MB, so it is read once and both checks run over the same
+    bytes. `window_literals` catches fields cc adds near the anchor.
+    `required_literals` catches a rename or removal of the two fields the
+    window cannot see — `Kml()`'s strings, behind `Shell:`, live in a different
+    region of the string table at any window size, and `Platform: ` is shorter
+    than the window scan's minimum. Those are compared by occurrence count
+    rather than presence, because the strings also occur in unrelated parts of
+    the binary: a rename scoped to cc's env builders leaves them present while
+    dropping the total.
+    """
     pinned = json.loads(manifest.read_text())
-    found = set(extract_literals(binary))
-    expected = set(pinned["literals"])
+    data = binary.read_bytes()
+    found = set(literals_in(data, str(binary)))
+    expected = set(pinned["window_literals"])
     added = sorted(found - expected)
     removed = sorted(expected - found)
+    changed = {
+        literal: (pinned_count, data.count(literal.encode()))
+        for literal, pinned_count in pinned["required_literals"].items()
+        if pinned_count != data.count(literal.encode())
+    }
     return Comparison(
-        matches=not added and not removed and version == pinned["version"],
+        matches=(
+            not added
+            and not removed
+            and not changed
+            and version == pinned["version"]
+        ),
         installed_version=version,
         pinned_version=pinned["version"],
         added=added,
         removed=removed,
+        count_changes=changed,
     )
 
 
@@ -1076,7 +1162,7 @@ def cached_note(
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS — the 6 new tests, plus everything already in the file
+Expected: PASS — the 7 new tests, plus everything already in the file
 
 - [ ] **Step 5: Sanity-check against the real binary**
 
@@ -1090,7 +1176,8 @@ from claude_config.env_context import drift
 b = drift.find_binary()
 print('binary:', b)
 r = drift.compare(b, Path('docs/env-context-manifest.json'), drift.installed_version())
-print('matches:', r.matches, '| added:', r.added, '| removed:', r.removed)
+print('matches:', r.matches, '| added:', r.added, '| removed:', r.removed,
+      '| counts:', r.count_changes)
 "
 ```
 
@@ -1098,7 +1185,7 @@ Expected:
 
 ```
 binary: /nix/store/.../bin/claude.exe
-matches: True | added: [] | removed: []
+matches: True | added: [] | removed: [] | counts: {}
 ```
 
 If `matches` is False here, the manifest from Task 5 and this reader disagree about the window — fix the reader, do not edit the manifest to match.
@@ -1577,8 +1664,9 @@ binary = drift.find_binary()
 version = drift.installed_version()
 result = drift.compare(binary, manifest, version)
 
+pinned = json.loads(manifest.read_text())
 print(f"binary:    {binary}")
-print(f"pinned:    {result.pinned_version} ({len(json.loads(manifest.read_text())['literals'])} literals)")
+print(f"pinned:    {result.pinned_version} ({len(pinned['window_literals'])} window literals)")
 print(f"installed: {result.installed_version}")
 
 if result.matches:
@@ -1589,14 +1677,17 @@ for literal in result.added:
     print(f"  + {literal!r}")
 for literal in result.removed:
     print(f"  - {literal!r}")
+for literal, (was, now) in result.count_changes.items():
+    print(f"  ~ {literal!r} occurs {now} times, was {was}")
 
 if update:
-    manifest.write_text(
-        json.dumps(
-            {"version": version, "literals": drift.extract_literals(binary)}, indent=2
-        )
-        + "\n"
-    )
+    data = binary.read_bytes()
+    pinned["version"] = version
+    pinned["window_literals"] = drift.literals_in(data, str(binary))
+    pinned["required_literals"] = {
+        literal: data.count(literal.encode()) for literal in pinned["required_literals"]
+    }
+    manifest.write_text(json.dumps(pinned, indent=2) + "\n")
     print(f"updated {manifest}")
     sys.exit(0)
 
@@ -1620,7 +1711,7 @@ Expected:
 
 ```
 binary:    /nix/store/.../bin/claude.exe
-pinned:    2.1.235 (13 literals)
+pinned:    2.1.235 (13 window literals)
 installed: 2.1.235
 OK: env-context field set matches the installed binary
 ```
@@ -1635,7 +1726,7 @@ import json
 from pathlib import Path
 p = Path("docs/env-context-manifest.json")
 d = json.loads(p.read_text())
-d["literals"] = [x for x in d["literals"] if "Primary working" not in x]
+d["window_literals"] = [x for x in d["window_literals"] if "Primary working" not in x]
 p.write_text(json.dumps(d, indent=2) + "\n")
 PY
 ./scripts/check-env-context.sh && echo "UNEXPECTED PASS" || echo "correctly failed"
