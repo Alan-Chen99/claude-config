@@ -49,6 +49,7 @@ class CacheEntry(TypedDict):
     binary: str
     size: int
     mtime_ns: int
+    manifest_mtime_ns: int
     note: str | None
 
 
@@ -76,6 +77,12 @@ def find_binary(env: Mapping[str, str] | None = None) -> Path:
 
     found = shutil.which("claude", path=env.get("PATH"))
     if not found:
+        if execpath:
+            message = (
+                f"claude is not on PATH and CLAUDE_CODE_EXECPATH={execpath!r} "
+                "does not name a file"
+            )
+            raise RuntimeError(message)
         raise RuntimeError("claude is not on PATH and CLAUDE_CODE_EXECPATH is unset")
     real = Path(os.path.realpath(found))
     if ANCHOR in real.read_bytes():
@@ -132,9 +139,9 @@ def compare(binary: Path, manifest: Path, version: str) -> Comparison:
     added = sorted(found - expected)
     removed = sorted(expected - found)
     changed = {
-        literal: (pinned_count, data.count(literal.encode()))
+        literal: (pinned_count, count)
         for literal, pinned_count in pinned["required_literals"].items()
-        if pinned_count != data.count(literal.encode())
+        if (count := data.count(literal.encode())) != pinned_count
     }
     return Comparison(
         matches=(
@@ -159,15 +166,34 @@ def cached_note(
 ) -> str | None:
     """Return a one-line drift note, or None when the field set still matches.
 
-    The result is cached on the binary's size and mtime, so the full scan runs
-    once per Claude Code upgrade rather than once per session.
+    The result is cached on the binary's size and mtime plus the manifest's
+    mtime, so the full scan runs once per Claude Code upgrade -- or once per
+    manifest re-pin -- rather than once per session. Keying on the manifest
+    too matters because a re-pin (`check-env-context.sh --update`) can leave
+    the binary untouched while changing what counts as a match; without the
+    manifest's mtime in the key, a stale note would outlive the condition it
+    described until the binary itself next changed.
+
+    A cache file that fails to parse -- a truncated or otherwise corrupt
+    write, most plausibly from two sessions racing to write it at once -- is
+    treated as a miss rather than raised: the scan reruns and the file is
+    overwritten below, so the damage self-heals on the next session instead
+    of wedging every session after it.
     """
-    stat = binary.stat()
-    key = {"binary": str(binary), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+    binary_stat = binary.stat()
+    key = {
+        "binary": str(binary),
+        "size": binary_stat.st_size,
+        "mtime_ns": binary_stat.st_mtime_ns,
+        "manifest_mtime_ns": manifest.stat().st_mtime_ns,
+    }
 
     if cache.is_file():
-        stored = cast(CacheEntry, json.loads(cache.read_text()))
-        if all(stored.get(k) == v for k, v in key.items()):
+        try:
+            stored: CacheEntry | None = cast(CacheEntry, json.loads(cache.read_text()))
+        except (json.JSONDecodeError, OSError):
+            stored = None
+        if stored is not None and all(stored.get(k) == v for k, v in key.items()):
             return stored.get("note")
 
     result = compare(binary, manifest, version())

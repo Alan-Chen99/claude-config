@@ -565,17 +565,30 @@ def test_full_text_matches_snapshot_for_worktree() -> None:
 
 
 import json
+import os
 
 from claude_config.env_context import drift
 
 
-def _binary(tmp_path: Path, literals: list[str], far: list[str] | None = None) -> Path:
-    """A stand-in binary: padding, the anchor, the literals, then far strings.
+def _binary(
+    tmp_path: Path,
+    literals: list[str],
+    before: list[str] | None = None,
+    far: list[str] | None = None,
+) -> Path:
+    """A stand-in binary: padding, optional pre-anchor literals, the anchor,
+    post-anchor literals, then far strings.
 
-    `far` lands well past the scan window, standing in for the string-table
-    region `Kml()`'s literals occupy in the real binary.
+    `before` mirrors production: in the real 2.1.235 binary, 12 of the 13
+    pinned window literals sit *before* the anchor (measured offsets -32 to
+    -1232) and only the anchor itself sits at offset 0 -- a fixture that
+    places everything after the anchor never exercises WINDOW_BEFORE at
+    all. `far` lands well past the scan window, standing in for the
+    string-table region `Kml()`'s literals occupy in the real binary.
     """
     blob = b"\x00" * 100
+    for text in before or []:
+        blob += text.encode() + b"\x00"
     blob += b"You have been invoked in the following environment: "
     for text in literals:
         blob += b"\x00" + text.encode()
@@ -588,12 +601,16 @@ def _binary(tmp_path: Path, literals: list[str], far: list[str] | None = None) -
 
 
 def _manifest(tmp_path: Path, window: list[str], required: dict[str, int]) -> Path:
+    """`_binary()` always writes the anchor, so a manifest that can ever
+    truly match one must always list it too -- centralized here rather than
+    repeated as a comment at each call site.
+    """
     path = tmp_path / "manifest.json"
     path.write_text(
         json.dumps(
             {
                 "version": "2.1.235",
-                "window_literals": sorted(window),
+                "window_literals": sorted({*window, drift.ANCHOR.decode()}),
                 "required_literals": required,
             }
         )
@@ -601,8 +618,21 @@ def _manifest(tmp_path: Path, window: list[str], required: dict[str, int]) -> Pa
     return path
 
 
+def _stub(path: Path, *, anchor: bool) -> None:
+    """An executable stub file, optionally containing the env-block anchor."""
+    content = b"#!/bin/sh\n"
+    if anchor:
+        content += drift.ANCHOR
+    path.write_bytes(content)
+    path.chmod(0o755)
+
+
 def test_extract_finds_literals(tmp_path: Path) -> None:
-    binary = _binary(tmp_path, ["Primary working directory: ", "Is a git repository: "])
+    binary = _binary(
+        tmp_path,
+        ["Is a git repository: "],
+        before=["Primary working directory: "],
+    )
     literals = drift.extract_literals(binary)
     assert "Primary working directory: " in literals
     assert "Is a git repository: " in literals
@@ -622,13 +652,7 @@ def test_extract_raises_without_anchor(tmp_path: Path) -> None:
 def test_compare_matches_pinned_manifest(tmp_path: Path) -> None:
     literals = ["Primary working directory: ", "Is a git repository: "]
     binary = _binary(tmp_path, literals, far=["Shell: PowerShell"])
-    # The scan window always reaches the anchor itself (52 ASCII bytes, well over
-    # the 12-char floor, and WINDOW_AFTER=1500 always reaches past it) -- a
-    # manifest that truly matches this binary must list it too, exactly like the
-    # real, committed docs/env-context-manifest.json does.
-    manifest = _manifest(
-        tmp_path, [*literals, drift.ANCHOR.decode()], {"Shell: PowerShell": 1}
-    )
+    manifest = _manifest(tmp_path, literals, {"Shell: PowerShell": 1})
     result = drift.compare(binary, manifest, version="2.1.235")
     assert result.matches
     assert result.added == []
@@ -647,7 +671,7 @@ def test_compare_reports_a_new_field(tmp_path: Path) -> None:
     )
     result = drift.compare(binary, manifest, version="2.1.240")
     assert not result.matches
-    assert "Current sandbox mode: " in result.added
+    assert result.added == ["Current sandbox mode: "]
     assert result.installed_version == "2.1.240"
 
 
@@ -655,21 +679,37 @@ def test_compare_reports_a_count_drop_outside_the_window(tmp_path: Path) -> None
     """A rename scoped to cc's env builders leaves the string present elsewhere."""
     literals = ["Primary working directory: "]
     binary = _binary(tmp_path, literals, far=["Shell: PowerShell"])
-    # See test_compare_matches_pinned_manifest: the anchor is always in-window.
-    manifest = _manifest(
-        tmp_path, [*literals, drift.ANCHOR.decode()], {"Shell: PowerShell": 3}
-    )
+    manifest = _manifest(tmp_path, literals, {"Shell: PowerShell": 3})
     result = drift.compare(binary, manifest, version="2.1.235")
     assert not result.matches
     assert result.count_changes == {"Shell: PowerShell": (3, 1)}
     assert result.added == []
 
 
+def test_compare_reports_a_version_mismatch_even_when_fields_match(
+    tmp_path: Path,
+) -> None:
+    """The scan sees labels only (module docstring): a cc release that
+    changes behaviour without changing any label text still needs to trip
+    the check, so the pinned version participates in `matches` even when
+    every literal and every count agrees.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    result = drift.compare(binary, manifest, version="2.1.240")
+    assert not result.matches
+    assert result.added == []
+    assert result.removed == []
+    assert result.count_changes == {}
+    assert result.installed_version == "2.1.240"
+    assert result.pinned_version == "2.1.235"
+
+
 def test_cache_avoids_a_second_scan(tmp_path: Path) -> None:
     literals = ["Primary working directory: "]
     binary = _binary(tmp_path, literals)
-    # See test_compare_matches_pinned_manifest: the anchor is always in-window.
-    manifest = _manifest(tmp_path, [*literals, drift.ANCHOR.decode()], {})
+    manifest = _manifest(tmp_path, literals, {})
     cache = tmp_path / "cache.json"
 
     calls: list[int] = []
@@ -685,6 +725,93 @@ def test_cache_avoids_a_second_scan(tmp_path: Path) -> None:
     assert len(calls) == 1
 
 
+def test_cache_self_heals_from_a_corrupt_file(tmp_path: Path) -> None:
+    """A torn write (or any unreadable cache) must be treated as a miss and
+    overwritten, not raised -- otherwise every session after a corruption
+    reports "drift check failed" forever, until a human deletes the file by
+    hand.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"
+    cache.write_text("{not valid json")
+
+    note = drift.cached_note(binary, manifest, cache, lambda: "2.1.235")
+
+    assert note is None
+    assert json.loads(cache.read_text())["note"] is None
+
+
+def test_cache_invalidates_when_binary_mtime_changes(tmp_path: Path) -> None:
+    """A same-size touch must still force a rescan -- proving mtime_ns, not
+    just size, participates in the cache key.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"
+
+    calls: list[int] = []
+
+    def version() -> str:
+        calls.append(1)
+        return "2.1.235"
+
+    drift.cached_note(binary, manifest, cache, version)
+    stat = binary.stat()
+    new_ns = stat.st_mtime_ns + 1_000_000_000
+    os.utime(binary, ns=(new_ns, new_ns))
+    drift.cached_note(binary, manifest, cache, version)
+    assert len(calls) == 2
+
+
+def test_cache_invalidates_when_binary_size_changes(tmp_path: Path) -> None:
+    """A size change pinned back to the original mtime must still force a
+    rescan -- proving size, not just mtime_ns, participates in the cache key.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"
+
+    calls: list[int] = []
+
+    def version() -> str:
+        calls.append(1)
+        return "2.1.235"
+
+    drift.cached_note(binary, manifest, cache, version)
+    original_ns = binary.stat().st_mtime_ns
+    with binary.open("ab") as fh:
+        fh.write(b"\x00")
+    os.utime(binary, ns=(original_ns, original_ns))
+    drift.cached_note(binary, manifest, cache, version)
+    assert len(calls) == 2
+
+
+def test_cache_invalidates_when_manifest_is_repinned(tmp_path: Path) -> None:
+    """`check-env-context.sh --update` re-pins the manifest in place; a
+    stale drift note must not outlive the condition it described once the
+    binary it was cached against is unchanged but the manifest now matches
+    it.
+    """
+    literals = ["Primary working directory: ", "Current sandbox mode: "]
+    binary = _binary(tmp_path, literals)
+    cache = tmp_path / "cache.json"
+
+    stale_manifest = _manifest(tmp_path, ["Primary working directory: "], {})
+    stale_mtime_ns = stale_manifest.stat().st_mtime_ns
+    stale_note = drift.cached_note(binary, stale_manifest, cache, lambda: "2.1.235")
+    assert stale_note is not None
+
+    updated_manifest = _manifest(tmp_path, literals, {})
+    new_ns = stale_mtime_ns + 1_000_000_000
+    os.utime(updated_manifest, ns=(new_ns, new_ns))
+    fresh_note = drift.cached_note(binary, updated_manifest, cache, lambda: "2.1.235")
+    assert fresh_note is None
+
+
 def test_cached_note_text_names_the_script(tmp_path: Path) -> None:
     binary = _binary(tmp_path, ["Current sandbox mode: "])
     manifest = _manifest(tmp_path, ["Old field: "], {})
@@ -693,3 +820,48 @@ def test_cached_note_text_names_the_script(tmp_path: Path) -> None:
     assert note is not None
     assert "2.1.240" in note
     assert "check-env-context.sh" in note
+
+
+def test_find_binary_uses_execpath_when_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "claude.exe"
+    _stub(target, anchor=True)
+    monkeypatch.setenv("CLAUDE_CODE_EXECPATH", str(target))
+    assert drift.find_binary() == target
+
+
+def test_find_binary_follows_wrapped_sibling_when_path_claude_has_no_anchor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CLAUDE_CODE_EXECPATH", raising=False)
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    wrapper = bindir / "claude"
+    _stub(wrapper, anchor=False)
+    real = tmp_path / "claude.exe"
+    _stub(real, anchor=True)
+    (bindir / ".claude-wrapped").symlink_to(real)
+    monkeypatch.setenv("PATH", str(bindir))
+    assert drift.find_binary() == Path(os.path.realpath(real))
+
+
+def test_find_binary_returns_path_claude_when_it_has_the_anchor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CLAUDE_CODE_EXECPATH", raising=False)
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    direct = bindir / "claude"
+    _stub(direct, anchor=True)
+    monkeypatch.setenv("PATH", str(bindir))
+    assert drift.find_binary() == Path(os.path.realpath(direct))
+
+
+def test_find_binary_raises_without_execpath_or_path_claude(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CLAUDE_CODE_EXECPATH", raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    with pytest.raises(RuntimeError, match="not on PATH"):
+        drift.find_binary()
