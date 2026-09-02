@@ -1277,6 +1277,31 @@ git commit -m "feat: detect drift in cc's env block from the installed binary"
 
 ## Task 7: Entry point
 
+> **Amended during review.** The code below is the first draft; the committed
+> version, through `d30bb12`, is the authority. What review changed:
+>
+> - **Half the mutations survived.** `drift_note()` could be deleted outright,
+>   and `shell` and `os_version` swapped, with the whole suite green — because
+>   every test but one was a subprocess round-trip, and a subprocess cannot
+>   inject a fixture. There is an in-process layer now that pins each
+>   collaborator to its own facts key.
+> - **`Shell: unknown` was the wrong fallback.** `resolve_shell` raises only
+>   when no bash or zsh exists anywhere, and cc's literal `unknown` is exactly
+>   the string that means "we did not try". It now says Bash tool calls will
+>   fail, which is what is true.
+> - **The guard boundary was an artifact of exception types.** `session_id: ""`
+>   was absorbed while `session_id: 12345` killed the hook, because the guard
+>   was sized to the raises of a module that assumed a `str`. A wrong type or a
+>   missing key now exits loudly naming the contract — that is the drift class
+>   this feature exists to catch — while a bad value still degrades quietly.
+> - Both drift notes named a repo-relative script path the agent could not
+>   resolve, interpolated the exception bare, and read as a maintenance
+>   directive rather than something to relay.
+>
+> Typing also goes beyond the draft: `facts` is annotated `render.Facts` with
+> casts at the payload extractions, so basedpyright checks the key set at the
+> construction site rather than a reviewer checking it by hand.
+
 **Files:**
 - Create: `src/claude_config/env_context/__main__.py`
 - Test: `tests/test_env_context.py`
@@ -2087,6 +2112,24 @@ outside this repo, and changing the system prompt or the output styles alters
 agent behaviour well beyond this hook. Report the conflict to the user as a
 decision they may want to make, and stop there.
 
+
+- [ ] **Step 5d: Correct `agent-tools`' own `--help` text**
+
+`agent-tools/src/main.rs:233` carries the clap doc comment
+`/// Print the '# Environment' block (cwd, git, platform, shell, OS) for SessionStart hooks.`
+
+Both halves are now wrong: the command emits a `hookSpecificOutput` JSON
+envelope rather than a block, and it reads a payload from stdin, so hand-running
+it at a terminal blocks. Replace it with something like:
+
+```rust
+    /// SessionStart hook: reads the hook payload on stdin, emits the
+    /// hookSpecificOutput envelope carrying `# Environment` and
+    /// `# Scratchpad Directory`. Not usable interactively — it waits on stdin.
+```
+
+This is a comment change only; no Rust behaviour changes and nothing needs
+rebuilding, since the installed `agent-tools` is built from the canonical repo.
 
 - [ ] **Step 6: Verify no stale references remain**
 
