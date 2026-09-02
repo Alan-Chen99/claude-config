@@ -1867,6 +1867,49 @@ scratchpads.
 
 In `docs/superpowers/specs/2026-09-02-env-context-design.md`, change the Files-table row `docs/env-context-manifest.txt` to `docs/env-context-manifest.json`, and in the drift-check section change "a checked-in manifest recording the cc version and the literal set" to "a checked-in JSON manifest recording the cc version and the literal set — JSON because the literals carry significant trailing spaces".
 
+- [ ] **Step 5b: Correct the spec's env-block sketch**
+
+The spec's `## 3. The env block` sketch has drifted from what Tasks 2-4 built.
+Three corrections, all cases where the implementation is right and the spec is
+wrong — verified against cc's `_dE` at
+`/repos/claude-code-decompiled/src/globals/21.js:13485`:
+
+- The sketch puts `Is a git repository` **before** the worktree lines. cc emits
+  the worktree lines first, and `render.py` follows cc.
+- The header line `You have been invoked in the following environment:` ends
+  with a trailing space in cc and in `render.py`; the sketch omits it.
+- The sketch has no `NOTE:` bullet, which is where the drift warning lands.
+
+Also correct the worktree bullet: the spec describes it as naming the common
+dir, but `render.py` strips a trailing `.git` component and names the main
+checkout, because "worktree of `/repos/claude-config/.git` … do not `cd` to the
+original repository root" referred to a path the block never gave.
+
+- [ ] **Step 5c: Surface the `/tmp` guidance conflict — do not resolve it**
+
+The scratchpad section tells the agent to use the scratchpad "instead of `/tmp`
+or other system temp directories". Four places in this deployment say the
+opposite:
+
+- `sys_prompt/alan-default-next.md:111`
+- `output-styles/alan-default.md:148`
+- `output-styles/alan-default-next.md:145`
+- the user's global `CLAUDE.md`, outside this repo
+
+all carrying a `git clone … /tmp/<repo>` instruction or a "use a new directory
+under `/tmp/*`" rule.
+
+`render.py` reconciles this the way cc does, with the clause
+`Only use /tmp if the user explicitly requests it.` — a standing instruction
+naming `/tmp` is such a request, so an agent reading both clones to `/tmp` and
+puts everything else in the scratchpad.
+
+**Do not edit those four files.** The global `CLAUDE.md` is the user's own and
+outside this repo, and changing the system prompt or the output styles alters
+agent behaviour well beyond this hook. Report the conflict to the user as a
+decision they may want to make, and stop there.
+
+
 - [ ] **Step 6: Verify no stale references remain**
 
 ```bash
