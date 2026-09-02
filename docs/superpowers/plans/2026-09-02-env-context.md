@@ -217,7 +217,7 @@ def test_raises_when_no_shell_exists(tmp_path: Path) -> None:
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: FAIL with `ModuleNotFoundError: No module named 'claude_config.env_context.environment'`
+Expected: FAIL with `ImportError: cannot import name 'environment' from 'claude_config.env_context'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -466,7 +466,7 @@ def test_ensure_creates_private_directory(tmp_path: Path) -> None:
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: FAIL with `ModuleNotFoundError: No module named 'claude_config.env_context.scratchpad'`
+Expected: FAIL with `ImportError: cannot import name 'scratchpad' from 'claude_config.env_context'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -664,7 +664,7 @@ def test_scratchpad_section_omitted_when_unavailable() -> None:
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: FAIL with `ModuleNotFoundError: No module named 'claude_config.env_context.render'`
+Expected: FAIL with `ImportError: cannot import name 'render' from 'claude_config.env_context'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -938,7 +938,7 @@ def test_cached_note_text_names_the_script(tmp_path: Path) -> None:
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: FAIL with `ModuleNotFoundError: No module named 'claude_config.env_context.drift'`
+Expected: FAIL with `ImportError: cannot import name 'drift' from 'claude_config.env_context'`
 
 - [ ] **Step 3: Write the implementation**
 
