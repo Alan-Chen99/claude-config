@@ -649,6 +649,14 @@ def test_drift_note_appears_as_a_bullet() -> None:
 def test_git_repo_false_renders_lowercase() -> None:
     text = render.sections(_facts(is_git_repo=False))
     assert " - Is a git repository: false" in text
+
+
+def test_scratchpad_section_omitted_when_unavailable() -> None:
+    """An uncreatable scratchpad must cost the section, not the whole block."""
+    text = render.sections(_facts(scratchpad=None))
+    assert "# Scratchpad Directory" not in text
+    assert "None" not in text
+    assert "# Environment" in text
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -725,16 +733,25 @@ def scratchpad_section(path: str) -> str:
 
 
 def sections(facts: dict[str, object]) -> str:
-    return "\n\n".join(
-        [environment_section(facts), scratchpad_section(str(facts["scratchpad"]))]
-    )
+    """The env block, plus the scratchpad section when there is a path to name.
+
+    A scratchpad that could not be created leaves `scratchpad` None. Rendering
+    that into the prompt as a path would point the agent at a directory which
+    does not exist, so the section is dropped instead — the env block is worth
+    having without it.
+    """
+    blocks = [environment_section(facts)]
+    path = facts.get("scratchpad")
+    if path:
+        blocks.append(scratchpad_section(str(path)))
+    return "\n\n".join(blocks)
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS — the 6 new tests, plus everything already in the file
+Expected: PASS — the 7 new tests, plus everything already in the file
 
 - [ ] **Step 5: Commit**
 
@@ -1195,6 +1212,25 @@ def test_hook_fails_loudly_on_malformed_payload() -> None:
     assert "Traceback" in result.stderr
 
 
+def test_scratchpad_none_when_it_cannot_be_created(tmp_path: Path) -> None:
+    """A cwd past cc's slug limit must cost the section, not the block."""
+    deep = tmp_path / ("d" * 120) / ("e" * 120)
+    deep.mkdir(parents=True)
+    payload = json.dumps(
+        {
+            "session_id": "abc-123",
+            "transcript_path": "/dev/null",
+            "cwd": str(deep),
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+        }
+    )
+    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+    context = out["hookSpecificOutput"]["additionalContext"]
+    assert "# Environment" in context
+    assert "# Scratchpad Directory" not in context
+
+
 def test_shell_fallback_when_no_shell_resolves(monkeypatch) -> None:
     """A shell that cannot be named must not cost the session its whole block."""
     from claude_config.env_context import __main__ as entry
@@ -1276,6 +1312,22 @@ def resolved_shell() -> str:
         return "unknown"
 
 
+def scratchpad_or_none(cwd: str, session_id: str) -> str | None:
+    """The session scratchpad, or None when it could not be created.
+
+    A cwd whose slug exceeds cc's 200-character limit, a read-only tmp root and
+    a `claude-<uid>` owned by another user all raise here. cc survives the
+    first of those by appending a hash suffix, so its session keeps working
+    while this hook would die for the sake of one missing line. Losing the
+    section beats losing the block.
+    """
+    try:
+        return str(scratchpad.ensure(cwd=cwd, session_id=session_id))
+    except (OSError, ValueError) as exc:
+        print(f"env-context: scratchpad unavailable: {exc}", file=sys.stderr)
+        return None
+
+
 def main() -> int:
     payload = json.loads(sys.stdin.read())
     cwd = payload["cwd"]
@@ -1290,7 +1342,7 @@ def main() -> int:
         "os_version": environment.os_version(),
         "model": payload.get("model"),
         "session_id": session_id,
-        "scratchpad": str(scratchpad.ensure(cwd=cwd, session_id=session_id)),
+        "scratchpad": scratchpad_or_none(cwd, session_id),
         "drift_note": drift_note(),
     }
 
@@ -1314,7 +1366,7 @@ if __name__ == "__main__":
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS — the 5 new tests, plus everything already in the file
+Expected: PASS — the 6 new tests, plus everything already in the file
 
 - [ ] **Step 5: Check the real output by hand**
 
@@ -1860,7 +1912,7 @@ from claude_config.env_context import drift, environment, render, scratchpad
 Delete the now-duplicated import lines from the body. Then re-run:
 `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS — the 5 new tests, plus everything already in the file
+Expected: PASS — every test in the file, unchanged in count by the tidy-up
 
 Commit:
 
@@ -1872,7 +1924,9 @@ git commit -m "style: collect test imports at the top of the file"
 
 - [ ] **Step 2: Run the whole test suite**
 
-Run: `uv run --project /root/claude-config-work pytest tests/ -v`
+Run: `uv run --project /root/claude-config-work pytest -q`
+
+Use the bare invocation, not `pytest tests/`: `testpaths` in `pyproject.toml` also covers `skills/scripts/tests`, so naming the directory silently collects a fraction of the suite.
 
 Expected: PASS. `test_env_context.py` contributes every test added by Tasks 1-7; the pre-existing `test_cc_pretty_render.py`, `test_cc_pretty_intercept.py`, `test_opencode_pretty.py` and `test_install.py` must be unaffected — this change touches none of their code.
 
