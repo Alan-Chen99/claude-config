@@ -914,6 +914,15 @@ tracks upgrades without anyone regenerating the dump."
 >   whatever `find_binary` returned, so a divergence produced a wrong verdict
 >   the cache then pinned. It takes the binary now, with a `timeout=`.
 >
+> A third round pinned what the first two had only asserted. An independent
+> 55-mutation sweep found ten survivors, three of them on the only path Task 7
+> takes: the `version=None` sentinel, the cache-hit return, and a `timeout`
+> test that monkeypatched away the kwarg it named. The cache write was also
+> still unguarded — a directory at the cache path wedged every session, the
+> outcome the read guard had been added to remove, one line further down. The
+> write is now `mkstemp` plus `os.replace`, which removes the torn-file race
+> rather than absorbing it. Ninety-six tests, 41 mutations, all red.
+>
 > Type annotations also go beyond the draft — `ManifestData` and `CacheEntry`
 > TypedDicts with casts at the `json.loads` sites — to reach the package's
 > basedpyright bar, the same pattern `render.py`'s `Facts` established.
