@@ -14,9 +14,9 @@ import platform
 import shutil
 import subprocess
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 
-SEARCH_DIRS = ["/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"]
+SEARCH_DIRS: tuple[str, ...] = ("/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin")
 
 
 def _executable(path: str) -> bool:
@@ -25,18 +25,16 @@ def _executable(path: str) -> bool:
 
 def resolve_shell(
     env: Mapping[str, str] | None = None,
-    search_dirs: list[str] | None = None,
-    found: dict[str, str | None] | None = None,
+    search_dirs: Sequence[str] | None = None,
+    found: Callable[[str], str | None] = shutil.which,
 ) -> str:
     """Return the shell the Bash tool will run, mirroring globals/10.js:22633.
 
-    `found` maps a shell name to its PATH lookup, defaulting to shutil.which.
-    Tests pass an explicit mapping to keep the real PATH out of the result.
+    `found` looks up a shell name on PATH, defaulting to shutil.which. Tests
+    pass a stub (e.g. `lambda _: None`) to keep the real PATH out of the result.
     """
     env = os.environ if env is None else env
     search_dirs = SEARCH_DIRS if search_dirs is None else search_dirs
-    if found is None:
-        found = {"zsh": shutil.which("zsh"), "bash": shutil.which("bash")}
 
     override = env.get("CLAUDE_CODE_SHELL")
     if override and ("bash" in override or "zsh" in override) and _executable(override):
@@ -50,9 +48,9 @@ def resolve_shell(
     candidates = [f"{d}/{name}" for name in order for d in search_dirs]
 
     preferred, other = ("bash", "zsh") if prefers_bash else ("zsh", "bash")
-    if preferred_path := found.get(preferred):
+    if preferred_path := found(preferred):
         candidates.insert(0, preferred_path)
-    if other_path := found.get(other):
+    if other_path := found(other):
         candidates.append(other_path)
     if named_valid and shell and _executable(shell):
         candidates.insert(0, shell)
@@ -67,14 +65,24 @@ def resolve_shell(
     )
 
 
+def _git(args: list[str], cwd: str) -> subprocess.CompletedProcess[str] | None:
+    """Run git, or return None when it could not run at all.
+
+    A missing git binary, a deleted cwd and a cwd that is a file all raise
+    rather than exiting non-zero. The hook must still produce a block, so an
+    unrunnable git reads the same as "not a repository".
+    """
+    try:
+        return subprocess.run(
+            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def is_git_repo(cwd: str) -> bool:
-    result = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0
+    result = _git(["rev-parse", "--show-toplevel"], cwd)
+    return result is not None and result.returncode == 0
 
 
 def worktree_common_dir(cwd: str) -> str | None:
@@ -84,13 +92,10 @@ def worktree_common_dir(cwd: str) -> str | None:
     itself (`cv()`, globals/04.js:7126), so it stays silent in one made by
     hand. Asking git directly covers both.
     """
-    result = subprocess.run(
-        ["git", "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
+    result = _git(
+        ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"], cwd
     )
-    if result.returncode != 0:
+    if result is None or result.returncode != 0:
         return None
     lines = result.stdout.split("\n")
     if len(lines) < 2:
@@ -102,9 +107,12 @@ def worktree_common_dir(cwd: str) -> str | None:
 
 
 def os_version() -> str:
-    """Mirrors os.type() + ' ' + os.release() (`Yml()`, globals/21.js:13572)."""
+    """Mirrors os.type() + ' ' + os.release() (`Yml()`, globals/21.js:13572; POSIX branch)."""
     return f"{platform.system()} {platform.release()}"
 
 
 def platform_name() -> str:
+    """Node's `process.platform` and Python's `sys.platform` agree on the names
+    that matter here: `linux`, `darwin`, `win32`.
+    """
     return sys.platform
