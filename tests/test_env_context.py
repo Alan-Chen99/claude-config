@@ -562,3 +562,134 @@ def test_full_text_matches_snapshot_for_worktree() -> None:
     text = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
     expected = '# Environment\nYou have been invoked in the following environment: \n - Primary working directory: /root/claude-config-work\n - This is a git worktree of /repos/claude-config. Run all commands from this directory and make changes only here; reading /repos/claude-config is fine, but do not edit, commit, or build there.\n - The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session\'s changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m "<unique-tag>"`, immediately capture your entry\'s SHA via `git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first.\n - Is a git repository: true\n - Platform: linux\n - Shell: /bin/bash\n - OS Version: Linux 6.18.7\n - You are powered by the model claude-opus-5\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
     assert text == expected
+
+
+import json
+
+from claude_config.env_context import drift
+
+
+def _binary(tmp_path: Path, literals: list[str], far: list[str] | None = None) -> Path:
+    """A stand-in binary: padding, the anchor, the literals, then far strings.
+
+    `far` lands well past the scan window, standing in for the string-table
+    region `Kml()`'s literals occupy in the real binary.
+    """
+    blob = b"\x00" * 100
+    blob += b"You have been invoked in the following environment: "
+    for text in literals:
+        blob += b"\x00" + text.encode()
+    blob += b"\x00" * 8000
+    for text in far or []:
+        blob += b"\x00" + text.encode()
+    path = tmp_path / "claude.exe"
+    path.write_bytes(blob)
+    return path
+
+
+def _manifest(tmp_path: Path, window: list[str], required: dict[str, int]) -> Path:
+    path = tmp_path / "manifest.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": "2.1.235",
+                "window_literals": sorted(window),
+                "required_literals": required,
+            }
+        )
+    )
+    return path
+
+
+def test_extract_finds_literals(tmp_path: Path) -> None:
+    binary = _binary(tmp_path, ["Primary working directory: ", "Is a git repository: "])
+    literals = drift.extract_literals(binary)
+    assert "Primary working directory: " in literals
+    assert "Is a git repository: " in literals
+
+
+def test_extract_raises_without_anchor(tmp_path: Path) -> None:
+    path = tmp_path / "not-claude"
+    path.write_bytes(b"nothing here")
+    try:
+        drift.extract_literals(path)
+    except RuntimeError as exc:
+        assert "anchor" in str(exc)
+    else:
+        raise AssertionError("expected RuntimeError")
+
+
+def test_compare_matches_pinned_manifest(tmp_path: Path) -> None:
+    literals = ["Primary working directory: ", "Is a git repository: "]
+    binary = _binary(tmp_path, literals, far=["Shell: PowerShell"])
+    # The scan window always reaches the anchor itself (52 ASCII bytes, well over
+    # the 12-char floor, and WINDOW_AFTER=1500 always reaches past it) -- a
+    # manifest that truly matches this binary must list it too, exactly like the
+    # real, committed docs/env-context-manifest.json does.
+    manifest = _manifest(
+        tmp_path, [*literals, drift.ANCHOR.decode()], {"Shell: PowerShell": 1}
+    )
+    result = drift.compare(binary, manifest, version="2.1.235")
+    assert result.matches
+    assert result.added == []
+    assert result.removed == []
+    assert result.count_changes == {}
+
+
+def test_compare_reports_a_new_field(tmp_path: Path) -> None:
+    binary = _binary(
+        tmp_path,
+        ["Primary working directory: ", "Current sandbox mode: "],
+        far=["Shell: PowerShell"],
+    )
+    manifest = _manifest(
+        tmp_path, ["Primary working directory: "], {"Shell: PowerShell": 1}
+    )
+    result = drift.compare(binary, manifest, version="2.1.240")
+    assert not result.matches
+    assert "Current sandbox mode: " in result.added
+    assert result.installed_version == "2.1.240"
+
+
+def test_compare_reports_a_count_drop_outside_the_window(tmp_path: Path) -> None:
+    """A rename scoped to cc's env builders leaves the string present elsewhere."""
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals, far=["Shell: PowerShell"])
+    # See test_compare_matches_pinned_manifest: the anchor is always in-window.
+    manifest = _manifest(
+        tmp_path, [*literals, drift.ANCHOR.decode()], {"Shell: PowerShell": 3}
+    )
+    result = drift.compare(binary, manifest, version="2.1.235")
+    assert not result.matches
+    assert result.count_changes == {"Shell: PowerShell": (3, 1)}
+    assert result.added == []
+
+
+def test_cache_avoids_a_second_scan(tmp_path: Path) -> None:
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    # See test_compare_matches_pinned_manifest: the anchor is always in-window.
+    manifest = _manifest(tmp_path, [*literals, drift.ANCHOR.decode()], {})
+    cache = tmp_path / "cache.json"
+
+    calls: list[int] = []
+
+    def version() -> str:
+        calls.append(1)
+        return "2.1.235"
+
+    first = drift.cached_note(binary, manifest, cache, version)
+    second = drift.cached_note(binary, manifest, cache, version)
+    assert first is None
+    assert second is None
+    assert len(calls) == 1
+
+
+def test_cached_note_text_names_the_script(tmp_path: Path) -> None:
+    binary = _binary(tmp_path, ["Current sandbox mode: "])
+    manifest = _manifest(tmp_path, ["Old field: "], {})
+    cache = tmp_path / "cache.json"
+    note = drift.cached_note(binary, manifest, cache, lambda: "2.1.240")
+    assert note is not None
+    assert "2.1.240" in note
+    assert "check-env-context.sh" in note
