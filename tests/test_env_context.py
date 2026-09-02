@@ -1321,3 +1321,122 @@ def test_installed_version_raises_on_timeout(
     monkeypatch.setattr(subprocess, "run", fake_run)
     with pytest.raises(RuntimeError, match="timed out"):
         drift.installed_version(binary)
+
+
+import os
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _run_hook(payload: str, env_overrides: dict[str, str]) -> dict[str, object]:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    env.update(env_overrides)
+    result = subprocess.run(
+        [sys.executable, "-m", "claude_config.env_context"],
+        input=payload,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)
+
+
+def test_hook_emits_the_envelope(tmp_path: Path) -> None:
+    payload = json.dumps(
+        {
+            "session_id": "abc-123",
+            "transcript_path": "/dev/null",
+            "cwd": str(ROOT),
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+            "model": "claude-opus-5",
+        }
+    )
+    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+    hook = out["hookSpecificOutput"]
+    assert hook["hookEventName"] == "SessionStart"
+    context = hook["additionalContext"]
+    assert "# Environment" in context
+    assert "# Scratchpad Directory" in context
+    assert "You are powered by the model claude-opus-5" in context
+    assert "Session ID: abc-123" in context
+
+
+def test_hook_omits_model_in_print_mode(tmp_path: Path) -> None:
+    payload = json.dumps(
+        {
+            "session_id": "abc-123",
+            "transcript_path": "/dev/null",
+            "cwd": str(ROOT),
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+        }
+    )
+    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+    assert "powered by the model" not in out["hookSpecificOutput"]["additionalContext"]
+
+
+def test_hook_creates_the_scratchpad(tmp_path: Path) -> None:
+    payload = json.dumps(
+        {
+            "session_id": "xyz-789",
+            "transcript_path": "/dev/null",
+            "cwd": str(ROOT),
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+        }
+    )
+    _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+    created = list(tmp_path.glob(f"claude-{os.getuid()}/*/xyz-789/scratchpad"))
+    assert len(created) == 1
+    assert created[0].is_dir()
+
+
+def test_hook_fails_loudly_on_malformed_payload() -> None:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    result = subprocess.run(
+        [sys.executable, "-m", "claude_config.env_context"],
+        input="not json",
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(ROOT),
+    )
+    assert result.returncode != 0
+    assert "Traceback" in result.stderr
+
+
+def test_scratchpad_none_when_it_cannot_be_created(tmp_path: Path) -> None:
+    """A cwd past cc's slug limit must cost the section, not the block."""
+    deep = tmp_path / ("d" * 120) / ("e" * 120)
+    deep.mkdir(parents=True)
+    payload = json.dumps(
+        {
+            "session_id": "abc-123",
+            "transcript_path": "/dev/null",
+            "cwd": str(deep),
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+        }
+    )
+    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+    context = out["hookSpecificOutput"]["additionalContext"]
+    assert "# Environment" in context
+    assert "# Scratchpad Directory" not in context
+
+
+def test_shell_fallback_when_no_shell_resolves(monkeypatch) -> None:
+    """A shell that cannot be named must not cost the session its whole block."""
+    from claude_config.env_context import __main__ as entry
+
+    def boom() -> str:
+        raise RuntimeError("no bash or zsh found")
+
+    monkeypatch.setattr(entry.environment, "resolve_shell", boom)
+    assert entry.resolved_shell() == "unknown"
