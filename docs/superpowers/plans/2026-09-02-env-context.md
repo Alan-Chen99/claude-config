@@ -898,6 +898,22 @@ tracks upgrades without anyone regenerating the dump."
 >   cache had no invalidation test, and the version conjunct had none. Sixteen
 >   drift tests now, up from seven, and all fourteen mutations go red.
 >
+> A second round then found more:
+>
+> - **The cache key hashed the manifest's mtime**, which this repo's five
+>   worktrees drove to a measured 0% hit rate: byte-identical manifests at
+>   different paths each invalidated the one global cache. It keys on the
+>   manifest's SHA-256 now, which also catches an mtime-preserving copy.
+> - **The corrupt-cache fix guarded parsing but not shape.** A cache holding
+>   `[]` raised `AttributeError` before the rewrite and wedged every later
+>   session — the exact failure the fix had set out to remove.
+> - **Seven further mutations survived**, including `removed = []`: the
+>   module's headline job, "cc dropped or renamed a field", had no positive
+>   test. Eighty-six tests in the file now, and 29 mutations all go red.
+> - `installed_version` resolved `claude` from PATH while `compare` scanned
+>   whatever `find_binary` returned, so a divergence produced a wrong verdict
+>   the cache then pinned. It takes the binary now, with a `timeout=`.
+>
 > Type annotations also go beyond the draft — `ManifestData` and `CacheEntry`
 > TypedDicts with casts at the `json.loads` sites — to reach the package's
 > basedpyright bar, the same pattern `render.py`'s `Facts` established.
@@ -1407,6 +1423,9 @@ from . import drift, environment, render, scratchpad
 
 ROOT = Path(__file__).resolve().parents[3]
 MANIFEST = ROOT / "docs" / "env-context-manifest.json"
+# One cache for every checkout. Correct only because the key hashes the
+# manifest's content rather than its mtime: five worktrees carrying
+# byte-identical manifests share a scan instead of invalidating each other.
 CACHE = Path.home() / ".claude" / "env-context-drift.json"
 
 
