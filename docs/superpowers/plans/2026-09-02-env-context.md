@@ -803,12 +803,24 @@ if i < 0:
     raise SystemExit(f"anchor not found in {b}")
 window = data[max(0, i - 3000): i + 1500]
 literals = sorted({m.decode() for m in re.findall(rb"[\x20-\x7e]{12,}", window)})
-# The window cannot see these two: Kml()'s strings, behind the Shell field, sit
-# in a different region of the string table at any window size, and
-# "Platform: " is under the scan's 12-character floor. They are tracked by
-# whole-binary occurrence count instead, so a rename scoped to cc's env
-# builders shows up as a drop even though the string survives elsewhere.
-required = {lit: data.count(lit.encode()) for lit in ("Platform: ", "Shell: PowerShell")}
+# Three things hide a template from the window scan: being under its
+# 12-character floor ("Platform: " is 10, the bare "Shell: " is 7); sitting too
+# far from the anchor for any sane window (cTm, the stash caution render.py
+# copies verbatim, is ~150 MB away); and containing a non-ASCII character,
+# which the string table stores as UTF-16 where the ASCII-only regex cannot see
+# it even inside the window. These are tracked by whole-binary occurrence count
+# instead, so a rename scoped to cc's env builders shows up as a drop even
+# though the string survives elsewhere. The cTm probe stops before that
+# string's em-dash, for the UTF-16 reason above.
+STASH_PROBE = (
+    "The git stash stack is shared with the main checkout and all other "
+    "worktrees, and other Claude sessions may push or pop it concurrently. "
+    "Never use bare `git stash` / `git stash pop` "
+)
+required = {
+    lit: data.count(lit.encode())
+    for lit in ("Platform: ", "Shell: PowerShell", STASH_PROBE)
+}
 assert all(required.values()), required
 version = subprocess.run(["claude", "--version"], capture_output=True, text=True).stdout.split()[0]
 Path("docs/env-context-manifest.json").write_text(
@@ -822,27 +834,31 @@ print("version:", version, "literals:", len(literals), "required:", required)
 PY
 ```
 
-Expected: `version: 2.1.235 literals: 13 required: {'Platform: ': 14, 'Shell: PowerShell': 3}`
+Expected: `literals: 13` and each `required` count non-zero (`Platform: ` 14, `Shell: PowerShell` 3, the stash probe 1).
 
 > **Amended during review.** Task 5 as first written pinned one flat `literals`
-> list, and the implementer found the window cannot see two of the fields this
-> hook reimplements: `Platform: ` is 10 characters, under the scan's
-> 12-character floor, and `Shell: ` never appears in the window at all because
-> `Kml()`'s literals occupy a different region of the string table. A drift
-> check blind to `Shell: ` is blind to the field the whole rewrite exists to
-> correct. The manifest therefore carries two lists with different jobs, and
-> the committed file (`9db623b`, `8e9daa5`, `1e910d7`) also carries a
+> list, and review found the window cannot see three of the templates this
+> hook reimplements. `Platform: ` is 10 characters and the bare `Shell: ` is 7,
+> both under the scan's 12-character floor. `cTm` — the stash caution
+> `render.py` copies verbatim, and so the most drift-sensitive string in the
+> hook — sits ~150 MB from the anchor. And any template carrying a non-ASCII
+> character is stored UTF-16 and invisible to the ASCII-only regex even inside
+> the window. A drift check blind to `Shell: ` is blind to the field the whole
+> rewrite exists to correct. The manifest therefore carries two lists with
+> different jobs, and the committed file (through `babfde4`) also carries a
 > `_comment` explaining them, which the script above does not write — preserve
-> it when re-pinning. `required_literals` maps to occurrence counts rather than
-> being a presence list because both strings also occur in unrelated parts of
-> the binary: `Platform: ` has 14 whole-binary hits of which only 6 are cc's env
-> builders, so presence survives a rename while the count does not.
+> it when re-pinning, along with its pointer to `notes/env-context-manifest.md`,
+> where the byte-offset forensics live. `required_literals` maps to occurrence
+> counts rather than being a presence list because the strings also occur in
+> unrelated parts of the binary: `Platform: ` has 14 whole-binary hits of which
+> only 6 are cc's env builders, so presence survives a rename while the count
+> does not.
 
 - [ ] **Step 2: Inspect what was pinned**
 
 Run: `cat docs/env-context-manifest.json`
 
-Expected: a `version` of `2.1.235` and a `literals` array containing, among others, `"Primary working directory: "`, `"Is a git repository: "`, `"OS Version: "`, `"You are powered by the model named "`, `"Assistant knowledge cutoff is "`, and `"# Environment"`.
+Expected: a `version` of `2.1.235` and a `window_literals` array containing, among others, `"Primary working directory: "`, `"Is a git repository: "`, `"OS Version: "`, `"You are powered by the model named "`, `"Assistant knowledge cutoff is "`, and `"# Environment"`.
 
 One entry — `"Iterator result interface is not an object."` — is an unrelated neighbour in the binary's string table. Leave it. A false positive costs one review; a narrower window risks missing a genuinely new field.
 
@@ -1092,13 +1108,14 @@ def compare(binary: Path, manifest: Path, version: str) -> Comparison:
 
     The binary is 331 MB, so it is read once and both checks run over the same
     bytes. `window_literals` catches fields cc adds near the anchor.
-    `required_literals` catches a rename or removal of the two fields the
-    window cannot see — `Kml()`'s strings, behind `Shell:`, live in a different
-    region of the string table at any window size, and `Platform: ` is shorter
-    than the window scan's minimum. Those are compared by occurrence count
-    rather than presence, because the strings also occur in unrelated parts of
-    the binary: a rename scoped to cc's env builders leaves them present while
-    dropping the total.
+    `required_literals` catches a rename or removal of templates the
+    window cannot see: one under its 12-character floor, one too far from the
+    anchor, or one carrying a non-ASCII character, which the string table holds
+    as UTF-16 where the ASCII-only regex misses it even inside the window.
+    These are compared by occurrence count rather than presence, because the
+    strings also occur elsewhere in the binary — a rename scoped to cc's env
+    builders leaves them present while dropping the total. See
+    `notes/env-context-manifest.md`.
     """
     pinned = json.loads(manifest.read_text())
     data = binary.read_bytes()
