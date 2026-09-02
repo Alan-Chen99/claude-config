@@ -206,3 +206,60 @@ def test_platform_name_returns_nonempty_string() -> None:
     result = environment.platform_name()
     assert isinstance(result, str)
     assert result != ""
+
+
+import stat
+
+from claude_config.env_context import scratchpad
+
+
+def test_tmp_root_prefers_env(tmp_path: Path) -> None:
+    assert scratchpad.tmp_root({"CLAUDE_CODE_TMPDIR": str(tmp_path)}) == str(tmp_path)
+
+
+def test_tmp_root_falls_back_to_system_temp() -> None:
+    import tempfile
+
+    assert scratchpad.tmp_root({}) == tempfile.gettempdir()
+
+
+def test_slug_replaces_non_alphanumerics() -> None:
+    assert scratchpad.project_slug("/root/claude-config-work") == "-root-claude-config-work"
+
+
+def test_slug_raises_past_the_cc_limit() -> None:
+    long_cwd = "/" + ("a" * 250)
+    try:
+        scratchpad.project_slug(long_cwd)
+    except ValueError as exc:
+        assert "200" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_path_matches_cc_layout(tmp_path: Path) -> None:
+    path = scratchpad.scratchpad_path(
+        env={"CLAUDE_CODE_TMPDIR": str(tmp_path)},
+        cwd="/root/claude-config-work",
+        session_id="abc-123",
+        uid=0,
+    )
+    assert path == tmp_path / "claude-0" / "-root-claude-config-work" / "abc-123" / "scratchpad"
+
+
+def test_ensure_creates_private_directory(tmp_path: Path) -> None:
+    path = scratchpad.ensure(
+        env={"CLAUDE_CODE_TMPDIR": str(tmp_path)},
+        cwd="/root/claude-config-work",
+        session_id="abc-123",
+        uid=0,
+    )
+    assert path.is_dir()
+    assert stat.S_IMODE(path.stat().st_mode) == 0o700
+    again = scratchpad.ensure(
+        env={"CLAUDE_CODE_TMPDIR": str(tmp_path)},
+        cwd="/root/claude-config-work",
+        session_id="abc-123",
+        uid=0,
+    )
+    assert again == path
