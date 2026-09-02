@@ -299,15 +299,14 @@ def test_ensure_requires_session_id() -> None:
 
 
 def test_ensure_does_not_restrict_the_tmp_root(tmp_path: Path) -> None:
-    # Regression guard: the old ensure() counted levels positionally via
-    # path.parent.parent.parent, so a missing session_id made uid_dir
-    # resolve to the tmp root itself, which then got mkdir'd and chmod'd to
-    # 0700. Built downward, ensure() only ever forces 0700 on uid_dir and
-    # the final scratchpad dir. A tmp root that does not exist yet still
-    # gets created -- parents=True has no other option -- but Path.mkdir
-    # only applies `mode` to the leaf of a given call, so it must come out
-    # at whatever default permissions an ordinary mkdir gives in the same
-    # process and umask, not the restrictive 0700 reserved for uid_dir.
+    # Not a regression guard for the old positional-.parent bug: this
+    # passes against 4e92671 too, since a real session_id already made
+    # that code identify uid_dir correctly there. What it actually
+    # asserts: mkdir's `mode` only applies to the leaf of a given call, so
+    # when parents=True has to create a missing tmp root on the way to
+    # uid_dir, that tmp root comes out at whatever default permissions an
+    # ordinary mkdir gives it in this process's umask -- not the
+    # restrictive 0700 ensure() reserves for uid_dir and the scratchpad leaf.
     tmp_root = tmp_path / "does-not-exist-yet"
     control = tmp_path / "control"
     control.mkdir()
@@ -319,3 +318,110 @@ def test_ensure_does_not_restrict_the_tmp_root(tmp_path: Path) -> None:
     )
     assert tmp_root.is_dir()
     assert stat.S_IMODE(tmp_root.stat().st_mode) == stat.S_IMODE(control.stat().st_mode)
+
+
+def test_slug_at_200_chars_returns_unhashed() -> None:
+    # Exact boundary: cc's q9() is `if (t.length <= vie) return t`, so 200
+    # itself must still pass through unhashed. Only testing the 251-char
+    # case (as test_slug_raises_past_the_cc_limit does) leaves `>` free to
+    # mutate to `>=` without failing the suite.
+    cwd = "a" * 200
+    assert scratchpad.project_slug(cwd) == cwd
+
+
+def test_slug_at_201_chars_raises() -> None:
+    cwd = "a" * 201
+    with pytest.raises(ValueError):
+        scratchpad.project_slug(cwd)
+
+
+def test_scratchpad_path_and_ensure_agree_under_symlinked_tmp_root(tmp_path: Path) -> None:
+    # The module's founding bug, reintroduced inside the module: ensure()
+    # realpathed claude-<uid> (matching cc's yJ()) but scratchpad_path()
+    # did not, so the two could name different directories for the same
+    # input whenever the tmp root is itself a symlink -- as TMPDIR is on
+    # macOS, under /var -> /private/var. Latent on this host only because
+    # /tmp here is not a symlink.
+    real_root = tmp_path / "real_tmp"
+    real_root.mkdir()
+    link_root = tmp_path / "link_tmp"
+    link_root.symlink_to(real_root)
+    env = {"CLAUDE_CODE_TMPDIR": str(link_root)}
+
+    path = scratchpad.scratchpad_path(
+        env=env, cwd="/root/claude-config-work", session_id="abc-123", uid=0
+    )
+    created = scratchpad.ensure(
+        env=env, cwd="/root/claude-config-work", session_id="abc-123", uid=0
+    )
+    assert path == created
+
+
+def test_scratchpad_path_and_ensure_agree_when_uid_dir_itself_is_a_symlink(
+    tmp_path: Path,
+) -> None:
+    # A second, distinct shape of the same bug: claude-<uid> itself (not
+    # just an ancestor of the tmp root) can be a symlink.
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (tmp_path / "claude-0").symlink_to(elsewhere)
+    env = {"CLAUDE_CODE_TMPDIR": str(tmp_path)}
+
+    path = scratchpad.scratchpad_path(
+        env=env, cwd="/root/claude-config-work", session_id="abc-123", uid=0
+    )
+    created = scratchpad.ensure(
+        env=env, cwd="/root/claude-config-work", session_id="abc-123", uid=0
+    )
+    assert path == created
+
+
+@pytest.mark.parametrize(
+    "bad_session_id", ["", ".", "..", "/etc", "../../escape", "a/b", "a\\b"]
+)
+def test_scratchpad_path_rejects_unsafe_session_id(bad_session_id: str) -> None:
+    with pytest.raises(ValueError):
+        scratchpad.scratchpad_path(cwd="/root/claude-config-work", session_id=bad_session_id)
+
+
+def test_ensure_rejects_unsafe_session_id_without_mutating(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        scratchpad.ensure(
+            env={"CLAUDE_CODE_TMPDIR": str(tmp_path)},
+            cwd="/root/claude-config-work",
+            session_id="../../escape",
+            uid=0,
+        )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_ensure_rejects_oversized_slug_without_mutating(tmp_path: Path) -> None:
+    # Regression guard: uid_dir.mkdir() used to run before project_slug(cwd)
+    # could raise, so claude-0 existed on disk after a rejected cwd.
+    long_cwd = "/" + ("a" * 250)
+    with pytest.raises(ValueError):
+        scratchpad.ensure(
+            env={"CLAUDE_CODE_TMPDIR": str(tmp_path)},
+            cwd=long_cwd,
+            session_id="abc-123",
+            uid=0,
+        )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_ensure_repairs_a_preexisting_uid_dir_mode(tmp_path: Path) -> None:
+    # Mirrors cc's JIt(): fchmodSync whenever the existing mode isn't
+    # already 0700, not just a mode requested at creation time (which
+    # mkdir(exist_ok=True) leaves alone for a directory that already
+    # existed).
+    uid_dir = tmp_path / "claude-0"
+    uid_dir.mkdir(mode=0o755)
+    assert stat.S_IMODE(uid_dir.stat().st_mode) == 0o755
+
+    scratchpad.ensure(
+        env={"CLAUDE_CODE_TMPDIR": str(tmp_path)},
+        cwd="/root/claude-config-work",
+        session_id="abc-123",
+        uid=0,
+    )
+    assert stat.S_IMODE(uid_dir.stat().st_mode) == 0o700
