@@ -383,17 +383,18 @@ under. Report that instead."
 Claude Code builds the path in `Bbt()` (`src/globals/20.js:18616`) as `<tmp root>/claude-<uid>/<project slug>/<session id>/scratchpad`, where the tmp root is `CLAUDE_CODE_TMPDIR` or the system temp dir (`Spe()`, `src/globals/05.js:8056`).
 
 > **Amended during review.** The code below is the first draft; the committed
-> version in `4e92671` and `1e24dd5` is the authority — read
+> version, through `0ddfba4`, is the authority — read
 > `src/claude_config/env_context/scratchpad.py`. Two defects review found in
 > the draft: `session_id` defaulted to `""`, and `Path.__truediv__("")` is a
 > no-op, so the segment vanished and every session in a project collided on
 > one path with `scratchpad` sitting in the session-id slot — worse, `ensure`
 > located `uid_dir` by three positional `.parent` hops, so the missing segment
 > made it `mkdir` the tmp root itself at `0700`. `session_id` is now required
-> and every parameter keyword-only, and `ensure` builds its path downward from
-> the tmp root instead of re-deriving levels it just built. The
-> `ValueError` message also joins with `+`, since `basedpyright` rejects
-> implicit string concatenation.
+> and validated, every parameter keyword-only, and `scratchpad_path` is the
+> single path computation — it realpaths `claude-<uid>` as cc does, and
+> `ensure` returns its value verbatim so the two cannot name different
+> directories. A later round found the first symlink tests could not fail for
+> exactly that reason and replaced them with absolute-path assertions.
 
 **Files:**
 - Create: `src/claude_config/env_context/scratchpad.py`
