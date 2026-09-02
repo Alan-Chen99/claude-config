@@ -12,6 +12,8 @@ def test_package_imports() -> None:
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from claude_config.env_context import environment
 
 
@@ -115,7 +117,12 @@ def test_is_git_repo_true_in_repo(tmp_path: Path) -> None:
     assert environment.is_git_repo(str(repo)) is True
 
 
-def test_is_git_repo_false_outside_repo(tmp_path: Path) -> None:
+def test_is_git_repo_false_outside_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # git rev-parse walks upward looking for a repo; without a ceiling this
+    # would flip to True if the pytest basetemp root ever sat inside one.
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     outside = tmp_path / "not-a-repo"
     outside.mkdir()
     assert environment.is_git_repo(str(outside)) is False
@@ -126,7 +133,24 @@ def test_is_git_repo_false_for_nonexistent_cwd(tmp_path: Path) -> None:
     assert environment.is_git_repo(str(missing)) is False
 
 
-def test_worktree_common_dir_none_outside_repo(tmp_path: Path) -> None:
+def test_is_git_repo_false_when_cwd_is_a_file(tmp_path: Path) -> None:
+    not_a_dir = tmp_path / "file"
+    not_a_dir.write_text("")
+    assert environment.is_git_repo(str(not_a_dir)) is False
+
+
+def test_is_git_repo_false_when_git_missing_from_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PATH", str(tmp_path))
+    assert environment.is_git_repo(str(tmp_path)) is False
+
+
+def test_worktree_common_dir_none_outside_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Same upward-walk hazard as test_is_git_repo_false_outside_repo above.
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     outside = tmp_path / "not-a-repo"
     outside.mkdir()
     assert environment.worktree_common_dir(str(outside)) is None
@@ -141,6 +165,19 @@ def test_worktree_common_dir_none_for_plain_checkout(tmp_path: Path) -> None:
 def test_worktree_common_dir_none_for_nonexistent_cwd(tmp_path: Path) -> None:
     missing = tmp_path / "does-not-exist"
     assert environment.worktree_common_dir(str(missing)) is None
+
+
+def test_worktree_common_dir_none_when_cwd_is_a_file(tmp_path: Path) -> None:
+    not_a_dir = tmp_path / "file"
+    not_a_dir.write_text("")
+    assert environment.worktree_common_dir(str(not_a_dir)) is None
+
+
+def test_worktree_common_dir_none_when_git_missing_from_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PATH", str(tmp_path))
+    assert environment.worktree_common_dir(str(tmp_path)) is None
 
 
 def test_worktree_common_dir_returns_shared_dir_for_linked_worktree(tmp_path: Path) -> None:

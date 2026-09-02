@@ -65,7 +65,7 @@ def resolve_shell(
     )
 
 
-def _git(args: list[str], cwd: str) -> subprocess.CompletedProcess[str] | None:
+def _git(args: Sequence[str], cwd: str) -> subprocess.CompletedProcess[str] | None:
     """Run git, or return None when it could not run at all.
 
     A missing git binary, a deleted cwd and a cwd that is a file all raise
