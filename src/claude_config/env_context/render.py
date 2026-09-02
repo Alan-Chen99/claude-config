@@ -138,5 +138,9 @@ def sections(facts: Facts) -> str:
     blocks = [environment_section(facts)]
     path = facts.get("scratchpad")
     if path:
-        blocks.append(scratchpad_section(str(path)))
+        # facts["scratchpad"] is already str (Facts declares it str | None,
+        # and scratchpad_or_none() is its only producer) -- str() here would
+        # just re-wrap a str in str(), which scratchpad_or_none already did
+        # to convert scratchpad.ensure()'s Path into the str this dict needs.
+        blocks.append(scratchpad_section(path))
     return "\n\n".join(blocks)

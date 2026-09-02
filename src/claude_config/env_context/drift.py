@@ -140,14 +140,15 @@ def installed_version(binary: Path) -> str:
     itself, so a PATH/CLAUDE_CODE_EXECPATH divergence cannot compare one
     binary's content against a different binary's version string -- the
     version participates in `matches`, and the result is cached keyed on
-    this same binary. `timeout=5` bounds the one subprocess call Task 7's
+    this same binary. `timeout=2` bounds the one subprocess call Task 7's
     `except Exception` cannot absorb: that clause converts a raise into a
-    note, but not a hang, and a blocked subprocess would otherwise burn the
-    hook's whole 5 s budget.
+    note, but not a hang. 2 s leaves headroom inside the hook's own 5 s
+    budget instead of matching it exactly, which would let cc kill the
+    whole hook a moment before this call's own timeout could ever fire.
     """
     try:
         result = subprocess.run(
-            [str(binary), "--version"], capture_output=True, text=True, timeout=5
+            [str(binary), "--version"], capture_output=True, text=True, timeout=2
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"{binary} --version timed out") from exc
@@ -257,11 +258,16 @@ def cached_note(
     result = compare(binary, manifest, resolved_version)
     note = None
     if not result.matches:
+        # manifest lives at <repo root>/docs/env-context-manifest.json, so
+        # its grandparent recovers the root without drift.py needing to know
+        # about ROOT itself -- the note names an absolute script path the
+        # agent can actually run, not a repo-relative one with no repo named.
+        script = manifest.parent.parent / "scripts" / "check-env-context.sh"
         note = (
             f"Claude Code's env-block field set has drifted from the "
             f"{result.pinned_version} baseline this hook is pinned to "
-            f"(installed version: {result.installed_version}). Run "
-            "scripts/check-env-context.sh to review."
+            f"(installed version: {result.installed_version}); worth "
+            f"mentioning to the user, who can run {script} to review."
         )
     _write_cache(cache, json.dumps({**key, "note": note}))
     return note

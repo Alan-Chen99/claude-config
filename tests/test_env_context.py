@@ -1315,8 +1315,8 @@ def test_installed_version_raises_on_timeout(
     def fake_run(
         *args: object, **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
-        assert kwargs["timeout"] == 5
-        raise subprocess.TimeoutExpired(cmd=[str(binary), "--version"], timeout=5)
+        assert kwargs["timeout"] == 2
+        raise subprocess.TimeoutExpired(cmd=[str(binary), "--version"], timeout=2)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     with pytest.raises(RuntimeError, match="timed out"):
@@ -1365,6 +1365,13 @@ def test_hook_emits_the_envelope(tmp_path: Path) -> None:
     assert "# Scratchpad Directory" in context
     assert "You are powered by the model claude-opus-5" in context
     assert "Session ID: abc-123" in context
+    # This repo's manifest is pinned against the installed binary (Task 5),
+    # so a real, unmocked run against it must be drift-free. An independent
+    # mutation sweep found drift_note()'s MANIFEST/CACHE arguments swapped
+    # survived every existing test -- none of them asserted the happy path
+    # has no NOTE bullet at all, so cached_note() misreading one file as the
+    # other (and failing) looked the same as a clean, no-drift run.
+    assert "NOTE:" not in context
 
 
 def test_hook_omits_model_in_print_mode(tmp_path: Path) -> None:
@@ -1431,15 +1438,25 @@ def test_scratchpad_none_when_it_cannot_be_created(tmp_path: Path) -> None:
     assert "# Scratchpad Directory" not in context
 
 
-def test_shell_fallback_when_no_shell_resolves(monkeypatch) -> None:
-    """A shell that cannot be named must not cost the session its whole block."""
+def test_shell_fallback_when_no_shell_resolves(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A shell that cannot be named must not cost the session its whole
+    block -- and cc's own bare "unknown" is the wrong fallback text: it is
+    indistinguishable from cc's own degenerate default and discards the one
+    actionable fact this hook could report, leaving it only on stderr, which
+    is not something the agent reads.
+    """
     from claude_config.env_context import __main__ as entry
 
     def boom() -> str:
         raise RuntimeError("no bash or zsh found")
 
     monkeypatch.setattr(entry.environment, "resolve_shell", boom)
-    assert entry.resolved_shell() == "unknown"
+    assert entry.resolved_shell() == (
+        "none found — no bash or zsh on this system, so Bash tool calls will fail"
+    )
+    assert "no bash or zsh found" in capsys.readouterr().err
 
 
 def test_hook_suppresses_scratchpad_in_background_session(tmp_path: Path) -> None:
@@ -1466,3 +1483,264 @@ def test_hook_suppresses_scratchpad_in_background_session(tmp_path: Path) -> Non
     assert "# Environment" in context
     assert "# Scratchpad Directory" not in context
     assert list(tmp_path.rglob("*")) == []
+
+
+import io
+
+
+def test_root_manifest_and_cache_paths() -> None:
+    """Pins the three module-level path constants directly. An independent
+    mutation sweep found ROOT walking parents[2] instead of [3], and wrong
+    MANIFEST/CACHE filenames -- invisible to every subprocess test, since
+    none of them assert on these constants at all.
+    """
+    from claude_config.env_context import __main__ as entry
+
+    assert entry.ROOT == ROOT
+    assert entry.MANIFEST == ROOT / "docs" / "env-context-manifest.json"
+    assert entry.CACHE == Path.home() / ".claude" / "env-context-drift.json"
+
+
+def test_main_wires_every_collaborator_into_its_own_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An in-process companion the subprocess tests cannot provide: a
+    subprocess cannot inject a fixture, so main()'s facts dict had zero
+    coverage of which value lands under which key. An independent mutation
+    sweep found two concrete failures of exactly this kind: shell and
+    os_version's call sites swapped (the block can report `Shell: <the OS
+    version>` / `OS Version: <the shell path>`), and, separately, deleting
+    drift_note() entirely and hardcoding "drift_note": None in main() --
+    with every subprocess test still green either way, because none of them
+    assert a specific value behind any of these labels. Monkeypatching every
+    collaborator to its own distinguishable sentinel and asserting each
+    lands under its own key catches both, and any other misassignment
+    among them.
+    """
+    from claude_config.env_context import __main__ as entry
+
+    captured: dict[str, object] = {}
+
+    def fake_sections(facts: render.Facts) -> str:
+        captured.update(facts)
+        return "stub"
+
+    monkeypatch.setattr(entry.environment, "is_git_repo", lambda cwd: "SENTINEL-GITREPO")
+    monkeypatch.setattr(
+        entry.environment, "worktree_common_dir", lambda cwd: "SENTINEL-WORKTREE"
+    )
+    monkeypatch.setattr(entry.environment, "platform_name", lambda: "SENTINEL-PLATFORM")
+    monkeypatch.setattr(entry.environment, "os_version", lambda: "SENTINEL-OSVER")
+    monkeypatch.setattr(entry, "resolved_shell", lambda: "SENTINEL-SHELL")
+    monkeypatch.setattr(
+        entry, "scratchpad_or_none", lambda cwd, session_id: "SENTINEL-SCRATCHPAD"
+    )
+    monkeypatch.setattr(entry, "drift_note", lambda: "SENTINEL-DRIFT")
+    monkeypatch.setattr(render, "sections", fake_sections)
+    monkeypatch.setattr(
+        sys, "stdin", io.StringIO(json.dumps({"cwd": "/tmp", "session_id": "s1"}))
+    )
+
+    assert entry.main() == 0
+
+    assert captured["cwd"] == "/tmp"
+    assert captured["session_id"] == "s1"
+    assert captured["is_git_repo"] == "SENTINEL-GITREPO"
+    assert captured["worktree_common_dir"] == "SENTINEL-WORKTREE"
+    assert captured["platform"] == "SENTINEL-PLATFORM"
+    assert captured["os_version"] == "SENTINEL-OSVER"
+    assert captured["shell"] == "SENTINEL-SHELL"
+    assert captured["scratchpad"] == "SENTINEL-SCRATCHPAD"
+    assert captured["drift_note"] == "SENTINEL-DRIFT"
+
+
+def test_drift_note_returns_the_cached_note_value_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The pass-through branch: whatever cached_note() returns is what
+    drift_note() returns, verbatim. Uses a sentinel distinguishable from
+    None so that a drift_note() body which stopped calling cached_note --
+    or started ignoring its result -- fails here rather than reading as a
+    clean "no drift" result.
+    """
+    from claude_config.env_context import __main__ as entry
+
+    monkeypatch.setattr(entry.drift, "find_binary", lambda: Path("/fake/claude"))
+    monkeypatch.setattr(
+        entry.drift,
+        "cached_note",
+        lambda binary, manifest, cache: "SENTINEL-DRIFT-NOTE",
+    )
+    assert entry.drift_note() == "SENTINEL-DRIFT-NOTE"
+
+
+def test_drift_note_surfaces_a_failure_when_the_check_itself_breaks(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Closes the blind spot review finding 2 warned about: except Exception
+    is the right clause for cached_note (it stats, reads a 331 MB binary,
+    spawns a subprocess, and parses two JSON files -- any narrower tuple
+    would be Exception minus programming errors), but nothing proved it
+    actually fires. Simulates the reviewer's own example -- drift.cached_note
+    renamed -- via delattr, and pins that the resulting note names both the
+    exception's type (a bare exception message reads as gibberish) and an
+    absolute, repo-rooted script path (a repo-relative one names no repo,
+    and the hook runs from whatever cwd the session started in).
+    """
+    from claude_config.env_context import __main__ as entry
+
+    monkeypatch.setattr(entry.drift, "find_binary", lambda: Path("/fake/claude"))
+    monkeypatch.delattr(entry.drift, "cached_note")
+
+    note = entry.drift_note()
+
+    assert note is not None
+    assert "AttributeError" in note
+    assert "cached_note" in note
+    assert str(entry.ROOT / "scripts" / "check-env-context.sh") in note
+    assert "AttributeError" in capsys.readouterr().err
+
+
+def test_scratchpad_or_none_prints_to_stderr_when_it_cannot_be_created(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An independent mutation sweep found this print(..., file=sys.stderr)
+    line deletable: every subprocess test that hits this branch only checks
+    the rendered block, never stderr. stderr from a hook is not something
+    the agent reads, but it is something a human debugging the hook does.
+    """
+    from claude_config.env_context import __main__ as entry
+
+    def boom(**kwargs: object) -> Path:
+        raise ValueError("simulated: session_id rejected")
+
+    monkeypatch.setattr(entry.scratchpad, "ensure", boom)
+
+    result = entry.scratchpad_or_none("/tmp", "s1", env={})
+
+    assert result is None
+    assert "env-context: scratchpad unavailable" in capsys.readouterr().err
+
+
+def test_scratchpad_or_none_suppressed_by_injected_env_without_a_subprocess(
+    tmp_path: Path,
+) -> None:
+    """The payoff of threading env through scratchpad_or_none (review finding
+    7): the background-session gate is now exercisable with a plain dict,
+    in-process, instead of only via a subprocess whose real environment
+    happens to carry the variable. This is a faster companion to
+    test_hook_suppresses_scratchpad_in_background_session above, not a
+    replacement -- that one still proves the real subprocess path works.
+    """
+    from claude_config.env_context import __main__ as entry
+
+    result = entry.scratchpad_or_none(
+        str(ROOT),
+        "session-in-process",
+        env={"CLAUDE_CODE_SESSION_KIND": "bg", "CLAUDE_CODE_TMPDIR": str(tmp_path)},
+    )
+
+    assert result is None
+    assert list(tmp_path.rglob("*")) == []
+
+
+def test_scratchpad_or_none_actually_uses_the_injected_env(tmp_path: Path) -> None:
+    """Confirms env is forwarded on to scratchpad.ensure, not merely
+    consulted for the bg gate above. Without the forward, ensure() falls
+    back to its own os.environ default for CLAUDE_CODE_TMPDIR, so the
+    scratchpad would land under the real /tmp instead of under the tmp_path
+    this test injects -- the bg-gate test above can't tell the difference,
+    since CLAUDE_CODE_SESSION_KIND == "bg" returns before ensure() is ever
+    reached.
+    """
+    from claude_config.env_context import __main__ as entry
+
+    result = entry.scratchpad_or_none(
+        str(ROOT), "session-env-forward", env={"CLAUDE_CODE_TMPDIR": str(tmp_path)}
+    )
+
+    assert result is not None
+    assert result.startswith(str(tmp_path))
+    created = list(
+        tmp_path.glob(f"claude-{os.getuid()}/*/session-env-forward/scratchpad")
+    )
+    assert len(created) == 1
+
+
+def _run_hook_expecting_exit(payload: str) -> subprocess.CompletedProcess[str]:
+    """Like _run_hook, but for payloads the hook must reject -- returns the
+    raw CompletedProcess since the caller needs returncode and stderr, not a
+    parsed envelope that was never produced.
+    """
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    return subprocess.run(
+        [sys.executable, "-m", "claude_config.env_context"],
+        input=payload,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(ROOT),
+    )
+
+
+def test_missing_cwd_exits_loudly_naming_the_contract() -> None:
+    """A missing key means Claude Code's own hook payload contract changed --
+    exactly the drift class this feature exists to catch -- so it must be
+    loud: a clean SystemExit message naming the contract, not an incidental
+    KeyError traceback raised three calls downstream.
+    """
+    result = _run_hook_expecting_exit(json.dumps({"session_id": "s1"}))
+    assert result.returncode != 0
+    assert "missing field 'cwd'" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_missing_session_id_exits_loudly_naming_the_contract() -> None:
+    result = _run_hook_expecting_exit(json.dumps({"cwd": str(ROOT)}))
+    assert result.returncode != 0
+    assert "missing field 'session_id'" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_wrong_type_cwd_exits_loudly_naming_the_contract() -> None:
+    """Measured: before this guard, cwd: 99 reached a bare TypeError three
+    calls deep (inside subprocess.run's cwd handling) instead of failing
+    here, at the point the contract was actually violated, with a message
+    that names it.
+    """
+    result = _run_hook_expecting_exit(json.dumps({"cwd": 99, "session_id": "s1"}))
+    assert result.returncode != 0
+    assert "field 'cwd' is int, expected str" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_wrong_type_session_id_exits_loudly_naming_the_contract() -> None:
+    result = _run_hook_expecting_exit(
+        json.dumps({"cwd": str(ROOT), "session_id": 12345})
+    )
+    assert result.returncode != 0
+    assert "field 'session_id' is int, expected str" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_empty_cwd_and_session_id_degrade_quietly(tmp_path: Path) -> None:
+    """The other side of the boundary review finding 4 draws: a merely-empty
+    string is parseable and degenerate, not a breach of the contract's
+    shape, so it degrades quietly through the existing scratchpad guard
+    instead of exiting -- unlike the wrong-type case above, which must be
+    loud.
+    """
+    payload = json.dumps(
+        {
+            "session_id": "",
+            "transcript_path": "/dev/null",
+            "cwd": "",
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+        }
+    )
+    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+    context = out["hookSpecificOutput"]["additionalContext"]
+    assert "# Environment" in context
+    assert "# Scratchpad Directory" not in context
