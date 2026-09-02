@@ -1,0 +1,18 @@
+{
+  "version": "2.1.235",
+  "literals": [
+    "# Environment",
+    ". The exact model ID is ",
+    "Additional working directories:",
+    "Assistant knowledge cutoff is ",
+    "Claude Code is available as a CLI in the terminal, desktop app (Mac/Windows), web app (claude.ai/code), and IDE extensions (VS Code, JetBrains).",
+    "Fast mode for Claude Code uses Claude Opus with faster output (it does not downgrade to a smaller model). It can be toggled with /fast and is available on Opus 5/4.8.",
+    "Is a git repository: ",
+    "Iterator result interface is not an object.",
+    "OS Version: ",
+    "Primary working directory: ",
+    "You are powered by the model ",
+    "You are powered by the model named ",
+    "You have been invoked in the following environment: "
+  ]
+}
