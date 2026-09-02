@@ -1271,6 +1271,7 @@ verbatim (globals/20.js:24485).
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -1316,12 +1317,20 @@ def resolved_shell() -> str:
 def scratchpad_or_none(cwd: str, session_id: str) -> str | None:
     """The session scratchpad, or None when it could not be created.
 
+    Suppressed entirely in a background session. cc drops its own scratchpad
+    section there (`cvi()`, globals/21.js:13624) and names `$CLAUDE_JOB_DIR/tmp`
+    instead, so emitting ours would give that session two conflicting
+    temp-directory instructions. Hooks come from settings.json and fire
+    regardless of which prompt the session runs, so this gate has to live here.
+
     A cwd whose slug exceeds cc's 200-character limit, a read-only tmp root and
     a `claude-<uid>` owned by another user all raise here. cc survives the
     first of those by appending a hash suffix, so its session keeps working
     while this hook would die for the sake of one missing line. Losing the
     section beats losing the block.
     """
+    if os.environ.get("CLAUDE_CODE_SESSION_KIND") == "bg":
+        return None
     try:
         return str(scratchpad.ensure(cwd=cwd, session_id=session_id))
     except (OSError, ValueError) as exc:
