@@ -12,7 +12,9 @@ version alongside the literals.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import mmap
 import os
 import re
 import shutil
@@ -49,7 +51,7 @@ class CacheEntry(TypedDict):
     binary: str
     size: int
     mtime_ns: int
-    manifest_mtime_ns: int
+    manifest_sha: str
     note: str | None
 
 
@@ -68,12 +70,15 @@ def find_binary(env: Mapping[str, str] | None = None) -> Path:
 
     CLAUDE_CODE_EXECPATH is set in hook and tool subprocess environments and
     names the binary directly. The PATH fallback lands on a wrapper script
-    under Nix, whose sibling `.claude-wrapped` symlink points at the real one.
+    under Nix, whose sibling `.claude-wrapped` symlink points at the real
+    one. All three branches resolve through realpath, so one physical
+    binary always keys the cache under the same string regardless of which
+    branch found it.
     """
     env = os.environ if env is None else env
     execpath = env.get("CLAUDE_CODE_EXECPATH")
     if execpath and Path(execpath).is_file():
-        return Path(execpath)
+        return Path(os.path.realpath(execpath))
 
     found = shutil.which("claude", path=env.get("PATH"))
     if not found:
@@ -85,7 +90,7 @@ def find_binary(env: Mapping[str, str] | None = None) -> Path:
             raise RuntimeError(message)
         raise RuntimeError("claude is not on PATH and CLAUDE_CODE_EXECPATH is unset")
     real = Path(os.path.realpath(found))
-    if ANCHOR in real.read_bytes():
+    if _has_anchor(real):
         return real
     wrapped = real.parent / ".claude-wrapped"
     if wrapped.exists():
@@ -93,6 +98,22 @@ def find_binary(env: Mapping[str, str] | None = None) -> Path:
     raise RuntimeError(
         f"{real} carries no env-block anchor and has no .claude-wrapped sibling"
     )
+
+
+def _has_anchor(path: Path) -> bool:
+    """Whether `path` contains ANCHOR, without reading the whole file.
+
+    PATH's `claude` is normally a small wrapper script, but on a non-Nix
+    install it can be the ~315 MB binary itself; mmap lets this check avoid
+    loading that into memory before the cache (consulted afterwards, in
+    `compare()`) even gets a say. mmap refuses a zero-length file, so an
+    empty file is treated as anchor-less directly rather than raising.
+    """
+    with path.open("rb") as fh:
+        if os.fstat(fh.fileno()).st_size == 0:
+            return False
+        with mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+            return mm.find(ANCHOR) != -1
 
 
 def literals_in(data: bytes, source: str) -> list[str]:
@@ -111,11 +132,30 @@ def extract_literals(binary: Path) -> list[str]:
     return literals_in(binary.read_bytes(), str(binary))
 
 
-def installed_version() -> str:
-    result = subprocess.run(["claude", "--version"], capture_output=True, text=True)
+def installed_version(binary: Path) -> str:
+    """The version reported by the exact binary `compare()` will scan.
+
+    Takes the resolved binary rather than resolving `claude` from PATH
+    itself, so a PATH/CLAUDE_CODE_EXECPATH divergence cannot compare one
+    binary's content against a different binary's version string -- the
+    version participates in `matches`, and the result is cached keyed on
+    this same binary. `timeout=5` bounds the one subprocess call Task 7's
+    `except Exception` cannot absorb: that clause converts a raise into a
+    note, but not a hang, and a blocked subprocess would otherwise burn the
+    hook's whole 5 s budget.
+    """
+    try:
+        result = subprocess.run(
+            [str(binary), "--version"], capture_output=True, text=True, timeout=5
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"{binary} --version timed out") from exc
     if result.returncode != 0:
-        raise RuntimeError(f"claude --version failed: {result.stderr.strip()}")
-    return result.stdout.split()[0]
+        raise RuntimeError(f"{binary} --version failed: {result.stderr.strip()}")
+    parts = result.stdout.split()
+    if not parts:
+        raise RuntimeError(f"{binary} --version produced no output")
+    return parts[0]
 
 
 def compare(binary: Path, manifest: Path, version: str) -> Comparison:
@@ -132,15 +172,22 @@ def compare(binary: Path, manifest: Path, version: str) -> Comparison:
     builders leaves them present while dropping the total. See
     `notes/env-context-manifest.md`.
     """
-    pinned = cast(ManifestData, json.loads(manifest.read_text()))
+    try:
+        pinned = cast(ManifestData, json.loads(manifest.read_text()))
+        window_literals = pinned["window_literals"]
+        required_literals = pinned["required_literals"]
+        pinned_version = pinned["version"]
+    except (ValueError, OSError, KeyError) as exc:
+        raise RuntimeError(f"failed to read manifest {manifest}: {exc}") from exc
+
     data = binary.read_bytes()
     found = set(literals_in(data, str(binary)))
-    expected = set(pinned["window_literals"])
+    expected = set(window_literals)
     added = sorted(found - expected)
     removed = sorted(expected - found)
     changed = {
         literal: (pinned_count, count)
-        for literal, pinned_count in pinned["required_literals"].items()
+        for literal, pinned_count in required_literals.items()
         if (count := data.count(literal.encode())) != pinned_count
     }
     return Comparison(
@@ -148,10 +195,10 @@ def compare(binary: Path, manifest: Path, version: str) -> Comparison:
             not added
             and not removed
             and not changed
-            and version == pinned["version"]
+            and version == pinned_version
         ),
         installed_version=version,
-        pinned_version=pinned["version"],
+        pinned_version=pinned_version,
         added=added,
         removed=removed,
         count_changes=changed,
@@ -162,46 +209,56 @@ def cached_note(
     binary: Path,
     manifest: Path,
     cache: Path,
-    version: Callable[[], str] = installed_version,
+    version: Callable[[], str] | None = None,
 ) -> str | None:
     """Return a one-line drift note, or None when the field set still matches.
 
-    The result is cached on the binary's size and mtime plus the manifest's
-    mtime, so the full scan runs once per Claude Code upgrade -- or once per
-    manifest re-pin -- rather than once per session. Keying on the manifest
-    too matters because a re-pin (`check-env-context.sh --update`) can leave
-    the binary untouched while changing what counts as a match; without the
-    manifest's mtime in the key, a stale note would outlive the condition it
-    described until the binary itself next changed.
+    The result is cached on the binary's size and mtime plus a hash of the
+    manifest's content, so the full scan runs once per Claude Code upgrade
+    -- or once per manifest re-pin -- rather than once per session. The
+    manifest is hashed rather than keyed on its mtime because Task 7 points
+    every worktree at one global cache: this repo alone has five worktrees,
+    each with its own manifest file and its own mtime, so an mtime key
+    thrashed to a full rescan on every alternation between checkouts even
+    when their manifests were byte-identical copies of each other. The hash
+    still catches a genuine re-pin (`check-env-context.sh --update`), and
+    it also catches a same-mtime copy (`cp -p`, `rsync --times`) that an
+    mtime key would miss -- strictly stronger, for a ~2 KB file, free.
 
-    A cache file that fails to parse -- a truncated or otherwise corrupt
-    write, most plausibly from two sessions racing to write it at once -- is
-    treated as a miss rather than raised: the scan reruns and the file is
-    overwritten below, so the damage self-heals on the next session instead
-    of wedging every session after it.
+    A cache file that is unreadable, undecodable, or not a JSON object --
+    a truncated write, invalid UTF-8, or valid JSON of the wrong shape, most
+    plausibly from two sessions racing to write it at once -- is treated as
+    a miss rather than raised: the scan reruns and the file is overwritten
+    below, so the damage self-heals on the next session instead of wedging
+    every session after it.
     """
     binary_stat = binary.stat()
     key = {
         "binary": str(binary),
         "size": binary_stat.st_size,
         "mtime_ns": binary_stat.st_mtime_ns,
-        "manifest_mtime_ns": manifest.stat().st_mtime_ns,
+        "manifest_sha": hashlib.sha256(manifest.read_bytes()).hexdigest(),
     }
 
     if cache.is_file():
+        stored: object | None
         try:
-            stored: CacheEntry | None = cast(CacheEntry, json.loads(cache.read_text()))
-        except (json.JSONDecodeError, OSError):
+            stored = cast(object, json.loads(cache.read_text()))
+        except (ValueError, OSError):
             stored = None
-        if stored is not None and all(stored.get(k) == v for k, v in key.items()):
-            return stored.get("note")
+        if isinstance(stored, dict):
+            entry = cast(CacheEntry, cast(object, stored))
+            if all(entry.get(k) == v for k, v in key.items()):
+                return entry.get("note")
 
-    result = compare(binary, manifest, version())
+    resolved_version = version() if version is not None else installed_version(binary)
+    result = compare(binary, manifest, resolved_version)
     note = None
     if not result.matches:
         note = (
-            f"Claude Code {result.installed_version} changed its env block since the "
-            f"{result.pinned_version} field set this hook is pinned to. Run "
+            f"The env-block field set this hook is pinned to "
+            f"({result.pinned_version}) no longer matches the installed "
+            f"Claude Code {result.installed_version}. Run "
             "scripts/check-env-context.sh to review."
         )
     cache.parent.mkdir(parents=True, exist_ok=True)

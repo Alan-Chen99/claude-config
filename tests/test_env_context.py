@@ -566,6 +566,7 @@ def test_full_text_matches_snapshot_for_worktree() -> None:
 
 import json
 import os
+import re
 
 from claude_config.env_context import drift
 
@@ -706,6 +707,34 @@ def test_compare_reports_a_version_mismatch_even_when_fields_match(
     assert result.pinned_version == "2.1.235"
 
 
+def test_compare_reports_a_removed_field(tmp_path: Path) -> None:
+    """cc dropping or renaming a field is this module's headline job, yet
+    `result.removed` was asserted in exactly two places before this, both
+    `== []` -- nothing positively exercised a real removal.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, [*literals, "Current sandbox mode: "], {})
+    result = drift.compare(binary, manifest, version="2.1.235")
+    assert not result.matches
+    assert result.removed == ["Current sandbox mode: "]
+    assert result.added == []
+
+
+def test_compare_names_the_manifest_when_a_key_is_missing(tmp_path: Path) -> None:
+    """A hand-edited manifest missing a required key must name the manifest
+    file in the error -- the binary read already names its file via
+    `literals_in`'s `source`; the manifest read had no equivalent.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"version": "2.1.235"}))  # no window_literals
+
+    with pytest.raises(RuntimeError, match=re.escape(str(manifest))):
+        drift.compare(binary, manifest, version="2.1.235")
+
+
 def test_cache_avoids_a_second_scan(tmp_path: Path) -> None:
     literals = ["Primary working directory: "]
     binary = _binary(tmp_path, literals)
@@ -741,6 +770,62 @@ def test_cache_self_heals_from_a_corrupt_file(tmp_path: Path) -> None:
 
     assert note is None
     assert json.loads(cache.read_text())["note"] is None
+
+
+def test_cache_self_heals_from_wrong_shaped_json(tmp_path: Path) -> None:
+    """Valid JSON that isn't an object -- a list, a string, a number -- is
+    exactly as unusable as a parse failure, but `.get()` on it raises
+    AttributeError instead of a caught parse error, escaping the earlier,
+    narrower guard and wedging the cache just as permanently.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"
+    cache.write_text("[]")
+
+    note = drift.cached_note(binary, manifest, cache, lambda: "2.1.235")
+
+    assert note is None
+    assert json.loads(cache.read_text())["note"] is None
+
+
+def test_cache_self_heals_from_invalid_utf8(tmp_path: Path) -> None:
+    """Invalid UTF-8 raises UnicodeDecodeError from read_text() itself --
+    a ValueError, like JSONDecodeError, but a different subclass, so a
+    catch scoped to JSONDecodeError specifically lets it through.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"
+    cache.write_bytes(b"\xff\xfe\x00not utf-8")
+
+    note = drift.cached_note(binary, manifest, cache, lambda: "2.1.235")
+
+    assert note is None
+    assert json.loads(cache.read_text())["note"] is None
+
+
+def test_cache_self_heals_from_an_oserror_on_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A read failure that is not a decode/parse problem at all -- the file
+    vanishing between the is_file() check and the read, a real race in a
+    globally shared cache -- must be caught too, not just ValueError. Only
+    the existence check is faked here; the FileNotFoundError this raises on
+    the actual, genuinely-absent path is real.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"  # deliberately never created
+
+    monkeypatch.setattr(Path, "is_file", lambda self: True)
+
+    note = drift.cached_note(binary, manifest, cache, lambda: "2.1.235")
+
+    assert note is None
 
 
 def test_cache_invalidates_when_binary_mtime_changes(tmp_path: Path) -> None:
@@ -794,22 +879,79 @@ def test_cache_invalidates_when_manifest_is_repinned(tmp_path: Path) -> None:
     """`check-env-context.sh --update` re-pins the manifest in place; a
     stale drift note must not outlive the condition it described once the
     binary it was cached against is unchanged but the manifest now matches
-    it.
+    it. The manifest is keyed on content, not mtime, so this needs no
+    timestamp manipulation: different content hashes differently, period.
     """
     literals = ["Primary working directory: ", "Current sandbox mode: "]
     binary = _binary(tmp_path, literals)
     cache = tmp_path / "cache.json"
 
     stale_manifest = _manifest(tmp_path, ["Primary working directory: "], {})
-    stale_mtime_ns = stale_manifest.stat().st_mtime_ns
     stale_note = drift.cached_note(binary, stale_manifest, cache, lambda: "2.1.235")
     assert stale_note is not None
 
     updated_manifest = _manifest(tmp_path, literals, {})
-    new_ns = stale_mtime_ns + 1_000_000_000
-    os.utime(updated_manifest, ns=(new_ns, new_ns))
     fresh_note = drift.cached_note(binary, updated_manifest, cache, lambda: "2.1.235")
     assert fresh_note is None
+
+
+def test_cache_reuses_across_manifests_with_identical_content(
+    tmp_path: Path,
+) -> None:
+    """Task 7 points every worktree at one global cache. This repo alone has
+    five worktrees, each with its own manifest file and its own mtime; keying
+    on mtime instead of content rescanned once per checkout even when the
+    pinned manifests were byte-identical copies of each other. Keying on
+    content means two such manifests share one cache entry.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    cache = tmp_path / "cache.json"
+
+    checkout_a = tmp_path / "checkout-a"
+    checkout_a.mkdir()
+    checkout_b = tmp_path / "checkout-b"
+    checkout_b.mkdir()
+    manifest_a = _manifest(checkout_a, literals, {})
+    manifest_b = checkout_b / "manifest.json"
+    manifest_b.write_bytes(manifest_a.read_bytes())
+
+    calls: list[int] = []
+
+    def version() -> str:
+        calls.append(1)
+        return "2.1.235"
+
+    drift.cached_note(binary, manifest_a, cache, version)
+    drift.cached_note(binary, manifest_b, cache, version)
+    assert len(calls) == 1
+
+
+def test_cache_distinguishes_binaries_by_path(tmp_path: Path) -> None:
+    """Two different files -- as `find_binary()` could return across a Nix
+    store upgrade -- must not share a cache entry merely because their size,
+    mtime, and paired manifest happen to coincide.
+    """
+    literals = ["Primary working directory: "]
+    binary_a = _binary(tmp_path, literals)
+    binary_b = tmp_path / "claude-b.exe"
+    binary_b.write_bytes(binary_a.read_bytes())
+    stat_a = binary_a.stat()
+    os.utime(binary_b, ns=(stat_a.st_mtime_ns, stat_a.st_mtime_ns))
+    assert binary_a.stat().st_size == binary_b.stat().st_size
+
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"
+
+    calls: list[int] = []
+
+    def version() -> str:
+        calls.append(1)
+        return "2.1.235"
+
+    drift.cached_note(binary_a, manifest, cache, version)
+    drift.cached_note(binary_b, manifest, cache, version)
+    assert len(calls) == 2
 
 
 def test_cached_note_text_names_the_script(tmp_path: Path) -> None:
@@ -828,7 +970,22 @@ def test_find_binary_uses_execpath_when_set(
     target = tmp_path / "claude.exe"
     _stub(target, anchor=True)
     monkeypatch.setenv("CLAUDE_CODE_EXECPATH", str(target))
-    assert drift.find_binary() == target
+    assert drift.find_binary() == Path(os.path.realpath(target))
+
+
+def test_find_binary_resolves_execpath_through_a_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The EXECPATH branch must realpath its result too, like the other two
+    branches -- otherwise one physical binary can key the cache under two
+    different strings depending on which branch found it.
+    """
+    real = tmp_path / "claude.exe"
+    _stub(real, anchor=True)
+    link = tmp_path / "claude-link"
+    link.symlink_to(real)
+    monkeypatch.setenv("CLAUDE_CODE_EXECPATH", str(link))
+    assert drift.find_binary() == real
 
 
 def test_find_binary_follows_wrapped_sibling_when_path_claude_has_no_anchor(
@@ -865,3 +1022,94 @@ def test_find_binary_raises_without_execpath_or_path_claude(
     monkeypatch.setenv("PATH", str(tmp_path))
     with pytest.raises(RuntimeError, match="not on PATH"):
         drift.find_binary()
+
+
+def test_find_binary_falls_through_when_execpath_is_not_a_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A set-but-dangling CLAUDE_CODE_EXECPATH must not be trusted blindly --
+    find_binary falls through to the PATH-based lookup instead of returning
+    a path that names nothing.
+    """
+    monkeypatch.setenv("CLAUDE_CODE_EXECPATH", str(tmp_path / "does-not-exist"))
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    direct = bindir / "claude"
+    _stub(direct, anchor=True)
+    monkeypatch.setenv("PATH", str(bindir))
+    assert drift.find_binary() == Path(os.path.realpath(direct))
+
+
+def test_find_binary_raises_naming_execpath_when_set_but_not_a_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dangling = tmp_path / "does-not-exist"
+    monkeypatch.setenv("CLAUDE_CODE_EXECPATH", str(dangling))
+    monkeypatch.setenv("PATH", str(tmp_path))  # empty dir, no `claude` either
+    with pytest.raises(RuntimeError, match=re.escape(str(dangling))):
+        drift.find_binary()
+
+
+def test_find_binary_treats_an_empty_path_claude_as_no_anchor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """mmap refuses to map a zero-length file; the anchor check must handle
+    that without crashing, falling through exactly as a small non-anchor
+    file would.
+    """
+    monkeypatch.delenv("CLAUDE_CODE_EXECPATH", raising=False)
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    empty = bindir / "claude"
+    empty.write_bytes(b"")
+    empty.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bindir))
+    with pytest.raises(RuntimeError, match="no env-block anchor"):
+        drift.find_binary()
+
+
+def test_installed_version_parses_the_first_token(tmp_path: Path) -> None:
+    binary = tmp_path / "claude"
+    binary.write_text("#!/bin/sh\necho '2.1.235 (Claude Code)'\n")
+    binary.chmod(0o755)
+    assert drift.installed_version(binary) == "2.1.235"
+
+
+def test_installed_version_raises_when_the_binary_exits_nonzero(
+    tmp_path: Path,
+) -> None:
+    binary = tmp_path / "claude"
+    binary.write_text("#!/bin/sh\necho 'boom' >&2\nexit 1\n")
+    binary.chmod(0o755)
+    with pytest.raises(RuntimeError, match="boom"):
+        drift.installed_version(binary)
+
+
+def test_installed_version_raises_on_empty_output(tmp_path: Path) -> None:
+    binary = tmp_path / "claude"
+    binary.write_text("#!/bin/sh\nexit 0\n")
+    binary.chmod(0o755)
+    with pytest.raises(RuntimeError, match="no output"):
+        drift.installed_version(binary)
+
+
+def test_installed_version_raises_on_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A blocked subprocess is the one failure Task 7's `except Exception`
+    cannot absorb -- it converts a raise into a note, not a hang. Proven via
+    a monkeypatched subprocess.run rather than a real multi-second sleep, so
+    the suite stays fast.
+    """
+    binary = tmp_path / "claude"
+    binary.write_text("#!/bin/sh\n")
+    binary.chmod(0o755)
+
+    def fake_run(
+        *args: object, **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        raise subprocess.TimeoutExpired(cmd=[str(binary), "--version"], timeout=5)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    with pytest.raises(RuntimeError, match="timed out"):
+        drift.installed_version(binary)
