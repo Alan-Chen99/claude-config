@@ -121,6 +121,7 @@ def scratchpad_section(path: str) -> str:
         "Use this directory for temporary files instead of `/tmp` or other "
         "system temp directories:\n"
         f"`{path}`\n\n"
+        "Only use `/tmp` if the user explicitly requests it.\n\n"
         "It is session-specific, isolated from the project, and is normally "
         "the same directory your subagents are given."
     )
