@@ -450,10 +450,16 @@ def test_ensure_repairs_a_preexisting_uid_dir_mode(tmp_path: Path) -> None:
     assert stat.S_IMODE(uid_dir.stat().st_mode) == 0o700
 
 
+from typing import cast
+
 from claude_config.env_context import render
 
 
-def _facts(**overrides: object) -> dict[str, object]:
+def _facts(**overrides: object) -> render.Facts:
+    # Built as a plain dict and cast at the end, rather than typed as
+    # render.Facts throughout: **overrides is deliberately untyped (object),
+    # so TypedDict.update() would fight the checker at every call site for a
+    # helper whose whole point is ad hoc per-test overrides.
     base: dict[str, object] = {
         "cwd": "/root/claude-config-work",
         "is_git_repo": True,
@@ -467,7 +473,10 @@ def _facts(**overrides: object) -> dict[str, object]:
         "drift_note": None,
     }
     base.update(overrides)
-    return base
+    # dict[str, object] and Facts don't structurally overlap enough for a
+    # direct cast (Facts pins is_git_repo to bool, not object) -- go through
+    # object, the standard escape hatch for an intentionally-unchecked cast.
+    return cast(render.Facts, cast(object, base))
 
 
 def test_env_block_has_expected_bullets() -> None:
@@ -492,8 +501,22 @@ def test_worktree_lines_present_only_in_a_worktree() -> None:
     assert "git worktree" not in plain
 
     linked = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
-    assert " - This is a git worktree of /repos/claude-config/.git." in linked
+    # Not .../.git: the common-dir's trailing .git names the git directory,
+    # not the checkout an agent should read or run commands in.
+    assert " - This is a git worktree of /repos/claude-config." in linked
     assert "git stash" in linked
+
+
+def test_worktree_line_names_bare_main_unchanged() -> None:
+    """A bare main's common-dir has no `.git` path component to strip.
+
+    `/repos/bare-repo.git` ends in the four characters ".git" but its last
+    path *component* is "bare-repo.git", not ".git" -- unlike the linked-
+    worktree case above, where the last component is exactly ".git". Only
+    the latter should be stripped to its parent.
+    """
+    text = render.sections(_facts(worktree_common_dir="/repos/bare-repo.git"))
+    assert " - This is a git worktree of /repos/bare-repo.git." in text
 
 
 def test_scratchpad_section_names_the_path() -> None:
@@ -518,3 +541,24 @@ def test_scratchpad_section_omitted_when_unavailable() -> None:
     assert "# Scratchpad Directory" not in text
     assert "None" not in text
     assert "# Environment" in text
+
+
+def test_full_text_matches_snapshot_when_fully_populated() -> None:
+    """Pins bullet order, the header's trailing space, the blank line between
+    sections, and that every bullet after the header carries the ` - ` prefix
+    -- properties none of the substring assertions above pin individually.
+    """
+    text = render.sections(
+        _facts(drift_note="Claude Code 2.1.240 changed its env block.")
+    )
+    expected = '# Environment\nYou have been invoked in the following environment: \n - Primary working directory: /root/claude-config-work\n - Is a git repository: true\n - Platform: linux\n - Shell: /bin/bash\n - OS Version: Linux 6.18.7\n - You are powered by the model claude-opus-5\n - Session ID: abc-123\n - NOTE: Claude Code 2.1.240 changed its env block.\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
+    assert text == expected
+
+
+def test_full_text_matches_snapshot_for_worktree() -> None:
+    """Companion to the snapshot above: pins the worktree and stash-caution
+    lines' exact wording and position in the bullet order.
+    """
+    text = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
+    expected = '# Environment\nYou have been invoked in the following environment: \n - Primary working directory: /root/claude-config-work\n - This is a git worktree of /repos/claude-config. Run all commands from this directory and make changes only here; reading /repos/claude-config is fine, but do not edit, commit, or build there.\n - The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session\'s changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m "<unique-tag>"`, immediately capture your entry\'s SHA via `git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first.\n - Is a git repository: true\n - Platform: linux\n - Shell: /bin/bash\n - OS Version: Linux 6.18.7\n - You are powered by the model claude-opus-5\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
+    assert text == expected
