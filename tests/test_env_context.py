@@ -1440,3 +1440,29 @@ def test_shell_fallback_when_no_shell_resolves(monkeypatch) -> None:
 
     monkeypatch.setattr(entry.environment, "resolve_shell", boom)
     assert entry.resolved_shell() == "unknown"
+
+
+def test_hook_suppresses_scratchpad_in_background_session(tmp_path: Path) -> None:
+    """The bg gate must short-circuit before scratchpad.ensure runs, not just
+    drop the rendered section afterwards -- otherwise a background session
+    still gets a directory on disk that nothing in its prompt names, and the
+    two-instruction conflict this gate exists to prevent shows up one layer
+    down instead of going away.
+    """
+    payload = json.dumps(
+        {
+            "session_id": "bg-123",
+            "transcript_path": "/dev/null",
+            "cwd": str(ROOT),
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+        }
+    )
+    out = _run_hook(
+        payload,
+        {"CLAUDE_CODE_TMPDIR": str(tmp_path), "CLAUDE_CODE_SESSION_KIND": "bg"},
+    )
+    context = out["hookSpecificOutput"]["additionalContext"]
+    assert "# Environment" in context
+    assert "# Scratchpad Directory" not in context
+    assert list(tmp_path.rglob("*")) == []
