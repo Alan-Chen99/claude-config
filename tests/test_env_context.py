@@ -217,10 +217,24 @@ def test_tmp_root_prefers_env(tmp_path: Path) -> None:
     assert scratchpad.tmp_root({"CLAUDE_CODE_TMPDIR": str(tmp_path)}) == str(tmp_path)
 
 
-def test_tmp_root_falls_back_to_system_temp() -> None:
-    import tempfile
+def test_tmp_root_empty_string_falls_through() -> None:
+    # cc's Spe() is `K.CLAUDE_CODE_TMPDIR || os.tmpdir()`; JS `||` treats ""
+    # as falsy exactly like Python's `or`, so an empty override must fall
+    # through to the same place an unset one does.
+    assert scratchpad.tmp_root({"CLAUDE_CODE_TMPDIR": ""}) == scratchpad.tmp_root({})
 
-    assert scratchpad.tmp_root({}) == tempfile.gettempdir()
+
+def test_tmp_root_fallback_is_an_existing_directory() -> None:
+    # Deliberately not `== tempfile.gettempdir()`: that would only restate
+    # tmp_root's own implementation and could never fail. Node's
+    # os.tmpdir() reads TMPDIR || TMP || TEMP; Python's
+    # tempfile.gettempdir() reads TMPDIR, TEMP, TMP -- a reordering that
+    # disagrees with cc whenever TMP and TEMP are both set to different
+    # real paths. Task 9's CLAUDE_CODE_TMPDIR export is what actually keeps
+    # this module and cc in agreement in a real session, short-circuiting
+    # that ordering difference; this only guards that whatever fallback
+    # this module picks is at least a real, usable directory.
+    assert Path(scratchpad.tmp_root({})).is_dir()
 
 
 def test_slug_replaces_non_alphanumerics() -> None:
@@ -263,3 +277,45 @@ def test_ensure_creates_private_directory(tmp_path: Path) -> None:
         uid=0,
     )
     assert again == path
+
+
+def test_scratchpad_path_requires_session_id() -> None:
+    # session_id has no default -- unlike env/cwd/uid, whose None each
+    # stand for a real fallback (the real environment, the real cwd, the
+    # real uid), "" would stand for nothing; there is no "current session
+    # id" to fall back to. A missing one used to vanish silently instead of
+    # raising, because Path("x") / "" is a no-op.
+    with pytest.raises(TypeError):
+        scratchpad.scratchpad_path(  # pyright: ignore[reportCallIssue]
+            env={}, cwd="/root/claude-config-work", uid=0
+        )
+
+
+def test_ensure_requires_session_id() -> None:
+    with pytest.raises(TypeError):
+        scratchpad.ensure(  # pyright: ignore[reportCallIssue]
+            env={}, cwd="/root/claude-config-work", uid=0
+        )
+
+
+def test_ensure_does_not_restrict_the_tmp_root(tmp_path: Path) -> None:
+    # Regression guard: the old ensure() counted levels positionally via
+    # path.parent.parent.parent, so a missing session_id made uid_dir
+    # resolve to the tmp root itself, which then got mkdir'd and chmod'd to
+    # 0700. Built downward, ensure() only ever forces 0700 on uid_dir and
+    # the final scratchpad dir. A tmp root that does not exist yet still
+    # gets created -- parents=True has no other option -- but Path.mkdir
+    # only applies `mode` to the leaf of a given call, so it must come out
+    # at whatever default permissions an ordinary mkdir gives in the same
+    # process and umask, not the restrictive 0700 reserved for uid_dir.
+    tmp_root = tmp_path / "does-not-exist-yet"
+    control = tmp_path / "control"
+    control.mkdir()
+    scratchpad.ensure(
+        env={"CLAUDE_CODE_TMPDIR": str(tmp_root)},
+        cwd="/root/claude-config-work",
+        session_id="abc-123",
+        uid=0,
+    )
+    assert tmp_root.is_dir()
+    assert stat.S_IMODE(tmp_root.stat().st_mode) == stat.S_IMODE(control.stat().st_mode)

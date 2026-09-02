@@ -45,9 +45,10 @@ def project_slug(cwd: str) -> str:
 
 
 def scratchpad_path(
+    *,
     env: Mapping[str, str] | None = None,
     cwd: str | None = None,
-    session_id: str = "",
+    session_id: str,
     uid: int | None = None,
 ) -> Path:
     env = os.environ if env is None else env
@@ -63,22 +64,34 @@ def scratchpad_path(
 
 
 def ensure(
+    *,
     env: Mapping[str, str] | None = None,
     cwd: str | None = None,
-    session_id: str = "",
+    session_id: str,
     uid: int | None = None,
 ) -> Path:
     """Create the scratchpad at mode 0700 and return it.
 
-    Claude Code realpaths its `claude-<uid>` directory (`yJ()`,
-    globals/05.js:8230), so a symlinked tmp root would otherwise yield a
-    different string than the one subagents are given.
+    Built downward (tmp root -> uid dir -> slug -> session -> scratchpad)
+    rather than by re-deriving levels from scratchpad_path()'s output via
+    positional .parent hops, so a caller error can no longer make a wrong
+    level be mistaken for uid_dir. Claude Code realpaths its `claude-<uid>`
+    directory (`yJ()`, globals/05.js:8230) before descending further, so a
+    symlinked tmp root would otherwise yield a different string than the
+    one subagents are given; only that one level is realpathed, matching
+    yJ(), and only uid_dir and the final scratchpad dir are ever forced to
+    0700 here — a tmp root that did not exist yet is created as a side
+    effect of parents=True but is left at whatever default permissions an
+    ordinary mkdir would give it.
     """
-    path = scratchpad_path(env, cwd, session_id, uid)
-    uid_dir = path.parent.parent.parent
+    env = os.environ if env is None else env
+    cwd = os.getcwd() if cwd is None else cwd
+    uid = os.getuid() if uid is None else uid
+    uid_dir = Path(tmp_root(env)) / f"claude-{uid}"
     uid_dir.mkdir(parents=True, mode=0o700, exist_ok=True)
-    resolved = Path(os.path.realpath(uid_dir))
-    final = resolved / path.parent.parent.name / path.parent.name / "scratchpad"
+    final = (
+        Path(os.path.realpath(uid_dir)) / project_slug(cwd) / session_id / "scratchpad"
+    )
     final.mkdir(parents=True, mode=0o700, exist_ok=True)
     os.chmod(final, 0o700)
     return final
