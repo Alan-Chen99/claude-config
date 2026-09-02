@@ -114,6 +114,19 @@ agent-tools entry point is unchanged."
 
 Claude Code's env block reads `$SHELL` and prints the literal `unknown` when it is unset (`Kml()`, `src/globals/21.js:13560`) — which is what happens here, because the `claude` process has no `SHELL`. Its Bash tool independently resolves a real shell (`src/globals/10.js:22633`) and that is the shell your commands actually run in. This task reimplements the Bash tool's algorithm.
 
+> **Amended during review.** The code below is the first draft; the committed
+> version in `aa7808c`, `b3f3a7e` and `c79e4e7` differs in ways review found
+> necessary. Read `src/claude_config/env_context/environment.py` as the
+> authority. The deltas: `env` widened to `Mapping[str, str]` so `os.environ`
+> is accepted, and `search_dirs` to `Sequence[str]`, with `SEARCH_DIRS` a
+> tuple; `found` collapsed from a `None`/`{}` tri-state dict to
+> `Callable[[str], str | None] = shutil.which`; a private `_git()` helper
+> wrapping both git calls with `timeout=5` and catching `OSError` /
+> `subprocess.SubprocessError`, because a missing git binary, a deleted cwd
+> and a cwd that is a file all raise rather than exiting non-zero, and Task 7
+> would have let any of them kill the hook; and nine further tests covering
+> the four functions this task's original test list left uncovered.
+
 **Files:**
 - Create: `src/claude_config/env_context/environment.py`
 - Test: `tests/test_env_context.py`
@@ -461,6 +474,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 
 # `vie`, globals/02.js:2753. Past this cc appends a hash suffix to the slug.
@@ -469,7 +483,7 @@ SLUG_LIMIT = 200
 _NON_ALPHANUMERIC = re.compile(r"[^a-zA-Z0-9]")
 
 
-def tmp_root(env: dict[str, str] | None = None) -> str:
+def tmp_root(env: Mapping[str, str] | None = None) -> str:
     """Mirrors `Spe()`, globals/05.js:8056."""
     env = os.environ if env is None else env
     return env.get("CLAUDE_CODE_TMPDIR") or tempfile.gettempdir()
@@ -492,7 +506,7 @@ def project_slug(cwd: str) -> str:
 
 
 def scratchpad_path(
-    env: dict[str, str] | None = None,
+    env: Mapping[str, str] | None = None,
     cwd: str | None = None,
     session_id: str = "",
     uid: int | None = None,
@@ -510,7 +524,7 @@ def scratchpad_path(
 
 
 def ensure(
-    env: dict[str, str] | None = None,
+    env: Mapping[str, str] | None = None,
     cwd: str | None = None,
     session_id: str = "",
     uid: int | None = None,
@@ -535,7 +549,7 @@ def ensure(
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 13 tests
+Expected: PASS, 22 tests
 
 - [ ] **Step 5: Commit**
 
@@ -707,7 +721,7 @@ def sections(facts: dict[str, object]) -> str:
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 19 tests
+Expected: PASS, 28 tests
 
 - [ ] **Step 5: Commit**
 
@@ -919,9 +933,9 @@ import os
 import re
 import shutil
 import subprocess
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 ANCHOR = b"You have been invoked in the following environment: "
 WINDOW_BEFORE = 3000
@@ -938,7 +952,7 @@ class Comparison:
     removed: list[str] = field(default_factory=list)
 
 
-def find_binary(env: dict[str, str] | None = None) -> Path:
+def find_binary(env: Mapping[str, str] | None = None) -> Path:
     """Locate the running Claude Code binary.
 
     CLAUDE_CODE_EXECPATH is set in hook and tool subprocess environments and
@@ -1031,7 +1045,7 @@ def cached_note(
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 25 tests
+Expected: PASS, 34 tests
 
 - [ ] **Step 5: Sanity-check against the real binary**
 
@@ -1166,6 +1180,17 @@ def test_hook_fails_loudly_on_malformed_payload() -> None:
     )
     assert result.returncode != 0
     assert "Traceback" in result.stderr
+
+
+def test_shell_fallback_when_no_shell_resolves(monkeypatch) -> None:
+    """A shell that cannot be named must not cost the session its whole block."""
+    from claude_config.env_context import __main__ as entry
+
+    def boom() -> str:
+        raise RuntimeError("no bash or zsh found")
+
+    monkeypatch.setattr(entry.environment, "resolve_shell", boom)
+    assert entry.resolved_shell() == "unknown"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1222,6 +1247,22 @@ def drift_note() -> str | None:
         return f"env-block drift check failed ({exc}). Run scripts/check-env-context.sh."
 
 
+def resolved_shell() -> str:
+    """The Bash tool's shell, or cc's own literal `unknown`.
+
+    `resolve_shell` raises when no bash or zsh exists, which is the honest
+    answer for a function whose job is to name one. It is the wrong answer for
+    this hook: an exception here costs the session its whole env block, and
+    the block is still worth having without the shell line. `unknown` is what
+    cc itself prints in that position (`Kml()`, globals/21.js:13560).
+    """
+    try:
+        return environment.resolve_shell()
+    except RuntimeError as exc:
+        print(f"env-context: shell resolution failed: {exc}", file=sys.stderr)
+        return "unknown"
+
+
 def main() -> int:
     payload = json.loads(sys.stdin.read())
     cwd = payload["cwd"]
@@ -1232,7 +1273,7 @@ def main() -> int:
         "is_git_repo": environment.is_git_repo(cwd),
         "worktree_common_dir": environment.worktree_common_dir(cwd),
         "platform": environment.platform_name(),
-        "shell": environment.resolve_shell(),
+        "shell": resolved_shell(),
         "os_version": environment.os_version(),
         "model": payload.get("model"),
         "session_id": session_id,
@@ -1260,7 +1301,7 @@ if __name__ == "__main__":
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 29 tests
+Expected: PASS, 39 tests
 
 - [ ] **Step 5: Check the real output by hand**
 
@@ -1806,7 +1847,7 @@ from claude_config.env_context import drift, environment, render, scratchpad
 Delete the now-duplicated import lines from the body. Then re-run:
 `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 29 tests
+Expected: PASS, 39 tests
 
 Commit:
 
@@ -1820,7 +1861,7 @@ git commit -m "style: collect test imports at the top of the file"
 
 Run: `uv run --project /root/claude-config-work pytest tests/ -v`
 
-Expected: PASS. `test_env_context.py` contributes 29 tests; the pre-existing `test_cc_pretty_render.py`, `test_cc_pretty_intercept.py`, `test_opencode_pretty.py` and `test_install.py` must be unaffected — this change touches none of their code.
+Expected: PASS. `test_env_context.py` contributes 39 tests; the pre-existing `test_cc_pretty_render.py`, `test_cc_pretty_intercept.py`, `test_opencode_pretty.py` and `test_install.py` must be unaffected — this change touches none of their code.
 
 - [ ] **Step 3: Run both new scripts**
 
