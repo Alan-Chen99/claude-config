@@ -1,6 +1,7 @@
 {
   "version": "2.1.235",
-  "literals": [
+  "_comment": "window_literals are the printable strings found in a fixed byte window around the env-block anchor; their job is to catch NEW fields cc adds near it. required_literals are field templates this hook reimplements that the window cannot see at all; their job is to catch a RENAME OR REMOVAL via a whole-binary presence check instead. The split exists because Kml()'s literals (behind the Shell: field) live in a different region of the binary's string table than the anchor's window, at any window size, not merely outside the current window's edges. The Shell probe is the 17-char 'Shell: PowerShell', unique to Kml()'s Windows branch (3/3 whole-binary hits are it), rather than the bare 7-char 'Shell: ' prefix, which is both sub-threshold for window_literals and, like 'Platform: ', drowned in unrelated uses elsewhere if checked directly. 'Platform: ' has no comparably distinctive substitute, so it stays despite being a weak probe: of its 14 whole-binary hits only 6 are this hook's own fields (the other 8 are unrelated diagnostic/telemetry templates), so it can only catch total removal of the label, not a rename scoped to just this hook's fields. Do not fold these two lists back into one.",
+  "window_literals": [
     "# Environment",
     ". The exact model ID is ",
     "Additional working directories:",
@@ -14,5 +15,9 @@
     "You are powered by the model ",
     "You are powered by the model named ",
     "You have been invoked in the following environment: "
+  ],
+  "required_literals": [
+    "Platform: ",
+    "Shell: PowerShell"
   ]
 }
