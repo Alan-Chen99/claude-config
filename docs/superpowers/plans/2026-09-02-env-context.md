@@ -878,6 +878,30 @@ tracks upgrades without anyone regenerating the dump."
 
 ## Task 6: Drift detection
 
+> **Amended during review.** The code below is the first draft; the committed
+> version, through `8058eb9`, is the authority — read
+> `src/claude_config/env_context/drift.py`. What review changed:
+>
+> - **A corrupt cache never repaired itself.** `json.loads` raised before the
+>   rewrite, so one torn write made every later session report "drift check
+>   failed" until a human deleted the file. An unreadable cache is now a miss.
+> - **The cache key covered the binary but not the manifest**, so a re-pin
+>   against an unchanged binary left the stale note outliving its condition.
+> - **The test fixtures were a mirror image of the real binary.** In the
+>   installed binary 12 of 13 window literals sit *before* the anchor, at
+>   offsets −32 to −1232; the draft helper wrote every literal after it, so
+>   `WINDOW_BEFORE` was entirely unexercised.
+> - **The draft's fixtures omitted the anchor** from their expected
+>   `window_literals`, but the anchor is 52 bytes against a 1500-byte forward
+>   window, so it is always extracted. `_manifest()` now adds it centrally.
+> - **Coverage gaps found by mutation:** `find_binary` had no test at all, the
+>   cache had no invalidation test, and the version conjunct had none. Sixteen
+>   drift tests now, up from seven, and all fourteen mutations go red.
+>
+> Type annotations also go beyond the draft — `ManifestData` and `CacheEntry`
+> TypedDicts with casts at the `json.loads` sites — to reach the package's
+> basedpyright bar, the same pattern `render.py`'s `Facts` established.
+
 **Files:**
 - Create: `src/claude_config/env_context/drift.py`
 - Test: `tests/test_env_context.py`
