@@ -549,7 +549,7 @@ def ensure(
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 22 tests
+Expected: PASS — the 6 new tests, plus everything already in the file
 
 - [ ] **Step 5: Commit**
 
@@ -721,7 +721,7 @@ def sections(facts: dict[str, object]) -> str:
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 28 tests
+Expected: PASS — the 6 new tests, plus everything already in the file
 
 - [ ] **Step 5: Commit**
 
@@ -1045,7 +1045,7 @@ def cached_note(
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 34 tests
+Expected: PASS — the 6 new tests, plus everything already in the file
 
 - [ ] **Step 5: Sanity-check against the real binary**
 
@@ -1301,7 +1301,7 @@ if __name__ == "__main__":
 
 Run: `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 39 tests
+Expected: PASS — the 5 new tests, plus everything already in the file
 
 - [ ] **Step 5: Check the real output by hand**
 
@@ -1847,7 +1847,7 @@ from claude_config.env_context import drift, environment, render, scratchpad
 Delete the now-duplicated import lines from the body. Then re-run:
 `uv run --project /root/claude-config-work pytest tests/test_env_context.py -v`
 
-Expected: PASS, 39 tests
+Expected: PASS — the 5 new tests, plus everything already in the file
 
 Commit:
 
@@ -1861,7 +1861,7 @@ git commit -m "style: collect test imports at the top of the file"
 
 Run: `uv run --project /root/claude-config-work pytest tests/ -v`
 
-Expected: PASS. `test_env_context.py` contributes 39 tests; the pre-existing `test_cc_pretty_render.py`, `test_cc_pretty_intercept.py`, `test_opencode_pretty.py` and `test_install.py` must be unaffected — this change touches none of their code.
+Expected: PASS. `test_env_context.py` contributes every test added by Tasks 1-7; the pre-existing `test_cc_pretty_render.py`, `test_cc_pretty_intercept.py`, `test_opencode_pretty.py` and `test_install.py` must be unaffected — this change touches none of their code.
 
 - [ ] **Step 3: Run both new scripts**
 
