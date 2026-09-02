@@ -335,6 +335,15 @@ def test_slug_at_201_chars_raises() -> None:
         scratchpad.project_slug(cwd)
 
 
+def test_slug_rejects_empty_cwd() -> None:
+    # Same bug _validate_session_id closes for session ids: an empty slug
+    # would drop its own path segment, since Path('/a') / '' is a no-op.
+    # Not reachable from cc, which always sends a real cwd, but consistency
+    # matters more than reachability here.
+    with pytest.raises(ValueError):
+        scratchpad.project_slug("")
+
+
 def test_scratchpad_path_and_ensure_agree_under_symlinked_tmp_root(tmp_path: Path) -> None:
     # The module's founding bug, reintroduced inside the module: ensure()
     # realpathed claude-<uid> (matching cc's yJ()) but scratchpad_path()
@@ -342,6 +351,12 @@ def test_scratchpad_path_and_ensure_agree_under_symlinked_tmp_root(tmp_path: Pat
     # input whenever the tmp root is itself a symlink -- as TMPDIR is on
     # macOS, under /var -> /private/var. Latent on this host only because
     # /tmp here is not a symlink.
+    #
+    # `path == created` alone cannot catch a regression here: ensure() now
+    # returns scratchpad_path()'s value verbatim, so that equality holds
+    # whether or not realpath runs at all. The absolute assertion below is
+    # what actually exercises the realpath call -- confirmed by deleting
+    # os.path.realpath from scratchpad_path and watching it fail.
     real_root = tmp_path / "real_tmp"
     real_root.mkdir()
     link_root = tmp_path / "link_tmp"
@@ -355,13 +370,20 @@ def test_scratchpad_path_and_ensure_agree_under_symlinked_tmp_root(tmp_path: Pat
         env=env, cwd="/root/claude-config-work", session_id="abc-123", uid=0
     )
     assert path == created
+    assert (
+        created
+        == real_root / "claude-0" / "-root-claude-config-work" / "abc-123" / "scratchpad"
+    )
 
 
 def test_scratchpad_path_and_ensure_agree_when_uid_dir_itself_is_a_symlink(
     tmp_path: Path,
 ) -> None:
     # A second, distinct shape of the same bug: claude-<uid> itself (not
-    # just an ancestor of the tmp root) can be a symlink.
+    # just an ancestor of the tmp root) can be a symlink. Same caveat as
+    # above: `path == created` cannot fail on its own, so this also
+    # asserts the absolute path -- here with no claude-0 component at all,
+    # since realpath resolves the whole symlink away.
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     (tmp_path / "claude-0").symlink_to(elsewhere)
@@ -374,6 +396,7 @@ def test_scratchpad_path_and_ensure_agree_when_uid_dir_itself_is_a_symlink(
         env=env, cwd="/root/claude-config-work", session_id="abc-123", uid=0
     )
     assert path == created
+    assert created == elsewhere / "-root-claude-config-work" / "abc-123" / "scratchpad"
 
 
 @pytest.mark.parametrize(

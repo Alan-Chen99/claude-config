@@ -33,8 +33,15 @@ def project_slug(cwd: str) -> str:
 
     Past SLUG_LIMIT cc appends `-<hash>` using a hash this module does not
     implement. Raising beats emitting a path cc does not use.
+
+    Also raises on an empty cwd. cc never sends one, but an empty slug
+    would drop its own path segment the same way an unvalidated empty
+    session_id did -- Path('/a') / '' is a no-op -- and consistency
+    matters more than reachability here.
     """
     slug = _NON_ALPHANUMERIC.sub("-", cwd)
+    if not slug:
+        raise ValueError(f"project slug for {cwd!r} would be empty, dropping its path segment")
     if len(slug) > SLUG_LIMIT:
         raise ValueError(
             f"project slug for {cwd!r} is {len(slug)} characters, past Claude Code's "
@@ -133,6 +140,16 @@ def ensure(
     directories mkdir's parents=True creates along the way come out at
     0755, not 0700 like cc uses throughout; cosmetic, since uid_dir at
     0700 already gates traversal into them.
+
+    The unconditional chmod widens two surfaces versus the pre-fix code,
+    which never touched the mode of a uid_dir it did not create. A
+    pre-existing, root-owned uid_dir this process cannot chmod now raises
+    PermissionError instead of passing silently -- an OSError, so Task 7's
+    guard catches it, but worth stating rather than discovering. And the
+    chmod follows a symlinked uid_dir, so a pre-existing
+    `claude-<uid> -> elsewhere` leaves `elsewhere` at 0700, slightly
+    widening the symlink-following surface cc closes with O_NOFOLLOW in
+    `JIt`, which this module deliberately does not mirror.
     """
     env, cwd, uid = _resolve_inputs(env, cwd, uid)
     final = scratchpad_path(env=env, cwd=cwd, session_id=session_id, uid=uid)
