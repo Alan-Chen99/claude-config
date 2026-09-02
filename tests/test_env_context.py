@@ -567,6 +567,7 @@ def test_full_text_matches_snapshot_for_worktree() -> None:
 import json
 import os
 import re
+import tempfile
 
 from claude_config.env_context import drift
 
@@ -637,6 +638,37 @@ def test_extract_finds_literals(tmp_path: Path) -> None:
     literals = drift.extract_literals(binary)
     assert "Primary working directory: " in literals
     assert "Is a git repository: " in literals
+
+
+def test_extract_excludes_strings_under_the_length_floor(tmp_path: Path) -> None:
+    """PRINTABLE's {12,} floor is load-bearing: the committed manifest's
+    shortest window literal (`# Environment`, 13 characters) sits right at
+    the boundary. The synthetic fixtures elsewhere pad with NUL, which
+    never produces sub-floor printable noise to exclude, so nothing so far
+    distinguished {12,} from a much weaker {1,}.
+    """
+    binary = _binary(
+        tmp_path,
+        ["Primary working directory: "],
+        before=["short"],  # 5 characters: must not survive the floor
+    )
+    literals = drift.extract_literals(binary)
+    assert "short" not in literals
+    assert "Primary working directory: " in literals
+
+
+def test_extract_literals_returns_them_sorted(tmp_path: Path) -> None:
+    """Task 10's --update regenerates window_literals from this function's
+    output; order is what keeps a manifest diff reviewable, so the return
+    value must actually be sorted -- not merely a set that happens, on a
+    given run, to contain the right members in the right order.
+    """
+    binary = _binary(
+        tmp_path,
+        ["Zebra field one: ", "Apple field two: ", "Middle field three: "],
+    )
+    literals = drift.extract_literals(binary)
+    assert literals == sorted(literals)
 
 
 def test_extract_raises_without_anchor(tmp_path: Path) -> None:
@@ -752,6 +784,33 @@ def test_cache_avoids_a_second_scan(tmp_path: Path) -> None:
     assert first is None
     assert second is None
     assert len(calls) == 1
+
+
+def test_cache_hit_returns_the_stored_note(tmp_path: Path) -> None:
+    """Every hit-path test elsewhere has note is None, and every non-None
+    assertion sits on a miss -- `return entry.get("note")` -> `return None`
+    survived the whole suite. If that regressed, the module's headline
+    output -- the drift warning itself -- would appear in exactly one
+    session and then silently never again for the life of that
+    binary/manifest pair.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, [*literals, "Current sandbox mode: "], {})
+    cache = tmp_path / "cache.json"
+
+    calls: list[int] = []
+
+    def version() -> str:
+        calls.append(1)
+        return "2.1.235"
+
+    first = drift.cached_note(binary, manifest, cache, version)
+    assert first is not None  # a genuine drift note from the miss path
+
+    second = drift.cached_note(binary, manifest, cache, version)
+    assert len(calls) == 1  # confirms the second call was a real cache hit
+    assert second == first
 
 
 def test_cache_self_heals_from_a_corrupt_file(tmp_path: Path) -> None:
@@ -954,6 +1013,113 @@ def test_cache_distinguishes_binaries_by_path(tmp_path: Path) -> None:
     assert len(calls) == 2
 
 
+def test_cached_note_calls_installed_version_when_version_is_omitted(
+    tmp_path: Path,
+) -> None:
+    """Every other cached_note test passes an explicit version callable.
+    Task 7 calls `drift.cached_note(drift.find_binary(), MANIFEST, CACHE)`
+    with no version at all -- the only branch production actually takes,
+    and before this the only one with zero coverage: replacing
+    `installed_version(binary)` with a literal in the source survived the
+    whole suite.
+    """
+    literals = ["Primary working directory: "]
+    header = b"#!/bin/sh\necho 9.9.9\nexit 0\n"
+    blob = header + b"\x00" * 100
+    blob += b"You have been invoked in the following environment: "
+    for text_ in literals:
+        blob += b"\x00" + text_.encode()
+    blob += b"\x00" * 8000
+    binary = tmp_path / "claude"
+    binary.write_bytes(blob)
+    binary.chmod(0o755)
+
+    manifest = _manifest(tmp_path, literals, {})  # pins version "2.1.235"
+    cache = tmp_path / "cache.json"
+
+    note = drift.cached_note(binary, manifest, cache)
+
+    assert note is not None
+    assert "9.9.9" in note
+
+
+def test_cache_write_failure_does_not_raise_and_still_returns_the_note(
+    tmp_path: Path,
+) -> None:
+    """A cache that cannot be written -- here, a directory sitting at the
+    cache path, standing in for a read-only filesystem or a full disk --
+    must not turn a successful check into a raised exception. The note is
+    still correct; only remembering it fails.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, [*literals, "Current sandbox mode: "], {})
+    cache = tmp_path / "cache.json"
+    cache.mkdir()  # a directory, not a file, at the cache path
+
+    note = drift.cached_note(binary, manifest, cache, lambda: "2.1.235")
+
+    assert note is not None
+    assert "check-env-context.sh" in note
+
+
+def test_cache_write_leaves_no_temp_file_behind(tmp_path: Path) -> None:
+    """tmp-file-plus-replace must clean up after itself on the success
+    path -- no stray .tmp sibling once the real cache file exists.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"
+
+    drift.cached_note(binary, manifest, cache, lambda: "2.1.235")
+
+    assert cache.is_file()
+    strays = [
+        p for p in tmp_path.iterdir() if p.name.startswith(cache.name) and p != cache
+    ]
+    assert strays == []
+
+
+def test_cache_write_failure_preserves_the_existing_cache_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed write must not clobber a prior, still-valid cache -- the
+    whole point of writing to a temp file first and renaming over the
+    original only at the very end, rather than truncating it in place.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "cache.json"
+    cache.write_text('{"sentinel": true}')
+
+    def fake_mkstemp(*args: object, **kwargs: object) -> tuple[int, str]:
+        raise OSError("simulated: disk full")
+
+    monkeypatch.setattr(tempfile, "mkstemp", fake_mkstemp)
+
+    note = drift.cached_note(binary, manifest, cache, lambda: "2.1.235")
+
+    assert note is None  # the check itself still succeeds
+    assert cache.read_text() == '{"sentinel": true}'  # untouched by the failed write
+
+
+def test_cache_creates_its_parent_directory_on_first_run(tmp_path: Path) -> None:
+    """The line that makes a first run work: no test used a cache path
+    whose parent was absent before this.
+    """
+    literals = ["Primary working directory: "]
+    binary = _binary(tmp_path, literals)
+    manifest = _manifest(tmp_path, literals, {})
+    cache = tmp_path / "nested" / "does-not-exist-yet" / "cache.json"
+
+    note = drift.cached_note(binary, manifest, cache, lambda: "2.1.235")
+
+    assert note is None
+    assert cache.is_file()
+
+
 def test_cached_note_text_names_the_script(tmp_path: Path) -> None:
     binary = _binary(tmp_path, ["Current sandbox mode: "])
     manifest = _manifest(tmp_path, ["Old field: "], {})
@@ -961,6 +1127,7 @@ def test_cached_note_text_names_the_script(tmp_path: Path) -> None:
     note = drift.cached_note(binary, manifest, cache, lambda: "2.1.240")
     assert note is not None
     assert "2.1.240" in note
+    assert "2.1.235" in note  # the pinned version, not just the installed one
     assert "check-env-context.sh" in note
 
 
@@ -1007,6 +1174,46 @@ def test_find_binary_returns_path_claude_when_it_has_the_anchor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("CLAUDE_CODE_EXECPATH", raising=False)
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    direct = bindir / "claude"
+    _stub(direct, anchor=True)
+    monkeypatch.setenv("PATH", str(bindir))
+    assert drift.find_binary() == Path(os.path.realpath(direct))
+
+
+def test_find_binary_resolves_the_path_claude_through_a_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The PATH branch must realpath its result too -- like the EXECPATH
+    and .claude-wrapped branches -- so one physical binary keys the cache
+    under one string regardless of which branch found it. The other two
+    branches were pinned already; this one wasn't, because a plain
+    (non-symlink) stub file can't distinguish `Path(found)` from
+    `Path(realpath(found))`.
+    """
+    monkeypatch.delenv("CLAUDE_CODE_EXECPATH", raising=False)
+    real = tmp_path / "claude-real"
+    _stub(real, anchor=True)
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    link = bindir / "claude"
+    link.symlink_to(real)
+    monkeypatch.setenv("PATH", str(bindir))
+    assert drift.find_binary() == real
+
+
+def test_find_binary_rejects_execpath_naming_a_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """EXECPATH naming a directory must fall through to the PATH-based
+    lookup, not be trusted as a binary -- is_file() rejects a directory
+    where a weaker exists() check would not. The existing dangling-path
+    test doesn't distinguish these: exists() rejects that case too.
+    """
+    a_directory = tmp_path / "not-a-binary"
+    a_directory.mkdir()
+    monkeypatch.setenv("CLAUDE_CODE_EXECPATH", str(a_directory))
     bindir = tmp_path / "bin"
     bindir.mkdir()
     direct = bindir / "claude"
@@ -1108,6 +1315,7 @@ def test_installed_version_raises_on_timeout(
     def fake_run(
         *args: object, **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
+        assert kwargs["timeout"] == 5
         raise subprocess.TimeoutExpired(cmd=[str(binary), "--version"], timeout=5)
 
     monkeypatch.setattr(subprocess, "run", fake_run)

@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -213,24 +214,25 @@ def cached_note(
 ) -> str | None:
     """Return a one-line drift note, or None when the field set still matches.
 
-    The result is cached on the binary's size and mtime plus a hash of the
-    manifest's content, so the full scan runs once per Claude Code upgrade
-    -- or once per manifest re-pin -- rather than once per session. The
-    manifest is hashed rather than keyed on its mtime because Task 7 points
-    every worktree at one global cache: this repo alone has five worktrees,
-    each with its own manifest file and its own mtime, so an mtime key
-    thrashed to a full rescan on every alternation between checkouts even
-    when their manifests were byte-identical copies of each other. The hash
-    still catches a genuine re-pin (`check-env-context.sh --update`), and
-    it also catches a same-mtime copy (`cp -p`, `rsync --times`) that an
-    mtime key would miss -- strictly stronger, for a ~2 KB file, free.
+    The result is cached on the binary's path, size, and mtime, plus a hash
+    of the manifest's content, so the full scan runs once per Claude Code
+    upgrade -- or once per manifest re-pin -- rather than once per session.
+    The manifest is hashed rather than keyed on its mtime because Task 7
+    points every worktree at one global cache: this repo alone has five
+    worktrees, each with its own manifest file and its own mtime, so an
+    mtime key thrashed to a full rescan on every alternation between
+    checkouts even when their manifests were byte-identical copies of each
+    other. The hash still catches a genuine re-pin
+    (`check-env-context.sh --update`), and it also catches a same-mtime
+    copy (`cp -p`, `rsync --times`) that an mtime key would miss --
+    strictly stronger, for a ~2 KB file, free.
 
     A cache file that is unreadable, undecodable, or not a JSON object --
     a truncated write, invalid UTF-8, or valid JSON of the wrong shape, most
     plausibly from two sessions racing to write it at once -- is treated as
-    a miss rather than raised: the scan reruns and the file is overwritten
-    below, so the damage self-heals on the next session instead of wedging
-    every session after it.
+    a miss rather than raised: the scan reruns and `_write_cache` below
+    overwrites the file, so the damage self-heals on the next session
+    instead of wedging every session after it.
     """
     binary_stat = binary.stat()
     key = {
@@ -256,11 +258,41 @@ def cached_note(
     note = None
     if not result.matches:
         note = (
-            f"The env-block field set this hook is pinned to "
-            f"({result.pinned_version}) no longer matches the installed "
-            f"Claude Code {result.installed_version}. Run "
+            f"Claude Code's env-block field set has drifted from the "
+            f"{result.pinned_version} baseline this hook is pinned to "
+            f"(installed version: {result.installed_version}). Run "
             "scripts/check-env-context.sh to review."
         )
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    _ = cache.write_text(json.dumps({**key, "note": note}))
+    _write_cache(cache, json.dumps({**key, "note": note}))
     return note
+
+
+def _write_cache(cache: Path, payload: str) -> None:
+    """Best-effort atomic write: a failure here means the answer goes
+    unremembered, not that the check itself failed -- the caller's note is
+    still correct even when this can't persist it. A directory sitting at
+    the cache path, a read-only filesystem, or a full disk must cost one
+    cache miss, not wedge every session after it the way an unguarded write
+    would.
+
+    tmp-file-plus-replace also removes the race outright rather than
+    leaving the read side to tolerate it: with one global cache shared
+    across every worktree (see this function's docstring), two sessions
+    writing at once is the expected case, not the edge case, and a plain
+    write_text call is exactly what produces the torn file the read guard
+    exists to survive.
+    """
+    try:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(dir=cache.parent, prefix=f"{cache.name}.")
+    except OSError:
+        return
+    try:
+        with os.fdopen(fd, "w") as fh:
+            _ = fh.write(payload)
+        os.replace(tmp_name, cache)
+    except OSError:
+        try:
+            Path(tmp_name).unlink(missing_ok=True)
+        except OSError:
+            pass
