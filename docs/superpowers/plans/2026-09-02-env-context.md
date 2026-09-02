@@ -2113,6 +2113,24 @@ agent behaviour well beyond this hook. Report the conflict to the user as a
 decision they may want to make, and stop there.
 
 
+- [ ] **Step 5e: Update the snapshot docs' hardcoded scratchpad paths**
+
+`docs/system-prompt-snapshot/README.md:105` and
+`docs/system-prompt-snapshot/what-the-model-gets.md:132` both spell the
+scratchpad as `/tmp/claude-0/<slug>/<sid>/scratchpad`. Task 9's
+`CLAUDE_CODE_TMPDIR` export makes that stale for any session launched by
+`claude.sh`. Rewrite them to name the root as `$CLAUDE_CODE_TMPDIR` with
+`/tmp` as the fallback, rather than hardcoding either.
+
+- [ ] **Step 5f: Stop `capture.py` inheriting the redirected tmp root**
+
+`docs/system-prompt-snapshot/capture.py:363` copies the environment and pops
+only `CLAUDECODE` and `CLAUDE_CODE_CHILD_SESSION`, so a capture launched from
+inside a `claude.sh` session inherits `CLAUDE_CODE_TMPDIR` and records
+`/root/.claude/tmp/...` paths in the captured prompt — a spurious diff against
+every committed snapshot. Pop it alongside the other two, and say in a comment
+that the captures are pinned to cc's default root so they stay comparable.
+
 - [ ] **Step 5d: Correct `agent-tools`' own `--help` text**
 
 `agent-tools/src/main.rs:233` carries the clap doc comment
