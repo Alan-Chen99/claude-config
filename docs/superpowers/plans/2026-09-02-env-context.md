@@ -1554,7 +1554,7 @@ echo '{"session_id":"manual-check","transcript_path":"/dev/null","cwd":"/root/cl
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])'
 ```
 
-Expected: an env block reporting `Shell: /bin/bash` (not `unknown`), `Is a git repository: true`, the two worktree lines naming `/repos/claude-config/.git`, and a `# Scratchpad Directory` section. Confirm the block contains no `NOTE:` bullet — the manifest was pinned against this same binary in Task 5.
+Expected: an env block reporting `Shell: /bin/bash` (not `unknown`), `Is a git repository: true`, the two worktree lines naming `/repos/claude-config` — `render._main_checkout` strips the `.git` component from the common dir git reports — and a `# Scratchpad Directory` section. Confirm the block contains no `NOTE:` bullet — the manifest was pinned against this same binary in Task 5.
 
 Then clean up the directory that check created:
 
