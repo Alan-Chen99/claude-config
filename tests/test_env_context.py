@@ -448,3 +448,73 @@ def test_ensure_repairs_a_preexisting_uid_dir_mode(tmp_path: Path) -> None:
         uid=0,
     )
     assert stat.S_IMODE(uid_dir.stat().st_mode) == 0o700
+
+
+from claude_config.env_context import render
+
+
+def _facts(**overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "cwd": "/root/claude-config-work",
+        "is_git_repo": True,
+        "worktree_common_dir": None,
+        "platform": "linux",
+        "shell": "/bin/bash",
+        "os_version": "Linux 6.18.7",
+        "model": "claude-opus-5",
+        "session_id": "abc-123",
+        "scratchpad": "/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad",
+        "drift_note": None,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_env_block_has_expected_bullets() -> None:
+    text = render.sections(_facts())
+    assert text.startswith("# Environment\nYou have been invoked in the following environment: \n")
+    assert " - Primary working directory: /root/claude-config-work" in text
+    assert " - Is a git repository: true" in text
+    assert " - Platform: linux" in text
+    assert " - Shell: /bin/bash" in text
+    assert " - OS Version: Linux 6.18.7" in text
+    assert " - You are powered by the model claude-opus-5" in text
+    assert " - Session ID: abc-123" in text
+
+
+def test_model_line_omitted_when_absent() -> None:
+    text = render.sections(_facts(model=None))
+    assert "powered by the model" not in text
+
+
+def test_worktree_lines_present_only_in_a_worktree() -> None:
+    plain = render.sections(_facts())
+    assert "git worktree" not in plain
+
+    linked = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
+    assert " - This is a git worktree of /repos/claude-config/.git." in linked
+    assert "git stash" in linked
+
+
+def test_scratchpad_section_names_the_path() -> None:
+    text = render.sections(_facts())
+    assert "# Scratchpad Directory" in text
+    assert "/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad" in text
+
+
+def test_drift_note_appears_as_a_bullet() -> None:
+    text = render.sections(_facts(drift_note="Claude Code 2.1.240 changed its env block."))
+    assert " - NOTE: Claude Code 2.1.240 changed its env block." in text
+
+
+def test_git_repo_false_renders_lowercase() -> None:
+    text = render.sections(_facts(is_git_repo=False))
+    assert " - Is a git repository: false" in text
+
+
+def test_scratchpad_section_omitted_when_unavailable() -> None:
+    """An uncreatable scratchpad must cost the section, not the whole block."""
+    text = render.sections(_facts(scratchpad=None))
+    assert "# Scratchpad Directory" not in text
+    assert "None" not in text
+    assert "# Environment" in text
