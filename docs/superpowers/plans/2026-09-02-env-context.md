@@ -1136,10 +1136,19 @@ def extract_literals(binary: Path) -> list[str]:
     return literals_in(binary.read_bytes(), str(binary))
 
 
-def installed_version() -> str:
-    result = subprocess.run(["claude", "--version"], capture_output=True, text=True)
+def installed_version(binary: Path) -> str:
+    """Interrogate the binary that was scanned, not whatever PATH resolves to.
+
+    `matches` includes the version comparison, so a PATH install differing from
+    the scanned one yields a wrong verdict that the binary-keyed cache pins in
+    place. The timeout is the one failure the hook cannot absorb: its caller
+    converts raises into a note, but not a hang.
+    """
+    result = subprocess.run(
+        [str(binary), "--version"], capture_output=True, text=True, timeout=5
+    )
     if result.returncode != 0:
-        raise RuntimeError(f"claude --version failed: {result.stderr.strip()}")
+        raise RuntimeError(f"{binary} --version failed: {result.stderr.strip()}")
     return result.stdout.split()[0]
 
 
@@ -1187,7 +1196,7 @@ def cached_note(
     binary: Path,
     manifest: Path,
     cache: Path,
-    version: Callable[[], str] = installed_version,
+    version: Callable[[], str] | None = None,
 ) -> str | None:
     """Return a one-line drift note, or None when the field set still matches.
 
@@ -1202,7 +1211,7 @@ def cached_note(
         if all(stored.get(k) == v for k, v in key.items()):
             return stored.get("note")
 
-    result = compare(binary, manifest, version())
+    result = compare(binary, manifest, (version or (lambda: installed_version(binary)))())
     note = None
     if not result.matches:
         note = (
@@ -1232,7 +1241,7 @@ from pathlib import Path
 from claude_config.env_context import drift
 b = drift.find_binary()
 print('binary:', b)
-r = drift.compare(b, Path('docs/env-context-manifest.json'), drift.installed_version())
+r = drift.compare(b, Path('docs/env-context-manifest.json'), drift.installed_version(b))
 print('matches:', r.matches, '| added:', r.added, '| removed:', r.removed,
       '| counts:', r.count_changes)
 "
@@ -1721,7 +1730,7 @@ manifest = Path(sys.argv[1])
 update = sys.argv[2] == "1"
 
 binary = drift.find_binary()
-version = drift.installed_version()
+version = drift.installed_version(binary)
 result = drift.compare(binary, manifest, version)
 
 pinned = json.loads(manifest.read_text())
