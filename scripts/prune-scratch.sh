@@ -61,13 +61,18 @@ validate_session_id() {
 	esac
 }
 
-# The check that actually earns its place: no path reaches rm/rmdir without
-# first being proven a descendant of $root, regardless of how it was
-# enumerated -- a real invariant about the value being deleted, unlike the
-# claude-<uid> suffix check below, which is about how $root was assembled.
+# Establishes that the target *resolves* to a path inside the *resolved*
+# root -- not that its literal string is prefixed by $root's literal
+# string, which any symlinked component (a project slug, or $root itself)
+# defeats trivially, and not "the value is safe" in any broader sense.
+# Resolving both sides also means a deliberately symlinked root is
+# permitted (its resolved content is still genuinely inside the resolved
+# root), while a symlink planted inside a real root and pointing
+# elsewhere is still refused -- a distinction a plain string-prefix match
+# cannot make.
 assert_under_root() {
-	case "$1" in
-	"$root"/*) ;;
+	case "$(readlink -f -- "$1")" in
+	"$(readlink -f -- "$root")"/*) ;;
 	*)
 		echo "prune-scratch.sh: refusing to touch path outside scratch root: $1" >&2
 		exit 2
@@ -141,8 +146,13 @@ echo "keep (non-empty): ${#kept[@]}"
 
 if [ -n "$session" ]; then
 	targets=()
+	# "$root"/*/ is a bash glob, not find: it will not match a dot-named
+	# project directory (no dotglob), so a session under one would be
+	# invisible here even though the find-based scan above has no such
+	# exclusion. False negative only -- cc's slugs always start with '-',
+	# never '.' -- so this is left deliberately unaddressed.
 	for proj in "$root"/*/; do
-		[ -d "$proj$session" ] && [ ! -L "$proj$session" ] && targets+=("$proj$session")
+		[ ! -L "${proj%/}" ] && [ -d "$proj$session" ] && [ ! -L "$proj$session" ] && targets+=("$proj$session")
 	done
 	if [ ${#targets[@]} -eq 0 ]; then
 		echo "prune-scratch.sh: no session directory named $session under $root" >&2
@@ -174,12 +184,28 @@ if [ "$apply" -eq 0 ]; then
 	exit 0
 fi
 
+deleted=0
+skipped=0
 for pad in "${empty[@]}"; do
 	assert_under_root "$pad"
-	rmdir -- "$pad"
+	# ls -A's output above is run through $(...), which strips trailing
+	# newlines, so a scratchpad whose only entry is a file named entirely
+	# of newline bytes reads as empty there even though it is not. rmdir
+	# is the real guard against that misclassification; tolerate its
+	# refusal here rather than let set -e abort the loop with no summary
+	# after whatever was already deleted.
+	if ! rmdir -- "$pad" 2>/dev/null; then
+		skipped=$((skipped + 1))
+		echo "prune-scratch.sh: skipped $pad: not actually empty (rmdir refused)" >&2
+		continue
+	fi
 	parent="$(dirname "$pad")"
 	assert_under_root "$parent"
 	rmdir --ignore-fail-on-non-empty -- "$parent"
+	deleted=$((deleted + 1))
 done
 echo
-echo "deleted ${#empty[@]} empty scratchpads"
+echo "deleted $deleted empty scratchpads"
+if [ "$skipped" -gt 0 ]; then
+	echo "skipped $skipped (not actually empty)"
+fi
