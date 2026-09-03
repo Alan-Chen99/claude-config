@@ -27,7 +27,29 @@
 #                                    delete that session even if non-empty
 set -euo pipefail
 
-root="${CLAUDE_CODE_TMPDIR:-/tmp}/claude-$(id -u)"
+# Resolves the root the same way src/claude_config/env_context/scratchpad.py's
+# tmp_root() does: CLAUDE_CODE_TMPDIR when set and non-empty, else
+# tempfile.gettempdir(), which checks $TMPDIR ahead of a bare /tmp default.
+# A bare shell `${CLAUDE_CODE_TMPDIR:-/tmp}` expansion does not honour
+# $TMPDIR at all, so with CLAUDE_CODE_TMPDIR unset and TMPDIR=/var/tmp, the
+# hook named /var/tmp/claude-0/... while this script scanned /tmp/claude-0
+# -- reporting "no scratch root; nothing to do" over a tree that was
+# actually growing. Calling scratchpad.py directly, instead of
+# reimplementing gettempdir()'s search order a third time here, is what
+# keeps this script and the hook from being able to disagree about which
+# tree "the" scratch root names again.
+#
+# A bare python3 (not `uv run`, which check-env-context.sh uses elsewhere
+# in this repo) is enough: scratchpad.py imports only the stdlib, so this
+# one call needs no project sync or venv resolution, and adds no
+# dependency beyond a python3 already on PATH -- and, unlike `uv run`,
+# doesn't require a synced venv to exist for a plain, no-op report run.
+repo_root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+tmp_prefix="$(PYTHONPATH="$repo_root/src" python3 -c '
+from claude_config.env_context.scratchpad import tmp_root
+print(tmp_root())
+')"
+root="$tmp_prefix/claude-$(id -u)"
 
 # Mirrors src/claude_config/env_context/scratchpad.py's _validate_session_id:
 # empty, '.', and '..' collide sessions onto each other or escape the tree,

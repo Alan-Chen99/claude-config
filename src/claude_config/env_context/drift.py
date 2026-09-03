@@ -140,15 +140,31 @@ def installed_version(binary: Path) -> str:
     itself, so a PATH/CLAUDE_CODE_EXECPATH divergence cannot compare one
     binary's content against a different binary's version string -- the
     version participates in `matches`, and the result is cached keyed on
-    this same binary. `timeout=2` bounds the one subprocess call Task 7's
+    this same binary. `timeout=10` bounds the one subprocess call Task 7's
     `except Exception` cannot absorb: that clause converts a raise into a
-    note, but not a hang. 2 s leaves headroom inside the hook's own 5 s
-    budget instead of matching it exactly, which would let cc kill the
-    whole hook a moment before this call's own timeout could ever fire.
+    note, but not a hang.
+
+    The budget this shares with the SessionStart hook's own 30 s timeout
+    (settings.json) and environment._git's 2 s (called twice per run):
+    measured cold -- binary dropped from page cache, as happens on the
+    first session after every Claude Code upgrade -- `claude --version`
+    took 3.365 s and a from-disk compare() (the read plus the
+    required_literals count passes) took 0.75 s; both comfortably clear
+    their old, tighter caps (the version call's old 2 s cap, in particular,
+    is why this number moved). Worst case, every capped call spends its
+    full budget rather than actually finishing: 2x2 s git + 10 s version +
+    ~2 s for a slower-than-measured cold read/scan + ~1 s of uncapped misc
+    work (platform/shell/os_version, scratchpad mkdir, cache stat, JSON
+    parsing) totals roughly 17 s against the 30 s outer timeout --
+    comfortably inside it, not matching it, so cc's SIGTERM
+    lands after this function would already have raised on its own, not
+    instead of it. If any of these three numbers moves again, re-check this
+    sum; see docs/superpowers/specs/2026-09-02-env-context-design.md's
+    "Timeout budget" section for the fuller writeup.
     """
     try:
         result = subprocess.run(
-            [str(binary), "--version"], capture_output=True, text=True, timeout=2
+            [str(binary), "--version"], capture_output=True, text=True, timeout=10
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"{binary} --version timed out") from exc

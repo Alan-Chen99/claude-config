@@ -60,6 +60,37 @@ def _scratchpad(root: Path, project: str, session: str) -> Path:
     return pad
 
 
+def test_tmpdir_honoured_when_claude_code_tmpdir_is_unset(tmp_path: Path) -> None:
+    """The bug this closes: scratchpad.py's tmp_root() falls back to
+    tempfile.gettempdir(), which checks $TMPDIR before defaulting to /tmp,
+    but this script's root used to be a bare
+    `${CLAUDE_CODE_TMPDIR:-/tmp}/claude-$(id -u)` shell expansion, which
+    does not consult $TMPDIR at all. With CLAUDE_CODE_TMPDIR unset and
+    TMPDIR pointed elsewhere, the hook named a scratchpad under $TMPDIR
+    while this script silently scanned /tmp instead -- not even failing
+    loudly, but reporting a clean "nothing to do" (or, worse, real counts
+    from an unrelated /tmp/claude-0 left over from other activity) over a
+    tree it never looked at. The root must resolve under $TMPDIR the same
+    way the hook does whenever CLAUDE_CODE_TMPDIR is unset.
+    """
+    root = _claude_root(tmp_path)
+    _scratchpad(root, "-proj", "session-empty")
+    full = _scratchpad(root, "-proj", "session-full")
+    (full / "keep.txt").write_text("work in progress\n")
+
+    result = subprocess.run(
+        ["/bin/bash", str(SCRIPT)],
+        env={"PATH": "/usr/bin:/bin", "TMPDIR": str(tmp_path)},
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert f"scratch root: {root}" in result.stdout
+    assert "prunable (empty): 1" in result.stdout
+    assert "keep (non-empty): 1" in result.stdout
+
+
 def test_session_glob_is_rejected_not_matched(tmp_path: Path) -> None:
     """The closed hole: --session 'session-*' must never reach the filesystem.
 

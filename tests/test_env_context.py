@@ -202,6 +202,23 @@ def test_worktree_common_dir_returns_shared_dir_for_linked_worktree(tmp_path: Pa
     assert Path(result).resolve() == (main / ".git").resolve()
 
 
+def test_git_timeout_is_2_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pins the per-call timeout directly, mirroring how
+    test_installed_version_raises_on_timeout pins drift.installed_version's.
+    _git() is called twice per hook run (is_git_repo, worktree_common_dir),
+    so this number is half of what a hung git costs the whole hook -- see
+    the design spec's "Timeout budget" section for the arithmetic across
+    all three related numbers this shares a budget with.
+    """
+
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert kwargs["timeout"] == 2
+        raise subprocess.TimeoutExpired(cmd=["git"], timeout=2)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert environment.is_git_repo("/tmp") is False
+
+
 def test_os_version_returns_nonempty_string() -> None:
     result = environment.os_version()
     assert isinstance(result, str)
@@ -1303,8 +1320,8 @@ def test_installed_version_raises_on_timeout(
     def fake_run(
         *args: object, **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
-        assert kwargs["timeout"] == 2
-        raise subprocess.TimeoutExpired(cmd=[str(binary), "--version"], timeout=2)
+        assert kwargs["timeout"] == 10
+        raise subprocess.TimeoutExpired(cmd=[str(binary), "--version"], timeout=10)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     with pytest.raises(RuntimeError, match="timed out"):
@@ -1702,6 +1719,61 @@ def test_wrong_type_session_id_exits_loudly_naming_the_contract() -> None:
     )
     assert result.returncode != 0
     assert "field 'session_id' is int, expected str" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_model_absent_is_accepted_by_the_type_check(tmp_path: Path) -> None:
+    """The first of the three cases _optional_str must get right: a payload
+    with no "model" key at all -- print mode's normal shape -- must render
+    cleanly with no model line, not raise.
+    """
+    payload = json.dumps(
+        {
+            "session_id": "abc-123",
+            "transcript_path": "/dev/null",
+            "cwd": str(ROOT),
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+        }
+    )
+    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+    context = out["hookSpecificOutput"]["additionalContext"]
+    assert "# Environment" in context
+    assert "powered by the model" not in context
+
+
+def test_model_none_is_accepted_by_the_type_check(tmp_path: Path) -> None:
+    """The second case: an explicit JSON null must degrade the same quiet
+    way absence does, not be treated as a wrong-typed value.
+    """
+    payload = json.dumps(
+        {
+            "session_id": "abc-123",
+            "transcript_path": "/dev/null",
+            "cwd": str(ROOT),
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+            "model": None,
+        }
+    )
+    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+    context = out["hookSpecificOutput"]["additionalContext"]
+    assert "# Environment" in context
+    assert "powered by the model" not in context
+
+
+def test_wrong_type_model_exits_loudly_naming_the_contract() -> None:
+    """The third case, and the one with no guard at all before this fix:
+    measured, a payload carrying {"model": {"id": "x"}} used to render
+    " - You are powered by the model {'id': 'x'}" -- a Python repr inside
+    the prompt -- instead of failing here, because the old
+    `cast("str | None", ...)` performs no runtime check at all.
+    """
+    result = _run_hook_expecting_exit(
+        json.dumps({"cwd": str(ROOT), "session_id": "s1", "model": {"id": "x"}})
+    )
+    assert result.returncode != 0
+    assert "field 'model' is dict, expected str" in result.stderr
     assert "Traceback" not in result.stderr
 
 

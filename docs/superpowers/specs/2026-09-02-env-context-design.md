@@ -256,13 +256,76 @@ not the manifest's own mtime, because one global cache serves every worktree,
 and an mtime key would thrash on every alternation between checkouts even when
 their manifests are byte-identical copies of each other — so a full scan runs
 once per cc upgrade or manifest re-pin rather than once per session. A warm
-scan of the 331 MB binary measured 0.16 s against the hook's 5 s timeout; the
-cache exists for the cold case.
+scan of the 331 MB binary measured 0.16 s against the hook's 30 s timeout; the
+cache exists for the cold case. See "Timeout budget" below for how that
+30 s was arrived at and what else draws on it.
 
 The check covers literals only. A change to how cc computes a value without
 changing its label — the shell-resolution order, say — will not trip it. The
 manifest therefore records the cc version alongside the literals, so a version
 bump is itself reviewable.
+
+## Timeout budget
+
+Three numbers, set together, none of them independently meaningful:
+
+| Setting | Value | Location |
+| --- | --- | --- |
+| `SessionStart` hook timeout | 30 s | `settings.json` |
+| `environment._git`'s per-call timeout | 2 s (called twice per run: `is_git_repo`, `worktree_common_dir`) | `src/claude_config/env_context/environment.py` |
+| `drift.installed_version`'s subprocess timeout | 10 s | `src/claude_config/env_context/drift.py` |
+
+The outer number has to be bigger than the two inner ones can add up to, with
+margin — cc SIGTERMs then SIGKILLs the hook's process group at the outer
+timeout, and on that path it returns before parsing stdout at all
+(`y0m`, `src/globals/21.js:9240` in the decompiled 2.1.235 dump), discarding
+the whole block rather than whatever had already been written. A hook that
+times out costs the session its env block and its scratchpad path, silently:
+`hook_cancelled` maps to `[]` for the model, and the terminal banner that
+would say a hook timed out is gated to `UserPromptSubmit` only
+(`globals/23.js:21023`).
+
+The three numbers above replaced an inherited, inconsistent set: a 5 s outer
+timeout left over from a much smaller hook (one `git rev-parse`, five printed
+lines), a 5 s `_git` timeout that let two sequential git calls alone consume
+the entire outer budget, and a 2 s `installed_version` timeout reasoned
+against that 5 s outer number in its own docstring. Measured against the old
+numbers: a hung `git` on PATH made the hook take 10.115 s to finish
+naturally — twice the old 5 s outer budget, so cc would have killed it
+mid-block. Separately, with the installed binary's page cache evicted,
+`claude --version` measured 3.365 s, over the old 2 s cap on that call alone
+— meaning the drift check failed on the first session after every Claude
+Code upgrade, exactly the moment it exists to catch.
+
+Worst case under the new numbers, every capped call spending its full
+budget rather than actually finishing:
+
+```
+2 s + 2 s   two _git() calls, each timing out rather than returning  4 s
+10 s        installed_version()'s subprocess timing out              10 s
+~2 s        drift.compare(): a from-disk read of the 331 MB binary
+            plus the required_literals count passes, generously
+            padded from a measured cold (page-cache-evicted) 0.75 s   2 s
+<1 s        everything else: platform/shell/os_version, scratchpad
+            mkdir, cache stat, JSON parsing — none of it capped, all
+            of it measured in the single-digit milliseconds           1 s
+                                                                     ------
+                                                                     ~17 s
+```
+
+roughly 17 s against a 30 s outer timeout — comfortably inside it rather than
+matching it, so a genuinely wedged call still gets cut off by its own,
+smaller timeout before cc's outer one would ever need to fire. `compare()`'s
+read has no timeout of its own (it is a plain `Path.read_bytes()`), which is
+why its contribution above is a measured, padded estimate rather than a cap;
+everything else in the sum is a hard ceiling.
+
+If any one of these three numbers changes, re-check this arithmetic — that is
+the whole reason it is written out here rather than left implicit in each
+value's own docstring. `settings.json` cannot carry a comment (it is parsed
+as plain JSON), so this section is the one place a future change to any of
+the three is checked against the other two; `environment.py`'s and
+`drift.py`'s docstrings point back here rather than duplicating the sum.
 
 ## Files
 

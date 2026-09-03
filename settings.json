@@ -11,7 +11,7 @@
           {
             "type": "command",
             "command": "agent-tools env-context",
-            "timeout": 5
+            "timeout": 30
           }
         ]
       }

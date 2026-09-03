@@ -71,10 +71,16 @@ def _git(args: Sequence[str], cwd: str) -> subprocess.CompletedProcess[str] | No
     A missing git binary, a deleted cwd and a cwd that is a file all raise
     rather than exiting non-zero. The hook must still produce a block, so an
     unrunnable git reads the same as "not a repository".
+
+    `timeout=2`: this is called twice per hook run (is_git_repo, then
+    worktree_common_dir), so a hung git costs up to 2x this value before the
+    hook can move on. It shares the settings.json SessionStart hook's 30 s
+    budget with drift.installed_version's own subprocess call -- see that
+    function's docstring for the full arithmetic across all three numbers.
     """
     try:
         return subprocess.run(
-            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5
+            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=2
         )
     except (OSError, subprocess.SubprocessError):
         return None
