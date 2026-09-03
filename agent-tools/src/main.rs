@@ -233,6 +233,8 @@ enum Cmd {
     /// SessionStart hook: reads the hook payload on stdin, emits the
     /// hookSpecificOutput envelope carrying `# Environment` and
     /// `# Scratchpad Directory`. Not usable interactively — it waits on stdin.
+    /// Run by hand with a synthetic payload:
+    /// echo '{"cwd":"/path","session_id":"test"}' | agent-tools env-context
     #[command(name = "env-context")]
     EnvContext,
     /// Launch opencode with claude-config .env mappings.

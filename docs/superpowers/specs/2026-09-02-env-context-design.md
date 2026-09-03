@@ -11,6 +11,10 @@ numbers hold for 2.1.235 only.
 
 ## Problem
 
+This section describes `env-context` as it stood before this redesign —
+including a `jq`-piped `SessionStart` wiring since replaced (see "Hook input
+and wiring") — not the implementation specified below.
+
 `env-context` reproduces the five-field env block of cc 2.1.143. Three defects
 follow from that, all measured rather than inferred.
 
@@ -161,9 +165,11 @@ redirected root and nothing under `/tmp/claude-0`, confirming cc honours it.
 
 `Spe()` also roots plugin session directories, skill and plugin zip staging, the
 IPC socket directory, and entries in the sandbox write allowlist. The socket is
-the only one with a hard constraint, and cc already guards it: `SFm()`
-(`src/globals/22.js:14393`) falls back to `/tmp/cc-socks-<uid>/` when the path
-exceeds the `sun_path` limit.
+the only one with a hard constraint, and cc already guards it — but `Spe()` is
+only its fallback root: `SFm()` (`src/globals/22.js:14393`) roots the socket at
+`XDG_RUNTIME_DIR` first, reaching `Spe()` only when that is unset, and falls
+back further to `/tmp/cc-socks-<uid>/` when the resulting path exceeds the
+`sun_path` limit.
 
 ### Reporting and creation
 
@@ -172,10 +178,14 @@ exceeds the `sun_path` limit.
 ```
 # Scratchpad Directory
 
-Use this directory for temporary files instead of /tmp:
+Use this directory for temporary files instead of /tmp or other system temp
+directories:
 `<path>`
 
-It is session-specific and isolated from the project.
+Only use /tmp if the user explicitly requests it.
+
+It is session-specific, isolated from the project, and is normally the same
+directory your subagents are given.
 ```
 
 The path is computed the way cc computes it, reading the root from
@@ -196,19 +206,32 @@ loud failure. Our paths are far below the limit.
 artifact-tool eligibility, and an unauthenticated probe session produced no
 scratchpad after 30 seconds of uptime. The directory cannot be assumed to exist.
 
+A background session (`CLAUDE_CODE_SESSION_KIND=bg`) gets no `# Scratchpad
+Directory` section at all: the hook checks that env var before ever calling
+into scratchpad creation, and drops the whole block once there is no path to
+name. `SessionStart` hooks fire from `settings.json` regardless of
+which prompt the session runs, so `env-context` still runs there — cc's own
+`cvi()` (`src/globals/21.js:13624`) drops its scratchpad section the same way
+and substitutes a `# Background Session` block naming `$CLAUDE_JOB_DIR/tmp`
+(`SdE()`, `src/globals/21.js:13595`) instead. Emitting ours too would leave
+the session with two conflicting temp-directory instructions.
+
 ## Pruning
 
 `scripts/prune-scratch.sh`, run by hand. Nothing deletes automatically and the
 hook never mentions scratch size.
 
 It resolves the tmp root the same way cc and the hook do, then reports each
-session directory beneath it: empty scratchpads as prunable, non-empty ones with
-their sizes. It is dry-run by default and deletes only under `--apply`, and only
-empty scratchpads — a non-empty one may hold work in progress, and a session id
-alone does not distinguish a dead session from a live one. Deleting a named
+session directory beneath it in three buckets: empty scratchpads as prunable,
+non-empty ones with their sizes, and sessions with no scratchpad directory at
+all (reported, but never touched by bulk `--apply` — there is nothing there
+for it to delete). It is dry-run by default and deletes only under `--apply`,
+and only empty scratchpads — a non-empty one may hold work in progress, and a
+session id alone does not distinguish a dead session from a live one. Deleting a named
 non-empty session requires naming it explicitly.
 
-Against the current tree that would report 130 prunable and 9 to keep.
+Against the same 139-session tree cited above (1.2 GB, investigated
+2026-09-02), that would report 130 prunable and 9 to keep.
 
 ## Drift check
 
@@ -228,9 +251,13 @@ changes underfoot.
 
 `env-context` performs the same comparison and appends one line to the env block
 when it differs, naming the script. The result is cached under `~/.claude` keyed
-on the binary's size and mtime, so a full scan runs once per cc upgrade rather
-than once per session. A warm scan of the 331 MB binary measured 0.16 s against
-the hook's 5 s timeout; the cache exists for the cold case.
+on the binary's path, size, and mtime, plus a hash of the manifest's content —
+not the manifest's own mtime, because one global cache serves every worktree,
+and an mtime key would thrash on every alternation between checkouts even when
+their manifests are byte-identical copies of each other — so a full scan runs
+once per cc upgrade or manifest re-pin rather than once per session. A warm
+scan of the 331 MB binary measured 0.16 s against the hook's 5 s timeout; the
+cache exists for the cold case.
 
 The check covers literals only. A change to how cc computes a value without
 changing its label — the shell-resolution order, say — will not trip it. The

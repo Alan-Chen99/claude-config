@@ -129,7 +129,7 @@ deliberation, end-of-turn summary, no comments in code by default}
 knowledge cutoff, model family + ids, surfaces, fast mode}
 
 # Scratchpad Directory                            [718 ch, 5 bullets]  NEW
-{${CLAUDE_CODE_TMPDIR:-/tmp}/claude-0/<project-slug>/<session-id>/scratchpad — use instead of /tmp}
+{/tmp/claude-0/<project-slug>/<session-id>/scratchpad — use instead of /tmp}
 
 # Context management                              [1,135 ch]
 {summarization notice, act-when-you-have-enough-information, EndConversation

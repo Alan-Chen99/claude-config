@@ -243,7 +243,7 @@ mod tests {
             Some("hook-post".to_string())
         );
         assert_eq!(
-            named_subcommand("  agent-tools env-context | jq -Rs '{}'"),
+            named_subcommand("  agent-tools env-context"),
             Some("env-context".to_string())
         );
         assert_eq!(

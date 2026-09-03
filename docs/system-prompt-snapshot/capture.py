@@ -366,10 +366,11 @@ def spawn_claude(
     # interactive session looks like.
     env.pop("CLAUDECODE", None)
     env.pop("CLAUDE_CODE_CHILD_SESSION", None)
-    # Captures are pinned to cc's default scratch root (plain /tmp), not
-    # whatever this process's own launcher redirected it to, so a capture
-    # taken from inside a claude.sh session stays comparable against every
-    # other committed snapshot instead of recording /root/.claude/tmp/... paths.
+    # Captures are pinned to cc's own default scratch root -- os.tmpdir(),
+    # i.e. $TMPDIR or /tmp once that is unset too -- not whatever this
+    # process's own launcher redirected it to, so a capture taken from
+    # inside a claude.sh session stays comparable against every other
+    # committed snapshot instead of recording /root/.claude/tmp/... paths.
     env.pop("CLAUDE_CODE_TMPDIR", None)
     # Claude Code strips CLAUDE_CODE_OAUTH_TOKEN from tool subprocess
     # environments, so a capture launched from inside a session inherits no

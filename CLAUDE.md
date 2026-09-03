@@ -35,7 +35,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
 | `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
 | `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — see `docs/background-sessions.md` first |
-| `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py`, `prompt-test-run.sh`, `check-env-context.sh`, `prune-scratch.sh` | Running or modifying utility scripts              |
+| `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py`, `prompt-test-run.sh`, `check-env-context.sh`, `prune-scratch.sh` (frees scratch disk space) | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
 ### `agent-tools/`
@@ -48,7 +48,7 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
 - `agent-tools ntfy-hook [args]` — Claude Code notification hook (wraps `python3 -m claude_config.ntfy_hook`)
 - `agent-tools count-tokens [--model MODEL] [--file PATH] [TEXT]` — count input tokens via Anthropic `count_tokens` API (wraps `python3 -m claude_config.count_tokens`)
-- `agent-tools env-context` — SessionStart hook supplying the dynamic context `--system-prompt-file` discards: a `# Environment` block and a `# Scratchpad Directory` section. Reads the hook payload on stdin (`cwd`, `session_id`, and `model` in interactive mode) and emits the `hookSpecificOutput` envelope itself — plain stdout would be injected as `SessionStart hook success: <text>` instead of verbatim. The `Shell` field reports the shell the Bash tool actually runs, not the `$SHELL` Claude Code reports and prints `unknown` for when unset. Warns when Claude Code's own env block drifts from the pinned field set in `docs/env-context-manifest.json`; `scripts/check-env-context.sh` shows the difference.
+- `agent-tools env-context` — SessionStart hook supplying the dynamic context `--system-prompt-file` discards: a `# Environment` block and a `# Scratchpad Directory` section. Reads the hook payload on stdin (`cwd`, `session_id`, and `model` when the payload carries it — carried only by a fresh interactive startup, not `--resume`, `--continue`, `/clear`, or print mode) and emits the `hookSpecificOutput` envelope itself — plain stdout would be injected as `SessionStart hook success: <text>` instead of verbatim. The `Shell` field reports the shell the Bash tool actually runs, not Claude Code's own `$SHELL` reading. Claude Code falls back to the literal `unknown` when `$SHELL` is unset; this hook never does — when no shell resolves at all it says so explicitly (`"none found — no bash or zsh on this system, so Bash tool calls will fail"`). Warns when Claude Code's own env block drifts from the pinned field set in `docs/env-context-manifest.json`; `scripts/check-env-context.sh` shows the difference.
 - `agent-tools opencode [args]` — launch `opencode` with repo `.env` loaded for the opencode Langfuse plugin: maps `OPENCODE_LANGFUSE_SECRET_KEY`, `OPENCODE_LANGFUSE_PUBLIC_KEY`, and `OPENCODE_LANGFUSE_BASE_URL` to the unprefixed vars expected by the plugin (`LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_BASEURL`), sets git author/committer env to `opencode`, then forwards args to `opencode`. Where both the `.env` and the shell define one of these keys, the `.env` value is the one passed on — matching `src/claude_config/config.py`, which loads the same file with `override=True`; the shell is the fallback for a checkout whose gitignored `.env` is absent, such as a worktree. `opencode-plugin-langfuse` is disabled by default: the `plugin` array in `opencode/opencode.jsonc` is empty, so the mapping stays inert until the plugin is listed there.
 - `agent-tools opencode-pretty <session-id> [args]` — pretty-print an opencode session. Mirrors `cc-pretty`'s CLI surface (`--tool-max`, `--truncate-input`, `--no-thinking`, `--show-usage`, `--show-rewound`, `--show-all`, `--chat-only`, `--skeleton`, `--compact-all`, `--compact-leg`, `--agent`, `--validate-only`) and reuses cc-pretty's rendering pipeline. Color is auto-detected (on for TTYs, off when piped or when `NO_COLOR` is set); `--color` forces it on, `--no-color` forces it off. Compaction boundaries (user message with a `compaction` part) become Claude-Code-style `compact_boundary` system records. An uncleaned `session.info.revert` is surfaced via the rewind marker — opencode normally deletes the abandoned tail on the next prompt, so only revert states caught before that prompt show up here.
 - `agent-tools opencode.gate` — prompt gate used by opencode agent instructions; accepts stdin/heredoc input, prints gate instructions to stdout, and exits successfully.
@@ -136,11 +136,13 @@ path to subagents (`Xff`, `globals/14.js:26405`) whether or not
 Redirecting the root is therefore the only way both agree on one directory —
 and `/root` is a host bind mount, so scratch survives a container rebuild that
 `/tmp` would not. The same variable also roots plugin session directories,
-skill and plugin zip staging, and the IPC socket directory; Claude Code falls
-back to `/tmp` for the socket when the path exceeds the `sun_path` limit
-(`SFm()`, `globals/22.js:14393`).
+skill and plugin zip staging, the IPC socket directory, and entries in the
+sandbox write allowlist. The socket actually roots at `XDG_RUNTIME_DIR` when
+that is set, falling back to this variable only when it is not (`SFm()`,
+`globals/22.js:14393`), and either way falls back further to `/tmp` when the
+resulting path exceeds the `sun_path` limit.
 
-Scratch is now persistent, so nothing reclaims it automatically.
+Scratch is persistent, so nothing reclaims it automatically.
 `scripts/prune-scratch.sh` reports and, with `--apply`, deletes empty session
 scratchpads.
 
