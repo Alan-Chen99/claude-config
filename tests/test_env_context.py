@@ -1,20 +1,26 @@
 """Tests for the env-context SessionStart hook."""
 
 import importlib
+import io
+import json
+import os
+import re
+import stat
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import cast
+
+import pytest
+
+from claude_config.env_context import drift, environment, render, scratchpad
 
 
 def test_package_imports() -> None:
     module = importlib.import_module("claude_config.env_context")
     assert module.__file__ is not None
     assert module.__file__.endswith("__init__.py")
-
-
-import subprocess
-from pathlib import Path
-
-import pytest
-
-from claude_config.env_context import environment
 
 
 def _fake_tree(root: Path, shells: list[str]) -> None:
@@ -206,11 +212,6 @@ def test_platform_name_returns_nonempty_string() -> None:
     result = environment.platform_name()
     assert isinstance(result, str)
     assert result != ""
-
-
-import stat
-
-from claude_config.env_context import scratchpad
 
 
 def test_tmp_root_prefers_env(tmp_path: Path) -> None:
@@ -450,11 +451,6 @@ def test_ensure_repairs_a_preexisting_uid_dir_mode(tmp_path: Path) -> None:
     assert stat.S_IMODE(uid_dir.stat().st_mode) == 0o700
 
 
-from typing import cast
-
-from claude_config.env_context import render
-
-
 def _facts(**overrides: object) -> render.Facts:
     # Built as a plain dict and cast at the end, rather than typed as
     # render.Facts throughout: **overrides is deliberately untyped (object),
@@ -562,14 +558,6 @@ def test_full_text_matches_snapshot_for_worktree() -> None:
     text = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
     expected = '# Environment\nYou have been invoked in the following environment: \n - Primary working directory: /root/claude-config-work\n - This is a git worktree of /repos/claude-config. Run all commands from this directory and make changes only here; reading /repos/claude-config is fine, but do not edit, commit, or build there.\n - The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session\'s changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m "<unique-tag>"`, immediately capture your entry\'s SHA via `git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first.\n - Is a git repository: true\n - Platform: linux\n - Shell: /bin/bash\n - OS Version: Linux 6.18.7\n - You are powered by the model claude-opus-5\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
     assert text == expected
-
-
-import json
-import os
-import re
-import tempfile
-
-from claude_config.env_context import drift
 
 
 def _binary(
@@ -1323,10 +1311,6 @@ def test_installed_version_raises_on_timeout(
         drift.installed_version(binary)
 
 
-import os
-import subprocess
-import sys
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -1483,9 +1467,6 @@ def test_hook_suppresses_scratchpad_in_background_session(tmp_path: Path) -> Non
     assert "# Environment" in context
     assert "# Scratchpad Directory" not in context
     assert list(tmp_path.rglob("*")) == []
-
-
-import io
 
 
 def test_root_manifest_and_cache_paths() -> None:
