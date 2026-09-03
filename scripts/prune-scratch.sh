@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Report and optionally delete session scratchpads under cc's tmp root.
 #
+# The contract: deletes only empty scratchpads unless a session is named
+# with --session, never follows a symlink found while descending into the
+# tree (only $root itself may be a symlink), and does nothing without
+# --apply.
+#
 # Nothing here runs automatically. Redirecting CLAUDE_CODE_TMPDIR onto
 # persistent disk means scratch no longer evaporates when the container is
 # rebuilt, and this script is the only thing that reclaims it.
@@ -123,6 +128,21 @@ fi
 echo "scratch root: $root"
 echo
 
+# -H follows a symlink only when it is the command-line argument itself,
+# so a deliberately relocated $root (CLAUDE_CODE_TMPDIR pointed through a
+# symlink) is scanned as if it were real, while a symlink encountered
+# while descending -- a project slug, a session -- is left alone. That is
+# the same rule assert_under_root and the project-loop guard enforce for
+# --session, so the two now agree on what a symlinked root contains,
+# which they did not before -H replaced the previous bare find "$root".
+#
+# Two asymmetries remain, left deliberately unaddressed rather than
+# overlooked: a dot-named project directory is visible to this scan but
+# invisible to --session's "$root"/*/ glob (no dotglob) -- cc's slugs
+# always start with '-', never '.', so this is a false negative only; and
+# $root itself is followed here while nothing inside it is, an asymmetry
+# by design: the root is what the user deliberately pointed at, the tree
+# beneath it is not.
 empty=()
 kept=()
 while IFS= read -r -d '' pad; do
@@ -131,7 +151,7 @@ while IFS= read -r -d '' pad; do
 	else
 		kept+=("$pad")
 	fi
-done < <(find "$root" -mindepth 3 -maxdepth 3 -type d -name scratchpad -print0)
+done < <(find -H "$root" -mindepth 3 -maxdepth 3 -type d -name scratchpad -print0)
 
 if [ ${#kept[@]} -gt 0 ]; then
 	echo "keep (non-empty):"
