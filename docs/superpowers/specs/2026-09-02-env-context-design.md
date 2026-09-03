@@ -46,9 +46,17 @@ Two further facts constrain the design.
 **The hook discards its input.** `settings.json` runs
 `agent-tools env-context | jq -Rs …`, so the payload on stdin is thrown away. A
 `SessionStart` payload captured from a probe session carries `session_id`,
-`transcript_path`, `cwd`, `hook_event_name`, `source`, and — in interactive mode
-only — a resolved `model` such as `claude-haiku-4-5-20251001`. Print mode (`-p`)
-omits `model`.
+`transcript_path`, `cwd`, `hook_event_name`, `source`, and sometimes a resolved
+`model` such as `claude-haiku-4-5-20251001`.
+
+Whether `model` is present depends on which internal call site fired the hook,
+not on `source` or interactive-vs-print: a fresh interactive startup, an in-app
+session resume/fork, and `compact` each pass one (`globals/28.js:8017`,
+`globals/13.js:32825`), while a process-launched `--resume`/`--continue` and
+`/clear` do not (`globals/17.js:19270`, `globals/18.js:7920`) — and that
+no-model resume path shares the identical `source: "resume"` label with the one
+that does, so `source` cannot predict it either. There is no clean rule to
+state; the hook already treats `model` as always possibly absent.
 
 **Only two sections are actually missing.** Reading this session's own request
 (`~/.claude/requests-log/c8978898-…/0002.json`) shows the system array as three
@@ -178,15 +186,27 @@ back further to `/tmp/cc-socks-<uid>/` when the resulting path exceeds the
 ```
 # Scratchpad Directory
 
-Use this directory for temporary files instead of /tmp or other system temp
-directories:
+Use this directory for temporary files instead of `/tmp` or other system
+temp directories:
 `<path>`
 
-Only use /tmp if the user explicitly requests it.
+Only use `/tmp` if the user explicitly requests it.
 
 It is session-specific, isolated from the project, and is normally the same
 directory your subagents are given.
 ```
+
+**Why `Only use /tmp...` is there at all:** four other places in this
+deployment say the opposite — `sys_prompt/alan-default-next.md`, both output
+styles, and the user's global `CLAUDE.md` (outside this repo) each carry a
+`git clone … /tmp/<repo>` instruction or a "use a new directory under
+`/tmp/*`" rule. None of them is edited to match: the system prompt and
+output styles shape agent behaviour well beyond this hook, and the global
+`CLAUDE.md` is the user's own. The clause's own wording is the
+reconciliation, not an edit to those four files — a standing instruction
+that names `/tmp` counts as the user "explicitly" requesting it, so an
+agent reading both clones a repo to `/tmp` as directed and puts everything
+else, its own working files, in the scratchpad.
 
 The path is computed the way cc computes it, reading the root from
 `CLAUDE_CODE_TMPDIR` with the same `os.tmpdir()` default rather than hardcoding
@@ -221,17 +241,24 @@ the session with two conflicting temp-directory instructions.
 `scripts/prune-scratch.sh`, run by hand. Nothing deletes automatically and the
 hook never mentions scratch size.
 
-It resolves the tmp root the same way cc and the hook do, then reports each
-session directory beneath it in three buckets: empty scratchpads as prunable,
-non-empty ones with their sizes, and sessions with no scratchpad directory at
-all (reported, but never touched by bulk `--apply` — there is nothing there
-for it to delete). It is dry-run by default and deletes only under `--apply`,
-and only empty scratchpads — a non-empty one may hold work in progress, and a
-session id alone does not distinguish a dead session from a live one. Deleting a named
-non-empty session requires naming it explicitly.
+It resolves the tmp root by calling `scratchpad.tmp_root()` directly — a
+bare `python3 -c` one-liner shelling into the same function the hook itself
+uses, not a shell reimplementation of its search order — so the two cannot
+independently drift on which tree "the" scratch root names, the way a bare
+`${CLAUDE_CODE_TMPDIR:-/tmp}` expansion once did by skipping `$TMPDIR`. It
+then reports each session directory beneath it in three buckets: empty
+scratchpads as prunable, non-empty ones with their sizes, and sessions with
+no scratchpad directory at all (reported, but never touched by bulk
+`--apply` — there is nothing there for it to delete). It is dry-run by
+default and deletes only under `--apply`, and only empty scratchpads — a
+non-empty one may hold work in progress, and a session id alone does not
+distinguish a dead session from a live one. Deleting a named non-empty
+session requires naming it explicitly.
 
-Against the same 139-session tree cited above (1.2 GB, investigated
-2026-09-02), that would report 130 prunable and 9 to keep.
+Run it to see current counts rather than trust a quoted figure here: the
+1.2 GB/139-session count in "Problem" above was itself gone by the time this
+feature shipped — `/tmp` was wiped mid-project, which is exactly what the
+redirect now survives.
 
 ## Drift check
 
@@ -250,20 +277,47 @@ check track upgrades on its own: the dump is regenerated by hand, the binary
 changes underfoot.
 
 `env-context` performs the same comparison and appends one line to the env block
-when it differs, naming the script. The result is cached under `~/.claude` keyed
-on the binary's path, size, and mtime, plus a hash of the manifest's content —
-not the manifest's own mtime, because one global cache serves every worktree,
-and an mtime key would thrash on every alternation between checkouts even when
-their manifests are byte-identical copies of each other — so a full scan runs
-once per cc upgrade or manifest re-pin rather than once per session. A warm
-scan of the 331 MB binary measured 0.16 s against the hook's 30 s timeout; the
-cache exists for the cold case. See "Timeout budget" below for how that
-30 s was arrived at and what else draws on it.
+when it differs, naming the script. The result is cached at
+`~/.claude/env-context-drift.json`, keyed on the binary's path, size, and
+mtime, plus a hash of the manifest's content — not the manifest's own mtime,
+because one global cache serves every worktree, and an mtime key would
+thrash on every alternation between checkouts even when their manifests are
+byte-identical copies of each other — so a full scan runs once per cc
+upgrade or manifest re-pin rather than once per session. Deleting that file
+forces a fresh scan on the next session; nothing else needs to happen, since
+a missing, truncated, or corrupt cache file is treated as a miss and
+overwritten rather than raised. A warm `compare()` run — the read, the
+window-literal extraction, and all three `required_literals` whole-binary
+count passes — measured 0.36-0.37 s across six repeated runs against the
+hook's 30 s timeout; the cache exists for the cold case. ("Timeout budget"
+below cites 0.75 s for the same call measured cold, page-cache evicted, and
+padded for the worst case — the two numbers are not in tension, they are
+different conditions.) See "Timeout budget" below for how that 30 s was
+arrived at and what else draws on it.
 
 The check covers literals only. A change to how cc computes a value without
 changing its label — the shell-resolution order, say — will not trip it. The
 manifest therefore records the cc version alongside the literals, so a version
 bump is itself reviewable.
+
+### Re-pinning after a cc upgrade
+
+When `check-env-context.sh` reports drift, review
+`src/claude_config/env_context/render.py` against whatever cc changed before
+doing anything else: the check only reports that a label changed or
+disappeared, not whether the redesigned block still needs that field, or
+under what literal — that judgment is `render.py`'s to make, not the
+script's. Once render.py has been reconciled (or found not to need
+changing), `check-env-context.sh --update` re-derives both literal lists
+from the installed binary and rewrites `docs/env-context-manifest.json` to
+match (`drift.repin()`). It refuses outright to write a `required_literals`
+count of zero: reaching zero from a positive count is exactly the rename or
+removal the check exists to catch, and `compare()`'s count-changed check
+fires only on a change *from* the pinned count — a literal re-pinned at 0
+could never fail it again, making that entry a permanently-passing
+assertion instead of a live one. A field that has genuinely vanished from
+cc needs a decision in `render.py` about whether and how to keep watching
+it, not a silent re-pin at 0.
 
 ## Timeout budget
 

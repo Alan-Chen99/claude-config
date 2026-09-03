@@ -1,5 +1,20 @@
 # env-context Implementation Plan
 
+> **This plan is historical.** It records how `env-context` was designed,
+> built, and reviewed, task by task, across many rounds — it is not
+> maintained documentation and is not kept in sync with the code. The
+> committed files and
+> `docs/superpowers/specs/2026-09-02-env-context-design.md` are the
+> authority for how the hook behaves and is documented today; code blocks
+> and step text below are drafts, many superseded before or during review
+> (see the `Amended during review` banners on Tasks 2, 3, 5, 6, 7, 10, 11
+> and 12, and read the committed file each one names rather than the code
+> shown). Kept in full regardless, because it is the only place recording
+> the four-way `/tmp` guidance conflict this hook's scratchpad clause
+> reconciles (Task 12, Step 5c) and the mutation-testing rounds — including
+> the byte-offset evidence behind the drift manifest's scan window — that
+> each fix below responded to.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the stale cc-2.1.143 clone in `agent-tools env-context` with a purpose-built context block that reports the shell the Bash tool actually runs, names a scratchpad shared with subagents, and warns when Claude Code's own env block drifts.
@@ -1729,6 +1744,20 @@ launchers are covered."
 
 ## Task 10: `scripts/check-env-context.sh`
 
+> **Amended during review.** The code below is the first draft; the committed
+> version, through `3eb0c4a`, is the authority — read
+> `scripts/check-env-context.sh`. Argument parsing was
+> `if [ "${1:-}" = "--update" ]`, so `--updte`, `--help`, and `foo --update`
+> all silently ran the check anyway; it is now a `while`/`case` loop matching
+> `prune-scratch.sh`, rejecting anything but `--update` with exit 2. The
+> manifest rewrite shown inline in the `--update` branch below moved into
+> `drift.repin()`, which also refuses to write a `required_literals` count of
+> zero rather than silently re-pinning a permanently-passing assertion. A
+> `RuntimeError` from `drift` (no installed binary found, or `repin`'s new
+> refusal) is now caught and reported as one `check-env-context.sh:`-prefixed
+> line at exit 3, documented alongside 0/1/2 in the header, instead of a raw
+> traceback at exit 1 indistinguishable from genuine drift.
+
 **Files:**
 - Create: `scripts/check-env-context.sh`
 
@@ -1856,6 +1885,25 @@ installed Claude Code, which GitHub CI has not got."
 ---
 
 ## Task 11: `scripts/prune-scratch.sh`
+
+> **Amended during review.** The code below is the first draft; the committed
+> version, through `59f1344` — six commits after this task's own `8980d24` —
+> is the authority — read `scripts/prune-scratch.sh`. The most consequential
+> change: `--session` matched via `find -name`, a shell glob, so
+> `--session 'session-*'` could resolve to and delete an unrelated non-empty
+> session instead of the one a user meant; it now validates the id against
+> the glob metacharacters and targets a project's path component directly
+> (`d4cd4ea`). Later rounds added a real `assert_under_root` containment
+> check immediately before every `rm`/`rmdir` rather than trusting the scan;
+> refusal (not deletion) of a symlinked session or project directory; a
+> three-way scan — kept/empty/no-scratchpad, not the two shown below, because
+> `--session` targets a whole session directory and a session holding no
+> scratchpad at all is still a real target invisible to a scratchpad-only
+> scan; and a root resolved by calling `scratchpad.tmp_root()` directly
+> rather than reimplementing its search order in shell — the
+> `${CLAUDE_CODE_TMPDIR:-/tmp}` expansion below does not honour `$TMPDIR` the
+> way the hook does, so the two could silently disagree on which tree "the"
+> scratch root names.
 
 **Files:**
 - Create: `scripts/prune-scratch.sh`
@@ -2017,6 +2065,21 @@ dead session from a live one."
 ---
 
 ## Task 12: Documentation
+
+> **Amended during review.** This task's own steps were carried out close to
+> verbatim, then revised across several further review rounds the step text
+> below does not show. Two concrete examples: Step 1's bullet (below) still
+> says `model` appears "in interactive mode", a rule later review found two
+> separate call sites (`globals/17.js:19270` vs `globals/28.js:8017`)
+> falsify even under the identical `source: "resume"` label; and Step 4's
+> paragraph is missing the sandbox write allowlist from what
+> `CLAUDE_CODE_TMPDIR` roots and gets the IPC socket's actual root
+> precedence backwards (`Spe()` is `SFm()`'s fallback, reached only when
+> `XDG_RUNTIME_DIR` is unset, not its primary root) — both fixed in
+> `e535d9a`, along with this step's "Scratch is now persistent" phrasing.
+> `CLAUDE.md` and `docs/superpowers/specs/2026-09-02-env-context-design.md`
+> are the authority for what this hook documents today; read them, not the
+> code blocks below.
 
 **Files:**
 - Modify: `CLAUDE.md:51`, `CLAUDE.md:144`, the `scripts/` row in `CLAUDE.md`, and the `scripts/claude.sh` section
