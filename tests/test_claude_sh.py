@@ -104,10 +104,10 @@ def _run(script: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
     from the ambient environment: this very test suite commonly runs
     inside a session that scripts/claude.sh itself launched, which means
     IS_SANDBOX=1 and CLAUDE_CODE_DISABLE_AGENT_VIEW=1 are often already
-    set in the parent process. Inheriting them would make the mutation
-    check below pass even after deleting the script's own export -- the
-    child would still see the value, just leaked in from this test
-    runner's ancestry rather than produced by the script under test.
+    set in the parent process. Inheriting them would make the test below
+    pass even if the script's own export were deleted -- the child would
+    still see the value, just leaked in from this test runner's ancestry
+    rather than produced by the script under test.
     """
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
