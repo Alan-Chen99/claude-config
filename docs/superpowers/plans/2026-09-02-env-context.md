@@ -2021,6 +2021,8 @@ dead session from a live one."
 **Files:**
 - Modify: `CLAUDE.md:51`, `CLAUDE.md:144`, the `scripts/` row in `CLAUDE.md`, and the `scripts/claude.sh` section
 - Modify: `docs/superpowers/specs/2026-09-02-env-context-design.md`
+- Modify: `agent-tools/src/main.rs` (a doc comment only — no rebuild)
+- Modify: `docs/system-prompt-snapshot/README.md`, `docs/system-prompt-snapshot/what-the-model-gets.md`, `docs/system-prompt-snapshot/capture.py`
 
 - [ ] **Step 1: Update the `agent-tools env-context` bullet**
 
@@ -2154,16 +2156,26 @@ rebuilding, since the installed `agent-tools` is built from the canonical repo.
 
 ```bash
 cd /root/claude-config-work
-grep -rn "env-context | jq\|env-context-manifest.txt" --include="*.md" --include="*.json" . || echo "no stale references"
+grep -rn "env-context | jq\|env-context-manifest.txt" \
+  --include="*.md" --include="*.json" \
+  --exclude-dir=plans . || echo "no stale references"
 ```
 
-Expected: `no stale references`
+Expected: one hit, in the design spec's `## Problem` section, which quotes the old
+wiring as the motivation for the redesign and is correctly historical.
+
+`plans/` is excluded because this plan quotes both strings itself — in a
+`settings.json` diff, in Step 5's instruction text, and in this grep — so an
+unscoped search can never come back clean while the plan remains in the repo.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 cd /root/claude-config-work
-git add CLAUDE.md docs/superpowers/specs/2026-09-02-env-context-design.md
+git add CLAUDE.md docs/superpowers/specs/2026-09-02-env-context-design.md \
+  agent-tools/src/main.rs docs/system-prompt-snapshot/README.md \
+  docs/system-prompt-snapshot/what-the-model-gets.md \
+  docs/system-prompt-snapshot/capture.py
 git commit -m "docs: describe the env-context rewrite and scratch redirect"
 ```
 
