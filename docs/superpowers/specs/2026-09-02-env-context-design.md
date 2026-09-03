@@ -364,7 +364,7 @@ a capacity change.
 Reimplementing cc's shell resolution adds a divergence surface the literal-based
 drift check cannot see, which is why the manifest pins the cc version too.
 
-Nothing migrates. The existing 1.3 GB under `/tmp/claude-0` stays until the
+Nothing migrates. Whatever the old sessions left under `/tmp/claude-0` stays until the
 container is rebuilt.
 
 ## Out of scope

@@ -2294,7 +2294,7 @@ rm -rf "/tmp/claude-0/-tmp-env-ctx-verify-p3w9k5"
 The redirect in `scripts/claude.sh` only takes effect for sessions started after this change. Tell the user that:
 
 - Sessions already running keep `/tmp/claude-0`; the new root appears on next launch.
-- The existing 1.3 GB under `/tmp/claude-0` is not migrated and evaporates when the container is rebuilt. `scripts/prune-scratch.sh` can report it in the meantime.
+- Whatever the old sessions left under `/tmp/claude-0` is not migrated and evaporates when the container is rebuilt. Measure it with `scripts/prune-scratch.sh` rather than quoting a figure from this plan: the 1.2 GB recorded during Task 3 was gone by Task 13, `/tmp` having been wiped mid-project — which is the very thing the redirect exists to survive.
 - Nothing was installed; `install.sh` was not run, and `agent-tools` was not rebuilt because no Rust changed.
 
 ---
