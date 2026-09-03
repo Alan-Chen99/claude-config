@@ -142,7 +142,7 @@ echo "keep (non-empty): ${#kept[@]}"
 if [ -n "$session" ]; then
 	targets=()
 	for proj in "$root"/*/; do
-		[ -d "$proj$session" ] && targets+=("$proj$session")
+		[ -d "$proj$session" ] && [ ! -L "$proj$session" ] && targets+=("$proj$session")
 	done
 	if [ ${#targets[@]} -eq 0 ]; then
 		echo "prune-scratch.sh: no session directory named $session under $root" >&2
