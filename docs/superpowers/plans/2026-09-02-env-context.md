@@ -1839,7 +1839,7 @@ rm /tmp/manifest-backup-8f2k.json
 git diff --quiet docs/env-context-manifest.json && echo "manifest restored"
 ```
 
-Expected: a `- 'Primary working directory: '` line, `FAIL:`, `correctly failed`, then `manifest restored`.
+Expected: a `+ 'Primary working directory: '` line, `FAIL:`, `correctly failed`, then `manifest restored`. The sign is `+`, not `-`: dropping a literal from the *pinned* list makes the binary's unchanged set a superset of what is expected, and `compare` defines `added = found - expected`. A `-` line needs the opposite mutation — pinning a literal the binary does not carry.
 
 - [ ] **Step 4: Commit**
 
