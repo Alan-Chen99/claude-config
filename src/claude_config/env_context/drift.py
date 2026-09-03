@@ -207,6 +207,48 @@ def compare(binary: Path, manifest: Path, version: str) -> Comparison:
     )
 
 
+def repin(binary: Path, manifest: Path, version: str) -> None:
+    """Rewrite `manifest` to match `binary`, after `compare()` has shown a diff.
+
+    Reads `binary` once here, independently of whatever `compare()` already
+    read to produce the diff the caller showed before deciding to re-pin --
+    the two calls this costs `--update` are accepted in exchange for this
+    being one self-contained, independently testable read-and-rewrite
+    rather than logic split between drift.py and a caller's own
+    re-implementation, which is what previously lived inline in
+    check-env-context.sh's heredoc.
+
+    Refuses to write a required_literals count of zero. `compare()`'s
+    count-changed check only fires on a change from the *pinned* count, so
+    a literal re-pinned at 0 can never fail it again -- 0 is a floor, not
+    a value a future occurrence can accidentally return to, which makes it
+    a permanently-passing assertion masquerading as a live one. Reaching
+    zero is exactly the rename or removal required_literals exists to
+    catch; whether cc still needs this field watched at all -- and if so,
+    under what new literal -- is a decision for render.py, not one a
+    re-pin should make silently.
+    """
+    data = binary.read_bytes()
+    pinned = cast(ManifestData, json.loads(manifest.read_text()))
+    counts = {
+        literal: data.count(literal.encode()) for literal in pinned["required_literals"]
+    }
+    zeroed = sorted(literal for literal, count in counts.items() if count == 0)
+    if zeroed:
+        names = ", ".join(repr(literal) for literal in zeroed)
+        raise RuntimeError(
+            f"{names} no longer appear anywhere in {binary} -- looks gone "
+            "from cc entirely rather than merely renamed. Whether to keep "
+            "watching this field, and under what literal, is a decision "
+            "for src/claude_config/env_context/render.py; --update will "
+            "not silently re-pin it at a count of 0."
+        )
+    pinned["version"] = version
+    pinned["window_literals"] = literals_in(data, str(binary))
+    pinned["required_literals"] = counts
+    manifest.write_text(json.dumps(pinned, indent=2) + "\n")
+
+
 def cached_note(
     binary: Path,
     manifest: Path,

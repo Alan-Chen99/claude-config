@@ -2,9 +2,20 @@
 # Report and optionally delete session scratchpads under cc's tmp root.
 #
 # The contract: deletes only empty scratchpads unless a session is named
-# with --session, never follows a symlink found while descending into the
-# tree (only $root itself may be a symlink), and does nothing without
-# --apply.
+# with --session (and removes the parent session directory too, when the
+# scratchpad was its only child), never follows a symlink found while
+# descending into the tree (only $root itself may be a symlink), and does
+# nothing without --apply.
+#
+# --session has no liveness check: a session id alone does not distinguish
+# a dead session from one a live agent is still using, so --session <id>
+# --apply deletes a running agent's scratch exactly as readily as a dead
+# one's, with no warning either way.
+#
+# Exit codes: 0 success (including "nothing to do" and dry runs); 1 the
+# named session could not be found, was ambiguous, or was refused for
+# being (or sitting under) a symlink; 2 a bad argument, a bad --session
+# id, or an unexpected scratch root.
 #
 # Nothing here runs automatically. Redirecting CLAUDE_CODE_TMPDIR onto
 # persistent disk means scratch no longer evaporates when the container is
@@ -33,32 +44,22 @@ validate_session_id() {
 		echo "prune-scratch.sh: --session id must not be empty, '.', or '..'" >&2
 		exit 2
 		;;
-	esac
-	case "$1" in
 	*/*)
 		echo "prune-scratch.sh: --session id '$1' must not contain '/'" >&2
 		exit 2
 		;;
-	esac
-	case "$1" in
 	*\\*)
 		echo "prune-scratch.sh: --session id '$1' must not contain a backslash" >&2
 		exit 2
 		;;
-	esac
-	case "$1" in
 	*'*'*)
 		echo "prune-scratch.sh: --session id '$1' must not contain '*'" >&2
 		exit 2
 		;;
-	esac
-	case "$1" in
 	*'?'*)
 		echo "prune-scratch.sh: --session id '$1' must not contain '?'" >&2
 		exit 2
 		;;
-	esac
-	case "$1" in
 	*'['*)
 		echo "prune-scratch.sh: --session id '$1' must not contain '['" >&2
 		exit 2
@@ -66,15 +67,15 @@ validate_session_id() {
 	esac
 }
 
-# Establishes that the target *resolves* to a path inside the *resolved*
-# root -- not that its literal string is prefixed by $root's literal
-# string, which any symlinked component (a project slug, or $root itself)
-# defeats trivially, and not "the value is safe" in any broader sense.
-# Resolving both sides also means a deliberately symlinked root is
-# permitted (its resolved content is still genuinely inside the resolved
-# root), while a symlink planted inside a real root and pointing
-# elsewhere is still refused -- a distinction a plain string-prefix match
-# cannot make.
+# A backstop, not the primary guard: find -H and the two -L gates below
+# already refuse to enumerate a symlinked project or session before this
+# is ever called, so every call site here is currently a no-op that takes
+# the empty first branch. It stays because whatever changes next should
+# still have to defeat this to reach rm/rmdir -- resolving both sides
+# means a deliberately symlinked root is permitted (its resolved content
+# is still genuinely inside the resolved root), while a symlink planted
+# inside a real root and pointing elsewhere is still refused, a
+# distinction a plain string-prefix match cannot make.
 assert_under_root() {
 	case "$(readlink -f -- "$1")" in
 	"$(readlink -f -- "$root")"/*) ;;
@@ -133,25 +134,35 @@ echo
 # symlink) is scanned as if it were real, while a symlink encountered
 # while descending -- a project slug, a session -- is left alone. That is
 # the same rule assert_under_root and the project-loop guard enforce for
-# --session, so the two now agree on what a symlinked root contains,
-# which they did not before -H replaced the previous bare find "$root".
+# --session, so the two now agree on what a symlinked root contains.
+#
+# Scanned at session depth (2), not scratchpad depth (3): --session
+# deletes the whole session directory, so the report needs to cover what
+# --session actually acts on, not just the scratchpad inside it -- a
+# session holding no scratchpad at all (e.g. one with only a tasks/
+# directory) is still a real --session target and must not be invisible
+# here.
 #
 # Two asymmetries remain, left deliberately unaddressed rather than
 # overlooked: a dot-named project directory is visible to this scan but
-# invisible to --session's "$root"/*/ glob (no dotglob) -- cc's slugs
-# always start with '-', never '.', so this is a false negative only; and
-# $root itself is followed here while nothing inside it is, an asymmetry
-# by design: the root is what the user deliberately pointed at, the tree
+# invisible to --session's "$root"/*/ glob below (no dotglob; cc's slugs
+# always start with '-', never '.', so this is a false negative only);
+# and $root itself is followed here while nothing inside it is, by
+# design -- the root is what the user deliberately pointed at, the tree
 # beneath it is not.
 empty=()
 kept=()
-while IFS= read -r -d '' pad; do
-	if [ -z "$(ls -A "$pad")" ]; then
+noscratch=()
+while IFS= read -r -d '' sess; do
+	pad="$sess/scratchpad"
+	if [ ! -d "$pad" ]; then
+		noscratch+=("$sess")
+	elif [ -z "$(ls -A "$pad")" ]; then
 		empty+=("$pad")
 	else
 		kept+=("$pad")
 	fi
-done < <(find -H "$root" -mindepth 3 -maxdepth 3 -type d -name scratchpad -print0)
+done < <(find -H "$root" -mindepth 2 -maxdepth 2 -type d -print0)
 
 if [ ${#kept[@]} -gt 0 ]; then
 	echo "keep (non-empty):"
@@ -161,21 +172,44 @@ if [ ${#kept[@]} -gt 0 ]; then
 	echo
 fi
 
+if [ ${#noscratch[@]} -gt 0 ]; then
+	echo "no scratchpad (not touched by bulk --apply; --session <id> --apply removes the whole thing):"
+	for sess in "${noscratch[@]}"; do
+		printf '  %8s  %s\n' "$(du -sh -- "$sess" | cut -f1 | head -1)" "$sess"
+	done
+	echo
+fi
+
 echo "prunable (empty): ${#empty[@]}"
 echo "keep (non-empty): ${#kept[@]}"
+echo "no scratchpad: ${#noscratch[@]}"
 
 if [ -n "$session" ]; then
 	targets=()
-	# "$root"/*/ is a bash glob, not find: it will not match a dot-named
-	# project directory (no dotglob), so a session under one would be
-	# invisible here even though the find-based scan above has no such
-	# exclusion. False negative only -- cc's slugs always start with '-',
-	# never '.' -- so this is left deliberately unaddressed.
+	symlinked_sessions=()
+	symlinked_projects=()
+	# "$root"/*/ is a bash glob and will not match a dot-named project
+	# directory -- see the scan comment above for why that's left alone.
 	for proj in "$root"/*/; do
-		[ ! -L "${proj%/}" ] && [ -d "$proj$session" ] && [ ! -L "$proj$session" ] && targets+=("$proj$session")
+		[ -d "$proj$session" ] || continue
+		if [ -L "${proj%/}" ]; then
+			symlinked_projects+=("$proj$session")
+		elif [ -L "$proj$session" ]; then
+			symlinked_sessions+=("$proj$session")
+		else
+			targets+=("$proj$session")
+		fi
 	done
 	if [ ${#targets[@]} -eq 0 ]; then
-		echo "prune-scratch.sh: no session directory named $session under $root" >&2
+		for t in "${symlinked_sessions[@]}"; do
+			echo "prune-scratch.sh: refusing $t: the session directory is a symlink" >&2
+		done
+		for t in "${symlinked_projects[@]}"; do
+			echo "prune-scratch.sh: refusing $t: its project directory is a symlink" >&2
+		done
+		if [ ${#symlinked_sessions[@]} -eq 0 ] && [ ${#symlinked_projects[@]} -eq 0 ]; then
+			echo "prune-scratch.sh: no session directory named $session under $root" >&2
+		fi
 		exit 1
 	fi
 	if [ ${#targets[@]} -gt 1 ]; then

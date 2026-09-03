@@ -7,14 +7,26 @@
 # changes underfoot, and only the binary tracks an upgrade on its own.
 #
 # --update rewrites the manifest after you have reviewed a difference.
+#
+# Exit codes: 0 the field set matches (or --update re-pinned it); 1 the
+# field set is stale and no --update was given; 2 a bad argument; 3 the
+# check itself could not run -- no installed binary found, or --update
+# refused to re-pin (see drift.repin's docstring for why).
 set -euo pipefail
 root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 manifest="$root/docs/env-context-manifest.json"
 
 update=0
-if [ "${1:-}" = "--update" ]; then
-	update=1
-fi
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--update) update=1 ;;
+	*)
+		echo "check-env-context.sh: unknown argument: $1" >&2
+		exit 2
+		;;
+	esac
+	shift
+done
 
 cd "$root"
 uv run --project "$root" python - "$manifest" "$update" <<'PY'
@@ -27,9 +39,13 @@ from claude_config.env_context import drift
 manifest = Path(sys.argv[1])
 update = sys.argv[2] == "1"
 
-binary = drift.find_binary()
-version = drift.installed_version(binary)
-result = drift.compare(binary, manifest, version)
+try:
+    binary = drift.find_binary()
+    version = drift.installed_version(binary)
+    result = drift.compare(binary, manifest, version)
+except RuntimeError as exc:
+    print(f"check-env-context.sh: {exc}", file=sys.stderr)
+    sys.exit(3)
 
 pinned = json.loads(manifest.read_text())
 print(f"binary:    {binary}")
@@ -48,13 +64,11 @@ for literal, (was, now) in result.count_changes.items():
     print(f"  ~ {literal!r} occurs {now} times, was {was}")
 
 if update:
-    data = binary.read_bytes()
-    pinned["version"] = version
-    pinned["window_literals"] = drift.literals_in(data, str(binary))
-    pinned["required_literals"] = {
-        literal: data.count(literal.encode()) for literal in pinned["required_literals"]
-    }
-    manifest.write_text(json.dumps(pinned, indent=2) + "\n")
+    try:
+        drift.repin(binary, manifest, version)
+    except RuntimeError as exc:
+        print(f"check-env-context.sh: {exc}", file=sys.stderr)
+        sys.exit(3)
     print(f"updated {manifest}")
     sys.exit(0)
 
