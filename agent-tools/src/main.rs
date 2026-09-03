@@ -230,7 +230,9 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Print the '# Environment' block (cwd, git, platform, shell, OS) for SessionStart hooks.
+    /// SessionStart hook: reads the hook payload on stdin, emits the
+    /// hookSpecificOutput envelope carrying `# Environment` and
+    /// `# Scratchpad Directory`. Not usable interactively — it waits on stdin.
     #[command(name = "env-context")]
     EnvContext,
     /// Launch opencode with claude-config .env mappings.

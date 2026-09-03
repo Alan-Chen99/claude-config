@@ -102,8 +102,8 @@ prompt".
 
 - New: they/them default for unstated pronouns, applied to visible thinking too.
 - New: `# Scratchpad Directory` — a session-specific path under
-  `/tmp/claude-0/<project-slug>/<session-id>/scratchpad` that the model is told
-  to use instead of `/tmp`.
+  `${CLAUDE_CODE_TMPDIR:-/tmp}/claude-0/<project-slug>/<session-id>/scratchpad`
+  that the model is told to use instead of `/tmp`.
 - New: act-when-you-have-enough-information guidance in `# Context management`.
 - New: `EndConversation` usage note.
 - New: `<total_tokens>N tokens left</total_tokens>` budget line.
