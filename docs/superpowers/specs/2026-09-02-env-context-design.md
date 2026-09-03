@@ -241,34 +241,81 @@ bump is itself reviewable.
 
 | File | Change |
 | --- | --- |
-| `src/claude_config/env_context/` | Rewrite: stdin payload, new field set, scratchpad section, drift note, JSON envelope |
+| `src/claude_config/env_context/environment.py` | Machine facts: shell resolution mirroring the Bash tool (not cc's own `$SHELL`), git/worktree detection, platform name, OS version |
+| `src/claude_config/env_context/scratchpad.py` | The per-session scratchpad path, mirroring cc's own `claude-<uid>/<project-slug>/<session-id>/scratchpad` layout, and its creation at mode `0o700` |
+| `src/claude_config/env_context/render.py` | Assembles the `# Environment` and `# Scratchpad Directory` sections from a `Facts` TypedDict |
+| `src/claude_config/env_context/drift.py` | Extracts cc's env-block literals from the installed binary, compares them against the pinned manifest, caches the result, and re-pins it (`repin`) |
+| `src/claude_config/env_context/__main__.py` | Reads the `SessionStart` payload from stdin, orchestrates the above, emits the `hookSpecificOutput` JSON envelope |
 | `settings.json` | `SessionStart` command becomes bare `agent-tools env-context` |
 | `scripts/claude.sh` | Export `CLAUDE_CODE_TMPDIR` |
 | `scripts/check-env-context.sh` | New |
 | `scripts/prune-scratch.sh` | New |
 | `docs/env-context-manifest.json` | New: pinned cc version and literal set |
+| `notes/env-context-manifest.md` | New: byte-offset forensics behind the manifest's two literal lists |
 | `tests/test_env_context.py` | New |
 | `tests/test_claude_sh.py` | New |
+| `tests/test_prune_scratch.py` | New |
 | `CLAUDE.md` | Update the `env-context` and `claude.sh` entries and the `scripts/` table |
 
 ## Tests
 
-`tests/test_env_context.py`, run under the repo's existing pytest setup:
+134 tests across three files under `tests/`.
 
-- Rendering from a synthetic payload, including the interactive payload (with
-  `model`) and the print-mode payload (without), asserting the model line appears
-  only in the first.
-- A malformed payload raises rather than emitting a partial block.
-- Scratchpad path construction against a known cwd and session id, including that
-  a cwd whose slug exceeds 200 characters raises.
-- The root follows `CLAUDE_CODE_TMPDIR` when set and `os.tmpdir()` when not.
-- Scratchpad creation is idempotent and lands at mode `0o700`.
-- Shell resolution across a synthetic filesystem: `CLAUDE_CODE_SHELL` honoured,
-  `$SHELL` honoured when it names bash or zsh, zsh preferred when `$SHELL` names
-  neither, and the documented directory order.
-- Worktree detection true in a worktree and false in an ordinary checkout.
-- The drift comparison reports a match against the pinned manifest, and reports a
-  difference against a mutated one.
+`tests/test_env_context.py` (115 tests) covers the whole `env_context`
+package:
+
+- Rendering from a synthetic `Facts` dict: the interactive payload (with
+  `model`) versus the print-mode payload (without), each bullet's presence
+  and exact wording, and two full-text snapshot tests (plain and worktree).
+- Shell resolution across a synthetic filesystem: `CLAUDE_CODE_SHELL`
+  honoured, `$SHELL` honoured when it names bash or zsh, zsh preferred when
+  `$SHELL` names neither, the documented directory order, and the raise when
+  nothing resolves.
+- Git and worktree detection: true/false against a real repo, a plain
+  checkout, a missing cwd, a file cwd, and git absent from PATH; a linked
+  worktree resolves the shared dir, a plain one returns nothing.
+- Scratchpad path construction and creation: the cc-matching layout, mode
+  `0o700`, idempotence, a symlinked tmp root, a symlinked `claude-<uid>`
+  directory, the 200-character slug limit, and `session_id` rejected when
+  empty, `.`/`..`, or carrying a path separator.
+- Drift detection: literal extraction and its length/anchor guards,
+  `compare()` against a matching manifest and against every kind of mutated
+  one (new field, removed field, a count drop, a version-only mismatch),
+  `installed_version()` raising on a nonzero exit, empty output, or a
+  timeout, `find_binary()` across `CLAUDE_CODE_EXECPATH`, a wrapped Nix
+  `claude`, and every failure branch, and the cache: hits and misses on
+  mtime, size, and manifest content, self-healing from a corrupt,
+  wrong-shaped, non-UTF-8, or unreadable cache file, and a failed write
+  leaving no temp file behind.
+- Hook orchestration (`__main__.py`): the envelope shape, the model line
+  omitted in print mode, scratchpad creation, a malformed payload exiting
+  loudly and naming the contract, an empty cwd/session_id degrading quietly
+  instead, the scratchpad suppressed entirely in a background session, and
+  `drift_note()`/`scratchpad_or_none()` surfacing their own failures — as a
+  block note or stderr — rather than raising.
+
+`tests/test_claude_sh.py` (1 test) runs `scripts/claude.sh` for real against
+a stub `claude`, confirming `IS_SANDBOX`, `CLAUDE_CODE_DISABLE_AGENT_VIEW`,
+and `CLAUDE_CODE_TMPDIR` all reach the exec'd process, and that a missing
+MITM listener degrades to a stderr warning rather than a broken proxy env.
+
+`tests/test_prune_scratch.py` (18 tests) covers `scripts/prune-scratch.sh`
+against synthetic trees named only through `CLAUDE_CODE_TMPDIR`: a
+`--session` value that looks like a glob is rejected rather than matched, an
+ambiguous id across two projects refuses, a symlinked session or project
+directory is refused while a symlinked root itself is still scanned, bulk
+`--apply` deletes only empty scratchpads (and the parent session directory
+once it is the only child left), a session with no scratchpad is reported
+but not bulk-deleted, an `rmdir` refusal is skipped rather than fatal, and a
+bad top-level argument or a bad `--session` id each exit 2.
+
+`scripts/check-env-context.sh` and `scripts/prune-scratch.sh` are run by
+hand, like `scripts/check-prompt-coupling.sh`: `check-env-context.sh` needs
+an installed cc, and pruning scratch is a deliberate, one-off action by
+design (see the script's own header). Neither script is itself wired into
+`.github/workflows/skills-test.yml`, which runs a different, unrelated
+`tests/` tree under `skills/scripts/` — the 134 tests above run locally
+only, via `uv run --project . pytest -q`.
 
 `scripts/check-env-context.sh` is a local check like
 `scripts/check-prompt-coupling.sh`; it needs an installed cc and so does not run
