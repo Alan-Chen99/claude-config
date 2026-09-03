@@ -371,9 +371,15 @@ container is rebuilt.
 
 Background sessions (`CLAUDE_CODE_SESSION_KIND=bg`) receive a
 `# Background Session` block naming `$CLAUDE_JOB_DIR/tmp` instead of a scratchpad
-(`src/globals/21.js:13595`), and they drop `--system-prompt-file` entirely
-(`docs/background-sessions.md`), so they run cc's own prompt and need nothing from
-this hook.
+(`SdE()`, `src/globals/21.js:13595`), and they drop `--system-prompt-file` entirely
+(`docs/background-sessions.md`), so they run cc's own prompt and want nothing this
+hook adds.
+
+That is not the same as needing nothing *from* it. `SessionStart` hooks are
+configured in `settings.json` and fire whichever prompt the session runs, so the
+hook must actively suppress its own scratchpad section for such a session or it
+contributes a second, conflicting temp-directory instruction. The gate lives in
+`scratchpad_or_none()` and is described under Scratchpad above.
 
 The other sections `--system-prompt-file` discards — output style, language,
 memory, focus mode — are either hand-written into
