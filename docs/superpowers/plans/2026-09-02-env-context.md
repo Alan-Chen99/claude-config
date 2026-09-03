@@ -41,6 +41,7 @@ You are working in `/root/claude-config-work`, a git worktree of `/repos/claude-
 | `src/claude_config/env_context/render.py` | Assembling the two prompt sections from facts |
 | `src/claude_config/env_context/__main__.py` | stdin payload, orchestration, JSON envelope |
 | `tests/test_env_context.py` | Tests for all of the above |
+| `tests/test_claude_sh.py` | Guards `claude.sh`'s three exports. Losing the `CLAUDE_CODE_TMPDIR` one is silent — the agent and its subagents simply go back to disagreeing |
 | `docs/env-context-manifest.json` | Pinned cc version and env-block literals |
 | `scripts/check-env-context.sh` | Drift diff, run by hand |
 | `scripts/prune-scratch.sh` | Scratch reporting and deletion, run by hand |

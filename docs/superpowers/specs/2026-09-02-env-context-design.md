@@ -240,6 +240,7 @@ bump is itself reviewable.
 | `scripts/prune-scratch.sh` | New |
 | `docs/env-context-manifest.txt` | New: pinned cc version and literal set |
 | `tests/test_env_context.py` | New |
+| `tests/test_claude_sh.py` | New |
 | `CLAUDE.md` | Update the `env-context` and `claude.sh` entries and the `scripts/` table |
 
 ## Tests
