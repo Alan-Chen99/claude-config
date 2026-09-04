@@ -2,7 +2,7 @@
   "cleanupPeriodDays": 36500,
   "model": "opus",
   "env": {
-    "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"
+    "CLAUDE_CODE_FORK_SUBAGENT": "0"
   },
   "hooks": {
     "SessionStart": [
@@ -80,6 +80,16 @@
       }
     ],
     "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '.tool_input | .run_in_background = false | {hookSpecificOutput: {hookEventName: \"PreToolUse\", permissionDecision: \"allow\", updatedInput: .}}'",
+            "timeout": 5
+          }
+        ]
+      },
       {
         "matcher": "Bash|Monitor",
         "hooks": [

@@ -54,8 +54,12 @@ also carry non-status lines: `note: report history lost — …`, `note: <dir> c
 listed …`, and `… N more changed, omitted for size …`.
 
 `BACKGROUNDED:` is emitted by `hook_post.rs` only when a tool response carries
-`backgroundTaskId`. `settings.json` sets `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, under
-which Bash never returns one, so that line does not reach the agent in this configuration.
+`backgroundTaskId`. Bash returns one for an explicit `run_in_background: true`, and for a
+foreground command moved to the background when it outruns its `timeout`; the notice's
+`Cause:` field separates those two from an assistant-mode auto-background and from a user's
+Ctrl+B. A command the harness will not background — anything other than a single simple
+command, or one whose first word is `sleep` — is killed at its timeout instead, and no
+notice is emitted.
 
 ## Keys
 

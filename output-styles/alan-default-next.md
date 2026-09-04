@@ -197,19 +197,20 @@ Bad (documents what):
 
 # Bash Tool Timeout Behavior
 
-The Bash tool's `timeout` kills the command when it expires. Nothing is moved to a background task: `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` removes that path entirely, so the tool takes no `run_in_background` parameter and there is no `"Command running in background with ID: ..."` message to receive. The kill walks the call's live descendants, taking `&` and `nohup` children alike — measured. What survives it is a process already reparented to init: a bare `setsid`, or `agent-tools run --background`, which detaches that way and delivers the child's exit code afterwards on its own channel.
+A command that outruns the Bash tool's `timeout` is moved to a background task — `"Command did not complete within its Ns timeout and was moved to the background (ID: ...)"` — and you are re-invoked when it exits; `run_in_background: true` asks for the same thing up front. Only a single simple command whose first word is not `sleep` qualifies. Anything else is killed at the timeout, and the kill walks the call's live descendants, taking `&` and `nohup` children alike — measured. What survives it is a process already reparented to init: a bare `setsid`, or `agent-tools run --background`, which detaches that way and delivers the child's exit code afterwards on its own channel.
 
 Consequences:
 
 - A killed command tells you nothing about why it ended: no exit code, no elapsed time, and no indication that the timeout is what stopped it rather than the command itself.
 - A test run killed part way still leaves whatever it had taken — ports in TIME_WAIT, lock files, half-written artifacts — so the next run can fail on state the previous one owned.
-- A detached job is the only kind that outlives its call, and nothing collects it: it holds ports and files until something kills it by pid.
+- A backgrounded job keeps running and holds whatever it held — ports, files, memory — until it exits or you stop it; a detached one nothing collects at all, and it holds them until something kills it by pid.
 
 Rules:
 
 - For commands expected to complete in N seconds, use `timeout <2*N>` **inside the shell command** as well as the Bash tool's own. The inner one kills the process tree at a bound you chose, and its exit status says which bound was hit.
 - After ANY test run (pass or fail), check for and kill leftover child processes before starting the next run: `pkill -9 -f '<pattern>'; sleep 1`
-- A job that must outlive its call has to leave the call's descendant tree. `&` and `nohup` do not, so a call that outruns its timeout takes them down with it.
+- Ask for `run_in_background: true` rather than relying on the timeout: it backgrounds whatever you give it and yields a task you can read and stop, while the timeout backgrounds only a qualifying command and kills the rest.
+- A job the harness did not background has to leave the call's descendant tree to outlive it. `&` and `nohup` do not, so a call that outruns its timeout takes them down with it.
 - Never escalate the Bash tool timeout hoping the command "just needs more time" — if a 3-second test hasn't finished in 120s, it is stuck, not slow.
 
 # Required notes

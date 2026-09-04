@@ -5,7 +5,8 @@ background regardless of `run_in_background: false`, whether the model sends it 
 `PreToolUse` hook injects it. The parameter is also absent from the Agent tool's input
 schema, so the model cannot send it at all. Setting
 `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is the only lever that restores foreground
-subagents while keeping the `fork` subagent type.
+subagents while keeping the `fork` subagent type. `settings.json` does not use it: it turns
+the fork gate off and restores the hook instead, for the reasons measured below.
 
 The regression arrived with the fork-subagent feature. Captured API requests place it
 between **2.1.143** and **2.1.235**: the last interactive session whose Agent schema
@@ -68,8 +69,11 @@ the tool result; "background" means `Async agent launched successfully`.
 | interactive | no | `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` | foreground |
 
 Rows 1–2 isolate the gate: identical hook, opposite outcome. Rows 3 and 7 show the hook
-is still doing the work wherever the gate is off. Rows 8–9 show the flag alone suffices,
-which is why the hook was removed from `settings.json`.
+is still doing the work wherever the gate is off. Rows 8–9 show the flag alone suffices.
+Row 7 is the one that bounds the alternative: with the gate off and no hook, `o` arrives
+`undefined`, the disjunction's last term `(!A && o !== !1)` holds, and the call backgrounds
+anyway. `settings.json` runs rows 5–6 — gate off *and* hook — for the reasons in
+"Why the repo runs the gate rather than the flag" below.
 
 With `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` the `fork` subagent type survives — its
 tool description still describes forking, and `subagent_type: "fork"` launches. With
@@ -80,8 +84,7 @@ agents: claude-code-guide, Explore, general-purpose, Plan, statusline-setup`.
 
 Verified: Bash loses `run_in_background` from its schema; a Bash command that outlives
 its `timeout` returns `Exit code 143 / Command timed out` rather than a background task
-id; foreground `sleep` stops being blocked, because that block is conditioned on
-`!lk()` (`src/modules/Cae.js:543`); Monitor, `TaskOutput` and `TaskStop` remain in the
+id; Monitor, `TaskOutput` and `TaskStop` remain in the
 tool set, and a Monitor whose command exits still delivers per-event notifications and a
 `<status>completed</status>` notification.
 
@@ -89,6 +92,14 @@ Source only, not exercised: MCP auto-background (`src/globals/19.js:21594`), the
 backgrounding affordance (`src/globals/23.js:14364`), observer agents
 (`src/globals/09.js:2205`), and skills declaring `background: true`, which run inline
 (`src/globals/14.js:22858`).
+
+The foreground-`sleep` block is not the flag's to give or take alone. `Cae.js:543` reads
+`Dbe() && !lk() && !e.run_in_background`, and `Dbe()` is `et('tengu_amber_sentinel', !1)`
+(`src/globals/08.js:7309`) — a remote gate. It is on for this account: with the flag
+cleared, the Bash tool description carries "Foreground `sleep` is blocked; use Monitor with
+an until-loop to wait on a condition." (`src/globals/20.js:12257`, also gated on `Dbe()`),
+and under the flag that sentence is absent. So clearing the flag re-blocks `sleep` here,
+while an account with the remote gate off would see no change either way.
 
 `&` is unaffected — it is plain shell behaviour, not a harness feature. A command started
 with `&` and redirected to a file returns immediately and survives into later calls, and
@@ -149,6 +160,53 @@ with its own pid, log and rc files. It worked — a job finishing inside the wai
 `DONE rc=7`, and one outrunning a five-second wait reported `RUNNING`, survived the call and
 was collected later as `DONE rc=3` — but every part of it duplicated something the wrapper
 already does.
+
+## Why the repo runs the gate rather than the flag
+
+`settings.json` sets `CLAUDE_CODE_FORK_SUBAGENT=0` and keeps the `PreToolUse` `Agent` hook,
+rather than setting `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`. Both hold subagents foreground;
+the flag additionally removes the whole background-task facility, which is worth more than
+the `fork` subagent type it preserves.
+
+Measured 2026-09-04, one interactive session per configuration, driven over a pty against
+this checkout through `agent-tools claude` — opus, `--system-prompt-file`. Schemas are read
+from the intercepted request bodies rather than reported by the model.
+
+| Probe | `DISABLE_BACKGROUND_TASKS=1` | `FORK_SUBAGENT=0` + hook |
+| --- | --- | --- |
+| Bash input schema | `command, timeout, description, dangerouslyDisableSandbox` | those plus `run_in_background` |
+| Agent input schema | `description, prompt, subagent_type, model, isolation` | those plus `run_in_background` |
+| `Agent(subagent_type: "Explore")` | not probed | the launching call's tool result is `[{"type":"text","text":"PROBE-A-OK"}]` |
+| `Agent(subagent_type: "fork")` | launches | `is_error`, `Agent type 'fork' not found. Available agents: architect, claude-code-guide, debugger, developer, Explore, general-purpose, Plan, quality-reviewer, session-analysis, statusline-setup, technical-writer` |
+| a 60s command at `timeout: 5000` | `Error: Exit code 143` / `Command timed out after 5s` | `Command did not complete within its 5s timeout and was moved to the background (ID: b5eaioquc) … You will be notified when it completes.` |
+| `run_in_background: true` | the parameter does not exist | `Command running in background with ID: bfv6in0lv` |
+| `BACKGROUNDED:` notice | never emitted | emitted on both paths — `Cause: timeout (5000ms limit hit)` and `Cause: explicit run_in_background: true` |
+
+`agent-tools run` composes with the harness's own backgrounding: the call
+`agent-tools run --desc "wrapped long" bash <script>` at `run_in_background: true` returned
+`Command running in background with ID: bgnxn0wct`, delivered a `<task-notification>` when
+the child exited, and showed the wrapper in `agent-tools ps` first as `producing` and then as
+`final(0)` with its own capture file beside the harness's task output.
+
+The timeout probe needs a command the harness will accept. `D = !lk() && tiE(g)`
+(`src/globals/20.js:14318`) is what decides whether a timeout backgrounds instead of killing,
+and `tiE` (`src/globals/20.js:14174`) refuses anything whose parsed kind is not `simple` and
+anything whose first word is in `JoE`, which is `['sleep']` (`src/modules/Cae.js:339`). So
+`sleep 45; echo X` fails on both counts and is killed under either setting, while
+`bash <script>` qualifies.
+
+## Known defect in the current configuration
+
+With the fork gate off, the Agent description drops every mention of forking and asserts the
+opposite of what it asserted under the flag:
+
+> Subagents run in the background by default; you'll be notified when one completes. Pass
+> `run_in_background: false` only when your very next action depends on the result …
+
+The hook supplies that `false` on every call, so nothing backgrounds and no notification
+follows. `sys_prompt/alan-default-next.md` contradicts the paragraph explicitly so the model
+does not act on it — the same correction the flagged configuration needed, pointed the other
+way.
 
 ## Known defect in the flagged configuration
 

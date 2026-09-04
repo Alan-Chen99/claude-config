@@ -76,36 +76,44 @@ cd agent-tools && cargo build --release
 CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module> [args...]
 ```
 
-### `settings.json` — `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS`
+### `settings.json` — `CLAUDE_CODE_FORK_SUBAGENT` and the `Agent` hook
 
-`env` sets `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which makes every subagent run in
-the foreground and return its report as the tool result of the call that launched it.
+`env` sets `CLAUDE_CODE_FORK_SUBAGENT=0`, and a `PreToolUse` hook on `Agent` rewrites
+`run_in_background` to `false` on every call. Together they make every subagent run in the
+foreground and return its report as the tool result of the call that launched it.
 
-The flag is the only lever that does this. Claude Code decides subagent backgrounding in
-the Agent tool with a disjunction whose terms include the fork-subagent feature gate, and
-that gate is on by default; a `run_in_background: false` supplied by the model or injected
-by a `PreToolUse` hook is therefore ignored. Only this flag cancels the disjunction. Turning
-the fork gate off instead (`CLAUDE_CODE_FORK_SUBAGENT=0`) also restores foreground agents,
-at the cost of the `fork` subagent type. Measured evidence and the source reading are in
+Neither half works alone. Claude Code decides subagent backgrounding in the Agent tool with
+a disjunction: the fork-subagent gate is one term, and the last term is
+`run_in_background !== false`, which holds whenever the parameter is omitted. Turning the
+gate off without the hook still backgrounds, and the hook without the gate turned off is
+outvoted by the gate. The price is the `fork` subagent type, which disappears outright —
+`Agent type 'fork' not found. Available agents: …`.
+
+`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is the alternative. It holds subagents foreground
+on its own, with no hook, and keeps `fork`; what it costs instead is the whole
+background-task facility, a far larger loss than `fork`. Measured in one interactive session
+each:
+
+| | `DISABLE_BACKGROUND_TASKS=1` | `FORK_SUBAGENT=0` + hook |
+| --- | --- | --- |
+| Bash `run_in_background` | absent from the schema | present; returns a task id and re-invokes the agent when the command exits |
+| A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id, unless ineligible — anything but a single simple command, or one led by `sleep`, which is still killed |
+| `BACKGROUNDED:` from `hook_post.rs` | cannot fire, since no tool response carries `backgroundTaskId` | fires, naming the cause and the task id |
+| `subagent_type: "fork"` | available | `Agent type 'fork' not found` |
+| Foreground `sleep` | permitted | the Bash description says it is blocked, and to use Monitor with an until-loop |
+
+Source only, not exercised under either setting: MCP auto-background
+(`src/globals/19.js:21594`), the Ctrl+B backgrounding affordance (`src/globals/23.js:14364`),
+observer agents (`src/globals/09.js:2205`), and skills declaring `background: true`
+(`src/globals/14.js:22858`) — all gated on background tasks being enabled, so all of them
+return under the current setting.
+
+The Agent tool's own description says subagents run in the background by default and that a
+notification follows. The hook makes that false, so `sys_prompt/alan-default-next.md`
+contradicts it explicitly.
+
+Measured evidence and the source reading are in
 `notes/subagent-backgrounding-overrides-run-in-background.md`.
-
-What the flag costs, in the same session:
-
-| Effect | Consequence |
-| --- | --- |
-| Bash loses `run_in_background` | A long command needs `agent-tools run --background`, which returns on the start and detaches; a bare `&` needs `timeout <s> tail --pid=<pid> -f /dev/null` to wait |
-| A Bash command outliving its `timeout` is killed, not backgrounded | The kill reaches the call's live descendants — `&`, `nohup` and `setsid --wait` children included — so a job started that way survives only a call that returns on its own. It does not reach a process already reparented to init, which is where a bare `setsid`'s double fork leaves its worker and where `agent-tools run --background` leaves its wrapper. See the backgrounding bullet in `sys_prompt/alan-default-next.md` |
-| MCP auto-background, ctrl+b backgrounding, observer agents | Unavailable |
-| Skills declaring `background: true` | Run inline |
-
-Foreground `sleep` becomes available, because the block on it is conditioned on background
-tasks being enabled. Monitor, `TaskOutput` and `TaskStop` are unaffected, so a Monitor whose
-command exits still delivers a completion notification.
-
-The Agent tool's own description continues to say that subagents run in the background and
-that a notification follows — that fragment is gated on the fork feature, not on this flag,
-so it is emitted while nothing backgrounds. `sys_prompt/alan-default-next.md` contradicts it
-explicitly for that reason.
 
 ### `scripts/claude.sh`
 

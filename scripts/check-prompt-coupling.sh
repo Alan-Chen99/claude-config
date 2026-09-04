@@ -46,10 +46,10 @@ check '"[agent-tools] run status: unavailable' "$src/hook_post.rs"
 check '"[agent-tools] run status: unavailable' "$src/hook_prompt.rs"
 
 # The backgrounding notice. `hook_post.rs` gates it on `backgroundTaskId`, which
-# Bash never returns under `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (settings.json),
-# so the line cannot reach the agent in this configuration and the system prompt
-# does not spend tokens teaching it. The emit site is still pinned, and the
-# reference doc records why the prompt is silent about it.
+# Bash returns for an explicit `run_in_background: true` and for a foreground
+# command moved to the background when it outruns its `timeout`, so the line
+# reaches the agent and the prompt teaches it beside the status header.
+check 'BACKGROUNDED:' "$prompt"
 check 'BACKGROUNDED:' "$ref"
 check '"BACKGROUNDED: Command was backgrounded.' "$src/hook_post.rs"
 
