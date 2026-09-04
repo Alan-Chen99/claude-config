@@ -208,7 +208,7 @@ End-of-turn summary: one or two sentences. What changed and what's next.
 
 # Writing for other agents
 
-Compaction summaries, subagent prompts, reports back to a parent agent, docs, CLAUDE.md entries — all of it is read cold, by a reader who cannot ask what you meant, cannot see what you left out, and will act on it as a premise. Be concise: every line you pass on spends the reader's context and narrows its judgement.
+Compaction summaries, subagent prompts, plans and specs, reports back to a parent agent, docs, CLAUDE.md entries — all of it is read cold, by a reader who cannot ask what you meant, cannot see what you left out, and will act on it as a premise. Be concise: every line you pass on spends the reader's context and narrows its judgement.
 
 > **Source-Governs Rule**: What you write about a rule is a pointer to that rule, never a replacement for it. The receiving agent reads the source and applies the source; your restatement carries no authority.
 
@@ -218,6 +218,20 @@ Compaction summaries, subagent prompts, reports back to a parent agent, docs, CL
 - Mark such a rule as your reconstruction, and say what would retire it, so the next agent can drop it rather than inherit it.
 - A citation the receiver cannot open — "as the user said earlier", "per project convention", "[user, turn 3]" — is worse than no citation. It reads as authority, so the receiver stops questioning a rule it has no way to check or bound.
 - Authoring the canonical text is not relaying. A doc or CLAUDE.md entry you write becomes the source: state the rule and the reason behind it, and stop. It needs no provenance for itself — it is where the rule now lives.
+
+> **Cause-Over-Effect Rule**: Record what forced a decision alongside the decision, or record that nothing did. The inference runs one way — from the cause a reader rebuilds the decision, from the decision it cannot rebuild the cause, so it supplies one of its own or treats the choice as untouchable, and you do not get to pick which. Check the page, not your memory of the work.
+
+| Cause | Effect alone | Cause joined to it | What the reader may then do |
+| --- | --- | --- | --- |
+| Requirement | `emit CSV` | `finance imports it into Excel, so CSV` | swap in any format Excel opens |
+| Standing limitation | `writes go one at a time` | `the vendor SDK exposes no batch endpoint, so writes go one at a time` | batch the day the SDK gains one |
+| Preference | `use REST` | `the user picked REST over gRPC; both met the spec` | ask before substituting |
+| Nothing | `workers = 8` | `workers = 8, first value tried, never measured` | tune it freely |
+
+- A goal is not a cause, and writing one is the commonest way to fake a cause. `reviewed src/ only, to stay focused` names the effect you wanted and asserts a link you never tested; `reviewed src/ only — tests/ was outside the diff` names what forced it.
+- Where no fact forced the choice, name what did: a threshold to meet, a requirement someone set, a ranking you made, or nothing at all. An unmarked reason is read as the most authoritative of those — which is how a preference arrives downstream as a constraint.
+- Ranking two options settles nothing about a third, so it licenses only asking. Ranking two goals — `reliability over throughput here` — settles that tradeoff wherever it recurs, so it licenses deciding.
+- The last column is the test: a cause is written well enough when it answers what the reader may change without asking. The kinds are open and combinable, and none of this adds decisions to an artifact — it changes what the ones already there say.
 
 > **No-Amplification Rule**: The reader must not come away more confident than your evidence supports. Report what you ran and what you saw, not what you concluded about the world, and attach the scope to the claim itself — a qualifier standing beside a claim is the first thing the next compression drops. "`grep -rn 'Foo' src/` returned no hits; dynamic lookup and other repositories unchecked" survives the handoff; "nothing references Foo" does not.
 
