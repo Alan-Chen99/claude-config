@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Run one prompt-tests case against a full-replacement system prompt under
+# Claude Code.
+#
+#   scripts/prompt-test-cc.sh <case> <tag> [prompt-file]
+#
+# <case>        directory name under prompt-tests/general/
+# <tag>         label for the output log, e.g. full / stripped / baseline
+# [prompt-file] defaults to sys_prompt/alan-default-next.md
+#
+# Claude Code applies the LAST --system-prompt-file on the command line, so the
+# arm file is appended after the one scripts/claude.sh passes; the launcher needs
+# no argument of its own. Verified against the intercepted request body: a run
+# with an override sends only the override's text as the system block.
+#
+# The tested agent runs from a fresh /tmp scratch cwd with plugins disabled, per
+# .claude/skills/prompt-tests. A case's fixture/ directory, if present, is copied
+# into that scratch cwd; nothing else from the repo is.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+CASE="${1:?usage: prompt-test-cc.sh <case> <tag> [prompt-file]}"
+TAG="${2:?usage: prompt-test-cc.sh <case> <tag> [prompt-file]}"
+PROMPT_FILE="${3:-$REPO/sys_prompt/alan-default-next.md}"
+
+CASE_DIR="$REPO/prompt-tests/general/$CASE"
+test -d "$CASE_DIR" || { echo "no such case: $CASE_DIR" >&2; exit 1; }
+test -f "$PROMPT_FILE" || { echo "no such prompt file: $PROMPT_FILE" >&2; exit 1; }
+PROMPT_FILE="$(readlink -f "$PROMPT_FILE")"
+
+# --system-prompt-file loads the file verbatim, so YAML frontmatter would be
+# injected as-is and leak whatever it says into the run.
+head -1 "$PROMPT_FILE" | grep -qx -- '---' && {
+  echo "$PROMPT_FILE starts with YAML frontmatter; strip it before testing" >&2
+  exit 1
+}
+
+ENV_FILE="${PROMPT_TEST_ENV_FILE:-/workspace/.env}"
+test -f "$ENV_FILE" || { echo "no env file at $ENV_FILE (needs CLAUDE_CODE_OAUTH_TOKEN)" >&2; exit 1; }
+set -a; . "$ENV_FILE"; set +a
+test -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" || { echo "CLAUDE_CODE_OAUTH_TOKEN unset after sourcing $ENV_FILE" >&2; exit 1; }
+
+AT="$REPO/agent-tools/target/release/agent-tools"
+test -x "$AT" || { echo "build the worktree binary first: (cd $REPO/agent-tools && cargo build --release)" >&2; exit 1; }
+
+OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
+mkdir -p "$OUT_DIR"
+SCRATCH="$(mktemp -d "/tmp/ptcc-${CASE}-${TAG}.XXXXXX")"
+OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
+
+[ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"
+
+# Plugin defaults for prompt tests are "none loaded" (prompt-tests/CLAUDE.md).
+# A --settings file carrying only enabledPlugins adds no hook of its own, so the
+# checkout's hooks stay registered exactly once.
+SETTINGS="$SCRATCH/.prompt-test-settings.json"
+python3 - "$REPO/settings.json" "$SETTINGS" <<'PY'
+import json, sys
+src, dst = sys.argv[1], sys.argv[2]
+plugins = json.load(open(src)).get("enabledPlugins", {})
+json.dump({"enabledPlugins": {k: False for k in plugins}}, open(dst, "w"))
+PY
+
+# --thinking-display summarized is load-bearing. The default sends
+# thinking.display="omitted", and every thinking block in the transcript is then
+# an empty string with a signature and nothing else — the run looks complete and
+# the reasoning it was read for is not in the file.
+#
+# `agent-tools claude` also runs check-prompt-coupling.sh, whose "prompt coupling
+# OK" lands on the same stdout as the result JSON, so the raw stream is kept and
+# the JSON cut out of it rather than the check being silenced.
+( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" "$AT" claude \
+    -p --output-format json \
+    --thinking-display summarized \
+    --settings "$SETTINGS" \
+    --system-prompt-file "$PROMPT_FILE" \
+    < "$CASE_DIR/task.md" > "$OUT.raw" ) 2>"$OUT.stderr"
+sed -n '/^{/,$p' "$OUT.raw" > "$OUT"
+
+SID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("session_id",""))' "$OUT")"
+TRANSCRIPT="$(find "$REPO/.claude/worktree-config/projects" -name "$SID.jsonl" 2>/dev/null | head -1)"
+
+echo "case:       $CASE"
+echo "tag:        $TAG"
+echo "prompt:     $PROMPT_FILE"
+echo "result:     $OUT"
+echo "transcript: ${TRANSCRIPT:-<not found>}"
+echo "scratch:    $SCRATCH"
+echo "session:    $SID"

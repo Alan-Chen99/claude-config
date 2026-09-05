@@ -1,6 +1,6 @@
 ---
 name: prompt-tests
-description: Use when running, grading, or iterating any case under prompt-tests/. Covers prompt-evaluation work in this repo, including contamination checks and pass/acceptable/fail/invalid outcomes.
+description: Use when running, grading, or iterating any case under prompt-tests/. Covers prompt-evaluation work in this repo, including the runners, contamination checks, and reading a run as a trajectory rather than a verdict.
 ---
 
 # prompt-tests
@@ -33,7 +33,12 @@ Each case under `prompt-tests/general/<case>/` contains:
 
 - `task.md` — exact prompt sent to the tested agent through stdin. It must be
   clean task text, with no test-framework anti-cheating note.
-- `reference-solution.md` — semantic pass / acceptable / fail criteria.
+- `reference-solution.md` — what the case probes, and the `session-analysis`
+  foci a run is read under. The foci are the case's measurement instrument:
+  changing them makes new runs incomparable with stored ones, so treat a change
+  to them as a change to the case.
+- `downstream.md` (optional) — a second task carrying `{{ARTIFACT}}`, run
+  against the first session's output. See "`downstream.md`" below.
 - `fixture/` (optional) — runnable artifacts the agent needs. Pinned at the
   fixture level (e.g., PEP 723 inline metadata for Python).
 
@@ -49,39 +54,59 @@ Historical baselines from the opencode era are at
 2. **Run the test once from a scratch cwd under `/tmp`.** Choose the
    per-runner recipe below. Capture the session log under `/tmp/`.
 
-3. **Dispatch one grader subagent per session log.** One subagent per session
-   — no parallel-grader launching. The grader's brief:
+3. **Dispatch one `session-analysis` subagent per focus.** `mode: evidence`,
+   the foci taken from the case's `reference-solution.md`. Where a case was run
+   several times under one prompt version, give one subagent all the runs of
+   that arm and one focus: the artifact then covers the arm rather than a single
+   session, which is the unit an arm-to-arm comparison reads anyway, and it keeps
+   one focus per artifact. Give every subagent a word cap — roughly 500 words for
+   a single-turn session, 600 for an arm of three — because the parent reads
+   every artifact, and an uncapped batch of them costs more context than the
+   sessions did.
 
-   > Read the session log with the session-analysis skill in **evidence
-   > mode**: `agent-tools cc-pretty <FILE> --skeleton` (Claude Code JSONL)
-   > or `agent-tools opencode-pretty <session> --skeleton` (opencode), then
-   > extract per the reading protocol, **including all thinking/reasoning
-   > blocks**. Focus: the grading criteria — the contamination rules in this
-   > skill, what the task required, and (if the run failed or struggled) the
-   > evidence bearing on why. First check for
-   > cheating/contamination using the rules in this skill. If contaminated,
-   > return `invalid` and do not grade semantic quality. Otherwise compare the
-   > transcript to `reference-solution.md` semantically. Return:
-   > - **Verdict**: `pass` / `acceptable` / `fail` / `invalid`.
-   > - **Reasoning** grounded in transcript quotes (final answer, tool calls,
-   >   thinking blocks).
-   > - **Causal attribution** for any failure or struggle: why it happened,
-   >   as a causal chain grounded in evidence-artifact quotes.
-   > - The evidence artifact path.
+4. **Read the artifacts.** They are the result of the run. Store them so the
+   next version of the prompt can be compared against them.
 
-4. **Aggregate in the parent.** Apply outcome rules:
-   - `pass` → pass.
-   - `fail` → fail.
-   - `acceptable` → run again. If a pattern emerges where every run is
-     acceptable (never `pass`), call it `fail`. Parent's judgment.
-   - `invalid` → discard the run and rerun from a clean scratch cwd. It is not
-     a semantic fail.
-   - Outstanding problematic behavior evidenced in the artifact can
-     override `pass` → `fail`; the override must cite the causal chain, not a
-     category label. Parent decides severity in context of the task.
+Trial count is task-dependent. Run once first; add runs when the artifacts of
+one arm disagree with each other.
 
-Trial count is task-dependent. Run once first; iterate only if the result is
-ambiguous or `acceptable`.
+### What a run produces
+
+The result of a run is the **trajectory**, not the agent's final answer. What
+reached the answer is one span of the session; what the agent weighed and
+discarded on the way is the rest of it, and a prompt edit moves that part first.
+So a run's recorded output is the set of `session-analysis` evidence artifacts
+taken under the foci the case's `reference-solution.md` names — the same foci
+every time, so two runs are comparable line by line.
+
+Compare a new run to the stored artifacts of the old one, artifact against
+artifact. A verdict does not carry enough to compare: `fail` and `fail` look
+identical whether the second run failed the same way or a new one.
+
+Do not stamp `pass` or `fail` on a run. Whoever reads the artifacts later is
+working on something specific, and what counts as passing depends on what that
+is. Record what the agent did and quote it; leave the judgment to the reader who
+has a question.
+
+`invalid` survives as a verdict, because it is a fact about the harness rather
+than about the agent: a contaminated run did not measure the task. See
+"Cheating and contamination detection".
+
+### `downstream.md` (optional, per case)
+
+A case may carry `downstream.md` next to `task.md`: a second task that puts the
+first session's artifact — a handoff note, a subagent prompt, a returned table
+row — in front of the reader it was written for, with the literal marker
+`{{ARTIFACT}}` where the artifact goes. `scripts/prompt-test-cc-downstream.sh`
+substitutes and runs it.
+
+It exists because a defect in text written for another agent is only a defect in
+what the receiver then does. The reader runs on stock Claude Code with a fresh
+empty `CLAUDE_CONFIG_DIR`: no plugins, no hooks, no `CLAUDE.md`, and not the
+prompt under test — a reader running that prompt can repair a defective artifact
+out of its own instructions and hide the effect being measured. The reader is an
+instrument, not a session under test; its answer is short, so record it verbatim
+beside the artifacts rather than analysing it.
 
 ## Scratch cwd isolation (load-bearing)
 
@@ -261,13 +286,13 @@ opencode run --agent prompt-test --format json --dir "$SCRATCH" \
   < "$REPO/$CASE/task.md" | tee "/tmp/$(basename $CASE)-$(date +%s).jsonl"
 ```
 
-### A `sys_prompt/` full-replacement prompt
+### A `sys_prompt/` prompt under opencode (cross-runner arm)
 
-`sys_prompt/alan-default-next.md` is the prompt `scripts/claude.sh` passes to
-`--system-prompt-file`. Neither recipe above tests it: the opencode recipe points
-at `opencode/agents/*.md`, and the Claude Code recipe exercises the default
-prompt. Use `scripts/prompt-test-run.sh`, which loads the file as an opencode
-agent prompt so the text under test is exercised verbatim:
+The standard runner for `sys_prompt/alan-default-next.md` is
+`scripts/prompt-test-cc.sh` — see "Claude Code" below. `scripts/prompt-test-run.sh`
+loads the same file as an opencode agent prompt, which answers a different
+question: whether an effect survives a change of runner and model family. Reach
+for it when a Claude-Code result looks model-specific, not as the default.
 
 ```bash
 scripts/prompt-test-run.sh <case> <tag> [prompt-file]     # default: sys_prompt/alan-default-next.md
@@ -325,27 +350,66 @@ in this repo's history has separately warned that the mandatory
 one-to-one onto whatever the report ends up disclosing — over-determines most
 candidate effects.
 
-### Claude Code
-
-Headless invocation with `claude --print` (or `claude` with stdin piping)
-captures a JSONL session log via the standard transcript location. Run it from
-a fresh scratch cwd, copying only task-visible fixtures first if needed:
+### Claude Code — the standard runner for a `sys_prompt/` prompt
 
 ```bash
-REPO="$(git rev-parse --show-toplevel)"
-CASE="prompt-tests/general/pydantic-forward-ref-runtime-compat"
-SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
-cp -a "$REPO/$CASE/fixture/." "$SCRATCH/"  # only if the case has a fixture
-(
-  cd "$SCRATCH"
-  claude --print < "$REPO/$CASE/task.md"
-)
+scripts/prompt-test-cc.sh <case> <tag> [prompt-file]   # default: sys_prompt/alan-default-next.md
 ```
 
-Adapt to the local Claude Code version's flags. Capture the session log path
-printed at exit, or pull it from `~/.claude/projects/<slug>/<session>.jsonl`.
-For any other harness, use the same pattern: scratch cwd under `/tmp`, fixtures
-copied in, grader-only files left in the repo.
+`sys_prompt/alan-default-next.md` is written for Claude Code, and this runs it
+there: `agent-tools claude -p`, so the session gets this checkout's hooks,
+settings, and output style alongside the prompt. Use it for any question about
+what that prompt does. `scripts/prompt-test-run.sh` (opencode) answers a
+different question — see below.
+
+The script creates the `/tmp` scratch cwd, copies the case's `fixture/` if it has
+one, disables plugins, sources the OAuth token, and prints the result JSON path,
+the transcript path, and the session id. Read the transcript with
+`agent-tools cc-pretty <FILE> --skeleton`.
+
+Read the `transcript:` path, not `result:`. `--output-format json` puts only the
+**final** assistant message in `.result`, while this prompt's `## Before response`
+gate makes `agent-tools pre_output.record` the last tool call — so an agent that
+writes a deliverable and then runs the gate leaves the deliverable in the
+second-to-last assistant message and the response template in the last one.
+`.result` then holds a sentence *about* the artifact and not the artifact, which
+reads as an agent claiming work it did not do.
+
+Five mechanics it depends on:
+
+- **Credentials.** `CLAUDE_CODE_OAUTH_TOKEN` comes from `/workspace/.env`
+  (override the file with `PROMPT_TEST_ENV_FILE`). The script exits non-zero if
+  the variable is unset after sourcing, rather than launching a session that
+  fails at the first request.
+- **Arm selection.** Claude Code applies the **last** `--system-prompt-file` on
+  the command line, so the arm file is appended after the one `scripts/claude.sh`
+  passes and the launcher needs no argument of its own. Verified against the
+  intercepted request body: a run with an override sends the override's text as
+  the entire system block, with no trace of the launcher's file.
+- **Plugins off.** A generated `--settings` file sets every key of the
+  checkout's `enabledPlugins` to `false`. It carries `enabledPlugins` and nothing
+  else, so it registers no hook of its own and the checkout's hooks stay
+  registered exactly once — settings sources are unioned, not overridden, and a
+  second file naming the same hooks would run each of them twice.
+- **Transcript location.** `agent-tools claude` relocates `CLAUDE_CONFIG_DIR`,
+  so transcripts land under
+  `<repo>/.claude/worktree-config/projects/<cwd-slug>/<session>.jsonl` and never
+  appear in a normal session's `/resume`.
+- **Reasoning capture.** `--thinking-display summarized`. Claude Code otherwise
+  sends `thinking: {type: "adaptive", display: "omitted"}`, and every thinking
+  block in the transcript is then `{"type":"thinking","thinking":"","signature":
+  "..."}` — an empty string. The run reports its thinking-token count normally
+  and the skeleton lists the blocks at `0~tok`, so a log with no reasoning in it
+  looks like a log of an agent that did not reason. Confirm per run against
+  `.request.thinking.display` in the intercept, or by a non-empty `.thinking` in
+  the JSONL.
+
+Two things this runner does not isolate. The user's `~/.claude/CLAUDE.md` is
+linked into the config dir and reaches the agent as a `claudeMd` system-reminder;
+it describes the machine, and it is identical across arms. And the launcher binds
+`HTTPS_PROXY` when the MITM proxy is listening on `127.0.0.1:9160`, which is how
+the request body above was read — the arm's system prompt can be confirmed per
+run at `~/.claude/requests-log/<session>/0001.json`.
 
 ## Pitfalls
 

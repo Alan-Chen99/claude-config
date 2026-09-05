@@ -38,6 +38,13 @@ fail — rerun with `"plugin": []`.
 
 ## Model/variant fidelity
 
+For Claude Code runs via `scripts/prompt-test-cc.sh`, the fidelity risk is
+reasoning capture rather than model selection: without `--thinking-display
+summarized` every thinking block in the transcript is an empty string with a
+signature, while the run still reports its thinking-token count. A trajectory
+read of such a log finds no reasoning and cannot tell that from an agent that
+did not reason. The script passes the flag; a hand-rolled invocation must.
+
 For opencode runs using inline config with `"prompt": "{file:...}"`, agent-file
 frontmatter is not applied. Set the intended `model` and `variant` directly in
 `OPENCODE_CONFIG_CONTENT` and verify the rendered header with
@@ -70,18 +77,22 @@ unblinded rather than blind.
 
 ## Trial logging
 
-Every trial — pass, fail, or invalid — gets a record at
-`docs/opencode-system-prompt/trials/<YYYY-MM-DD>-<case>-<descriptor>.md`. The
-record names the session/log id, the verdict, why the verdict follows, and the
-supporting transcript quotes (thinking-block reasoning, final prose, tool/
-timeline points). Do not append all trials to a single growing iteration log:
-one file grows past the point where readers can locate any specific trial.
+Every trial keeps its `session-analysis` evidence artifacts, one per focus, at
+`docs/prompt-trials/<case>/<YYYY-MM-DD>-<arm>__<focus-slug>.md`, with the
+run's provenance in the artifact header per the `session-analysis` skill.
+Those artifacts are the trial record. Do not append trials to a single growing
+iteration log: one file grows past the point where readers can locate any
+specific trial.
 
-For a `fail` verdict, the record must pinpoint either an action point ("agent
-should not have done X here") or an omission point ("agent should have
-considered Y here") inside the transcript. If no such point exists after
-reading the trace, label the prompt or grader as deterministically wrong in
-that record rather than blaming stochastic agent behavior.
+The artifacts carry no verdict. A prompt edit is assessed by reading the new
+run's artifacts against the stored ones under the same foci, and `pass` does
+not survive that comparison — two runs can both pass and differ in every step
+that got them there. Whoever reads the artifacts later has a specific question;
+what counts as passing depends on it. See `.claude/skills/prompt-tests`,
+"What a run produces".
+
+`docs/opencode-system-prompt/trials/` holds the opencode-era records, which do
+carry verdicts. Leave them as they are.
 
 ## Editing the system-under-test
 
