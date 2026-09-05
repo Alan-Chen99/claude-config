@@ -35,7 +35,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
 | `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
 | `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — see `docs/background-sessions.md` first |
-| `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py`, `prompt-test-run.sh` | Running or modifying utility scripts              |
+| `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py`, `prompt-test-run.sh`, `check-env-context.sh`, `prune-scratch.sh` (frees scratch disk space) | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
 ### `agent-tools/`
@@ -48,7 +48,7 @@ Rust binary wrapping skill script and Python tool invocations. Subcommands:
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
 - `agent-tools ntfy-hook [args]` — Claude Code notification hook (wraps `python3 -m claude_config.ntfy_hook`)
 - `agent-tools count-tokens [--model MODEL] [--file PATH] [TEXT]` — count input tokens via Anthropic `count_tokens` API (wraps `python3 -m claude_config.count_tokens`)
-- `agent-tools env-context` — print the `# Environment` block (cwd, git, platform, shell, OS). Inject via a `SessionStart` hook returning `{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: <stdout>}}` so cc still sees the env block when `--system-prompt-file` replaces the default prompt — keeps the system prompt itself static and fully cacheable.
+- `agent-tools env-context` — SessionStart hook supplying the dynamic context `--system-prompt-file` discards: a `# Environment` block and a `# Scratchpad Directory` section. Reads the hook payload on stdin (`cwd`, `session_id`, `model` when present). Whether `model` is present depends on which internal call site fired the hook, not on `source` or interactive-vs-print: a fresh interactive startup, an in-app session resume/fork, and `compact` each pass one (`globals/28.js:8017`, `globals/13.js:32825`), while a process-launched `--resume`/`--continue` and `/clear` do not (`globals/17.js:19270`, `globals/18.js:7920`) — and that no-model resume path shares the identical `source: "resume"` label with the one that does, so `source` cannot predict it either; there is no clean rule to state, so the hook treats it as always possibly absent. It emits the `hookSpecificOutput` envelope itself — plain stdout would be injected as `SessionStart hook success: <text>` instead of verbatim. The `Shell` field reports the shell the Bash tool actually runs, not Claude Code's own `$SHELL` reading. Claude Code falls back to the literal `unknown` when `$SHELL` is unset; this hook never does — when no shell resolves at all it says so explicitly (`"none found — no bash or zsh on this system, so Bash tool calls will fail"`). Warns when Claude Code's own env block drifts from the pinned field set in `docs/env-context-manifest.json`; `scripts/check-env-context.sh` shows the difference.
 - `agent-tools opencode [args]` — launch `opencode` with repo `.env` loaded for the opencode Langfuse plugin: maps `OPENCODE_LANGFUSE_SECRET_KEY`, `OPENCODE_LANGFUSE_PUBLIC_KEY`, and `OPENCODE_LANGFUSE_BASE_URL` to the unprefixed vars expected by the plugin (`LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_BASEURL`), sets git author/committer env to `opencode`, then forwards args to `opencode`. Where both the `.env` and the shell define one of these keys, the `.env` value is the one passed on — matching `src/claude_config/config.py`, which loads the same file with `override=True`; the shell is the fallback for a checkout whose gitignored `.env` is absent, such as a worktree. `opencode-plugin-langfuse` is disabled by default: the `plugin` array in `opencode/opencode.jsonc` is empty, so the mapping stays inert until the plugin is listed there.
 - `agent-tools opencode-pretty <session-id> [args]` — pretty-print an opencode session. Mirrors `cc-pretty`'s CLI surface (`--tool-max`, `--truncate-input`, `--no-thinking`, `--show-usage`, `--show-rewound`, `--show-all`, `--chat-only`, `--skeleton`, `--compact-all`, `--compact-leg`, `--agent`, `--validate-only`) and reuses cc-pretty's rendering pipeline. Color is auto-detected (on for TTYs, off when piped or when `NO_COLOR` is set); `--color` forces it on, `--no-color` forces it off. Compaction boundaries (user message with a `compaction` part) become Claude-Code-style `compact_boundary` system records. An uncleaned `session.info.revert` is surfaced via the rewind marker — opencode normally deletes the abandoned tail on the next prompt, so only revert states caught before that prompt show up here.
 - `agent-tools opencode.gate` — prompt gate used by opencode agent instructions; accepts stdin/heredoc input, prints gate instructions to stdout, and exits successfully.
@@ -137,6 +137,23 @@ prints a warning to stderr and runs unintercepted, instead of exporting a proxy 
 fail every request with ECONNREFUSED. The listener itself comes from the canonical venv
 provisioned by `install.sh`; see the HIDDEN PATH DEPENDENCY note there.
 
+It also exports `CLAUDE_CODE_TMPDIR=/root/.claude/tmp`. Claude Code roots its
+per-session scratchpad there (`Spe()`, `globals/05.js:8056`), and it names that
+path to subagents (`Xff`, `globals/14.js:26405`) whether or not
+`--system-prompt-file` drops the section from the main agent's own prompt.
+Redirecting the root is therefore the only way both agree on one directory —
+and `/root` is a host bind mount, so scratch survives a container rebuild that
+`/tmp` would not. The same variable also roots plugin session directories,
+skill and plugin zip staging, the IPC socket directory, and entries in the
+sandbox write allowlist. The socket actually roots at `XDG_RUNTIME_DIR` when
+that is set, falling back to this variable only when it is not (`SFm()`,
+`globals/22.js:14393`), and either way falls back further to `/tmp` when the
+resulting path exceeds the `sun_path` limit.
+
+Scratch is persistent, so nothing reclaims it automatically.
+`scripts/prune-scratch.sh` reports and, with `--apply`, deletes empty session
+scratchpads.
+
 ### `src/claude_config/`
 
 Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv location" above) as `claude_config`. Contains custom (non-upstream) Python tools:
@@ -149,7 +166,7 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | `claude_config.opencode_pretty` | Pretty-print an `opencode export` session — reuses cc-pretty's renderer and CLI flags via the shared pipeline; the local `convert.py` flattens opencode's part-based messages into cc-pretty records | `opencode-pretty`               |
 | `claude_config.config`          | Load `/repos/claude-config/.env` into `os.environ` | (library — `from claude_config.config import load`) |
 | `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |
-| `claude_config.env_context`     | Print the `# Environment` block for SessionStart hooks under `--system-prompt-file` workflows | `agent-tools env-context` |
+| `claude_config.env_context`     | SessionStart hook: `# Environment` and `# Scratchpad Directory` for `--system-prompt-file` sessions | `agent-tools env-context` |
 
 ### `skills/copy-writing-style/`
 
@@ -174,3 +191,4 @@ The binary itself is installed by the container image (`/workspace/docker/Docker
 | `background-sessions.md`                   | How a session moves to the agent view (FleetView), what the fork inherits, disable knobs — cc 2.1.235 | Diagnosing a session that backgrounded itself, or a custom system prompt that stopped applying |
 | `tool-token-limits.md`                     | Token counting, truncation, and size limits per tool | Understanding tool output constraints, debugging limits |
 | `agent-tools-status-reference.md`          | Full `agent-tools run` status grammar, passthrough differences from bare, and the kill boundary — the exhaustive half of what `sys_prompt/alan-default-next.md` states in brief; pinned to source by `scripts/check-prompt-coupling.sh` | Reading a status line in detail, diagnosing a wrapped run, or editing either side of the prompt/source coupling |
+| `env-context-manifest.json`                | Pinned cc version and env-block literal set `agent-tools env-context`'s drift check is pinned to; re-pin with `scripts/check-env-context.sh --update` after a Claude Code upgrade. Byte-offset derivation for the two literal lists: `notes/env-context-manifest.md` | Reviewing or re-pinning after a drift warning |

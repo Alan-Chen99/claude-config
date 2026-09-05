@@ -1,0 +1,24 @@
+{
+  "version": "2.1.235",
+  "_comment": "window_literals: printable strings in a fixed byte window around the env-block anchor; job is to catch NEW fields cc adds nearby. required_literals: each field template this hook reimplements that window_literals cannot see, mapped to its whole-binary occurrence count at pin time \u2014 a changed count participates in Task 6's failure, and the exact number's job in that report is to say what moved. Three blind spots land a literal here: under the {12,} length floor (Platform: 10 chars; the bare Shell: prefix, 7); too far from the anchor for any reasonable window (cTm, ~150M bytes away in a separate embedded copy of the app); or non-ASCII, which forces the whole string to UTF-16 and hides it from the ASCII-only regex even inside the window (the worktree clause's em-dash sits at a byte offset squarely inside the current window and is still invisible). Full derivation, byte offsets, and rejected alternatives: notes/env-context-manifest.md. Do not fold required_literals back into window_literals.",
+  "window_literals": [
+    "# Environment",
+    ". The exact model ID is ",
+    "Additional working directories:",
+    "Assistant knowledge cutoff is ",
+    "Claude Code is available as a CLI in the terminal, desktop app (Mac/Windows), web app (claude.ai/code), and IDE extensions (VS Code, JetBrains).",
+    "Fast mode for Claude Code uses Claude Opus with faster output (it does not downgrade to a smaller model). It can be toggled with /fast and is available on Opus 5/4.8.",
+    "Is a git repository: ",
+    "Iterator result interface is not an object.",
+    "OS Version: ",
+    "Primary working directory: ",
+    "You are powered by the model ",
+    "You are powered by the model named ",
+    "You have been invoked in the following environment: "
+  ],
+  "required_literals": {
+    "Platform: ": 14,
+    "Shell: PowerShell": 3,
+    "The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` ": 1
+  }
+}

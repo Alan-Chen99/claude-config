@@ -367,6 +367,13 @@ gave 9,359 / 9,365 / 9,365, and two `opus/default` runs gave 3,871 / 3,866.
 Blocks 2 and 3 are byte-identical between runs apart from those paths, so the
 sonnet-vs-opus divergence above is a property of the build, not of one capture.
 
+`capture.py` also strips `CLAUDE_CODE_TMPDIR` from the spawned session's
+environment, so every capture reflects cc's own default temp root (`/tmp`
+here — `os.tmpdir()` falls back to it once `$TMPDIR` is unset too) rather than
+whatever the launching shell redirected it to. The scratchpad paths quoted
+throughout this document are spelled as they appear in the captured artifacts
+under that default, not as they would read from inside a redirected session.
+
 `capture.py` spawns claude with a real pty via `pty.fork()` and
 `--setting-sources project,local` to isolate from user settings, sends a canary
 message, then extracts the system prompt from the intercepted API request. A

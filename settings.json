@@ -10,8 +10,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "agent-tools env-context | jq -Rs '{hookSpecificOutput: {hookEventName: \"SessionStart\", additionalContext: .}}'",
-            "timeout": 5
+            "command": "agent-tools env-context",
+            "timeout": 30
           }
         ]
       }
