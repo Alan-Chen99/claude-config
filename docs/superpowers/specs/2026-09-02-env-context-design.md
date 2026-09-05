@@ -399,13 +399,14 @@ the three is checked against the other two; `environment.py`'s and
 | `tests/test_env_context.py` | New |
 | `tests/test_claude_sh.py` | New |
 | `tests/test_prune_scratch.py` | New |
+| `tests/test_check_env_context_sh.py` | New |
 | `CLAUDE.md` | Update the `env-context` and `claude.sh` entries and the `scripts/` table |
 
 ## Tests
 
-134 tests across three files under `tests/`.
+141 tests across four files under `tests/`.
 
-`tests/test_env_context.py` (115 tests) covers the whole `env_context`
+`tests/test_env_context.py` (119 tests) covers the whole `env_context`
 package:
 
 - Rendering from a synthetic `Facts` dict: the interactive payload (with
@@ -443,7 +444,7 @@ a stub `claude`, confirming `IS_SANDBOX`, `CLAUDE_CODE_DISABLE_AGENT_VIEW`,
 and `CLAUDE_CODE_TMPDIR` all reach the exec'd process, and that a missing
 MITM listener degrades to a stderr warning rather than a broken proxy env.
 
-`tests/test_prune_scratch.py` (18 tests) covers `scripts/prune-scratch.sh`
+`tests/test_prune_scratch.py` (19 tests) covers `scripts/prune-scratch.sh`
 against synthetic trees named only through `CLAUDE_CODE_TMPDIR`: a
 `--session` value that looks like a glob is rejected rather than matched, an
 ambiguous id across two projects refuses, a symlinked session or project
@@ -453,12 +454,19 @@ once it is the only child left), a session with no scratchpad is reported
 but not bulk-deleted, an `rmdir` refusal is skipped rather than fatal, and a
 bad top-level argument or a bad `--session` id each exit 2.
 
+`tests/test_check_env_context_sh.py` (2 tests) runs
+`scripts/check-env-context.sh` for real against a stub `uv`, confirming
+the script pins `UV_PROJECT_ENVIRONMENT` to the out-of-tree venv
+`install.sh` provisions and leaves no `.venv` inside the checkout.
+Unpinned, `uv run` builds one there and the script still exits 0, so
+nothing but this test reports the loss.
+
 `scripts/check-env-context.sh` and `scripts/prune-scratch.sh` are run by
 hand, like `scripts/check-prompt-coupling.sh`: `check-env-context.sh` needs
 an installed cc, and pruning scratch is a deliberate, one-off action by
 design (see the script's own header). Neither script is itself wired into
 `.github/workflows/skills-test.yml`, which runs a different, unrelated
-`tests/` tree under `skills/scripts/` — the 134 tests above run locally
+`tests/` tree under `skills/scripts/` — the 141 tests above run locally
 only, via `uv run --project . pytest -q`.
 
 `scripts/check-env-context.sh` is a local check like

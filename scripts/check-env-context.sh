@@ -29,6 +29,13 @@ while [ $# -gt 0 ]; do
 done
 
 cd "$root"
+# Same venv agent-tools' uv_run pins (agent-tools/src/main.rs:389) and the same
+# one .envrc derives. Unpinned, `uv run` builds a 400 MB .venv inside the
+# checkout: this script runs outside direnv often enough -- from cron, from a
+# hook, from a bare shell -- that leaving the name to the environment puts a
+# venv in the source tree, which install.sh keeps out of it so host and
+# container sessions cannot fight over one.
+export UV_PROJECT_ENVIRONMENT="$HOME/.claude/venvs/$(basename "$root")"
 uv run --project "$root" python - "$manifest" "$update" <<'PY'
 import json
 import sys
