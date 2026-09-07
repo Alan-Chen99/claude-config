@@ -20,8 +20,10 @@ Both arms passed all five elements. The baseline grader independently verified i
 arm was genuine rather than trusting the harness: `/tmp/ptr/prompt-baseline.md` is
 byte-identical to `git show HEAD:...` and contains zero occurrences of "Writing for
 other agents", and first-turn `cache.write` differs between the arms by 868 tokens
-against a measured section size of 878 (`agent-tools count-tokens`). The same
-+867 step appears across the `relayed-rule-provenance` pair.
+against a measured section size of 878 (`agent-tools count-tokens --api`, which
+is what 878 was taken with; the command's present-day default is a local
+tokenizer that reports a smaller number and is not comparable to `cache.write`).
+The same +867 step appears across the `relayed-rule-provenance` pair.
 
 The edited-arm grader searched all five reasoning blocks for the new section's
 fingerprint and found none — no distinctive vocabulary, and every candidate

@@ -18,7 +18,7 @@ Round-by-round empirical work (task files, model responses, tool-call counts) li
 
 ## Growth policy
 
-- **Whole-file budget: ≤18k tokens** (`agent-tools count-tokens --file <path>`). Baseline: pre-refactor was ~10k; shape decomposition adds intrinsic overhead. Current file sits ~18k. Adding content that would exceed 18k requires pruning older content of equal or greater size in the same edit.
+- **Whole-file budget: ≤18k tokens** (`agent-tools count-tokens --api --file <path>`). The budget stands for how much of a Claude context this file consumes, so it is denominated in Claude tokens and `--api` is required — `count-tokens` defaults to a local tokenizer that reports this file at 13,796 where the API reports 20,938, and measuring the budget with the default would silently license about 50% more content. Baseline: pre-refactor was ~10k; shape decomposition adds intrinsic overhead. Current file measures 20,938 and is therefore over budget — the next edit should prune rather than add. Adding content that would exceed 18k requires pruning older content of equal or greater size in the same edit.
 - **Growth condition (retention rule).** Main doc grows only when a new shape-1-5 item is discovered. Empirical replication of an existing item does not touch this file.
 - **Prune candidates,** in order:
   1. Superseded items — delete outright (do not retain "retracted with note").

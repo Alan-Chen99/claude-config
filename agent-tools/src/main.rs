@@ -196,8 +196,15 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Count tokens via Anthropic count_tokens API: agent-tools count-tokens [--model M] [--file P] [TEXT]
-    #[command(name = "count-tokens")]
+    /// Count tokens with the vendored local tokenizer, or over the Anthropic
+    /// count_tokens API with --api:
+    /// agent-tools count-tokens [--api] [--model M] [--file P] [TEXT]
+    ///
+    /// `disable_help_flag` forwards --help to the Python parser, whose help
+    /// carries the flag list and the warning that the two backends do not
+    /// measure the same thing. The other pass-through subcommands keep clap's
+    /// help because machinery invokes them; this one a person types.
+    #[command(name = "count-tokens", disable_help_flag = true)]
     CountTokens {
         /// Arguments forwarded to claude_config.count_tokens
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
