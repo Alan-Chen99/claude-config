@@ -81,8 +81,8 @@ def _patched_script_with_dead_proxy_port(tmp_path: Path) -> Path:
     literal = "PROXY_PORT=9160"
     assert original.count(literal) == 1, (
         f"expected exactly one {literal!r} in {CLAUDE_SH}; "
-        "scripts/claude.sh:23's proxy port literal has drifted out of "
-        "sync with this test's patch target"
+        "the script's proxy port literal has drifted out of sync with "
+        "this test's patch target"
     )
     patched = original.replace(literal, f"PROXY_PORT={_dead_port()}", 1)
 
@@ -97,6 +97,17 @@ def _patched_script_with_dead_proxy_port(tmp_path: Path) -> Path:
     return out
 
 
+def _fake_home(tmp_path: Path) -> Path:
+    """The HOME the script runs under, and the root its scratch path derives from.
+
+    Named once and used by both the runner and the assertion, so the test
+    cannot silently drift into checking a path the script was never given.
+    """
+    home = tmp_path / "home"
+    home.mkdir(exist_ok=True)
+    return home
+
+
 def _run(script: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
     """Run script under a from-scratch environment, not an inherited one.
 
@@ -109,8 +120,7 @@ def _run(script: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
     still see the value, just leaked in from this test runner's ancestry
     rather than produced by the script under test.
     """
-    home = tmp_path / "home"
-    home.mkdir(exist_ok=True)
+    home = _fake_home(tmp_path)
     bin_dir = _fake_bin_dir(tmp_path)
     return subprocess.run(
         ["/bin/bash", str(script)],
@@ -134,4 +144,7 @@ def test_claude_sh_exports_survive_without_mitm_proxy(tmp_path: Path) -> None:
     stdout_lines = result.stdout.splitlines()
     assert "IS_SANDBOX=1" in stdout_lines
     assert "CLAUDE_CODE_DISABLE_AGENT_VIEW=1" in stdout_lines
-    assert "CLAUDE_CODE_TMPDIR=/root/.claude/tmp" in stdout_lines
+    # Relative to this run's HOME, not a literal path. An export naming one
+    # user's home outright satisfies a literal check while handing every other
+    # user a scratch root they cannot write.
+    assert f"CLAUDE_CODE_TMPDIR={_fake_home(tmp_path)}/.claude/tmp" in stdout_lines

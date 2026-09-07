@@ -15,12 +15,13 @@ export CLAUDE_CODE_DISABLE_AGENT_VIEW=1
 # cc roots its scratchpad at CLAUDE_CODE_TMPDIR (globals/05.js:8056), for the
 # main agent and for subagents alike, and subagents are told that path whether
 # or not --system-prompt-file drops the section from this session's own prompt.
-# Redirecting it here is the only way both get one directory, and /root is a
-# host bind mount, so scratch survives a container rebuild that /tmp would not.
+# Redirecting it here is the only way both get one directory. The root follows
+# $HOME rather than naming /tmp, because /tmp is container overlay and is lost
+# on a rebuild while this container's home is a host bind mount.
 # The same variable also roots plugin dirs, skill zips and the IPC socket dir;
 # cc falls back to /tmp for the socket when the path is too long (SFm(),
 # globals/22.js:14393).
-export CLAUDE_CODE_TMPDIR=/root/.claude/tmp
+export CLAUDE_CODE_TMPDIR="$HOME/.claude/tmp"
 
 # readlink -f resolves the ~/.local/bin/claude.sh symlink, so the prompt loaded
 # belongs to the checkout the script physically lives in: the canonical repo via

@@ -137,18 +137,19 @@ prints a warning to stderr and runs unintercepted, instead of exporting a proxy 
 fail every request with ECONNREFUSED. The listener itself comes from the canonical venv
 provisioned by `install.sh`; see the HIDDEN PATH DEPENDENCY note there.
 
-It also exports `CLAUDE_CODE_TMPDIR=/root/.claude/tmp`. Claude Code roots its
+It also exports `CLAUDE_CODE_TMPDIR="$HOME/.claude/tmp"`. Claude Code roots its
 per-session scratchpad there (`Spe()`, `globals/05.js:8056`), and it names that
 path to subagents (`Xff`, `globals/14.js:26405`) whether or not
 `--system-prompt-file` drops the section from the main agent's own prompt.
 Redirecting the root is therefore the only way both agree on one directory —
-and `/root` is a host bind mount, so scratch survives a container rebuild that
-`/tmp` would not. The same variable also roots plugin session directories,
-skill and plugin zip staging, the IPC socket directory, and entries in the
-sandbox write allowlist. The socket actually roots at `XDG_RUNTIME_DIR` when
-that is set, falling back to this variable only when it is not (`SFm()`,
-`globals/22.js:14393`), and either way falls back further to `/tmp` when the
-resulting path exceeds the `sun_path` limit.
+under `$HOME` rather than `/tmp` because `/tmp` is container overlay and is lost
+on a rebuild, while this container's home is a host bind mount. The same
+variable also roots plugin session directories, skill and plugin zip staging,
+the IPC socket directory, and entries in the sandbox write allowlist. The
+socket actually roots at `XDG_RUNTIME_DIR` when that is set, falling back to
+this variable only when it is not (`SFm()`, `globals/22.js:14393`), and either
+way falls back further to `/tmp` when the resulting path exceeds the `sun_path`
+limit.
 
 Scratch is persistent, so nothing reclaims it automatically.
 `scripts/prune-scratch.sh` reports and, with `--apply`, deletes empty session

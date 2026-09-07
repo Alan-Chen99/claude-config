@@ -370,7 +370,7 @@ def spawn_claude(
     # i.e. $TMPDIR or /tmp once that is unset too -- not whatever this
     # process's own launcher redirected it to, so a capture taken from
     # inside a claude.sh session stays comparable against every other
-    # committed snapshot instead of recording /root/.claude/tmp/... paths.
+    # committed snapshot instead of recording $HOME/.claude/tmp/... paths.
     env.pop("CLAUDE_CODE_TMPDIR", None)
     # Claude Code strips CLAUDE_CODE_OAUTH_TOKEN from tool subprocess
     # environments, so a capture launched from inside a session inherits no

@@ -151,7 +151,7 @@ them: additional working directories, and the proxy note (`jWo`,
 
 ### Redirect
 
-`scripts/claude.sh` exports `CLAUDE_CODE_TMPDIR=/root/.claude/tmp` before its
+`scripts/claude.sh` exports `CLAUDE_CODE_TMPDIR="$HOME/.claude/tmp"` before its
 `exec`. cc feeds that variable into `Spe()` (`src/globals/05.js:8056`), which roots
 the scratchpad path, so cc builds the new location itself — for the main agent and
 for subagents, whose section we cannot otherwise edit. `agent-tools claude` execs
@@ -161,7 +161,7 @@ launchers.
 The resulting path, which cc constructs and `env-context` reports:
 
 ```
-/root/.claude/tmp/claude-0/-root-claude-config-work/<session-id>/scratchpad
+$HOME/.claude/tmp/claude-0/-root-claude-config-work/<session-id>/scratchpad
 ```
 
 The `claude-<uid>/<slug>/<session-id>/scratchpad` tail is cc's own construction
@@ -210,8 +210,8 @@ else, its own working files, in the scratchpad.
 
 The path is computed the way cc computes it, reading the root from
 `CLAUDE_CODE_TMPDIR` with the same `os.tmpdir()` default rather than hardcoding
-`/root/.claude/tmp`. A session launched by bare `claude` therefore still gets a
-truthful path instead of one naming a directory cc did not use.
+the launcher's own root. A session launched by bare `claude` therefore still
+gets a truthful path instead of one naming a directory cc did not use.
 
 The slug is `cwd` with `[^a-zA-Z0-9]` replaced by `-` (`FDo`,
 `src/globals/02.js:2156`). Past 200 characters (`vie`,
