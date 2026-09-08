@@ -482,6 +482,33 @@ The case's `reference-solution.md` carries the fragment table, the framing table
 and all three baselines. Read it before running or changing the ratio — changing
 the ratio changes what the case measures.
 
+### general/review-the-compression
+
+The other half of `halve-the-runbook`, sharing its fixture: the source runbook
+plus the artifact that case's section-present arm actually produced, handed to a
+reviewer asked what is wrong with the short one.
+
+**It is green in both arms, and that is what it is for.** Both find every defect
+in the sibling case's key and four it does not have. Keep it as a control, not as
+evidence for or against any prompt section — and re-run it after a rewrite of the
+section to confirm the rewrite did not cost reviewing ability.
+
+What it measures is the distance between writing and reviewing in one model. The
+stripped arm wrote the sibling case's worst artifact without noticing, and here
+names the category itself — *"the highest-cost losses aren't dropped facts,
+they're dropped modality"*. Both arms produced every finding inside a single
+thinking block after one read of each file, before any verification command, and
+neither cited a rule from its own prompt. Side-by-side reading is the mechanism;
+the rules were not consulted.
+
+It also carries a three-reader doc-only control that gives the severity criterion
+an operational form: a compression defect is visible from the new document alone
+only when that document still carries a second statement contradicting it. Two of
+five planted defects meet that test and were found; the rest were not. The same
+readers spend most of their output on gaps the *source* has too — no rollback, no
+escalation path — so a doc-only reviewer is not merely blind to the invisible
+class, it fills the space with a confident wrong account.
+
 ## Grader rule
 
 A grader MUST read all thinking blocks (typically with

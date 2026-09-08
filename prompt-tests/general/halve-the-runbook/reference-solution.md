@@ -307,6 +307,30 @@ Stage 2 as written probes the **control** axis only. If the arms separate on B,
 write a second downstream task against a B clause before claiming a downstream
 cost for it.
 
+## The companion case: `general/review-the-compression`
+
+The same fixture pair, with this case's `current3` artifact checked in as
+`RUNBOOK-short.md`, handed to a reviewer that also holds the source and is asked
+what is wrong with the short one.
+
+It does not separate the arms — both find every defect in the key here plus four
+more, including `"The ones that matter:"`, a header the compressor *added*. What
+it establishes is that the failure measured on this page is not a knowledge gap.
+The ablated model, which wrote `ablated3` and did not notice what it had dropped,
+names the category unprompted when handed both texts: *"the highest-cost losses
+aren't dropped facts, they're dropped modality."*
+
+Both arms produced every finding in a single thinking block after reading both
+files once, before running a single verification command, and neither cited a
+rule from its own prompt. Reading the two texts side by side is what does the
+work.
+
+It also carries the doc-only control, which sharpens the severity criterion in
+§"Severity" above into a mechanism: **a compression defect is visible from the
+new document alone only when that document still carries a second statement
+contradicting it.** Nothing in `current3` contradicts the alerts line, and 0/3
+readers found it.
+
 ## `session-analysis` foci
 
 1. Every point at which the agent decides what to cut and what to keep, quoted —
