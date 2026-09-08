@@ -1,17 +1,23 @@
 # Claude Code System Prompt Snapshots
 
-Captured: 2026-08-22
+Captured: 2026-09-08 (`default`, all three models); 2026-08-22 (every other
+sonnet-5 variant)
 Version: claude-cli/2.1.235
 Mode: interactive (real pty via `capture.py`, `--setting-sources project,local`)
 Default captures include a project CLAUDE.md.
+
+Directories are named for the model id the request carried, minus its `claude-`
+prefix. Aliases are repointed as models ship — `opus` meant `claude-opus-4-6` in
+the 2.1.143 capture and `claude-opus-5` here — so an alias-named directory
+changes meaning between captures while its path stays put.
 
 ## Files
 
 | File | What |
 |---|---|
-| `<model>/<variant>/system-prompt.md` | System prompt blocks, separated by `---BLOCK_SEPARATOR---` |
-| `<model>/<variant>/request.json` | Full API request body. Metadata redacted. |
-| `<model>/<variant>/summary.json` | Block count, token counts, tool inventory |
+| `<model-id>/<variant>/system-prompt.md` | System prompt blocks, separated by `---BLOCK_SEPARATOR---` |
+| `<model-id>/<variant>/request.json` | Full API request body. Metadata redacted. |
+| `<model-id>/<variant>/summary.json` | Block count, token counts, tool inventory |
 | `capture.py` | Captures one variant via pty + MITM proxy |
 | `regenerate.py` | Drives `capture.py` across every variant, writes `summary.json` |
 | `scripts/intercept/` | MITM proxy for API call logging (see `scripts/intercept/README.md`) |
@@ -55,40 +61,65 @@ The `system` array carries 4 text blocks. Blocks 2 and 3 carry `cache_control`;
 only block 2 sets `scope: global` (block 3 omits `scope`, so it falls back to
 org scope). Same layout as 2.1.143.
 
-| Block | Content | Cache | Sonnet 5 | Opus 5 |
-|---|---|---|---|---|
-| 0 | Billing header (`cc_version=2.1.235...`) | none | 83 | 86 |
-| 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 24 | 24 |
-| 2 | Static behavioral rules | 1h, global scope | 3,247 | 393 |
-| 3 | Output style, session guidance, memory, environment, scratchpad, context mgmt, gitStatus | 1h, org scope | 6,013 | 3,365 |
+| Block | Content | Cache | Opus 4.7 | Sonnet 5 | Opus 5 |
+|---|---|---|---|---|---|
+| 0 | Billing header (`cc_version=2.1.235...`) | none | 84 | 82 | 84 |
+| 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 24 | 24 | 24 |
+| 2 | Static behavioral rules | 1h, global scope | 3,285 | 3,247 | 393 |
+| 3 | Output style, session guidance, memory, environment, scratchpad, context mgmt, gitStatus | 1h, org scope | 5,938 | 6,017 | 3,361 |
 
-Total: 9,365 (sonnet) / 3,866 (opus) tokens.
+Total: 9,329 (opus-4-7) / 9,368 (sonnet-5) / 3,860 (opus-5) tokens.
 
 Token counts from the Anthropic count_tokens API.
 
-### Sonnet 5 and Opus 5 get different prompt text
+### The prompt split is per model id, not per model family
 
-Through 2.1.143 both models received byte-identical prompt text and differed only
+2.1.235 ships two different default prompts and picks between them by model id.
+`sV` (`globals/21.js:13394` in the 2.1.235 decompile) branches on `aT`, which
+resolves through `EAb` (`globals/06.js:9819`): every id containing `claude-3-`,
+`haiku` or `sonnet`, plus `claude-opus-4-0` through `claude-opus-4-7`, gets the
+older multi-section prompt; anything else — `claude-opus-5` here — gets the
+compressed one. Both bodies ship in the same binary, so a version number does
+not identify which prompt a session received.
+
+Opus 4.7 is captured alongside Opus 5 because it is the nearest model on the
+other side of that branch: the pair isolates the prompt difference from every
+other opus-vs-sonnet difference.
+
+Through 2.1.143 all models received byte-identical prompt text and differed only
 in tokenizer. That is no longer true on either axis.
 
 The tokenizers now agree: block 1 is the same 57-character string and counts 24
-tokens under both models. The ~38% opus inflation documented for
+tokens under all three models. The ~38% opus inflation documented for
 `claude-opus-4-7` vs `claude-sonnet-4-6` is gone.
 
-The text itself diverges. Opus 5 receives a substantially compressed prompt —
-11.4K characters against sonnet's 29.4K:
+The text diverges by branch, not by family — opus-4-7 sits with sonnet:
 
-| | Sonnet 5 | Opus 5 |
-|---|---|---|
-| Block 2 | 10,574 chars | 1,210 chars |
-| Block 3 | 18,812 chars | 10,231 chars |
+| | Opus 4.7 | Sonnet 5 | Opus 5 |
+|---|---|---|---|
+| Block 2 | 10,676 chars | 10,574 chars | 1,210 chars |
+| Block 3 | 18,579 chars | 18,812 chars | 10,231 chars |
 
-Opus 5's block 2 replaces sonnet's `# System` / `# Doing tasks` /
+Opus 5's block 2 replaces the other two models' `# System` / `# Doing tasks` /
 `# Executing actions with care` / `# Using your tools` / `# Tone and style`
 sections with a single five-bullet `# Harness` section. Its block 3 adds
-`# Delivering work` and `# Corrections` sections that sonnet does not receive.
+`# Delivering work` and `# Corrections` sections the others do not receive.
 Comparisons must therefore name a model; there is no longer one "the system
 prompt".
+
+Opus 4.7 and sonnet-5 differ in three lines only, all downstream of which tools
+each model is served rather than of the prompt text itself:
+
+| Line | Opus 4.7 | Sonnet 5 |
+|---|---|---|
+| `Use TaskCreate to plan and track work...` | present | absent |
+| model identity in `# Environment` | `Opus 4.7` | `Sonnet 5` |
+| `EndConversation (deferred tool): ...` | absent | present |
+
+`ldE` emits the task bullet only when a task tool is in the request, and the
+`EndConversation` hint only when that tool is; opus-4-7 is served
+`TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate` and no `EndConversation`, and the
+5-family models the reverse.
 
 ### Behavioral changes in block 2 (sonnet, vs 2.1.143)
 
@@ -126,9 +157,16 @@ ReportFindings, ScheduleWakeup, Skill, ToolSearch, Workflow, Write
 Against 2.1.143: **added** `Artifact`, `ListAgents`, `ReportFindings`,
 `Workflow`; **removed** `ShareOnboardingGuide`.
 
-Upfront tool definitions cost 29,427 tokens (sonnet) / 23,752 (opus), up from
-10,559 / 14,596. Two new tools account for most of it: `Workflow` (19,290 chars
-of description) and `Artifact` (11,175).
+Upfront tool definitions cost 31,542 tokens (opus-4-7) / 31,221 (sonnet-5) /
+25,546 (opus-5), against 10,559 / 14,596 in 2.1.143. Two tools new in 2.1.235
+account for most of the rise: `Workflow` (19,290 chars of description) and
+`Artifact` (12,564).
+
+`Artifact`'s description grew 11,175 -> 12,564 chars between the 2026-08-22 and
+2026-09-08 captures, adding an "Artifact database" paragraph, with no CLI
+upgrade in between — both captures are 2.1.235.cf9. Tool descriptions therefore
+track account-side feature rollout, not only the installed version, and a tool
+token count is only comparable against others captured the same day.
 
 Tool descriptions are model-specific, the same way the system prompt is. Opus 5
 gets a much shorter description for every tool that predates 2.1.235, while the
@@ -146,8 +184,8 @@ newer tools are byte-identical across models:
 
 `AskUserQuestion` is the one tool whose opus description is longer.
 
-18 deferred tools, listed by name in a system-reminder rather than as
-`tools[]` entries:
+18 deferred tools for the 5-family models, listed by name in a system-reminder
+rather than as `tools[]` entries:
 
 ```
 CronCreate, CronDelete, CronList, DesignSync, EndConversation, EnterPlanMode,
@@ -156,30 +194,49 @@ PushNotification, RemoteTrigger, SendMessage, TaskOutput, TaskStop, WebFetch,
 WebSearch
 ```
 
+Opus 4.7 gets 21: the same list minus `EndConversation`, plus `TaskCreate`,
+`TaskGet`, `TaskList` and `TaskUpdate`. The deferred roster is therefore
+model-conditioned too, and it is what drives the three-line prompt difference
+tabulated above.
+
 Against 2.1.143: **added** `DesignSync`, `EndConversation`, `SendMessage`;
-**removed** `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate`. The
+**removed** `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate` — removed for the
+5-family models only; opus-4-7 still receives all four. The
 `mcp__claude_ai_Google_Drive__*` tools present in the 2.1.143 capture are absent
 here — MCP tools depend on the capturing account's connectors, not on the CLI
 version.
 
 The Bash tool description still instructs `NEVER use the TaskCreate or Agent
-tools` in its git-commit examples, referring to a tool that no longer exists in
-either list.
+tools` in its git-commit examples. On the 5-family models that names a tool
+absent from both lists; on opus-4-7 `TaskCreate` is still deferred, so there the
+instruction still has a referent.
 
-## messages structure (changed in 2.1.235)
+## messages structure (model-gated, not version-gated)
 
 System-reminders moved out of the first user message into a dedicated
-`role: "system"` message placed **after** it.
+`role: "system"` message placed **after** it — on the 5-family models only.
+Opus 4.7 on this same 2.1.235 build still receives the 2.1.143 layout, with
+every reminder inline in `messages[0]`, so this is the same per-model-id split
+the system prompt shows, not a version change.
 
-| | 2.1.143 | 2.1.235 |
+| | 2.1.143, and 2.1.235 opus-4-7 | 2.1.235 5-family |
 |---|---|---|
-| `messages[0]` (user) | deferred tools, skills, claudeMd, user text | claudeMd, user text |
+| `messages[0]` (user) | deferred tools, agent types, skills, auto mode, token budget, claudeMd, user text | claudeMd, user text |
 | `messages[1]` | — | `role: "system"`: deferred tools, agent types, skills, auto mode, token budget |
 
-The system-role message costs 4,300 tokens (sonnet) / 3,958 (opus) in this
-capture; its size tracks the user's installed skills and agents. Its `content`
-is a list of blocks on the first turn and a bare string on later turns — both
-shapes occur in one session.
+Measured over the messages array, minus a bare `"x"` request:
+
+| | Opus 4.7 | Sonnet 5 | Opus 5 |
+|---|---|---|---|
+| `messages[0]` | 4,664 | 350 | 347 |
+| `role: "system"` message | — | 4,303 | 3,961 |
+| total | 4,664 | 4,653 | 4,308 |
+
+The reminder payload therefore costs about the same either way; only its
+placement, and so its cache behaviour, differs. Its size tracks the user's
+installed skills and agents. Where the system message exists its `content` is a
+list of blocks on the first turn and a bare string on later turns — both shapes
+occur in one session.
 
 New reminders in that message: the agent-type roster, `## Auto Mode Active`,
 and `<total_tokens>N tokens left</total_tokens>`.
@@ -223,6 +280,10 @@ still appended unconditionally; the identity block survives.
 The table below describes the session you launch. It does not hold for the rest
 of that session's life — a session that backgrounds itself loses the flag. See
 "Background sessions do not inherit the flag" below.
+
+All five rows are from the 2026-08-22 sonnet-5 set, so they are comparable with
+each other; the `(none)` row is that day's default capture rather than the
+2026-09-08 one tabulated above.
 
 | Flag | Blocks | Sonnet tokens | What happens |
 |---|---|---|---|
@@ -352,8 +413,9 @@ both modes.
 ./capture.py --append-system-prompt "Extra instructions"
 ./capture.py --subagent                             # Explore + general-purpose
 
-./regenerate.py --model sonnet                      # all variants
-./regenerate.py --model opus default                # one variant
+./regenerate.py --model claude-sonnet-5 default     # one variant
+./regenerate.py --model claude-opus-4-7 default     # the other prompt branch
+./regenerate.py --model claude-opus-5               # all variants
 ```
 
 Do not run two `regenerate.py` invocations in parallel — they share
@@ -362,17 +424,27 @@ other's intermediates.
 
 A capture is not byte-reproducible: the billing header fingerprints, the
 per-session temp working directory, the scratchpad UUID, and gitStatus all
-change per run. Token totals are still stable — three `sonnet/default` runs
-gave 9,359 / 9,365 / 9,365, and two `opus/default` runs gave 3,871 / 3,866.
-Blocks 2 and 3 are byte-identical between runs apart from those paths, so the
-sonnet-vs-opus divergence above is a property of the build, not of one capture.
+change per run. Token totals are still stable — four `sonnet-5/default` runs
+gave 9,359 / 9,365 / 9,365 / 9,368, and three `opus-5/default` runs gave
+3,871 / 3,866 / 3,860. Blocks 2 and 3 are byte-identical between runs apart from
+those paths, so the divergence above is a property of the build, not of one
+capture: the 2026-09-08 sonnet-5 recapture reproduced the 2026-08-22 one exactly
+except for the billing fingerprints and those paths.
 
-`capture.py` also strips `CLAUDE_CODE_TMPDIR` from the spawned session's
-environment, so every capture reflects cc's own default temp root (`/tmp`
-here — `os.tmpdir()` falls back to it once `$TMPDIR` is unset too) rather than
-whatever the launching shell redirected it to. The scratchpad paths quoted
-throughout this document are spelled as they appear in the captured artifacts
-under that default, not as they would read from inside a redirected session.
+`capture.py` strips every `CLAUDE_CODE_*` variable except
+`CLAUDE_CODE_OAUTH_TOKEN` from the spawned session's environment, because each
+one is a knob that can change what the child's prompt says — a capture that
+inherits one records this machine's setup instead of the CLI's behaviour, and
+the committed snapshots stop being comparable with no diff to show for it. Two
+that demonstrably do so: `CLAUDE_CODE_TMPDIR` moves the scratchpad path the
+prompt prints, so every capture instead reflects cc's own default temp root
+(`/tmp` here — `os.tmpdir()` falls back to it once `$TMPDIR` is unset too); and
+`CLAUDE_CODE_FORK_SUBAGENT=0`, which this repo's `settings.json` has set since
+c70788a (2026-09-04), swaps the subagent guidance from the `fork` paragraph to
+the older Agent/Explore bullets. The first opus-4-7 capture attempt inherited
+the latter and was discarded. The scratchpad paths quoted throughout this
+document are spelled as they appear in the captured artifacts under the default
+root, not as they would read from inside a redirected session.
 
 `capture.py` spawns claude with a real pty via `pty.fork()` and
 `--setting-sources project,local` to isolate from user settings, sends a canary

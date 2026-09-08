@@ -1,4 +1,4 @@
-x-anthropic-billing-header: cc_version=2.1.235.cf9; cc_entrypoint=cli; cch=ab2a8; cc_prompt_id=d7b0bc6e-8a41-4183-bfa1-af779ea78671;
+x-anthropic-billing-header: cc_version=2.1.235.cf9; cc_entrypoint=cli; cch=3d29f; cc_prompt_id=28c19faa-7d42-4f6c-8e33-ce3c68899420;
 
 ---BLOCK_SEPARATOR---
 
@@ -33,7 +33,7 @@ For actions that are hard to reverse or outward-facing, confirm first unless dur
 
 # Memory
 
-You have a persistent file-based memory at `/root/.claude/projects/-tmp-capture-cwd-wis1f9-6/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence). Each memory is one file holding one fact, with frontmatter:
+You have a persistent file-based memory at `/root/.claude/projects/-tmp-capture-cwd-10srbppj/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence). Each memory is one file holding one fact, with frontmatter:
 
 ```markdown
 ---
@@ -56,7 +56,7 @@ Before saving, check for an existing file that already covers it. Update that fi
 
 # Environment
 You have been invoked in the following environment: 
- - Primary working directory: /tmp/capture-cwd-wis1f9_6
+ - Primary working directory: /tmp/capture-cwd-10srbppj
  - Is a git repository: true
  - Platform: linux
  - Shell: bash
@@ -70,7 +70,7 @@ You have been invoked in the following environment:
 # Scratchpad Directory
 
 IMPORTANT: Always use this scratchpad directory for temporary files instead of `/tmp` or other system temp directories:
-`/tmp/claude-0/-tmp-capture-cwd-wis1f9-6/d5ca5d05-c458-47d3-83d2-40259929846f/scratchpad`
+`/tmp/claude-0/-tmp-capture-cwd-10srbppj/874a7ba6-234b-4237-922f-d7ed09c1adb6/scratchpad`
 
 Use this directory for ALL temporary file needs:
 - Storing intermediate results or data during multi-step tasks

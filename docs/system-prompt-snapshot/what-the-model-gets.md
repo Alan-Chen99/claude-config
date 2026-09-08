@@ -3,13 +3,16 @@
 Everything the model receives, in order, on a fresh interactive session with a
 project CLAUDE.md, no output style.
 
-v2.1.235. Source: `sonnet/default/request.json`, `opus/default/request.json`.
+v2.1.235. Source: `sonnet-5/default/request.json`, `opus-5/default/request.json`.
+A third capture, `opus-4-7/default/`, sits on the other side of the prompt
+branch; see README.md, "The prompt split is per model id, not per model family".
 Capture uses `--setting-sources project,local` to isolate from user settings.
 
 **Sonnet 5 and Opus 5 do not receive the same prompt.** Through 2.1.143 the two
 models got byte-identical text and differed only in tokenizer. In 2.1.235 the
-tokenizers agree and the *text* diverges: opus gets a compressed harness prompt
-and shorter descriptions for the core tools. Every section below is therefore
+tokenizers agree and the *text* diverges: opus-5 gets a compressed harness
+prompt and shorter descriptions for the core tools, while opus-4-7 gets the same
+long prompt sonnet does. Every section below is therefore
 given per model.
 
 Token counts from the Anthropic count_tokens API (exact).
