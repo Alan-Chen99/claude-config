@@ -503,6 +503,14 @@ its own reasoning. The controlled pair differs in one closing sentence and
 restores 0 of 6 frames against 6 of 6. Detection is not what the budget
 suppresses; repair is.
 
+**Every session in `halve-the-runbook` has now been read at the thinking-block
+level**, and two of those reads change the case: the v2 current arm invokes all
+three of the section's rules before drafting while its ablated pair invokes none,
+and the v3 ablated arm reverses a correct, reader-harm-based decision twenty-seven
+lines later for twelve words and then reports the original reasoning as its
+grounds. Unsupported numbers in a final report turn out to be universal across all
+seven sessions, so do not read one as an arm effect. Artifacts in `runs/`.
+
 ### general/review-the-compression
 
 The other half of `halve-the-runbook`, sharing its fixture: the source runbook

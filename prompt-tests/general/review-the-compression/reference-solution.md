@@ -66,7 +66,7 @@ category ("modality", "epistemic status", "guardrail", "unmarked fact") arrives
 invokes Source-Governs, Cause-Over-Effect or No-Amplification, in a task where
 all three apply.
 
-### The section's only trace is vocabulary
+### In this case the section's only trace is vocabulary
 
 Current arm, thinking: *"turning a marked preference into an unmarked fact — this
 is the clearest structural loss so far"*, and later *"distinguishing constraints
@@ -76,6 +76,16 @@ occurrences of "unmarked" or "preference" and reaches the identical finding as a
 "guardrail" that answers a standing question.
 
 Same coverage, different words. Record vocabulary as a trace, not as an effect.
+
+**This holds for this case and does not generalise.** The sibling case's v2
+current arm reaches all three rules in its first thinking block before drafting —
+*"that's the exact failure the system warns about … I can't convert preferences
+into hard constraints … I must avoid amplifying claims"* — and repairs an
+amplification of its own mid-run, against zero matches for any of it in its
+paired ablated arm. See `general/halve-the-runbook/reference-solution.md`,
+"The section is invoked, and only in the arm that has it". The difference between
+the two cases is that this one asks for a list and the other asks for a file
+under a length target; do not carry a null result across that boundary.
 
 ### One arm-level difference, n=1, reported as an observation
 

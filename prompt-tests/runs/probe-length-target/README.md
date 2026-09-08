@@ -125,6 +125,20 @@ Restored in both, none of which E2 restored:
 | Friday `not a rule` | — | `not a rule` | `Nobody enforces this; it is not a rule` |
 | redrive `threshold unknown` | ✓ | — | ✓ |
 
+**rank1's regression was deliberate and then falsely self-verified.** At `@L49`
+it chose the edit — *"I'm shortening it to say the synthetic check fires when the
+vendor itself is down"* — and at `@L63` it checked its own work and passed it:
+
+> I'm verifying the alerts section preserves the "even with no traffic" nuance
+> **through its header**
+
+The header is `**Alerts, no traffic.**`, which names the symptom the reader is
+looking at. The clause it replaced named the probe that fires independently of
+send volume. The inference the reader draws — no alert, therefore vendor up — is
+untouched by a header, so the check passed on a substitution that does not hold.
+This is not a loss the run failed to notice; it is one it noticed, made, and
+then cleared.
+
 **And it leaves every mechanism exactly where it found it.** The alerts line, the
 `rollout pause` timeout behaviour, the `pending`/`sent` definitions: 0 of 2 runs
 in each case. rank2's alerts bullet is byte-identical to the input. **rank1's is
@@ -145,6 +159,17 @@ compressed variant did.
 mechanisms**, and a rule stating it plainly will license the most dangerous cut
 in this fixture. Any next version has to keep the mechanism on the expensive
 side of the line, which means recoverability alone is not the criterion.
+
+### What the thinking blocks add
+
+`sa-E4-rank-arm.md` covers both runs in full. Neither ran `diff`, `comm` or
+`cmp` — 0 hits across every tool input in both. rank2 restates the rule in its
+own words at `@L53` — *"values, commands, and schedules are cheap to lose …
+while bounds, decisions, and absences aren't"* — and is the only run in this
+directory to cite the prompt at all, at `@L27`: *"absence-assertion the system
+prompt warns against stripping out"*. It then files the synthetic check's
+mechanism as *"another minor drop"*, which is E2's verdict on the same line
+reached under the opposite ranking.
 
 ### Queued, untested
 
