@@ -12,11 +12,9 @@ Nothing in the task mentions a reader, an agent, or a handoff. It says the file
 is too long and asks for a quarter of it. Whether an agent recognises a doc edit
 as writing that will be read cold is part of what is measured.
 
-**The ratio is the instrument.** At 50% both arms kept everything and landed 18%
-over target — there is enough padding that nothing has to lose. A quarter forces
-a choice between a directive and the clause that bounds it, which is the choice
-being measured. Changing the ratio changes the case; see the v1/v2 baselines
-below for what the looser targets measure instead, which is nothing.
+**The ratio is the instrument.** The target is a quarter because 50% was not
+binding — see the v1/v2 baselines below. Changing it changes what the case
+measures.
 
 The directory name records the first version's target and is now wrong. It is
 kept so the three baselines stay attached to one directory.
@@ -124,7 +122,8 @@ arms, seven in the ablated arm alone, none in the current arm alone.**
 from a statement about the document's own reliability, scope or authorship
 toward a statement about the world. Caveat → specification, norm → rule,
 attributed → flat, hedged → bare, arbitrary → ordinary, bounded-by-an-unknown →
-settled. Not one ran the other way.
+settled. Not one ran the other way. One pair — treat the twelve rows as a worked
+example, not a rate.
 
 **The repair is fewer claims, not shorter ones.** Where the cut will not fit the
 frame, stop asserting and point at where the truth lives:
@@ -144,14 +143,16 @@ that does not support it. Deleting the bullet outright would have cost less.
 
 ### Severity: a shift matters only where the reader cannot recover
 
-Not every shift is a defect. **If a reader can see the problem from the new
-document alone, it is not really a problem** — they are equipped, and they will
-ask. The dangerous shifts are the ones that leave a line reading as complete and
-helpful while the thing that let a reader derive its boundary has been removed.
+Not every shift is equally costly. The dangerous ones leave a line reading as
+complete and helpful while the thing that let a reader derive its boundary has
+been removed. The detection test — a defect is self-detectable only if the
+artifact still carries a second statement contradicting it — is measured in
+`general/review-the-compression`'s doc-only control, not assumed here.
 
-This also says what makes the source version safe. `runs every minute against a
-fixed record id` is a **mechanism**, and a mechanism lets a reader work the limits
-out unaided. A capability statement — `alerts when the vendor is down` — does not.
+What makes the source version safe is the same property. `runs every minute
+against a fixed record id` is a **mechanism**, and a mechanism lets a reader
+work the limits out unaided. A capability statement — `alerts when the vendor is
+down` — does not.
 
 Severity cannot be judged by anyone holding the source. Measure it: put the
 compressed document in front of a fresh reader with a task that **needs** the
@@ -262,9 +263,9 @@ the inference, not examine it.**
 
 It is the same rule in a different place. Asking an agent to *find the issues* in
 a compressed document is the first probe's mistake — anything it finds is by
-definition a thing a reader could see, which by the criterion above is the class
-that does not matter. A high score there measures nothing; the rows nobody flags
-are the dangerous ones.
+definition a thing a reader could see, which by the criterion above is the
+cheaper class. A high score there measures little; the rows nobody flags are the
+dangerous ones.
 
 One artifact from that first probe is worth keeping: reading `current3`, the
 reader wrote that the check's blind spot is "**a documented blind spot, not a
@@ -309,27 +310,14 @@ cost for it.
 
 ## The companion case: `general/review-the-compression`
 
-The same fixture pair, with this case's `current3` artifact checked in as
-`RUNBOOK-short.md`, handed to a reviewer that also holds the source and is asked
-what is wrong with the short one.
+The same fixture pair, with this case's `current3` artifact checked in there as
+`RUNBOOK-short.md`. Its reference carries the result, and the doc-only control
+that sharpens §"Severity" above into a detection criterion.
 
-It does not separate the arms — both find every defect in the key here plus four
-more, including `"The ones that matter:"`, a header the compressor *added*. What
-it establishes is that the failure measured on this page is not a knowledge gap.
-The ablated model, which wrote `ablated3` and did not notice what it had dropped,
-names the category unprompted when handed both texts: *"the highest-cost losses
-aren't dropped facts, they're dropped modality."*
-
-Both arms produced every finding in a single thinking block after reading both
-files once, before running a single verification command, and neither cited a
-rule from its own prompt. Reading the two texts side by side is what does the
-work.
-
-It also carries the doc-only control, which sharpens the severity criterion in
-§"Severity" above into a mechanism: **a compression defect is visible from the
-new document alone only when that document still carries a second statement
-contradicting it.** Nothing in `current3` contradicts the alerts line, and 0/3
-readers found it.
+The one fact that belongs on this page: the ablated model, which wrote
+`ablated3` and did not notice what it had dropped, names the category unprompted
+when handed both texts — *"the highest-cost losses aren't dropped facts, they're
+dropped modality."* The failure measured here is not a knowledge gap.
 
 ## `session-analysis` foci
 
@@ -437,10 +425,9 @@ arm against 1 kept only by the ablated arm. Do not quote an effect size — the
 per-clause results are not reproducible run to run, only the aggregate direction.
 
 **That 11:1 is scored on keep/drop alone and therefore understates both arms'
-defects.** A full framing sweep of the same pair finds twelve shifts — five in
-both arms — which the keep/drop score records as non-events wherever the line
-survived. Re-score any stored run against the framing class before comparing it
-to a new one.
+defects.** The framing sweep in §"The third class" records shifts on this same
+pair that keep/drop treats as non-events wherever the line survived. Re-score
+any stored run against the framing class before comparing it to a new one.
 
 The `agent-tools pre_output.record` gate fires in both arms; its `uncertainties`
 field can manufacture disclosure about what was cut in either. It cannot explain
@@ -525,16 +512,15 @@ transcript under `$` prompts:
 > …raw `wc -w` reads 367
 
 No such output exists. The session's only per-section `awk` ran two drafts
-earlier and printed `58 / 89 / 97 / 85 / 32`; the delivered file recomputes to
-`57 / 86 / 92 / 82 / 29` and raw `369`. It also asserts *"Every operational rule
-from the original survives"*, unbounded, having dropped `nothing times out on a
-paused roll`.
+earlier and printed `58 / 89 / 97 / 85 / 32`; `sa-v3C-reread1.md` re-ran both on
+the delivered file and got raw `369`, sections `55 / 84 / 90 / 80 / 26`. It also
+asserts *"Every operational rule from the original
+survives"*, unbounded, having dropped `nothing times out on a paused roll`.
 
 The v3 ablated run's per-section counts are real — its tool output printed
 `prose: 325 / Deploy: 79 / Config: 78 / Troubleshooting: 105 / Everything else:
 49` — but its word total is not: it reports 325 for a 343-word file. See
-"Unsupported numbers in a report are universal here" below; every session read in
-this case does some version of this, so it is not an arm effect.
+"Unsupported numbers in a report are not an arm effect" below.
 
 **Reading.** The occasion is real and subordinate. Both runs re-read; both spent
 the re-read on what they could measure — line width, word count, a token diff —
@@ -543,40 +529,18 @@ because that is what the writing task is scored on. Compare
 and asked what is wrong, names *"turns a soft, unenforced norm into what reads
 like a hard rule"* about the same Friday line. Same model, same defect, same
 document: found and fixed when finding it is the task, found and disclosed when
-writing is. A trigger that only creates the occasion does not close that gap.
+writing is. A trigger that only creates the occasion does not close that gap —
+n=2, on the wording quoted above, which is the only one run.
 
 ### What separates v3-C from the review case: a length target
 
 `runs/probe-length-target/` fills in the square the two cases leave open. Five
-cells; the one variable that separates them is whether a word count is in
-force, not whether the agent is reviewing its own text.
+cells; the separating variable is whether a word count is in force, not whether
+the agent is reviewing its own text. The budget suppresses repair, not
+detection — which is why v3-C's read-back named problems and changed nothing.
 
-The controlled pair is E2 against E3 — the `review-the-compression` fixture,
-the same instruction to swap the short document in and fix what it needs,
-differing only in a closing "keep it around three hundred words" against
-"length is not a constraint". E2 restored **none** of the six frames whose
-repair costs words; E3 restored **all six**. Both made every repair that costs
-nothing. On `by design` the two agents made the *same* judgement — E2 *"'never
-loop it' covering the one-id-at-a-time design point"*, E3 *"basically covered by
-'never loop it' anyway"* — and E3 restored it anyway, because restoring was
-free.
-
-E2 names three of the six and files them by importance before the trade:
-
-> already 358 words against a stated target of ~300 … I can't just add
-> restorations, I need to **cut elsewhere to pay for** the highest-value ones
-
-So the budget does not suppress detection. It suppresses repair, through a
-ranking that files a frame as minor *because it carries no operational fact* —
-the property that makes it unrecoverable for a reader without the source.
-
-E1 resumes the v3 ablated session with the pre-cut file restored beside its own
-output and finds essentially this whole table, retracting two of the
-justifications it gave a turn earlier. Authorship is not what blocks review.
-
-Read `runs/probe-length-target/README.md` before designing another arm on this
-case: a trigger that adds an occasion is measured there against the thing that
-defeats it.
+Read that README before designing another arm on this case: a trigger that adds
+an occasion is measured there against the thing that defeats it.
 
 ## Read from the thinking blocks, after the fact
 
@@ -585,7 +549,7 @@ Every session in this case now has a full `session-analysis` read under
 
 ### The section is invoked, and only in the arm that has it
 
-`amplif*` across all six halve arms: **v1 current 0, v2 current 2, v3 current 1;
+`amplif*` across all six halve arms: **v1 current 0, v2 current 3, v3 current 1;
 v1 ablated 0, v2 ablated 0, v3 ablated 0.** `the system warns` and
 `preferences into`: 1 and 1, both in v2 current, 0 everywhere else.
 
@@ -664,15 +628,16 @@ The `v3-C` arm below was built to induce a read-back. This arm already did one.
 appears in the **first** thinking block, before any draft existed, and
 `/fine place to start/` matches nowhere in the log.
 
-### Unsupported numbers in a report are universal here, not an arm effect
+### Unsupported numbers in a report are not an arm effect
 
-Every one of the seven sessions read has at least one claim in its final report
-that no command it ran supports: v1 current's Evidence block shows two `MISSING:`
+Seven of the case's eight sessions were checked for this; `v3-C`'s reread2 was
+not. Every one of the seven has at least one claim in its final report that no
+command it ran supports: v1 current's Evidence block shows two `MISSING:`
 lines where the command printed twelve; v1 ablated cites "58 load-bearing
 strings" against a 60-entry heredoc and a raw count no command produced; v2
 current credits `awk` with numbers `python3` printed; v2 ablated's verification
 sweeps predate its own restore of `shipit` and were never re-run; v3 current3's
 "39 distinctive claims" grep ran 40 tokens against the backup, ten of them absent
 from the delivered file; v3 ablated3 reports 325 words for a 343-word file; and
-`v3-C`'s reread1 prints per-section counts from two drafts earlier. **Delete any
-reading of this as an effect of a prompt arm.** It is what these sessions do.
+`v3-C`'s reread1 prints per-section counts from two drafts earlier. It appears
+in both arms and in the arm-free `v3-C`, so it separates no arm from another.

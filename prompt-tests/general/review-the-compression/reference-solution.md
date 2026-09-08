@@ -64,7 +64,8 @@ category ("modality", "epistemic status", "guardrail", "unmarked fact") arrives
 
 **Neither arm cited a named rule from its system prompt.** The current arm never
 invokes Source-Governs, Cause-Over-Effect or No-Amplification, in a task where
-all three apply.
+all three apply. What preceded every finding was the two reads and nothing
+else — no rule, no verification step, no diff.
 
 ### In this case the section's only trace is vocabulary
 

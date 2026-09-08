@@ -102,6 +102,61 @@ carry verdicts. Leave them as they are.
 
 When editing the agent's system prompt or a skill in response to a failing case, the goal is to repair the invariant the case probes, not to make the case pass. A test case is one sample of the invariant's input space; treating it as the spec narrows the prompt to that sample. The general prompt-engineering hints in `skills/prompt-engineer-v2/SKILL.md` apply — in particular "No overfitting to the case at hand", "Overfitting review by a fresh subagent", "Implicit-guidance justification", and "Recognition before enforcement".
 
+### An edit's force and its exceptions travel where the case cannot follow
+
+`skills/prompt-engineer-v2/SKILL.md:52` ("Every change is a regression risk")
+covers the behavioural half; that file's text governs. Two further things travel
+with an edit that no case exercises and that review tends to read as wording: the
+force it is written at, and whatever it permits.
+
+**Force.** How widely an imperative binds is itself a claim — that the failure is
+frequent enough, and costly enough, to be worth the compliance cost everywhere
+the imperative now reaches. Two observed incidents support a caution: this
+happens, watch for it. Reading them as support for a requirement needs something
+two incidents do not contain, a rate and a cost. `No-Amplification` in
+`sys_prompt/alan-default-next.md` states this for evidential claims; for an
+instruction, the quantity that outruns the evidence is its scope.
+
+**Exceptions.** `skills/prompt-engineer-v2/SKILL.md:62` ("Edge-case the rule")
+asks for exceptions to be carved out explicitly; that file's text governs. Before
+writing one, answer how much of the forbidden space it readmits — breadth is a
+property of the exception's extension, not of how narrow its wording sounds. The
+costs are asymmetric: over-applying a prohibition yields a duller artifact, while
+over-applying a permission skips the work and ships a wrong answer. The exception
+is the half that repays the closer reading.
+
+**A restatement can subtract.** An addition restating a rule the file already
+carries is not a caution; it is a second, differently worded statement of the
+same rule, and nothing then says which governs. For the length half of this,
+`skills/prompt-engineer-v2/SKILL.md:68` ("Implicit-guidance justification")
+already requires an experiment before adding enforcement longer than its
+invariant; read it there.
+
+#### The worked example this is drawn from
+
+`skills/session-analysis/SKILL.md` was asked for a caution against grepping over
+thinking blocks in place of reading them. Commit `8b5b37c` added a subsection and
+an anti-pattern bullet. The subsection carried a mandatory artifact-format
+requirement and this exception:
+
+> Use a regex to *locate* blocks and to support an explicit negative about a
+> **literal string**; never to conclude something about a decision.
+
+Of the 33 distinct regexes recorded across `runs/*/sa-*.md`, 25 are a bare
+literal or an alternation of literals; the other 8 wrap literal terms in a word
+boundary, an optional suffix, a character class or a bounded gap. None matches a
+structural pattern rather than a wording. Every regex in this corpus therefore
+qualifies for the exception, and what is left of the prohibition is a rule about
+how to phrase the negative — not the rule about reading that was asked for.
+
+And the file was already closed. That skill's reading protocol item 6 requires
+"every reasoning block, every text block, every tool input", and the Grader rule
+at the bottom of this file requires a grader to read all thinking blocks. What
+the caution exists for is on record in
+`general/halve-the-runbook/reference-solution.md`: the v2 current arm's
+invocation of all three rules "went unrecorded until the logs were read". The
+subsection filled no gap; it opened one, in text that reads as a tightening.
+
 ## Categories
 
 ### correctness
@@ -452,91 +507,43 @@ and it induced footnote-marker cells that appear nowhere else. Read the case's
 
 Hands the agent a 1,163-word on-call runbook and asks for a quarter of it. The
 task names no reader, no agent and no handoff — it says the file is too long. The
-three cases above each tell the agent who will read what it writes, so none of
-them can ask whether an agent recognises an ordinary doc edit as writing that
-gets read cold. This one can.
+three cases above each tell the agent who will read what it writes; this one asks
+whether an agent recognises an ordinary doc edit as writing that gets read cold.
 
-The compression ratio is the instrument, and this is the load-bearing fact about
-the case. At a 50% target both arms kept every planted clause and landed 18% over
-length: roughly 500 of the fixture's words are padding, so nothing has to lose.
-Two versions measured nothing that way. At a quarter, some scored clause must go,
-and which one goes is the measurement.
+Two things govern how it is run and graded. Both are carried in full, with their
+evidence, by the case's `reference-solution.md`.
 
-The fixture plants sixteen scored fragments across eight clauses — causes and
-conditions as a control, modality and licence markers as the axis, one pointer to
-a governing file — so one pair of sessions yields sixteen observations rather than
-one. Across three pairs the direction is uniform: 11 fragments kept only by the
-section-present arm against 1 kept only by the stripped arm. No individual clause
-reproduced across versions; the direction is the finding and the instances are
-noise. Sample sizes here are n=1 per version, not `found-set-closure`'s n=8 —
-nothing from this case should be quoted with the confidence that one supports.
+- **The ratio is the instrument.** A quarter, because 50% was not binding.
+  Changing it changes what the case measures.
+- **A keep/drop score is not sufficient**, and reading one as if it were will
+  overstate both arms. A line can survive as a different *kind* of statement — a
+  caveat about the document's own reliability becoming a description of the
+  world, a norm becoming a rule. That class survives a keep/drop grep, because
+  the words are still there, and can leave an output worse than a bare deletion
+  would have. Scoring it needs a human or a second model.
 
-**A keep/drop score is not sufficient, and reading one as if it were will
-overstate both arms.** A line can survive as a different *kind* of statement: a
-caveat about the document's own reliability becoming a description of the world, a
-norm becoming a rule, an attributed claim becoming a flat one. A framing sweep of
-one pair found twelve such shifts, five of them in both arms, every one running
-the same way — toward a statement about the world. That class is invisible to any
-grep, needs a human or a second model to score, and can leave an output worse than
-a bare deletion would have: "Avoid Friday deploys — reconciliation runs Saturday"
-asserts a rule the source denied and rests it on a fact that no longer supports
-it. One pair; treat the twelve rows as a worked example, not a rate.
+Sample sizes are n=1 per version, not `found-set-closure`'s n=8 — nothing from
+this case should be quoted with the confidence that one supports.
 
-The case's `reference-solution.md` carries the fragment table, the framing tables,
-and all four baselines. Read it before running or changing the ratio — changing
-the ratio changes what the case measures.
-
-**A third arm was measured on it: the rule block replaced by a reread trigger**
-(quoted in full in the reference's `v3-C` section). Both runs re-read the file
-from disk and neither reviewed it — one spent the read-back on line width, the
-other produced no reasoning after it at all and routed five named problems,
-including the Friday framing shift, into `pre_output.record`'s `uncertainties`
-with the file unchanged. It preserved fewer frames than the rules did. Creating
-the occasion is not sufficient; do not read that as a verdict on any trigger
-wording other than the one quoted.
-
-**And a length target, not authorship, is what separates finding a framing shift
-from shipping one.** Five cells in `runs/probe-length-target/`: every cell that
-ships them has a word count in force, every cell that finds them has none —
-including one where the agent reviews its own output a turn later and retracts
-its own reasoning. The controlled pair differs in one closing sentence and
-restores 0 of 6 frames against 6 of 6. Detection is not what the budget
-suppresses; repair is.
-
-**Every session in `halve-the-runbook` has now been read at the thinking-block
-level**, and two of those reads change the case: the v2 current arm invokes all
-three of the section's rules before drafting while its ablated pair invokes none,
-and the v3 ablated arm reverses a correct, reader-harm-based decision twenty-seven
-lines later for twelve words and then reports the original reasoning as its
-grounds. Unsupported numbers in a final report turn out to be universal across all
-seven sessions, so do not read one as an arm effect. Artifacts in `runs/`.
+The reference also carries the fragment table, the framing tables, the four
+baselines, the third arm that replaced the rules with a reread trigger, and the
+thinking-block reads. `runs/probe-length-target/` carries the length-target
+result, which bears on any new arm designed here. Artifacts in `runs/`.
 
 ### general/review-the-compression
 
 The other half of `halve-the-runbook`, sharing its fixture: the source runbook
-plus the artifact that case's section-present arm actually produced, handed to a
-reviewer asked what is wrong with the short one.
+plus the artifact that case's section-present arm produced, handed to a reviewer
+asked what is wrong with the short one.
 
-**It is green in both arms, and that is what it is for.** Both find every defect
-in the sibling case's key and four it does not have. Keep it as a control, not as
-evidence for or against any prompt section — and re-run it after a rewrite of the
-section to confirm the rewrite did not cost reviewing ability.
+**It is green in both arms, and that is what it is for.** Keep it as a control,
+not as evidence for or against any prompt section — and re-run it after a rewrite
+of the section, to confirm the rewrite did not cost reviewing ability.
 
-What it measures is the distance between writing and reviewing in one model. The
-stripped arm wrote the sibling case's worst artifact without noticing, and here
-names the category itself — *"the highest-cost losses aren't dropped facts,
-they're dropped modality"*. Both arms produced every finding inside a single
-thinking block after one read of each file, before any verification command, and
-neither cited a rule from its own prompt. Side-by-side reading is the mechanism;
-the rules were not consulted.
-
-It also carries a three-reader doc-only control that gives the severity criterion
-an operational form: a compression defect is visible from the new document alone
-only when that document still carries a second statement contradicting it. Two of
-five planted defects meet that test and were found; the rest were not. The same
-readers spend most of their output on gaps the *source* has too — no rollback, no
-escalation path — so a doc-only reviewer is not merely blind to the invisible
-class, it fills the space with a confident wrong account.
+Its `reference-solution.md` carries the result, what green/green establishes
+about the distance between writing and reviewing in one model, and the
+three-reader doc-only control that turns the severity criterion into a detection
+test.
 
 ## Grader rule
 

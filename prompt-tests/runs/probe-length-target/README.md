@@ -21,12 +21,13 @@ These three probes fill in the rest of the square. All run the ablated prompt
 
 **The length target separates the cells; authorship does not.** Every cell that
 ships the shifts has a word count in force, and every cell that finds them has
-none.
+none — across five cells of one or two runs each, so the separation is perfect
+and the sample is not. See "Bounds" below for what else differs.
 
 ## E2 against E3 — the controlled pair
 
 Same two files, same instruction, differing in the last sentence alone. E2
-delivered 363 words and restored **none** of the six frames whose repair costs
+delivered 366 words and restored **none** of the six frames whose repair costs
 words; E3 delivered 869 and restored **all six**, in the source's own wording.
 Both made every repair that costs nothing: deleting the added
 `"The ones that matter:"` header, and putting `"Tune freely"` back into a
@@ -109,7 +110,7 @@ being cheap and vendor limits, incidents, decisions and *assertions of an
 absence* being not. E2's task verbatim, budget included. Two runs.
 
 **It moves the ranking and overruns the budget.** 392 and 436 words against
-E2's 363 and a ~300 target. The rule is used by name — *"applying a simple test:
+E2's 366 and a ~300 target. The rule is used by name — *"applying a simple test:
 keep only what a reader can't figure out on their own from the system, cut what's
 easily recoverable"*, and `SHUTDOWN_GRACE` is dropped as *"trivially recoverable
 from source"* to pay for the ordering assumption.
