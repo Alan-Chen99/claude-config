@@ -142,6 +142,65 @@ worse off than a **bare deletion** would have: "Avoid Friday deploys —
 reconciliation runs Saturday" is a rule the source denied, resting on a reason
 that does not support it. Deleting the bullet outright would have cost less.
 
+### Severity: a shift matters only where the reader cannot recover
+
+Not every shift is a defect. **If a reader can see the problem from the new
+document alone, it is not really a problem** — they are equipped, and they will
+ask. The dangerous shifts are the ones that leave a line reading as complete and
+helpful while the thing that let a reader derive its boundary has been removed.
+
+This also says what makes the source version safe. `runs every minute against a
+fixed record id` is a **mechanism**, and a mechanism lets a reader work the limits
+out unaided. A capability statement — `alerts when the vendor is down` — does not.
+
+Severity cannot be judged by anyone holding the source. Measure it: put the
+compressed document in front of a fresh reader with a task that **needs** the
+inference, and see what they do.
+
+#### Measured, one reader per variant
+
+The three renderings of the alerts line, and what each reader did when asked
+"I need to know whether the vendor is up, their status page is down, is there
+another way to tell from our side?":
+
+| runbook says | reader concluded |
+| --- | --- |
+| **source** — "runs every minute against a fixed record id and will alert **on its own** if the vendor is down" | "check whether that alert is currently firing (**or look at its underlying result directly rather than waiting for a page**)" |
+| **current3** — "alerts when the vendor is down even if we're sending nothing" | "just check whether the alert is currently firing… **Firing = vendor down.**" |
+| **ablated3** — "fires on vendor downtime **alone**" | "If it's firing, the vendor is unreachable… **if it's quiet, they're very likely up.**" |
+
+Severity tracks the phrasing monotonically. The source reader goes *past* the
+alert to the probe result — possible only because it knows there is a per-minute
+probe against a fixed id. The compressed readers cannot; they have only the
+alert's firing state, and each converts it into an inference the document never
+licensed, the strongest phrasing producing the strongest inference. One reader per
+cell; the ordering is three-way and matches the text, which is why it is worth
+recording at that n.
+
+#### Probe design: a probe that names the risk destroys it
+
+A first probe supplied the same three documents with "it's 03:00, settlements are
+missing, **nothing has alerted** — what do you conclude?" All three readers,
+source and compressed alike, opened by rejecting the inference: "quiet dashboard
+isn't evidence of health". Naming the quiet alerting in the prompt is what
+produced that, and it hid the whole effect.
+
+The second probe never mentions alerting reliability; it asks for something that
+requires the inference to be used. That is the design rule: **the probe must need
+the inference, not examine it.**
+
+It is the same rule in a different place. Asking an agent to *find the issues* in
+a compressed document is the first probe's mistake — anything it finds is by
+definition a thing a reader could see, which by the criterion above is the class
+that does not matter. A high score there measures nothing; the rows nobody flags
+are the dangerous ones.
+
+One artifact from that first probe is worth keeping: reading `current3`, the
+reader wrote that the check's blind spot is "**a documented blind spot, not a
+guess**". `current3` documents no such thing — the reader inferred it and then
+attributed its own inference to the runbook. A compressed line can raise a
+reader's confidence in what the document said, not just in the world.
+
 ## Verdicts
 
 At the quarter target no run has kept everything, and a verdict per clause is
