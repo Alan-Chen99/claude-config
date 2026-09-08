@@ -206,6 +206,41 @@ three. None of them could do what the source reader did and read the probe's
 underlying result, because none of them knows a per-minute probe exists. A caution
 marker buys hedging; a mechanism buys an action.
 
+#### And if the bullet is deleted outright?
+
+`RUNBOOK-deleted.md` is `current3` with the two alerts lines removed and nothing
+else touched. Four readers, same probe:
+
+| variant | inversion stated | every proxy it offered was bounded |
+| --- | --- | --- |
+| `source` — mechanism given (n=1) | 0 | reads the probe's underlying result: an action, not a proxy |
+| **`deleted`** (n=4) | **0/4** | **4/4** |
+| `caution` (n=3) | 0/3 | 3/3 |
+| `current3` (n=4) | 1/4 | 1/4 |
+| `ablated3` — "downtime alone" (n=1) | 1/1 | 0/1 |
+
+**Deleting the bullet is safer than compressing it.** Every deletion reader knew
+it had no direct signal and said so while reasoning from what remained — 503
+semantics, `pending` semantics, error shape — bounding each proxy as it went:
+"a 503 spike alone can't distinguish vendor-down from self-inflicted", "one or
+two stuck records mean little". None invented a check. One went further than any
+other arm managed: a clean 503 means the vendor **answered**, so it is evidence
+the vendor is *up*, and a real outage would look like timeouts or connection-
+refused instead.
+
+This is the criterion in its sharpest form. **A reader compensates for a missing
+claim and cannot compensate for a wrong frame, because nothing tells it
+compensation is needed.** Deletion makes the absence visible; compression hides
+it. That is the mechanism behind "fewer claims are safer": fewer claims means
+fewer invisible errors.
+
+**Boundary — do not over-read this.** What was deleted here is a claim about a
+*signal*, in a task that asks for a signal, so its absence announces itself. A
+deleted *caveat* is not the same: remove the month-end row from the
+reconciliation section and nothing in a reader's task will point at the hole.
+This result licenses "delete rather than compress a claim about a signal". It
+does not license deletion generally.
+
 #### Harness caveat for these probes
 
 Two of roughly ten stock `claude -p` reader runs returned a stub `.result` — a
