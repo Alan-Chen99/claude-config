@@ -150,6 +150,33 @@ pretty file as reading substrate.
 10. **Telemetry.** Process claims (commands run, blocks read, coverage) must
     come from the actual command history, not estimates.
 
+### A regex over thinking blocks is not a read of them
+
+Grep answers "does this string occur". It does not answer "was this
+considered", "was this noticed" or "was this deliberate" — reasoning uses its
+own words for a thing, and a run that weighed something at length may never
+spell it the way the focus spells it. Use a regex to *locate* blocks and to
+support an explicit negative about a **literal string**; never to conclude
+something about a decision.
+
+Two failure shapes, both observed:
+
+- **Inverted finding.** A grep for a phrase returned nothing, and the absence
+  was reported as "never mentioned". The run had in fact chosen the edit —
+  *"I'm shortening it to say…"* — and then verified its own work and cleared
+  it. Read cold, "never mentioned" and "noticed, chosen, and self-cleared" are
+  opposite claims about the same run, and only one survives reading the block.
+- **Missed positive.** A grep over the strings a focus names found nothing in
+  a run whose first thinking block restated three of the rules under
+  investigation in its own paraphrase. The finding was invisible to every
+  regex tried and obvious on the first full read.
+
+So: a negative claim in an artifact must name the regex **and** state that the
+blocks were read, or it must be phrased about the string alone —
+"`/by design/` matches nowhere in the thinking", not "the agent never
+considered whether the limit was deliberate". If the parent's focus asks
+whether something was considered, that question is only answerable by reading.
+
 ## Harness notes
 
 ### opencode
@@ -333,6 +360,9 @@ at @L14; subagent A's session is inlined below / linked at `<path>`).
   is fine; narrative summarizing what caused what is not.
 - Fixture files that may be truncated relative to the live log. Prefer live
   session as source of truth.
+- A negative derived from grep alone, stated as being about a decision rather
+  than about a string. See "A regex over thinking blocks is not a read of
+  them" — phrase it about the pattern, or read the blocks and say so.
 - Copy-pasted large tool outputs. Include only bytes referenced downstream (in
   reasoning or subsequent artifacts) or that a reader might cite; note the
   omission with a positive descriptor and/or a regex-negative.
