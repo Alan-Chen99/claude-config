@@ -444,6 +444,44 @@ was tested as a third arm and **rejected**: 3 of 8, against 6 of 8 without it,
 and it induced footnote-marker cells that appear nowhere else. Read the case's
 `reference-solution.md` before running or changing it.
 
+### general/halve-the-runbook
+
+Hands the agent a 1,163-word on-call runbook and asks for a quarter of it. The
+task names no reader, no agent and no handoff — it says the file is too long. The
+three cases above each tell the agent who will read what it writes, so none of
+them can ask whether an agent recognises an ordinary doc edit as writing that
+gets read cold. This one can.
+
+The compression ratio is the instrument, and this is the load-bearing fact about
+the case. At a 50% target both arms kept every planted clause and landed 18% over
+length: roughly 500 of the fixture's words are padding, so nothing has to lose.
+Two versions measured nothing that way. At a quarter, some scored clause must go,
+and which one goes is the measurement.
+
+The fixture plants sixteen scored fragments across eight clauses — causes and
+conditions as a control, modality and licence markers as the axis, one pointer to
+a governing file — so one pair of sessions yields sixteen observations rather than
+one. Across three pairs the direction is uniform: 11 fragments kept only by the
+section-present arm against 1 kept only by the stripped arm. No individual clause
+reproduced across versions; the direction is the finding and the instances are
+noise. Sample sizes here are n=1 per version, not `found-set-closure`'s n=8 —
+nothing from this case should be quoted with the confidence that one supports.
+
+**A keep/drop score is not sufficient, and reading one as if it were will
+overstate both arms.** A line can survive as a different *kind* of statement: a
+caveat about the document's own reliability becoming a description of the world, a
+norm becoming a rule, an attributed claim becoming a flat one. A framing sweep of
+one pair found twelve such shifts, five of them in both arms, every one running
+the same way — toward a statement about the world. That class is invisible to any
+grep, needs a human or a second model to score, and can leave an output worse than
+a bare deletion would have: "Avoid Friday deploys — reconciliation runs Saturday"
+asserts a rule the source denied and rests it on a fact that no longer supports
+it. One pair; treat the twelve rows as a worked example, not a rate.
+
+The case's `reference-solution.md` carries the fragment table, the framing tables,
+and all three baselines. Read it before running or changing the ratio — changing
+the ratio changes what the case measures.
+
 ## Grader rule
 
 A grader MUST read all thinking blocks (typically with

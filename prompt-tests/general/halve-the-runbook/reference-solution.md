@@ -84,6 +84,63 @@ incident-scope and the unknown separately if only one survives.
   rather than judgement, so record the word count beside the score.
 - **No new claims.** A reason not in the original, a number rounded into a
   different number, a hedge dropped from a claim that had one.
+- **No framing shift.** See below — a line kept as a different *kind* of
+  statement is a defect a keep/drop score cannot see.
+
+### The third class: framing shift
+
+Dropping a fragment and promoting a norm to a rule are both visible to a
+keep/drop score. This one is not. The line survives, and what changes is **what
+kind of statement it is** — a caveat about the document's own reliability becomes
+a description of the world, a norm becomes a rule, an attributed claim becomes a
+flat one. The facts can all still be there.
+
+Swept across every surviving line of the v3 pair: **twelve shifts, five in both
+arms, seven in the ablated arm alone, none in the current arm alone.**
+
+**Both arms**
+
+| line | source frame | what it became |
+| --- | --- | --- |
+| alerts | a quirk: "runs every minute against a fixed record id and will alert **on its own** if the vendor is down" | what the check does — "alerts when the vendor is down" / "fires on vendor downtime **alone**". Invertible: no alert, therefore vendor up. |
+| Friday | a norm with its consequence: "**nobody enforces this and it is not a rule**… a bad Friday deploy tends to get **discovered by a customer instead of by us**" | a rule with a dangling fact — "Avoid Friday deploys — reconciliation runs Saturday", which no longer explains anything |
+| `rollout pause` | safety with its scope: "is safe — **the paused state is a normal state and nothing times out on it**" | "is safe." Safe with respect to nothing stated. |
+| intro | naming disagrees across alerts, dashboards **and source module names** | one alias exists. A reader hitting a mismatched module name gets nothing. |
+| redrive | "takes one id at a time **by design**" | a limit that reads as incidental, which invites wrapping it |
+
+**Ablated arm only**
+
+| line | source frame | what it became |
+| --- | --- | --- |
+| reconciliation | a calibration warning: no false positives in eleven weeks, **never run a month-end**, treat the first as unproven | a schedule — "runs Sat 04:00; tickets go to billing's queue, not ours" |
+| `RETRY_BACKOFF` | explicitly arbitrary and free to change | an entry in a settings list beside two vendor-fixed constants |
+| staging | a settled decision with an owner: "**not an oversight**… **ask them** before assuming" | something that happened once — "finance turned down a second vendor tenant" |
+| redrive | a rule from one incident whose **threshold nobody has worked out** | a hard rule with a citation |
+| `BATCH_SIZE` | attributed — "the vendor's **documented** maximum" | flat — "(vendor max)" |
+| 503s | hedged diagnosis — "**nearly always** pool exhaustion" | the comparative alone, hedge gone |
+| `CONTRIBUTING.md` | "**that file is what governs**" | "conventions are in `CONTRIBUTING.md`" — a location, not an authority |
+
+**The direction is the finding.** Every one of the twelve runs the same way:
+from a statement about the document's own reliability, scope or authorship
+toward a statement about the world. Caveat → specification, norm → rule,
+attributed → flat, hedged → bare, arbitrary → ordinary, bounded-by-an-unknown →
+settled. Not one ran the other way.
+
+**The repair is fewer claims, not shorter ones.** Where the cut will not fit the
+frame, stop asserting and point at where the truth lives:
+
+> - **Dealing with alerts.** Understand what checks do before proceeding. Note
+>   that the vendor may be down.
+
+Shorter than either arm's version, asserts nothing about the trigger condition,
+keeps the operational fact. This generalises what Source-Governs already says for
+rules — "give the path… Do not compress it into imperatives of your own" — to
+claims and to frames.
+
+Score this class per line alongside keep/drop. Note that it can leave an arm
+worse off than a **bare deletion** would have: "Avoid Friday deploys —
+reconciliation runs Saturday" is a rule the source denied, resting on a reason
+that does not support it. Deleting the bullet outright would have cost less.
 
 ## Verdicts
 
@@ -224,6 +281,12 @@ Friday deploys".
 Three pairs, six sessions, one direction: 11 fragments kept only by the current
 arm against 1 kept only by the ablated arm. Do not quote an effect size — the
 per-clause results are not reproducible run to run, only the aggregate direction.
+
+**That 11:1 is scored on keep/drop alone and therefore understates both arms'
+defects.** A full framing sweep of the same pair finds twelve shifts — five in
+both arms — which the keep/drop score records as non-events wherever the line
+survived. Re-score any stored run against the framing class before comparing it
+to a new one.
 
 The `agent-tools pre_output.record` gate fires in both arms; its `uncertainties`
 field can manufacture disclosure about what was cut in either. It cannot explain
