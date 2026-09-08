@@ -3,6 +3,10 @@
 Runner-neutral prompt evaluation cases. See `.claude/skills/prompt-tests`
 for how to run, grade, and interpret results.
 
+`runs/` holds the recorded output of past runs — one `session-analysis` evidence
+artifact per trajectory, plus the artifact the tested agent produced. That is
+what a new run is compared against; see `runs/README.md`.
+
 ## Harness isolation
 
 Run tested agents from a fresh `/tmp/prompt-test-...` cwd, never from this
@@ -479,8 +483,17 @@ asserts a rule the source denied and rests it on a fact that no longer supports
 it. One pair; treat the twelve rows as a worked example, not a rate.
 
 The case's `reference-solution.md` carries the fragment table, the framing tables,
-and all three baselines. Read it before running or changing the ratio — changing
+and all four baselines. Read it before running or changing the ratio — changing
 the ratio changes what the case measures.
+
+**A third arm was measured on it: the rule block replaced by a reread trigger**
+(quoted in full in the reference's `v3-C` section). Both runs re-read the file
+from disk and neither reviewed it — one spent the read-back on line width, the
+other produced no reasoning after it at all and routed five named problems,
+including the Friday framing shift, into `pre_output.record`'s `uncertainties`
+with the file unchanged. It preserved fewer frames than the rules did. Creating
+the occasion is not sufficient; do not read that as a verdict on any trigger
+wording other than the one quoted.
 
 ### general/review-the-compression
 

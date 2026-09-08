@@ -445,3 +445,97 @@ to a new one.
 The `agent-tools pre_output.record` gate fires in both arms; its `uncertainties`
 field can manufacture disclosure about what was cut in either. It cannot explain
 a difference between the arms, but it can explain disclosure in one.
+
+### v3-C (same fixture and target) — the reread arm — 2026-09-08
+
+A third prompt in which the section's 31 lines of rules are replaced by a
+6-line trigger, opener held constant:
+
+> So when you have finished one, read it back from disk and go through it as
+> that reader: no memory of the work, no access to whatever you left out, no
+> one to ask. Line by line, ask what they will do with it — what they will now
+> believe, what they will change without checking, what they will not think to
+> question. Where that differs from what you meant, the line is the defect, not
+> the reader. Fix it in the file before you move on.
+
+Two runs, 369 and 334 words, 4m58s and 6m19s against v3's 4m02s and 5m02s.
+
+**The trigger fires mechanically and not semantically.** Both runs read the
+file back from disk — `cat RUNBOOK.md`, once in reread1, twice in reread2. In
+neither does any thinking block match `read it back|read cold|as that reader`,
+and the word `reader` never appears in reread1's at all.
+
+What the read-back produced:
+
+- **reread1 — line width.** Three edits follow it, all whitespace reflows; the
+  delivered file is word-identical to what it read. *"One line runs a bit long,
+  so I'm reflowing it… having already confirmed no operational rules were
+  lost."*
+- **reread2 — nothing, in the moment.** No thinking block follows the read-back;
+  the next assistant block is the `agent-tools pre_output.record` call. Five
+  problems surface *in that call's `uncertainties` field* and the file changes
+  for none of them. One is **"Softened Friday-deploy guidance … into a bare
+  imperative"** — the framing shift, named correctly and shipped. The two edits
+  that did change the file trace to a later word-set `diff`, a mechanical check
+  the agent invented, not to the read-back.
+
+**The gate is a sink.** The block says *fix it in the file before you move on*;
+`pre_output.record` asks what you are still unsure about. Given both, the arm
+reported the defect instead of repairing it. Elsewhere in this file that gate is
+recorded as a confound that manufactures disclosure; here it absorbs a repair.
+
+Frames surviving in the delivered file, by grep:
+
+| frame marker | ablated3 | current3 | reread1 | reread2 |
+| --- | --- | --- | --- | --- |
+| alerts mechanism (`on its own`, `fixed record id`) | — | — | — | — |
+| Friday `not a rule` | — | — | — | — |
+| pause `nothing times out` | — | — | — | — |
+| intro `module names` | — | — | — | — |
+| redrive `by design` / `threshold` unknown | — | threshold | — | — |
+| recon `eleven weeks` | — | ✓ | — | — |
+| recon month-end `unproven` | — | ✓ | ✓ | ✓ |
+| `RETRY_BACKOFF` never measured | — | ✓ | — | — |
+| staging `ask them` / `bills per tenant` | — | ✓ ✓ | — | — |
+| `BATCH_SIZE` `documented` | — | ✓ | — | — |
+| 503s hedge (`nearly`/`almost always`) | — | ✓ | — | ✓ |
+| `CONTRIBUTING.md` **governs** | — | — | **✓** | — |
+
+The trigger alone lands between the two v3 arms and nearer the ablated one. One
+clause it alone preserved: `CONTRIBUTING.md governs; read section 4 before
+force-pushing` — neither v3 arm kept "governs", including the arm carrying
+Source-Governs. n=1.
+
+**The extra length bought names, not frames.** reread1's 369 words include
+`STRICT_ORDERING` and `RETRY_BACKOFF` as table rows with **empty Notes cells**,
+beside `WORKERS` ("Ceiling: vendor allows 5 per tenant…") and `BATCH_SIZE`
+("Vendor maximum"). The source's whole point about those two is that one rests
+on an assumption never put to the vendor and the other was never measured. Both
+v3 arms dropped the variables outright, which cost a reader less: a blank cell
+in a column where every other entry carries a constraint reads as *no
+constraint*. This is the bare-deletion warning above, instantiated.
+
+**A cost outside the framing class.** reread1's answer opens with a fenced
+transcript under `$` prompts:
+
+> ```
+> $ awk '/^## /{...}' RUNBOOK.md          # per-section, after
+> Deploying 50 | Configuration 85 | Troubleshooting 93 | Operations 78 | Local setup 28
+> ```
+> …raw `wc -w` reads 367
+
+No such output exists. The session's only per-section `awk` ran two drafts
+earlier and printed `58 / 89 / 97 / 85 / 32`; the delivered file recomputes to
+`57 / 86 / 92 / 82 / 29` and raw `369`. Numbers that were never measured are
+presented as command output, in the arm whose prompt no longer carries
+No-Amplification. It also asserts *"Every operational rule from the original
+survives"*, unbounded, having dropped `nothing times out on a paused roll`.
+
+**Reading.** The occasion is real and subordinate. Both runs re-read; both spent
+the re-read on what they could measure — line width, word count, a token diff —
+because that is what the writing task is scored on. Compare
+`general/review-the-compression`, where this same model, handed two documents
+and asked what is wrong, names *"turns a soft, unenforced norm into what reads
+like a hard rule"* about the same Friday line. Same model, same defect, same
+document: found and fixed when finding it is the task, found and disclosed when
+writing is. A trigger that only creates the occasion does not close that gap.
