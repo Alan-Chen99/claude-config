@@ -169,13 +169,49 @@ another way to tell from our side?":
 | **current3** — "alerts when the vendor is down even if we're sending nothing" | "just check whether the alert is currently firing… **Firing = vendor down.**" |
 | **ablated3** — "fires on vendor downtime **alone**" | "If it's firing, the vendor is unreachable… **if it's quiet, they're very likely up.**" |
 
-Severity tracks the phrasing monotonically. The source reader goes *past* the
-alert to the probe result — possible only because it knows there is a per-minute
-probe against a fixed id. The compressed readers cannot; they have only the
-alert's firing state, and each converts it into an inference the document never
-licensed, the strongest phrasing producing the strongest inference. One reader per
-cell; the ordering is three-way and matches the text, which is why it is worth
-recording at that n.
+The source reader goes *past* the alert to the probe result — possible only
+because it knows there is a per-minute probe against a fixed id. The compressed
+readers cannot; they have only the alert's firing state, and each converts it
+into an inference the document never licensed.
+
+**Corrected on replication.** That table is one reader per cell and the ordering
+it suggests does not hold. Re-running the same probe four times against `current3`
+produced one reader stating the full inversion — "If it's active, the vendor is
+down; **if quiet, it's up**" — and one behaving like the source reader, checking
+the probe's live state rather than whether it had paged. The effect is
+probabilistic, not a property of the text that shows up every time. Read the table
+as one draw each, not as a ranking.
+
+#### Does a caution marker do the work instead of the mechanism?
+
+`RUNBOOK-caution.md` is `current3` with one line changed: the bullet head
+`**Alerts with no traffic.**` becomes `**Take caution interpreting alerts.**`. The
+mechanism stays absent. Same probe, three readers each:
+
+| | inversion stated | signal treated as bounded |
+| --- | --- | --- |
+| `current3` (n=4) | 1 | 1 |
+| `caution` (n=3) | 0 | 3 |
+
+Directionally it helps and the sample is too small to carry weight; the bounded
+column is the one that moved. What it does **not** do is replace the mechanism.
+The clearest caution reader had to reconstruct the mechanism by inference —
+
+> The runbook notes it "alerts when the vendor is down *even if we're sending
+> nothing*." **That phrasing only makes sense if** the check does its own active
+> probe of the vendor rather than inferring health from your send volume.
+
+— which is the reader supplying what the document dropped, and it happened once in
+three. None of them could do what the source reader did and read the probe's
+underlying result, because none of them knows a per-minute probe exists. A caution
+marker buys hedging; a mechanism buys an action.
+
+#### Harness caveat for these probes
+
+Two of roughly ten stock `claude -p` reader runs returned a stub `.result` — a
+memory-save acknowledgement — with the substantive answer in an earlier message.
+A scorer reading `.result` alone drops those silently. Check length before
+scoring and re-run or read the transcript.
 
 #### Probe design: a probe that names the risk destroys it
 
