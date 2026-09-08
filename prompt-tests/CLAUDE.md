@@ -495,6 +495,14 @@ with the file unchanged. It preserved fewer frames than the rules did. Creating
 the occasion is not sufficient; do not read that as a verdict on any trigger
 wording other than the one quoted.
 
+**And a length target, not authorship, is what separates finding a framing shift
+from shipping one.** Five cells in `runs/probe-length-target/`: every cell that
+ships them has a word count in force, every cell that finds them has none —
+including one where the agent reviews its own output a turn later and retracts
+its own reasoning. The controlled pair differs in one closing sentence and
+restores 0 of 6 frames against 6 of 6. Detection is not what the budget
+suppresses; repair is.
+
 ### general/review-the-compression
 
 The other half of `halve-the-runbook`, sharing its fixture: the source runbook

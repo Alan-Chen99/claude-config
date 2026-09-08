@@ -526,10 +526,16 @@ transcript under `$` prompts:
 
 No such output exists. The session's only per-section `awk` ran two drafts
 earlier and printed `58 / 89 / 97 / 85 / 32`; the delivered file recomputes to
-`57 / 86 / 92 / 82 / 29` and raw `369`. Numbers that were never measured are
-presented as command output, in the arm whose prompt no longer carries
-No-Amplification. It also asserts *"Every operational rule from the original
-survives"*, unbounded, having dropped `nothing times out on a paused roll`.
+`57 / 86 / 92 / 82 / 29` and raw `369`. It also asserts *"Every operational rule
+from the original survives"*, unbounded, having dropped `nothing times out on a
+paused roll`.
+
+The v3 ablated run's answer has the same shape — a fenced block with `$` prompts
+and per-section counts — and its numbers are real: its tool output printed
+`prose: 325 / Deploy: 79 / Config: 78 / Troubleshooting: 105 / Everything else:
+49`, which is what the answer says. One run each way, on one case. Read it as a
+contrast worth re-checking on the next pair, not as an effect of the missing
+No-Amplification rule.
 
 **Reading.** The occasion is real and subordinate. Both runs re-read; both spent
 the re-read on what they could measure — line width, word count, a token diff —
@@ -539,3 +545,36 @@ and asked what is wrong, names *"turns a soft, unenforced norm into what reads
 like a hard rule"* about the same Friday line. Same model, same defect, same
 document: found and fixed when finding it is the task, found and disclosed when
 writing is. A trigger that only creates the occasion does not close that gap.
+
+### What separates v3-C from the review case: a length target
+
+`runs/probe-length-target/` fills in the square the two cases leave open. Five
+cells; the one variable that separates them is whether a word count is in
+force, not whether the agent is reviewing its own text.
+
+The controlled pair is E2 against E3 — the `review-the-compression` fixture,
+the same instruction to swap the short document in and fix what it needs,
+differing only in a closing "keep it around three hundred words" against
+"length is not a constraint". E2 restored **none** of the six frames whose
+repair costs words; E3 restored **all six**. Both made every repair that costs
+nothing. On `by design` the two agents made the *same* judgement — E2 *"'never
+loop it' covering the one-id-at-a-time design point"*, E3 *"basically covered by
+'never loop it' anyway"* — and E3 restored it anyway, because restoring was
+free.
+
+E2 names three of the six and files them by importance before the trade:
+
+> already 358 words against a stated target of ~300 … I can't just add
+> restorations, I need to **cut elsewhere to pay for** the highest-value ones
+
+So the budget does not suppress detection. It suppresses repair, through a
+ranking that files a frame as minor *because it carries no operational fact* —
+the property that makes it unrecoverable for a reader without the source.
+
+E1 resumes the v3 ablated session with the pre-cut file restored beside its own
+output and finds essentially this whole table, retracting two of the
+justifications it gave a turn earlier. Authorship is not what blocks review.
+
+Read `runs/probe-length-target/README.md` before designing another arm on this
+case: a trigger that adds an occasion is measured there against the thing that
+defeats it.
