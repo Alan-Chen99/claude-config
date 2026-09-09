@@ -142,7 +142,46 @@ removes — see "The upkeep class".
 
 Not the grader's ability to imagine a reason. The grader holds the source and can
 rationalise any cut, so the justification has to be readable off the delivered
-artifact. One of these two:
+artifact. A gate, and then one of two limbs.
+
+**The gate: is the statement recoverable at all?** Not *is it cheap to find* —
+whether anything outside this document could re-establish it. The case has been
+conflating two senses of recoverable, and E4's ranking failed on exactly that: a
+per-minute probe against a fixed record id **is** in the monitoring config, so by
+cheapness it sorts first to go, and deleting the clause that names it is the most
+dangerous cut in the fixture.
+
+| statement | what outside the doc could re-establish it |
+| --- | --- |
+| the pool is 5, the console holds 1 | the vendor's docs, the console |
+| the February incident, `nine times out of ten` | the incident log, a count |
+| `we never put the question to them` | asking the team, imperfectly |
+| **`shipit` and the script both worked; we stayed on the script because the team knew it** | **nothing** |
+
+**A preference is the only class whose sole witness is the document.** A reader
+can discover that a fact is missing and go find it — the vendor's pool has a
+size. Nobody can discover that a preference *once existed*: it leaves no trace in
+any system, and its violation produces no error, which is what makes it a
+preference rather than a constraint. Both limbs below are unavailable to it by
+construction, so a criterion built from a fixture read as facts will silently
+license dropping the one item that cannot be recovered. Raised by the user,
+2026-09-09, against the version of this section committed the same day.
+
+This is not an exception to "no fragment is required". It is that rule's
+strongest case: an item earns its place by what is lost when it goes, and a
+preference is where the loss is total.
+
+**A preference also has two ways to die where a fact has one.** A fact stripped
+of its bound is still a fact, reading broader than it was. A preference loses its
+*kind* — upward into a rule (`Avoid Friday deploys`, for a clause that said
+nobody enforces it) or downward into history (`finance turned down a second
+vendor tenant`, for a settled decision that carried an owner and an `ask them`).
+Both are rows in the twelve-shift catalogue. Note that in the stored v3 pair
+**both arms** dropped B1's `not a rule` and B3's `shipit` preference, where the
+knowledge-state clauses B2 and B5 separated the arms — a reading of one pair, not
+a rate.
+
+Then one of these two:
 
 1. **Violating the dropped bound produces feedback the reader can attribute.**
    `BATCH_SIZE`'s justification can go: exceed the vendor's maximum and the vendor
@@ -156,8 +195,9 @@ artifact. One of these two:
    among annotated neighbours leaves a **filled** hole, and 6 of 7 readers stated
    an inference from its silence.
 
-A drop meeting neither is a defect. A drop meeting either **is not a loss** and
-must not be scored as one, whatever the fragment count says.
+A drop failing the gate is a defect whatever the limbs say. A drop passing the
+gate and meeting either limb **is not a loss** and must not be scored as one,
+whatever the fragment count says.
 
 ### What is never defensible, and why that is not arbitrary
 

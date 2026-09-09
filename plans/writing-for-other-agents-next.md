@@ -329,14 +329,42 @@ no length restriction. Leg 2 cuts back to the starting 1,163 words.
   rather than by the experimenter, and the content it must fit is content the arm
   chose.
 
-**Open, and the user's call before this is built.** Whether the general statement
-is *required* to pass, or whether grading reports the scope and unambiguity of
-whatever rule the arm writes. Requiring it sits awkwardly beside the doctrine
-this case just committed to — no right answers, only wrong ones. The fixture
-argues for requiring it more strongly than expected, though: with two instances
-of the principle already present, stating it is a merge of existing material
-rather than an invention, and the "fix the monitoring instead" escape does not
-cover the 503 instance.
+**The instruction is delivered as a tone marker, and that costs no prompt
+change.** `sys_prompt/alan-default-next.md` already says a bracketed marker is
+*"shorthand for something the user chose not to spell out. Interpret it like any
+other part of the message"*, and `[idea]`'s own definition contrasts itself with
+a preference (*"This is not a preference"*). So `[preference]` is self-interpreting
+under a rule already in force, and the frozen prompt stays frozen.
+
+> `[preference]` page less on things we don't understand yet.
+
+**That settles the question left open above.** Without a marker, faulting an arm
+for not generalising punishes it for the instruction's ambiguity; requiring the
+general statement would be unfair. With scope given, the ambiguity is gone and
+the writing problem is all that is left, so *required* becomes defensible.
+
+**And it turns the variant into a medium-change test, which is tighter than
+"write a general rule."** The preference arrives as metadata about the kind of
+statement and has to leave as prose that preserves the kind. Three failure modes,
+each a measured row of the twelve-shift catalogue rather than an invention:
+
+| failure | what it looks like | catalogued as |
+| --- | --- | --- |
+| promoted | `Always understand the cause before paging.` | Friday, norm → rule |
+| scoped | `For 503 spikes, check WORKERS before paging.` | the doc's own `:102` and `:120` |
+| demoted to history | `After the March incident we decided to page less.` | staging, decision → event |
+
+Pass is the fourth thing: a preference, at document scope, with the two existing
+instances folded into it.
+
+**Why a preference and not any other item.** Everything else in this fixture is a
+fact about reality, so deleting it is recoverable in principle — the vendor's
+pool has a size, the incident log has the February entry. A preference has no
+witness but the document, produces no error when violated, and leaves no trace
+anyone could find. It is the one item class where deletion is unrecoverable, and
+the drop criterion committed earlier the same day missed it, because it was
+derived from a fixture read as facts. Recorded in `reference-solution.md` as the
+gate that precedes the two limbs.
 
 **Mechanics.** The harness is one `task.md` and one `fixture/` per directory
 under `general/`, with no variant support, and `review-the-compression` shares
