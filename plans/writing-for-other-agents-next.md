@@ -248,6 +248,102 @@ rest are read off the clause table per run. Counts are comparable within a run
 and only roughly across runs. Enumerate them and re-score the stored baselines
 before the next scored arm.
 
+**P9 — the growth leg. Proposed by the user, 2026-09-09; designed, not built.**
+
+Every cell in this corpus measures the *cut*. The growing-doc model says the cut
+is the second half of a loop whose first half is an incident producing an
+addition, and nothing measures the first half. Two task variants over the same
+`halve-the-runbook` fixture, each run in two legs.
+
+**Why the fixture is already the right one.** The runbook states
+understand-before-act **twice**, as two scoped instances in two troubleshooting
+entries, and states the principle **nowhere**:
+
+| line | instance | scope as written |
+| --- | --- | --- |
+| `RUNBOOK.md:102` | `Check WORKERS first before you go looking at anything else` | 503s only |
+| `RUNBOOK.md:120` | `Check the vendor status page before you page anyone` | the no-traffic alert only |
+
+`page` occurs once in 1,163 words, inside one entry. There is no escalation
+policy, no owner, no severity scheme, no contact (`grep -ci`: escalat 0, owner 0,
+contact 0, on-call 0). **That is the accretion signature exactly** — two
+incidents each produced their own line and nobody ever merged them. The
+reader-side consequence is already measured: 3 of 4 readers given `:120`
+generalised one troubleshooting instruction into a standing check-before-page
+gate (`runs/halve-the-runbook/probe-alerts-line-311.md`). Readers want the
+principle; the document only has instances.
+
+**Variant B — the sharper one.** An incident where the existing instances would
+not have helped: a 503 spike, on-call paged the vendor, cause was pool exhaustion
+from a raised `WORKERS`. Instruction names the goal and not the shape — fewer
+false-positive pages in future.
+
+The correct move is a **merge**, not an addition: lift one preference —
+understand before you page — to document scope and retire the instances into it.
+Not a third scoped line beside the other two, which is what the loop produces
+when nobody is looking.
+
+Pass is a property of the artifact, in three parts, and the third is the one that
+gets missed:
+
+1. it states the **principle**, not one action, so it transfers to an alert the
+   document does not list;
+2. its **scope is stated** rather than left to placement — the measured failure
+   is that an instruction whose scope is not given will be given one by its
+   reader;
+3. it does not leave the two pre-existing instances asserting narrower rules
+   beside it. A general statement added above two surviving scoped ones is
+   ambiguous about whether the scoped ones still bind, and ambiguity is the thing
+   the variant exists to catch.
+
+**Variant A — only worth running as a matched pair.** *"Here is what happened.
+Update the documentation accordingly, or explain why nothing needs updating."*
+The escape hatch does the work, so it needs a cell where taking it is correct:
+
+| cell | incident | correct answer |
+| --- | --- | --- |
+| A-covered | someone looped `./redrive.sh` and rate-limited the tenant | nothing needs updating; the rule and its incident are already at `RUNBOOK.md:96` |
+| A-uncovered | a start failure that is neither a missing env var nor an unrun migration | the enumeration is not exhaustive and does not say so |
+
+A-covered is the only cell in the corpus that can measure **unnecessary
+addition**, which is the growing-doc pathology in its pure form. An arm that adds
+a paragraph to a document that already answers the incident has demonstrated the
+mechanism live.
+
+**Two legs, and the second is where the new measurements are.** Leg 1 adds with
+no length restriction. Leg 2 cuts back to the starting 1,163 words.
+
+- **Authorship on cutting is unmeasured.** `runs/probe-length-target/` established
+  that authorship does not affect *finding* a shift (E1). Whether an agent under
+  a budget preferentially spares what it just wrote is a different question and
+  nothing tests it. Leg 2 tests it for free.
+- **Leg 2 pays for the merge.** Merging three instances into one principle
+  *saves* words, so a budget should force the merge that leg 1 may have skipped.
+  An arm that ships three instances in leg 1 and still ships three in leg 2 has
+  failed to see its own accretion while being paid to.
+- **It exercises the drop criterion.** What leg 2 removes to make room either
+  meets a limb of "What makes a drop defensible" or does not.
+- **The target stops being arbitrary.** `reference-solution.md` records that the
+  50% target is set below what the graded content costs, so a run chooses which
+  defect to ship. "Back to the length you started at" is set by the fiction
+  rather than by the experimenter, and the content it must fit is content the arm
+  chose.
+
+**Open, and the user's call before this is built.** Whether the general statement
+is *required* to pass, or whether grading reports the scope and unambiguity of
+whatever rule the arm writes. Requiring it sits awkwardly beside the doctrine
+this case just committed to — no right answers, only wrong ones. The fixture
+argues for requiring it more strongly than expected, though: with two instances
+of the principle already present, stating it is a merge of existing material
+rather than an invention, and the "fix the monitoring instead" escape does not
+cover the 503 instance.
+
+**Mechanics.** The harness is one `task.md` and one `fixture/` per directory
+under `general/`, with no variant support, and `review-the-compression` shares
+this fixture by holding its own copy. So each variant is a new case directory
+with a copied fixture, and leg 2 is a second turn in the same session rather than
+a second case.
+
 **Queued, untested.** A version built on the writer's intent being fully
 recoverable and unambiguous, proposed by the user during this investigation and
 recorded in `prompt-tests/runs/probe-length-target/README.md`. It is a criterion
