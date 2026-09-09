@@ -1,0 +1,35 @@
+I can't see your telemetry, so this is a read of your runbook against the symptom, not a diagnosis of your system.
+
+## The runbook's answer, and the check that confirms it
+
+Pool exhaustion, check `WORKERS`. That's probably right. But you have a free discriminator sitting in the last line of the runbook: the synthetic check hits the vendor every minute against a fixed record id, independently of what you send.
+
+- **Synthetic check also 503ing** → vendor-side. `WORKERS` is not your problem and changing it won't help.
+- **Synthetic check clean, real sends 503ing** → your side, consistent with pool exhaustion.
+
+That split costs one dashboard query and decides whether the rest of this is worth doing.
+
+## Before you touch `WORKERS`
+
+**Is anyone looping `./redrive.sh` right now?** February: ~900 records, tenant rate-limited an hour. A tenant rate-limit presents as exactly this. If someone saw a `pending` backlog and reacted by redriving in bulk, that's your cause — and more workers makes it worse. Check this first; it's the one hypothesis where the standard fix is actively harmful.
+
+**Are you counting real 503s?** Older alerts fire as `ledger-forwarder`, and the oldest dashboards list the service twice. Make sure the rate you're looking at isn't doubled by a stale dashboard, and that you aren't missing 503s filed under the old name. (Source module names matching nothing is expected — don't chase it.)
+
+## The gap: the runbook doesn't say which direction
+
+`WORKERS=4` was never tuned, so moving it is fair game. But "check `WORKERS` first" doesn't say up or down, and a 503 is *the vendor's* status code. If they're shedding load, raising concurrency aims more of it at the thing already refusing you. Settle which side is saturated — that's what the synthetic-check split above buys you — before you pick a number.
+
+If you do raise it, two costs specific to that change:
+
+- **`STRICT_ORDERING=0` rests on an inference from acks alone.** Never asked, never documented by them. More concurrency is precisely the change that surfaces that if it's wrong, and you'd learn about it at Saturday's reconciliation rather than at deploy.
+- **It's a restart** — config is read at boot. `SHUTDOWN_GRACE=30` drains in-flight sends, so that part is clean. `./deploy.sh <env>`, with `rollout pause` available as a halt point mid-roll. Midweek, so the Friday/billing convention doesn't apply, and Saturday is far enough out to act as a check on the change instead of a surprise.
+
+There's no staging to rehearse this in, and that's deliberate — finance declined a second tenant in March. Worth asking before treating it as something to work around.
+
+## Two things not to do
+
+**Don't turn on debug logging.** It drops above ~2k lines/s, and you're presumably at volume — it will eat the exact window you turned it on for.
+
+**Don't panic about `pending` growth.** Over an hour is a lost acknowledgement, not a lost record. Redrive individually if you need to, one at a time.
+
+One useful note for after: Saturday's reconciliation is trustworthy this week. Eleven weeks without a false positive, and this isn't a month-end close, so the backdating caveat doesn't apply. If it flags a discrepancy, treat it as real.

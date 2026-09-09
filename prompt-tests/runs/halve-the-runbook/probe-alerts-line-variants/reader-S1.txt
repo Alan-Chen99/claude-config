@@ -1,0 +1,29 @@
+Two answers up front: the migration runs **after** the rollout, not before, and the worker count stays at **4**.
+
+## Order of operations
+
+1. **Request bastion access** in #platform-access before you start. Eight hours, no auto-renew — you want the window open going in, not discovered halfway through.
+2. **Don't run `./migrate.sh` yet.** This is the step people invert.
+3. **`./deploy.sh production`** (whatever your env argument is — the runbook doesn't spell it). Builds, pushes, rolls one pod at a time.
+4. **`kubectl rollout status deploy/relay`.** About four minutes in production. Each pod gets up to `SHUTDOWN_GRACE=30` seconds to finish in-flight sends; that's inside the four minutes, not on top of it.
+5. **Wait for it to actually report complete** — not "looks done." Every pod running the old code has to be gone.
+6. **`./migrate.sh`.** Now the column drops.
+
+The ordering rule cuts both ways and this is the direction that trips people: a migration that *adds* a column goes before the restart, because the new code writes to it on boot and crash-loops without it. A migration that *drops or renames* goes after, because until the roll finishes there are still old pods serving in-flight requests that reference `legacy_id`. Drop it first and those pods 500 for the full four minutes.
+
+One assumption this rests on: the code you're shipping must already be free of `legacy_id`. If it still reads the column, the after-ordering doesn't save you — it just moves the breakage to the new pods.
+
+## Worker count: leave it at 4
+
+`WORKERS=4` is a ceiling, not a tuning knob. The vendor's pool allows five concurrent connections per tenant and the admin console holds one open permanently, so four is what's left. Raising it doesn't buy throughput — it produces `pool exhausted` on the vendor side, which reaches you as an undifferentiated 503. You'd drain *slower* while debugging a symptom whose single most common cause, per your own troubleshooting section, is exactly the thing you just did.
+
+It's also read once at boot with no reload mechanism, so changing it means another restart on top of the one you're already doing.
+
+## On the backlog itself
+
+The runbook doesn't offer you a throughput lever. `BATCH_SIZE=200` is already the vendor's documented maximum, and `WORKERS` is already at the ceiling. So it's worth working out what's actually causing the backup:
+
+- **If you're seeing 503s** and `WORKERS` is already 4, it isn't pool exhaustion from your side. Check the vendor status page — the synthetic check runs every minute against a fixed record id and will page on its own if the vendor is down, independent of your traffic.
+- **Records stuck in `pending`** past an hour mean a lost acknowledgement, not a lost record. `./redrive.sh <record-id>` is safe, one id at a time. Not in a loop — about nine hundred in a shell loop rate-limited the whole tenant for an hour in February, and nobody has established where the real threshold is, so there's no "safe" batch size to pick instead.
+- **`RETRY_BACKOFF=2s`** is the one value the runbook explicitly flags as never measured against anything. If the backlog is retry-driven, it's a legitimate place to look — but it's an experiment, not a fix. If you want to try it, set it *before* `./deploy.sh` so the rollout's restart picks it up; otherwise you're doing a second full restart to apply it.
+- **Don't switch to debug logging** to investigate. One line per record, and the pipeline starts dropping above roughly two thousand lines a second — with a backlog you'll be well past that, and you'll lose the exact lines you turned it on to see.

@@ -1,0 +1,24 @@
+**Nothing here is a throughput knob — and `WORKERS`, the one you're most likely reaching for, is the one you must not raise.**
+
+`WORKERS=4` isn't a conservative default. It's arithmetic: the vendor pool is 5 per tenant and the admin console holds 1. You are already consuming the entire pool. Raising it to 6 or 8 produces exactly the failure you're reporting.
+
+That inverts your diagnosis. The runbook's "503s → check `WORKERS` first" means *confirm it's still 4*, not raise it. At 4 you sit at the pool limit but not over it, so if you're exhausting the pool, something already is over:
+
+- **What's the running value?** Config is read at boot, so the live process may not match the file. If someone bumped it during an earlier incident and it never went back, that's your cause and reverting to 4 is your fix.
+- **Extra admin console sessions.** The budget assumes exactly one held slot.
+- **Retries.** At `RETRY_BACKOFF=2s`, every 503 comes back two seconds later into the same exhausted pool. Once you're over the line, this sustains itself.
+
+**The one value you can actually move — upward, not down:** `RETRY_BACKOFF`. It's the only setting the runbook flags as never measured, and it names it as the place to start when retries need work. Raising it (5–10s) stops failed sends from re-consuming the slots that first attempts need. That doesn't add throughput; it stops throughput being spent on retries. Since it's unmeasured, treat it as a hypothesis — and note you have no staging to try it on, because finance turned down a second tenant in March. This gets tested in production.
+
+Everything else is fixed. `BATCH_SIZE=200` is a vendor limit — raise it and they reject the batch. `STRICT_ORDERING` is already 0. And don't flip `LOG_LEVEL` to debug to investigate: it drops lines above ~2k/s, which under load is precisely when you'd lose the ones you turned it on for.
+
+**While the backlog drains: do not loop `./redrive.sh`.** February, ~900 records, tenant rate-limited for an hour, threshold still unknown. One at a time, by design.
+
+Two things to confirm before changing anything:
+
+- **Are the 503s actually from your sends?** The synthetic check hits a fixed record id every minute and alerts on its own when the vendor is down. A 503 alert alone isn't proof of pool exhaustion caused by your load.
+- **Does your queue depth count `pending`?** If so, part of it is records already handed off and awaiting acks, not undrained work. Over an hour in `pending` is a lost acknowledgement, not a lost record.
+
+To apply a change: config is boot-read, so it needs a restart. `SHUTDOWN_GRACE=30` drains in-flight sends, and `rollout pause` is safe — nothing times out on a paused roll.
+
+The honest answer to "more throughput": the pool is 5 per tenant. Anything past that is a conversation with the vendor, not a config change.

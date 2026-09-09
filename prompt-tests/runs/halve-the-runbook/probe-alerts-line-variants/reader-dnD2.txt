@@ -1,0 +1,34 @@
+## Deploy order
+
+You're dropping a column, so the migration goes **last**:
+
+1. **`./deploy.sh <env>`** — not `shipit`. Both work, but switching is a conversation to have with the team, not a change to make while on call.
+2. **Wait for the roll to actually finish** — every instance on the new code, not just the first restart. The runbook words this asymmetrically on purpose: adds go before *the restart*, drops and renames go after *the roll finishes*. Mid-roll you have old and new instances live at once, and any old instance still reading `legacy_id` breaks the moment you drop it.
+3. **`./migrate.sh`** — the `legacy_id` drop, once the roll is confirmed complete.
+
+This assumes the code you're shipping is what removes the last references to `legacy_id`. If anything still reads it, the ordering won't save you.
+
+If the roll looks bad at any point, `rollout pause` is your safety valve — nothing times out on a paused roll, so you can hold indefinitely while you look.
+
+It's Wednesday, so the Friday/billing guidance doesn't bind, and reconciliation Saturday gives you a couple of days for a bad deploy to surface internally.
+
+## Worker count: leave it at 4
+
+Don't raise it. The vendor's pool is 5 connections per tenant and the admin console holds 1 — that's 4 available. `WORKERS=4` is already sitting exactly on the ceiling.
+
+The runbook is right that nobody tuned it, but untuned doesn't mean under-set here; the arbitrary value happens to land on the hard limit. Push it to 6 or 8 and you get pool exhaustion, which the runbook names as the near-always cause of 503s. 503s mean retries, and retries make a backing-up queue worse, not better. You'd be spending your night on an incident you caused.
+
+Two caveats, in the runbook's own spirit:
+
+- The 1:1 mapping from `WORKERS` to pool connections is my inference — the runbook implies it ("503s nearly always pool exhaustion; check `WORKERS` first") and the arithmetic lines up exactly, but it never states it. That's an argument for *not* experimenting at midnight on call, not for testing +1.
+- The 4 available assumes the console's connection is held. If nobody has it open you'd have 5 — but one person opening the console mid-drain puts you straight into exhaustion. Not worth banking on.
+
+There's no worker knob that drains this faster. `BATCH_SIZE=200` is the vendor's limit, not yours. The real lever is more pool capacity from the vendor, which is a conversation, not a config change. And note config is read at boot, so any env change lands at the restart anyway — you can't adjust mid-drain without another roll.
+
+## While it drains
+
+- **Don't loop `./redrive.sh`.** The backlog will tempt you. One at a time, by design — the February incident was ~900 records and an hour of tenant rate-limiting, and the threshold is still unknown.
+- **A backing-up send queue isn't the same as stuck `pending`.** `pending` means handed off, awaiting their ack; over an hour there is a lost acknowledgement, not a lost record.
+- **Don't flip `LOG_LEVEL=debug` to diagnose this.** Above ~2k lines/s debug drops lines, so a high-throughput backlog is exactly the case where you lose what you turned it on for.
+- **Expect a throughput dip during the roll** — `SHUTDOWN_GRACE=30` means each instance spends up to 30s draining in-flight sends. That's the roll working, not a problem to react to.
+- **Alerts during the roll may be the synthetic check**, which hits a fixed record id every minute regardless of what you're sending. And if you get paged as `ledger-forwarder`, that's this service under its old name.

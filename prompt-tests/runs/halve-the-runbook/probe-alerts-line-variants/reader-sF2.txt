@@ -1,0 +1,38 @@
+## The arithmetic says you have zero headroom
+
+The runbook's own answer is pool exhaustion, and the numbers make it more than a guess:
+
+- Vendor pool: **5 connections per tenant**
+- `WORKERS=4` → 4 connections
+- Admin console → **1**
+
+4 + 1 = 5. Steady state with one person in the console *is* the ceiling. Nothing is over the line, but nothing is under it either — so the trigger isn't "what's broken," it's "what added a sixth connection." Most likely candidates:
+
+- **A recent deploy or restart.** `SHUTDOWN_GRACE=30` holds old workers' in-flight sends while new ones come up, so a roll transiently wants ~8 worker connections instead of 4. That's a textbook 503 burst that resolves on its own in about 30 seconds and recurs on every deploy.
+- **A second console session**, or someone leaving one open who normally doesn't.
+- **The synthetic check.** It runs every minute against a fixed record id. The runbook doesn't say whether it draws from the same tenant pool — if it does, your true baseline is 6 against 5, and you'd expect exactly this. Worth confirming; it's the one number I can't derive from what's written.
+
+## Check first
+
+1. What `WORKERS` value is the *running process* using — config is read at boot, so the file and the live value can disagree if an edit landed without a restart, or a restart picked up an edit nobody remembers making.
+2. Current open connection count against the pool.
+3. Who has the admin console open right now.
+4. Whether the synthetic check is also 503ing. It's independent of what you send, so if it's failing too you're either fully saturated or looking at something vendor-side rather than pool-side — "nearly always pool exhaustion" isn't always.
+
+If you're pulling alert history to see whether this has happened before: older alerts fire as `ledger-forwarder`, and the oldest dashboards list the service twice. "It's never happened" could just be searching the current name.
+
+## Three traps
+
+**Don't raise `WORKERS`.** "Check `WORKERS` first" doesn't say which direction, and the instinct under a backlog is to add workers to push through. That's exactly backwards — more workers is more connections is more exhaustion. The fix direction is **down**, to 3, which leaves the console a slot. `WORKERS=4` is explicitly "worked before; not tuned or engineered," so it's fair game to change, unlike `BATCH_SIZE` (a vendor limit) — but note the change needs a restart, and the restart itself transiently makes the pool worse before it gets better. There's no staging to try it in, and that's a finance decision from March, not an oversight, so don't plan around spinning one up.
+
+**Don't loop `./redrive.sh`** over whatever's piled up in `pending`. That's the February incident — ~900 records, tenant rate-limited for an hour, threshold still unknown. You'd trade a 503 problem for a rate-limit problem. And you probably don't need to: `pending` means hand-off, `sent` means their ack, so anything stuck over an hour is a lost acknowledgement, not a lost record. One at a time if you redrive at all.
+
+**Don't flip `LOG_LEVEL=debug`** to watch it happen. Debug drops above ~2k lines/s, which during a 503 storm with retries firing is precisely when you're above that — you'd lose the lines you turned it on for.
+
+## Two things to keep on the radar
+
+`RETRY_BACKOFF=2s` has never been measured. If retries open connections rather than reusing pooled ones, a 503 storm feeds itself, and 2s is a plausible thing to lengthen — but measure before changing, since it's untested in both directions.
+
+`STRICT_ORDERING=0` rests on a belief that the vendor ingests in send order, inferred from acks alone and never confirmed with them. Retries during a 503 burst are the case most likely to reorder sends, so if this incident runs long, that assumption is being tested in production for the first time.
+
+Today's Wednesday, so the Friday-deploy caution doesn't bind — but reconciliation is Saturday 04:00 and tickets go to billing. If records are genuinely dropping, expect it to fire. Eleven weeks with no false positive, and this isn't month-end, so the usual "treat it as unproven" caveat doesn't apply: if it fires Saturday, believe it.

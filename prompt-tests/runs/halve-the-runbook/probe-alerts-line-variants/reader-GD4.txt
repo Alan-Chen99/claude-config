@@ -1,0 +1,44 @@
+Tonight is Tuesday, so the Friday/billing caution doesn't apply. Reconciliation is Saturday 04:00 (2026-09-12) — worth noting for the last point below.
+
+## Order of operations
+
+Your change is a **drop**, so the migration goes *after* the roll finishes. The worker bump is config, which is read at boot, so it rides the deploy's restart — you don't need a separate one.
+
+**0. Confirm the code you're shipping no longer reads `legacy_id`.** This is the precondition that makes an after-the-roll drop safe. If any instance still expects the column when step 5 lands, that's the failure.
+
+**1. Set the new `WORKERS` value in config.** It does nothing until the restart, which is what you want — one restart, not two.
+
+**2. `rollout pause` if you want a mid-roll checkpoint.** Nothing times out on a paused roll, so this is free: land one instance, look at its 503 rate, then continue. With a concurrency change riding along, I'd use it.
+
+**3. `./deploy.sh <env>`.** Not `shipit` — both work, but which script the team uses is a conversation, not a change to make at 10pm on call.
+
+**4. Wait for the roll to actually finish** — every instance on new code, not just the rollout command returning. `SHUTDOWN_GRACE=30` means each instance spends up to 30s draining in-flight sends, so this takes real time.
+
+**5. Confirm health *before* you migrate,** then `./migrate.sh` to drop `legacy_id`.
+
+The runbook says drops go after the roll finishes; it doesn't say immediately after. Until you drop, a code rollback is still just a rollout operation. After you drop, it isn't — old code against a schema missing `legacy_id`. So spend the time between 4 and 5 confirming 503s are flat and the queue is genuinely falling, and drop once you're satisfied. That's still inside the rule and it keeps your rollback for the window where you'd actually want it.
+
+## Worker count
+
+**Go to 6. Step to 8 if it's clean. Don't jump higher.**
+
+To be clear about what that number is and isn't: the runbook has no tuned value here. `WORKERS=4` "worked before; not tuned or engineered," so 4 isn't a ceiling anyone established and you're not overriding an engineering decision by raising it. But nothing tells you where the real ceiling is either — the runbook says 503s are nearly always pool exhaustion and `WORKERS` is the first thing to check, which tells you the failure mode and the cause but not the threshold. So 6 is a step size, not a measurement. Raise, watch, step again.
+
+Two things raising it leans on:
+
+- **Pool exhaustion is the failure mode**, and you'd be inducing it on a service that's already behind. That's the argument for one step at a time rather than 4 → 16.
+- **`STRICT_ORDERING=0` rests on an unverified inference.** The team believes the vendor ingests in send order, but that's from acks alone — never asked, never documented by them. More workers means more concurrent batches (`BATCH_SIZE=200` is the vendor's limit, so you get more batches, not bigger ones), which leans harder on that assumption than it's ever been leaned on. Not a reason to refuse, but you should know that's the bet you're making alone tonight.
+
+If 503s show up afterward, you have a cheap attribution test: set `WORKERS` back to 4 and restart. If they clear, it was concurrency; if they persist, it was the code. So bundling both changes into one restart doesn't actually cost you much diagnostically.
+
+When the queue has drained, decide deliberately whether 6 stays. It's another restart to back out, and the risk otherwise is that a number picked during an incident quietly becomes the new default without anyone measuring it.
+
+## While it drains
+
+- **Don't loop `./redrive.sh`** to clear the backlog. One February incident, ~900 records, tenant rate-limited for an hour, threshold unknown. One at a time is the design.
+- **Expect `pending` right after the restart.** `pending` is hand-off, `sent` is their ack. Under an hour, that's in-flight. Over an hour is a lost acknowledgement, not a lost record — redrive those individually if you need to.
+- **Don't set `LOG_LEVEL=debug` to watch this.** A backed-up queue with 50% more workers is exactly the >2k lines/s regime where debug drops lines, so you'd lose the ones you turned it on for.
+- **The synthetic check is not evidence.** It hits a fixed record id every minute, independent of what you send — it stays green through a total send outage. Watch queue depth and 503s, not synthetic health.
+- **Alert names will lie to you.** Older alerts fire as `ledger-forwarder`, some module names in alerts match nothing in the runbook, and the oldest dashboards list this service twice. A doubled dashboard entry isn't two things degrading.
+
+**Saturday:** reconciliation will be the first run against the post-drop schema, and tickets go to billing. Worth knowing the caveat runs the *helpful* direction here — the "treat it as unproven" caution is specifically about month-end close, and Sept 12 isn't one. So a discrepancy Saturday falls in the regime with no false positive in eleven weeks. If one shows up, believe it.

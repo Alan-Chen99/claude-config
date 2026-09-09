@@ -1,0 +1,15 @@
+Yes — three, roughly in order of how directly they answer it.
+
+**1. The synthetic check.** It runs every minute against a fixed record id, *independently of what you send*. That independence is the point: it separates "they're down" from "we're not sending." If it's green now, they answered a call within the last minute. The runbook establishes it exists but never says where it reports — if you don't already know, that's the thing to go find.
+
+Limit: fixed record id, one path. Green means they answered that call, not that ingest is healthy for real traffic. A vendor that's up but degraded — slow acks, one tenant rate-limited — can still pass it.
+
+**2. `pending` → `sent`.** `sent` is set on their ack, so the transition is their signal, not yours. Look at whether *new* records are still crossing to `sent` right now, across tenants — not at any one record. The runbook's own reading of a single record stuck over an hour is "a lost acknowledgement, not a lost record," i.e. it already assumes the vendor received it. So one stuck `pending` is not evidence they're down; a broad stall of the transition is.
+
+**3. The admin console** — inference, not runbook. It holds one of the 5 per-tenant vendor connections, so it talks to them; if it loads and works, something of yours is reaching them. The runbook doesn't say what it displays, so treat this as a place to look rather than a check I can describe.
+
+**The trap: don't read 503s as vendor-down.** They're the obvious "vendor is unhealthy" signal, and the runbook says nearly always pool exhaustion — check `WORKERS` first. Four workers against a pool of 5 with the console holding 1 means you sit near the ceiling by design, so exhausting it yourself is easy. "Nearly always" isn't always, but it's the check to clear before escalating.
+
+**Don't probe by looping `./redrive.sh`.** Instinctive move, wrong one: February, ~900 records, tenant rate-limited an hour, and the threshold is still unknown — so there's no safe rate to stay under. A single `./redrive.sh <id>` is a normal operation and fine as a one-shot.
+
+One gap worth naming: the runbook contains no vendor health endpoint, support contact, or escalation path. If one exists, it lives somewhere else. And the `STRICT_ORDERING=0` note is the relevant caution here too — you infer their behavior from acks alone and have never asked them. Acks tell you they're answering, not that they're processing correctly.

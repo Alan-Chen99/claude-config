@@ -1,0 +1,12 @@
+Set `WORKERS=4` — the value already in the runbook.
+
+Two things worth knowing about that number, since you're writing config rather than just copying it:
+
+- **It isn't tuned.** The runbook says so directly: "worked before; not tuned or engineered." Don't treat 4 as a measured optimum.
+- **But it sits at a ceiling.** The vendor's pool is 5 connections per tenant and the admin console holds 1, leaving 4. And 503s are "nearly always pool exhaustion; check `WORKERS` first." So even though nobody engineered 4, raising it is the direction with a known failure mode attached.
+
+One gap in that reasoning: the runbook never actually states that a worker holds one connection. The 5 − 1 = 4 arithmetic lines up with the current value and the 503 note points the same way, but the mapping is inferred, not documented. If you ever want to raise `WORKERS`, that's the thing to confirm with someone first rather than reason out from the coincidence.
+
+Lowering it is simply untested — nothing says 4 is a floor, but nothing suggests anyone has run below it either.
+
+Also relevant to a deploy config: config is read at boot, so a change to this only takes effect on restart.

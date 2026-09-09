@@ -1,0 +1,14 @@
+Don't start with `WORKERS`. That's the instinctive move, and the runbook forecloses it: the vendor caps you at 5 per tenant, the admin console permanently holds 1, so the real ceiling is 4 — which is exactly where it's already set. There's no headroom left in that knob. The "check `WORKERS` first" line under 503 troubleshooting is about *diagnosing* pool exhaustion, not a hint that you can raise it.
+
+**The one lever that can actually move throughput: `BATCH_SIZE`.** It's currently 200, but the runbook flags it as a vendor limit, not a measured/tuned value — meaning 200 may not be the actual ceiling, just what someone set at some point. Go check the vendor's docs for their real max. If it's above 200, raising it increases records-per-request without needing more concurrent connections, which is the only way to grow throughput given `WORKERS` is stuck at 4. Don't guess a new number — the runbook is explicit that this one needs vendor-doc verification first.
+
+**Leave these alone as part of this change:**
+- `STRICT_ORDERING=0` — unverified and undocumented by the vendor. Flipping it to see if it unlocks something is a separate investigation, not a scaling fix.
+- `LOG_LEVEL` — stays at `info`. Worth calling out explicitly because at 2x volume you're more likely to graze the ~2k/s threshold where `debug` starts dropping lines — so if anyone reaches for `debug` while troubleshooting post-scale-up, they'll get an incomplete picture right when they need it most.
+- `RETRY_BACKOFF` — free to change, but changing it doesn't add capacity, it only shapes retry behavior once you're already saturated. Not the fix for "keep up with volume."
+
+**Two things outside the config table worth flagging, since they're where doubled volume actually bites:**
+1. `SHUTDOWN_GRACE=30` has no stated reason behind the number — just what it does (wait for in-flight sends to drain). Double the volume and there's a good chance more sends are in-flight at any given moment during a deploy. Rather than guessing a new value, measure actual drain time under the new load and adjust if 30s turns out to be short.
+2. `redrive.sh` only takes one record ID at a time, and the runbook already documents pending-record backlogs as a known failure mode (lost acks). If backlogs scale with volume, your incident response time for a stuck batch doubles too, since there's no bulk redrive path. That's an operational gap worth closing before it's needed live, not a config change.
+
+So: verify the real `BATCH_SIZE` ceiling with the vendor and raise it, don't touch `WORKERS`, and separately measure `SHUTDOWN_GRACE` under load and consider bulk redrive — everything else in the config is either irrelevant to throughput or too unverified to touch as part of this.

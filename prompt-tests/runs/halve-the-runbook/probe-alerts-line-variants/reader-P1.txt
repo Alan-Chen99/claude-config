@@ -1,0 +1,11 @@
+Two, and together they separate "vendor down" from "we're broken."
+
+**The synthetic check.** It runs every minute against a fixed record id, independently of what we send. That's the one signal in the runbook whose result depends only on the vendor answering — it's why you can get alerts with no traffic of your own. If it's firing, that points at their side; if it's quiet, their ingest endpoint is answering.
+
+**The `pending` → `sent` transition.** `sent` is set on *their* ack, so records still flipping to `sent` means they're ingesting right now. Judge this on the fleet, not one record — a single record over an hour is a lost acknowledgement, which is a known failure mode that looks the same at one-record resolution. And it tells you nothing when we aren't sending.
+
+Read together: synthetic quiet but our records stuck at `pending` points at us or at per-tenant limiting, not at them.
+
+**Don't read 503s as vendor-down** — nearly always our own pool exhaustion; check `WORKERS` first. And don't probe by looping `./redrive.sh`; that's the February incident, ~900 records, an hour of tenant rate-limiting, threshold still unknown.
+
+The gap: the runbook says the synthetic check exists and that it alerts, but not where to read its current state directly. If you need it right now and no alert is live, you may have to find where that check reports — that's undocumented here.

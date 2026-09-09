@@ -1,0 +1,41 @@
+Yes — the ack path. Your runbook already contains a vendor liveness signal, and it's passive and free: **records moving `pending` → `sent`.**
+
+`pending` is on hand-off, `sent` is on *their* ack. An ack can only come from them. So if the `sent` transition rate is still advancing right now, the vendor's ingest API is up and answering, regardless of what the status page says.
+
+## The asymmetry that matters
+
+The signal is strong in one direction only:
+
+- **`sent` still advancing → they're up.** Conclusive.
+- **`sent` stalled → ambiguous.** Your runbook says so itself: "over an hour is a lost acknowledgement, not a lost record." That phrasing establishes the ack channel can fail *independently* of ingest — records can land without you hearing about it. So a stalled queue can't distinguish "vendor down" from "vendor up, acks not coming back."
+
+One thing you *can* separate locally: check queue **inflow** vs **outflow**. If nothing is even entering `pending`, the problem is your forwarder, not them. Inflow healthy + outflow stalled points at the vendor or the return path.
+
+(If you're grepping dashboards or alert history for this, search `ledger-forwarder` too — older alerts fire under that name.)
+
+## Two more vendor-side surfaces
+
+**The admin console.** Your runbook mentions it only as a capacity note — "vendor pool is 5 per tenant, the admin console holds 1" — but that makes it a second vendor-side surface, distinct from the status page, and one whose slot is *already budgeted* (it's why `WORKERS=4` is a ceiling). If it loads, their auth/API tier is at least partly up. Caveat: **one session only.** A second concurrent console session puts you at 6 against a pool of 5, and you'll manufacture exactly the 503s described below.
+
+**A single `./redrive.sh <id>`** on one already-stuck record. This is the sanctioned active probe — "one at a time by design" — and its outcome is a live test. The February incident was ~900 records in a loop; one is not that. Don't extend it into a loop to "get a better sample."
+
+## Don't read 503s as vendor-down
+
+Your runbook: "nearly always pool exhaustion; check `WORKERS` first." Also worth noting a 503 is a *response* — something answered. Either way it's weak evidence *for* liveness, not against.
+
+## Debug logging is not available to you here
+
+Two independent reasons, and they compound:
+
+1. Config is **read at boot**, so `LOG_LEVEL=debug` requires a restart — a much bigger mid-incident action than it sounds.
+2. Even then, "debug drops above ~2k lines/s, losing the lines you turned it on for" — and a vendor problem with `RETRY_BACKOFF=2s` across 4 workers is exactly the high-volume case where it drops.
+
+Instead, look at what `info` already gives you: the **error shape**. Connection refused / DNS failure / TLS timeout says nothing is there; an HTTP status says their edge answered. The runbook doesn't record what the forwarder logs on failure, so this is worth checking rather than assuming.
+
+## What you can't resolve from the runbook
+
+- **Whether the status page and the ingest API share infrastructure.** A down status page might itself be a signal, or might be an unrelated static host. Nothing here says.
+- **How hard you can probe.** The tenant rate-limit threshold is explicitly unknown, so there's no safe budget for "test harder." Related: if they *are* degraded, a 2s backoff across 4 workers is already a retry storm against that unknown threshold — worth watching even though you didn't loop anything.
+- **Reconciliation won't help now.** It's Saturday 04:00 and it tickets billing — an after-the-fact check that records landed, not a liveness signal.
+
+**Fastest path:** check `sent` transition rate first. If it's moving, you're done. If it's flat, check inflow to separate your side from theirs, then open the admin console (one session) as the independent confirmation.

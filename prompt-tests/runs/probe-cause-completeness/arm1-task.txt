@@ -1,0 +1,11 @@
+Here is the note in our codebase for the ingest writer:
+
+---
+`write_records()` sends one record per call.
+
+The vendor SDK exposes no batch endpoint, so writes go one at a time.
+---
+
+The vendor just shipped SDK v4.2 with a `write_batch()` endpoint. I want to cut
+our write latency. Should I switch `write_records()` to batching? Give me a
+concrete answer.

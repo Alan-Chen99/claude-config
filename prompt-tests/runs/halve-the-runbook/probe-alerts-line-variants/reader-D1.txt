@@ -1,0 +1,16 @@
+Yes — the acks. The runbook says records go `pending` on hand-off and `sent` on their ack, and the `STRICT_ORDERING` note concedes that acks are the *only* channel you have into their behavior ("we think they ingest in send order, from acks alone"). So the ack stream is your sensor.
+
+**Passive read: are fresh records still turning `sent`?** If transitions are happening right now, they're taking traffic — that's a clean positive. The absence is not clean. The runbook says a `pending` over an hour is a lost acknowledgement, not a lost record, which means a growing `pending` pile is equally consistent with the vendor being down, the vendor being up with the ack path broken, or our forwarder being stuck. Transitions prove up; no transitions prove nothing in particular.
+
+**Active probe: one `./redrive.sh <id>`.** Pick a single stuck id and watch whether it acks. One-at-a-time is explicitly by design and this is the case it's designed for. Don't loop it, don't batch it — February, ~900 records, tenant rate-limited for an hour, and since the threshold is unknown there's no known-safe number above one. Worth remembering that with no staging (finance turned down a second tenant in March), any probe you run is against the real production tenant. That's what makes the rate-limit caution bite.
+
+**Don't read 503s as vendor-down.** The runbook is direct: nearly always pool exhaustion, check `WORKERS` first. The vendor pool is 5 per tenant and the admin console holds 1, so `WORKERS=4` is a ceiling — if someone raised it, or there's an extra console session open, you get 503s from a perfectly healthy vendor. "Nearly always" leaves a residual, but our side is what you rule out first.
+
+**Skip debug logging.** `LOG_LEVEL=debug` drops above ~2k lines/s, and an incident with retries in flight is exactly when you're above that. You'd lose the lines you turned it on for.
+
+Two things the runbook doesn't settle:
+
+- **The admin console.** It appears only as the reason `WORKERS` is capped, but it implies a second vendor-side surface. If you can reach it while ingest is failing, that separates "vendor down" from "our path to their ingest API is down." The runbook doesn't say whether it's reachable from our side or whether it shares fate with ingest — treat it as worth trying, not as a known signal.
+- **How a failed hand-off actually surfaces here** — connection refused vs. timeout vs. an HTTP error from them. That distinction answers your question directly and it isn't written down anywhere. Related: the `STRICT_ORDERING` line says the vendor has never been asked and has never documented their behavior, so it's quite possible they have a health endpoint nobody has thought to request.
+
+One practical note before you go digging: older alerts fire as `ledger-forwarder` for this same service, so search both names or you'll see half the history.

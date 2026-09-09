@@ -1,0 +1,32 @@
+The working directory is empty — no `deploy.sh`, no code, no vendor docs, no log pipeline config. That matters here: the runbook is explicit that `WORKERS`, `BATCH_SIZE`, etc. are "heuristics and guesses" and that changing any of them means checking the vendor's docs, the log pipeline config, or the code — none of which exist in this sandbox for me to check. So I can't responsibly hand you a specific number; that would just be adding a fourth guess on top of the runbook's guesses, which is the exact failure mode it's warning against. What I can give you is the concrete decision process and the one counter-intuitive risk worth flagging now.
+
+**The blocking unknown: is `WORKERS` capped by the vendor or by you?**
+
+The runbook says 503s are "nearly always pool exhaustion, check `WORKERS` first." That's ambiguous in a way that matters a lot at 2x volume:
+
+- If pool exhaustion means the vendor's rate limit/concurrency cap, doubling `WORKERS` to handle doubled volume will *increase* 503s, not prevent them — you'd be hitting their ceiling twice as often.
+- If it means a local resource (connection pool, thread pool) sized under `WORKERS`, then raising `WORKERS` is exactly right, but only up to whatever the vendor actually allows.
+
+Get the vendor's documented concurrency/rate limit before touching this value. That number gates almost everything else.
+
+**What to check, per variable, before changing it:**
+
+| Variable | What decides the safe value | Where to look |
+|---|---|---|
+| `WORKERS` | Vendor's concurrency cap | Vendor docs (not the runbook) |
+| `BATCH_SIZE` | Vendor's max payload/batch size | Vendor docs |
+| `RETRY_BACKOFF` | How 503 rate responds to the above two at 2x load | Load test, not a guess |
+| `STRICT_ORDERING` | Whether higher throughput makes settlement order matter more downstream | The code / whoever owns correctness guarantees |
+| `LOG_LEVEL` | Whether the log pipeline can absorb ~2x log volume at `info` | Log pipeline config |
+| `SHUTDOWN_GRACE` | Whether 30s is still enough to drain in-flight batches once `WORKERS`×`BATCH_SIZE` in-flight records doubles | Observed drain time under load, not the current value |
+
+That last one isn't in the runbook's troubleshooting section but follows directly from it: rollouts use `kubectl rollout pause`, restarts are required for every config change here, and "stuck in `pending`" is described as safe to redrive one-at-a-time — fine at today's volume, but if a too-short grace period starts stranding batches on every deploy, "safe" turns into "constant manual toil" at 2x scale.
+
+**Concrete sequence:**
+
+1. Get the vendor's actual concurrency/rate limit and max batch size from their docs — this is the one fact that turns every other decision from a guess into a calculation.
+2. Load-test staging at 2x current volume with *today's* settings first, to see what actually breaks (vendor 503s vs. local pool exhaustion vs. log pipeline lag vs. shutdown drain timeouts) rather than assuming.
+3. Change one variable at a time even though each requires a restart — batch the restarts, not the variables, so you know which change did what.
+4. Roll out with `kubectl rollout pause` staged, watching 503 rate and `pending` queue depth before letting it proceed.
+
+If you can point me at the worker/batching code, the vendor's rate-limit docs, or the log pipeline config, I'll turn this into actual numbers instead of a checklist.

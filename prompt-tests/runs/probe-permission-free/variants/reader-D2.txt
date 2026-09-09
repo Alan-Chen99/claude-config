@@ -1,0 +1,14 @@
+I checked the working directory — there's no actual codebase here, just this runbook, so the answer has to be grounded entirely in what it says (and doesn't say).
+
+Here's the thing: the runbook is telling you, between the lines, that the obvious move is the risky one. "Check WORKERS first" for 503s is a direct signal that WORKERS is already coupled to some pool limit — yours or the vendor's — that's been hit before. Doubling volume by doubling WORKERS is the most likely way to reproduce that exact incident, right as you're trying to scale past it.
+
+So the concrete answer isn't a new number — the runbook explicitly disclaims the current values as tuned, and it doesn't tell you where the pool ceiling actually is. The concrete answer is a sequence:
+
+1. **Find out what "pool" means before touching WORKERS.** Client-side connection pool sized in the relay's code, or a concurrency/rate limit the vendor enforces? That fact determines whether WORKERS can move at all, and by how much. Not in the runbook — check the code or the vendor's API docs/rate-limit headers.
+2. **Try BATCH_SIZE before WORKERS.** Raising 200 → higher increases records/sec without adding concurrent connections, so it doesn't touch the failure mode the runbook already warns about. Confirm the vendor has no payload-size cap first — that's the equivalent risk on this lever.
+3. **Load-test at 2x in staging, one variable at a time, before prod.** You have `kubectl rollout pause` for exactly this: pause, change one env var, restart (required — these are boot-time reads), watch the 503 rate, resume or roll back.
+4. **Re-check SHUTDOWN_GRACE against whatever you raise.** Bigger batches or more workers mean more in-flight work per pod at any instant. If a batch takes longer than 30s to finish, deploys start truncating batches mid-flight — that's the "lost ack" scenario from the pending-records section, and it'll get more frequent exactly when you're mid-migration and least likely to notice.
+5. **Ask whether `redrive.sh` needs to handle more than one id at a time.** It's manual and serial today. If pending/failed records scale with volume, on-call toil doubles too — that's a real cost of 2x volume, separate from throughput.
+6. **Get current headroom numbers before changing anything** — WORKERS utilization, connection pool usage, vendor rate-limit headroom. None of that is in the runbook, which means right now any change is tuning blind, including a specific number from me.
+
+If you can get me the vendor's concurrency/rate limit and whatever sizes the pool in code, that turns this from a process into actual numbers.

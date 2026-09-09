@@ -1,0 +1,15 @@
+Yes — two, and one thing that looks like a signal but isn't.
+
+**The synthetic check is your liveness probe.** It runs every minute against a fixed record id, independently of what you send. That's the only thing in the runbook that touches the vendor on a schedule regardless of your own traffic, so it's the closest you have to a status page you control. If it's passing, something of yours got an answer from them within the last minute. Two limits: the runbook doesn't say what it exercises (a read of that fixed id isn't necessarily proof that *ingest* is healthy), and a failure means "our path to them is broken," which includes your own egress — not specifically their outage. Also check both alert names when you go looking; older alerts fire as `ledger-forwarder`.
+
+**`pending` → `sent` transitions are a second-hand signal.** `sent` only happens on their ack, so records actively moving means they're acking. Read this at the fleet level, not per-record — the runbook's "over an hour is a lost acknowledgement, not a lost record" is about one stuck id, and doesn't generalize. A broad simultaneous stall across tenants is the shape that points vendor-side.
+
+**Don't read 503s as vendor-down.** The runbook says they're nearly always pool exhaustion; check `WORKERS` first. Right now that's the failure mode most likely to get misfiled as "vendor is out."
+
+**Don't loop `./redrive.sh` to probe them.** That's the February incident — ~900 records, tenant rate-limited an hour, threshold unknown. Getting rate-limited would manufacture exactly the symptoms you're trying to diagnose. A single `./redrive.sh <id>` on a genuinely stuck record is within the documented design; a batch isn't.
+
+One gap worth knowing before you lean on the synthetic: the ceiling arithmetic is `WORKERS=4` + admin console 1 = the vendor's 5 per tenant, fully allocated. The synthetic isn't in that count. So either it reaches them out-of-band, or the stated ceiling is understated by one — and that ambiguity bites precisely during a 503 storm, when you most want to trust the synthetic. Worth confirming which before you use it as your tiebreaker.
+
+Also closed off: there's no staging to test against, and spinning up a second tenant is not a decision to make in an incident — finance turned that down in March and the runbook says to ask first.
+
+The runbook notes twice that things were "never asked" and "never documented by them." If the status page is down, asking them directly is the thing that actually resolves this — the signals above narrow it, but none of them confirm an outage on their end.

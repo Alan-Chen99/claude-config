@@ -1,0 +1,30 @@
+## Deploy order
+
+`legacy_id` is a **drop**, so the migration goes *after* the roll — the reverse of a column add.
+
+1. **Confirm nothing you're shipping still reads `legacy_id`** — the service code, and reconciliation. There's no staging, so this ordering is the only thing between you and finding out in prod.
+2. **`./deploy.sh <env>`** — not `shipit`. Both work, but swapping deploy tools while you're on call is a conversation, not a tonight change.
+3. **Wait for the roll to actually finish** — every old instance gone, including its `SHUTDOWN_GRACE=30` drain. An instance inside its grace window is still sending, and it's the one that still touches `legacy_id`.
+4. **`./migrate.sh`** for the drop.
+
+If something looks off mid-roll, `rollout pause` is safe — nothing times out on a paused roll. But don't run the migration while paused: a paused roll is a mixed fleet, and step 4 needs *finished*, not *stopped*.
+
+Today is Wednesday, so the Friday/billing caution doesn't bind.
+
+## Workers: leave it at 4
+
+The vendor's pool is 5 connections per tenant and the admin console holds 1. That leaves 4. `WORKERS=4` is already sitting exactly on the ceiling — the "nobody tuned it" note makes it look like free headroom, but the untuned value happens to land on the cap.
+
+Raise it and you get 503s. The runbook says 503s are nearly always pool exhaustion, check `WORKERS` first — so you'd be manufacturing tonight's second incident while trying to clear the first.
+
+You could argue for 5 if you knew nobody would open the admin console for the whole drain, but on call at night you can't know that, and more concurrency also leans harder on `STRICT_ORDERING=0` — an assumption inferred from acks alone, never confirmed with the vendor. Not worth it for one connection.
+
+The unwelcome part: there's no knob that drains the queue faster. Throughput is capped by the vendor's pool, and `BATCH_SIZE=200` is their limit, not yours. It drains at the rate it drains.
+
+## While it drains
+
+- **Don't loop `./redrive.sh`.** It's the obvious reach with a backlog at night, and it's the one thing the runbook attaches an incident to — ~900 records in February, tenant rate-limited an hour, threshold still unknown. One at a time.
+- **Don't flip `LOG_LEVEL` to debug to watch it.** Debug drops above ~2k lines/s, and a backlog is exactly when you're above that — you'd lose the lines you turned it on for.
+- **Expect stuck `pending`** from sends in flight across restarts. Over an hour is a lost acknowledgement, not a lost record.
+- **`RETRY_BACKOFF=2s`** is the only genuinely untuned knob here, but it's never been measured — that's an experiment, not a fix, and config is read at boot so it costs another restart. Only worth it if you can see retries are the bulk of the queue.
+- **Alerts:** anything firing as `ledger-forwarder` is this service, and the oldest dashboards list it twice, so a doubled entry isn't two problems. An alert with no traffic is the synthetic check — fixed record id, every minute, independent of what you're sending.

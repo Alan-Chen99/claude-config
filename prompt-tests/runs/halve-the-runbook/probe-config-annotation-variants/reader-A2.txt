@@ -1,0 +1,12 @@
+Turning WORKERS up is the wrong move here, even though it's the obvious "more throughput" lever.
+
+The runbook's own troubleshooting note is the tell: **503s are "nearly always pool exhaustion," and the first thing to check is WORKERS.** That's diagnostic language, not "increase this." A 503 from the vendor under load almost always means their ingest API is already shedding load because you're sending more concurrent requests than they can accept. If that's what's happening, WORKERS is already too high — turning it up further just throws more concurrent requests at a vendor that's already rejecting them, which gets you more 503s, more retries eating into `RETRY_BACKOFF=2s`, and a queue that backs up faster, not slower.
+
+So concretely:
+
+1. **Don't raise WORKERS.** Check what it's currently set to, then check the vendor's docs for their documented concurrency/rate limit (the runbook explicitly says to go there, not to guess). If WORKERS is at or above that limit, lower it. Counterintuitively, that's usually what stops the 503s and lets the queue actually drain, because requests start succeeding instead of failing and retrying.
+2. **It's a restart either way.** These are boot-time env vars, so this isn't a live dial you can nudge mid-incident — changing WORKERS in either direction means a restart, which itself briefly worsens the backlog.
+3. **BATCH_SIZE is a maybe, not a given.** Fewer, larger requests could relieve request-rate pressure on the vendor without cutting record throughput — but it's the same story: the runbook flags it as a guess-value, and whether the vendor's ingest API even benefits from bigger batches is something you'd need to confirm against their docs, not assume.
+4. **redrive.sh doesn't help this.** That's for acks lost after a successful send, not records that never got accepted. A 503 means the send failed outright, so that's not the tool for this backlog.
+
+The runbook is telling you the queue backing up under 503s is a symptom of sending too fast, not too slow — so the fix is bringing your send rate in line with the vendor's actual capacity, not adding more senders.

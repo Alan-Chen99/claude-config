@@ -1,0 +1,12 @@
+Set `WORKERS=4`.
+
+Two independent reasons converge on that number:
+
+- **It's the documented value.** The runbook says `WORKERS=4` — with the caveat that it "worked before; not tuned or engineered." So treat it as known-working, not as an optimum.
+- **The pool arithmetic caps you there anyway.** The vendor allows 5 connections per tenant and the admin console permanently holds 1, leaving 4. And the runbook says 503s are nearly always pool exhaustion, with `WORKERS` the first thing to check — so raising it is the specific mistake that failure mode is warning about.
+
+Note this assumes one pool connection per worker. The runbook never states that mapping; it's inferred from 4 = 5 − 1 and from `WORKERS` being the first suspect for pool exhaustion. The fit is good enough to act on, but it's not something the runbook actually documents.
+
+One thing worth checking before you commit the config: the 5-connection limit is **per tenant**, not per process. If your deployment runs more than one replica of payments-relay against the same tenant, then 4 is a budget shared across all of them, and `WORKERS=4` per replica would exhaust the pool immediately. The runbook doesn't mention replicas at all, so I can't tell from it which case you're in.
+
+If you ever do want to move it, the runbook's framing suggests down is the safer direction to experiment — but nothing here tells you 4 is wrong, so I wouldn't change it as part of writing the config.

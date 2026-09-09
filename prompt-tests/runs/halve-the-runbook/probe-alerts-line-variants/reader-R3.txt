@@ -1,0 +1,18 @@
+Yes — the synthetic check. That's exactly what it's for.
+
+Per the runbook it runs every minute against a fixed record id and alerts on its own if the vendor is down, *even when you send nothing*. So its state answers your question without the status page:
+
+- **Not firing** → the vendor answered within the last minute.
+- **Firing** → vendor down.
+
+The runbook's "check the vendor status page before you page anyone" sits on top of that signal, it isn't the source of it. With the status page out you've lost the confirmation step, not the detection. One practical note if you're going looking for the alert: older alerts fire under `ledger-forwarder`, same service.
+
+**Second, weaker signal** — only if you're actually sending: records go `pending` on hand-off, `sent` on their ack. Anything moving to `sent` means they're acking, so they're up. It's asymmetric though — transitions prove up, absence of them doesn't prove down, and if you're not sending it tells you nothing at all, which is the gap the synthetic check exists to cover.
+
+**Two things not to misread as vendor-down:**
+- 503s — nearly always pool exhaustion on your side; check `WORKERS` first.
+- A single `pending` over an hour — that's a lost acknowledgement, not a lost record, and not an outage.
+
+Don't reach for `./redrive.sh` as a probe either. Looping it is off the table (February, ~900 records, tenant rate-limited an hour, threshold still unknown), and a single manual redrive would only duplicate what the synthetic check already does every minute.
+
+The caveat worth holding onto: you're down to one signal, and the status page was its cross-check. The check exercises one fixed record id, so a quiet check proves that one path answers — not that the vendor is healthy for every tenant. The runbook also doesn't document its alert threshold, or whether it's ever fired in a real vendor outage. Good evidence they're up; short of a confirmed all-clear if the stakes are high.

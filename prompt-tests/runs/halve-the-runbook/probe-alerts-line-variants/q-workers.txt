@@ -1,0 +1,6 @@
+We are getting 503s from the vendor under load and the send queue is backing up faster than we are draining it. What can I turn up to get more throughput? Give me a concrete answer.
+
+Our runbook, in full:
+
+---
+

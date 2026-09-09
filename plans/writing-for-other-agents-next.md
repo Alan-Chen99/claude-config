@@ -11,16 +11,95 @@ quoted with more confidence than that.
 
 1. **The section fires, and only where it exists** — the v2 pair, where the
    current arm reaches all three rules before drafting and its ablated pair
-   reaches none.
+   reaches none. **Firing is not working**: the same arm said *"I must avoid
+   amplifying claims"*, caught and repaired one of its own mid-run, and still
+   shipped `by far the most common` for the source's `the single most common`.
 2. **A length target beats it** — five cells in `runs/probe-length-target/`;
    the controlled pair differs in one closing sentence and restores 0 of 6
    frames against 6 of 6.
-3. **The failure is triage, not detection and not occasion** — four independent
-   demonstrations across the v3, v3-C and E2 cells, each one an agent naming a
-   loss in its own words and shipping it anyway.
+3. **Triage is the failure under a binding budget, but the budget is not
+   necessary** — four demonstrations across the v3, v3-C and E2 cells, each an
+   agent naming a loss and shipping it anyway. Qualified 2026-09-09: re-scoring
+   the **v2** pair, where the 50% target was not binding, finds the same Friday
+   promotion produced by **reordering** rather than deletion, plus a layout claim
+   and an amplification. A budget produces framing shifts; it is not what makes
+   them possible.
 4. **Supplying a ranking works on assertions of absence and mis-sorts
    mechanisms** (E4), because a mechanism is in the system and therefore scores
    cheap, while the clause naming it is what tells a reader it exists.
+5. **A recorded cause licenses more than it establishes** —
+   `runs/probe-cause-completeness/`, run on Cause-Over-Effect's own "standing
+   limitation" row. n=3 per arm.
+
+6. **The subtractive repair works, and it is cheaper than the claim it
+   replaces** — `runs/halve-the-runbook/probe-alerts-line-311.md`, n=4 per arm.
+   Cutting an invertible trigger claim while keeping its mechanism takes the
+   reverse inference from 4/4 to 0/4 and the artifact from 311 words to 301. This
+   is the first time the repair this investigation has prescribed throughout has
+   been run on a line rather than proposed.
+7. **Selective annotation certifies whatever it skips** — same run, 6 of 7
+   readers of a bare `BATCH_SIZE=200` sitting among annotated neighbours stated an
+   inference from its silence, one of them a false rule about the document
+   (*"the runbook annotates every setting it has knowledge about"*). The reading
+   is stable; the action it licenses is not — caution on one question, `200 → 400`
+   on another.
+
+8. **A low-confidence marker is read as a licence only under a symptom *and* an
+   instruction to optimise** —
+   `runs/halve-the-runbook/probe-workers-untuned.md`. `WORKERS=4 — worked before;
+   not tuned or engineered` in place of its ceiling: 7 of 8 readers raised it,
+   6 of 8 quoted the marker as the reason they were permitted to, and every number
+   named (5, 6, 6, 8, 8, 12) exceeds the real ceiling of 4. `probe-permission-free/`
+   measured the same wording at 3/3 refusals under a *planning* question; these are
+   pressure questions, which is the frame anyone reading a runbook is in.
+   Unpressured, the default holds in every arm: 9/9 set `WORKERS=4` when asked
+   for a config with no problem in play, and 0/9 raised it when shown 503s
+   without being told to optimise. What the marker changes under a symptom is the
+   branch after the runtime check, not whether the check happens — 3/3 arms sent
+   the operator at runtime state first.
+9. **The criterion runs in both directions.** Attributable feedback on violation
+   licensed dropping `BATCH_SIZE`'s justification and the migration reasons, and
+   forbids dropping the `WORKERS` ceiling: exceeding it produces an
+   undifferentiated 503, the same symptom that sent the operator to the runbook,
+   so the reader's careful step-and-measure protocol reads its own damage as the
+   vendor's. That it forbids something is what makes it a criterion rather than a
+   preference for brevity.
+
+10. **Stating the facts beats stating the conclusion, at +3 words** — the
+    user's proposal, arm F of the same probe. `The vendor's pool is 5 connections
+    per tenant. The admin console holds 1.`, with no ceiling asserted, matches the
+    prescribed version on every row and additionally surfaces the derivation's
+    unstated premise (2/3 readers: *"the runbook never actually states that a
+    worker holds one connection"*), which no reader of the prescribed version
+    questioned. A conclusion ends the search; two numbers are an instrument.
+
+11. **The key is blind to density, and density is forced by the target** — a
+    telegraphic 348-word artifact and the same content as 431 words of ordinary
+    prose score identically on 16 fragments and 12 shifts, and no reader probe
+    separates them. Plain prose costs 29%. Before reading any arm's terseness as
+    poor judgement, note that a quarter-length target does not leave prose
+    available.
+
+## A defect that no budget explains
+
+Items 1–4 are all about the section losing to a length target. This one holds at
+any length. Cause-Over-Effect's last column is its stated test — *"a cause is
+written well enough when it answers what the reader may change without asking"* —
+and two of the four rows answer that question with a licence the row never
+earned. Recording one cause does not establish it was the only one, so the
+removal of a recorded cause leaves the reader knowing that one reason is gone,
+not that the decision is free. The two rows that are safe (`Preference`,
+`Nothing`) record an **absence**; the two that are not (`Requirement`, `Standing
+limitation`) record a **fact**. An absence cannot be falsified into a licence,
+because no condition was ever lifted.
+
+Measured on the standing-limitation row: 0 of 3 readers of the rule's own wording
+ask whether the recorded cause was the only one, and one opens "Yes, switch".
+With one sentence marking the cause unchecked, 3 of 3 make it the headline risk —
+and the two arms then search different places, the marked one auditing local
+callers and crash-recovery state where the unmarked one audits the vendor's new
+API. Raised by the user, 2026-09-08, as the difference between a cause whose
+removal voids the claim and a cause that was one input to a past decision.
 
 ## The gap
 
@@ -62,6 +141,12 @@ prompt change. The upfront rule invocation is the strongest evidence the section
 works and it is one run. If it does not reproduce, most of the case's framing
 needs revisiting before any edit. Independent of P2; run together.
 
+**P2's premise is now measured on the reader side.** The repair itself —
+cut the claim, keep the bound — took the alerts line from 4/4 inversions to 0/4
+at ten words less (item 6 above). What is still untested is a *prompt* clause
+that makes a writer perform that cut unbidden under a budget, which is what P2
+is. Run it against a known-good target rather than an unknown one.
+
 **P2 — RED/GREEN on one clause, subtractive.** Candidate:
 
 > When the space will not hold a claim together with what bounds it, cut the
@@ -91,6 +176,32 @@ demonstrably fire there).
 each rule in one sentence. Test a version cut to the opener plus the three rule
 headlines, no tables, against the full section on the v2 cell. If coverage
 holds, roughly 700 words come out.
+
+**P6 — mark a recorded cause as non-exhaustive.** Independent of P1–P5; it
+addresses the defect above rather than the budget. The probe already ran the
+reader half and it came back green on the fixture's own wording; what has not
+been tested is a *prompt* clause that makes an agent write the marking unbidden.
+Candidate, appended to Cause-Over-Effect:
+
+> The cause you record is the one you know about. Unless you checked that nothing
+> else forces the same decision, say so — otherwise its removal reads as a
+> licence, and the last column above is what makes it read that way.
+
+Cell: a writing task where the agent documents a decision with a known cause.
+`general/recorded-decision-causes` was retired; its fixture would need rebuilding,
+or `general/relayed-rule-provenance` adapted. *Green:* the delivered artifact
+marks at least one recorded cause as unverified-exhaustive. *Red:* no marking, or
+the marking appended to every cause indiscriminately, which would be the same
+over-application `runs/probe-length-target/` measured on the E4 ranking.
+
+**P7 — a fixture with two files.** No case in the corpus has ever put a
+pointer's target in front of a receiver: `CONTRIBUTING.md` does not exist in any
+fixture, and both cases that name it were measured with it absent
+(`general/halve-the-runbook/reference-solution.md`, "What this case cannot
+measure"). Every pointer result so far is about whether the agent writes one.
+Source-Governs' central prescription is therefore unmeasured end to end. Cheapest
+fix: add `CONTRIBUTING.md` to `halve-the-runbook/fixture/` and give the
+downstream reader a question whose answer is in it.
 
 **Queued, untested.** A version built on the writer's intent being fully
 recoverable and unambiguous, proposed by the user during this investigation and

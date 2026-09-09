@@ -1,0 +1,11 @@
+Yes — the synthetic check is exactly the signal you want. It runs every minute against a fixed record id and alerts on its own if the vendor is down, **even when we send nothing**. That's independent of the status page and independent of our own traffic, so:
+
+- **Synthetic alert firing** → vendor is down.
+- **No synthetic alert** → they were answering as of the last minute.
+
+Two things not to substitute for it:
+
+- **503s.** Nearly always pool exhaustion on our side, not the vendor. Check `WORKERS` first (it's a ceiling — vendor pool is 5 per tenant, admin console holds 1).
+- **Stuck `pending`.** It's weak evidence at best: `pending` flips to `sent` on their ack, so a wave of it *could* mean acks aren't coming back, but the runbook reads over-an-hour `pending` as a lost acknowledgement rather than a lost record. And don't probe by looping `./redrive.sh` — one at a time by design; the February incident got a tenant rate-limited for an hour and the threshold is still unknown.
+
+One caveat the runbook doesn't cover: silence means "no alert fired," which isn't quite the same as "proven up" — nothing there says what happens if the check itself dies. If you need positive confirmation rather than absence of an alarm, verify the check actually ran in the last minute. It also exercises one fixed record id, so it tells you the ingest path answers, not that every tenant is healthy.

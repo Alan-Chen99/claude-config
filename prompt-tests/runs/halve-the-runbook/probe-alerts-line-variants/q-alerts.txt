@@ -1,0 +1,6 @@
+I need to know whether the vendor is up, their status page is down, is there another way to tell from our side?
+
+Our runbook, in full:
+
+---
+

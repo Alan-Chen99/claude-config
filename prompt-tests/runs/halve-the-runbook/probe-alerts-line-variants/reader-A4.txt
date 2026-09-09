@@ -1,0 +1,16 @@
+Yes — the synthetic check. It runs every minute against a fixed record id and alerts on its own if the vendor is down, and it does that even when you're sending nothing. That's vendor liveness that depends on neither your traffic nor their status page, which is exactly the gap you're in.
+
+**Reading it**
+
+- **No alert = up** — but confirm the check actually ran recently rather than trusting silence. A broken check and a healthy vendor look identical from the alert channel.
+- **It catches down, not degraded.** One fixed record id exercises one path; a partial failure (one tenant, or accepted-but-not-processing) could sail through. The runbook only claims it alerts if the vendor *is down*.
+- If you go digging in alert history, search `ledger-forwarder` too — older alerts fire under that name for the same service.
+
+**Corroboration, not a probe:** `sent` is set on their ack, so acks arriving at all means they're taking traffic. Keep that as corroboration only. The runbook is explicit that a single record over an hour in `pending` is a lost acknowledgement, not a lost record — so one stuck record tells you nothing about them. And the `STRICT_ORDERING` note is a standing caution that this team has already read more into acks than acks support (ingest order inferred from acks alone, never asked, never documented by them).
+
+**Two false leads**
+
+- **503s aren't a vendor-down signal.** Nearly always pool exhaustion on your side — check `WORKERS` first.
+- **Don't redrive to probe.** Never loop `./redrive.sh`; the February incident was ~900 records and got the tenant rate-limited for an hour, threshold still unknown. A single `./redrive.sh <id>` is for a genuinely stuck record, not for testing whether they're alive. There's also no staging to poke them from — finance turned down a second tenant in March, so that's a conversation, not a quick workaround.
+
+One thing the runbook implies but doesn't state: the admin console holds 1 of your 5 per-tenant vendor connections, so it's a client of their API. If it's responsive, that's a vendor-side signal independent of both the synthetic check and the status page. That's my inference from the `WORKERS` note, not runbook fact — worth a look, not worth trusting alone.

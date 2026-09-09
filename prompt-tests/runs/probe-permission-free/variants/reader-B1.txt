@@ -1,0 +1,17 @@
+The obvious lever is already maxed out. `WORKERS=4` isn't a knob — the runbook says so directly, and the math backs it up: vendor allows 5 connections per tenant, admin console permanently holds 1, leaving exactly 4. That's the value it's already set to. Pushing it up to handle 2x volume would blow past the vendor's tenant-wide cap and buy you more 503s, not more throughput.
+
+So, concretely:
+
+1. **Don't touch WORKERS.** More concurrency requires an external move: either the vendor raises the 5-per-tenant cap, or someone confirms the admin console's "permanent" hold can actually be freed. Both are conversations to have this quarter, not a config edit.
+
+2. **Check `BATCH_SIZE` against the vendor's current docs.** It's your one plausible in-repo lever — bigger batches move more records per call without needing more connections. But the runbook is explicit that 200 is *their* limit, not a measured tuning value, so verify before bumping it. If they still cap at 200, this door's closed too, and you're fully blocked on the vendor conversation above.
+
+3. **Leave `STRICT_ORDERING` alone.** It's flagged as an unverified assumption undocumented by the vendor. Tempting to "clean up" while you're in this file, but it's unrelated to capacity and you have no way to confirm vendor behavior against it — don't bundle it into a scaling change.
+
+4. **Don't flip `LOG_LEVEL` to debug while watching the rollout.** It drops lines above ~2k/s — precisely the regime you'll be in at 2x volume, right when you need visibility most.
+
+5. **`RETRY_BACKOFF` is genuinely free to tune**, but it's resilience, not throughput — it won't get you to 2x. Worth revisiting once you're pinned against the connection ceiling and seeing more contention.
+
+One operational consequence to flag: since you can't raise `WORKERS`, doubled volume means more frequent pool-exhaustion 503s, which means more records parked in `pending`. `redrive.sh` only takes one ID at a time — check that doesn't become a manual bottleneck if a backlog builds up.
+
+Bottom line: the fix isn't in this config file. It's either vendor docs confirming `BATCH_SIZE` headroom, or a vendor/org conversation about the 5-connection tenant cap.

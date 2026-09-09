@@ -1,0 +1,30 @@
+## The knob you're reaching for isn't available
+
+`WORKERS` is the throughput knob, and it's already maxed. The runbook is explicit that it's "a ceiling, not a knob": the vendor pool is 5 per tenant, the admin console holds 1, so 4 is the whole budget. Turning it to 6 or 8 buys you *more* 503s, not more throughput — you'd be opening connections against a pool that has none left.
+
+This is also why the 503 line points you at `WORKERS` first. The failure it's anticipating isn't "WORKERS is too low," it's "someone already turned WORKERS up." So:
+
+## Check these first — free, no restart
+
+1. **Is `WORKERS` actually 4?** If it drifted above 4, that's your cause and your fix. Set it back.
+2. **How many admin consoles are open?** The `1` in the arithmetic is *one* console. If two people have it open while debugging this, you're at 6 against a pool of 5 with a perfectly correct `WORKERS=4`. Closing the extra one is the only lever here that needs no restart at all.
+3. **Is the synthetic check green?** It runs every minute against a fixed record id and alerts on its own when the vendor is down. If it's *also* failing, this isn't your pool and no config change you make will help. If it's green while you're 503ing, pool exhaustion is confirmed and the rest of this applies.
+
+## What you can actually move
+
+**`RETRY_BACKOFF=2s` → up, not down.** This is the only knob the runbook calls free ("never measured. Free to change."). Counterintuitive but it's the real throughput move: under sustained 503s, every retry at 2s comes straight back into the same 5-connection pool and competes with first-attempt sends. Raising it to ~8–10s takes retry traffic out of contention and lets fresh sends through. Note "never measured" cuts both ways — nobody knows what 2s is currently doing either, so capture your drain rate before and after rather than assuming.
+
+**`BATCH_SIZE=200` → up.** This is the only genuine "turn it up for more throughput" lever you have: more records per request, same concurrency, doesn't touch the pool at all. Two things to know — it carries no annotation in the runbook, meaning nobody has recorded a vendor limit or said it's safe; and there's no staging to test on (deliberately — finance turned down a second tenant in March, so ask before assuming you can spin one up). Move it in one step, 200 → 400, and watch the 503 rate. If the vendor's 503 is payload-driven rather than concurrency-driven, bigger batches make it worse and you'll see it immediately.
+
+Both are read at boot, so both need a roll. `rollout pause` is safe — nothing times out on a paused roll. No migration involved, so the `migrate.sh` ordering rule doesn't apply here. Today is Tuesday, so the Friday/billing caution isn't live, but it becomes relevant if this drags past Wednesday.
+
+## Two things not to do
+
+- **Don't loop `./redrive.sh`.** This is the natural move with a queue growing faster than you drain it, and it's the runbook's one hard prohibition: February, ~900 records, tenant rate-limited an hour, threshold unknown. A rate-limited tenant is strictly worse than a slow queue.
+- **Don't switch `LOG_LEVEL` to debug to diagnose this.** It drops above ~2k lines/s, and under the load you're describing you're likely above that — you'd lose exactly the lines you turned it on for.
+
+## Worth separating before you treat depth as the metric
+
+Is what's growing the pre-hand-off send queue, or records sitting in `pending`? Those are different problems. `pending` means we handed off and haven't been acked; over an hour there is a lost acknowledgement, not a lost record. If a chunk of your backlog is aged `pending`, queue depth is overstating how much actually needs sending, and no amount of throughput fixes it.
+
+One flag on the ordering assumption: `STRICT_ORDERING=0` and the belief that the vendor ingests in send order rests on acks alone — never asked, never documented by them. Raising `RETRY_BACKOFF` pushes retried records further behind newer ones. If order does matter to them and they don't actually preserve it, that's a behavior change nobody has tested. Probably fine, but it's an untested assumption you'd be leaning on harder, not a known-safe one.

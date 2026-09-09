@@ -1,0 +1,36 @@
+Tonight is Tuesday, so the Friday-without-billing caution doesn't bind, and reconciliation is Sat 2026-09-12 04:00 — about 3.5 days of margin, and not a month-end close, so the runbook's "eleven weeks, no false positive" record applies as written.
+
+## Order of operations
+
+One rule in the runbook fixes this, and your change is on the wrong side of it: **drops and renames go after the roll finishes.** So the code ships first, the schema changes last.
+
+1. **`./deploy.sh <env>`** — the new code, which must already be free of `legacy_id` reads and writes. Not `shipit`; the runbook is explicit that switching is a conversation, not a change to make on a deploy night.
+2. **Let the roll finish completely.** Not "the first instances came back" — every instance on new code. Config is read at boot, so each instance picks up its config as it comes up, and `SHUTDOWN_GRACE=30` means each one takes up to 30s to stop while in-flight sends drain.
+3. **`./migrate.sh`** — the drop, only now.
+
+Two things about step 2. The runbook says "after the roll *finishes*", not "after the restart" — any straggler still on old code will query a column that no longer exists. And `rollout pause` is your free stop mid-roll (nothing times out on a paused roll), but a paused roll is *not* a finished roll: if you pause, resume and let it complete before step 3.
+
+Expect a bump in `pending` after the roll. Instances cut in-flight sends at 30s grace, and those land as `pending` — by the runbook's own rule, `pending` over an hour is a lost acknowledgement, not a lost record. Redrive individually, `./redrive.sh <id>`, never in a loop.
+
+## Worker count
+
+The runbook does not contain a defensible number, and I can't produce one for you. `WORKERS=4` is recorded as "worked before; not tuned or engineered" — it's not a measured optimum, so there's no known headroom to spend. Three separate ceilings bound the upside and all three are unknown:
+
+- **Pool size.** 503s are nearly always pool exhaustion and the runbook sends you to `WORKERS` first — so worker count is the knob that loads the pool, and the pool's limit isn't written down.
+- **The tenant rate limit.** The February incident is the only throughput data point in the runbook: ~900 records in an hour got the tenant rate-limited for an hour, threshold unknown. The rule is phrased as "never loop `./redrive.sh`", but the mechanism was *throughput* — and more workers draining a backlog is another way to produce that throughput. Draining fast is a live way to reproduce that incident without touching `redrive.sh`.
+- **Ordering.** `STRICT_ORDERING=0` rests on the belief that the vendor ingests in send order, inferred from acks alone, never asked and never documented by them. More workers is more send concurrency, which is a larger bet on that unverified belief than you've ever placed. Don't also flip `STRICT_ORDERING` tonight — that's a second untested change, and there's no staging to try either in.
+
+**What I'd do:** one step to `WORKERS=6`, after the deploy and drop are done and verified — not folded into the same roll. 6 is a step size, not a measured value: small enough that if the pool ceiling sits just above 4 you learn it with room to revert, large enough to move the drain rate. Treat 503s as the stop-and-revert signal. Don't jump to 8 or 12 in one move; with three unknown ceilings and no staging, prod is your only test bed and you're solo.
+
+Sequence it after the deploy rather than before for three reasons: the roll then happens at the known-working concurrency instead of a new one, a 503 spike or a rate-limit has exactly one candidate cause, and the migration has the hard ordering constraint and the Saturday deadline so it deserves your attention first. The exception is if the backlog is itself about to become the incident — then bump first as its own restart, watch it, and deploy after.
+
+Before you bump at all, check *why* the queue is backing up. If it's 503s, more workers is the wrong direction — you'd be feeding pool exhaustion. `RETRY_BACKOFF=2s` is the candidate knob in that case, but it's flagged as never measured, so tonight is not when to tune it. And `BATCH_SIZE=200` is a vendor limit, not a lever — don't raise it to drain faster.
+
+Whatever you land on, write down the drain rate before and after, the 503 rate, and the `pending` count. Config is read at boot, so an un-reverted bump silently becomes the next arbitrary default — either revert it after the drain or leave a measurement behind, so the next person has a tuned number instead of a second "worked before."
+
+## Tripwires tonight
+
+- Alerts naming `ledger-forwarder` are this service — older alerts still fire under that name, so don't triage them as someone else's. Some source module names in alerts match nothing in the runbook, and the oldest dashboards list the service twice.
+- The synthetic check hits a fixed record id every minute regardless of what you send, so it will keep exercising the read path straight through the migration. That makes it likely to be the first thing that fires if the drop breaks something — a real signal about the read path, not noise.
+- Don't raise `LOG_LEVEL` to debug while draining: it drops lines above ~2k lines/s, which is exactly the regime you'd be turning it on for.
+- If you end up amending or rebasing the change, `CONTRIBUTING.md` governs and §4 covers force-pushing — the runbook says it's what catches people out.

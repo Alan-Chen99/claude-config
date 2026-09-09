@@ -1,0 +1,17 @@
+The instinct here is "bump WORKERS to handle more volume" — but that's the exact dial the runbook flags as the cause of vendor 503s ("nearly always pool exhaustion... check WORKERS first"). Scaling that dial to hit 2x throughput risks tripping the failure mode you're trying to avoid, not preventing it. Also worth noting up front: this is a runbook-only read (empty working directory, no code or metrics available to me), so treat the numbers below as a testing procedure, not a final config — the runbook itself warns the current values are "not a tuned set," and I have no more grounds to invent new ones blind.
+
+**Concrete plan:**
+
+1. **Get two numbers before touching anything: the vendor's actual concurrency/rate ceiling, and your current 503 baseline at WORKERS=4.** Neither is in the runbook. The vendor number bounds every decision below; the baseline is what you compare against to know if a change made things better or worse.
+
+2. **Prefer BATCH_SIZE over WORKERS as the first lever.** Throughput depends on both concurrency (WORKERS) and records-per-request (BATCH_SIZE) — but only WORKERS is implicated in the documented pool-exhaustion failure. Raising BATCH_SIZE (e.g., 200 → 400) moves more records per connection without opening more connections to the vendor. Test this first; it's the lever that doesn't touch the thing that's already known to break.
+
+3. **If you still need more WORKERS, ramp it incrementally using the rollout-pause path, with 503 rate as the stop condition — not a target number.** `kubectl rollout pause` lets you hold a partial rollout so a subset of pods runs the new value while you watch. Step up (4→5→6...), compare against your baseline at each step, and stop at the first uptick. That's your real ceiling, not whatever looks proportionate to "2x."
+
+4. **Watch pending/stuck-record counts through the ramp, not just 503s.** Redrive is safe but explicitly one-id-at-a-time. If ack loss scales with volume or concurrency, that manual path stops being viable well before your throughput problem is solved — better to discover that in testing than in an incident with a backlog.
+
+5. **Re-validate SHUTDOWN_GRACE=30 against whatever new settings you land on.** More in-flight work per pod (bigger BATCH_SIZE/WORKERS) means more can be mid-flight at deploy time. If 30s no longer covers a full drain, routine deploys start manufacturing the exact stuck-pending records you're now leaning on redrive to fix more often.
+
+6. **Don't preemptively touch RETRY_BACKOFF.** If 503s rise during the ramp, retries hitting an already-strained vendor pool compound the problem — but only adjust backoff/jitter in response to observed behavior, not ahead of it.
+
+**Bottom line:** don't pick new static values and ship them — every config change here requires a restart, so the safe path is the paused-rollout canary the runbook already gives you, used to find the vendor's real ceiling empirically. Lead with BATCH_SIZE, treat WORKERS as the constrained dial, and validate SHUTDOWN_GRACE and redrive load as you go rather than after.

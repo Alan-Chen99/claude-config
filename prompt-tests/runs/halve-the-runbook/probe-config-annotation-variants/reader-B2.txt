@@ -1,0 +1,12 @@
+Don't turn up `WORKERS`. It's already at the ceiling: the vendor allows 5 concurrent connections per tenant, the admin console permanently holds 1 of those, leaving 4 — which is exactly what's configured. Pushing it to 5 would put you over the vendor's per-tenant limit and likely cause *more* 503s, not fewer. "Check `WORKERS` first" in the troubleshooting section means verify it hasn't drifted below 4, not raise it past 4.
+
+The other variables aren't safe throughput levers either:
+- **`BATCH_SIZE=200`** — this reflects a vendor limit, not an internal tuning choice. Don't bump it without checking their docs.
+- **`RETRY_BACKOFF=2s`** — the one value that's actually free to change, but it's a retry-pressure knob, not a throughput knob. Lowering it while you're already pool-exhausted would fire retries faster into a vendor that's already returning 503s, compounding the problem.
+
+So there's nothing in this config you can turn up right now. The real constraint is external: you're capped at 4 connections by the vendor, full stop. Your options are:
+1. Free up the connection the admin console holds (if it can be released temporarily).
+2. Ask the vendor to raise your per-tenant limit.
+3. Shed or throttle upstream so intake matches the 4-worker ceiling instead of outrunning it.
+
+Everything else in the config is orthogonal to this (records stuck in `pending` are a lost-ack problem with its own redrive path, not related to the 503/queue-backup issue).

@@ -1,0 +1,5 @@
+Yes — 200 is listed as **the vendor's documented maximum**, not a tuned value. That makes it a hard ceiling like `WORKERS`, not a knob like `RETRY_BACKOFF`. Pushing to 500 means sending batches the vendor's API isn't documented to accept, which risks rejected/erroring requests rather than better throughput.
+
+One secondary thing worth checking before you change it: larger batches take longer to send and ack, and `SHUTDOWN_GRACE=30` is a fixed wait for in-flight sends on deploy/rollout. If a bigger batch doesn't reliably finish inside that 30s window, restarts could start cutting off in-flight sends more often — worth confirming send latency at 500 before relying on that grace period.
+
+I'd hold at 200 unless you can get the vendor to confirm a higher limit.

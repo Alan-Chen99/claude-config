@@ -1,0 +1,37 @@
+Two changes here, not one, and I'd keep them apart. One check before either.
+
+## First: are you seeing 503s?
+
+The runbook says 503s are nearly always pool exhaustion, check `WORKERS` first. That makes the direction of the fix depend on what the backlog looks like:
+
+- **Queue backing up, 503 rate normal** → workers is a plausible lever.
+- **Queue backing up *with* 503s** → you're already past the pool's ceiling. More workers deepens it. The queue is growing because sends are failing, not because you're short of hands.
+
+Also worth 30 seconds: is the backlog fresh sends or retries? If it's retries, `RETRY_BACKOFF=2s` is the knob — the runbook flags it as never measured and a fine place to start. More workers against a vendor that's already pushing back just adds pressure. `BATCH_SIZE` isn't available to you; that's their limit.
+
+## Order of operations
+
+0. Confirm the build you're shipping has no reads or writes of `legacy_id`. Once you drop, code rollback is gone.
+1. **Worker change first, on its own restart.** Config is read at boot, so it needs a restart either way. Doing it before the deploy drains the queue sooner and keeps the signal clean — 503s here mean workers, not new code.
+2. Let it drain. Confirm the 503 rate is flat at the new count.
+3. `./deploy.sh <env>`. Watch it. If anything looks off, `rollout pause` — nothing times out on a paused roll, so you can take your time.
+4. **Wait for the roll to actually finish.** Not "mostly rolled." Mid-roll you have a mixed fleet and old instances still read `legacy_id`.
+5. `./migrate.sh` — the drop. Drops and renames go after the roll finishes.
+
+If you'd rather do it in one window: set `WORKERS` before you deploy so the new count comes up with the roll, then 3 → 4 → 5. What you give up is attribution — the runbook's "check `WORKERS` first" gets much less useful when workers weren't the only thing that changed.
+
+## What to set WORKERS to
+
+The runbook doesn't have the number, and it doesn't have what you'd need to derive it. `WORKERS=4` is explicitly "worked before; not tuned or engineered" — nobody measured it, so there's no "4 was safe, so 8 is probably fine" to reason from.
+
+The real ceiling is the connection pool, since that's what 503s mean here, and the pool size isn't in the runbook. **Go read it out of the app config or the code** — that's the missing input, and it'll tell you more than any number I can give you. If the pool holds N connections and a worker holds one while sending, workers above N is the exhaustion condition.
+
+If you can't find it fast: step, don't jump. 4 → 6, watch the 503 rate for several minutes at real traffic, then 6 → 8. There's no staging — deliberately, finance turned down a second tenant in March — so production is the only place this gets measured, which is exactly why you want small steps and a known-good number behind you. Rollback is cheap: put `WORKERS` back, restart.
+
+## Things that'll bite
+
+- **The drop is the point of no return.** `./deploy.sh` can roll code back; it can't un-drop a column. After step 5, rolling back gives you code selecting a column that isn't there. "After the roll finishes" is the runbook's floor — letting the new code sit a while first costs you nothing.
+- **More workers vs. ordering.** `STRICT_ORDERING=0` rests on an inference: the team thinks the vendor ingests in send order, read off acks alone, never asked, never documented by them. More concurrency widens any reordering window. If something ordering-shaped appears afterward, that's what you changed.
+- **Expect `pending` after each restart.** `SHUTDOWN_GRACE=30` cuts in-flight sends at 30s and you're restarting with a full queue. Over an hour in `pending` is a lost ack, not a lost record — `./redrive.sh <id>`, one at a time, never in a loop.
+- **Reading alerts tonight.** Older alerts fire as `ledger-forwarder` and the oldest dashboards list the service twice. An alert with no traffic may just be the synthetic check, which hits a fixed record id every minute regardless of what you send — during a restart that isn't evidence of customer impact.
+- **Saturday 04:00 reconciliation will cover this.** Sep 12 isn't a month-end close, so the "treat a first month-end discrepancy as unproven" caveat doesn't apply — with no false positive in eleven weeks, a discrepancy Saturday is worth believing. Tonight is Tuesday, so the Friday-without-billing guidance isn't in play either.

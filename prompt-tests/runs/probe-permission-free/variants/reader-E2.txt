@@ -1,0 +1,16 @@
+Confirmed the directory's empty — nothing here beyond the runbook text, so this is working from the document alone.
+
+Here's the problem with a fast answer: the runbook has already told you it can't support one. That line — "does not record why any of these values are what they are, or whether any of them can be changed" — isn't filler, it's the actual blocker. Bumping `WORKERS` and `BATCH_SIZE` because they look like throughput knobs is a guess dressed up as a fix.
+
+**The specific landmine:** the troubleshooting section says 503s are "nearly always pool exhaustion, check `WORKERS` first." That's strong evidence `WORKERS=4` is already sized against some ceiling — most likely the vendor's connection/rate limit on their ingest API, since that's the resource being pooled. If that's the case, doubling volume by raising `WORKERS` doesn't relieve pressure, it's the most direct way to walk into a 503 storm on day one of the surge.
+
+**What I'd actually do, in order:**
+
+1. **Find the real ceiling before touching numbers.** Ask whoever owns the vendor relationship (or check the vendor's API docs/contract) what their actual rate or concurrency limit is. `WORKERS=4` was picked against *something* — find out what, rather than reverse-engineering it in production.
+2. **Test in staging, watch two signals.** If there's headroom, raise `WORKERS`/`BATCH_SIZE` incrementally and watch 503 rate and `pending`-queue growth. Those are the two failure modes this doc already tells you exist.
+3. **Raise `SHUTDOWN_GRACE` in step with them.** More workers and bigger batches mean more in-flight work at any instant. Config changes require a restart to take effect — if grace period doesn't grow with batch size, every future restart strands more records in `pending`. That's not free: `redrive.sh` is one-id-at-a-time, manual. A tolerable trickle of stuck records today becomes a real backlog at 2x volume, restart-by-restart.
+4. **Sanity-check `STRICT_ORDERING=0` against more parallelism.** These are settlement records; ordering can matter financially (e.g., a correction landing before the original). If ordering "happens to work" at concurrency 4 and nobody's verified it's safe at 8, that's worth a direct question to whoever owns this before you change it, not an assumption.
+5. **Roll out via `kubectl rollout pause`**, since that's the one thing the doc explicitly certifies as safe — canary the new values on a subset of pods before going wide.
+6. **Don't assume the bottleneck is even here.** These six env vars are this service's knobs; they don't rule out the ledger read side or the vendor's own ingest capacity being the real limit at 2x.
+
+Concrete next step: go get the vendor's actual concurrency/rate limit and confirm what `WORKERS=4` was set against. Everything else downstream depends on that number, and it's the one thing no amount of guessing from this doc will produce.

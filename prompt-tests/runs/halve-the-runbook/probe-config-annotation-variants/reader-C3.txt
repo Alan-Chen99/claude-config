@@ -1,0 +1,12 @@
+Nothing in this config should be turned up — and turning up the obvious candidate (`WORKERS`) will make it worse, not better.
+
+**Why:** the runbook is explicit that `WORKERS=4` is a hard ceiling, not a tuning knob — the vendor's pool is 5 connections/tenant, the admin console permanently holds 1, leaving exactly 4 for the relay. Exceeding that ceiling is what produces the pool-exhausted 503 you're seeing right now. And the troubleshooting section confirms this is the first thing to check for 503s.
+
+**Concrete action:**
+1. Check the live value of `WORKERS`. If it's been bumped above 4 (a common "fix throughput" move), that's very likely your root cause — set it back to 4 and restart (env vars are boot-time only).
+2. `BATCH_SIZE` is already at the vendor's documented max (200) — no headroom there either.
+3. `RETRY_BACKOFF`, `STRICT_ORDERING`, `LOG_LEVEL`, `SHUTDOWN_GRACE` don't affect throughput — leave them alone.
+
+**If `WORKERS` is already at 4** and you're still backing up: the 503s are triggering retries, and `RETRY_BACKOFF=2s` was never measured — it may be too aggressive, adding retry traffic on top of an already-saturated pool and worsening the exhaustion loop. Turning that *up* (longer backoff) could reduce pressure and stabilize draining, but it caps your effective rate, it doesn't raise it.
+
+Bottom line: 4 workers × the vendor's pool is your real ceiling. There's no local config change that safely increases it — that requires the vendor allocating your tenant a larger pool. Everything else here is either already maxed or unrelated to throughput.

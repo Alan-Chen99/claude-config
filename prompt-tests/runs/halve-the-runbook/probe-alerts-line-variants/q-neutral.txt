@@ -1,0 +1,6 @@
+I'm writing the deployment config for payments-relay from this runbook. What do I set WORKERS to?
+
+Our runbook, in full:
+
+---
+

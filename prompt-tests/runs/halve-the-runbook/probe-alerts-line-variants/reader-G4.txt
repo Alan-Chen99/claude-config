@@ -1,0 +1,20 @@
+**Turn up `WORKERS`.** It's the only real throughput knob you have, and it's the one your runbook points at: 503s are "nearly always pool exhaustion; check `WORKERS` first." It's also the only config value documented as arbitrary — "worked before; not tuned or engineered" — so `4` isn't defending anything.
+
+Nothing else that looks turn-up-able is:
+
+- `BATCH_SIZE=200` is a **vendor** limit, not yours. Raising it buys rejections, not throughput.
+- `RETRY_BACKOFF=2s` isn't a throughput knob, and lowering it while you're taking 503s amplifies load on something already failing. If it moves at all, it moves up.
+- `LOG_LEVEL` → `debug` drops above ~2k lines/s — exactly the regime you're in. You'd lose the lines you turned it on for.
+
+**Landing it.** Config is read at boot, so this is a restart, not a live change: `./deploy.sh <env>`, no `./migrate.sh` involved. Use `rollout pause` — nothing times out on a paused roll — to hold partway so you have pods at 4 and pods at the new value simultaneously. There's no staging and won't be (finance declined a second tenant in March), so that paused partial roll is the only A/B available. Budget `SHUTDOWN_GRACE=30` of in-flight drain per pod, which makes the backlog briefly worse before it gets better.
+
+**Step, don't leap: 4 → 8**, hold at the pause, then 8 → 12 or 16 if it's clean. February proved there's a tenant-level rate limit and that its threshold is unknown; tripping it cost an hour. Jumping straight to 32 is a coin flip against an unmeasured limit, and losing costs more than the queue you have now.
+
+**Watch one thing specifically:** whether 503s go *down* as workers go up. "Nearly always" leaves room, and a 503 appearing under load — while you push volume at a vendor with a known, unmeasured tenant limit — is also the shape of hitting that limit. If 503s climb with worker count, you're on the vendor's side of it, and more workers is the wrong direction: pause the roll and back out rather than pushing through. Read that off current dashboards; the oldest ones list the service twice, so throughput and queue depth come out doubled there.
+
+**Two things not to do while the queue is deep:**
+
+- Don't loop `./redrive.sh` over the backlog — that *is* the February incident.
+- Don't panic at `pending` piling up. `pending` means handed off, not yet acked; past an hour that's a lost acknowledgement, not a lost record. Redrive is safe, one at a time, by design.
+
+**One flag worth closing now:** `STRICT_ORDERING=0` rests on the belief that the vendor ingests in send order — inferred from acks, never asked, never documented by them. More workers means more concurrent in-flight sends, leaning harder on that assumption than 4 ever did. It doesn't block the change, but since you're about to increase your exposure to it being wrong, this is the moment to actually ask them.

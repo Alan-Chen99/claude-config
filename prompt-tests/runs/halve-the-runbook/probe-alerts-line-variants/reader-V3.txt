@@ -1,0 +1,15 @@
+Nothing. Every throughput-shaped number in that runbook is a ceiling someone else set, and you're already at all of them.
+
+- **`WORKERS=4`** is 5 (vendor pool per tenant) minus 1 (admin console). Setting it to 5 doesn't add a worker, it takes the console's connection — so you get *more* pool exhaustion, more 503s, and you lose the console you need to diagnose with. The runbook calls it a ceiling, not a knob, and means it literally.
+- **`BATCH_SIZE=200`** is the vendor's limit, not yours.
+- **`STRICT_ORDERING=0`** is already off. There's nothing to relax.
+
+So the 503s aren't telling you to raise something. You're at 4 workers against a pool of 5 already; exhaustion at that setting means either something else is holding your tenant's connections right now, or the vendor's effective per-tenant pool is smaller than 5 under load. That's what "check `WORKERS` first" buys you — confirm the running config is actually 4 and find out who else is on the pool. If a stray process or a second instance is eating two slots, recovering them is a real doubling that costs you no config change.
+
+**The one thing you can actually change: `RETRY_BACKOFF`, and turn it *up*, not down.** It's the only value flagged as never measured. Right now every 503 comes back as a retry 2 seconds later, competing with new sends for the same four workers — under sustained 503s that's most of your worker-seconds spent on requests that will fail again. Lengthening the backoff doesn't raise capacity, but it stops retries from crowding out first attempts, which is the only goodput you can recover today. Config is read at boot, so this needs a restart; `SHUTDOWN_GRACE=30` will hold for in-flight sends, and `rollout pause` is safe if you want to stage it.
+
+**Do not loop `./redrive.sh` to drain the backlog.** That's the obvious move and it's the February incident exactly — ~900 records, tenant rate-limited for an hour, threshold still unknown. Doing it while the vendor is already 503ing is the worst version of it. One at a time is fine and safe.
+
+Two things worth knowing while you're in it: a backed-up queue isn't lost data — `pending` past an hour is a lost acknowledgement, not a lost record. And you have no staging and can't get one (finance declined a second tenant in March), so whatever you change to `RETRY_BACKOFF` you're measuring in production.
+
+The actual fix is the vendor's per-tenant pool of 5. That's the binding constraint on all of this, and raising it is a conversation with them, not a config edit.

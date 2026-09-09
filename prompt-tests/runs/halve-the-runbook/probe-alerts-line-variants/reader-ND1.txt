@@ -1,0 +1,35 @@
+## Worker count: leave it at 4
+
+`WORKERS=4` isn't a tuning knob, it's the ceiling. The vendor pool is 5 per tenant and the admin console holds one — 4 is what's left. Raising it doesn't buy throughput, it exhausts the pool, and pool exhaustion is what the runbook says 503s nearly always are. You'd turn a slow queue into a failing one.
+
+Two things worth checking:
+
+- **Read the current value before you roll.** Config is read at boot, so if anyone has already edited `WORKERS` above 4, tonight's restart is when it lands. And if you're seeing 503s right now, check this first — an already-raised `WORKERS` would explain both the 503s and the backup.
+- The only actual headroom is the admin console's slot. That's a conversation about giving up the console, not a config edit.
+
+## Deploy order — yours is a drop, so migrate last
+
+1. Confirm the build you're shipping doesn't touch `legacy_id`. During the roll, old instances are still live and still expect the column.
+2. `./deploy.sh <env>` — code first, no migration yet.
+3. **Wait for the roll to fully finish.** `SHUTDOWN_GRACE=30` means each instance takes up to 30s draining in-flight sends, so this is slower than instance count would suggest. If you want to hold and look at something mid-roll, `rollout pause` is safe — nothing times out on a paused roll.
+4. Only once every instance is on the new build: `./migrate.sh` for the drop.
+
+The runbook splits these deliberately — adds go before the restart, drops and renames after the roll *finishes*. Use `./deploy.sh`, not `shipit`; both work, the script is kept because the team knows it, and switching is a conversation rather than a change to make on a night shift.
+
+## Two flags before you start
+
+**Step 4 is where rollback stops being easy.** Once `legacy_id` is gone, reverting to a build that expects it isn't something the runbook covers, and there's no staging where the migration got rehearsed (that's deliberate — finance declined a second tenant in March; ask before assuming otherwise). Steps 1–3 you can back out of; step 4 you can't.
+
+**Rolling while the queue is backing up makes the backlog worse for the duration** — you're cycling instances that are already behind. It's Tuesday, so the Friday/reconciliation caution doesn't apply. But if the drop isn't time-critical, draining first costs you nothing.
+
+## While it's draining
+
+- **Don't loop `./redrive.sh`.** A backing-up queue is exactly when this is tempting. February: ~900 records, tenant rate-limited an hour, threshold still unknown. One id at a time, by design.
+- Anything in `pending` over an hour is a **lost acknowledgement, not a lost record** — it was handed off; `sent` only lands on their ack. Those aren't stuck sends, but they will inflate how deep the queue looks.
+- **Don't flip `LOG_LEVEL=debug` to diagnose this.** Debug drops lines above ~2k/s, and a backlog is precisely when you're above that — you'd lose the lines you turned it on for.
+- Leave `BATCH_SIZE` (vendor limit) and `STRICT_ORDERING` alone. The ordering belief is inferred from acks and was never confirmed with the vendor.
+- `RETRY_BACKOFF=2s` is the one genuine dial, but it's never been measured, so it's an experiment. Don't run it in the same roll as the migration — you won't know which change did what.
+
+## Alert noise during the roll
+
+The synthetic check hits a fixed record id every minute independently of real traffic, so expect it to alert as instances cycle — and note that it passing doesn't tell you real sends are flowing. Alerts firing as `ledger-forwarder` are this service; the oldest dashboards list it twice, which is one service, not two.

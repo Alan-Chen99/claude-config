@@ -1,0 +1,26 @@
+I can't see your systems, so this is the runbook path rather than a diagnosis — but the runbook's first check has a wrinkle worth being explicit about.
+
+## Start with `WORKERS`, but not to raise it
+
+`WORKERS=4` is a ceiling, not a knob. The vendor pool is 5 per tenant and the admin console holds 1 — so 4 + 1 = 5 exactly, with no headroom. The check is whether the **running** value is still 4. Config is read at boot, so what matters is the value the process started with, not what's in the file now; an edit made weeks ago lands on the next restart.
+
+Two ways to go over budget:
+
+- `WORKERS` raised above 4 by someone reading it as a throughput dial, then picked up by a deploy or restart.
+- Extra admin console sessions. The budget assumes exactly one. A second open console puts you at 6 against a pool of 5.
+
+## Then check scope
+
+The pool is per tenant. 503s confined to one tenant fits us over-consuming. 503s across all tenants at once doesn't, and points at the vendor — the runbook says "nearly always," not always.
+
+## Confirm what's actually failing
+
+A synthetic check hits a fixed record id every minute, independently of what we send, so an alert can fire on a path carrying no real traffic. When judging magnitude: the oldest dashboards list the service twice, so rates can read doubled; older alerts fire as `ledger-forwarder`; and some source module names match nothing in the runbook. None of that means a second service.
+
+## Careful with the response
+
+- Don't raise `WORKERS` past 4 — that's the thing that causes this.
+- Don't clear the backlog by looping `./redrive.sh`. That's the February incident: ~900 records, tenant rate-limited for an hour, threshold still unknown. One at a time, by design.
+- If retries are piling on top of the 503s, `RETRY_BACKOFF=2s` is the one knob the runbook blesses ("never measured; a fine place to start"), and it needs a restart to take effect. One caveat: we believe the vendor ingests in send order, but that's inferred from acks alone — never asked, never documented by them. Heavier retrying with `STRICT_ORDERING=0` is exactly the situation where that assumption would bite.
+
+Two things that would narrow it fast: was there a deploy or restart recently, and is anyone redriving in bulk right now? Give me the running `WORKERS` value and whether the 503s are one tenant or all of them, and I can take it further.

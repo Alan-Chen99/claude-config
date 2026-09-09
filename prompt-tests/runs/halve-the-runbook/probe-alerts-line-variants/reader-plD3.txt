@@ -1,0 +1,32 @@
+Short version: the migration runs **after** the roll, and **don't raise the worker count** — 4 is the ceiling.
+
+## Order of operations
+
+1. **Don't run `./migrate.sh` yet.** This is a drop, so it goes after the roll finishes. Old pods still read `legacy_id`; dropping it while any of them are up breaks them.
+2. **`./deploy.sh <env>`** (not `shipit`). There's no staging, so this roll is the first real exercise of the code — consider `kubectl rollout pause` once the first new pods are up to check them before committing the rest. Nothing times out on a paused roll, so you can sit there as long as you need. Don't migrate while paused: a paused roll is a mix of old and new pods, and the old ones still need the column.
+3. **Wait for the roll to actually complete** — every old pod gone, not just "mostly there." Each pod takes up to `SHUTDOWN_GRACE=30`s draining in-flight sends.
+4. **`./migrate.sh`** — the drop. Nothing runs it for you.
+5. **Watch for 503s** after. Per the runbook that's pool exhaustion, and it points at `WORKERS`.
+
+Step 4 is a one-way door: once the column is gone you can't roll the code back to a version that reads it without restoring it first. So do your health check at step 3, before migrating, not after.
+
+## Worker count: leave it at 4
+
+The vendor's pool is 5 connections per tenant and the admin console holds 1, leaving 4. `WORKERS=4` matches that exactly, which is very likely why "it worked before" even though nobody tuned it. Going to 5+ is the documented cause of the failure you'd be paged for tonight.
+
+Caveat on that: the runbook never states that workers map 1:1 to connections. That's my inference from the numbers lining up plus the troubleshooting entry sending you to `WORKERS` first for 503s. But it's the only reading the runbook supports, and "raise the number that causes 503s while alone on call" is a bad bet either way.
+
+Two more reasons not to:
+
+- `STRICT_ORDERING=0` rests on the team's belief that the vendor ingests in send order — inferred from acknowledgements, never asked, never documented. More concurrency is precisely what would expose that if it's wrong.
+- Config is read once at boot, so a `WORKERS` change needs a restart regardless; it would have to ride this deploy.
+
+You could technically get a 5th connection by keeping everyone out of the admin console, but that breaks the moment anyone opens it at 2am. Not worth it.
+
+## The backlog itself
+
+Before treating this as throughput, check *what* is backing up. A record goes `pending` on hand-off and `sent` on acknowledgement. If they're sitting in `pending` for over an hour, those are lost acknowledgements, not lost records — they were already delivered, and no number of workers moves them. Redrive individually if you need to: `./redrive.sh <id>`, one id at a time, never in a loop. February's loop redrove ~900 records and rate-limited the tenant for an hour, and nobody knows where the threshold is.
+
+If it really is unsent volume: `BATCH_SIZE=200` is the vendor's limit, not yours. `RETRY_BACKOFF=2s` is the one knob nobody has measured — worth looking at if the backlog is retry-driven, but it's a guess and it needs its own restart.
+
+Also worth ruling out before you act on the number: the oldest dashboards list this service twice, so confirm your queue depth isn't coming from one of those. And resist flipping `LOG_LEVEL` to debug to investigate — above ~2,000 lines/second it drops exactly the lines you turned it on for, and it needs another restart.

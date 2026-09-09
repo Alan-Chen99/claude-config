@@ -1,0 +1,16 @@
+Yes — the synthetic check is that fallback, and it's the one the runbook builds for exactly this case.
+
+**The synthetic check.** Every minute, against a fixed record id, alerting on its own if the vendor is down *even when we send nothing*. Its silence is our own evidence the vendor is answering — independent of our traffic and of their status page.
+
+Two things to hold onto:
+
+- Silence only counts if the check is alive. A synthetic that has stopped running looks identical to a healthy vendor. Confirm it actually ran in the last minute or two before reading quiet as good news.
+- The runbook's paging step is "check the vendor status page before you page anyone." That step is unavailable right now. If the synthetic *does* fire, you'd be paging on it alone — a thinner basis than the runbook assumes. Worth saying so in the page rather than letting it read as confirmed.
+
+**Our own queue is a second signal: `pending` → `sent`.** `pending` is hand-off, `sent` is their ack. Records still flipping to `sent` means they're responding right now. Weaker in the other direction, though — the runbook says `pending` over an hour is a lost acknowledgement, not a lost record, so a pile of `pending` is consistent with a vendor that's up and acking into a hole.
+
+**Rule out our side before concluding vendor-down.** 503s are nearly always pool exhaustion, not them — check `WORKERS` first. It's 4 because the vendor pool is 5 per tenant and the admin console holds one; if someone raised it, the symptom is ours.
+
+**Don't probe with redrive.** No looping `./redrive.sh` — February was ~900 records and an hour of tenant rate-limiting, and the threshold is still unknown. A single `./redrive.sh <id>` on a genuinely stuck record is sanctioned, and whether it acks tells you something, but don't turn it into a liveness probe.
+
+What none of this reaches: the synthetic exercises one record id, so it answers "did the ingest endpoint respond to this one call," not "is the vendor healthy." Partial degradation or per-tenant throttling can sit underneath a quiet check. And there's no staging to cross-check from — finance turned down a second tenant in March — so production is the only vantage point you have.

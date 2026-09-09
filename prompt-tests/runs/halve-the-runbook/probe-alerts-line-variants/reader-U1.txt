@@ -1,0 +1,21 @@
+**Nothing. Every throughput knob you have is already at its ceiling.**
+
+- `WORKERS=4` — this is the one the runbook points you at, and "check `WORKERS` first" means *confirm it's still 4*, not raise it. Vendor pool is 5 per tenant, admin console holds 1, so 4 + 1 = 5. Raising it oversubscribes the pool and produces exactly the 503s you're seeing.
+- `BATCH_SIZE=200` — the vendor's documented maximum.
+- `STRICT_ORDERING=0` — already the permissive value.
+
+The rest (`SHUTDOWN_GRACE`, `LOG_LEVEL`) isn't throughput.
+
+**First thing to check: has someone already raised `WORKERS`?** 503s plus a backing-up queue under load is the signature of that ceiling having been crossed. If it's above 4, put it back and restart — that's the one change here that plausibly increases *delivered* throughput.
+
+**If it is 4 and you're still pool-exhausted,** something other than the workers holds a connection. 4 + 1 = 5 leaves zero headroom, so one extra consumer is enough to do it. Worth establishing: how many admin console sessions are open, whether a redrive is running right now, whether the every-minute synthetic check draws from the same pool. The runbook doesn't say the last two do — that's a question to answer, not an assumption to make.
+
+**`RETRY_BACKOFF=2s` is the only genuinely unmeasured knob, and the useful direction is up.** Every 503 currently comes back 2s later into a pool that's still exhausted. Lengthening it trades retry rate for goodput. The runbook calls it never measured, so measure either side of the change rather than treating it as a known fix.
+
+**Don't loop `./redrive.sh` to drain the backlog.** February: ~900 records, tenant rate-limited an hour. The threshold is unknown, so there's no smaller batch you can reason your way to as safe. One at a time.
+
+**Check whether the backlog is as big as it looks.** If your queue-depth number counts `pending`, some of it may be records the vendor already has with a lost ack — `pending` is hand-off, `sent` is their ack, and over an hour means lost acknowledgement, not lost record. Ack loss plausibly rises under exactly the load you're under. Redriving those adds vendor load without draining anything real.
+
+**The ceiling is theirs, so the real lever is a conversation.** Actual headroom means the per-tenant pool going above 5, or a second tenant — and finance turned down a second in March. Two things worth raising in the same call: whether 200 is a hard cap or just what's documented, and whether they really ingest in send order. That last one is inferred from acks alone, never asked and never documented by them, and it's what `STRICT_ORDERING=0` rests on.
+
+Mechanics if you do change config: it's read at boot, so it needs a restart; `SHUTDOWN_GRACE=30` waits for in-flight sends; `rollout pause` is safe. There's no staging to try it in — that was a deliberate finance call in March, not an oversight — so it goes straight at the one tenant. Today's Tuesday, so the Friday/billing caution doesn't bite. And don't reach for `LOG_LEVEL=debug` to diagnose this: it drops above ~2k lines/s, which under load is precisely when you'd lose the lines you turned it on for. If you're correlating the spike across dashboards, older alerts fire as `ledger-forwarder` and the oldest dashboards list the service twice.

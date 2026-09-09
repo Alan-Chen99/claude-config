@@ -24,9 +24,15 @@ case's `reference-solution.md`.
 
 ## `halve-the-runbook`
 
-`v3` is the quarter-length target. `artifact-v3-current` is not here — it is the
-checked-in fixture `general/review-the-compression/fixture/RUNBOOK-short.md`,
-which is that run's output.
+The case default is 50% (~600 words) since 2026-09-09; `v3` and everything named
+`artifact-keyed-*` belong to the earlier quarter-length target (~290) and are
+kept as the binding-budget cell. The designated answer is
+`general/halve-the-runbook/reference-artifact.md`; nothing in this directory is a
+model answer.
+
+`artifact-v3-current` is also the checked-in fixture
+`general/review-the-compression/fixture/RUNBOOK-short.md`, which is that run's
+output; the copy here is for convenience.
 
 The `v3C` arm's prompt is `sys_prompt/alan-default-next.md` at commit `d0beb52`
 with lines 211–241 replaced by the block quoted in full in the case's

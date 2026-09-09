@@ -1,0 +1,43 @@
+**Nothing. There is no throughput knob left to turn up** — all three are already pinned at ceilings someone else sets.
+
+| Knob | Now | Headroom |
+|---|---|---|
+| `WORKERS` | 4 | **None.** Vendor pool is 5/tenant, admin console holds 1. 4 *is* the ceiling. |
+| `BATCH_SIZE` | 200 | **None.** Vendor's documented maximum. |
+| `STRICT_ORDERING` | 0 | **None.** Already off; nothing to gain by turning it further off. |
+
+Your throughput ceiling is `4 concurrent × 200 records × (1 / vendor latency)`. You control none of those three factors. So the backlog is a capacity problem wearing a config problem's clothes, and the 503s are the vendor telling you you've hit it.
+
+## The one thing to actually change
+
+**Raise `RETRY_BACKOFF` from `2s`.** It's the only value in the config block the runbook flags as unmeasured and open to tuning — and under a 503 storm it's very likely working against you. At 2s, a failing send re-attempts roughly 30×/minute against a vendor that is already refusing you. Those retries compete with fresh queue items for the same 4 slots, so your *effective* drain rate collapses exactly when the queue is growing. Backing off (try 10s, or exponential with jitter if the relay supports it) reduces the load you're adding and gives fresh records a shot at the pool.
+
+Yes, this is counterintuitive when you asked what to turn *up*. Turning retries down is what raises goodput here.
+
+Two honest caveats: the runbook says this value has never been measured, so treat it as a hypothesis to test, not a known fix. And I can't tell from the runbook whether a retry occupies a worker while it waits or is scheduled off-worker — that determines whether raising it frees capacity or only reduces vendor pressure. Check that first; it changes how much you expect from the change.
+
+## Check `WORKERS` first — meaning verify it's still 4
+
+The runbook's "503s → check `WORKERS` first" is not an instruction to raise it. Read against the pool math, it's an instruction to confirm nobody already did. If `WORKERS` has drifted above 4, that alone explains the 503s and the fix is putting it back.
+
+If it is 4 and you're still exhausting the pool, then something outside the relay is holding slots — the admin console beyond its 1, or your own retries stacking on top of in-flight sends.
+
+## Do not
+
+- **Loop `./redrive.sh` to drain the backlog.** February: ~900 records, tenant rate-limited for an hour. That makes throughput strictly worse than the 503s do. It's one at a time by design.
+- **Mass-redrive the `pending` pile.** Under this load you'll see a lot of it. Over an hour of `pending` is a lost *acknowledgement*, not a lost record — the vendor most likely has them.
+- **Flip `LOG_LEVEL` to debug to diagnose it.** Above ~2k lines/s it drops lines, so it fails precisely under the load you'd be investigating.
+
+## Shipping it
+
+Config is read at boot, so this needs a restart: `./deploy.sh <env>`. No migration, so the `./migrate.sh` ordering rules don't apply. `rollout pause` is safe if you want to stage it. `SHUTDOWN_GRACE=30` drains in-flight sends, so the restart itself shouldn't add to the backlog.
+
+Today is Tuesday and reconciliation is Saturday the 12th, so the Friday/billing caution doesn't bind — you have a clean window.
+
+One trap when you measure whether it helped: the oldest dashboards list this service twice, and older alerts fire under `ledger-forwarder`. Make sure you're not reading a doubled throughput line as a win.
+
+## The real fix
+
+The ceiling is 5 connections per tenant with 1 held by the admin console. If sustained arrival rate exceeds what 4 workers can push, no configuration change will drain the queue — you need more pool from the vendor. That's a conversation with them, not a deploy.
+
+Worth separating from the March decision: finance turned down a *second tenant* (which was about staging, and is billed per tenant). Asking the vendor to raise the connection limit on your *existing* tenant is a different ask with different economics. The runbook says to ask rather than assume on the tenant question — I'd apply the same here rather than assume the pool limit is immovable.

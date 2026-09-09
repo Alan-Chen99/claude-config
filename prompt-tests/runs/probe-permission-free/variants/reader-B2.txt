@@ -1,0 +1,18 @@
+Working directory's empty — no deploy manifests or source behind this, so the answer has to come from the runbook text alone. Here's what actually holds up:
+
+**Don't touch WORKERS.** It reads like the obvious knob, but the runbook says it isn't one: vendor caps you at 5 connections per tenant, your admin console permanently holds 1, leaving exactly 4 — which is the current setting. It's already maxed. Raising it doesn't get you more throughput, it gets you the 503 pool-exhaustion failure the troubleshooting section already describes. Even in the best case — if you talked the admin console off its permanent slot — you'd gain 1 worker, 25% more headroom, not the 100% you need. That path doesn't get you there even if it worked.
+
+**The only real lever is BATCH_SIZE, and it's conditional.** It's called out as a vendor limit, not an internal tuning choice, with an explicit instruction to check their docs before changing it. So: check whether the vendor's current published limit is still 200. If they've since raised it, bump BATCH_SIZE to match — that increases throughput per worker without adding connections, so it doesn't touch the concurrency ceiling. If it's still 200, this lever doesn't exist either.
+
+**If both of those are dead ends, this isn't a config problem.** 4 workers × a vendor-capped batch size is a hard ceiling on throughput. No environment variable gets you past it. The actual fix is getting the vendor to raise the per-tenant limit or provision a second tenant — a business/vendor conversation, not a deploy. Given lead time, I'd start that conversation now rather than wait to hit it in production.
+
+Two things that won't add capacity but will bite at 2x volume if left alone:
+
+- **SHUTDOWN_GRACE=30** was presumably sized for current in-flight volume. Double the throughput means roughly double the in-flight sends at any instant a rollout happens — 30s may no longer be enough to drain cleanly, meaning more sends get cut mid-deploy (recoverable via redrive, but avoidable). Worth re-checking against actual in-flight counts at higher load. `kubectl rollout pause` is your safety valve if a deploy needs to stall mid-drain.
+- **LOG_LEVEL** — resist the urge to flip to debug while chasing scale issues. It silently drops lines above ~2k/s, which is precisely the regime you're heading toward, and that's exactly when you'd want debug output to be trustworthy.
+
+Lower priority, not blocking: RETRY_BACKOFF is unmeasured — cheap to experiment with since it's explicitly free to change, but don't tune it blindly under a load change since a too-aggressive value could turn vendor pressure into retry storms. STRICT_ORDERING=0 is an unverified assumption, undocumented by the vendor — worth confirming with them while you're already asking about the batch/tenant limits, since more volume is exactly when an untested assumption tends to get found out.
+
+One open question I can't resolve from the runbook: is WORKERS a per-pod setting? If the relay runs as more than one replica, actual concurrent vendor connections are WORKERS × replica count, which may already be at or past the tenant cap today. Worth confirming before you assume 4 is the true ceiling rather than an undercount.
+
+All of the above require a restart to take effect — these are read once at boot.

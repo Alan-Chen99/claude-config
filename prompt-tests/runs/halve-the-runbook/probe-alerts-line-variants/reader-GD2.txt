@@ -1,0 +1,34 @@
+## Deploy order
+
+The one hard constraint: `legacy_id` is a **drop**, so it goes after the roll *finishes* — not after the restart starts. Every old instance still references the column until it's gone.
+
+1. **`./deploy.sh <env>`** — shipping the build that no longer touches `legacy_id`. (That's the precondition that makes the ordering rule work; if the new code still reads the column, ordering won't save you.)
+2. **Wait for the roll to fully complete** — all instances on the new build. `SHUTDOWN_GRACE=30` means each one takes up to 30s draining in-flight sends, so this isn't instant.
+3. **`./migrate.sh`** — drop `legacy_id`.
+4. **Bump `WORKERS`, restart.**
+
+`rollout pause` is safe if you want to watch mid-roll — nothing times out paused. But a paused roll is not a finished roll: don't run step 3 while paused.
+
+**Why workers last instead of bundled:** config is read at boot, so it's tempting to fold the `WORKERS` change into step 1 and save a roll. I'd separate them. If 503s appear after a bundled restart, you can't tell whether it's the new code or the worker count — and you'd be untangling that at night with the migration half-done. Separating costs one extra roll cycle of queue backup; bundling costs you a clean signal in the one window you need it.
+
+## Worker count
+
+Nothing in the runbook supports a specific number. What it does support:
+
+`WORKERS=4` is fair game to change — *"worked before; not tuned or engineered"* is explicitly not a considered decision, so you're not overriding anyone's judgment.
+
+But three ceilings are unmeasured, and all three move the wrong way as workers go up:
+
+- **Pool exhaustion** — the runbook's own first suspect for 503s is `WORKERS`. Pool size isn't written down anywhere.
+- **Vendor rate limit** — threshold unknown. February was ~900 records and an hour of rate-limiting; more workers pushes throughput the same direction, just less bluntly than a redrive loop.
+- **Ordering** — `STRICT_ORDERING=0` rests on inferring send-order ingest from acks alone, never asked, never documented by the vendor. Higher concurrency is exactly the condition where a wrong inference would surface.
+
+And there's no staging, so prod is the first place any of it shows up.
+
+**So step it, don't pick it.** Go to **6**. Watch for 503s and for the shape of `pending` growth. If it's clean and the queue is still draining too slowly, step to 8. 6 and 8 aren't derived from anything — the defensible part is the increment and the look between, not the number. Jumping straight to 16 isn't wrong because 16 is too high; it's wrong because you'd have no way to tell which of the three ceilings you hit. Each step costs a restart, since config is boot-read.
+
+## Live tonight
+
+- A backing-up queue means a pile of `pending`. Over an hour there is a **lost ack, not a lost record** — redrive one at a time if at all, and never loop `redrive.sh`. Night shift plus a backed-up queue is the exact setup for February.
+- Alerts during the roll may arrive as `ledger-forwarder`. And the synthetic check hits a fixed record id every minute regardless of what you're sending, so "alerts, no traffic" during the roll tells you nothing.
+- If you're reading dashboards to decide whether to step workers again: the oldest ones list the service twice. Make sure you're not reading a doubled throughput number as a win.

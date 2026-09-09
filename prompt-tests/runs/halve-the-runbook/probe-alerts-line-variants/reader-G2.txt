@@ -1,0 +1,22 @@
+The knob is **`WORKERS`**. It's the only throughput control in that config that's yours to move — "worked before; not tuned or engineered" is an invitation to change it. Everything else is either fixed by the vendor or not a throughput control at all.
+
+But move it in one small step and watch, because the runbook's own diagnosis has a fork that decides the direction. "503s nearly always pool exhaustion; check `WORKERS` first" says *check*, not *raise* — and a 503 comes from the vendor. If the exhausted pool is yours, `WORKERS=4` is too low and raising it drains the queue. If it's theirs for your tenant, raising `WORKERS` points more concurrency at a service that is already refusing, and it gets worse. Nothing in the runbook names a metric that separates the two, so the change is the measurement.
+
+Concretely:
+
+1. `WORKERS` 4 → 6. Config is read at boot, so it needs `./deploy.sh <env>`. `SHUTDOWN_GRACE=30` drains in-flight sends, so the restart itself won't strand anything.
+2. Use `rollout pause` — nothing times out on a paused roll — to hold partway and compare rolled hosts against un-rolled ones under the same load.
+3. Watch drain rate against 503 rate. Drain up with 503s flat or falling → you were the constraint; repeat to 8. 503s rising roughly in step with worker count → the vendor is the ceiling, go back to 4, and no worker count fixes it.
+4. In that second case the knob is `RETRY_BACKOFF=2s` going *up*, not down. It's never been measured, and retries against a 503-ing vendor are load you're adding to your own problem.
+
+Don't turn up:
+
+- **`BATCH_SIZE=200`** — the vendor's limit, not yours.
+- **`LOG_LEVEL` to debug** — it drops above ~2k lines/s, so under exactly the load you're investigating you lose the lines you turned it on for.
+- And don't loop `./redrive.sh` to clear the backlog. February: ~900 records, tenant rate-limited for an hour, threshold still unknown. A backed-up queue is precisely when someone reaches for that.
+
+Three things to hold while you do it:
+
+- **No staging, and it isn't a quick fix** — the vendor bills per tenant and finance turned down a second in March. Prod is the only place this gets measured. Ask before assuming otherwise.
+- **`STRICT_ORDERING=0` rests on an inference.** That the vendor ingests in send order comes from acks alone, was never asked, and they've never documented it. More workers means more interleaving — this is the change under which an unconfirmed ordering assumption would stop holding. Worth actually asking them rather than inferring again.
+- **Timing.** If it's Friday, loop billing in; reconciliation is Saturday. And near a month-end close, reconciliation's clean eleven weeks has never covered one — so a discrepancy Saturday won't tell you whether this change was fine.

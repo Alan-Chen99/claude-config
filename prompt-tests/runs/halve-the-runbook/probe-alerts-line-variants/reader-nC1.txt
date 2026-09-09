@@ -1,0 +1,7 @@
+**`WORKERS=4`** — and treat it as a maximum, not a starting point.
+
+The runbook derives it from an external constraint: the vendor allows 5 connections per tenant, and the admin console permanently holds 1. So 4 is what's left. It isn't a performance knob you tune up under load — going to 5 or 6 means taking connections the vendor won't give you.
+
+One thing to watch when this goes into a *deployment* config: that arithmetic (5 − 1 = 4) assumes one instance holds all the worker connections. If your config sets a replica count above 1, then `WORKERS=4` per replica blows past the per-tenant ceiling. The runbook doesn't address replicas at all, so if you're deploying more than one, that's worth confirming with the team before shipping rather than dividing the number yourself.
+
+Also, a trap in the runbook worth naming since you'll be the one reading alerts later: "**503s** nearly always pool exhaustion; check `WORKERS` first" reads like an invitation to raise it. It's the opposite — 503s mean you're already at the pool limit, so the check is that `WORKERS` hasn't been set *above* 4.

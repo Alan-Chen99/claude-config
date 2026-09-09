@@ -1,0 +1,27 @@
+**Turn up `WORKERS`.** It's the one lever here that's actually yours to move, and the runbook points at it twice:
+
+- `503s` → "nearly always pool exhaustion; check `WORKERS` first."
+- `WORKERS=4` is marked "worked before; not tuned or engineered" — 4 isn't a value anyone chose for a reason, so raising it doesn't override a decision.
+
+## How far
+
+Step it: **4 → 8**, watch 503 rate and queue depth, then **8 → 12** if both improve. Don't jump to 16.
+
+The reason for stepping rather than jumping is the one real caveat, and it's worth stating once: a 503 is the *vendor's* status code. "Nearly always pool exhaustion" is a claim about your side, and "nearly always" leaves a residual case where the vendor is genuinely shedding load — in which case more workers makes it worse. Stepping gives you the read. 503s drop → it was your pool, keep going. 503s hold or climb while latency rises → it's theirs, back out to 4, and the fix is a conversation with them, not a config change. You also have no staging (deliberate — finance turned down a second tenant in March), so prod is the only place this gets measured.
+
+## Mechanics
+
+Config is read at boot, so this needs a restart: `./deploy.sh <env>`. `SHUTDOWN_GRACE=30` waits for in-flight sends, so the restart doesn't drop them. No schema change, so the `./migrate.sh` ordering rules don't apply. If you want to hold mid-roll and watch, `rollout pause` is safe — nothing times out on a paused roll. Today is Tuesday, so the Friday/billing caution doesn't bite.
+
+## Leave alone
+
+- **`BATCH_SIZE=200`** — a vendor limit, not yours. Raising it isn't tuning, it's exceeding their cap.
+- **`RETRY_BACKOFF=2s`** — don't shorten it. Under 503s your retries are already adding to the load you're trying to shed. *Lengthening* it may well help, but it's never been measured, so make it a separate experiment rather than a confounder in this one.
+- **`LOG_LEVEL`** — don't flip to debug to watch this. It drops above ~2k lines/s, which is exactly the regime you're in; you'd lose the lines you turned it on for.
+- **`STRICT_ORDERING`** — already `0`, so there's nothing to gain. Also note the runbook flags that the in-order ingest belief is inferred from acks alone and was never confirmed with the vendor, so don't build on it in either direction.
+
+## Don't drain the backlog with redrive
+
+Never loop `./redrive.sh`. ~900 records in February rate-limited the tenant for an hour and the threshold is still unknown, so there's no loop rate you can argue is safe.
+
+And the `pending` pile-up isn't data loss — over an hour in `pending` is a lost acknowledgement, not a lost record. It looks alarming while the queue backs up, but it doesn't need a parallel remediation competing with the fix.

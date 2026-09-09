@@ -1,0 +1,14 @@
+I checked the working directory — it's empty, so I'm working from the runbook alone, not the actual source. That matters for how much confidence to put in specific numbers.
+
+**Don't just double `WORKERS` and `BATCH_SIZE`.** The runbook itself contains the reason not to: 503s are "nearly always pool exhaustion," and the fix is "check `WORKERS` first." That tells you `WORKERS` is already sized against some ceiling — most likely the vendor's connection/rate limit, not slack capacity in the relay. If you double `WORKERS` to push 2x volume through, you may just relocate the bottleneck straight into that ceiling and manufacture the exact 503 failure mode the runbook warns about. The runbook also says flat out these are "values that worked in the past, not a tuned set" — so there's no formula here to scale by 2x, only a starting point to re-measure.
+
+Concrete plan:
+
+1. **Find the vendor's actual concurrency/rate limit** before touching any config — from their docs, contract, or past 503 incidents. That number, not "2x," should bound the new `WORKERS` value.
+2. **Try `BATCH_SIZE` before `WORKERS`.** Raising batch size increases throughput per connection without opening more connections against the vendor, so it doesn't feed the pool-exhaustion failure mode the way `WORKERS` does. Cheaper lever, test it first.
+3. **Load-test in staging at 2x volume**, not in prod, and not by arithmetic. Increase `BATCH_SIZE` and `WORKERS` incrementally, watching 503 rate at each step, until you find where it breaks.
+4. **Roll out via a paused canary**, since `kubectl rollout pause` is confirmed safe — bump config, pause after a subset, watch 503s and pending-stuck rate before letting it proceed. Remember every change here needs a restart to take effect.
+5. **Fix `redrive.sh` before volume doubles, not after.** It's safe but one-id-at-a-time. A stuck-`pending` incident scales with volume — if today that's 5 IDs, at 2x it could be 10-20, and manually redriving one at a time turns a minor blip into a slow manual slog. Wrap it in a batch/loop script now, while you have time to test it, rather than during an incident.
+6. **Re-check `SHUTDOWN_GRACE=30` empirically** after any `BATCH_SIZE`/`WORKERS` change — more in-flight work per worker means more to drain on deploy, and 30s was tuned for the old throughput, not the new one.
+
+What I won't do is hand you a specific new `WORKERS=N` — the runbook is explicit that the current values aren't a tuned baseline, and guessing a multiplier here is exactly the kind of "looked reasonable, made 503s worse" mistake it's warning about. The vendor's limit plus a staging load test will tell you the real number.

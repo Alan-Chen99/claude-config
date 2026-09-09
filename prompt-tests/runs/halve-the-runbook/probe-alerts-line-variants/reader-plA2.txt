@@ -1,0 +1,17 @@
+Yes — you already have a purpose-built one running.
+
+**The synthetic check.** It fires every minute against a fixed record id, independently of what you send. That's an unconditional liveness probe of their ingest path — the closest thing you have to your own status page. Nothing to start; just look at whether it's currently passing.
+
+Two limits: it exercises one fixed id, so it tells you the endpoint answers, not that they're processing your real volume. And it's why "alerts with no traffic" is a listed symptom — it fires regardless of your send path, so its alert carries no information about yours.
+
+**The pending→sent transition.** A record is `pending` on hand-off and `sent` on their acknowledgement, so acks are a continuous signal that they're accepting and answering. If records are still crossing to `sent`, they're up. The vendor-side shape is a fleet-wide stall in `pending` — not one record over an hour, which the runbook already accounts for as a lost acknowledgement rather than a lost record.
+
+**A single `./redrive.sh <id>`** on a genuinely stuck record is a sanctioned round trip: if it comes back `sent`, they're acknowledging. One id at a time, by design — never in a loop. The February incident redrove ~900 records and rate-limited the tenant for an hour with the threshold still unknown, so this is not something to script as a poller.
+
+**Their admin console** is a separate surface from both the ingest API and the status page, and it already holds one of your 5 pool connections.
+
+One trap worth naming: **503s are not a vendor-down signal.** The runbook says they're nearly always pool exhaustion, and the arithmetic shows why — 5 connections per tenant, admin console holds 1, `WORKERS=4` fills the remaining 4 exactly. Check `WORKERS` before concluding anything about them. A 503 is also a response, so if anything it's weak evidence they're up.
+
+Two things not to reach for. There's no staging and you can't spin one up to test — the vendor bills per tenant and finance declined a second in March, so any probe has to come from prod. And `LOG_LEVEL=debug` drops above ~2,000 lines a second; that said, if they're actually down your volume is probably low enough for it to hold, so it may be usable in this specific case where it normally isn't.
+
+The caveat over all of it: every signal here reads the same channel. Your whole picture of the vendor is inferred from acknowledgements — `STRICT_ORDERING=0` rests on inferring their ingest order from acks alone, never asked and never documented. If their acks keep flowing while something else on their side is broken, none of these would show it.

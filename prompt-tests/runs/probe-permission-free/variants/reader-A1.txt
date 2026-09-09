@@ -1,0 +1,15 @@
+Checked — there's nothing else here, just this runbook text (empty working directory, no repo). So this doc is the entire basis I have, and it's worth noting: it's written specifically to stop you from doing what you just asked. It says the values are guesses and that anyone changing one has to check the vendor's docs, the log pipeline config, and the code — not this file. So I can't responsibly hand you a new `WORKERS=N` or `BATCH_SIZE=N` number; that would just be me guessing instead of the runbook guessing.
+
+What I *can* give you concretely, grounded in what's actually here:
+
+**The lever is `WORKERS`, but you need one number this doc doesn't have.** The only failure mode documented is 503s from pool exhaustion, checked via `WORKERS` first. That's the thing 2x volume will stress. But `WORKERS` almost certainly caps concurrent connections into the vendor's ingest API — and if the vendor has their own fixed concurrency/rate cap, doubling `WORKERS` just gets you to that ceiling faster, producing *more* 503s, not more throughput. Before touching the number:
+
+1. **Get the vendor's documented concurrency/rate limit.** That's the actual ceiling `WORKERS` is a proxy for.
+2. **Check the code for what `WORKERS` actually controls** — thread pool size, connection pool size, queue consumer count — so you know raising it actually adds capacity rather than just shifting contention somewhere else.
+3. **Size `WORKERS` and `BATCH_SIZE` together against that ceiling, with headroom at 2x, not flush against it.** Throughput is roughly workers × batch-size / cycle-time — moving one without the other just relocates the bottleneck.
+4. **Check `SHUTDOWN_GRACE=30` against the new `BATCH_SIZE`.** If batches get bigger, they take longer to flush; a restart or rollout can now truncate an in-flight batch that used to fit in 30s. This is the one concrete interaction between two config values you already have that's worth verifying regardless of what the vendor's limit turns out to be.
+5. **Bundle whatever you land on into one restart**, since every one of these is boot-time-only. Stage it with `kubectl rollout pause` rather than pushing to all pods at once — the runbook already tells you that's safe.
+
+**Secondary, worth a glance but not the main event:** higher `WORKERS` means more parallelism, which makes out-of-order delivery more likely. `STRICT_ORDERING=0` already tolerates that today — just confirm the vendor's still fine with it at higher concurrency before you turn the parallelism up. `RETRY_BACKOFF=2s` is fixed, not jittered as far as this doc says — if 503s do spike during the ramp, worth checking in the code whether concurrent retries can pile into a thundering herd against an already-strained pool. `LOG_LEVEL` isn't a throughput lever, leave it.
+
+Bottom line: the concrete first action isn't a config edit, it's pulling the vendor's concurrency limit and reading what `WORKERS`/`BATCH_SIZE` actually do in code — the runbook is telling you it deliberately doesn't contain enough to size this safely on its own.

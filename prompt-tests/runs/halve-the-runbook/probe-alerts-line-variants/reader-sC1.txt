@@ -1,0 +1,25 @@
+I can't see your systems from here, so this is a read of the runbook against your symptom plus the checks I'd run in order.
+
+## The first check is "is `WORKERS` still 4", not "raise it"
+
+The runbook says 503s are nearly always pool exhaustion, check `WORKERS` first — but `WORKERS=4` is a ceiling, not a knob. The vendor pool is 5 per tenant and the admin console holds 1, which leaves exactly 4. Raising it is what *causes* the exhaustion you're looking at, so the check is that nobody moved it.
+
+Config is read at boot, so the value that matters is the one the running process started with, not what's in the file now. Check restart/deploy history alongside it — a config edit plus a later unrelated restart is the same thing as a change.
+
+## If `WORKERS` is 4 and hasn't moved
+
+The runbook's usual cause doesn't apply, and these split the remaining space fast:
+
+- **Is the synthetic check 503ing too?** It runs every minute against a fixed record id, independently of what we send. One request a minute cannot exhaust a 5-connection pool — if it's failing, this is the vendor, not us.
+- **Has anyone been redriving in bulk?** The February incident was ~900 records and got the tenant rate-limited for an hour. Threshold is unknown. A rate-limit would present to us as vendor errors.
+- **Where did the 503 count come from?** Older alerts fire as `ledger-forwarder`, the oldest dashboards list this service twice, and some source module names match nothing in the runbook. Worth confirming the number before sizing the incident off it.
+
+## The trap while you're in this
+
+503s will pile up `pending` records, and the tempting move is a loop over `./redrive.sh`. Don't — that's the February incident, and you'd be adding an hour of rate-limiting on top of the outage. One at a time is by design. A `pending` over an hour is a lost acknowledgement, not a lost record; nothing is gone.
+
+Two more: don't flip `LOG_LEVEL` to debug at volume — it drops above ~2k lines/s, losing the lines you turned it on for. And `RETRY_BACKOFF=2s` is the one genuinely open knob here (never measured, and the runbook invites tuning it); under 503s a 2s backoff may be adding load. But it's unmeasured and there's no staging, so treat raising it as a prod experiment, not a fix.
+
+Today is Wednesday, so the Friday/billing caution isn't live — though reconciliation runs Saturday 04:00, which is your deadline for anything that would show up as a discrepancy.
+
+**What I'd need to actually diagnose this:** the `WORKERS` value on the running process, its restart history, whether the synthetic check is also failing, and recent `redrive.sh` activity.
