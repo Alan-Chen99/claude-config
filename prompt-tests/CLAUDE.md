@@ -519,15 +519,14 @@ evidence, by the case's `reference-solution.md`.
   shifted frames anyway. 50% separates a shift the writer chose from one a budget
   forced; the quarter-target cell is kept for the second question. Changing the
   ratio changes what the case measures.
-- **Two artifacts are designated, with different jobs.**
-  `reference-artifact.md` (643 words) answers the task as stated and is what arms
-  are scored against; it may not deviate from the source's frames.
-  `reference-artifact-quarter.md` (352) demonstrates compression at the old
-  quarter target, where a loss is forced, and carries two measured deviations
-  from the source that the reference deliberately does not. Its point is that the
-  stored arms hit 343 and 358 words holding 4 and 10 of sixteen fragments, and it
-  holds all sixteen at 352. Everything under `runs/halve-the-runbook/` is a data
-  point, not a model answer.
+- **The reference is not a model answer and not a comparand.** The instrument is
+  the sixteen fragments, the twelve shifts, and the flat-failure list; there is no
+  right answer here, only wrong ones. `reference-artifact.md` is 352 words against
+  a 600-word target on purpose — its job is to demonstrate a decision, and a
+  decision only exists where something had to give. The stored arms hit 343 and
+  358 holding 4 and 10 of the sixteen; it holds all sixteen at 352. Do not read
+  its length as a target; an arm answering the 50% task should land near 600.
+  Everything under `runs/halve-the-runbook/` is a data point.
 - **A keep/drop score is not sufficient**, and reading one as if it were will
   overstate both arms. A line can survive as a different *kind* of statement — a
   caveat about the document's own reliability becoming a description of the

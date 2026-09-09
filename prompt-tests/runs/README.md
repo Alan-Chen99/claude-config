@@ -26,9 +26,12 @@ case's `reference-solution.md`.
 
 The case default is 50% (~600 words) since 2026-09-09; `v3` and everything named
 `artifact-keyed-*` belong to the earlier quarter-length target (~290) and are
-kept as the binding-budget cell. The designated answer is
-`general/halve-the-runbook/reference-artifact.md`; nothing in this directory is a
-model answer.
+kept as the binding-budget cell. `general/halve-the-runbook/reference-artifact.md` demonstrates the decisions at
+the harder quarter target and is not a length model for the 50% task;
+`artifact-50pct-nonbinding.md` here is the worked example of the 50% cut not
+binding — it holds every fragment because nothing forced a choice, which is a
+fact about the target rather than a lesson. Nothing in this directory is a model
+answer.
 
 `artifact-v3-current` is also the checked-in fixture
 `general/review-the-compression/fixture/RUNBOOK-short.md`, which is that run's

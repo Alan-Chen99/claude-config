@@ -329,11 +329,13 @@ reader's confidence in what the document said, not just in the world.
 
 ## Verdicts
 
-Score the sixteen fragments, report the split, and compare against
-`reference-artifact.md` and the stored baselines below — an arm is better or
-worse than another arm, not passing or failing. At the quarter target no run has
-kept everything, so a verdict per clause is the wrong shape there; at the 50%
-default a run can hold all sixteen, and one that does not has made a choice.
+Score the sixteen fragments, report the split, and compare against the stored
+baselines below — an arm is better or worse than another arm, not passing or
+failing. There is no single right answer and the reference is not one; **the
+instrument is the sixteen fragments, the twelve shifts, and the flat-failure list
+that follows.** At the quarter target no run has kept everything, so a verdict
+per clause is the wrong shape there; at the 50% default a run can hold all
+sixteen, and one that does not has made a choice.
 
 What is a flat failure regardless of the count: a modality marker **promoted**
 rather than dropped ("Avoid Friday deploys" for a clause that said nobody
@@ -380,52 +382,61 @@ that reproduces the source's frame faithfully must not be scored down for it.
 Record such a repair as *better than the source*, in its own column, never as
 fidelity.
 
-### The second artifact, and why the reference is not the short one
+### The reference is 352 words, against a 600-word target, on purpose
 
-A reference much shorter than the target was considered and rejected. The two
-wants are different jobs and merging them breaks both.
+There is no right answer to this task, only wrong ones — a promoted modality
+marker, an invented claim, a bound dropped while its directive survives, a claim
+made by placement. The reference's job is not to be an answer an arm should
+resemble. It is to demonstrate **how to be right**, one decision at a time, and a
+decision is only demonstrated where something had to give.
 
-`reference-artifact.md` is the **answer to the task as stated**, and it is what
-arms are scored against. An answer at 350 words to a request for 600 has dropped
-material the task never asked anyone to drop, so an arm that kept that material
-would score as *different* rather than *better*, and the comparison stops
-meaning anything. The key already lists "the length target ignored" as a flat
-failure; over-delivering is the same failure facing the other way.
+That is why the reference is not at the target. Measured in decisions:
 
-What it demonstrates is the property of the 50% default: **nothing has to be
-lost, so a loss is a choice.** That is a real lesson and it is not a compression
-lesson.
+| | fragments held | fragments that cost something | blocks dropped | decisions shown |
+| --- | --- | --- | --- | --- |
+| `runs/halve-the-runbook/artifact-50pct-nonbinding.md` (643w) | 16 | 0 — there was room | 2, both unscored | **~2** |
+| **`reference-artifact.md` (352w)** | 16 | 16 | appendix, bastion, worker-won't-start, deploy mechanics | **~18** |
 
-`reference-artifact-quarter.md` is the **demonstration**, 352 words against the
-~290 quarter target. It exists because compression technique can only be shown
-where a loss is forced, which is the binding-budget cell and not the default.
+**Keeping a clause you had room for demonstrates nothing.** The 643-word artifact
+holds every fragment because at 55% of the source nothing forced a choice; the
+only judgement in it is which two unscored blocks to cut. It is kept under
+`runs/` as the worked example of the target not binding, which is a fact about
+the target and not a lesson about writing.
+
+**And a demonstration under maximum pressure covers the easy case.** The wrong
+answers are the same at every length. An artifact that avoids all of them at 352
+words has shown how to avoid them at 600 as well; one that avoids them at 643 has
+shown almost nothing, because at 643 they were not in reach.
 
 **Its point is not that it is short.** The stored arms landed at 343 and 358 and
-held 4 and 10 of the sixteen fragments. This one is 352 and holds all sixteen. At
-the length the arms already produced, a different set of things goes. That is the
+held 4 and 10 of the sixteen. The reference is 352 and holds all sixteen. At the
+length the arms already produced, a different set of things goes. That is the
 whole of what this case has to teach about compressing: not *get smaller*, but
 *lose different things*.
 
-**Two deliberate deviations from the source, both measured, both marked.** This
-is where the two artifacts part, and the reason is the fidelity rule stated
-above — the reference may not deviate, and the demonstration exists to show what
-the measurements bought.
+**Do not read it as a length model.** An arm answering the 50% task should land
+near 600. The reference answers a harder version of the same question, and what
+transfers is the decisions, not the word count.
 
-| clause | source | here | evidence |
+#### Two deviations from the source, both measured, both marked
+
+| clause | source | reference | evidence |
 | --- | --- | --- | --- |
 | alerts | `will alert on its own if the vendor is down` | mechanism only | 4/4 → 0/4 on the reverse inference, ten words cheaper — `runs/halve-the-runbook/probe-alerts-line-311.md` |
 | `WORKERS` | `four is the ceiling rather than a tuning choice` | `worked before; nobody tuned it`, pool facts stated separately | 0/6 raise it under pressure, and 2/3 find the derivation's unstated premise the asserted version hides — `runs/halve-the-runbook/probe-workers-untuned.md` |
 
-Score an arm against the reference, never against the demonstration. An arm that
-reproduces the source's alerts frame is correct; an arm that arrives at the
-mechanism-only form has done something better and it belongs in its own column.
+On both clauses the source itself is what the measurement faults, so a
+demonstration of the right call cannot reproduce it. **An arm that does reproduce
+it is not wrong** — it compressed faithfully, which is the task. An arm that
+arrives at either form here has done better than the source and belongs in its
+own column. Neither appears in the flat-failure list, and neither should.
 
 **One open objection, recorded rather than resolved.** `BATCH_SIZE`'s annotation
-here is the source's `the vendor's documented maximum`, because that is what the
-key grades and because `a vendor limit, not ours` measured identically on readers
-(0/3 exceed it, both). The user's objection to the source wording stands and is
-untested: it is correct today and silently stale the day the vendor raises the
-limit. Nothing in this case reaches staleness.
+is the source's `the vendor's documented maximum`, because that is what the key
+grades and `a vendor limit, not ours` measured identically on readers (0/3 exceed
+it, both). The objection to the source wording stands and is untested: it is
+correct today and silently stale the day the vendor raises the limit. Nothing in
+this case reaches staleness.
 
 ### What a keyed artifact costs, and why there is no target answer
 
