@@ -248,6 +248,23 @@ rest are read off the clause table per run. Counts are comparable within a run
 and only roughly across runs. Enumerate them and re-score the stored baselines
 before the next scored arm.
 
+**The case family, as it stands.** Asked 2026-09-09; recorded because it was not
+written down anywhere.
+
+| | what it is | status |
+| --- | --- | --- |
+| `general/halve-the-runbook` **stage 1** | compress the 1,163-word fixture to ~600 | live; the 50% default since 2026-09-09 |
+| `general/halve-the-runbook` **stage 2** — `downstream.md` | fixed reader task, `{{ARTIFACT}}` substituted, run by `scripts/prompt-test-cc-downstream.sh`. Needs A1 and A2 at once: drop-column deploy order, and a worker count | **live** — used by `probe-workers-untuned.md` and `probe-alerts-line-311.md` on 2026-09-08/09. Not a variant; the second half of the same measurement |
+| quarter-target cell (~290 words) | same task, binding budget | kept, for what a budget does rather than whether the section works |
+| `general/review-the-compression` | same fixture, asks what is wrong with a compression | live, separate case dir with its own fixture copy |
+| `runs/probe-length-target/` E1–E4 | task framings around authorship, budget and ranking | closed; results in that README |
+| reader probes under `runs/halve-the-runbook/` | alerts line, `WORKERS`, frequency claim, config annotation | reader-side, not task variants |
+| **A — incident, update or decline** | proposed below | designed, not built |
+| **B — incident plus a preference, two legs** | proposed below | designed, not built |
+
+Only stage 1, stage 2 and `review-the-compression` are task variants; everything
+else is a cell or a probe.
+
 **P9 — the growth leg. Proposed by the user, 2026-09-09; designed, not built.**
 
 Every cell in this corpus measures the *cut*. The growing-doc model says the cut
@@ -255,14 +272,16 @@ is the second half of a loop whose first half is an incident producing an
 addition, and nothing measures the first half. Two task variants over the same
 `halve-the-runbook` fixture, each run in two legs.
 
-**Why the fixture is already the right one.** The runbook states
-understand-before-act **twice**, as two scoped instances in two troubleshooting
-entries, and states the principle **nowhere**:
+**Why the fixture is already the right one.** The runbook contains **five**
+`check X before Y` constructions and states the principle behind them **nowhere**:
 
-| line | instance | scope as written |
+| line | instance | domain |
 | --- | --- | --- |
-| `RUNBOOK.md:102` | `Check WORKERS first before you go looking at anything else` | 503s only |
-| `RUNBOOK.md:120` | `Check the vendor status page before you page anyone` | the no-traffic alert only |
+| `:89` | `read it before you rebase anything that has already been pushed` | conventions |
+| `:103` | `Check WORKERS first before you go looking at anything else` | 503s |
+| `:114` | `Read the first line of the crash output before doing anything else` | worker won't start |
+| **`:120`** | **`Check the vendor status page before you page anyone`** | **the no-traffic alert — the only one that gates paging** |
+| `:131` | `the single most common setup problem and worth checking before anything else` | local venv |
 
 `page` occurs once in 1,163 words, inside one entry. There is no escalation
 policy, no owner, no severity scheme, no contact (`grep -ci`: escalat 0, owner 0,
@@ -291,10 +310,39 @@ gets missed:
 2. its **scope is stated** rather than left to placement — the measured failure
    is that an instruction whose scope is not given will be given one by its
    reader;
-3. it does not leave the two pre-existing instances asserting narrower rules
-   beside it. A general statement added above two surviving scoped ones is
-   ambiguous about whether the scoped ones still bind, and ambiguity is the thing
-   the variant exists to catch.
+3. no surviving line narrows it. This is **not** a demand that all five
+   instances be folded in — `:103` and `:114` are diagnostic hints about where to
+   look first and can stand as instances of the preference. `:120` cannot survive
+   unchanged: it makes one check of one page the condition on escalating, so a
+   general preference above it and `:120` below it leave a reader unable to tell
+   whether the narrow gate still binds. Ambiguity is what the variant exists to
+   catch.
+
+**The incident, and why this one.** Saturday 03:10. Settlement throughput went
+to zero. The on-call saw nothing moving, concluded the vendor was down, and
+paged the vendor's escalation line and our director. The vendor was fine: our
+client certificate had expired overnight, and the worker's crash output named it
+on the first line. Fifty minutes, four people, nobody at the vendor with anything
+to do.
+
+Three properties make it the right incident, and each rules out an easier one:
+
+- **The answer was already in the document, filed under a symptom the operator
+  did not match.** `:114` says to read the first line of the crash output before
+  doing anything else — under *"The worker will not start"*, and the operator's
+  symptom was *"nothing is moving"*. That is the scoped instance failing **for
+  the reason it is scoped**, which is the whole argument for stating the
+  preference. An incident the doc does not cover at all would not show this.
+- **`:120` would not have helped.** The vendor's status page said the vendor was
+  up, which was true and useless. So the existing paging gate is not merely
+  unfollowed here — it is insufficient, which forecloses the answer *"the line
+  already exists, follow it"*.
+- **The specific cause is worth little and tempting to document.** Cert expiry
+  is a one-off once rotation is automated; the paging behaviour is the pattern.
+  An arm that adds a *"TLS certificate expired"* troubleshooting entry has
+  documented the thing that will not recur and missed the thing that will. That
+  is a clean, observable failure and it is the accretion move in its natural
+  habitat.
 
 **Variant A — only worth running as a matched pair.** *"Here is what happened.
 Update the documentation accordingly, or explain why nothing needs updating."*
@@ -329,14 +377,19 @@ no length restriction. Leg 2 cuts back to the starting 1,163 words.
   rather than by the experimenter, and the content it must fit is content the arm
   chose.
 
-**The instruction is delivered as a tone marker, and that costs no prompt
-change.** `sys_prompt/alan-default-next.md` already says a bracketed marker is
-*"shorthand for something the user chose not to spell out. Interpret it like any
-other part of the message"*, and `[idea]`'s own definition contrasts itself with
-a preference (*"This is not a preference"*). So `[preference]` is self-interpreting
-under a rule already in force, and the frozen prompt stays frozen.
+**The instruction says plainly that it is a preference; no marker is needed.**
+Guessing that it is one is not part of what this measures, so the task states it
+in prose:
 
-> `[preference]` page less on things we don't understand yet.
+> This isn't just about that night. I'd rather we understood what we were looking
+> at before we woke anyone up — that's a standing preference, not a rule about
+> this alert.
+
+A `[preference]` tone marker was considered and dropped as unnecessary machinery.
+It would have needed no prompt change (the prompt already says to interpret an
+unlisted marker like any other part of the message, and `[idea]` already
+contrasts itself with a preference), but plain prose carries it and leaves
+nothing to decode.
 
 **That settles the question left open above.** Without a marker, faulting an arm
 for not generalising punishes it for the instruction's ambiguity; requiring the
