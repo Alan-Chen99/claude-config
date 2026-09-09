@@ -380,6 +380,53 @@ that reproduces the source's frame faithfully must not be scored down for it.
 Record such a repair as *better than the source*, in its own column, never as
 fidelity.
 
+### The second artifact, and why the reference is not the short one
+
+A reference much shorter than the target was considered and rejected. The two
+wants are different jobs and merging them breaks both.
+
+`reference-artifact.md` is the **answer to the task as stated**, and it is what
+arms are scored against. An answer at 350 words to a request for 600 has dropped
+material the task never asked anyone to drop, so an arm that kept that material
+would score as *different* rather than *better*, and the comparison stops
+meaning anything. The key already lists "the length target ignored" as a flat
+failure; over-delivering is the same failure facing the other way.
+
+What it demonstrates is the property of the 50% default: **nothing has to be
+lost, so a loss is a choice.** That is a real lesson and it is not a compression
+lesson.
+
+`reference-artifact-quarter.md` is the **demonstration**, 352 words against the
+~290 quarter target. It exists because compression technique can only be shown
+where a loss is forced, which is the binding-budget cell and not the default.
+
+**Its point is not that it is short.** The stored arms landed at 343 and 358 and
+held 4 and 10 of the sixteen fragments. This one is 352 and holds all sixteen. At
+the length the arms already produced, a different set of things goes. That is the
+whole of what this case has to teach about compressing: not *get smaller*, but
+*lose different things*.
+
+**Two deliberate deviations from the source, both measured, both marked.** This
+is where the two artifacts part, and the reason is the fidelity rule stated
+above — the reference may not deviate, and the demonstration exists to show what
+the measurements bought.
+
+| clause | source | here | evidence |
+| --- | --- | --- | --- |
+| alerts | `will alert on its own if the vendor is down` | mechanism only | 4/4 → 0/4 on the reverse inference, ten words cheaper — `runs/halve-the-runbook/probe-alerts-line-311.md` |
+| `WORKERS` | `four is the ceiling rather than a tuning choice` | `worked before; nobody tuned it`, pool facts stated separately | 0/6 raise it under pressure, and 2/3 find the derivation's unstated premise the asserted version hides — `runs/halve-the-runbook/probe-workers-untuned.md` |
+
+Score an arm against the reference, never against the demonstration. An arm that
+reproduces the source's alerts frame is correct; an arm that arrives at the
+mechanism-only form has done something better and it belongs in its own column.
+
+**One open objection, recorded rather than resolved.** `BATCH_SIZE`'s annotation
+here is the source's `the vendor's documented maximum`, because that is what the
+key grades and because `a vendor limit, not ours` measured identically on readers
+(0/3 exceed it, both). The user's objection to the source wording stands and is
+untested: it is correct today and silently stale the day the vendor raises the
+limit. Nothing in this case reaches staleness.
+
 ### What a keyed artifact costs, and why there is no target answer
 
 *Quarter-target cell (~290 words), not the 50% default. Read for what a binding

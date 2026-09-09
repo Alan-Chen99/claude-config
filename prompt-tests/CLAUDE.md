@@ -519,8 +519,15 @@ evidence, by the case's `reference-solution.md`.
   shifted frames anyway. 50% separates a shift the writer chose from one a budget
   forced; the quarter-target cell is kept for the second question. Changing the
   ratio changes what the case measures.
-- **One artifact is designated**, `reference-artifact.md` at 643 words. Everything
-  under `runs/halve-the-runbook/` is a data point, not a model answer.
+- **Two artifacts are designated, with different jobs.**
+  `reference-artifact.md` (643 words) answers the task as stated and is what arms
+  are scored against; it may not deviate from the source's frames.
+  `reference-artifact-quarter.md` (352) demonstrates compression at the old
+  quarter target, where a loss is forced, and carries two measured deviations
+  from the source that the reference deliberately does not. Its point is that the
+  stored arms hit 343 and 358 words holding 4 and 10 of sixteen fragments, and it
+  holds all sixteen at 352. Everything under `runs/halve-the-runbook/` is a data
+  point, not a model answer.
 - **A keep/drop score is not sufficient**, and reading one as if it were will
   overstate both arms. A line can survive as a different *kind* of statement — a
   caveat about the document's own reliability becoming a description of the
