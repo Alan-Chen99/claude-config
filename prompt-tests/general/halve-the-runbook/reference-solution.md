@@ -2,22 +2,28 @@
 
 ## What this case grades
 
-Which clauses of a document survive a forced compression to a quarter of its
-length, and which are cut.
+Which clauses of a document survive a forced compression to half its length, and
+which are cut.
 
 The task applies the pressure the agent-to-agent invariant names as its cause:
 "Compression is what a sender does under length pressure, and what it drops first
 are the conditions that bound a rule and the qualifiers that bound a claim."
 Nothing in the task mentions a reader, an agent, or a handoff. It says the file
-is too long and asks for a quarter of it. Whether an agent recognises a doc edit
-as writing that will be read cold is part of what is measured.
+is too long and asks for half of it. Whether an agent recognises a doc edit as
+writing that will be read cold is part of what is measured.
 
-**The ratio is the instrument.** The target is a quarter because 50% was not
-binding — see the v1/v2 baselines below. Changing it changes what the case
-measures.
+**The ratio is the instrument, and it is 50% by decision, 2026-09-09.** An
+earlier reading of the v2 baseline — *"a 50% cut was not binding"* — moved the
+target to a quarter. Re-scoring that baseline against the framing and placement
+instrument overturned the reading, not the arithmetic: the cut is not binding,
+and both arms still shifted frames anyway. See "Re-scored 2026-09-09" under v2.
 
-The directory name records the first version's target and is now wrong. It is
-kept so the three baselines stay attached to one directory.
+That makes 50% the better default, because it separates two things the quarter
+target confounds. At ~290 words a scored clause must lose, so every shift can be
+charged to the budget. At ~600 nothing forces a loss, so a shift that appears
+there is one the writer chose. The quarter-target arms and their probes are kept
+below as the binding-budget cell; run them when the question is what a budget
+does, not whether the section works.
 
 ## The design: many samples of one axis in one run
 
@@ -28,9 +34,12 @@ distinguishable from one pair of sessions.
 
 `fixture/RUNBOOK.md` is 1,163 words with roughly 500 words that can be cut
 outright — history, deploy mechanics, troubleshooting verbosity, the whole
-local-setup appendix. At the ~290-word target the padding alone is not enough:
-every arm so far has landed 343–358 words, so some scored clause loses. Which one
-is the measurement.
+local-setup appendix. At the ~600-word default the padding covers the cut with
+room left, so no scored clause has to lose: `reference-artifact.md` holds all
+sixteen at 643 words. A clause that goes anyway went by choice, and which one is
+the measurement. At the ~290-word target the padding alone is not enough — every
+arm landed 343–358 words — so there a loss is forced and the measurement is which
+loss the writer picks.
 
 ### Kind A — causes and conditions (control, 3 clauses)
 
@@ -242,12 +251,57 @@ reconciliation section and nothing in a reader's task will point at the hole.
 This result licenses "delete rather than compress a claim about a signal". It
 does not license deletion generally.
 
+#### The mechanism and the trigger claim are different clauses
+
+The three probes above vary how much of the alerts line survives and treat it as
+one thing. It is two. `runs every minute against a fixed record id` is the
+mechanism; `alerts on its own if the vendor is down` is a specification of when
+it fires, and a specification is invertible. Separated and run four ways on
+`runs/halve-the-runbook/artifact-keyed-311.md` — `probe-alerts-line-311.md`, four
+readers per arm:
+
+| kept | reasons from alert silence | reads the check's own result |
+| --- | --- | --- |
+| mechanism + trigger claim | **4/4** | 0/4 |
+| mechanism + trigger claim + `Check the vendor status page before you page anyone` | **4/4** | 0/4 |
+| **mechanism alone** | **0/4** | **4/4** |
+| neither (bullet deleted) | 0/4 | — |
+
+Keeping the mechanism buys the bounding this section credits it with — 6 of those
+8 readers produced *"a dead check and a healthy vendor look identical"*, a bound
+no arm reached before. Keeping the trigger claim buys the inversion. They are
+separable, and cutting the claim while keeping the mechanism is ten words
+**cheaper** than the line it replaces.
+
+That is the first run of the repair this file has prescribed throughout — *"the
+repair is fewer claims, not shorter ones"* — and it wins on both axes, so it is
+not a concession to a budget. It also revises the deletion result below: on this
+fixture, cutting the claim and keeping the mechanism dominates deleting the
+bullet, because the deletion arm loses the check's existence and three of its four
+readers went looking for a vendor-side probe and invented one from the `WORKERS`
+arithmetic.
+
+**Restoring the source's paging instruction fixes nothing and imports a norm.**
+It governs the forward case and the inversion is about silence; 4/4 still
+inverted. Three of four then generalised one troubleshooting instruction into a
+standing check-before-page gate, one of them building a replacement gate out of
+two other signals. An instruction whose scope is not given will be given one by
+its reader.
+
 #### Harness caveat for these probes
 
 Two of roughly ten stock `claude -p` reader runs returned a stub `.result` — a
 memory-save acknowledgement — with the substantive answer in an earlier message.
 A scorer reading `.result` alone drops those silently. Check length before
 scoring and re-run or read the transcript.
+
+That memory is written to `<CLAUDE_CONFIG_DIR>/projects/<cwd>/memory/` and read
+back by any later run sharing the directory, carrying one arm's answer into
+another's. Measured in `runs/probe-permission-free/`, where a re-run said so
+outright: *"This matches a scaling plan from earlier today that I have on
+record."* Give every re-run a fresh config directory, and check for
+`projects/*/memory/` before scoring. Runs launched in parallel are unaffected —
+they read at start, before the file exists.
 
 #### Probe design: a probe that names the risk destroys it
 
@@ -275,10 +329,11 @@ reader's confidence in what the document said, not just in the world.
 
 ## Verdicts
 
-At the quarter target no run has kept everything, and a verdict per clause is
-the wrong shape. Score the sixteen fragments, report the split, and compare
-against the stored baselines below — an arm is better or worse than another arm,
-not passing or failing.
+Score the sixteen fragments, report the split, and compare against
+`reference-artifact.md` and the stored baselines below — an arm is better or
+worse than another arm, not passing or failing. At the quarter target no run has
+kept everything, so a verdict per clause is the wrong shape there; at the 50%
+default a run can hold all sixteen, and one that does not has made a choice.
 
 What is a flat failure regardless of the count: a modality marker **promoted**
 rather than dropped ("Avoid Friday deploys" for a clause that said nobody
@@ -287,6 +342,138 @@ enforces it), a claim invented, or the length target ignored.
 Silence is what makes a dropped clause a defect. The user asked for a shorter
 file and got one; nothing in the result says which conditions went with the
 words.
+
+### The reference artifact
+
+`reference-artifact.md`, 643 words — 55% of the source, 7% over the ~600 target.
+It is the one artifact this case designates; every `runs/halve-the-runbook/
+artifact-*.md` is a measured data point, not a model answer.
+
+**What it holds.** All sixteen graded fragments. All twelve catalogued framing
+shifts avoided. Both sub-fragments the 2026-09-09 re-scoring found missing from
+*both* v2 arms — `both ran in parallel through 2024 and both worked` (the
+evidence behind the `shipit` decision, not just the decision) and `they have
+never documented it` (`STRICT_ORDERING`'s second hedge, the one that forecloses
+the vendor-docs escape route).
+
+**What it drops, and why those.** The local-setup appendix and the bastion
+paragraph. Both are self-contained operational blocks that assert nothing about
+another clause, so their absence is visible rather than silent: a reader who
+needs either finds a hole, not a changed meaning. Dropping the appendix also
+removes the amplification the v2 current arm shipped there — `by far the most
+common` for the source's `the single most common`.
+
+**It is derived from the v2 current arm, not written from the source.** That arm
+scored 16/16 at 696 words. The reference is that artifact with the three
+re-scoring defects repaired, the two blocks above removed, and prose trimmed. The
+derivation is recorded so nobody reads the reference as an independent
+construction: it is one good arm, corrected.
+
+**Where it is deliberately faithful to a defect in the fixture.** The alerts line
+keeps the source's `will alert on its own if the vendor is down`, which
+`runs/halve-the-runbook/probe-alerts-line-311.md` measures at 4 of 4 readers
+inferring *no alert, therefore vendor up*. That inversion is the **source's**,
+and the task is to compress the document, not to improve it. Cutting the trigger
+claim and keeping the mechanism removes the inversion at ten words less — a
+strict improvement, measured — and the reference does not do it, because an arm
+that reproduces the source's frame faithfully must not be scored down for it.
+Record such a repair as *better than the source*, in its own column, never as
+fidelity.
+
+### What a keyed artifact costs, and why there is no target answer
+
+*Quarter-target cell (~290 words), not the 50% default. Read for what a binding
+budget does.*
+
+Written against this key, by an author holding it — an advantage no arm had —
+then scored by an adversarial reviewer given the key and the source:
+
+| version | words | of source | holds |
+| --- | --- | --- | --- |
+| the task's target | ~290 | 25% | — |
+| stored v3 ablated / current | 343 / 358 | 29% / 31% | **4** and **10** of 16 fragments; 12 and 5 framing shifts |
+| `runs/halve-the-runbook/artifact-keyed-366.md` | 366 | 31% | **16 of 16**; 4 framing shifts, 2 new claims |
+| `runs/halve-the-runbook/artifact-keyed-440.md` | 440 | 38% | 16 of 16, no shift, no new claim |
+| `runs/halve-the-runbook/artifact-keyed-548.md` | 548 | 47% | the same, plus the `LOG_LEVEL` trap, bastion access, unrun-migration diagnosis |
+
+Two later attempts drop clauses by a criterion this case did not have when the
+above were written — keep a clause when violating it yields no feedback, or
+feedback the reader cannot attribute; drop it when the system reports the
+violation cleanly (`runs/probe-permission-free/`, closing section):
+
+| version | words | of source | holds |
+| --- | --- | --- | --- |
+| `runs/halve-the-runbook/artifact-keyed-311.md` | **311** | 27% | 13 present + 1 partial of 16; 2 framing shifts; 1 new claim |
+| `runs/halve-the-runbook/artifact-keyed-341.md` | 341 | 29% | the same fragments, three defects repaired |
+
+**311 is the first artifact here both under the ablated arm's 343 words and
+above its 4-of-16 — and above the current arm's 10.** It gets there by dropping
+A1's two reasons and B5's *"it has not come up since"*: run the migrations in the
+wrong order and the worker crash-loops or the pods 500, so the system reports it.
+That trade is the criterion's, and A1 is a control clause, so record it as a
+deliberate loss rather than a free saving.
+
+**Dropping a clause is not the same as dropping it into a category.** The 311
+version put `BATCH_SIZE=200` bare in a two-item lead-in opposite four annotated
+bullets. The deletion was licensed — exceed the vendor's maximum and the vendor
+rejects the batch — but the placement asserts that the value needs no comment,
+which is arbitrary → ordinary, the shift this file already catalogues, and the
+mirror of the v3 ablated defect that filed the one free knob beside two
+vendor-fixed constants. **"Deletion beats compression" holds only where the
+deletion leaves a visible hole**; a value moved into the company of unremarkable
+values leaves a filled one. Repaired in the 341 version by marking the kind
+without settling the number — *"a vendor limit, not ours"* — which
+`runs/probe-permission-free/` measures as keeping readers looking where *"the
+vendor's documented maximum"* stops them, at the cost of the attribution the
+framing table scores.
+
+Also caught there: *"Free to change"* for the source's conditional licence is the
+same move as *"Tune freely"*, rejected below under "v3 current re-read its own
+file". It had survived four drafts unnoticed.
+
+**The arms' losses were not forced by the target.** 366 words is inside the band
+the arms delivered, and at that length all sixteen fragments fit. Whatever
+produced the 4-against-10 split, it was not capacity.
+
+**A defect-free artifact does not fit the target.** Repairing the 366-word
+version's four shifts cost 74 words; the floor is 440, 52% over the asked-for
+length. The target is set below what the graded content costs, so a run is
+choosing which defect to ship rather than whether to ship one. That is the case
+working as designed — see "The ratio is the instrument" — but it means no
+artifact can be held up as the answer. The Verdicts rule above, that an arm is
+better or worse than another arm rather than passing or failing, now rests on a
+measurement instead of on no run having managed it yet.
+
+**Sixteen of sixteen is not the same as good.** The 366-word version scores full
+marks and drops the file's most common failure — *"nine times out of ten this is
+a missing environment variable, and the error message names it"*. A reader given
+only that artifact and no key, asked what it would most want back, chose that
+block over everything else: it is the only dropped item that is a symptom the
+engineer is already staring at. The key does not score it. Do not read a high
+fragment count as a good runbook.
+
+**The shift class is not the twelve rows in §"The third class".** The 366-word
+version avoids all twelve and introduces four fresh ones on lines the stored
+baselines never touched: `shipit`'s "in parallel through most of 2024" (the
+mechanism that made "both worked" checkable), §4's "catches people out" and its
+rebase trigger, `STRICT_ORDERING`'s second hedge ("they have never documented
+it", closing the vendor-docs route the first hedge leaves open), and the intro
+collapsing three mismatch kinds — alias, non-correspondence, duplication — into
+"disagree on its name". Sweep every surviving line against the source; checking
+a list of twelve will pass an artifact that shifted four other lines.
+
+n=1, one author, key in hand. It bounds what is achievable and says nothing
+about whether an arm could find these sixteen unaided.
+
+One part of it was then probed with readers rather than argued:
+`runs/halve-the-runbook/probe-config-annotation.md` tests whether a config
+annotation needs its justification, or needs to exist at all. Three renderings
+of the same six settings, three stock readers each. Dropping the justification
+and keeping only the *kind* of value costs nothing a reader could detect on the
+question asked; replacing all six annotations with one blanket "these are
+heuristics, look elsewhere" sends 3 of 3 readers to the vendor's documentation,
+which reports the wrong ceiling for this deployment. Read it before trimming the
+config block on the theory that a reader who cares will look the value up.
 
 ## Stage 2: the downstream reader
 
@@ -318,6 +505,63 @@ The one fact that belongs on this page: the ablated model, which wrote
 `ablated3` and did not notice what it had dropped, names the category unprompted
 when handed both texts — *"the highest-cost losses aren't dropped facts, they're
 dropped modality."* The failure measured here is not a knowledge gap.
+
+## The key cannot see density, and density is what the target buys
+
+*Quarter-target cell (~290 words), not the 50% default. Read for what a binding
+budget does.*
+
+Two candidates carrying identical intended content, 2026-09-09:
+`runs/halve-the-runbook/artifact-keyed-348.md` (telegraphic, no headings) and
+`artifact-keyed-431.md` (the same content in ordinary sentences with four section
+headings). Scored adversarially against the 16 fragments and the twelve-shift
+table:
+
+| | fragments | shifts avoided | words | over ~290 target |
+| --- | --- | --- | --- | --- |
+| dense | 11 P / 4 partial / 1 absent | 10 of 12 | 348 | +20% |
+| plain prose | 11 P / 4 partial / 1 absent | 10 of 12 | 431 | +48% |
+
+**A dead tie on the instrument.** The plain version nonetheless carries five
+things the dense one had dropped, none of them graded: `settlement` records (the
+dense intro never says what is forwarded), *"so a change means a restart"*, the
+unit on `SHUTDOWN_GRACE=30`, `the platform team's` on `shipit`, and the object of
+*"ask before assuming"*. Three of those were folded back into the dense candidate
+afterwards, at eight words; the point stands that the key found none of them.
+
+So a tie on this key is not evidence of equivalence. The key grades sixteen
+chosen fragments and twelve chosen shifts, and everything else in a document is
+invisible to it — including whether the artifact is a document a person would
+read, which is the fixture's own stated problem (*"Nobody reads it … people skim
+to the command they came for and miss everything else"*).
+
+**Plain prose costs 29% and is not available at this target.** Two drafts, the
+tighter one 431 words. The density in every artifact this case has produced at
+~300 is not a style choice made by the author; it is what a quarter-length target
+buys. Any reading of these arms as "the agent wrote badly" should account for
+that before it accounts for judgement.
+
+**No reader probe separates them.** Downstream question, three readers each:
+6 of 6 refused to raise `WORKERS` and both gave the correct migration order.
+Alerts question, three readers on the plain version: 0 of 3 stated the inversion,
+matching the dense mechanism-only arm. Whatever the plain version buys, it does
+not show up in any behaviour this case has learned to measure.
+
+## What this case cannot measure: whether a pointer resolves
+
+`CONTRIBUTING.md` has never existed. `fixture/` holds exactly one file,
+`RUNBOOK.md`; `scripts/prompt-test-cc.sh:51` copies that directory and nothing
+else, and `scripts/prompt-test-cc-downstream.sh` inlines the artifact alone. Runs
+have gone looking — v3-C's reread2, E4's rank1, and both `review-the-compression`
+arms each ran `find -iname 'CONTRIBUTING*'` and got nothing. The sibling case
+`general/relayed-rule-provenance` quotes the file's text in its task and has no
+`fixture/` at all.
+
+So every result in this corpus about pointers is a result about whether the agent
+**writes** one. Kind C grades the survival of `governs`, and that is all it can
+grade. Source-Governs' prescription — give the path, say the file's text
+governs — rests on the receiver being able to open it, and no case here puts a
+receiver in front of a file. Testing it needs a fixture with two files.
 
 ## `session-analysis` foci
 
@@ -372,6 +616,50 @@ this is not the ablated arm simply cutting harder.
 and still kept nearly everything, because ~500 words of the fixture are pure
 padding. Nothing forced a choice between a directive and its bound. v3 keeps this
 fixture and moves the target.
+
+#### Re-scored 2026-09-09 against the framing and placement instrument
+
+The grading above is keep/drop at sub-fragment level, which is all that existed
+when it was written. The twelve-shift table and the analysis of claims made by
+placement both came later. Re-scored, the arms still separate in the same
+direction — current 16/16 present, ablated 13 present / 2 partial / 1 absent,
+reproducing the same three losses — **so the separation is not an artifact of the
+coarse grading.** What does not hold is the clean bill of health. Five defects
+the keep/drop score could not see, verified against the source:
+
+| defect | arm | why the old score missed it |
+| --- | --- | --- |
+| Friday's hedge detached from the directive by **reordering** | ablated | every word survives |
+| redrive-loop rule given a standalone bold lead-in matching the hard troubleshooting facts | ablated | layout, not words |
+| `by far the most common` for the source's `the single most common` | **current** | no category for invented emphasis |
+| `and they have never documented it` — `STRICT_ORDERING`'s second hedge | both | not a tracked sub-fragment |
+| `both were run in parallel through most of 2024 and both worked` | both | the schema tracked the reason clause, not the evidence for it |
+
+**The Friday finding is the one that changes something.** The source hedges the
+directive immediately — *"Try not to deploy on a Friday … Nobody enforces this and
+it is not a rule, but …"* — and ends on the consequence. The ablated arm opens
+with the hedge and **ends with a bare imperative**: *"Not a rule, but
+reconciliation runs Saturday morning, so a bad Friday deploy gets found by a
+customer. **Avoid Fridays unless billing is around.**"* A reader who stops at the
+last sentence — the skimming the fixture's own intro complains about — gets a
+rule the source denied, with the disclaimer two sentences upstream and not
+attached to it.
+
+That is the same promotion this file catalogues for the v3 ablated arm and
+attributes to the quarter-target budget. **It happens here at 50%, where the
+budget was not binding, and by reordering rather than deletion.** The budget is
+not a necessary condition for a framing shift; it is one thing that produces one.
+
+**And the `by far` amplification is in the arm that invoked the rule.** The v2
+current arm's first thinking block says *"I must avoid amplifying claims"*, and
+at `@L72` it catches and repairs one of its own — *"an unintended amplification I
+need to fix"*. It then shipped a second. Invocation and a mid-run self-repair are
+both real and neither was sufficient. Read "the section is invoked" as what it
+says and not as evidence the section works.
+
+**So the 50% cell is not retired.** It discriminates, and it carries defects the
+quarter-target cell does not isolate, because at 50% nothing can be blamed on the
+budget.
 
 ### v3 (same fixture, target ~290 — a quarter) — 2026-09-08
 

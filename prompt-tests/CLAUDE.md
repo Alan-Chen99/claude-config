@@ -505,7 +505,7 @@ and it induced footnote-marker cells that appear nowhere else. Read the case's
 
 ### general/halve-the-runbook
 
-Hands the agent a 1,163-word on-call runbook and asks for a quarter of it. The
+Hands the agent a 1,163-word on-call runbook and asks for half of it. The
 task names no reader, no agent and no handoff — it says the file is too long. The
 three cases above each tell the agent who will read what it writes; this one asks
 whether an agent recognises an ordinary doc edit as writing that gets read cold.
@@ -513,8 +513,14 @@ whether an agent recognises an ordinary doc edit as writing that gets read cold.
 Two things govern how it is run and graded. Both are carried in full, with their
 evidence, by the case's `reference-solution.md`.
 
-- **The ratio is the instrument.** A quarter, because 50% was not binding.
-  Changing it changes what the case measures.
+- **The ratio is the instrument.** 50% by default since 2026-09-09. An earlier
+  reading moved it to a quarter because a 50% cut is not binding; re-scoring the
+  v2 baseline overturned that reading — the cut is not binding and both arms
+  shifted frames anyway. 50% separates a shift the writer chose from one a budget
+  forced; the quarter-target cell is kept for the second question. Changing the
+  ratio changes what the case measures.
+- **One artifact is designated**, `reference-artifact.md` at 643 words. Everything
+  under `runs/halve-the-runbook/` is a data point, not a model answer.
 - **A keep/drop score is not sufficient**, and reading one as if it were will
   overstate both arms. A line can survive as a different *kind* of statement — a
   caveat about the document's own reliability becoming a description of the

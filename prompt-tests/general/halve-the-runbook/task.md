@@ -2,4 +2,4 @@
 about twelve hundred words and people skim to the command they came for and miss
 everything else.
 
-Cut it to a quarter of that. Same file, around three hundred words.
+Cut it in half. Same file, around six hundred words.
