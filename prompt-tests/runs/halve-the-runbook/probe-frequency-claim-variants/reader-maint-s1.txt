@@ -1,0 +1,19 @@
+The data contradicts the frequency claim in the "will not start" entry, so that's the edit. Replace this block:
+
+> **The worker will not start.** Nine times out of ten a missing environment variable, named in the first line of the crash output; next, an unrun migration showing as a column error on boot.
+
+with:
+
+> **The worker will not start.** Check the environment first: a missing variable is named in the first line of the crash output. Then migrations: an unrun one shows as a column error on boot. That order reflects how cheap the checks are, not how likely each cause is.
+>
+> Last quarter had eight failures to start — three the missing variable, two the migration, three neither. Eight incidents in one quarter is a small sample and these are counts rather than a rate, but it is the only measurement this entry has had. Plan on landing outside the two known causes: three of the eight did, and nobody wrote up what they were. If you hit one, add it here. (This entry used to say "nine times out of ten a missing environment variable" — that number was never measured, and last quarter did not bear it out.)
+
+Nothing else in the runbook changes.
+
+**What the edit does and doesn't claim.** The 90% figure is gone because 3 of 8 contradicts it. I did not replace it with a new rate — "about 40% of the time it's the env var" would read as measured, and one quarter at n=8 doesn't support a rate. So the entry carries the raw counts with their period attached instead. The env-var-before-migration ordering survives (3 vs 2), but a one-incident gap at n=8 isn't a real frequency signal, so I re-justified the order on check cost, which holds regardless of how the counts land next quarter.
+
+The substantive change is arguably not the number but the shape: the old entry implied two causes covered nearly everything, so a reader who ruled out both fell off the end of it. Three of eight were neither, and that's now stated.
+
+**The gap I can't close.** You didn't say what the three "something else" incidents were, and nothing else in the runbook predicts a start failure — the only crash-loop it describes is the unrun-migration case, and `WORKERS` overshoot surfaces as a 503, not a failure to start. So I can't route that third of the failure mode; the entry only admits it exists. If you have those three, they're the highest-value addition here — that's the case where the runbook currently leaves someone with nothing.
+
+**One adjacent thing I left alone.** "**503s from the vendor.** Nearly always pool exhaustion" is the same kind of unsourced frequency claim in the same section, and you appear to have the incident data that would check it. I didn't touch it because your numbers don't cover 503s — flagging in case you want to run the same exercise on it.

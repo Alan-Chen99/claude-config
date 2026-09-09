@@ -1,0 +1,28 @@
+Your runbook's "worker will not start" entry doesn't cover this. It says the first line names a missing environment variable — this one names a missing *import*. It's also not a column error, so it isn't an unrun migration either. Don't run `./migrate.sh` on the strength of that line.
+
+What you have is version skew: the code that got deployed imports `RecordBatch` from `relay.vendor`, and the `relay.vendor` that actually loaded in this image doesn't have it. The importer and the vendor module shipped out of sync.
+
+**Right now**
+
+1. `kubectl rollout pause` — the runbook says this is safe and paused is a normal state, so it costs you nothing and keeps whatever old pods are still up serving.
+2. Get the *rest* of that first line. Python 3.8+ appends the file it actually loaded: `... from 'relay.vendor' (/path/to/relay/vendor/__init__.py)`. That path is the diagnosis. If you trimmed it, go get it. If there genuinely is no path, `relay.vendor` resolved as an empty namespace package — the vendored code didn't make it into the image at all, which points at the build rather than the source.
+3. Confirm inside the failing image:
+   ```
+   python -c "import relay.vendor as v; print(v.__file__); print([n for n in dir(v) if 'Record' in n])"
+   ```
+   A near-miss name (`RecordBatcher`, `Batch`) means a rename landed on one side only. Nothing at all means the module is old, empty, or shadowed by another copy on `sys.path`.
+4. Find the skew: `git log -S RecordBatch -- relay/` for when the name appeared or disappeared, and check whether this morning's deploy moved a pin or lockfile covering `relay.vendor`.
+
+**Before you roll back**
+
+Rollback is the fast restore, but check what `./migrate.sh` did this morning first. An added column is safe to roll back over — old code just ignores it. A **drop or rename** is not: the old image still references the old name and will 500 on every pod you restore. If that's what ran, fix forward instead.
+
+**While it's down**
+
+Records will pile up. Once you're back, remember `pending` means handed to the vendor, not lost — re-drive over-an-hour records one id at a time with `./redrive.sh`, and don't loop it. February's ~900-redrive loop rate-limited the whole tenant for an hour, and nobody has worked out where the real threshold is, so there's no safe batch size to fall back on.
+
+With no staging, reproduce locally against the same image tag. Don't plan around spinning up a second tenant — finance turned that down in March; ask them if you actually need it.
+
+**Afterwards**
+
+That troubleshooting entry is wrong as written — it promises the first line names an env var. It'd be worth changing to "read the first line and match it": missing env var → config, column error → unrun migration, `ImportError` → code/vendor skew, roll back.

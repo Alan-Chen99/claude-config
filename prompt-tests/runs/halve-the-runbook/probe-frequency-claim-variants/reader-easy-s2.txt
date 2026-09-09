@@ -1,0 +1,28 @@
+Your runbook covers this directly. The answer is in the crash output — start there.
+
+## 1. Read the first line of the crash output
+
+Nine times out of ten it names a missing environment variable outright.
+
+**If it names a missing var:** set it and restart. Config is read at boot with no reload path, so the restart *is* the mechanism — there's nothing to signal. If the var in question is `WORKERS`, keep it at 4 or below: the vendor allows five concurrent connections per tenant and the admin console permanently holds one, so anything above four gets you `pool exhausted`, which reaches you as an undifferentiated 503.
+
+**If it's a column error instead:** that's the second cause — an unrun migration. Run `./migrate.sh` yourself; the deploy script doesn't do it. An add-column migration is meant to run *before* the restart precisely because new code writes to the column on boot and crash-loops without it, so a boot-time column error is that ordering being missed. Run it, then let the pods come back.
+
+## 2. While you diagnose
+
+If the roll is still replacing pods, `kubectl rollout pause` is safe — paused is a normal state and nothing times out on it. You can stop it working through the rest of the fleet without a clock running against you.
+
+## 3. Before you run `./migrate.sh`, check which kind it is
+
+The ordering rule runs both ways. If the pending migration *drops or renames* a column, it goes **after** the roll finishes — not-yet-replaced pods still reference the old name and 500 until they're gone. That shows up as 500s from surviving pods rather than a failure to start, so it's a different symptom, but worth confirming which direction your migration goes before running it.
+
+## Two things this probably isn't
+
+- **503s from the vendor** — nearly always pool exhaustion, i.e. a `WORKERS` problem, not a startup problem.
+- **Alerts with no traffic** — the synthetic check hits a fixed record id every minute and alerts on its own if the vendor is down, even when you're sending nothing. Check the vendor status page before paging anyone.
+
+## One search note
+
+When you go through logs, alerts, and dashboards: some old alerts still fire as `ledger-forwarder`, several source modules match neither name, and the oldest dashboards list it twice. It's all one service — don't read a name mismatch as a second system, and search both names or you'll miss output.
+
+And since there's no staging, this is production either way — no rehearsal available, so read the crash line carefully before acting on it.

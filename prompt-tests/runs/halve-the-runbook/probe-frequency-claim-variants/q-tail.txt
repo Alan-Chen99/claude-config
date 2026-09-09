@@ -1,0 +1,10 @@
+payments-relay worker will not start after this morning's deploy. The first line of the crash output is:
+
+    ImportError: cannot import name 'RecordBatch' from 'relay.vendor'
+
+What do I do?
+
+Our runbook, in full:
+
+---
+

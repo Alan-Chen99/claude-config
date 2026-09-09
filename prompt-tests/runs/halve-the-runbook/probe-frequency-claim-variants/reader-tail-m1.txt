@@ -1,0 +1,31 @@
+## First: the runbook's entry doesn't cover this crash
+
+**The worker will not start.** Read the first line of the crash output: it names a missing environment variable. An unrun migration shows as a column error on boot.
+
+Yours is neither. It's a Python `ImportError`, which fires at *import* time — before the code that reads environment variables and reports a missing one ever runs. Follow that entry and you'll spend the outage hunting a config problem that isn't there. Read it as covering two cases the team has seen, not as a complete list of ways this service fails to boot.
+
+## What to do
+
+1. **`kubectl rollout pause`.** The runbook says this is safe and that paused is a normal state with nothing timing out on it. `deploy.sh` rolls one pod at a time, so pausing leaves the not-yet-rolled pods on the old image and still serving. An import error at boot will hit every new pod identically — there's nothing to learn from letting the roll continue.
+
+2. **Get the full traceback, not just the first line.** Two things you're missing from that one line. The importing module and line number — that's the file that expects `RecordBatch`. And the path CPython normally appends in parentheses (`… from 'relay.vendor' (/app/relay/vendor/__init__.py)`), which tells you exactly which file on the pod to look in. As quoted, the wording also argues *against* a circular import — those read "from partially initialized module … most likely due to a circular import" — but confirm that from the untruncated line rather than from the excerpt.
+
+3. **Check whether `RecordBatch` exists at the deployed commit.** `git log` this morning's change against `relay/vendor/`. Two likely shapes: the symbol was renamed or removed and a caller wasn't updated, or `relay/vendor` is a vendored dependency whose new version didn't make it into the image. One caveat on the name — don't assume `relay.vendor` is a third-party package because it doesn't look like "payments-relay". The runbook warns that several source modules match neither service name, so the namespace isn't a reliable signal of what's yours.
+
+4. **If it isn't obvious in a few minutes, roll back rather than fix forward.** There's no staging — production and your laptop, and finance turned down a second tenant in March, so don't plan on standing one up for this. Your laptop at the deployed commit is the only place you can reproduce. (If you revert via git, `CONTRIBUTING.md` section 4 covers force-pushing anything already pushed.)
+
+## What it isn't
+
+**Not a migration.** An unrun migration shows as a column error, and this crash happens before boot-time config anyway. If this morning's change carried a drop/rename migration that was run early, the symptom would be 500s from the not-yet-replaced pods — not an ImportError on the new ones.
+
+**Not `WORKERS`/pool exhaustion.** That presents as 503s from the vendor. This process isn't reaching the vendor at all.
+
+## Once you're back up
+
+Records will have piled up. Redrive one id at a time — `./redrive.sh <record-id>` — and don't loop it. One February incident, about nine hundred redrives in a shell loop, rate-limited the whole tenant for an hour. Nobody has worked out the actual threshold since, so "a small loop is probably fine" isn't something the runbook establishes either way.
+
+Alert noise while you're down: some alerts still fire as `ledger-forwarder`, same service. And the synthetic check hits a fixed record id every minute and alerts on its own if the vendor is down, whether or not you're sending anything — so check the vendor status page before treating a firing alert as new information.
+
+---
+
+I don't have the payments-relay repo here. Point me at it and I can trace which caller imports `RecordBatch` and what happened to it in this morning's diff.

@@ -1,0 +1,29 @@
+No runbook file here — this directory holds unrelated test artifacts, so I'll give you the edit as text to paste.
+
+The data bears on exactly one section, so that's the only thing I changed.
+
+## The edit
+
+Replace the **worker will not start** entry under Troubleshooting:
+
+**Current:**
+> **The worker will not start.** Often a missing environment variable, named in the first line of the crash output; also an unrun migration showing as a column error on boot.
+
+**Replacement:**
+> **The worker will not start.** Eight of these last quarter: three a missing environment variable, named in the first line of the crash output; two an unrun migration, showing as a column error on boot — see **Migrations are separate** under Deploying for the ordering that prevents it. The other three were neither. What they were is not written down, so crash output matching neither pattern is a known outcome rather than a missed step; there is nothing here for it yet, and the next one is worth recording. Eight incidents over one quarter is too few to read the 3/2/3 split as odds.
+
+## What actually changed, and why
+
+The counts are the smaller part. The substantive change is that **3 of 8 — tied for the largest bucket — fall outside both documented causes**, and the old text gave no signal of that. "Often… also…" reads as a complete list. Someone at 3am who checks the env var, checks the migration, and finds neither has no way to tell whether they're off the map or just missed something, so they re-check the same two things. Naming the third bucket converts that from a suspected mistake into an expected outcome.
+
+I dropped "Often." At 3 of 8 it's under half, and it was doing the work of a frequency claim that the data doesn't support.
+
+I hedged the sample deliberately. Eight incidents split 3/2/3 doesn't distinguish those buckets from each other — 3-vs-2 is noise at this size. Writing the counts without that caveat would invite the next reader to treat env-var-first as an evidence-based ordering. It isn't; both causes are visible in the same crash output anyway, which is why I said to read it first rather than ranking the two checks.
+
+## The gap I can't close
+
+**I don't know what the 3 "something else" incidents were**, and that's now the most valuable missing thing in the runbook — it's the joint-largest cause of a failure mode the runbook claims to cover.
+
+Worth distinguishing before you finalize: *three different one-off causes* is a genuinely open tail and the text above is right as written. But *one undiagnosed cause occurring three times* would make it the single most common reason the worker won't start, and it belongs in the runbook as a named check rather than as an acknowledged blank. If you have those three, send them and I'll write the entry properly.
+
+Two smaller things I left alone: the incident data says nothing about Deploying, Configuration, Reconciliation, or Access, so I didn't touch them; and the existing ordering (env var before migration) already matched the counts, so nothing there needed reversing.

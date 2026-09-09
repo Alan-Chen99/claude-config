@@ -1,0 +1,12 @@
+Start with the runbook's own step: **read the first line of the crash output.** It tells you which of two things you have.
+
+**1. It names a missing environment variable.** Set it and restart. Config is read at boot with no reload, so the restart is what applies it. If the variable is `WORKERS`, keep it at 4 or below — the vendor allows five concurrent connections per tenant and the admin console permanently holds one; `BATCH_SIZE` maxes at 200.
+
+**2. It's a column error.** That's an unrun migration, not a config problem. Run `./migrate.sh` yourself — the deploy script doesn't. A crash-loop on boot is specifically the add-a-column case, where new code writes to the column immediately and dies without it, so the migration goes *before* the restart. (The drop/rename ordering is the opposite, but that failure shows up as 500s from not-yet-replaced pods, not as a worker that won't start.)
+
+A few things that will save you time:
+
+- If you're mid-roll, `kubectl rollout pause` is safe — paused is a normal state and nothing times out on it.
+- Don't get pulled toward the 503 entry; that's pool exhaustion, a different symptom.
+- When you go looking for the crash output, the service also appears as `ledger-forwarder` in some old alerts, and several source modules match neither name.
+- There's no staging, so whatever you do here is production.

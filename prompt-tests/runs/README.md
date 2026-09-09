@@ -39,7 +39,7 @@ output; the copy here is for convenience.
 
 The `v3C` arm's prompt is `sys_prompt/alan-default-next.md` at commit `d0beb52`
 with lines 211–241 replaced by the block quoted in full in the case's
-`reference-solution.md`, `v3-C` section:
+`baselines.md`, `v3-C` section:
 
 ```sh
 head -210 sys_prompt/alan-default-next.md  > /tmp/arm.md

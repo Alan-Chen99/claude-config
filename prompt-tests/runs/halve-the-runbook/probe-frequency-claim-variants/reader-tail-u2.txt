@@ -1,0 +1,54 @@
+## Your runbook's two causes for this symptom don't fit
+
+"The worker will not start" lists a missing environment variable *named in the first line of the crash output*, and an unrun migration *showing as a column error*. Neither matches what you have:
+
+- **`RecordBatch` is not an environment variable.** It's a Python symbol. Your config section lists six env vars and none is called `RecordBatch`. Don't go hunting for it in the pod spec — that's the trap the runbook's wording sets here.
+- It's not a column error, so it's not the migration bullet either.
+
+`ImportError: cannot import name 'X' from 'Y'` means `relay.vendor` was found and imported fine, but doesn't define `RecordBatch`. That's code/dependency skew: what shipped this morning expects a symbol the `relay.vendor` on the pod doesn't have.
+
+## Right now
+
+**Pause the roll.** `kubectl rollout pause` — the runbook says it's safe and nothing times out on paused. `deploy.sh` goes one pod at a time, so if it stalled on the first crash-looping pod you still have old pods serving. Check how many, and keep them.
+
+## Diagnose
+
+**Get the full traceback, not just line one.** Three things it carries that the first line doesn't:
+
+- The path in parentheses after `'relay.vendor'` — tells you *which* `relay.vendor` got imported (repo checkout vs. site-packages vs. a vendored dir). Wrong-path is a different fix from wrong-version.
+- Whether Python appended `(most likely due to a circular import)` — that's a different root cause entirely, and the fix is in the import graph, not the deploy.
+- The importing frame — which module started expecting `RecordBatch`.
+
+**Diff this morning's revision against the previous one**, on `relay/vendor/` and on your dependency pins. Two likely shapes: new code references `RecordBatch` and the change that adds it didn't ship (partial merge, file missing from the build); or `relay.vendor` is vendored/third-party, its version moved, and `RecordBatch` was renamed or dropped.
+
+When you grep, search by symbol rather than by service name. Your module namespace is `relay.*`, which matches neither `payments-relay` nor `ledger-forwarder`, and the runbook says several source modules match neither name.
+
+**Reproduce on your laptop.** There's no staging, and per the runbook that's deliberate — finance declined a second tenant in March, so that's not a thing to try to unblock mid-incident. Build from the deployed revision and:
+
+```
+python -c "import relay.vendor as v; print(v.__file__); from relay.vendor import RecordBatch"
+```
+
+That tells you which module resolves *and* whether the symbol is there. It's also the only place you can verify a fix before it touches prod.
+
+## Recover
+
+**If the fix isn't immediate, roll back to the last known-good revision.** Two caveats:
+
+- Your runbook documents no rollback procedure. `kubectl rollout undo`, or `./deploy.sh` with the previous revision — I'm inferring, and someone who knows should confirm which before you run it.
+- **Check whether `./migrate.sh` ran this morning, and what kind.** An add-column is safe to roll code back under. A drop/rename is not — old code references the old name and 500s. Per the runbook a drop/rename only runs *after the roll finishes*, and this roll didn't finish, so it shouldn't have run. Confirm it didn't.
+
+**Then expect a `pending` backlog.** `pending` means handed to the vendor, not acknowledged. Over an hour in `pending` is a lost acknowledgement, not a lost record, so re-driving is safe — but only for records that old; fresher ones may still get acknowledged.
+
+- `./redrive.sh <record-id>`, **one id at a time, don't loop it.** ~900 in a shell loop rate-limited the whole tenant for an hour last February, and the runbook is explicit that nobody worked out the real threshold — so I can't give you a safe batch size either. If the backlog is big enough that one-at-a-time is impractical, that's a call to make with someone, not a loop to write.
+- **Don't raise `WORKERS` to burn it down faster.** Four is a ceiling, not a tuning knob: five concurrent connections per tenant, the admin console permanently holds one, and going over gives you `pool exhausted` arriving as an undifferentiated 503.
+
+## Two things about timing and noise
+
+**Alerts.** Check both `payments-relay` and `ledger-forwarder`, plus the duplicated dashboard entries — and finding nothing under either name doesn't clear it, since some modules match neither. Separately, the synthetic check hits a fixed record id every minute and alerts on its own whenever the vendor is down, even when you're sending nothing. If you're seeing vendor-shaped alerts alongside this, check the vendor status page before assuming they're downstream of your crash.
+
+**The clock.** Today is Wednesday; reconciliation runs 04:00 Saturday and opens one ticket per discrepancy into *billing's* queue, triaged Monday. Anything still missing by then leaves your hands and sits over the weekend, so aim to have the backlog re-driven before Saturday morning. If the real fix slips to Friday, that's the Friday norm — not a rule, but reconciliation is the next morning.
+
+Two smaller notes: debug logging won't help you here, since the process dies at import before it touches a record (and during backlog burn-down, debug is one line per record against a pipeline that drops above ~2000 lines/sec). And if the fix means reverting a pushed commit, read `CONTRIBUTING.md` section 4 on force-pushing first.
+
+Worth adding a third bullet to that troubleshooting entry afterward — import and dependency errors on boot are now a case you've seen, and the current wording actively points at the wrong thing.

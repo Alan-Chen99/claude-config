@@ -153,7 +153,7 @@ And the file was already closed. That skill's reading protocol item 6 requires
 "every reasoning block, every text block, every tool input", and the Grader rule
 at the bottom of this file requires a grader to read all thinking blocks. What
 the caution exists for is on record in
-`general/halve-the-runbook/reference-solution.md`: the v2 current arm's
+`general/halve-the-runbook/baselines.md`: the v2 current arm's
 invocation of all three rules "went unrecorded until the logs were read". The
 subsection filled no gap; it opened one, in text that reads as a tightening.
 
@@ -510,8 +510,9 @@ task names no reader, no agent and no handoff — it says the file is too long. 
 three cases above each tell the agent who will read what it writes; this one asks
 whether an agent recognises an ordinary doc edit as writing that gets read cold.
 
-Two things govern how it is run and graded. Both are carried in full, with their
-evidence, by the case's `reference-solution.md`.
+Four things govern how it is run and graded. All are carried in full, with their
+evidence, by the case's `reference-solution.md`; the per-run history moved to
+`baselines.md` 2026-09-09.
 
 - **The ratio is the instrument.** 50% by default since 2026-09-09. An earlier
   reading moved it to a quarter because a 50% cut is not binding; re-scoring the
@@ -527,6 +528,15 @@ evidence, by the case's `reference-solution.md`.
   358 holding 4 and 10 of the sixteen; it holds all sixteen at 352. Do not read
   its length as a target; an arm answering the 50% task should land near 600.
   Everything under `runs/halve-the-runbook/` is a data point.
+- **Nothing has to be kept, and keeping is not free.** The sixteen fragments are
+  an inventory of where a decision was made, not a checklist — an absence is
+  graded on whether the artifact itself justifies it (violating the dropped bound
+  yields feedback the reader can attribute, or the drop leaves a visible hole),
+  never on the grader's ability to invent a reason. Framing shifts admit no such
+  justification, because none of them saves a word. And the fixture contains at
+  least one line a good compression **removes**: an unowned frequency claim that
+  no reader acts on, every reader copies, and 5 of 5 writers delete the moment
+  they see data — `runs/halve-the-runbook/probe-frequency-claim.md`.
 - **A keep/drop score is not sufficient**, and reading one as if it were will
   overstate both arms. A line can survive as a different *kind* of statement — a
   caveat about the document's own reliability becoming a description of the
@@ -537,9 +547,12 @@ evidence, by the case's `reference-solution.md`.
 Sample sizes are n=1 per version, not `found-set-closure`'s n=8 — nothing from
 this case should be quoted with the confidence that one supports.
 
-The reference also carries the fragment table, the framing tables, the four
-baselines, the third arm that replaced the rules with a reread trigger, and the
-thinking-block reads. `runs/probe-length-target/` carries the length-target
+The reference carries the fragment table, the framing tables and the probes;
+`baselines.md` carries the four baselines, the third arm that replaced the rules
+with a reread trigger, and the thinking-block reads. **A known defect in the
+instrument:** the "sixteen fragments" are never enumerated in one place — three
+are attested by citation and the rest are read off the clause table per run, so
+counts are only roughly comparable across runs. `runs/probe-length-target/` carries the length-target
 result, which bears on any new arm designed here. Artifacts in `runs/`.
 
 ### general/review-the-compression

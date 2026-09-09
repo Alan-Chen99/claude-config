@@ -1,0 +1,34 @@
+No runbook file in the working directory — the directory holds probe artifacts, not the doc — so here's the replacement text.
+
+## The change
+
+One paragraph changes, in **Troubleshooting**. Replace:
+
+> **The worker will not start.** Nine times out of ten a missing environment variable, named in the first line of the crash output; next, an unrun migration showing as a column error on boot.
+
+with:
+
+> **The worker will not start.** Check the first line of the crash output for a
+> missing environment variable, then for a column error on boot from an unrun
+> migration — that order because the crash output names the variable outright,
+> not because one is much likelier than the other. Of the eight start failures
+> last quarter, three were the missing variable, two the migration, and three
+> were neither; what those three were is not recorded here. Both checks coming
+> back clean is a normal outcome, not a sign you missed a step — it means the
+> cause is outside this section.
+
+## Why it reads that way
+
+**"Nine times out of ten" was the smaller error.** It's ~90% against a measured 3 of 8, so it goes. But the load-bearing correction is that the old sentence presents two causes as if they were the space — "nine times out of ten X; next, Y" leaves no room for a third outcome. Your data says the two named causes cover 5 of 8. An on-call reader who checks both, finds nothing, and trusts the old text concludes they've done the lookup wrong. That's the failure the paragraph now prevents.
+
+**I did not turn 3 of 8 into a rate.** No "roughly 40%", no "most often". Eight incidents in one quarter supports "here is what happened last quarter", not "here is how this service fails". The runbook already writes this way elsewhere — "No false positives in the eleven weeks since deploy", "nobody has worked out the real threshold" — so binding the count to the quarter matches the voice rather than adding a hedge to it.
+
+**The ordering survived, but not its justification.** 3 versus 2 in a sample of 8 is a one-incident gap; it can't carry "check this first". Env var stays first because the crash output names it in line one, which is a reason that doesn't depend on the frequencies moving next quarter. I made that explicit in the text so the next person with new numbers doesn't reshuffle the order on a coin flip.
+
+## Two things I need from you
+
+**What were the other three?** They're now tied with missing env vars as the largest bucket, and I have nothing to write about them. Naming even one — "two were the vendor cert expiring" — is worth more to that section than the frequency fix I just made. The current wording deliberately says "not recorded here" so it's visible as a hole rather than an omission; it should be replaced once you know.
+
+**Is the Configuration section missing the variables that actually go missing?** This is an inference, so treat it as a question: all six variables in that section are listed with values (`WORKERS=4`, `BATCH_SIZE=200`, …), which reads like they have defaults. If so, none of them is the one whose absence crash-loops the worker — meaning there's a required variable (DB URL, vendor credential, tenant id?) that the runbook never names, and it's behind three incidents a quarter. If that's right, adding it to Configuration would do more than anything in Troubleshooting can.
+
+Nothing else in the runbook changed. The incident data doesn't bear on deploys, migration ordering, redrive, reconciliation, or access.

@@ -1,0 +1,6 @@
+payments-relay worker will not start. What do I do?
+
+Our runbook, in full:
+
+---
+

@@ -1,0 +1,22 @@
+Your runbook covers this case directly. In order:
+
+**1. Read the first line of the crash output.** Per the runbook that's a missing environment variable roughly nine times out of ten, and the variable is named right there. Config is read at boot with no reload, so setting it means restarting — which is what you want anyway.
+
+If the missing var is one of the constrained ones, don't just pick a value:
+- `WORKERS` — 4 is a ceiling, not a tuning knob. The vendor allows five concurrent connections per tenant and the admin console permanently holds one. Above four you get `pool exhausted`, which reaches you as an undifferentiated 503.
+- `BATCH_SIZE` — 200 is the vendor's documented maximum.
+
+**2. If not that, look for a column error on boot.** That's an unrun migration. `./deploy.sh` doesn't run migrations; you run `./migrate.sh` yourself.
+
+Check what the pending migration does first, because the ordering differs:
+- **Adds a column** → run it now, before the restart. This is exactly the crash-loop case: new code writes to the column on boot and dies without it.
+- **Drops or renames** → wait until the roll finishes. Not-yet-replaced pods still reference the old name and 500 until they're gone. A drop/rename also wouldn't explain a boot crash in the new code, so if that's what's pending, it's probably not your cause.
+
+**3. If it's neither, the runbook stops there.** It names two causes and no third, so anything past this point is your own diagnosis rather than something the doc backs.
+
+Two things worth knowing while you're in it:
+
+- `kubectl rollout pause` is safe if you want to halt the roll while you diagnose. Paused is a normal state and nothing times out on it.
+- When you go hunting for the crash output or related alerts: some old alerts fire as `ledger-forwarder`, several source modules match neither name, and the oldest dashboards list the service twice. It's all one service.
+
+Also, don't get pulled onto the wrong path — 503s from the vendor and records stuck in `pending` are separate symptoms with their own entries, and neither applies to a worker that won't boot.

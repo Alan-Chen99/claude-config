@@ -80,6 +80,34 @@ quoted with more confidence than that.
     poor judgement, note that a quarter-length target does not leave prose
     available.
 
+12. **An unowned frequency claim is inert, self-replicating, and unanimously
+    deleted the moment anyone checks it** —
+    `runs/halve-the-runbook/probe-frequency-claim.md`, 20 readers over three arms
+    differing by five words. The fixture's *"nine times out of ten this is a
+    missing environment variable"* changes no reader's action (identical first
+    step in all three arms), is restated verbatim by every reader that has it, and
+    survives 0 of 5 rewrites once a writer is handed one quarter of counts. The
+    anchoring hypothesis the probe was built on is **refuted**: 0 of 9 readers
+    shown contradicting evidence re-checked environment variables anyway.
+    Raised by the user, 2026-09-09.
+
+13. **Correct maintenance grows a document; nothing in the loop shrinks it** —
+    same probe. Five writers given one new fact about a 30-word entry produced
+    replacements of 85–147 words (2.8×–4.9×), every one of them better than the
+    original: honest about the sample, explicit that the two documented causes
+    cover 5 of 8 incidents, ordering re-justified on check cost rather than
+    likelihood. This is the premise `halve-the-runbook` rests on, measured
+    instead of assumed — the forced cut has to come from outside the loop
+    because the loop only adds.
+
+14. **An enumeration asserts its own completeness unless it says otherwise.** 5
+    of 5 writers in that probe added a not-exhaustive statement unprompted, and
+    one named the mechanism: a reader who checks both listed causes and finds
+    neither "has no way to tell whether they're off the map or just missed
+    something, so they re-check the same two things." Same shape as the alerts
+    inversion — *if* read as *only if* — in a second place. Added to the framing
+    table as a thirteenth shift.
+
 ## A defect that no budget explains
 
 Items 1–4 are all about the section losing to a length target. This one holds at
@@ -202,6 +230,23 @@ measure"). Every pointer result so far is about whether the agent writes one.
 Source-Governs' central prescription is therefore unmeasured end to end. Cheapest
 fix: add `CONTRIBUTING.md` to `halve-the-runbook/fixture/` and give the
 downstream reader a question whose answer is in it.
+
+**P8 — grade the upkeep class in a prompt, not just a rubric.** Items 12–14 are
+reader-side and writer-side measurements of a defect the section has no rule for:
+`# Writing for other agents` says what to do with a rule, a cause and a claim's
+confidence, and nothing about a claim nobody maintains. The measured criterion is
+the keep-criterion turned on the document — *does being wrong about this produce
+feedback that points at it?* — which is the same test that licenses dropping
+`BATCH_SIZE`'s justification and forbids dropping the `WORKERS` ceiling. Whether
+a prompt clause makes a writer apply it unbidden is untested, and the natural
+cell is the P2 cell with the frequency claim left in the fixture.
+
+**A defect in this case's own instrument, found 2026-09-09 and not yet fixed.**
+The "sixteen fragments" every scoring in the corpus reports against are never
+enumerated in one place — three kind-B members are attested by citation and the
+rest are read off the clause table per run. Counts are comparable within a run
+and only roughly across runs. Enumerate them and re-score the stored baselines
+before the next scored arm.
 
 **Queued, untested.** A version built on the writer's intent being fully
 recoverable and unambiguous, proposed by the user during this investigation and

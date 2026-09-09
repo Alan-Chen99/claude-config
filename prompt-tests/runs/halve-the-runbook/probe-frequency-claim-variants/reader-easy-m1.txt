@@ -1,0 +1,23 @@
+Your runbook has a direct answer for this: **read the first line of the crash output.** It names the cause. Two shapes:
+
+**1. It names a missing environment variable.**
+
+Set it and restart. Config is read at boot only — there's no reload, so any config change means a restart regardless.
+
+One trap while you're setting things: `WORKERS` must stay at 4 or below. It's a hard ceiling, not a tuning knob — the vendor allows five concurrent connections per tenant and the admin console permanently holds one. Going above four gets you `pool exhausted`, which surfaces as an undifferentiated 503 later.
+
+**2. It's a column error.**
+
+That's an unrun migration. `./migrate.sh` is not part of `./deploy.sh` — you run it yourself.
+
+Since your pods are already crash-looping on boot, you're in the add-a-column case: new code writes to the column on boot and crash-loops without it, so the migration goes **before** the restart. Run it, then restart. (The other ordering — drops or renames — goes after the roll finishes, because not-yet-replaced pods still reference the old name and 500 until they're gone. That one wouldn't present as a startup crash-loop.)
+
+**While you're digging:**
+
+- If you're mid-deploy, `kubectl rollout pause` is safe. Paused is a normal state and nothing times out on it, so you can stop the roll and work the problem rather than race it.
+- Some old alerts still fire as `ledger-forwarder`, several source modules match neither name, and the oldest dashboards list it twice — all one service. Don't assume a single name when grepping for the crash output.
+- Don't flip `LOG_LEVEL=debug` to chase this. It's one line per record, and the pipeline drops above ~2000 lines/sec, so it can lose the lines you turned it on to see — and it'd cost you another restart anyway.
+
+**After it's back up:** records may have piled up in `pending`. Per the runbook, `pending` means handed to the vendor and `sent` means acknowledged, so over an hour in `pending` is a lost acknowledgement rather than a lost record and re-driving is safe: `./redrive.sh <record-id>`, one id at a time by design. Never loop it — one February incident with about nine hundred redrives in a shell loop rate-limited the whole tenant for an hour. Nobody has worked out where the real threshold is, so there's no known-safe batch size to fall back on.
+
+Two things that look related but aren't, if you see them alongside the crash: 503s from the vendor are nearly always pool exhaustion (check `WORKERS` first), and alerts firing with no traffic are the synthetic check, which hits a fixed record id every minute and alerts on its own if the vendor is down — check the vendor status page before paging anyone.

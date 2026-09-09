@@ -1,0 +1,43 @@
+**The runbook's entry for this symptom is wrong for your case — don't work it.** It says: "Read the first line of the crash output: it names a missing environment variable." Your first line names a missing *import*, and it isn't the other documented boot case either (a column error from an unrun migration). So neither cause the runbook lists applies, and checking `WORKERS`/`BATCH_SIZE`/etc. or running `./migrate.sh` to hunt for this will come back clean. That entry reads like it was written from a couple of past incidents and then stated as a rule.
+
+What you have instead: the code in this morning's image imports `RecordBatch` from `relay.vendor`, and the `relay.vendor` the image actually loads doesn't define it. That's a code-layout/packaging fact, not a config one.
+
+I can't see your repo or image, so below is ordered by what contains the damage and what separates the causes — not a diagnosis.
+
+## 1. Pause the roll first
+
+`deploy.sh` goes one pod at a time, so you probably still have old pods serving. `kubectl rollout pause` — the runbook is explicit that paused is a normal state and nothing times out on it. Then count pods on the new revision vs. the old one, so you know whether you're degraded or fully down before you start digging.
+
+## 2. Get the whole traceback
+
+The frames above the `ImportError` name the file doing the import. The runbook's "read the first line" advice is what's costing you here; the first line is the least informative part of this particular failure.
+
+## 3. One check separates the likely causes
+
+In a failing pod or the built image, alongside the deployed commit SHA:
+
+```
+python -c "import relay.vendor as v; print(v.__file__); print([n for n in dir(v) if 'Record' in n])"
+```
+
+- `__file__` isn't the path you expect (site-packages, some other `relay`) → a different `relay` is winning on `sys.path`.
+- Path is right, name absent, but present in the repo at that SHA → the image doesn't contain the tree you think it does: stale layer cache, or the vendor directory excluded by `.dockerignore`/`.gitignore` (common for a vendored dir).
+- Defined in a submodule but not re-exported from `relay/vendor/__init__.py` → works locally if something imports the submodule path first, fails through the package.
+- If `relay.vendor` wraps a pinned third-party client, compare the resolved version in the image against your laptop — the lockfile may not be getting applied in the build.
+
+Two notes. The message does *not* say "partially initialized module", so a circular import is less likely, though not excluded. And the one way the runbook's claim could still be literally true is if `relay/vendor` defines its exports conditionally on an env var — exotic, but the `dir()` output will show it. Since there's no staging, your laptop is the only place you can reproduce against, so make that comparison deliberately.
+
+When you grep for the symbol, grep for `RecordBatch` rather than the service name — the runbook warns that several source modules match neither `payments-relay` nor `ledger-forwarder`.
+
+## 4. Roll back if step 3 doesn't hand you a one-liner
+
+If a few minutes of step 3 doesn't produce an obvious fix, go back to the previous revision. Caveat: the runbook documents no rollback path at all. It covers rolling forward one pod at a time and says nothing about reversing, so whether `kubectl rollout undo` is the right lever against `deploy.sh` is something you need to confirm rather than assume — ideally before you're relying on it.
+
+## Two follow-ons the runbook does bear on
+
+- **Did this deploy carry a migration?** If it adds a column, the runbook says it has to run *before* the restart, because new code writes to it on boot and crash-loops without it. Fix the import and you may crash again immediately on a column error. Check now so you don't do this twice.
+- **Records left in `pending`.** Crash-looping pods never got their 30s `SHUTDOWN_GRACE`, so in-flight sends were cut. Over an hour in `pending` is a lost acknowledgement rather than a lost record, so re-driving is safe — `./redrive.sh <record-id>`, one id at a time. Don't loop it even for a handful: the February incident (≈900 redrives) rate-limited the whole tenant for an hour, and the runbook says nobody worked out the real threshold, so there's no basis for assuming a small loop is under it.
+
+If pages are firing, the synthetic check alerts on its own whenever the vendor is down, even with no traffic from you — so check the vendor status page before assuming every alert right now traces to this.
+
+**Afterwards:** fix that troubleshooting entry. "The first line names a missing environment variable" is written as a universal, and it's what sent you the wrong way this morning.
