@@ -265,7 +265,14 @@ written down anywhere.
 Only stage 1, stage 2 and `review-the-compression` are task variants; everything
 else is a cell or a probe.
 
-**P9 — the growth leg. Proposed by the user, 2026-09-09; designed, not built.**
+**P9 — the growth leg. BUILT 2026-09-10 as `general/after-the-false-page`; no arm
+run.** Its `reference-solution.md` governs and carries the design in full,
+including the recorded prediction that leg 2 deletes or re-scopes the preference
+its own leg 1 was asked to add. Variant A below is still designed-only. What
+follows is the derivation, kept because the alternatives it rules out are not
+obvious from the built case.
+
+**Original framing, 2026-09-09.**
 
 Every cell in this corpus measures the *cut*. The growing-doc model says the cut
 is the second half of a loop whose first half is an incident producing an
