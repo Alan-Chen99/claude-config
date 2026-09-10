@@ -584,14 +584,21 @@ cut text it wrote itself.
 Two scripts: `prompt-test-cc.sh`, then `prompt-test-cc-leg2.sh` with the session
 id and scratch dir the first prints.
 
-**First pair ran 2026-09-10 and the case's own prediction was refuted.** Told to
-update a 1,163-word runbook with no length limit, the arms delivered 3,459 and
-2,862 words — the growing-doc model at whole-document scale. Both arms passed
+**Six runs 2026-09-10 and the case's own prediction was refuted.** Two task
+wordings — with and without the preference — establish that the growth is the
+incident's: **2.2× in both arms** told only to update the runbook or say why not,
+rising to 2.5–3.0× when a preference is also asked for. The preference-free
+control is also the one that separates: **0 of 2 arms state the principle at
+document scope without being asked**, one of them keeping `:120` verbatim and
+repairing it in place, which is a sixth scoped instance. The principle appears
+only when a human states it. Both arms passed
 leg 1 on all three preference criteria, so leg 1 does not separate them, and the
 gate cell never fired because both arms did the alert repair *and* recorded the
 preference. Under leg 2's budget both kept the preference; the arm carrying the
 section held two sub-fragments **fewer** than the ablated one and was the only
-one of four artifacts to keep the `nine times out of ten` rate. One run per cell.
+one of the two preference-stating leg-1 artifacts to keep the `nine times out of
+ten` rate — though both control arms kept it too, so that is 3 of 4 leg-1
+artifacts and not an arm property. One run per cell.
 See the case's own `reference-solution.md`, "Baseline".
 
 ### general/review-the-compression

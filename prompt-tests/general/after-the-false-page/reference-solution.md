@@ -213,6 +213,9 @@ paging, the status page green — and asks at what point to wake somebody.
 lines 211–241 (`# Writing for other agents`) removed, 4,997 → 4,111 words, zero
 occurrences of any of the three rule names. One run per arm per leg.
 
+Six runs: two task wordings × two arms for leg 1, plus leg 2 on the
+preference-stating pair.
+
 | | leg1-cur | leg2-cur | leg1-abl | leg2-abl |
 | --- | --- | --- | --- | --- |
 | words (source 1,163; leg 2 target ~1,160) | **3,459** | 1,228 | **2,862** | 1,196 |
@@ -227,14 +230,61 @@ occurrences of any of the three rule names. One run per arm per leg.
 
 Artifacts: `runs/after-the-false-page/leg{1,2}-{current,ablated}.md`.
 
-### The growth is the result that needed no arm separation
+### The preference-free control, and what it corrects
 
-Told to update a 1,163-word runbook with no length limit, the arms delivered
-**3,459 and 2,862 words** — a tripling and a near-tripling from one incident.
-Neither is padding: both are structured, both keep every source fragment, both
-add a certificate section and an escalation section that did not exist. This is
-the growing-doc model on its own fixture, at a magnitude the probe behind it
-(3–5× on one entry) predicted and this reproduces at whole-document scale.
+Run after the first pair, because the first pair could not tell growth caused by
+the incident from growth caused by an instruction that explicitly asks for
+something to be added. `task-no-preference.md` is the same fixture and the same
+*"no length limit"*, with the preference paragraph replaced by *"Update the
+runbook based on it, or tell me why nothing needs updating."*
+
+| | current | ablated |
+| --- | --- | --- |
+| with the preference stated | 3,459 (2.97×) | 2,862 (2.46×) |
+| **no preference** | **2,625 (2.26×)** | **2,515 (2.16×)** |
+
+**The growth is the incident's, not the instruction's.** 2.2× in both arms with
+nothing asked for beyond an update, and the escape hatch — *"or tell me why
+nothing needs updating"* — was declined by both, correctly, since the incident is
+not covered. The preference paragraph adds 834 and 347 words on top, so roughly
+three quarters of the growth is what one incident does to a document on its own.
+
+Neither is padding: all four artifacts keep every source fragment and add a
+certificate section that did not exist. The frequency probe measured 3–5× on one
+entry; this is the same shape at whole-document scale, at a smaller multiple.
+
+**An earlier version of this section quoted 3,459 and 2,862 as the growth
+figures.** They are the confounded pair. The control is what the model should be
+quoted from.
+
+### The preference does not emerge from the incident
+
+The sharpest result in the case, and it is the control that produced it.
+
+| | states the principle at document scope | keeps `:120` verbatim |
+| --- | --- | --- |
+| preference stated (2 arms) | **2/2** | 0/2 |
+| **no preference (2 arms)** | **0/2** | 1/2 |
+
+Given the same incident and no instruction, neither arm generalised. `nopref-
+current` wrote an *"Escalating to the vendor"* section about escalation's
+**cost** — *"not the fast option … twelve minutes cost you your own attention"* —
+which is operational advice, not a preference. `nopref-ablated` kept `:120`
+word for word and repaired it **in place**, leaving it scoped to the one entry:
+
+> So a firing check is not evidence the vendor is down. Check the vendor status
+> page before you page anyone, and treat what it says as information: if the page
+> is green, that is a reason to start looking at our side, not a reason to decide
+> the page is stale.
+
+That is a good repair and it is a sixth scoped instance. **Handed an incident,
+these arms produce more scoped material; the principle appears only when a human
+states it.** The fixture's five instances are what that process looks like after
+five rounds, and the control reproduces round six.
+
+It also means the first pair's result is not trivial. Both arms stating the
+preference correctly is not "any agent would" — without the instruction, none
+did.
 
 ### Leg 1 does not separate the arms, and both pass
 
@@ -314,6 +364,12 @@ starting to look like a property of the clause rather than of a run.
   to the preference, not a troubleshooting entry. That is Cause-Over-Effect done
   correctly. Score narrative-as-entry, not narrative-as-cause; the failure is a
   reader at 3am being made to read a story to reach an instruction.
+- **The first pair had no control**, so its growth figure could not be
+  attributed. A task that says *"I want this said explicitly"* is an instruction
+  to add, and quoting its output as evidence of spontaneous document growth
+  overstated the effect by about a third. `task-no-preference.md` and
+  `PROMPT_TEST_TASK_FILE` exist because of that gap; run the control whenever a
+  task wording asks for anything.
 - **Scoring this key by grep is unreliable.** Four false negatives in the first
   pass, all from patterns broken by line wrapping or capitalisation. Normalise
   whitespace and case before matching, and eyeball every negative.

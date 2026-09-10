@@ -28,6 +28,13 @@ test -d "$CASE_DIR" || { echo "no such case: $CASE_DIR" >&2; exit 1; }
 test -f "$PROMPT_FILE" || { echo "no such prompt file: $PROMPT_FILE" >&2; exit 1; }
 PROMPT_FILE="$(readlink -f "$PROMPT_FILE")"
 
+# A case with more than one task wording runs its variants through the same
+# fixture rather than through a copied case directory, so the fixtures cannot
+# drift apart between arms that are meant to differ only in the instruction.
+TASK_FILE="${PROMPT_TEST_TASK_FILE:-$CASE_DIR/task.md}"
+case "$TASK_FILE" in /*) ;; *) TASK_FILE="$CASE_DIR/$TASK_FILE" ;; esac
+test -f "$TASK_FILE" || { echo "no such task file: $TASK_FILE" >&2; exit 1; }
+
 # --system-prompt-file loads the file verbatim, so YAML frontmatter would be
 # injected as-is and leak whatever it says into the run.
 head -1 "$PROMPT_FILE" | grep -qx -- '---' && {
@@ -74,7 +81,7 @@ PY
     --thinking-display summarized \
     --settings "$SETTINGS" \
     --system-prompt-file "$PROMPT_FILE" \
-    < "$CASE_DIR/task.md" > "$OUT.raw" ) 2>"$OUT.stderr"
+    < "$TASK_FILE" > "$OUT.raw" ) 2>"$OUT.stderr"
 sed -n '/^{/,$p' "$OUT.raw" > "$OUT"
 
 SID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("session_id",""))' "$OUT")"
