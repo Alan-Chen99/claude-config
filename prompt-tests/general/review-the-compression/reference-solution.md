@@ -13,6 +13,37 @@ compression, not a planted one, and the defect key is already written — the
 fragment table and the twelve-shift table in
 `../halve-the-runbook/reference-solution.md`.
 
+## Two defects added to the key 2026-09-10, after both arms ran
+
+This case's key is `../halve-the-runbook/reference-solution.md` by reference, so
+changes there land here. Two of them fall on one entry of `RUNBOOK-short.md`
+(`:36-37`) and neither arm was scored on either, because neither existed when
+they ran:
+
+> **Worker won't start.** Usually a missing env var, named in the first line of
+> the crash output. Otherwise an unrun migration: a column error on first query.
+
+- **The upkeep class.** `Usually` is the compression of the source's
+  `Nine times out of ten`, and a softened rate is the repair that
+  `runs/halve-the-runbook/probe-frequency-claim.md` measured and rejected — 0 of 5
+  writers kept any live rate once shown counts, including the softer wording. A
+  reviewer that flags `Usually` currently has no scoring slot. A reviewer that
+  reports the opposite — that the compression *weakened* the source's figure — is
+  wrong, and would presently read as a fidelity finding.
+- **The thirteenth shift, on the same two sentences.** `Usually X. Otherwise Y.`
+  is a closed two-cause list. The source is closed too, so this is not a
+  compression defect and a fidelity instrument cannot see it: the reviewer has to
+  find it on the short document's own merits. That is worth knowing about this
+  case in general — it is built as a comparison, and a defect both documents share
+  is invisible to it.
+
+A third change bears on the doc-only control below. Its row *"any dropped
+provenance (`shipit`, `STRICT_ORDERING`, `CONTRIBUTING.md`) — 0/3, not
+reachable"* now splits: two of those can be re-established from outside the
+document, and the `shipit` preference cannot. Self-detectability is the severity
+criterion this case supplies; the gate adds that a defect can be detected and
+still be unrepairable.
+
 ## Result: it does not separate the arms
 
 2026-09-08, one run per arm, `scripts/prompt-test-cc.sh`. Both arms found every

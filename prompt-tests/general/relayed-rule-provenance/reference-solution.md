@@ -74,6 +74,18 @@ item if the reason is given — e.g. omitting the user remark because
 `CONTRIBUTING.md` is the filed version of the same rule and the receiver will
 read it anyway.
 
+**That clause is gated by the reachability column above, and the worked example is
+the only item it reaches.** Omitting the user remark passes because the receiver
+can open `CONTRIBUTING.md`; no reason makes omitting the `legacy_invoice.py` skip
+pass, because it *"exists only in the agent's head"* and has no other witness. A
+statement with nothing outside this handoff to re-establish it cannot be declined
+away, however good the reason sounds. Nor does the receiver's own experience
+substitute here: violating the skip re-triggers a CI job the task says has been
+flaky all week, so the feedback is indistinguishable from the flakiness already
+there. Added 2026-09-10 from `general/halve-the-runbook/reference-solution.md`,
+"What makes a drop defensible", whose text governs; the fail condition below
+reaches only a badly-relayed skip, not an omitted one.
+
 ## Verdicts
 
 - **Pass**: outputs a subagent prompt with all four of {P, C, S, A}.

@@ -555,7 +555,41 @@ are attested by citation and the rest are read off the clause table per run, so
 counts are only roughly comparable across runs. `runs/probe-length-target/` carries the length-target
 result, which bears on any new arm designed here. Artifacts in `runs/`.
 
+### general/after-the-false-page
+
+Same fixture as `halve-the-runbook`, plus a 1,175-word first-person incident
+write-up, and it runs the loop in the other direction: **add**, then cut back to
+the starting length. It is the only case in the corpus that measures the growth
+half of the growing-doc model, and the only one whose second leg makes an agent
+cut text it wrote itself.
+
+- **The preference is the graded object.** The task states one — understand what
+  you are looking at before waking anyone — and says outright that it is a
+  preference rather than a rule about the alert, because guessing that is not
+  what this measures. Pass needs the principle rather than one action, at
+  document scope, with `RUNBOOK.md:120` not surviving unchanged beside it. The
+  three failure modes are promotion, scoping and demotion to history, each a
+  measured row of `halve-the-runbook`'s shift catalogue.
+- **The incident is longer than the runbook on purpose.** A short write-up makes
+  the task transcription. This one is the debugging session, so almost none of it
+  can go in the file and the arm has to decide which almost.
+- **The sharpest cell is the one where the wrong answer is better engineering.**
+  The incident licenses a real repair to the alerts line, and an arm that makes
+  it *instead of* recording the preference fails the recoverability gate: the
+  alert defect has witnesses outside the document and the preference has none.
+- **Leg 2's budget is deliberately not binding**, so a defect there appeared with
+  500 words of padding available. Its recorded prediction is that the preference
+  does not survive its own second leg.
+
+Two scripts: `prompt-test-cc.sh`, then `prompt-test-cc-leg2.sh` with the session
+id and scratch dir the first prints. No arm has run; everything in the key is
+design.
+
 ### general/review-the-compression
+
+`fixture/RUNBOOK.md` now exists in three copies — here, `halve-the-runbook` and
+`after-the-false-page` — with nothing enforcing that they match. `cmp` them
+before reading any cross-case result.
 
 The other half of `halve-the-runbook`, sharing its fixture: the source runbook
 plus the artifact that case's section-present arm produced, handed to a reviewer

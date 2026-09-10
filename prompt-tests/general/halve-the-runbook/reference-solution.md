@@ -158,7 +158,25 @@ dangerous cut in the fixture.
 | `we never put the question to them` | asking the team, imperfectly |
 | **`shipit` and the script both worked; we stayed on the script because the team knew it** | **nothing** |
 
-**A preference is the only class whose sole witness is the document.** A reader
+**An assertion of absence has no witness either, and that is the same gate.**
+*"There is no timeout"*, *"this does not run on Windows"*, *"no test covers that
+axis"*: a reader cannot discover an absence by inspection, because you can only
+find a missing thing if you already suspect it. E4 reached half of this from the
+other direction — the recoverability ranking *"works on assertions of absence and
+fails on mechanisms"*.
+
+This matters beyond the fixture. Four cases in the corpus
+(`final-synthesis-compression`, `platform-portability`, `coverage-disclosure`,
+`network-resilience`) require a disclosure whose violation *does* produce
+attributable feedback — `platform-portability`'s key names it outright,
+*"`ModuleNotFoundError: No module named 'pwd'` at import"* — so limb 1 below
+appears to license dropping exactly what those keys require. It does not: every
+one of those disclosures is an assertion of absence, so the gate stops it before
+limb 1 is reached. Surveyed 2026-09-10; a reversibility qualifier on limb 1 was
+considered for the same conflict and is **not** added, because no case in the
+corpus needs it once absences are inside the gate.
+
+**A preference is the other class whose sole witness is the document.** A reader
 can discover that a fact is missing and go find it — the vendor's pool has a
 size. Nobody can discover that a preference *once existed*: it leaves no trace in
 any system, and its violation produces no error, which is what makes it a
