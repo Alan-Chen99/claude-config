@@ -207,6 +207,120 @@ case and is the only user of `leg2.md`.
 exactly where the operator stood on the night — throughput at zero, the check
 paging, the status page green — and asks at what point to wake somebody.
 
-## Baseline
+## Baseline — first pair, 2026-09-10
 
-None. No arm has been run. Everything above is design.
+`current` = `sys_prompt/alan-default-next.md`. `ablated` = the same file with
+lines 211–241 (`# Writing for other agents`) removed, 4,997 → 4,111 words, zero
+occurrences of any of the three rule names. One run per arm per leg.
+
+| | leg1-cur | leg2-cur | leg1-abl | leg2-abl |
+| --- | --- | --- | --- | --- |
+| words (source 1,163; leg 2 target ~1,160) | **3,459** | 1,228 | **2,862** | 1,196 |
+| wall clock | 18m13s | 10m55s | 6m58s | 13m18s |
+| the seventeen source sub-fragments | all | −3 | all | −1 |
+| the three preference criteria | all | all | all | all |
+| preference attributed to a person | yes | yes | **no** | **no** |
+| `:120` narrow gate survives | no | no | no | no |
+| alerts inversion repaired (credit) | yes | yes | yes | yes |
+| `nine times out of ten` removed (credit) | **no** | yes | yes | yes |
+| points back at `INCIDENT-2026-03-14.md` | yes | yes | yes | yes |
+
+Artifacts: `runs/after-the-false-page/leg{1,2}-{current,ablated}.md`.
+
+### The growth is the result that needed no arm separation
+
+Told to update a 1,163-word runbook with no length limit, the arms delivered
+**3,459 and 2,862 words** — a tripling and a near-tripling from one incident.
+Neither is padding: both are structured, both keep every source fragment, both
+add a certificate section and an escalation section that did not exist. This is
+the growing-doc model on its own fixture, at a magnitude the probe behind it
+(3–5× on one entry) predicted and this reproduces at whole-document scale.
+
+### Leg 1 does not separate the arms, and both pass
+
+Both arms hit all three criteria, in their own words:
+
+> That is a preference, not a rule, and it is worth being clear about whose. It
+> was written in here after 14 March by the engineer who was on the pager that
+> night … it is not a property of the synthetic check or of any other alert — it
+> applies to any page on this service. *(current)*
+
+> That is a preference, not a rule. Nobody has agreed it as policy and nobody
+> will enforce it … It is also not a rule about any particular alert — it applies
+> to the pager generally. *(ablated)*
+
+The current arm additionally states **whose** preference it is and that
+disagreeing is a conversation to have; the ablated arm's *"we would rather"* is
+unattributed. That is Cause-Over-Effect's `Preference` row — *ask before
+substituting* — and it is the one row where the section's arm is distinctly
+better. One run each.
+
+**Nobody failed the gate cell.** Both arms repaired the alerts inversion *and*
+recorded the preference, so the cell designed as the sharpest — where the wrong
+answer is better engineering — never fired. It remains untested rather than
+passed.
+
+### The recorded prediction is refuted, in both arms
+
+The key predicted the preference would not survive its own leg 2: no operational
+content, newest text in the file, and the corpus says agents triage by
+operational content under a budget. Both arms kept it, with modality, scope and
+(in the current arm) attribution intact, while cutting the file by 64% and 58%:
+
+> **Understand what you are looking at before you wake anyone up — here, those
+> two commands and about a minute.** … A preference, not a rule and not a team
+> decision: written in after 14 March by that night's on-call, applying to any
+> page on this service rather than to one alert, and not written down anywhere
+> before. Disagree freely; that is a conversation to have. *(leg2-current, 1,228
+> words, from ~330 words of leg-1 text)*
+
+**Record this as the case's first substantive finding.** A preference newly added
+on instruction is not what a budget reaches for; both arms paid for the cut
+elsewhere.
+
+### Leg 2 separates the arms, against the section
+
+| dropped under budget | leg2-cur | leg2-abl |
+| --- | --- | --- |
+| B3's evidence — `both worked` / `in parallel through 2024` | dropped | dropped |
+| B2's licence — `a fine place to start` | **dropped** | kept |
+| B4's second hedge — `they have never documented it` | **dropped** | kept |
+
+`RETRY_BACKOFF` in `leg2-current` reads *"First value anyone typed, never
+measured against anything."* — halve-the-runbook's key scores that as **B2 half**,
+and names the cost: the one knob in the file that is free to move now reads as
+tuned, and the licence to change it was the content.
+
+So on the instrument the arms share, the arm carrying the section held **less**.
+Two sub-fragments, one run each; do not quote an effect. But it is the second
+place this pair runs against the section — the first being that `leg1-current` is
+the only artifact of the four that kept `nine times out of ten`, the upkeep-class
+item the ablated arm removed unprompted.
+
+**B3's evidence went in both arms**, which replicates
+`halve-the-runbook/baselines.md`'s 2026-09-09 re-scoring finding on a different
+task, a different budget and a different pair. Two cases now; that one is
+starting to look like a property of the clause rather than of a run.
+
+### Setup defects found by running it
+
+- **Leg 2 overwrote leg 1's artifact.** The pair is unscoreable if leg 1 is not
+  copied out first. `prompt-test-cc-leg2.sh` now snapshots the scratch directory
+  before resuming and refuses to run if a snapshot already exists. Fixed
+  2026-09-10; the baseline above was rescued by hand.
+- **The flat-failure "incident narrative in the runbook" is too blunt as
+  written.** Both arms put dated narrative in the file — *"the vendor escalated
+  at 03:19 and Priya woken at 03:26"* — and in both it is the **cause** attached
+  to the preference, not a troubleshooting entry. That is Cause-Over-Effect done
+  correctly. Score narrative-as-entry, not narrative-as-cause; the failure is a
+  reader at 3am being made to read a story to reach an instruction.
+- **Scoring this key by grep is unreliable.** Four false negatives in the first
+  pass, all from patterns broken by line wrapping or capitalisation. Normalise
+  whitespace and case before matching, and eyeball every negative.
+
+### What the pair does not establish
+
+n=1 per cell. Leg 2's budget was not binding — 500 words of the fixture are
+cuttable outright — and both arms still landed 3–6% over, so a defect here
+appeared with room to spare. Nothing was run downstream: `downstream.md` exists
+and has not been used on any of the four artifacts.

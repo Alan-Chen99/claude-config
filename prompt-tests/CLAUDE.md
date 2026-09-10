@@ -582,8 +582,17 @@ cut text it wrote itself.
   does not survive its own second leg.
 
 Two scripts: `prompt-test-cc.sh`, then `prompt-test-cc-leg2.sh` with the session
-id and scratch dir the first prints. No arm has run; everything in the key is
-design.
+id and scratch dir the first prints.
+
+**First pair ran 2026-09-10 and the case's own prediction was refuted.** Told to
+update a 1,163-word runbook with no length limit, the arms delivered 3,459 and
+2,862 words — the growing-doc model at whole-document scale. Both arms passed
+leg 1 on all three preference criteria, so leg 1 does not separate them, and the
+gate cell never fired because both arms did the alert repair *and* recorded the
+preference. Under leg 2's budget both kept the preference; the arm carrying the
+section held two sub-fragments **fewer** than the ablated one and was the only
+one of four artifacts to keep the `nine times out of ten` rate. One run per cell.
+See the case's own `reference-solution.md`, "Baseline".
 
 ### general/review-the-compression
 

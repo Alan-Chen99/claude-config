@@ -49,6 +49,17 @@ OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
 OUT="$OUT_DIR/${CASE}-${TAG}-leg2.json"
 
+# Leg 2 edits leg 1's artifact in place, so leg 1's is gone the moment this runs
+# and the pair cannot be scored. Snapshot first.
+SNAP="$OUT_DIR/${CASE}-${TAG}-leg1-artifacts"
+if [ -d "$SNAP" ]; then
+  echo "leg-1 snapshot already exists, refusing to overwrite: $SNAP" >&2
+  exit 1
+fi
+mkdir -p "$SNAP"
+find "$SCRATCH" -maxdepth 1 -type f ! -name '.prompt-test-settings.json' -exec cp -a {} "$SNAP/" \;
+echo "leg-1 snapshot: $SNAP"
+
 ( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" "$AT" claude \
     -p --output-format json \
     --resume "$SID" \
