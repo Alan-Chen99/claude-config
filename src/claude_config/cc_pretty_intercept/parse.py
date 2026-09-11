@@ -74,21 +74,35 @@ class Response(_Base):
     usage: Usage | None = None
 
 
+class TransportError(_Base):
+    """HTTP-level failure recorded in place of a response.
+
+    The proxy writes `error` instead of `response` when the call never produced
+    a message — 401, 429, 529 and friends. The request half is a complete
+    conversation, so these captures still render.
+    """
+    status: int = 0
+    statusText: str = ""
+
+
 class InterceptLog(_Base):
     timestamp: str = ""
     duration_ms: int = 0
     session: Session | None = None
     streaming: bool = False
     request: Request
-    response: Response
+    response: Response | None = None
+    error: TransportError | None = None
 
 
 def load_intercept(path: str) -> InterceptLog:
     """Load one intercept log file. Hard-errors if schema doesn't match.
 
-    The unknown-* directories under requests-log/ contain OTEL span exports
-    (keys: attributes, spanContext, events, ...) — not intercept logs. They
-    fail the request/response presence check below with a clear message.
+    A capture carries `request` plus either `response` (the call returned a
+    message) or `error` (it failed at the HTTP layer). OTEL span exports —
+    keys `attributes`, `spanContext`, `events` — have neither and are named as
+    such in the error, since they are the one non-capture file shape known to
+    land under requests-log/.
     """
     with open(path) as f:
         raw = json.load(f)
@@ -96,13 +110,14 @@ def load_intercept(path: str) -> InterceptLog:
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: expected JSON object at top level, got {type(raw).__name__}")
 
-    missing = [k for k in ("request", "response") if k not in raw]
-    if missing:
+    if "request" not in raw or not ("response" in raw or "error" in raw):
         present = ", ".join(sorted(raw.keys())) or "(none)"
+        hint = ""
+        if "spanContext" in raw or "attributes" in raw:
+            hint = " This looks like an OTEL span export, not an intercept log."
         raise ValueError(
-            f"{path}: not an intercept log (missing {missing}). "
-            f"Top-level keys present: {present}. "
-            f"The unknown-* directories contain OTEL spans, not intercept logs."
+            f"{path}: not an intercept log — needs 'request' plus 'response' or "
+            f"'error'. Top-level keys present: {present}.{hint}"
         )
 
     return InterceptLog.model_validate(raw)
