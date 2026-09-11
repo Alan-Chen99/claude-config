@@ -105,6 +105,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Report content cc-pretty / cc-pretty-intercept fails to show at unbounded --tool-max
+    #[command(name = "cc-render-coverage")]
+    CcRenderCoverage {
+        /// Arguments forwarded to cc-render-coverage
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Extract sub-agent workflow summary from a session log
     CcWorkflow {
         /// Arguments forwarded to cc-workflow-extract
@@ -727,6 +734,14 @@ fn main() {
                     &root,
                     None,
                     &["python3", "-m", "claude_config.cc_pretty_intercept.main"],
+                    &args,
+                );
+            }
+            Cmd::CcRenderCoverage { args } => {
+                uv_run(
+                    &root,
+                    None,
+                    &["python3", "-m", "claude_config.cc_pretty.coverage"],
                     &args,
                 );
             }

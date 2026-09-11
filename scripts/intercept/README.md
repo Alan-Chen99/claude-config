@@ -97,6 +97,20 @@ Sessions without an ID go to `~/.claude/requests-log/unknown/`.
 }
 ```
 
+A call that failed at the HTTP layer carries `error` — `{"status": 429,
+"statusText": "Too Many Requests"}` — in place of `response`. The request half
+is a complete conversation, so `cc-pretty-intercept` renders these.
+
+Only bodies carrying both `model` and `messages` are logged, so every file on
+disk is a conversation-shaped request. That includes Claude Code's own
+auxiliary calls — its WebSearch tool reaches the API as a separate
+`claude-haiku-4-5` request declaring one server-side `web_search` tool.
+
+SSE reassembly keeps each `content_block_start` block whole and lets deltas
+fill in `text`, `thinking`, and `input`. Keeping the whole block is
+load-bearing for server-side tools: `web_search_tool_result` delivers its
+result list on the start event and nothing later restores it.
+
 ## Architecture
 
 ```

@@ -377,17 +377,21 @@ class Renderer:
 
         if isinstance(content, list):
             parts = []
+            raw_parts = []
             for sub in content:
                 if sub.get("type") == "text":
                     t = sub.get("text", "")
                 else:
                     t = str(sub)
                 truncated = truncated or len(t) > self.tool_output_max
+                raw_parts.append(t)
                 parts.append(trunc(t, self.tool_output_max))
             body = "\n".join(parts)
+            raw_body = "\n".join(raw_parts)
         else:
             truncated = len(content) > self.tool_output_max
             body = trunc(content, self.tool_output_max)
+            raw_body = content
 
         ref = block_ref(block, lineno, block_idx)
         lines = [
@@ -401,10 +405,40 @@ class Renderer:
 
         if isinstance(tur, ToolUseResultDict):
             if tur.stderr:
-                lines.append(f"    {C.DIM}stderr: {trunc(tur.stderr, 100)}{C.RESET}")
-        elif isinstance(tur, str) and tur:
-            lines.append(f"    {C.DIM}{trunc(tur, 120)}{C.RESET}")
+                lines.append(
+                    f"    {C.DIM}stderr: "
+                    f"{trunc(tur.stderr, self.tool_output_max)}{C.RESET}"
+                )
+        elif isinstance(tur, str) and tur.strip() and tur.strip() not in raw_body:
+            # The tool_result block is built from this same value, so echoing a
+            # string toolUseResult repeats the body above it. Only a divergent
+            # value carries anything new — the permission-denial marker
+            # ("User rejected tool use") against a differently-worded block.
+            lines.append(
+                f"    {C.DIM}{trunc(tur, self.tool_output_max)}{C.RESET}"
+            )
 
+        return "\n".join(lines)
+
+    def _render_unknown_block(self, block: Any, lineno: int, block_idx: int) -> str:
+        """Render a content block whose type the parser does not model.
+
+        The API's block set is open — `server_tool_use`, `web_search_tool_result`
+        and anything added later land here. Dumping the payload keeps the render
+        a complete view of its source: a block type nobody has modelled yet still
+        shows what it carried, instead of only that it existed.
+        """
+        payload = block.model_dump(exclude={"type"}, exclude_none=True)
+        ref = block_ref(block, lineno, block_idx)
+        head = (
+            f"{C.RESULT}  ◆ {block.type}{C.RESET}  {C.DIM}{ref}{C.RESET}"
+        )
+        if not payload:
+            return head
+        body = fmt_tool_input(payload)
+        lines = [head, ind(trunc(body, self.tool_output_max), "    ")]
+        if len(body) > self.tool_output_max:
+            lines.append(self._hint(lineno, _resolve_idx(block, block_idx), ""))
         return "\n".join(lines)
 
     def _render_context_text(self, text: str, lineno: int, block_idx: int) -> str:
@@ -448,6 +482,8 @@ class Renderer:
                     lines.append(self._render_tool_result(block, lineno, bi, tur=tur))
                 elif isinstance(block, TextBlock):
                     lines.append(self._render_context_text(block.text, lineno, bi))
+                else:
+                    lines.append(self._render_unknown_block(block, lineno, bi))
         return "\n".join(lines)
 
     def render_assistant_turn(
@@ -497,6 +533,8 @@ class Renderer:
                     if self.chat_only:
                         continue
                     body.append(self._render_tool_use(block, lineno, bi))
+                else:
+                    body.append(self._render_unknown_block(block, lineno, bi))
 
         # Chat-only drops turns that produced no visible content (e.g. an
         # assistant turn composed solely of tool_use blocks).
@@ -610,7 +648,7 @@ class Renderer:
             )
 
         if atype == "hook_non_blocking_error":
-            err = trunc(a.stderr or str(a.content) or "?", 200)
+            err = trunc(a.stderr or str(a.content) or "?", self.tool_output_max)
             return (
                 f"{C.ERROR}  ⊙ hook ERROR {a.hookName or '?'}: "
                 f"exit {a.exitCode}{C.RESET}\n"
@@ -654,7 +692,7 @@ class Renderer:
             return f"{C.DIM}  ⊞ date change: {a.newDate}{C.RESET}"
 
         if atype == "queued_command":
-            preview = trunc(a.prompt, 80)
+            preview = trunc(a.prompt, self.tool_output_max)
             return f"{C.DIM}  ⊞ queued [{a.commandMode}]: {preview}{C.RESET}"
 
         if atype in ("file", "edited_text_file", "compact_file_reference", "nested_memory"):
@@ -866,6 +904,12 @@ def render_skeleton(
                         leaf = ".input"
                     emit(ref, f"tool:{block.name}", size, leaf,
                          _tool_target(block.input))
+                else:
+                    raw = json.dumps(
+                        block.model_dump(exclude={"type"}, exclude_none=True)
+                    )
+                    emit(ref, f"block:{block.type}", f"{_tok(raw)}~tok", ".",
+                         f'"{_preview(raw)}"')
 
         elif isinstance(rec, UserRecord):
             if isinstance(rec.message.content, str):
@@ -895,6 +939,12 @@ def render_skeleton(
                         # cc context block — raw string at .text, not .content
                         emit(ref, "context", f"{_tok(block.text)}~tok",
                              ".text", f'"{_preview(block.text)}"')
+                    else:
+                        raw = json.dumps(
+                            block.model_dump(exclude={"type"}, exclude_none=True)
+                        )
+                        emit(ref, f"block:{block.type}", f"{_tok(raw)}~tok", ".",
+                             f'"{_preview(raw)}"')
 
         elif isinstance(rec, AttachmentRecord):
             a = rec.attachment

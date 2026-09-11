@@ -146,15 +146,17 @@ def parse_sse_stream(raw: str) -> dict:
             t = block.get("type", "unknown")
             while len(message["content"]) <= idx:
                 message["content"].append(None)
-            if t == "tool_use":
-                message["content"][idx] = {
-                    "type": t,
-                    "id": block.get("id", ""),
-                    "name": block.get("name", ""),
-                    "input": {},
-                }
-            else:
-                message["content"][idx] = {"type": t}
+            # Keep the whole start block. Server-side tools deliver their
+            # payload here rather than in deltas — web_search_tool_result
+            # carries its result list on content_block_start and nothing
+            # later restores it — so copying only `type` writes an empty
+            # husk to disk. `input` is reset because input_json_delta
+            # rebuilds it from scratch below.
+            started = dict(block)
+            if "input" in started:
+                started["input"] = {}
+            started["type"] = t
+            message["content"][idx] = started
 
         elif etype == "content_block_delta":
             idx = event.get("index", 0)

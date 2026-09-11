@@ -38,6 +38,7 @@ from claude_config.cc_pretty_intercept.parse import (
     Message,
     Response,
     SystemTextItem,
+    TransportError,
     load_intercept,
 )
 
@@ -145,7 +146,7 @@ def _render_message(
         elif isinstance(block, ToolResultBlock):
             lines.append(renderer._render_tool_result(block, lineno, bi))
         else:
-            lines.append(f"{C.DIM}  [unknown block: {block.type}]{C.RESET}")
+            lines.append(renderer._render_unknown_block(block, lineno, bi))
     return "\n".join(lines)
 
 
@@ -176,8 +177,19 @@ def _render_response(resp: Response, renderer: Renderer) -> str:
         elif isinstance(block, ToolUseBlock):
             lines.append(renderer._render_tool_use(block, 1, bi))
         else:
-            lines.append(f"{C.DIM}  [unknown block: {block.type}]{C.RESET}")
+            lines.append(renderer._render_unknown_block(block, 1, bi))
     return "\n".join(lines)
+
+
+def _render_transport_error(err: TransportError | None) -> str:
+    """Render a capture whose call failed before any message came back."""
+    detail = "no response and no error recorded"
+    if err is not None:
+        detail = f"HTTP {err.status} {err.statusText}".strip()
+    return (
+        f"{C.ERROR}┌ Transport error{C.RESET}  {C.DIM}{detail}{C.RESET}\n"
+        f"{C.DIM}  the request above never produced a response{C.RESET}"
+    )
 
 
 def main():
@@ -238,7 +250,10 @@ def main():
         print(_render_message(msg, idx, len(log.request.messages), renderer))
 
     print(separator())
-    print(_render_response(log.response, renderer))
+    if log.response is not None:
+        print(_render_response(log.response, renderer))
+    else:
+        print(_render_transport_error(log.error))
     print(separator())
 
 
