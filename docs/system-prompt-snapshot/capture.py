@@ -361,17 +361,23 @@ def spawn_claude(
     subagents: list[str] | None = None,
 ) -> int:
     env = os.environ.copy()
-    # Prevent nested session detection. CLAUDE_CODE_CHILD_SESSION additionally
-    # disables transcript saving in the child, which is not what a standalone
-    # interactive session looks like.
+    # A capture inherits none of the capturing session's own Claude Code
+    # configuration. Every CLAUDE_CODE_* variable is a knob that can change what
+    # the child's prompt says, and a capture that reads one records this
+    # machine's setup rather than the CLI's behaviour -- so committed snapshots
+    # stop being comparable to each other, silently and without a diff to show
+    # for it. Three that demonstrably do so: CLAUDECODE and
+    # CLAUDE_CODE_CHILD_SESSION make the child detect a nested session and stop
+    # saving a transcript; CLAUDE_CODE_TMPDIR moves the scratchpad path the
+    # prompt prints; CLAUDE_CODE_FORK_SUBAGENT=0 (set by this repo's
+    # settings.json since c70788a) swaps the subagent guidance from the `fork`
+    # paragraph to the older Agent/Explore bullets. Dropping the prefix wholesale
+    # rather than naming knobs keeps the next one from landing unnoticed.
+    # CLAUDE_CODE_OAUTH_TOKEN is the exception: it authenticates the child.
+    for _var in [k for k in env if k.startswith("CLAUDE_CODE_")]:
+        if _var != "CLAUDE_CODE_OAUTH_TOKEN":
+            del env[_var]
     env.pop("CLAUDECODE", None)
-    env.pop("CLAUDE_CODE_CHILD_SESSION", None)
-    # Captures are pinned to cc's own default scratch root -- os.tmpdir(),
-    # i.e. $TMPDIR or /tmp once that is unset too -- not whatever this
-    # process's own launcher redirected it to, so a capture taken from
-    # inside a claude.sh session stays comparable against every other
-    # committed snapshot instead of recording $HOME/.claude/tmp/... paths.
-    env.pop("CLAUDE_CODE_TMPDIR", None)
     # Claude Code strips CLAUDE_CODE_OAUTH_TOKEN from tool subprocess
     # environments, so a capture launched from inside a session inherits no
     # credentials. Without them the child renders "Not logged in" and issues

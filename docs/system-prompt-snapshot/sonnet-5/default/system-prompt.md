@@ -1,4 +1,4 @@
-x-anthropic-billing-header: cc_version=2.1.235.cf9; cc_entrypoint=cli; cch=e66e6; cc_prompt_id=4665d5ba-8041-4b27-a8ad-79c318b96959;
+x-anthropic-billing-header: cc_version=2.1.235.cf9; cc_entrypoint=cli; cch=6fb1f; cc_prompt_id=c4955594-688d-4f32-a7a4-440410bb8373;
 
 ---BLOCK_SEPARATOR---
 
@@ -83,7 +83,7 @@ When you use a pronoun for someone — the user or anyone else you mention — a
 
 # auto memory
 
-You have a persistent, file-based memory system at `/root/.claude/projects/-tmp-capture-cwd-lkg2g07r/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence).
+You have a persistent, file-based memory system at `/root/.claude/projects/-tmp-capture-cwd-o4kzzxt6/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence).
 
 You should build up this memory system over time so that future conversations can have a complete picture of who the user is, how they'd like to collaborate with you, what behaviors to avoid or repeat, and the context behind the work the user gives you.
 
@@ -217,7 +217,7 @@ Memory is one of several persistence mechanisms available to you as you assist t
 
 # Environment
 You have been invoked in the following environment: 
- - Primary working directory: /tmp/capture-cwd-lkg2g07r
+ - Primary working directory: /tmp/capture-cwd-o4kzzxt6
  - Is a git repository: true
  - Platform: linux
  - Shell: bash
@@ -231,7 +231,7 @@ You have been invoked in the following environment:
 # Scratchpad Directory
 
 IMPORTANT: Always use this scratchpad directory for temporary files instead of `/tmp` or other system temp directories:
-`/tmp/claude-0/-tmp-capture-cwd-lkg2g07r/c052b1d7-70d8-4255-938e-24082df2a8a8/scratchpad`
+`/tmp/claude-0/-tmp-capture-cwd-o4kzzxt6/16de3c6c-d9e6-48de-a703-6d2524d5428b/scratchpad`
 
 Use this directory for ALL temporary file needs:
 - Storing intermediate results or data during multi-step tasks

@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
 """Regenerate system prompt snapshots by running capture.py for each variant.
 
-Output: <model>/<variant>/{request.json, system-prompt.md}
+Output: <model-id>/<variant>/{request.json, system-prompt.md}
+
+The directory is named for the model id the captured request actually carried,
+minus its `claude-` prefix, not for the alias passed to `--model`. Aliases are
+repointed as models ship -- `opus` meant claude-opus-4-6 in the 2.1.143 capture
+and claude-opus-5 in this one -- so an alias-named directory silently changes
+meaning between captures while its path stays put.
+
+Which system prompt a capture receives is a property of that model id: 2.1.235
+serves the compressed `# Harness` prompt to claude-opus-5 and the older
+multi-section one to claude-opus-4-7 and every sonnet (globals/21.js `sV` ->
+`aT` -> `EAb`). Capturing both therefore requires two model ids, not a flag.
 
 Usage:
-    ./regenerate.py                      # all variants, default model (sonnet)
-    ./regenerate.py default              # just one variant
-    ./regenerate.py custom-output-style  # just one (prefix match)
-    ./regenerate.py --model haiku        # different model
-    ./regenerate.py --list               # show available variants
+    ./regenerate.py                            # all variants, default model (sonnet)
+    ./regenerate.py default                    # just one variant
+    ./regenerate.py custom-output-style        # just one (prefix match)
+    ./regenerate.py --model claude-opus-4-7    # different model
+    ./regenerate.py --list                     # show available variants
 """
 
 import json
@@ -108,10 +119,14 @@ def extract_deferred_tools(data: dict) -> list[str]:
     return names
 
 
+def model_dir(model_id: str) -> str:
+    """Directory name for a captured model id: `claude-opus-5` -> `opus-5`."""
+    return model_id[len("claude-"):] if model_id.startswith("claude-") else model_id
+
+
 def run_variant(name: str, variant: dict, model: str) -> bool:
-    out_dir = SCRIPT_DIR / model / name
     print(f"\n{'='*60}")
-    print(f"  {model}/{name}/")
+    print(f"  {model} / {name}")
     print(f"{'='*60}")
 
     claude_args = variant["claude_args"]
@@ -163,6 +178,13 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
         print(f"  FAILED: capture-output missing", file=sys.stderr)
         return False
 
+    req_model_id = json.loads(request_src.read_text()).get("model")
+    if not req_model_id:
+        print("  FAILED: captured request names no model", file=sys.stderr)
+        return False
+    out_dir = SCRIPT_DIR / model_dir(req_model_id) / name
+    print(f"  -> {out_dir.relative_to(SCRIPT_DIR)}/")
+
     out_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(request_src, out_dir / "request.json")
     shutil.copy2(system_src, out_dir / "system-prompt.md")
@@ -184,7 +206,7 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
     data = json.loads(request_src.read_text())
     sys_blocks = [s for s in data.get("system", []) if s.get("type") == "text"]
     tools = data.get("tools", [])
-    req_model = data.get("model", "claude-opus-4-6")
+    req_model = req_model_id
 
     def _strip_cc(obj):
         if isinstance(obj, dict):
@@ -286,7 +308,7 @@ def main() -> None:
         else:
             fail += 1
 
-    print(f"\nDone: {ok} ok, {fail} failed → {model}/")
+    print(f"\nDone: {ok} ok, {fail} failed (requested model: {model})")
     sys.exit(1 if fail else 0)
 
 

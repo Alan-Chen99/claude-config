@@ -14,7 +14,7 @@ isolation, the detached-daemon lifecycle, and the invariant itself. See
 
 **What broke, as measured, was the passthrough contract**, plus two failure paths that
 lost data without saying so — both since closed, along with seven others; the Status column
-below carries what is still open. The tool description in `sys_prompt/alan-default-next.md:170`
+below carries what is still open. The tool description in `sys_prompt/alan-default-next.md:170`, as it read at `18d81e5`,
 promises:
 
 > The wrapper passes the child's stdout and stderr through byte-for-byte and
@@ -491,7 +491,7 @@ BACKGROUNDED: ... To kill it: use TaskStop tool with task_id bg-42. [agent-tools
   bg-child [final(0)] pid 479080, no output, ...
 ```
 
-`sys_prompt/alan-default-next.md:171` teaches "Lines beginning `[agent-tools]` or
+`sys_prompt/alan-default-next.md:171`, as it read at `18d81e5`, teaches "Lines beginning `[agent-tools]` or
 `BACKGROUNDED:` are status from this channel". When both are present the header no
 longer begins a line. `parts.join("\n")` restores the contract.
 `scripts/check-prompt-coupling.sh` does not catch this: it greps for the literals, not
