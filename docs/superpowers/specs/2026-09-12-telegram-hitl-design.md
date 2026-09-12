@@ -65,6 +65,22 @@ message it answers, under `reply_to_message`. A reader can therefore determine
 *which question was answered* from the inbound record alone, with no join against
 outbound state and no separate question ledger.
 
+**`message_thread_id` alone does not identify a topic.** The field is documented
+as *"Unique identifier of a message thread **or forum topic** to which the message
+belongs"* (`message.d.ts:11`) — one field carrying two different things. Measured
+in the same chat, minutes apart:
+
+| Inbound | `message_thread_id` | `is_topic_message` | What it is |
+| --- | --- | --- | --- |
+| reply in General | `2` | absent | reply chain rooted at message 2 |
+| reply in topic 6 | `6` | `true` | forum topic 6 |
+
+So routing must key on `is_topic_message` to decide whether
+`message_thread_id` means a topic at all. Keying on `message_thread_id` alone
+silently classifies ordinary reply chains as topics, and topic ids and message
+ids are drawn from the same per-chat counter, so the mistaken value is not even
+obviously out of range.
+
 ## Architecture
 
 Three components, split along the inbound/outbound asymmetry above.
@@ -242,7 +258,7 @@ and `createForumTopic`. The layout is configuration.
 
 | Layout | Status | Setup required | Threading | Notes |
 | --- | --- | --- | --- | --- |
-| Supergroup forum | **Available now** | Human creates a supergroup, enables Topics, adds the bot as admin | `message_thread_id` | Mature — forums arrived in Bot API 6.3 (2022-11-05). An admin bot receives all messages regardless of privacy mode, so no reply gymnastics. |
+| Supergroup forum | **Verified working** | Human creates a supergroup, enables Topics, adds the bot as admin | `message_thread_id` | Mature — forums arrived in Bot API 6.3 (2022-11-05). An admin bot receives all messages regardless of privacy mode, so no reply gymnastics. |
 | DM with topic mode | **Blocked** | BotFather: enable **Threaded mode** (see below) | `message_thread_id` | Bot API 9.3 (2025-12-31), newest and least proven. Lives in the existing DM, so no new chat. |
 | DM with reply-threading | **Works today** | none | `reply_to_message` | Exact machine correlation, but no visual grouping beyond the quoted message. |
 
@@ -338,12 +354,11 @@ matters only as insurance against a future demotion.
 - **A chat layout**, per the table above. Each step below needs a human, because
   the Bot API can neither create a chat (only `createChatInviteLink` and
   `createChatSubscriptionInviteLink` exist) nor raise the bot's own rights.
-  `claude-channel-group` (`-1004384191085`) exists and the bot is an admin there
-  with working send and reaction access, so what remains for the supergroup
-  layout is: enable **Topics** on the group, and grant the bot **Manage
-  Topics**. Verify with `getChat` reporting `is_forum` and `getChatMember`
-  reporting `can_manage_topics: true`; `createForumTopic` succeeding is the real
-  confirmation.
+  For the supergroup layout that means two steps, both done for
+  `claude-channel-group` (`-1004384191085`): enable **Topics** on the group, and
+  grant the bot **Manage Topics** in that group's admin settings. `getChat`
+  reporting `is_forum` and `getChatMember` reporting `can_manage_topics: true`
+  confirm each; `createForumTopic` succeeding confirms both.
 
 ## Deliberately excluded
 
@@ -361,16 +376,29 @@ matters only as insurance against a future demotion.
 
 ## Unresolved
 
-Both items are externally gated and cannot be settled by inspection.
+**The supergroup layout is verified end-to-end.** In `claude-channel-group`
+(`-1004384191085`, `is_forum: true`), with the bot an administrator holding
+`can_manage_topics: true`: `createForumTopic` returned
+`{message_thread_id: 6, name: "research: alpha", icon_color: 7322096}`; a second
+topic was created independently; sends addressed with `message_thread_id` came
+back `thread=6, is_topic_message=true`; `editForumTopic` renamed a topic;
+reactions worked inside a topic; and human replies in two different threads
+arrived correctly discriminated. Topic routing is measured, not inferred.
 
-- **Topic caps and creation rate limits are undocumented.** The Bot API changelog
-  entry introducing private-chat topics states no limit, and the method
-  documentation could not be retrieved to confirm one. Undocumented is not the
-  same as absent. The design must not assume topics are free or unlimited, and the
-  real numbers should be established empirically once a topic-capable layout
-  exists.
-- **Neither topic layout has been verified end-to-end.** The DM layout fails
-  closed pending its BotFather setting; the supergroup layout has no group to test
-  against yet. Everything in this spec that concerns `message_thread_id` is
-  therefore designed against documentation and the type definitions, not against
-  a measurement — unlike the four constraints above.
+**Topic creation showed no rate limiting at the scale tested.** Fifteen
+consecutive `createForumTopic` calls all succeeded with no `retry_after` and no
+failures, and fifteen `deleteForumTopic` calls then ran at a uniform ~0.7s
+round-trip (1.4/s sustained) with no throttling. This bounds nothing: the burst
+was deliberately small to avoid flooding a real chat, so **no cap was found
+because none was looked for past fifteen**. Treat the cap as unmeasured rather
+than absent, and note that `deleteForumTopic` works, so a lifecycle is available
+if one is ever needed.
+
+Two items remain genuinely open.
+
+- **The DM layout is still unverified**, and remains so by choice rather than
+  obstruction: BotFather's Threaded mode was not located, `has_topics_enabled` is
+  `false`, and `createForumTopic` against the DM returns `the chat is not a
+  forum`. Since the layouts are the same code path and the supergroup one is
+  working, this blocks nothing.
+- **The topic cap is unknown**, per above.
