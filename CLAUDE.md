@@ -34,7 +34,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `notes/`           | Long-form investigation write-ups — measured evidence and root cause for one behaviour each | Before re-investigating a known failure mode; after finishing an investigation worth keeping |
 | `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
 | `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
-| `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — see `docs/background-sessions.md` first |
+| `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — read `sys_prompt/CLAUDE.md` (conciseness rule, and the reasoning behind individual lines) and `docs/background-sessions.md` first |
 | `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py`, `check-env-context.sh`, `prune-scratch.sh` (frees scratch disk space), and the prompt-test runners: `prompt-test-cc.sh` (Claude Code, the standard one for `sys_prompt/`), `prompt-test-cc-downstream.sh` (feeds a run's artifact to the reader it was written for), `prompt-test-run.sh` (opencode) | Running or modifying utility scripts              |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
