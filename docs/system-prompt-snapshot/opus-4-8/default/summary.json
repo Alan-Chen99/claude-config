@@ -1,0 +1,50 @@
+{
+  "model": "claude-opus-4-8",
+  "system_blocks": 4,
+  "system_tokens": 2266,
+  "tools_upfront": [
+    "Agent",
+    "Artifact",
+    "AskUserQuestion",
+    "Bash",
+    "Edit",
+    "ListAgents",
+    "Read",
+    "ReportFindings",
+    "ScheduleWakeup",
+    "SendFeedback",
+    "Skill",
+    "ToolSearch",
+    "Workflow",
+    "Write"
+  ],
+  "tools_upfront_count": 14,
+  "tools_deferred_placeholder": [
+    "DeferredToolPlaceholder"
+  ],
+  "tools_deferred": [
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "DesignSync",
+    "EndConversation",
+    "EnterPlanMode",
+    "EnterWorktree",
+    "ExitPlanMode",
+    "ExitWorktree",
+    "Monitor",
+    "NotebookEdit",
+    "PushNotification",
+    "RemoteTrigger",
+    "SendMessage",
+    "TaskOutput",
+    "TaskStop",
+    "WebFetch",
+    "WebSearch"
+  ],
+  "tools_deferred_count": 18,
+  "tools_total_tokens": 30287,
+  "has_output_style": false,
+  "has_doing_tasks": false,
+  "subagent_count": 0
+}
