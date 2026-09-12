@@ -29,12 +29,51 @@ what's measured about each and why the last three aren't directories here.
 
 | File | What |
 |---|---|
-| `<model-id>/<variant>/system-prompt.md` | System prompt blocks, separated by `---BLOCK_SEPARATOR---` |
-| `<model-id>/<variant>/request.json` | Full API request body. Metadata redacted. |
+| `<model-id>/<variant>/request.json` | Full API request body — the artifact of record. Metadata redacted. |
+| `<model-id>/<variant>/prompt.md` | Everything in that request except the tool definitions: parameters, the tool roster in request order, every system block, every message |
+| `<model-id>/<variant>/tools/<Name>.md` | One tool definition each — attributes, description, input schema |
 | `<model-id>/<variant>/summary.json` | Block count, token counts, tool inventory |
 | `capture.py` | Captures one variant via pty + MITM proxy |
 | `regenerate.py` | Drives `capture.py` across every variant, writes `summary.json` |
+| `render_capture.py` | Renders `prompt.md` and `tools/` from a `request.json`; `--tree <root>` does every capture beneath a directory |
 | `scripts/intercept/` — repo root, not under this directory | MITM proxy for API call logging (see `scripts/intercept/README.md`) |
+
+### Reading a capture as a diff
+
+`request.json` is the artifact of record and is unreadable as a diff: one line
+per string with every newline escaped, so a reworded paragraph inside
+`Artifact`'s 25,099-character description arrives in `git diff` as a single
+changed line 25,099 characters wide. `prompt.md` and `tools/<Name>.md` carry
+the same content as text, and they exist for the person reading that diff
+across a release. They are derived — never hand-edit them.
+`./render_capture.py --tree .` rebuilds them and
+`tests/test_snapshot_rendering.py` fails when they drift from the
+`request.json` beside them.
+
+The split is per tool because that is what makes the diff legible: a tool whose
+description changed is one file with line-level hunks, a tool that did not is
+absent from the diff, an added or removed tool is an added or removed file, and
+one tool's rewrite cannot displace another's inside the same hunk. Everything
+that is not a tool stays in one file, because it is read as a whole — a section
+moving between the system prompt and the messages, which 2.1.269 did to the
+environment block, is only visible if both sit in the same diff.
+
+From 2.1.269 on the review at an upgrade is `git diff` after re-capturing. An
+older release's captures predate the layout, so render them into it first:
+
+```bash
+mkdir -p /tmp/old/opus-5/default
+git show b318e59:docs/system-prompt-snapshot/opus-5/default/request.json \
+  > /tmp/old/opus-5/default/request.json
+./render_capture.py --tree /tmp/old
+diff -ru /tmp/old/opus-5/default opus-5/default
+```
+
+What no diff here can show: the deferred tools. A capture carries their names
+in a reminder and a single `DeferredToolPlaceholder` entry, never their
+descriptions or schemas — so of the 33 tools a 5-family session can reach, 18
+are outside every file in this directory, and their text is only in the
+decompiled source.
 
 Variants: `default`, `custom-output-style`, `system-prompt`, `system-prompt-file`,
 `append`, `subagent`. This snapshot captures all six for sonnet-5, `default`
@@ -51,9 +90,10 @@ per model family" below — it's per-model).
 
 | File | What |
 |---|---|
-| `subagents/NNN-system-prompt.md` | System prompt for subagent N |
-| `subagents/NNN-request.json` | Full API request for subagent N |
-| `subagents/NNN-summary.json` | Block structure and tools for subagent N |
+| `subagents/NNN/request.json` | Full API request for subagent N |
+| `subagents/NNN/prompt.md` | Everything in it except the tool definitions |
+| `subagents/NNN/tools/<Name>.md` | One tool definition each — the rosters are smaller than the parent's (5 for Explore, 9 for general-purpose, against 15) |
+| `subagents/NNN/summary.json` | Block structure and tools for subagent N |
 
 Subagent requests are identified by `cc_is_subagent=true` in the billing header,
 not by size or tool count — the security-monitor call (below) also carries tools
@@ -538,18 +578,27 @@ models — it lets the agent draft product/model-behavior feedback about Claude
 Code itself, queued locally, never sent without explicit user approval.
 
 Of the 13 upfront tools plus the placeholder that existed in 2.1.235 (14
-entries total), **ten are byte-for-byte unchanged** in both models: `Agent`,
+entries total), **nine are byte-for-byte unchanged** in both models:
 `AskUserQuestion`, `Read`, `Edit`, `Write`, `ScheduleWakeup`, `Skill`,
 `ToolSearch`, `ReportFindings`, `DeferredToolPlaceholder` — confirmed by
-diffing old against new per model with zero output. The remaining four
-changed:
+rendering the 2.1.235 `request.json` files into this directory's layout and
+diffing `tools/` per model with zero output. The remaining five changed:
 
-| Tool | Sonnet 5 (2.1.235 -> 2.1.269) | Opus 5 (2.1.235 -> 2.1.269) | What changed |
+**Correction to this section's first revision**, which reported ten unchanged
+and four changed. That comparison read `description` and not `input_schema`.
+`Agent`'s description is identical in both builds and its schema is not, so it
+was filed as unchanged; `Bash` and `Artifact` changed on both sides and only
+the description side was written up. The per-tool files render the whole
+definition, so a schema-only change now lands in the same diff as a reworded
+sentence.
+
+| Tool | Sonnet 5 description | Opus 5 description | What changed |
 |---|---|---|---|
-| `Artifact` | 12,564 -> 25,099 | 12,564 -> 25,099 | New capabilities documented inline: comments, a shared database (get/list/query/set/update/str_replace/batch), asset upload, multi-file listing, publish watching |
+| `Artifact` | 12,564 -> 25,099 | 12,564 -> 25,099 | New capabilities documented inline: comments, a shared database (get/list/query/set/update/str_replace/batch), asset upload, multi-file listing, publish watching. **Schema too**: 13 new properties (`files`, `root`, `writes`, `field`, `old_str`, `new_str`, `replace_all`, `if_version`, `as_level`, `icon`, `prompt`, `path`, `pin`), 11 more reworded, `action` gaining `read`, `watch`, `unwatch`, `status`, `resume_replies`, `list_types`, `list_files`, `read_file`, `delete`, `pin`, `unpin` and `db_op` gaining `str_replace`, `batch` |
 | `Workflow` | 19,290 -> 3,480 | 19,290 -> 3,480 | Authoring detail moved out to a new `workflow-authoring` skill (loaded on demand); the tool description now covers only when to call it (explicit opt-in via "ultracode" or direct request) and the `meta`/`phase`/`pipeline` shape |
-| `Bash` | 10,067 -> 10,078 | 1,043 -> 1,315 | Hardcoded attribution text (`Co-Authored-By:` / `🤖 Generated with`) replaced by a pointer to a system-reminder (see below) — sonnet's net change is small because that's the only edit; opus's short form also gained a sentence sonnet's long form already had, discouraging `cat`/`head`/`tail`/`sed`/`awk`/`echo` in favor of dedicated tools |
+| `Bash` | 10,067 -> 10,078 | 1,043 -> 1,315 | Hardcoded attribution text (`Co-Authored-By:` / `🤖 Generated with`) replaced by a pointer to a system-reminder (see below) — sonnet's net change is small because that's the only edit; opus's short form also gained a sentence sonnet's long form already had, discouraging `cat`/`head`/`tail`/`sed`/`awk`/`echo` in favor of dedicated tools. **Schema too**: the `description` parameter gained `"Say what the command does in plain words: do not echo the command's text, its flags, or file paths - the user reads this description, often without seeing the command."` |
 | `ListAgents` | 749 -> 777 | 749 -> 777 | Gained `"the teammates on your team"` in the list of who you can `SendMessage` to |
+| `Agent` | 7,081 unchanged | 1,811 unchanged | **Schema only**: the `model` parameter now takes precedence over "the configured default subagent model" as well as over the agent definition's frontmatter, and an omitted `model` "inherits from the parent unless a default subagent model is configured". That default is the `CLAUDE_CODE_SUBAGENT_MODEL` environment variable (`f9()`, `src/chunk-dbb93264.js:103699`, `let e = a.CLAUDE_CODE_SUBAGENT_MODEL`), which upstream's own changelog demotes from override to default at 2.1.251 and pairs at 2.1.257 with `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, which ignores per-spawn and agent-definition models alike. Neither is set in this repo |
 
 `Artifact` and `Workflow` remain byte-identical between sonnet and opus (as in
 2.1.235, new tools ship one description for both branches). `Bash`, `Agent`,
@@ -882,7 +931,7 @@ applied to their own (much shorter) persona block: the `<env>` block,
 `# Scratchpad Directory` section, and (for `general-purpose`) `gitStatus` are
 all removed from the cached persona text and reappear in a new `role: "system"`
 message the same way the main session's do — confirmed by diffing both
-`subagents/001-system-prompt.md` and `002-system-prompt.md` against 2.1.235.
+`subagents/001/prompt.md` and `002/prompt.md` against 2.1.235.
 
 ## Security-monitor calls
 
@@ -926,6 +975,10 @@ but not established here. Settling it needs one `claude -p` capture on
 Do not run two `regenerate.py` invocations in parallel — they share
 `capture-output/` and `~/.claude/requests-log/` and will overwrite each
 other's intermediates.
+
+Once the last variant lands, `git diff docs/system-prompt-snapshot` is the
+review — every configuration, every tool file, read through rather than
+skimmed. "Reading a capture as a diff" above says what that diff cannot show.
 
 ### Trust-dialog default flipped — the failure this version will most likely hit
 
