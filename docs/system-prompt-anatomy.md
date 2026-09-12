@@ -4,11 +4,11 @@ How Claude Code assembles the context sent to the model on each API call.
 
 > **Scope: claude-code 2.1.88 source** (`/repos/claude-code-src/`). The
 > assembly mechanism it describes is still broadly accurate, but the concrete
-> layout has moved on: as of 2.1.235 the reminders live in a dedicated
+> layout has moved on, and by 2.1.269 the reminders live in a dedicated
 > `role: "system"` message placed after the first user message, deferred tools
 > are represented by a single `DeferredToolPlaceholder` entry in `tools[]`, the
-> `TaskCreate` family no longer exists, and Sonnet 5 and Opus 5 receive
-> different prompt text. For what a current build actually sends, see
+> `TaskCreate` family no longer exists, and no two models measured receive the
+> same prompt text. For what a current build actually sends, see
 > [system-prompt-snapshot/README.md](system-prompt-snapshot/README.md) and
 > [system-prompt-snapshot/what-the-model-gets.md](system-prompt-snapshot/what-the-model-gets.md),
 > which are captured from live traffic rather than read from source.
@@ -323,7 +323,18 @@ non-ant users).
 
 ## Extracting the API Payload
 
-Session logs don't store the system prompt. To capture the exact payload:
+Session logs don't store the system prompt. The working way to capture the
+exact payload is `docs/system-prompt-snapshot/capture.py`, which drives a real
+session through the MITM proxy in `scripts/intercept/` and writes the request
+bodies out; `docs/system-prompt-snapshot/regenerate.py` wraps it per model and
+variant.
+
+The recipe below patched `globalThis.fetch` from a `NODE_OPTIONS --require`
+preload. **It no longer does anything.** Claude Code ships as a Bun-compiled
+binary, which ignores `NODE_OPTIONS --require`: measured on 2.1.269, a preload
+whose only job was to write a marker file left no marker, and the binary
+started normally and said nothing. It is kept here because the shape of what it
+extracted still explains what the proxy capture collects, not because it runs:
 
 ```bash
 cat > /tmp/dump-api-request.cjs << 'HOOK'
