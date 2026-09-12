@@ -129,9 +129,13 @@ fn bg_only_emits_only_bg_notice() {
         serde_json::json!({
             "session_id": "sid",
             "tool_name": "Bash",
-            "tool_input": {"command": "sleep 9999", "timeout": 5000},
+            // The timeout that applied comes back on the response, not from
+            // the input: measured on 2.1.269, a command moved to the
+            // background at its timeout carries `timedOutAfterMs` and no
+            // cause flag.
+            "tool_input": {"command": "echo hi; sleep 9999", "timeout": 5000},
             "tool_use_id": "tuid",
-            "tool_response": {"backgroundTaskId": "bt-7"}
+            "tool_response": {"backgroundTaskId": "bt-7", "timedOutAfterMs": 5000}
         }),
     );
     assert!(status.success(), "stderr: {stderr}");
@@ -148,10 +152,10 @@ fn bg_only_emits_only_bg_notice() {
 #[test]
 fn explicit_run_in_background_is_not_reported_as_timeout() {
     // Regression (main b279c25): when tool_input.run_in_background == true,
-    // BashTool returns a backgroundTaskId immediately with neither
-    // assistantAutoBackgrounded nor backgroundedByUser set
-    // (BashTool.tsx:989-1000). The post-hook must recognize this as an
-    // intentional background, not a timeout.
+    // the Bash tool returns a backgroundTaskId immediately and sets none of
+    // the cause fields its output schema declares
+    // (`src/chunk-dbb93264.js:215694-215699`). The post-hook must recognize
+    // this as an intentional background, not a timeout.
     let home = tempfile::tempdir().unwrap();
     let (status, stdout, stderr) = run_post(
         home.path(),
@@ -181,6 +185,69 @@ fn explicit_run_in_background_is_not_reported_as_timeout() {
 }
 
 #[test]
+fn each_cause_field_the_tool_declares_gets_its_own_label() {
+    // One arm per field in the Bash tool's output schema
+    // (`src/chunk-dbb93264.js:215694-215699`). Before 2.1.269 the schema
+    // instead carried `assistantAutoBackgrounded`; the two turn-abort and
+    // deliver-message fields that replaced it fell through to the timeout arm,
+    // which reported a cause that had not happened.
+    for (field, want) in [
+        ("backgroundedByUser", "Ctrl+B"),
+        ("backgroundedByTurnAbort", "turn aborted"),
+        ("backgroundedToDeliverMessage", "queued message"),
+    ] {
+        let home = tempfile::tempdir().unwrap();
+        let (status, stdout, stderr) = run_post(
+            home.path(),
+            serde_json::json!({
+                "session_id": "sid",
+                "tool_name": "Bash",
+                "tool_input": {"command": "long-running"},
+                "tool_use_id": "tuid",
+                "tool_response": {"backgroundTaskId": "bt-c", field: true}
+            }),
+        );
+        assert!(status.success(), "stderr: {stderr}");
+        let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+        let ctx = v["hookSpecificOutput"]["additionalContext"]
+            .as_str()
+            .unwrap();
+        assert!(ctx.contains(want), "{field} should read as {want}: {ctx}");
+        assert!(!ctx.contains("timeout"), "{field} is not a timeout: {ctx}");
+    }
+}
+
+#[test]
+fn an_unattributable_background_says_so_rather_than_guessing() {
+    // No cause field and no explicit run_in_background. The old code assumed
+    // a timeout here and printed tool_input.timeout as the limit, so a cause
+    // the response never stated reached the agent as fact.
+    let home = tempfile::tempdir().unwrap();
+    let (status, stdout, stderr) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Bash",
+            "tool_input": {"command": "long-running", "timeout": 5000},
+            "tool_use_id": "tuid",
+            "tool_response": {"backgroundTaskId": "bt-u"}
+        }),
+    );
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+    assert!(ctx.starts_with("BACKGROUNDED:"), "ctx: {ctx}");
+    assert!(ctx.contains("bt-u"), "ctx: {ctx}");
+    assert!(ctx.contains("not stated"), "ctx: {ctx}");
+    assert!(
+        !ctx.contains("5000"),
+        "must not pass the requested timeout off as the cause: {ctx}"
+    );
+}
+
+#[test]
 fn bg_notice_and_status_report_combined() {
     // The notice is about this tool call; the status block is about children.
     // Both belong in one additionalContext, notice first.
@@ -194,7 +261,7 @@ fn bg_notice_and_status_report_combined() {
             "tool_name": "Bash",
             "tool_input": {"command": "long-running"},
             "tool_use_id": "tuid",
-            "tool_response": {"backgroundTaskId": "bt-9", "assistantAutoBackgrounded": true}
+            "tool_response": {"backgroundTaskId": "bt-9", "backgroundedByUser": true}
         }),
     );
     assert!(status.success(), "stderr: {stderr}");
@@ -204,7 +271,7 @@ fn bg_notice_and_status_report_combined() {
         .unwrap();
 
     assert!(ctx.starts_with("BACKGROUNDED:"), "ctx: {ctx}");
-    assert!(ctx.contains("KAIROS"), "ctx: {ctx}");
+    assert!(ctx.contains("Ctrl+B"), "ctx: {ctx}");
     assert!(ctx.contains("bt-9"), "ctx: {ctx}");
     // Notice first, then the report, each header beginning its own line.
     assert!(ctx.contains("\n[agent-tools] run status @ "), "ctx: {ctx}");

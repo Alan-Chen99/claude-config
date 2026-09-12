@@ -6,11 +6,19 @@ use std::path::PathBuf;
 use crate::hook_input;
 use crate::paths;
 
-/// Ceiling on the report body. `additionalContext` is capped at 10,000
-/// characters and the runtime silently replaces anything longer with a
-/// ~2,000-character stub — which the agent would read as "nothing else
-/// changed". The margin below the cap leaves room for the reset note and the
-/// BACKGROUNDED notice sharing the same field.
+/// Ceiling on the report body, self-imposed rather than forced: the report
+/// rides on a tool result the agent asked for, and a report that crowds it out
+/// costs more than the lines it carries.
+///
+/// Claude Code does cap hook `additionalContext` — 8,000 characters and 200
+/// lines, truncating and flagging rather than dropping (`Xxn`,
+/// `src/chunk-dbb93264.js:47477-47502`) — but only on the paths that sanitize
+/// an answer through `ego` (`:47524`): cloud-relayed hooks and callback hooks.
+/// A local command hook's parsed stdout reaches the consumer unmodified
+/// (`gwe`, `:227133`, called at `:229544`). Measured on 2.1.269: a PostToolUse
+/// command hook returning 18,611 characters over 401 lines arrived whole.
+/// So this ceiling is the only one in force, and lowering it to chase a cap
+/// that does not apply here would cost lines for nothing.
 const REPORT_BUDGET: usize = 9_000;
 
 /// The one place a report header is built. Both delivery points use it, so the
@@ -112,43 +120,49 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
         .tool_response
         .get("backgroundTaskId")
         .and_then(|v| v.as_str())?;
-    let auto = input
+    let flag = |key: &str| {
+        input
+            .tool_response
+            .get(key)
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    };
+    // The Bash tool's output schema names one field per cause
+    // (`src/chunk-dbb93264.js:215694-215699`). `timedOutAfterMs` carries the
+    // timeout that actually applied, which is not the one the model asked for
+    // whenever the runtime shortened it — so the response answers this where
+    // `tool_input.timeout` could only guess.
+    let timed_out = input
         .tool_response
-        .get("assistantAutoBackgrounded")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    let user = input
-        .tool_response
-        .get("backgroundedByUser")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    // Explicit run_in_background: BashTool returns backgroundTaskId with both
-    // assistantAutoBackgrounded and backgroundedByUser unset
-    // (BashTool.tsx:989-1000). Without this check we'd misreport it as a
-    // timeout. tool_input here is whatever the pre-hook handed back as
-    // updatedInput; the rewrite preserves run_in_background verbatim.
+        .get("timedOutAfterMs")
+        .and_then(|v| v.as_u64());
+    // Explicit run_in_background is the one cause with no field of its own:
+    // the response carries the task id and none of the flags. tool_input here
+    // is whatever the pre-hook handed back as updatedInput; the rewrite
+    // preserves run_in_background verbatim.
     let explicit = input
         .tool_input
         .get("run_in_background")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    let cause = if auto {
-        "assistant-mode auto-background (KAIROS)".to_string()
-    } else if user {
+    let cause = if flag("backgroundedByUser") {
         "user manually backgrounded (Ctrl+B)".to_string()
+    } else if flag("backgroundedByTurnAbort") {
+        "turn aborted with the command still running".to_string()
+    } else if flag("backgroundedToDeliverMessage") {
+        "a queued message needed to reach the model".to_string()
+    } else if let Some(ms) = timed_out {
+        format!("timeout ({ms}ms limit hit)")
     } else if explicit {
         "explicit run_in_background: true".to_string()
     } else {
-        let limit = input
-            .tool_input
-            .get("timeout")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(120_000);
-        format!("timeout ({limit}ms limit hit)")
+        // Every cause above is a field the tool response sets. Naming a cause
+        // here would be a guess, and a wrong Cause: reads as fact.
+        "not stated by the tool response".to_string()
     };
-    // "Backgrounded" (not "involuntarily backgrounded") — auto/user/timeout are
-    // involuntary from the model's view, but explicit run_in_background is
-    // voluntary; the `Cause:` line carries the distinction.
+    // "Backgrounded" (not "involuntarily backgrounded") — every cause but the
+    // last is involuntary from the model's view, while explicit
+    // run_in_background is voluntary; the `Cause:` line carries the distinction.
     // PROMPT-COUPLED
     Some(format!(
         "BACKGROUNDED: Command was backgrounded. Cause: {cause}. \
