@@ -60,83 +60,68 @@ https://docs.anthropic.com/en/docs/claude-code/output-styles
 
 ## Reference
 
-### System prompt context
+### Where the style is delivered
 
-The system prompt is a `string[]`. `splitSysPromptPrefix()` joins all elements
-with `\n\n`. For the full layout, see
-[`docs/system-prompt-anatomy.md`](../docs/system-prompt-anatomy.md).
-
-**10 lines before** `# Output Style:` (end of `env_info_simple`, the
-immediately preceding dynamic section — `language` appears between them only if
-a language preference is set):
+**As of 2.1.269 the style is not in the system prompt at all.** It arrives in
+`messages[]` as a `role: "system"` message, inside its own `<system-reminder>`
+pair, alongside the deferred-tool, agent-type, skill and environment reminders:
 
 ```
- - Platform: linux
- - Shell: zsh
- - OS Version: Linux 6.8.0-50-generic
- - You are powered by the model named Claude Opus 4.6 (with 1M context). The exact model ID is claude-opus-4-6[1m].
- -
-
-Assistant knowledge cutoff is May 2025.
- - The most recent Claude model family is Claude 4.5/4.6. Model IDs — ...
- - Claude Code is available as a CLI in the terminal, desktop app ...
-
-<fast_mode_info>
-Fast mode for Claude Code uses the same Claude Opus 4.6 model with faster output. It does NOT switch to a different model. It can be toggled with /fast.
-</fast_mode_info>
+<system-reminder>
+# Output Style: {name}
+{prompt}
+</system-reminder>
 ```
 
-**10 lines after** (end of style content → next non-null dynamic sections →
-`systemContext` appended by `appendSystemContext()`):
+That message block carries `cache_control: {"type": "ephemeral", "ttl": "1h"}`.
 
-```
-                                            ← style content ends here
+Measured on `docs/system-prompt-snapshot/sonnet-5/custom-output-style/`: in the
+2.1.269 `request.json` the string `Explanatory` appears nowhere in `system[]`
+and the style sits in `messages[1]`; in the 2.1.235 capture of the same variant
+it is in `system[]`.
 
-When working with tool results, write down any important information you might
-need later in your response, as the original tool result may be cleared later.
-
-gitStatus: This is the git status at the start of the conversation. Note that
-this status is a snapshot in time, and will not update during the conversation.
-Current branch: main
-...
-```
-
-Between the style and `gitStatus`, additional sections may appear if active:
-`mcp_instructions` (MCP servers connected), `scratchpad` (if enabled),
-`frc` (function result clearing).
+Through 2.1.235 the style sat inside the cached `system[]` array, joined with
+`\n\n` by `splitSysPromptPrefix()`, immediately after `env_info_simple` and
+ahead of `gitStatus`, with `mcp_instructions`, `scratchpad` and `frc` able to
+appear between. Any description of a fixed "N lines before/after
+`# Output Style:`" describes that layout and no longer locates anything.
 
 ### Section boundary
 
-There is no closing marker for the output style. Sections are separate strings
-in the array, joined with `\n\n` by `splitSysPromptPrefix()`. The model infers
-where the style ends from the next `#`-level heading (the next section). Since
-output style content can contain its own sub-headings (`##`, `###`), only a
-top-level `#` heading signals a new section.
+**As of 2.1.269 the style has an explicit closing marker** — the
+`</system-reminder>` that ends its reminder. A style body may use as many
+top-level `#` headings as it likes without bleeding into what follows.
 
-When an output style is active, the intro preamble (first section in the prompt)
-reads:
+Through 2.1.235 there was no closing marker: sections were separate strings in
+`system[]` joined with `\n\n`, and the model inferred the end of the style from
+the next top-level `#` heading. That made a style carrying its own `#` headings
+(as `alan-default-next.md` does) genuinely ambiguous. The move to a delimited
+reminder removes that hazard rather than introducing one.
 
-> You are an interactive agent that helps users according to your "Output Style"
-> below, which describes how you should respond to user queries.
+When an output style is active, the intro preamble reads (2.1.269 — earlier
+versions ended the first clause with "below", which went away with the
+adjacency it referred to):
+
+> You are an interactive agent that helps users according to your "Output Style",
+> which describes how you should respond to user queries. Use the instructions
+> below and the tools available to you to assist the user.
 
 When no output style is active (default):
 
 > You are an interactive agent that helps users with software engineering tasks.
 
-Source: `prompts.ts:151-158,175-184`, `api.ts:321-435`
-
 ### Injection points
 
-The output style is registered as a `systemPromptSection('output_style', ...)`
-in the dynamic portion of the system prompt. The wrapping is minimal — just a
-heading and raw content, no closing marker:
+Through 2.1.235 the style was a `systemPromptSection('output_style', ...)`
+inside `system[]`, wrapped as a bare heading plus raw content. As of 2.1.269 it
+is a `<system-reminder>` in the `role: "system"` message instead — see "Where
+the style is delivered".
 
-```
-# Output Style: {name}
-{prompt}
-```
-
-Source: `prompts.ts:151-158`
+The `prompts.ts` and `outputStyles.ts` citations in this file point into
+`/repos/claude-code-src/`, which is pinned to v2.1.88 and predates both
+layouts; they are kept as provenance, not as addresses that resolve against
+what ships now. To re-find the current code, grep `Output Style: ` in
+`/repos/claude-code-decompiled/src/`.
 
 Styles load with descending priority: managed (policy) > project
 (`.claude/output-styles/`) > user (`~/.claude/output-styles/`) > plugin >
@@ -162,8 +147,13 @@ Two independent caches gate output style content:
    `lodash-es/memoize`. Cleared by `clearAllCaches()` (plugin operations,
    `/reload-plugins`). NOT cleared by `/clear` or `/compact`.
 
-2. **System prompt section** — `systemPromptSection('output_style', ...)`
-   caches the computed section string. Cleared by `/clear` and `/compact`.
+2. **Prompt cache breakpoint** — through 2.1.235,
+   `systemPromptSection('output_style', ...)` cached the computed section as
+   part of `system[]`, cleared by `/clear` and `/compact`. As of 2.1.269 the
+   style rides in the `role: "system"` message, which carries its own
+   `cache_control: {"type": "ephemeral", "ttl": "1h"}`, so 1h caching still
+   applies but through a different breakpoint. Whether `/clear` and `/compact`
+   still invalidate it the same way is untested.
 
 Editing a `.md` file mid-conversation requires clearing **both** caches. Since
 `/clear` only clears cache #2, edits to style files effectively require a new
