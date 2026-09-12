@@ -24,7 +24,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 
 | Directory          | What                                                    | When to read                                      |
 | ------------------ | ------------------------------------------------------- | ------------------------------------------------- |
-| `.claude/`         | Repo-local Claude Code config (incl. project-local skills) | Adding repo-local skills, settings, hooks       |
+| `.claude/`         | Repo-local Claude Code config. Project-local skills: `prompt-tests` (running/grading prompt evaluations) and `update-claude-code` (the post-Claude-Code-upgrade runbook, the inventory of what a release can break here, and the open items) | Adding repo-local skills, settings, hooks; after a Claude Code upgrade; before writing anything coupled to a Claude Code data shape |
 | `agent-tools/`     | Rust binary (`agent-tools`) wrapping skill/tool calls   | Modifying CLI wrappers, adding new commands       |
 | `src/claude_config/` | Python package: cc-pretty, cc-workflow, custom tools  | Modifying Python tooling, adding new tools        |
 | `skills/`          | Invocable skills (planner, deepthink, etc.)             | Using or modifying skills, adding new skills      |
