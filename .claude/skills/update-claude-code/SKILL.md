@@ -40,14 +40,14 @@ Ordering is load-bearing — each step's reason is why it sits where it does.
 | 4 | Re-sync the editable venv — **canonical checkout only** | from `/repos/claude-config`: `UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/claude-config uv sync --reinstall-package claude-config` | `check-env-context.sh` runs under this venv, so a stale install loads the old `drift.py`. `--reinstall-package` is required because the package version never bumps. **Run it from a worktree and it repoints the shared venv's editable install at that worktree** (`+ claude-config @ file:///root/claude-config-work2`), breaking every other session once the worktree is deleted — the same hazard as `install.sh`. A worktree has its own venv at `$HOME/.claude/venvs/<basename>`, selected by the `UV_PROJECT_ENVIRONMENT` that `.envrc` exports through direnv, so a worktree needs no step 4. |
 | 5 | Check, then re-pin, env-context | `./scripts/check-env-context.sh` → review the `+`/`-`/`~` diff → `./scripts/check-env-context.sh --update` | The diff is the single best summary of what changed in cc's own `# Environment` block. Re-pin only after reading it — `--update` overwrites the evidence. |
 | 6 | Resolve every source citation | `bash .claude/skills/update-claude-code/citecheck.sh` | 135 `chunk-*.js:LINE` citations live in tracked files; only 2 are re-derived by any test. Exit 0 = all resolve; 1 = the unresolved ones are named on stdout; 2 = no decompiled tree, i.e. step 2 was skipped. |
-| 7 | Rebase the upstream-derived prompts | `python3 scripts/check-prompt-upstream.py`, then the section-key diff it does not do | `sys_prompt/` replaces Claude Code's own system prompt wholesale, so passages copied from it go stale with no signal and nothing else in this list reads prose. The script needs step 2's tree and exits 2 without it. The procedure, the deliberate divergences and the per-release log are in `sys_prompt/CLAUDE.md`, "Rebasing on an upstream release" — that text governs; this row only says when to run it. |
+| 7 | Rebase the upstream-derived prompts | `python3 scripts/check-prompt-upstream.py`, then the section-key diff it does not do | `sys_prompt/` replaces Claude Code's own system prompt wholesale and the env-context hook re-emits the block that replacement discards, so passages copied from either go stale with no signal and nothing else in this list reads prose. The script needs step 2's tree and exits 2 without it. The procedure, the deliberate divergences and the per-release log are in `sys_prompt/CLAUDE.md`, "Rebasing on an upstream release" — that text governs; this row only says when to run it. |
 | 8 | Rebuild and test | `cd agent-tools && cargo build --release && cargo test --release`; `uv run pytest tests/ -q`; `./scripts/check-prompt-coupling.sh` | |
 | 9 | Check the renderer against real logs | `ls -t /root/.claude/projects/*/*.jsonl \| head -8 \| uv run cc-render-coverage --quiet` | New record and attachment shapes land here first. |
 | 10 | Re-capture the system-prompt snapshots | see `docs/system-prompt-snapshot/README.md` "Regenerating" | Needs step 4's venv, the MITM proxy on 9160, and `CLAUDE_CODE_OAUTH_TOKEN`. Never run two `regenerate.py` in parallel — they share `capture-output/`. |
 | 11 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / `OK: 13 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `329 passed` / 15 cargo test binaries all `ok` /
+binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `329 passed` / 15 cargo test binaries all `ok` /
 `prompt coupling OK` / `8 file(s) checked: clean`.
 
 **Where to run each step.** Steps 4, 10 and 11 touch shared state and belong in the
@@ -77,7 +77,7 @@ This table is the point of the skill. A green run below still leaves all of this
 | `cc-render-coverage` | The default view's **selection**. It renders with `show_all` set and draws needles only from `assistant`/`user` records, so attachment/progress/system records contribute none. It cannot see a record being dropped. |
 | `pytest` | Every citation but one. `tests/test_model_visibility.py::test_denylist_still_matches_the_conversion_source` re-derives `_NEVER_VISIBLE_ATTACHMENT_TYPES` from the decompiled source by string marker — and `skipif`s when `/repos/claude-code-decompiled/src` is absent, so it reports success by not running. |
 | `check-prompt-coupling.sh` | Claude Code entirely. It greps this repo's own files against each other. |
-| `check-prompt-upstream.py` | Everything upstream says that this repo never copied. It re-checks 13 borrowed passages, so a section a release adds — or reworded text this prompt does not carry — is invisible to it. Where a passage occurs more than once it reports that the count moved, not which copy moved. |
+| `check-prompt-upstream.py` | Everything upstream says that this repo never copied. It re-checks 15 borrowed passages, so a section a release adds — or reworded text this prompt does not carry — is invisible to it. Where a passage occurs more than once it reports that the count moved, not which copy moved. |
 | CI | Everything. `.github/workflows/skills-test.yml` runs only `skills/scripts/` tests, only on `skills/scripts/**` paths. No drift check runs in CI. |
 
 ## 3. The coupling inventory — what an upgrade can break
@@ -104,8 +104,9 @@ This table is the point of the skill. A green run below still leaves all of this
 `src/claude_config/env_context/` reimplements cc behaviour and must track it:
 `environment.py:26-66` (`resolve_shell` ≙ cc's `das()`), `:95-116` (`worktree_common_dir` ≙ `pP()`),
 `scratchpad.py:22-54` (path algorithm, incl. the 200-char slug limit past which cc appends a hash
-this module does not implement — it raises instead), `render.py:38-47` (`STASH_CAUTION` copied
-verbatim from cc's `KUt`), `drift.py:42-46` (anchor and window constants tuned to the binary layout),
+this module does not implement — it raises instead), `render.py:41-50` (`STASH_CAUTION` copied
+verbatim from cc's `KUt`, and pinned by `scripts/check-prompt-upstream.py` — `check-env-context.sh`
+covers the block's field set, not its wording), `drift.py:42-46` (anchor and window constants tuned to the binary layout),
 `drift.py:186-203` (a timeout budget whose comment says to re-check the sum if any of the three
 numbers moves).
 

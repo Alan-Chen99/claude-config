@@ -29,7 +29,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NotRequired, TypedDict
 
-# cc's own wording, `KUt`, chunk-dbb93264.js:29119, in full. The second half
+# cc's own wording, `KUt`, chunk-dbb93264.js:29119, in full. Pinned by
+# `scripts/check-prompt-upstream.py`, which is what fails when cc rewords it:
+# `scripts/check-env-context.sh` pins only the first 182 characters, and the
+# clause that matters is past that. The second half
 # defines what "bare" means by naming the safe alternative (a tagged,
 # recoverable stash) — drop it and "never use bare `git stash`" has no
 # working definition of non-bare, and the obvious misreading (bare means no

@@ -85,7 +85,12 @@ python3 scripts/check-prompt-upstream.py
 ```
 
 It pins the passages `alan-default-next.md` took from upstream and requires each to appear verbatim
-on both sides. A pin missing from the source means upstream reworded a line this file still carries;
+on both sides. It covers the other file that authors prompt text by copying Claude Code's, too: the
+SessionStart hook in `src/claude_config/env_context/`, which re-emits the environment block
+`--system-prompt-file` discards. `scripts/check-env-context.sh` pins that block's *field set*
+against the installed binary and not its wording, so the two borrowed sentences are pinned here
+instead. That hook keeps its own record of what it duplicates and why, in
+`src/claude_config/env_context/__main__.py`. A pin missing from the source means upstream reworded a line this file still carries;
 a pin missing from the prompt means a borrowed line was edited without the divergence being
 recorded. Both are decisions to make here, not edits to the script. It exits 2 rather than reporting
 success when the decompiled tree is missing, or when its `src/cli.js` version is not the installed
@@ -146,6 +151,7 @@ decoded string rather than the source line.
 | new `willow_tern` section, `# Writing for the user`: a ten-rule contract for the final message | **Not adopted.** It is off by default for Opus 5, so it is a preview rather than shipped guidance, and it contradicts `## Response template`, which requires headers on every response where the new text bans them under about 500 words. Revisit if it ships on by default. |
 | new `brook_heron` section, whose text arrives from client data or growthbook keyed by model | Nothing to rebase — served, not shipped. Recorded so that unfamiliar text in a future capture is recognised instead of hunted for in the binary. |
 | everything `alan-default-next.md` borrows: the five `# Harness` bullets, the action-caution paragraph, `# Context management`, three `# Session-specific guidance` bullets | Byte-identical across the two builds. Now pinned by `scripts/check-prompt-upstream.py` instead of re-read by hand. |
+| the environment block, which the env-context hook re-emits: its facts left the system prompt for the attachment, it gained a scratchpad bullet, and the model and knowledge-cutoff lines left it | Nothing, and that is a deferred decision rather than a finished one — a `--system-prompt-file` session now receives Claude Code's own copy as well, so most of what the hook renders is a second copy. `env_context/__main__.py` holds the finding. Its two borrowed sentences are unchanged and now pinned. |
 | the legacy prompt body, which `alan-default.md` is the copy of | Nothing. The four removals above hit that branch too, and its six prose sections are unchanged between the 2.1.235 and 2.1.269 sonnet captures. Unpinned: nothing loads this file. `claude.sh` and the three runners that take a prompt file — `prompt-test-cc.sh`, `prompt-test-cc-leg2.sh`, `prompt-test-run.sh` — all default to `-next`, and `prompt-test-cc-downstream.sh` deliberately runs the stock prompt with no prompt file at all. Reaching this file takes an explicit runner argument. |
 
 ## Why the prompt says what it says
