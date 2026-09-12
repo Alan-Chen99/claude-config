@@ -56,10 +56,15 @@ listed …`, and `… N more changed, omitted for size …`.
 `BACKGROUNDED:` is emitted by `hook_post.rs` only when a tool response carries
 `backgroundTaskId`. Bash returns one for an explicit `run_in_background: true`, and for a
 foreground command moved to the background when it outruns its `timeout`; the notice's
-`Cause:` field separates those two from an assistant-mode auto-background and from a user's
-Ctrl+B. A command the harness will not background — anything other than a single simple
-command, or one whose first word is `sleep` — is killed at its timeout instead, and no
-notice is emitted.
+`Cause:` field separates those two from a user's Ctrl+B, a turn abort, and a background
+taken so a queued message could reach the model — one response field per cause
+(`src/chunk-dbb93264.js:215694-215699`), and the notice says the cause is unstated rather
+than naming one when no field is set. A command the harness will not background — one
+whose first statement's first word is `sleep` (`yzs`, `src/chunk-dbb93264.js:215729`,
+against the one-entry list at `:215644`) — is killed at its timeout instead, and no notice
+is emitted. Nothing else about the command's shape disqualifies it: measured on 2.1.269,
+`echo start; sleep 25` at `timeout: 3000` came back with a `backgroundTaskId` and
+`timedOutAfterMs: 3000`.
 
 ## Keys
 

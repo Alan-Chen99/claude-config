@@ -86,33 +86,49 @@ CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module>
 foreground and return its report as the tool result of the call that launched it.
 
 Neither half works alone. Claude Code decides subagent backgrounding in the Agent tool with
-a disjunction: the fork-subagent gate is one term, and the last term is
-`run_in_background !== false`, which holds whenever the parameter is omitted. Turning the
-gate off without the hook still backgrounds, and the hook without the gate turned off is
-outvoted by the gate. The price is the `fork` subagent type, which disappears outright —
-`Agent type 'fork' not found. Available agents: …`.
+a disjunction (`q4o`, `src/chunk-dbb93264.js:103955-103969`): the fork-subagent gate is one
+term, and the last term is `run_in_background !== false`, which holds whenever the parameter
+is omitted. Turning the gate off without the hook still backgrounds, and the hook without
+the gate turned off is outvoted by the gate. The price is the `fork` subagent type, which
+disappears outright — `Agent type 'fork' not found. Available agents: …`.
+
+Two terms of that disjunction the hook cannot outvote: an agent definition declaring
+`background: true` of its own, and `isolation: "remote"`, which sits outside the
+background-tasks guard entirely. No agent in `agents/` declares either, so neither is
+reachable here today; both would be, the moment one did.
 
 `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is the alternative. It holds subagents foreground
-on its own, with no hook, and keeps `fork`; what it costs instead is the whole
+on its own — bar a remote-isolation launch, which runs async regardless — with no hook, and
+keeps `fork`; what it costs instead is the whole
 background-task facility, a far larger loss than `fork`. Measured in one interactive session
 each:
 
 | | `DISABLE_BACKGROUND_TASKS=1` | `FORK_SUBAGENT=0` + hook |
 | --- | --- | --- |
 | Bash `run_in_background` | absent from the schema | present; returns a task id and re-invokes the agent when the command exits |
-| A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id, unless ineligible — anything but a single simple command, or one led by `sleep`, which is still killed |
+| A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id, unless its first statement starts with `sleep`, which is still killed |
 | `BACKGROUNDED:` from `hook_post.rs` | cannot fire, since no tool response carries `backgroundTaskId` | fires, naming the cause and the task id |
 | `subagent_type: "fork"` | available | `Agent type 'fork' not found` |
 | Foreground `sleep` | permitted | the Bash description says it is blocked, and to use Monitor with an until-loop |
 
-Source only, not exercised under either setting: MCP auto-background, the Ctrl+B
-backgrounding affordance (`src/chunk-qxhez8yz.js:32`), observer agents, and skills
-declaring `background: true` (the last two are agent/skill frontmatter fields,
-`src/chunk-20krfdjm.js:163`). All four still ship in 2.1.269. That each is gated on
-background tasks being enabled — and so returns under the current setting — was
-established against 2.1.235 and is recorded in
-`notes/subagent-backgrounding-overrides-run-in-background.md`; it has not been re-verified
-against this version.
+Source only, not exercised under either setting: MCP auto-background
+(`src/chunk-jtrs4f58.js:255`), the Ctrl+B backgrounding affordance
+(`src/chunk-qxhez8yz.js:99`, with the keybinding itself at `:32`), observer agents (`Zfe`,
+`src/chunk-dbb93264.js:74088`), and forked skills (`y9t`,
+`src/chunk-dbb93264.js:173976`). All four still ship in 2.1.269, and each opens on the same
+`rc()` background-tasks check, so each returns under the current setting — re-read against
+this version rather than carried over from the 2.1.235 reading in
+`notes/subagent-backgrounding-overrides-run-in-background.md`.
+
+The skill half is not opt-in as that note has it: `background` defaults to true for any
+skill declaring `context: fork`, and `background: false` is the opt-out that keeps the
+caller waiting (`src/chunk-dbb93264.js:54434`).
+
+`CLAUDE_AUTO_BACKGROUND_TASKS` is a third knob neither setting covers: set, it moves a
+foreground subagent to the background after its interval (`iTs`,
+`src/chunk-dbb93264.js:171747`, wired at `:172571`). Unset here, so inert — but it means
+the gate-plus-hook pair guarantees a synchronous subagent only in an environment that
+leaves it unset.
 
 The Agent tool's own description says subagents run in the background by default and that a
 notification follows. The hook makes that false, so `sys_prompt/alan-default-next.md`
