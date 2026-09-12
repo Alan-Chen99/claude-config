@@ -4,16 +4,26 @@ Everything the model receives, in order, on a fresh interactive session with a
 project CLAUDE.md, no output style.
 
 v2.1.269. Source: `sonnet-5/default/request.json`, `opus-5/default/request.json`,
-`opus-4-7/default/request.json`. Capture uses `--setting-sources project,local`
-to isolate from user settings. See README.md for capture mechanics, the
-per-block character methodology, and everything flagged there as not
-re-verified this round (backgrounding, `-p` mode, the security-monitor calls).
+`opus-4-7/default/request.json`, `fable-5/default/request.json`,
+`opus-4-8/default/request.json`. Capture uses `--setting-sources
+project,local` to isolate from user settings. See README.md for capture
+mechanics, the per-block character methodology, and everything flagged there
+as not re-verified this round (backgrounding, `-p` mode, the
+security-monitor calls).
 
-**Sonnet 5 and Opus 5 still do not receive the same prompt**, and the split is
-still per model id rather than per family: opus-4-7 sits on the same branch as
-sonnet, and opus-5 alone gets the compressed harness prompt. Every section
-below is given per model where the two differ, same as the 2.1.235 version of
-this document.
+**No two of these five models receive the same prompt**, and the "compressed
+vs long-form" branch from earlier versions of this document is real but
+coarser than it looks: opus-4-7 and sonnet-5 share the long-form branch (and
+still differ from each other, as before); opus-5, fable-5, and opus-4-8 share
+the compressed `# Harness` branch, but even within that branch no two of the
+three have identical text. Opus-5 and fable-5 happen to share a
+byte-identical block 2 — confirmed by string equality, not just length — but
+opus-4-8's block 2 differs from both by one bullet, and all three have
+distinct block 3 content. "The compressed prompt" is not one object; see
+README.md, "The prompt split is per model id, not per model family," for the
+full comparison and the two source-traced (one solved, one open) mechanisms
+behind it. Every section below is given per model where they differ, same as
+the 2.1.235 version of this document.
 
 Sizes below are **characters**, measured directly from the `request.json`
 files in this worktree. The 2.1.235 version of this document used
@@ -86,12 +96,14 @@ branch (opus-4-7's copy differs from sonnet's only in fixed, pre-existing
 ways — see the per-branch table in README.md — and is likewise unchanged
 since 2.1.235).
 
-## system[2] — opus (1,210 chars, cached 1h global)
+## system[2] — opus, fable, and opus-4-8 (1,210 / 1,210 / 1,152 chars, cached 1h global)
 
 An eighth of sonnet's, unchanged from 2.1.235. The five sonnet sections
 collapse into one, and — confirmed now by reading the literal text rather than
 inferring from the old doc's placeholder — opus's copy has never carried the
-URL-guessing `IMPORTANT` line sonnet and opus-4-7 have:
+URL-guessing `IMPORTANT` line sonnet and opus-4-7 have. `fable-5/default`'s
+system[2] is not merely similar to this — it is byte-for-byte the same 1,210
+characters, checked by string equality, not length:
 
 ```
 You are an interactive agent that helps users with software engineering tasks.
@@ -100,13 +112,31 @@ IMPORTANT: Assist with authorized security testing, defensive security, CTF chal
 
 # Harness                       [5 bullets]
 {markdown-in-terminal rendering, permission model and denied calls,
-mid-conversation system turns and hooks, prefer file/search tools + parallel
+ONE BULLET THAT VARIES BY MODEL (below), prefer file/search tools + parallel
 calls, file_path:line_number is clickable}
 ```
 
+`opus-4-8/default`'s system[2] is *not* the same text — 1,152 chars, 58
+shorter, differing from opus-5/fable-5 in exactly one bullet:
+
+| Model | The varying bullet |
+|---|---|
+| opus-5, fable-5 | "The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results. Hooks may intercept tool calls; treat hook output as user feedback." |
+| opus-4-8 | "`<system-reminder>` tags in messages and tool results are injected by the harness, not the user. Hooks may intercept tool calls; treat hook output as user feedback." |
+
+Which wording a model gets is **not established** — traced to a function,
+`yyn(n, "lean")`, gated by a condition `hyn(e)` whose obvious explanation (a
+`mid_conv_system` registry capability) was checked directly and disproved:
+sonnet-5, opus-5, fable-5, and opus-4-8 all declare that capability, yet only
+opus-5 gets the first wording. See README.md for the exact source citation,
+`hyn`'s real (untraced) condition, and why this is stated as an open question
+rather than a guess.
+
 Same gap as 2.1.235: no opus equivalent of `# Doing tasks`, `# Executing
-actions with care`, or `# Tone and style` here; that guidance still lives in
-`# Delivering work` and `# Corrections` in system[3].
+actions with care`, or `# Tone and style` here; that guidance lives in
+system[3] instead — in `# Delivering work` and `# Corrections` for opus, in a
+differently-organized set of sections for fable, and in a fourth, shorter
+arrangement for opus-4-8, all three of which differ from each other (below).
 
 ## system[3] — sonnet (17,128 chars, cached 1h org)
 
@@ -243,14 +273,102 @@ Opus still has no `# Text output` block; `# Delivering work` and
 `# Corrections` still carry the guidance sonnet gets inside `# Doing tasks`
 and `# Text output`.
 
+## system[3] — fable (9,571 chars, cached 1h org)
+
+Shares system[2] with opus (above), but system[3] is its own arrangement —
+not opus-5's sections with a swapped self-description, a different set of
+headings and content entirely:
+
+```
+# Communicating with the user
+{write for a teammate who stepped away, not a log file; lead with the
+outcome; text between tool calls may not be shown, put everything the user
+needs in the final message; tables only for short enumerable facts; match
+response length to the question}
+
+{write code that reads like the surrounding code; they/them pronoun default;
+confirm hard-to-reverse or outward-facing actions; report outcomes
+faithfully}
+
+{Fable/Mythos positioning paragraph: "Claude Fable 5, the first model in
+Anthropic's new Claude 5 family and part of a new Mythos-class model tier
+that sits above Claude Opus in capability... Claude Fable 5 and Claude
+Mythos 5 share the same underlying model. Claude Fable 5 includes additional
+safety measures for dual-use capabilities, while Claude Mythos 5 is
+available without those measures to only approved organizations..."}
+
+# Session-specific guidance   [3 bullets — same text as opus's]
+# Memory                      [2 bullets — same text as opus's]
+# Environment                 [3 bullets — same ecosystem trivia as every model]
+# Context management          {summarization notice, PLUS: an
+                               operating-autonomously paragraph, an exception
+                               for pure questions, an end-of-turn checklist,
+                               and a system-state-change caution — none of
+                               which appear in opus-5/default}
+
+EndConversation (deferred tool): use only for sustained user abuse directed
+at the assistant, or when the user explicitly asks to see it demonstrated.
+Load the full guidance via ToolSearch("select:EndConversation") before using
+it.
+
+<total_tokens>N tokens left</total_tokens>
+```
+
+No `# Delivering work` or `# Corrections` heading at all — the guidance
+those carry for opus is either absent or folded into the new
+`# Communicating with the user` / expanded `# Context management` sections
+instead.
+
+**This is Fable-specific, not elapsed-time content drift** — settled, not
+still open. A same-time control was run: `opus-5/default` was recaptured
+~30 minutes after `fable-5/default`, 3.5 hours after its own first capture,
+and came back byte-identical to that first capture except the two things
+that vary per capture by construction (the billing-header fingerprint and
+the temp-directory string in the memory path) — checked directly, block by
+block. Opus-5's prompt did not move in that window, so the gap between the
+opus-5 and fable-5 captures cannot be what produced fable-5's different
+block 3.
+
+The `# Communicating with the user` section specifically has a partially
+traced cause: it comes from a section-builder, `lRo(e)`, that takes this
+branch when `sce(n, e) || Gyr(n, e) || Vyr(n, e) || Kyr(n)` holds, and
+otherwise falls through to opus's bare one-line opener (if the model is on
+the lean-prompt branch) or sonnet's `# Text output` heading (if not) — a
+three-way branch that exactly reproduces all three observed outcomes.
+`fable-5`'s model registry declares a `fable_5_mitigations` capability that
+one of those four functions, `sce`, reads directly. **Not established**:
+which of the four is actually true for `claude-fable-5`, or whether opus-5
+and opus-4-8 fail all four or just `sce`. See README.md, "The prompt split is
+per model id, not per model family," for the full citation, and for
+`opus-4-8/default`'s own system[3] — a fourth, shorter arrangement, neither
+opus-5's nor fable-5's.
+
+## system[3] — opus-4-8 (5,278 chars, cached 1h org)
+
+Shortest of the five, and not a fourth distinct arrangement so much as
+opus-5's system[3] with two sections removed: `# Session-specific guidance`,
+`# Memory`, and `# Environment` are byte-identical to opus-5's (checked
+directly, modulo the random per-capture memory-path string), and the bare
+one-line opener (`"Write code that reads like the surrounding code..."`) is
+the same too. What's missing is `# Delivering work` and `# Corrections` —
+and unlike fable-5, nothing replaces them; that guidance is simply absent
+for opus-4-8, not folded into another section. `# Context management`
+carries only the summarization notice, same as everyone else's currently
+does (see README.md, "What moved out of block 3," for the
+act-when-you-have-enough-information paragraph's own separate,
+flag-gated absence).
+
 ## Tools — upfront (14, one new)
 
 14 callable tools plus a `DeferredToolPlaceholder` entry flagged
 `defer_loading: true`. Sent in `tools[]`, not in the system prompt. (The
-capture first taken for `sonnet-5/default` read 13, missing `SendFeedback`;
-a re-capture came back at 14, matching every other capture in the batch —
+captures first taken for `sonnet-5/default` and, separately, `fable-5/default`
+each read 13, missing `SendFeedback`; a re-capture of each came back at 14,
+matching every other capture in the batch. This isn't unattributed noise —
+it's a remote GrowthBook flag, `tengu_juniper_relay`, defaulting to off and
+occasionally resolving that way even with a correct value cached on disk;
 see README.md, "The upfront tool roster is not a pure function of version
-and model id.")
+and model id," for the mechanism and its citations.)
 
 | Tool | Sonnet chars | Opus chars | Same text both models? | Changed since 2.1.235? |
 |---|---|---|---|---|
@@ -328,6 +446,15 @@ this list minus `EndConversation`, plus `TaskCreate`/`TaskGet`/`TaskList`/
 "one more upfront tool" story this version is `SendFeedback`; nothing moved
 between the upfront and deferred lists, and nothing was added to or dropped
 from the deferred list itself.
+
+Opus-4-7's missing `EndConversation` is not a bare per-model quirk: its gate
+checks the model version against a per-family minimum
+(`[["opus",[4,8]],["sonnet",[5]],["fable",[5]],["mythos",[5]]]`) before it
+ever looks at the feature flag that governs the tool for everyone else.
+`claude-opus-4-7` parses to `[4,7]`, which never clears `opus`'s `[4,8]`
+floor, so it's excluded deterministically, independent of any flag state —
+see README.md, "The upfront tool roster is not a pure function of version
+and model id," for the citation.
 
 The Bash tool description still says `NEVER use the TaskCreate or Agent
 tools` (commit example) and `DO NOT use the TaskCreate or Agent tools` (PR

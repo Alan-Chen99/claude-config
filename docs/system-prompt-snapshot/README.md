@@ -20,8 +20,10 @@ prefix. Aliases are repointed as models ship — `opus` meant `claude-opus-4-6` 
 the 2.1.143 capture and still means `claude-opus-5` here — so an alias-named
 directory changes meaning between captures while its path stays put. 2.1.269
 also ships `claude-fable-5`, `claude-fable-5-1`, `claude-mythos-5`,
-`claude-mythos-5-1`, and `claude-opus-4-8` as selectable ids; none of them are
-captured as directories here — see "Fable and Mythos" below for why.
+`claude-mythos-5-1`, and `claude-opus-4-8` as selectable ids. `fable-5/` and
+`opus-4-8/` are now captured (`default` only, each); `fable-5-1`,
+`mythos-5`, and `mythos-5-1` are not — see "Fable and Mythos" below for
+what's measured about each and why the last three aren't directories here.
 
 ## Files
 
@@ -36,8 +38,12 @@ captured as directories here — see "Fable and Mythos" below for why.
 
 Variants: `default`, `custom-output-style`, `system-prompt`, `system-prompt-file`,
 `append`, `subagent`. This snapshot captures all six for sonnet-5, `default`
-for opus-4-7, and — new this round — both `default` and `system-prompt-file`
-for opus-5.
+for opus-4-7, both `default` and `system-prompt-file` for opus-5, and
+`default` only for fable-5 and opus-4-8 — both added after an account
+entitlement upgrade partway through this snapshot's capture session, opus-4-8
+specifically to test whether fable's prompt was an oddity of the Fable
+family or genuinely per-model (see "The prompt split is per model id, not
+per model family" below — it's per-model).
 
 ### Subagent captures
 
@@ -92,35 +98,46 @@ totals below (the `system_tokens` / `tools_total_tokens` figures) are exact:
 they were measured by `count_tokens` at capture time and are stored in each
 variant's `summary.json`.
 
-| Block | Content | Cache | Opus 4.7 | Sonnet 5 | Opus 5 |
-|---|---|---|---|---|---|
-| 0 | Billing header (`cc_version=2.1.269...`) | none | 132 | 132 | 132 |
-| 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 57 | 57 | 57 |
-| 2 | Static behavioral rules | 1h, global scope | 10,676 | 10,574 | 1,210 |
-| 3 | Session guidance, memory, environment (ecosystem facts only — see below), context mgmt | 1h, org scope | 16,895 | 17,128 | 8,546 |
+| Block | Content | Cache | Opus 4.7 | Sonnet 5 | Opus 5 | Fable 5 | Opus 4.8 |
+|---|---|---|---|---|---|---|---|
+| 0 | Billing header (`cc_version=2.1.269...`) | none | 132 | 132 | 132 | 132 | 132 |
+| 1 | Identity (`"You are Claude Code, Anthropic's official CLI for Claude."`) | none | 57 | 57 | 57 | 57 | 57 |
+| 2 | Static behavioral rules | 1h, global scope | 10,676 | 10,574 | 1,210 | 1,210 | 1,152 |
+| 3 | Session guidance, memory, environment (ecosystem facts only — see below), context mgmt | 1h, org scope | 16,895 | 17,128 | 8,546 | 9,571 | 5,278 |
 
-Blocks 0 and 1 are unchanged byte-for-byte from 2.1.235 (same 132/57 chars,
-confirmed by `git diff` producing no hunk in that region for any of the eight
-variant pairs checked). **Block 2 is unchanged byte-for-byte from 2.1.235 for
-every model** — same result, and the char counts match the 2.1.235 doc's
-10,676/10,574/1,210 exactly. All of the block-level change this round is in
-block 3; see "What moved out of block 3" below.
+Blocks 0 and 1 are unchanged byte-for-byte from 2.1.235, for every model that
+existed to compare (same 132/57 chars, confirmed by `git diff` producing no
+hunk in that region for any of the eight variant pairs checked; Fable 5 and
+Opus 4.8 weren't in the 2.1.235 capture set at all, so there's no version
+comparison for them — only the cross-model one). Opus 4.7, Sonnet 5, and
+Opus 5's own block 2 is each individually unchanged byte-for-byte from
+2.1.235 — same result, and the char counts match the 2.1.235 doc's
+10,676/10,574/1,210 exactly. All of the version-over-version change for those
+three models is in block 3; see "What moved out of block 3" below.
+
+**Block 2 is not one shared text per branch, though** — see "The prompt
+split is per model id, not per model family" for why the 1,210/1,210/1,152
+column values above aren't a typo, and why block 3 diverges even further.
 
 Total `system_tokens` per variant (from `summary.json`, exact):
 
-| Variant | Opus 4.7 | Sonnet 5 | Opus 5 |
-|---|---|---|---|
-| `default` | 8,702 | 8,745 | 3,257 |
-| `custom-output-style` | — | 8,761 | — |
-| `append` | — | 8,754 | — |
-| `subagent` | — | 8,743 | — |
-| `system-prompt` / `system-prompt-file` | — | 116 / 114 | — / 117 |
+| Variant | Opus 4.7 | Sonnet 5 | Opus 5 | Fable 5 | Opus 4.8 |
+|---|---|---|---|---|---|
+| `default` | 8,702 | 8,745 | 3,257 | 3,556 | 2,266 |
+| `custom-output-style` | — | 8,761 | — | — | — |
+| `append` | — | 8,754 | — | — | — |
+| `subagent` | — | 8,743 | — | — | — |
+| `system-prompt` / `system-prompt-file` | — | 116 / 114 | — / 117 | — | — |
 
-2.1.235 comparison: 9,329 (opus-4-7) / 9,368 (sonnet-5 `default`) / 3,860
-(opus-5). Every total dropped despite one more upfront tool (see "Tools"): the
-drop comes entirely out of block 3 (the removed and relocated content below),
+2.1.235 comparison (opus-4-7/sonnet-5/opus-5 only; Fable 5 and Opus 4.8 are
+new to this snapshot): 9,329 / 9,368 (sonnet-5 `default`) / 3,860. Every total
+for those three dropped despite one more upfront tool (see "Tools"): the drop
+comes entirely out of block 3 (the removed and relocated content below),
 which outweighs the new tool's system-prompt footprint of zero (tools are
-priced separately, in `tools_total_tokens`, not in `system_tokens`).
+priced separately, in `tools_total_tokens`, not in `system_tokens`). Opus
+4.8's 2,266 is the smallest prompt in the entire five-model set — a quarter
+of Sonnet 5's 8,745 — so "the 2.1.269 system prompt" was never one size
+either, on top of not being one text.
 
 `sonnet-5/default`'s 8,745 is a corrected figure — the capture first taken for
 this snapshot read 8,664 with `SendFeedback` and `EndConversation` both
@@ -132,64 +149,147 @@ preserved.
 
 ### The prompt split is per model id, not per model family
 
-Still true, and still the same three-way split: sonnet-5 and opus-4-7 get the
-long multi-section prompt; opus-5 gets the compressed `# Harness` one. This is
-confirmed directly from the captures (block 2 sizes above; opus-5's block 2
-opens with a `# Harness` heading, the others with `# System`).
+Still true as a sorting rule, but coarser than this document previously
+described it. Five models are captured now: sonnet-5 and opus-4-7 get the
+long multi-section prompt; opus-5, fable-5, and opus-4-8 get the compressed
+`# Harness` one. The branch predicate still sorts all five correctly — that
+part hasn't changed. What's changed is what "getting the same branch" means:
+it does not mean sharing one prompt. **Two families, per-model contents** is
+closer to what five captures show than "two prompts."
 
-The 2.1.235 doc traced this branch to source (`sV`/`aT`/`EAb` in the 2.1.235
-decompile at `/repos/claude-code-decompiled/`). That repo has since been
-re-extracted from the 2.1.269 binary (commit `8606fb66`) and restructured —
-the binary now ships 1,677 separate ESM files (`src/chunk-<hash>.js`) instead
-of one bundle, so `sV`/`aT`/`EAb` and every other `src/globals/NN.js`
-citation no longer resolves by name; minified identifiers are unique to a
-single chunk file now, and hashes rotate per build regardless. Re-derived by
-grepping distinctive string literals instead: the choice between the two
-prompt bodies is made once, in the same function that assembles the rest of
-block 3, at `src/chunk-dbb93264.js:69226` —
+The 2.1.235 doc traced the branch choice to source (`sV`/`aT`/`EAb` in the
+2.1.235 decompile at `/repos/claude-code-decompiled/`). That repo has since
+been re-extracted from the 2.1.269 binary (commit `8606fb66`) and
+restructured — the binary now ships 1,677 separate ESM files
+(`src/chunk-<hash>.js`) instead of one bundle, so `sV`/`aT`/`EAb` and every
+other `src/globals/NN.js` citation no longer resolves by name; minified
+identifiers are unique to a single chunk file now, and hashes rotate per
+build regardless. Re-derived by grepping distinctive string literals instead:
+the choice between the two prompt bodies is made once, in the same function
+that assembles the rest of block 3, at `src/chunk-dbb93264.js:69226` —
 `d ? [ORo(P, n)] : [vRo(P), xRo(n), ...]`, where `ORo` builds the compressed
 `# Harness` body and `vRo`/`xRo`/... build the long-form sections. `d` comes
 from `Ij(s)` two lines earlier, which resolves through a model-registry
 `leanPrompt`/`leanPromptCompiledOnly` method this pass did not trace down to
-its base cases — so the dispatch point is confirmed, but the current
-model-id predicate (the 2.1.269 equivalent of the old `claude-3-`/`haiku`/
-`sonnet`/`claude-opus-4-0..4-7` list) is not. That's still enough to confirm
-the dispatch is a single, still-per-model-id decision, not per-family or
-per-version.
+its base cases — so the dispatch point (which of the two builder paths runs)
+is confirmed, but the current model-id predicate (the 2.1.269 equivalent of
+the old `claude-3-`/`haiku`/`sonnet`/`claude-opus-4-0..4-7` list) is not.
+That dispatch is still a single, per-model-id decision, not per-family or
+per-version — but as the rest of this section shows, `ORo` itself is not one
+fixed text once you're inside it.
 
-Opus 4.7 is still captured alongside Opus 5 for the same reason as before: it
-is the nearest model on the other side of that branch, isolating the prompt
-difference from every other opus-vs-sonnet difference.
+Opus 4.7 and Opus 4.8 are captured alongside Opus 5 for the same reason:
+each is the nearest model on the other side of some boundary — 4.7 the
+long-form branch, 4.8 the version threshold inside the compressed one (see
+"The upfront tool roster is not a pure function of version and model id") —
+isolating one difference at a time from every other opus-vs-X difference.
 
-Block 1 (identity) is still the same 57-character string across all three
-models — the character-level check available in this worktree. Whether the
-tokenizers still agree on it (as the 2.1.235 doc measured via `count_tokens`)
-is not re-verified this round; see the token-count caveat above.
+Block 1 (identity) is the same 57-character string across all five models —
+the character-level check available in this worktree. Whether the tokenizers
+still agree on it (as the 2.1.235 doc measured via `count_tokens`) is not
+re-verified this round; see the token-count caveat above.
 
-The text still diverges by branch, not by family — opus-4-7 sits with sonnet:
+Block 2 and block 3, across all five `default` captures now on disk:
 
-| | Opus 4.7 | Sonnet 5 | Opus 5 |
-|---|---|---|---|
-| Block 2 | 10,676 chars | 10,574 chars | 1,210 chars |
-| Block 3 | 16,895 chars | 17,128 chars | 8,546 chars |
+| Model | Branch | Block 2 chars | Block 3 chars | `system_tokens` | Block 3 headings |
+|---|---|---|---|---|---|
+| opus-4-8 | compressed | 1,152 | 5,278 | 2,266 | Session-specific guidance, Memory, Environment, Context management |
+| opus-5 | compressed | 1,210 | 8,546 | 3,257 | …the same four, plus **Delivering work**, **Corrections** |
+| fable-5 | compressed | 1,210 | 9,571 | 3,556 | **Communicating with the user**, then the same four; no Delivering work / Corrections |
+| sonnet-5 | long-form | 10,574 | 17,128 | 8,745 | (multi-section — see system[3] in what-the-model-gets.md) |
+| opus-4-7 | long-form | 10,676 | 16,895 | 8,702 | (multi-section, same shape as sonnet-5) |
 
-Sonnet's block 3 is `custom-output-style`'s 17,128, cross-checked against
-`append`, `subagent`, and (after the re-capture below) `default` itself, which
-all agree. An earlier draft of this table used `default`'s first capture,
-which read 16,895 — 233 characters short of its own siblings because that
-capture was also the one missing the `EndConversation` hint line (see "The
-upfront tool roster is not a pure function of version and model id"); it
-happened to coincide with opus-4-7's 16,895 for the same reason, not because
-the two are otherwise the same text.
+(Sonnet-5's block 3 here is `custom-output-style`'s 17,128, which `append`,
+`subagent`, and `default` itself all agree on after its re-capture — see
+"The upfront tool roster is not a pure function of version and model id" for
+why `default`'s first capture briefly read 16,895 instead, and why that
+number coincided with opus-4-7's for an unrelated reason.)
 
-Opus 5's block 2 is still a single five-bullet `# Harness` section replacing
-the other two models' `# System` / `# Doing tasks` / `# Executing actions with
-care` / `# Using your tools` / `# Tone and style` sections, unchanged from
-2.1.235. One fact the 2.1.235 doc didn't call out because it never quoted the
-literal text: opus-5's block 2 has never carried the URL-guessing `IMPORTANT`
-line (`"NEVER generate or guess URLs..."`) that sonnet and opus-4-7 have — this
-is a pre-existing per-branch difference, confirmed unchanged (block 2 is
-byte-identical old to new), not something introduced in 2.1.269.
+Within the **long-form branch**, sonnet-5 and opus-4-7 were already known to
+differ (10,676 vs 10,574 chars) — this document never claimed those two
+shared one text, only one branch. Within the **compressed branch**, the
+assumption this document did carry — that opus-5's 1,210-character block 2
+was *the* compressed text, and fable-5 matching it byte-for-byte confirmed
+that — held for exactly as long as only two compressed-branch models were
+captured. Opus-4-8 breaks it: **1,152 characters, not 1,210, differing from
+opus-5's block 2 by exactly one bullet in the `# Harness` section**, checked
+by direct diff, nothing else different:
+
+| | Opus 5 | Opus 4.8 |
+|---|---|---|
+| The varying bullet | `"The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results. Hooks may intercept tool calls; treat hook output as user feedback."` | `` "`<system-reminder>` tags in messages and tool results are injected by the harness, not the user. Hooks may intercept tool calls; treat hook output as user feedback." `` |
+
+Fable-5's block 2 is still byte-identical to opus-5's (verified by string
+equality, not merely matching length) — so it isn't that every model gets
+its own block 2; it's that block 2 is conditioned on something finer than
+"which of the two branches," and opus-5 and fable-5 happen to land on the
+same side of whatever that is while opus-4-8 doesn't.
+
+**The mechanism for that one bullet is not identified — a hypothesis was
+checked and disproved, not confirmed.** The bullet comes from
+`yyn(n, "lean")` inside `ORo` (`src/chunk-dbb93264.js:69169`, the bullet
+itself at `:69177`):
+
+```js
+function yyn(e, n) {
+  if (hyn(e)) return ERo;   // "The system may send updates... system-controlled, unlike function results."
+  return n === "standard" ? "..." : "`<system-reminder>` tags in messages and tool results are injected by the harness, not the user.";
+}
+```
+
+`hyn(e)` true selects opus-5's wording; false selects opus-4-8's. The
+registry's `mid_conv_system` capability was the obvious candidate — checked
+directly, and disproved: `claude-sonnet-5`, `claude-opus-4-8`, `claude-opus-5`,
+and `claude-fable-5` **all** declare `mid_conv_system`, yet they do not all
+get the matching bullet (opus-5 does, the other three effectively don't, per
+the table above and per `xRo`'s own "standard" wording for sonnet/opus-4-7),
+so that capability alone cannot be what `hyn` is keying on. `hyn`'s actual
+condition, memoized, is `UHe(e) && !Xtn(e) && !qyr(je(e))`
+(`src/chunk-dbb93264.js:69092`) — three sub-predicates this pass did not
+trace. That's the next thing to open, not a restatement of the disproved
+capability check.
+
+Block 3 diverges further, and part of *that* mechanism was traced this
+round. Fable-5's `# Communicating with the user` section — present for
+fable-5, absent for opus-5 and opus-4-8 — comes from `lRo(e)`
+(`src/chunk-dbb93264.js:68952-68985`, the same "communication" list entry
+seen in the block-3 assembly in "What moved out of block 3" below), which
+branches three ways: if `sRo(n, e) || Kyr(n)` holds (where
+`sRo = (e,n) => [sce, Gyr, Vyr].some(r => r(e, n))`) it emits
+`# Communicating with the user`; else if `Ij(e)` (the same lean-prompt check
+that picks `ORo` above) it emits a single bare line,
+`"Write code that reads like the surrounding code..."` — exactly opus-5's
+and opus-4-8's block 3 opener, no heading; else it emits sonnet's
+`# Text output (does not apply to tool calls)` section. `sce` is one of four
+things OR'd together in `sRo`, and fable-5's model registry entry declares a
+`fable_5_mitigations` capability that `sce(e, o)` reads directly
+(`src/chunk-eejnrs8c.js:40-44`: returns that capability's value if defined,
+`true` for `claude-mythos-5`, `false` otherwise) — a named, plausible
+candidate for *why* fable-5 takes the first branch. **Not established**:
+which of the four OR'd conditions (`sce`, `Gyr`, `Vyr`, or `Kyr`) is the one
+actually true for `claude-fable-5`, or whether opus-5/opus-4-8 lack all four
+or merely `sce` specifically. `Gyr`/`Vyr`/`Kyr` were not traced this round.
+A sibling capability, `fable_5_1_prompt_bundle`, is read by a similar
+function, `ice(e)` (`src/chunk-eejnrs8c.js:46-48`) — not connected to
+anything else in this document; noted as a second, entirely separate lead.
+
+One correction for anyone re-deriving this later: it was suggested that
+grepping the literal heading string `"# Communicating with the user"` finds
+nothing in `src/`, on the theory that the heading is assembled rather than
+stored whole. Checked directly and that's not so — `grep -rn "# Communicating
+with the user" src/` finds it on the first line of `lRo`'s return statement,
+`src/chunk-dbb93264.js:68961`, which is in fact exactly how `lRo` itself was
+located for this section. The "grep a distinctive literal" method the
+decompile's own README recommends worked here without a different anchor.
+
+The upshot for reading these snapshots: there is no single object to call
+"the compressed prompt" or "the opus-5 prompt" and reuse across opus-5,
+fable-5, and opus-4-8. Block 2 sorts into at least two distinct texts within
+the one branch; block 3 sorts into at least three (opus-5's six sections,
+fable-5's five-plus-a-different-opener, opus-4-8's four with neither the new
+opener nor `Delivering work`/`Corrections`). Per-model conditioning inside a
+branch is not a corner case restricted to Fable — opus-4-8 shows it reaches
+a model with no Fable-family relationship at all.
 
 ### What moved out of block 3
 
@@ -264,80 +364,144 @@ every capture in it):
 | 19:29 | `opus-4-7/default` | 14 / 21 |
 | 19:31 | `sonnet-5/default`, first capture | **13 / 17** |
 | 19:32-19:39 | the other 5 sonnet-5 variants, and `opus-5/system-prompt-file` | 14 / 18 |
-| 21:16 | `sonnet-5/default`, re-capture (`./regenerate.py --model claude-sonnet-5 default`, same script, same unchanged binary) | 14 / 18 |
+| 21:16 | `sonnet-5/default`, re-capture | 14 / 18 |
+| 21:44 | `fable-5/default`, first capture | **13 / 17** |
+| 22:04 | `fable-5/default`, re-capture (the one on disk) | 14 / 18 |
 
-One capture, sandwiched between others that agree with each other both before
-and after it, was served two fewer tools than its neighbors: `SendFeedback`
-(upfront) and `EndConversation` (deferred) — unrelated tools, missing
-together from the same single request. A re-capture of the identical variant
-~1h45m later did not reproduce it.
+Two anomalous runs now, across two different models, both missing exactly
+`SendFeedback` and `EndConversation`, both non-reproducible on a same-variant
+re-capture minutes to under two hours later.
 
-"Rollout" is the wrong word for this — it implies a monotonic change (off,
-then on, staying on), and the timeline doesn't show that: the dip is a single
-point, bracketed by captures that already had both tools, and the retest
-afterward had both again too. What the evidence supports is narrower:
-**the upfront tool roster is not a pure function of version and model id.**
-One capture in a nine-capture batch was served two fewer tools than every
-capture minutes either side of it, and a re-capture did not reproduce it. The
-mechanism is unidentified — this document did not determine what actually
-differs between a request that gets 14 tools and one that gets 13 under
-otherwise identical version, model, and script invocation. (Something like a
-per-session remote gate would produce exactly this pattern, but that is an
-unverified guess, not a finding — nothing in this batch confirms a
-mechanism.)
+**The mechanism is identified** — re-derived from the 2.1.269 decompile, not
+taken on report:
 
-This is the same *category* of fact as the 2.1.235 doc's `Artifact`
-description-size observation — the account can serve different content for
-the same version depending on when you ask — but sharper: a whole tool
-disappearing and reappearing, not a description resizing.
+- **`SendFeedback`** is gated on a remote GrowthBook flag,
+  `tengu_juniper_relay`. Its `isEnabled()` (`src/chunk-dbb93264.js:181066`)
+  calls `iL()`, which requires the `feedbackDrafts` setting not be `"off"`
+  (`SQe()`) and `rCn()` to hold — a chain of entrypoint/provider checks
+  (must be `"firstParty"`, not a plugin/eval context) ending in
+  `I("tengu_juniper_relay", !1)` on every path, including the one where
+  `CLAUDE_CODE_SEND_FEEDBACK` is explicitly `true` (`src/chunk-dbb93264.js:180877-180888`).
+  Hardcoded fallback: **false**.
+- **`EndConversation`** is gated on a different flag, `tengu_umber_kestrel`,
+  same `I(..., !1)` shape and same false fallback — `zGt`
+  (`src/chunk-t7d8rn9f.js:92-100`), consumed by `isEnabled()` at
+  `src/chunk-1qj1h00h.js:276-279`.
+- **Why both vanish together despite being different flags**: both resolve
+  through one per-process GrowthBook client, `Tt()`
+  (`src/chunk-5cs6j3p3.js:24712-24732`, one instance per API host), and one
+  synchronous method on it, `getFeatureValueWithSource`
+  (`src/chunk-5cs6j3p3.js:9166-9197`). Its resolution order is the
+  load-bearing part, confirmed by reading it directly: it checks
+  `this.remoteEvalFeatureValues.get(key)` (the in-memory result of this
+  process's own GrowthBook fetch) first; if that key is present, use it; if
+  the key is *absent* **but the map has any keys in it at all**
+  (`this.remoteEvalFeatureValues.size > 0`), it returns the hardcoded
+  default immediately — the on-disk cache (`cachedGrowthBookFeatures` in the
+  global config) is only consulted when the map is completely empty. So one
+  fetch that succeeds but comes back missing a key turns that flag off for
+  the rest of the process's life, even with a correct cached value sitting
+  on disk. A payload missing *both* `tengu_juniper_relay` and
+  `tengu_umber_kestrel` turns both tools off together in that one process —
+  one mechanism acting on two keys, not two coincidences.
+- **This also explains `opus-4-7` never showing `EndConversation`** — not a
+  bare model-conditioned quirk, but a second, independent gate ahead of the
+  flag: `zGt` first requires the model version to clear a
+  per-family threshold, `[["opus",[4,8]],["sonnet",[5]],["fable",[5]],
+  ["mythos",[5]]]` (`src/chunk-t7d8rn9f.js:62`), compared by `MZt`
+  (`src/chunk-970xe2g2.js:20-32`: parse `claude-<family>-<version>`, compare
+  component-wise, family threshold wins ties). `claude-opus-4-7` parses to
+  `[4,7]`, which fails `>= [4,8]`, so it's excluded regardless of the flag —
+  confirmed deterministic, not observed-and-assumed. `claude-sonnet-5` and
+  `claude-fable-5` both parse to `[5]`, which clears their `[5]` threshold
+  trivially, so for them the flag is the only variable — which is exactly
+  the pair that flickered. `SendFeedback`'s gate (`rCn`, above) has no such
+  version check, so this explanation is scoped to `EndConversation` only;
+  this dataset has a single opus-4-7 capture and can't say whether
+  `SendFeedback` is immune to the same flag flicker for that model or simply
+  wasn't caught flickering.
 
-The load-bearing consequence: a single capture's tool inventory is not by
-itself evidence about a version. That matters specifically for this
-document, since these snapshots exist to be diffed against each other across
-versions — a future comparison that trusts one capture's tool count without
+**Inferred, not observed**: that the proximate cause in both bad runs was a
+GrowthBook fetch that *succeeded* but came back with an *incomplete*
+payload. The code path above is the only one that yields both flags false
+against a warm, correct disk cache (confirmed: `/root/.claude.json` caches
+both as `true`), so it's the mechanism that fits — but the GrowthBook
+exchange itself was never captured to confirm the payload shape directly:
+the MITM proxy here only logs Messages-shaped request bodies, so
+`api.anthropic.com/api/eval-authed/*` calls never reach its logs. Capturing
+that endpoint alongside the Messages traffic would close this.
+
+The load-bearing consequence is unchanged by having a mechanism, and slightly
+better founded for it: a single capture's tool inventory is not by itself
+evidence about a version, because a flag-gated tool can be present or absent
+independent of the version and model id a request otherwise matches exactly.
+These snapshots exist to be diffed against each other across versions — a
+future comparison that trusts one capture's tool count without
 cross-checking siblings, or without re-capturing, could attribute an
-account-side blip to a CLI release. The negative retest is what makes this
-worth keeping rather than discarding as noise: observed once, checked
-against a same-version re-capture, and it did not hold up as a stable fact
-about `sonnet-5/default` — which is itself the finding.
+account-side flag flicker to a CLI release. Two independent occurrences, on
+two different models, both clearing on re-capture, is why this is kept as a
+finding rather than discarded as one-off noise.
 
 ### Fable and Mythos
 
 2.1.269's model registry carries `claude-fable-5`, `claude-fable-5-1`,
-`claude-mythos-5`, and `claude-mythos-5-1` alongside the ids this snapshot set
-captures. None of them appear as a directory here. Measured directly against
-the live binary (not from the committed captures, so there's no artifact
-path for it in this tree): a request to `claude-fable-5` on the capturing
-account returns HTTP 429, `"Fable 5 requires usage credits..."`; a
-`claude-sonnet-5` control request in the same minute succeeded, so this is an
-entitlement limit on the account, not a rate limit on the endpoint; and a
-request to `claude-mythos-5` returns HTTP 404, `"There's an issue with the
-selected model (claude-mythos-5). It may not exist or you may not have
-access to it."`
+`claude-mythos-5`, and `claude-mythos-5-1` alongside the ids this snapshot
+already captured. `fable-5/default` is now one of them — the capturing
+account's entitlement changed mid-investigation, which is itself worth
+keeping on record: a request to `claude-fable-5` returned HTTP 429,
+`"Fable 5 requires usage credits..."`, while a `claude-sonnet-5` control
+request in the same minute succeeded (an entitlement limit on the account,
+not a rate limit on the endpoint), and after the account was upgraded the
+same model id captured normally. `claude-fable-5-1` and `claude-opus-4-8`
+now answer too. `claude-mythos-5` still returns HTTP 404,
+`"There's an issue with the selected model (claude-mythos-5). It may not
+exist or you may not have access to it."` — absent rather than gated, unlike
+Fable.
 
-One piece of this is independently confirmed by the committed artifacts,
-though: the `# Environment` block's self-description line — `"The most recent
-Claude models are the Claude 5 family and Haiku 4.5. Model IDs — Fable 5.1:
+`fable-5/default`'s own numbers, re-derived from the artifact rather than
+assumed: `model: claude-fable-5`, 4 blocks, **3,556** `system_tokens`, 14
+upfront tools / 18 deferred (`tools_total_tokens` 30,287), `thread:
+{"type":"create"}`, `output_config: {"effort":"high"}`,
+`thinking:{"type":"adaptive","display":"updates"}`, no `fallbacks` key —
+every one of those matches `opus-5/default` including the tool roster
+(all 15 `tools[]` entries, upfront and placeholder, are byte-identical text
+to opus-5's, not just same-length; `opus-4-8/default`'s tool roster matches
+too, including the same 30,287 `tools_total_tokens`, so tools are uniform
+across the compressed branch even where the prompt text is not). This
+settled empirically what the mismatched-model-id incident below could only
+predict from the registry's `lean_prompt` capability: fable-5 sits on the
+compressed branch with opus-5, not with sonnet. What that branch membership
+does and doesn't imply about shared *text* — including fable-5's and
+opus-4-8's own block 2 and block 3, and why a same-time opus-5 recapture was
+needed and has now settled the question — is covered in full in "The prompt
+split is per model id, not per model family" above, rather than repeated
+here.
+
+The `# Environment` block's self-description line — `"The most recent Claude
+models are the Claude 5 family and Haiku 4.5. Model IDs — Fable 5.1:
 'claude-fable-5-1', Opus 5: 'claude-opus-5', Sonnet 5: 'claude-sonnet-5',
-Haiku 4.5: 'claude-haiku-4-5-20251001'"` — named `claude-fable-5` (no `-1`) in
-every 2.1.235 capture and `claude-fable-5-1` in every 2.1.269 capture. So
-between versions this line's Fable entry was replaced, not added to: the
-model's own self-description never mentions `claude-mythos-5`,
-`claude-mythos-5-1`, or `claude-opus-4-8` in either version, even though (per
-the reported findings above) at least two of those ids are real and
-selectable. The self-reported roster undersells the actual registry.
+Haiku 4.5: 'claude-haiku-4-5-20251001'"` — still names `claude-fable-5-1`,
+not the `claude-fable-5` id that actually captured here, and still never
+mentions `claude-opus-4-8`, `claude-mythos-5`, or `claude-mythos-5-1` even
+though the first of those three now-measured-live ids answers alongside
+Fable. Named `claude-fable-5` (no `-1`) in every 2.1.235 capture. The
+self-reported roster undersells the actual registry, and now that
+`claude-fable-5` and `claude-opus-4-8` are both live, working, captured
+requests, that's a concrete instance rather than an inference from the
+registry alone.
 
-A `regenerate.py --model claude-fable-5 default` run was reported to have
+Separately, and unaffected by any of the above: a
+`regenerate.py --model claude-fable-5 default` run was reported to have
 produced a capture whose `request.json` carried `model: claude-sonnet-5` but
 whose system prompt was the compressed `# Harness` one (opus-5's branch) at
 3,557 system tokens — i.e., Claude Code built the prompt for the *requested*
 model (fable, landing on the compressed branch) and only the model id in the
-fallback response reflected the model actually billed. That capture was
-overwritten by a subsequent real `sonnet-5` capture and is not in this tree;
-it cannot be verified from what's on disk. If it recurs, the practical
-warning is real regardless: **the `model` field in a captured `request.json`
-does not always identify the model the prompt was built for.** Reproducing it
-for real would need a capturing account with Fable usage credits.
+fallback response reflected the model actually billed. That was a fallback
+artifact from before the entitlement upgrade, is not the same event as the
+real capture above, and is still not in this tree — it cannot be verified
+from what's on disk. The practical warning stands regardless of whether it
+recurs: **the `model` field in a captured `request.json` does not always
+identify the model the prompt was built for.**
 
 ## Tools
 
@@ -387,12 +551,16 @@ longer (1,531 sonnet / 1,786 opus, unchanged from 2.1.235).
 
 Upfront tool payload: `tools_total_tokens` (from `summary.json`, exact) is
 35,834 for every sonnet-5 variant including `default` (all identical, all
-14-tool) / 30,283 (opus-5, either variant) / 36,155 (opus-4-7). `default`'s
-first capture, before the re-capture, read 33,878 with `SendFeedback`
-missing. 2.1.235
-comparison: 31,221 (sonnet) / 25,546 (opus-5) / 31,542 (opus-4-7) — the rise is
-`Artifact` growing by ~12,500 chars outweighing `Workflow` shrinking by
-~15,800.
+14-tool) / 30,283 (opus-5, either variant) / 36,155 (opus-4-7) / 30,287
+(fable-5 and opus-4-8, identical to each other). `default`'s first capture,
+before the re-capture, read 33,878 with `SendFeedback` missing. Fable-5 and
+opus-4-8 read 4 tokens higher than opus-5 despite every individual tool
+description being byte-identical text across all three — the same kind of
+tokenizer-boundary noise already documented for `Skill` (977 vs 909 tokens on
+text this section's own methodology note calls identical), not a text
+difference. 2.1.235 comparison: 31,221 (sonnet) / 25,546 (opus-5) / 31,542
+(opus-4-7) — the rise is `Artifact` growing by ~12,500 chars outweighing
+`Workflow` shrinking by ~15,800.
 
 ## Tools — deferred (18 / 21, unchanged from 2.1.235)
 
@@ -407,7 +575,11 @@ WebSearch
 
 Opus 4.7 gets 21: the same list minus `EndConversation`, plus `TaskCreate`,
 `TaskGet`, `TaskList`, `TaskUpdate` — identical to 2.1.235, membership checked
-by set diff, not just count.
+by set diff, not just count. Opus 4.8 gets 18, with `EndConversation`
+included, same as the 5-family — consistent with the version-threshold
+mechanism in "The upfront tool roster is not a pure function of version and
+model id" (`claude-opus-4-8` parses to `[4,8]`, which clears `opus`'s `[4,8]`
+floor exactly, where `claude-opus-4-7`'s `[4,7]` does not).
 
 The Bash tool description still says `NEVER use the TaskCreate or Agent
 tools` (commit example) and `DO NOT use the TaskCreate or Agent tools` (PR
@@ -770,14 +942,17 @@ across captures taken minutes apart in the same session). The 2.1.235 doc ran
 token totals were stable apart from those paths (9,359/9,365/9,365/9,368 and
 3,871/3,866/3,860); this snapshot took one capture per variant instead, so
 that specific multi-run stability claim was not re-established up front —
-**and the one repeat run this round did happen (`sonnet-5/default`, retaken
-~1h45m later after this document's first draft used its initial capture) did
-not reproduce the same tool roster**, landing at 14 upfront tools instead of
-the first run's 13. See "The upfront tool roster is not a pure function of
-version and model id" above. One data point isn't the four-to-five-run
-stability sweep 2.1.235 got, but it's enough to say plainly: single-run
-captures in this snapshot format can differ from a same-variant re-capture,
-independent of anything `capture.py` controls.
+**and the repeat runs that did happen this round didn't reproduce the same
+tool roster**: `sonnet-5/default` retaken ~1h45m later, and separately
+`fable-5/default` retaken ~20 minutes later, both landed at 14 upfront tools
+against an initial capture of 13. See "The upfront tool roster is not a pure
+function of version and model id" above, which now traces this to a specific
+GrowthBook-flag-resolution mechanism rather than leaving it as an
+unattributed re-capture difference. Two data points isn't the
+four-to-five-run stability sweep 2.1.235 got, but it's enough to say
+plainly: single-run captures in this snapshot format can differ from a
+same-variant re-capture, independent of anything `capture.py` controls, and
+in this case the difference has an identified, cited cause.
 
 `capture.py` strips every `CLAUDE_CODE_*` variable except
 `CLAUDE_CODE_OAUTH_TOKEN` from the spawned session's environment, because each
