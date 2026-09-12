@@ -1,6 +1,16 @@
 # Subagent backgrounding ignores `run_in_background: false`
 
-Investigated 2026-08-28 on Claude Code **2.1.235**. Every subagent runs in the
+Investigated 2026-08-28 on Claude Code **2.1.235**; the workaround was re-checked on
+**2.1.269** on 2026-09-12 and still holds. Everything below, including every source
+citation, is the 2.1.235 reading — 2.1.269 re-extracts to a different tree shape
+(`src/chunk-<hash>.js`, no `src/globals/`), so the addresses here locate nothing in it.
+What was re-checked is the behaviour, three ways: the Agent tool's description is
+byte-identical between the two versions' captured requests, the backgrounding disjunction
+still has the same shape (`src/chunk-dbb93264.js:103955`), and a live `Agent` call under
+this repo's `settings.json` returned synchronously while `subagent_type: "fork"` errored
+with `Agent type 'fork' not found` — the same trade this note measured.
+
+Every subagent runs in the
 background regardless of `run_in_background: false`, whether the model sends it or a
 `PreToolUse` hook injects it. The parameter is also absent from the Agent tool's input
 schema, so the model cannot send it at all. Setting
