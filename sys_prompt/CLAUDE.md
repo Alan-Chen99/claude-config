@@ -67,6 +67,11 @@ ordered list of every other section, each tagged with a key — `"context_manage
 `"act_dont_rederive"`, `"session_guidance"`. Identifiers are regenerated every build and the keys
 are not, so diff the key list first and the section bodies second.
 
+Read that list rather than grepping it. Keys reach the assembler three ways: as a bare string
+literal, as a variable (`Jb(dRo, …)` with `dRo = "fable_identity"`), and inside a ternary
+(`excludeDynamicSections ? "env_info_static" : "env_info_simple"`). A scan for quoted strings
+reports the last two kinds as removed when they are not.
+
 `docs/system-prompt-snapshot/` answers a different question: what one environment received on one
 day. Most sections sit behind a growthbook flag or an env var resolved server-side per request, so
 **a section can be in the binary and missing from the capture**. `act_dont_rederive` is in both the
@@ -117,8 +122,10 @@ One entry per release reviewed. The next rebase starts from the last entry, so e
 
 #### 2.1.235 → 2.1.269, reviewed 2026-09-12 — no prompt text changed
 
-Section keys were diffed between the two extractions and every borrowed passage compared byte for
-byte.
+Section keys were diffed between the two extractions, and the pins in
+`scripts/check-prompt-upstream.py` were run against the 2.1.235 tree
+(`git -C /repos/claude-code-decompiled archive 56801e78 src`) as well as the installed one — all
+thirteen resolve in both, so every borrowed passage is byte-identical across the two builds.
 
 | Upstream change | Done |
 | --- | --- |
