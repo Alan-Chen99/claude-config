@@ -321,6 +321,12 @@ CREDENTIALS_FILE = Path.home() / ".claude" / ".credentials.json"
 # Rendered by the child when it starts unauthenticated.
 AUTH_FAILURE_MARKERS = ("Not logged in", "Login expired", "Please run /login")
 
+# Trust-dialog labels and the cursor glyph that marks the selected one, all
+# flattened the way _flatten_pty flattens the screen they are matched against.
+TRUST_OPTION = "Yes,Itrustthisfolder"
+DECLINE_OPTION = "No,exit"
+MENU_CURSOR = "\u276f"
+
 _ANSI_RE = re.compile(r"\x1b\[[0-9;?<>]*[ -/]*[@-~]|\x1b[@-Z\\-_]")
 
 
@@ -340,6 +346,27 @@ def _flatten_pty(output: str) -> str:
     escapes and whitespace makes such fragments comparable.
     """
     return "".join(_ANSI_RE.sub("", output).split())
+
+
+def _trust_arrow_presses(screen: str) -> int:
+    """Down-arrows needed to move the trust dialog's cursor onto the trust option.
+
+    Confirming "No, exit" quits the child before it issues a single API call,
+    and that surfaces downstream only as an empty capture with no stated cause.
+    Which option starts selected is not a constant: 2.1.235 preselected the
+    trust option and a bare Enter accepted it, 2.1.269 preselects "No, exit".
+    Reading the cursor off the screen keeps the capture working under either
+    order instead of pinning it to one build's default.
+
+    The dialog repaints several times, so the last placement in the buffer is
+    the live one.
+    """
+    flat = _flatten_pty(screen)
+    if TRUST_OPTION not in flat:
+        return 0  # already-trusted directory: no dialog to answer
+    return 1 if flat.rfind(MENU_CURSOR + DECLINE_OPTION) > flat.rfind(
+        MENU_CURSOR + TRUST_OPTION
+    ) else 0
 
 
 def _assert_authenticated(output: str) -> None:
@@ -455,8 +482,13 @@ def spawn_claude(
 
     transcript: list[str] = []
     try:
-        # Accept trust dialog
-        transcript.append(_pty_drain(fd, 5))
+        # Accept trust dialog, moving the cursor onto the trust option first
+        # when the build starts with "No, exit" selected.
+        opening = _pty_drain(fd, 5)
+        transcript.append(opening)
+        for _ in range(_trust_arrow_presses(opening)):
+            os.write(fd, b"\x1b[B")
+            time.sleep(0.3)
         os.write(fd, b"\r")
 
         # Claude Code enables bracketed paste mode. A trailing \r in the same
