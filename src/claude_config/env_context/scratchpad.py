@@ -4,13 +4,11 @@ Claude Code names this directory to the model in its `# Environment` block
 (`src/chunk-dbb93264.js:29193`) and, separately, in the worker-tools context
 (`src/chunk-4zcseazt.js:1377`). It computes the path in `AH()`
 (`src/chunk-tnzzwz8r.js:13393`) as `join(WR(), <session id>, "scratchpad")`,
-caching `null` when that throws -- computing is not creating, and creation
-happens elsewhere and conditionally, so an unauthenticated session can get no
-directory at all. This module creates it rather than assuming it exists.
-
-The gate on creation was traced against 2.1.235 as a remote feature gate or
-artifact-tool eligibility and has not been re-traced for 2.1.269; what is
-re-verified here is the path, which is what this module has to agree with.
+caching `null` when that throws. Computing is not creating: creation is a
+separate function (`wWe`, `:13405`) gated on `NA()` (`:13367`), which is the
+remote `tengu_scratch` gate -- default off -- or artifact-tool eligibility, so
+an unauthenticated session can get no directory at all. This module creates it
+rather than assuming it exists, at the same mode 0700 cc uses.
 """
 
 from __future__ import annotations
