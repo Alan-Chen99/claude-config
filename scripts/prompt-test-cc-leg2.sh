@@ -68,6 +68,9 @@ echo "leg-1 snapshot: $SNAP"
 # (GWe, src/chunk-dbb93264.js:130178) and the records are in the transcript as
 # attachments of type prompt_snapshot. Without the flag, an arm passed here is
 # accepted, validated, and then silently ignored in favour of leg 1's prompt.
+# Measured through the MITM proxy on 2.1.269, three `claude -p` calls in one
+# temp cwd: a first leg under prompt A sent A; a resume passing prompt B sent A
+# again; the same resume with this flag sent B.
 ( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" "$AT" claude \
     -p --output-format json \
     --resume "$SID" \
