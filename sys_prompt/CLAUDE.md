@@ -122,6 +122,8 @@ One entry per release reviewed. The next rebase starts from the last entry, so e
 
 #### 2.1.235 → 2.1.269, reviewed 2026-09-12 — no prompt text changed
 
+Both files reviewed.
+
 Section keys were diffed between the two extractions, and the pins in
 `scripts/check-prompt-upstream.py` were run against the 2.1.235 tree
 (`git -C /repos/claude-code-decompiled archive 56801e78 src`) as well as the installed one — all
@@ -135,7 +137,8 @@ thirteen resolve in both, so every borrowed passage is byte-identical across the
 | new `opus5_reduced_delegation` section, replacing two 2.1.235 lines that rode the `heron_brook` fallback and loosening them to admit CLAUDE.md and skills | Deliberate divergence, above. |
 | new `willow_tern` section, `# Writing for the user`: a ten-rule contract for the final message | **Not adopted.** It is off by default for Opus 5, so it is a preview rather than shipped guidance, and it contradicts `## Response template`, which requires headers on every response where the new text bans them under about 500 words. Revisit if it ships on by default. |
 | new `brook_heron` section, whose text arrives from client data or growthbook keyed by model | Nothing to rebase — served, not shipped. Recorded so that unfamiliar text in a future capture is recognised instead of hunted for in the binary. |
-| everything this file borrows: the five `# Harness` bullets, the action-caution paragraph, `# Context management`, three `# Session-specific guidance` bullets | Byte-identical across the two builds. Now pinned by `scripts/check-prompt-upstream.py` instead of re-read by hand. |
+| everything `alan-default-next.md` borrows: the five `# Harness` bullets, the action-caution paragraph, `# Context management`, three `# Session-specific guidance` bullets | Byte-identical across the two builds. Now pinned by `scripts/check-prompt-upstream.py` instead of re-read by hand. |
+| the legacy prompt body, which `alan-default.md` is the copy of | Nothing. The four removals above hit that branch too, and its six prose sections are unchanged between the 2.1.235 and 2.1.269 sonnet captures. Unpinned: nothing loads this file — `claude.sh` and all three prompt-test runners default to `-next`, so it is reachable only as an explicit runner argument. |
 
 ## Why the prompt says what it says
 
