@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Regenerate system prompt snapshots by running capture.py for each variant.
 
-Output: <model-id>/<variant>/{request.json, system-prompt.md}
+Output: <model-id>/<variant>/{request.json, summary.json, prompt.md, tools/<Name>.md}
+
+`request.json` is the artifact of record. `prompt.md` and `tools/` are rendered
+from it by `render_capture.py`, which exists so that the diff between two
+releases can be read -- see that module for why the split falls where it does.
 
 The directory is named for the model id the captured request actually carried,
 minus its `claude-` prefix, not for the alias passed to `--model`. Aliases are
@@ -44,6 +48,8 @@ for _k in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
 
 import anthropic
 from claude_config.config import load as _load_env
+
+import render_capture
 
 _load_env()
 
@@ -176,14 +182,14 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
         return False
 
     cap_dir = SCRIPT_DIR / "capture-output"
-    system_src = cap_dir / "system.txt"
     request_src = cap_dir / "request.json"
 
-    if not system_src.exists() or not request_src.exists():
+    if not request_src.exists():
         print(f"  FAILED: capture-output missing", file=sys.stderr)
         return False
 
-    req_model_id = json.loads(request_src.read_text()).get("model")
+    data = json.loads(request_src.read_text())
+    req_model_id = data.get("model")
     if not req_model_id:
         print("  FAILED: captured request names no model", file=sys.stderr)
         return False
@@ -192,23 +198,27 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
 
     out_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(request_src, out_dir / "request.json")
-    shutil.copy2(system_src, out_dir / "system-prompt.md")
+    render_capture.write_capture(data, out_dir)
 
-    # Copy subagent files if present
+    # One directory per subagent, holding the same files as the variant itself,
+    # so `render_capture.py --tree` and a reader reach them the same way.
     sub_src = cap_dir / "subagents"
     n_subagents = 0
     if sub_src.exists() and sub_src.is_dir():
         sub_dst = out_dir / "subagents"
         if sub_dst.exists():
             shutil.rmtree(sub_dst)
-        shutil.copytree(sub_src, sub_dst)
-        for f in list(sub_dst.glob("*-system.txt")):
-            f.rename(sub_dst / f.name.replace("-system.txt", "-system-prompt.md"))
-        n_subagents = len(list(sub_dst.glob("*-request.json")))
+        for req in sorted(sub_src.glob("*-request.json")):
+            n = req.name.split("-")[0]
+            one = sub_dst / n
+            one.mkdir(parents=True)
+            shutil.copy2(req, one / "request.json")
+            shutil.copy2(sub_src / f"{n}-summary.json", one / "summary.json")
+            render_capture.render_file(one / "request.json")
+            n_subagents += 1
 
-    # Generate summary.json (tracked) from request.json (gitignored)
-    # Token counts via the free Anthropic count_tokens API.
-    data = json.loads(request_src.read_text())
+    # summary.json is this script's own, not capture.py's: token counts via the
+    # free Anthropic count_tokens API, and the deferred-tool roster.
     sys_blocks = [s for s in data.get("system", []) if s.get("type") == "text"]
     tools = data.get("tools", [])
     req_model = req_model_id
@@ -264,10 +274,11 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
     }
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
-    print(f"  system-prompt.md  ({sys_tokens:,} tokens)")
+    print(f"  prompt.md         ({sys_tokens:,} system tokens)")
+    print(f"  tools/            ({len(tools)} file(s))")
     print(f"  summary.json      ({len(upfront)} upfront, {len(deferred)} deferred)")
     if n_subagents:
-        print(f"  subagents/        ({n_subagents} subagent prompt(s))")
+        print(f"  subagents/        ({n_subagents} subagent capture(s))")
 
     if result.stderr:
         for line in result.stderr.strip().splitlines():
