@@ -9,10 +9,15 @@ repointed as models ship -- `opus` meant claude-opus-4-6 in the 2.1.143 capture
 and claude-opus-5 in this one -- so an alias-named directory silently changes
 meaning between captures while its path stays put.
 
-Which system prompt a capture receives is a property of that model id: 2.1.235
-serves the compressed `# Harness` prompt to claude-opus-5 and the older
-multi-section one to claude-opus-4-7 and every sonnet (globals/21.js `sV` ->
-`aT` -> `EAb`). Capturing both therefore requires two model ids, not a flag.
+Which system prompt a capture receives follows from the model's registry entry.
+2.1.269 serves the compressed `# Harness` prompt to every model whose entry
+declares the `lean_prompt` capability -- claude-opus-5, claude-opus-4-8,
+claude-fable-5, claude-fable-5-1, claude-mythos-5-1 -- and the older
+multi-section one to everything else, including every sonnet, every haiku and
+claude-opus-4-7. The gate is `Ij()` (chunk-tnzzwz8r.js:6593), consumed as `d` in
+`ow()` (chunk-dbb93264.js:69199), which picks `ORo()` over the multi-section
+builders. The same switch shortens every tool description, via `$A()`.
+Capturing both prompts therefore requires two model ids, not a flag.
 
 Usage:
     ./regenerate.py                            # all variants, default model (sonnet)

@@ -12,15 +12,14 @@ export IS_SANDBOX=1
 # closes every path that would otherwise run on the stock prompt.
 export CLAUDE_CODE_DISABLE_AGENT_VIEW=1
 
-# cc roots its scratchpad at CLAUDE_CODE_TMPDIR (globals/05.js:8056), for the
-# main agent and for subagents alike, and subagents are told that path whether
-# or not --system-prompt-file drops the section from this session's own prompt.
-# Redirecting it here is the only way both get one directory. The root follows
-# $HOME rather than naming /tmp, because /tmp is container overlay and is lost
-# on a rebuild while this container's home is a host bind mount.
+# cc roots its scratchpad at CLAUDE_CODE_TMPDIR (AS(), chunk-tht8x923.js:19),
+# for the main agent and for subagents alike, so redirecting it here is the only
+# way both get one directory. The root follows $HOME rather than naming /tmp,
+# because /tmp is container overlay and is lost on a rebuild while this
+# container's home is a host bind mount.
 # The same variable also roots plugin dirs, skill zips and the IPC socket dir;
-# cc falls back to /tmp for the socket when the path is too long (SFm(),
-# globals/22.js:14393).
+# cc falls back to /tmp for the socket when the path is too long (jxr(),
+# chunk-g92e0w45.js:567).
 export CLAUDE_CODE_TMPDIR="$HOME/.claude/tmp"
 
 # readlink -f resolves the ~/.local/bin/claude.sh symlink, so the prompt loaded
