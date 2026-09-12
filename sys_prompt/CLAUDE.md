@@ -36,6 +36,100 @@ Measure before and after:
 agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
 ```
 
+## Rebasing on an upstream release
+
+These files replace Claude Code's own system prompt rather than adding to it.
+`--system-prompt-file` keeps one block — `You are Claude Code, Anthropic's official CLI for
+Claude.` — and drops every other section, which
+`docs/system-prompt-snapshot/opus-5/system-prompt-file/system-prompt.md` shows in full. So no
+wording Anthropic ships reaches a `claude.sh` session, and the passages here that read like
+upstream's are copies taken once. Upstream rewrites its prose between releases; a copy goes stale
+with no signal at all.
+
+A release therefore needs a rebase rather than a diff: for each thing upstream changed, adopt it,
+adapt it, or keep diverging on purpose — and write down which, because the next reader cannot tell
+a considered divergence from an unnoticed one.
+
+### Reading both sides
+
+`/repos/claude-code-decompiled` is a git repository and each re-extraction is one commit, so the
+previous release's prompt text survives only in that history — `npm run extract` empties `src/`
+first.
+
+```bash
+git -C /repos/claude-code-decompiled log --oneline -- src/       # "re-extract from Claude Code <version>"
+git -C /repos/claude-code-decompiled grep -n '# Harness' <old-sha> -- src/
+```
+
+Claude Code ships two prompt bodies and picks per model; Opus 5 gets the lean one, whose entire
+body is the single builder containing `# Harness`. The function that calls that builder holds the
+ordered list of every other section, each tagged with a key — `"context_management"`,
+`"act_dont_rederive"`, `"session_guidance"`. Identifiers are regenerated every build and the keys
+are not, so diff the key list first and the section bodies second.
+
+`docs/system-prompt-snapshot/` answers a different question: what one environment received on one
+day. Most sections sit behind a growthbook flag or an env var resolved server-side per request, so
+**a section can be in the binary and missing from the capture**. `act_dont_rederive` is in both the
+2.1.235 and 2.1.269 binaries but only the 2.1.235 capture — the flag flipped, the release did not
+drop it. Captures show where to look; the source decides.
+
+### Checking what was borrowed
+
+```bash
+python3 scripts/check-prompt-upstream.py
+```
+
+It pins the passages `alan-default-next.md` took from upstream and requires each to appear verbatim
+on both sides. A pin missing from the source means upstream reworded a line this file still carries;
+a pin missing from the prompt means a borrowed line was edited without the divergence being
+recorded. Both are decisions to make here, not edits to the script. Without a re-extracted decompile
+it exits 2 rather than searching an empty tree and reporting success.
+
+It is silent about upstream text this prompt never carried, which is most of it. New sections come
+from the key diff above.
+
+### When `agents/` joins this
+
+An agent definition file is a whole system prompt for its subagent, and Claude Code resolves agents
+into a map keyed by name where user and project definitions overwrite built-ins. A file in `agents/`
+named after a built-in — `Explore`, `general-purpose`, `Plan`, `claude-code-guide`,
+`statusline-setup` — therefore replaces Anthropic's prompt for that agent, and that copy needs
+rebasing exactly like this one. The six files in `agents/` today are all new names, so none is
+upstream-coupled and `check-prompt-upstream.py` pins nothing from them. Adding a shadow is what
+changes that. `Prefer model: haiku` below is the standing example of preferring a per-call parameter
+over a shadow.
+
+### Deliberate divergences
+
+Upstream still ships each of these and this prompt does not. Left alone unless the stated condition
+changes.
+
+| Upstream text | Why it is not here |
+| --- | --- |
+| `Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it` — live for Opus 5 since 2.1.269 | This repo delegates by design: `settings.json` holds subagents in the foreground so a report returns as the launching call's result, and `# Session-specific guidance` says when to spawn one. Upstream's own exception would cover it regardless, since the asking here is done by CLAUDE.md and by skills. |
+| `The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results.` | Upstream serves two variants of this `# Harness` bullet from one flag; this prompt carries the other one, which is equally current. Neither was chosen on evidence. |
+| `Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.` — closes the action-caution paragraph | `# Error Propagation` and `# Epistemic Integrity` say it at length. |
+| `If what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding` — follows `look at the target` | **Not reviewed.** It predates the 2.1.235 baseline and no entry explains it. Nothing else in the prompt says what to do when the look turns up a surprise; `# Executing actions with care` covers only the pattern-matched case. Decide it at the next edit to that section. |
+
+### Rebase log
+
+One entry per release reviewed. The next rebase starts from the last entry, so entries stay.
+
+#### 2.1.235 → 2.1.269, reviewed 2026-09-12 — no prompt text changed
+
+Section keys were diffed between the two extractions and every borrowed passage compared byte for
+byte.
+
+| Upstream change | Done |
+| --- | --- |
+| `language`, `output_style` and `scratchpad` dropped as system-prompt sections | Nothing; none was carried here. `output_style` was handled in 60edda3. The scratchpad is now a bullet inside the environment attachment, which is what leaves `agent-tools env-context` duplicating it. |
+| the environment block left the system prompt for a `messages[]` attachment, leaving three bullets behind | Nothing; never carried here. |
+| `fable_identity` gained a Fable 5.1 variant | Nothing; this prompt is loaded for Opus 5. |
+| new `opus5_reduced_delegation` section, replacing two 2.1.235 lines that rode the `heron_brook` fallback and loosening them to admit CLAUDE.md and skills | Deliberate divergence, above. |
+| new `willow_tern` section, `# Writing for the user`: a ten-rule contract for the final message | **Not adopted.** It is off by default for Opus 5, so it is a preview rather than shipped guidance, and it contradicts `## Response template`, which requires headers on every response where the new text bans them under about 500 words. Revisit if it ships on by default. |
+| new `brook_heron` section, whose text arrives from client data or growthbook keyed by model | Nothing to rebase — served, not shipped. Recorded so that unfamiliar text in a future capture is recognised instead of hunted for in the binary. |
+| everything this file borrows: the five `# Harness` bullets, the action-caution paragraph, `# Context management`, three `# Session-specific guidance` bullets | Byte-identical across the two builds. Now pinned by `scripts/check-prompt-upstream.py` instead of re-read by hand. |
+
 ## Why the prompt says what it says
 
 Reasoning cut from the prompt under step 3 above, kept so a future edit can tell a live rule from

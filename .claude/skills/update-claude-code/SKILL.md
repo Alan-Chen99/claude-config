@@ -40,18 +40,19 @@ Ordering is load-bearing — each step's reason is why it sits where it does.
 | 4 | Re-sync the editable venv — **canonical checkout only** | from `/repos/claude-config`: `UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/claude-config uv sync --reinstall-package claude-config` | `check-env-context.sh` runs under this venv, so a stale install loads the old `drift.py`. `--reinstall-package` is required because the package version never bumps. **Run it from a worktree and it repoints the shared venv's editable install at that worktree** (`+ claude-config @ file:///root/claude-config-work2`), breaking every other session once the worktree is deleted — the same hazard as `install.sh`. A worktree has its own venv at `$HOME/.claude/venvs/<basename>`, selected by the `UV_PROJECT_ENVIRONMENT` that `.envrc` exports through direnv, so a worktree needs no step 4. |
 | 5 | Check, then re-pin, env-context | `./scripts/check-env-context.sh` → review the `+`/`-`/`~` diff → `./scripts/check-env-context.sh --update` | The diff is the single best summary of what changed in cc's own `# Environment` block. Re-pin only after reading it — `--update` overwrites the evidence. |
 | 6 | Resolve every source citation | `bash .claude/skills/update-claude-code/citecheck.sh` | 135 `chunk-*.js:LINE` citations live in tracked files; only 2 are re-derived by any test. Exit 0 = all resolve; 1 = the unresolved ones are named on stdout; 2 = no decompiled tree, i.e. step 2 was skipped. |
-| 7 | Rebuild and test | `cd agent-tools && cargo build --release && cargo test --release`; `uv run pytest tests/ -q`; `./scripts/check-prompt-coupling.sh` | |
-| 8 | Check the renderer against real logs | `ls -t /root/.claude/projects/*/*.jsonl \| head -8 \| uv run cc-render-coverage --quiet` | New record and attachment shapes land here first. |
-| 9 | Re-capture the system-prompt snapshots | see `docs/system-prompt-snapshot/README.md` "Regenerating" | Needs step 4's venv, the MITM proxy on 9160, and `CLAUDE_CODE_OAUTH_TOKEN`. Never run two `regenerate.py` in parallel — they share `capture-output/`. |
-| 10 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
+| 7 | Rebase the upstream-derived prompts | `python3 scripts/check-prompt-upstream.py`, then the section-key diff it does not do | `sys_prompt/` replaces Claude Code's own system prompt wholesale, so passages copied from it go stale with no signal and nothing else in this list reads prose. The script needs step 2's tree and exits 2 without it. The procedure, the deliberate divergences and the per-release log are in `sys_prompt/CLAUDE.md`, "Rebasing on an upstream release" — that text governs; this row only says when to run it. |
+| 8 | Rebuild and test | `cd agent-tools && cargo build --release && cargo test --release`; `uv run pytest tests/ -q`; `./scripts/check-prompt-coupling.sh` | |
+| 9 | Check the renderer against real logs | `ls -t /root/.claude/projects/*/*.jsonl \| head -8 \| uv run cc-render-coverage --quiet` | New record and attachment shapes land here first. |
+| 10 | Re-capture the system-prompt snapshots | see `docs/system-prompt-snapshot/README.md` "Regenerating" | Needs step 4's venv, the MITM proxy on 9160, and `CLAUDE_CODE_OAUTH_TOKEN`. Never run two `regenerate.py` in parallel — they share `capture-output/`. |
+| 11 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / no citecheck output / `329 passed` / 15 cargo test binaries all `ok` /
+binary` / `OK: 13 borrowed passages still match the installed build` / no citecheck output / `329 passed` / 15 cargo test binaries all `ok` /
 `prompt coupling OK` / `8 file(s) checked: clean`.
 
-**Where to run each step.** Steps 4, 9 and 10 touch shared state and belong in the
+**Where to run each step.** Steps 4, 10 and 11 touch shared state and belong in the
 canonical checkout `/repos/claude-config`. Everything else is worktree-safe and should
-be done in a worktree, because steps 5 and 7 rewrite tracked files.
+be done in a worktree, because steps 5 and 8 rewrite tracked files.
 
 **When a check fails.** `check-env-context.sh` printing `+`/`-`/`~` lines means cc's own
 env block changed shape — read the diff against `src/claude_config/env_context/render.py`
@@ -76,6 +77,7 @@ This table is the point of the skill. A green run below still leaves all of this
 | `cc-render-coverage` | The default view's **selection**. It renders with `show_all` set and draws needles only from `assistant`/`user` records, so attachment/progress/system records contribute none. It cannot see a record being dropped. |
 | `pytest` | Every citation but one. `tests/test_model_visibility.py::test_denylist_still_matches_the_conversion_source` re-derives `_NEVER_VISIBLE_ATTACHMENT_TYPES` from the decompiled source by string marker — and `skipif`s when `/repos/claude-code-decompiled/src` is absent, so it reports success by not running. |
 | `check-prompt-coupling.sh` | Claude Code entirely. It greps this repo's own files against each other. |
+| `check-prompt-upstream.py` | Everything upstream says that this repo never copied. It re-checks 13 borrowed passages; a section a release adds, or reworded text this prompt does not carry, is invisible to it. |
 | CI | Everything. `.github/workflows/skills-test.yml` runs only `skills/scripts/` tests, only on `skills/scripts/**` paths. No drift check runs in CI. |
 
 ## 3. The coupling inventory — what an upgrade can break
@@ -94,6 +96,7 @@ This table is the point of the skill. A green run below still leaves all of this
 | `settings.json:19-50` | `Notification` matchers `permission_prompt`, `idle_prompt`, `elicitation_dialog` | Literal strings cc must still emit. |
 | `settings.json:82-92` | `PreToolUse` matcher `"Agent"` + `jq` rewriting `run_in_background` to `false` | With `CLAUDE_CODE_FORK_SUBAGENT=0` this is what makes subagents synchronous. If either half stops working, `sys_prompt/alan-default-next.md:214-216` becomes a lie the model acts on. |
 | `settings.json:116-127` | `PostToolUseFailure` | A distinct event name. Folded back into `PostToolUse` and errored calls stop being delivery points. |
+| `sys_prompt/alan-default-next.md`, and any `agents/*.md` named after a built-in agent | passages copied verbatim from Claude Code's own system prompt | `--system-prompt-file` drops every upstream section, so a rule upstream reworded or added never arrives and the copy here keeps saying the old thing. `sys_prompt/CLAUDE.md` governs: procedure, deliberate divergences, per-release log. |
 | `scripts/claude.sh:13` | `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` | Without it an agent-view fork drops `--system-prompt-file` and silently runs the stock prompt. |
 
 ### 3.2 Mirrors of cc's own algorithms — re-read the source, don't just test
@@ -179,6 +182,10 @@ new gap rather than leaving it in a session transcript.
   `--system-prompt-file` sessions as a `messages[]` attachment. What the hook still uniquely adds:
   the shell the Bash tool actually runs, the session id, the worktree's parent checkout, the drift
   note. Recorded at `src/claude_config/env_context/__main__.py:10-22` as a finding, not a decision.
+- One passage `sys_prompt/alan-default-next.md` borrowed from upstream diverges with no recorded
+  reason and nothing else in the prompt covering it — the row marked **Not reviewed** under
+  "Deliberate divergences" in `sys_prompt/CLAUDE.md`. It predates the 2.1.235 baseline, so the
+  2.1.269 rebase neither caused nor closed it.
 - `cc-render-coverage` cannot see selection defects at all (§2). Extending it is what would have
   caught the skeleton bug.
 
@@ -197,6 +204,7 @@ re-diagnose these as upgrade fallout)
 | Running the checks before re-extracting the decompile | `citecheck.sh` and the denylist test both pass without testing anything. |
 | Treating a green `cc-render-coverage` as "the renderer is fine" | It never looks at attachment records or at what the default view selects. |
 | Grepping for the old version string and calling it done | That finds stale *references*. It cannot find a live code path whose input shape changed underneath it — which is how the skeleton bug (§4) survived a full audit. |
+| Diffing the prompt captures and calling that the upstream delta | A capture is one environment on one day, and most prompt sections sit behind a server-resolved flag. `act_dont_rederive` vanished between the 2.1.235 and 2.1.269 captures while staying in both binaries. |
 | Re-pinning a `notes/` file to the new version | Destroys a dated record of the older build. Those files are evidence, not documentation. |
 | Fixing, committing, and stopping | Nothing you run changes until the merge to `/repos/claude-config` and a rebuild — the installed binary and the editable venv both resolve there, by design. |
 | Running `install.sh` from a worktree | Repoints `~/.local/bin` at the worktree; deleting it later breaks every session. |
