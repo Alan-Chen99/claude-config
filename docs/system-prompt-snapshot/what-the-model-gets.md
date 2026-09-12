@@ -238,7 +238,7 @@ Same relocation, applied to opus's differently-organized block:
  actions; report outcomes faithfully}
 
 # Session-specific guidance   [3 bullets]
-# Memory                      [2 bullets]
+# Memory                      {prose — file format, linking, save/recall guidance}
 # Environment                 [3 bullets — was 10, same relocation as sonnet]
 # Context management          {summarization notice only — the
                                act-when-you-have-enough-info paragraph present
@@ -298,7 +298,7 @@ safety measures for dual-use capabilities, while Claude Mythos 5 is
 available without those measures to only approved organizations..."}
 
 # Session-specific guidance   [3 bullets — same text as opus's]
-# Memory                      [2 bullets — same text as opus's]
+# Memory                      {prose — same text as opus's}
 # Environment                 [3 bullets — same ecosystem trivia as every model]
 # Context management          {summarization notice, PLUS: an
                                operating-autonomously paragraph, an exception
@@ -485,8 +485,9 @@ joined `userEmail` (it used to live at the tail of the cached system[3]
 block); a new Attribution block was inserted before the user's own text; the
 Environment/model-identity content that used to be baked into cached
 system[3] now opens `messages[1]` instead; and **`## Auto Mode Active` is
-gone** — checked case-insensitively across every capture in this batch, absent
-from all nine, versus present in eight of eight comparable 2.1.235 captures.
+gone** — checked case-insensitively across all 13 `request.json` files in this
+batch (the 11 top-level captures plus both `sonnet-5/subagent` children),
+versus present in eight of eight comparable 2.1.235 captures.
 See README.md for what this document could and couldn't establish about why.
 
 A bare `Today's date is <date>.` line (no `# currentDate` header, no
@@ -504,19 +505,22 @@ Shape caveats, unchanged from 2.1.235:
   Environment reminder appears *after* the deferred-tools reminder rather
   than before it (order differs slightly from the main session).
 
-Measured over the full `messages[]` array, minus the fixed 18-character canary
-text (`"say exactly: done"`):
+Measured over the full `messages[]` array, minus the fixed 17-character canary
+text (`"say exactly: done"`) — it appears exactly once per request, as the
+entire final text block of `messages[0]`, so each row below is that raw
+messages-array char count with 17 subtracted once:
 
 | | Opus 4.7 | Sonnet 5 | Opus 5 |
 |---|---|---|---|
-| 2.1.235 | 13,041 | 13,025 | 12,042 |
-| 2.1.269 | 14,687 | 14,676 | 14,200 |
+| 2.1.235 | 13,042 | 13,026 | 12,043 |
+| 2.1.269 | 14,688 | 14,677 | 14,201 |
 
-Grew by roughly 1,600-2,150 chars across all three: the new Attribution and
-Environment/identity reminders outweigh the removed Auto Mode reminder and the
-small skill/agent-roster wording changes (see README.md for the itemized
-list). Its size still tracks the user's installed skills and agents, so it's
-still not comparable across machines.
+Grew by roughly 1,600-2,150 chars across all three — a constant per-row
+offset, so the canary-length correction above doesn't change this: the new
+Attribution and Environment/identity reminders outweigh the removed Auto Mode
+reminder and the small skill/agent-roster wording changes (see README.md for
+the itemized list). Its size still tracks the user's installed skills and
+agents, so it's still not comparable across machines.
 
 ## API parameters
 

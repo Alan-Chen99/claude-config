@@ -34,7 +34,7 @@ what's measured about each and why the last three aren't directories here.
 | `<model-id>/<variant>/summary.json` | Block count, token counts, tool inventory |
 | `capture.py` | Captures one variant via pty + MITM proxy |
 | `regenerate.py` | Drives `capture.py` across every variant, writes `summary.json` |
-| `scripts/intercept/` | MITM proxy for API call logging (see `scripts/intercept/README.md`) |
+| `scripts/intercept/` — repo root, not under this directory | MITM proxy for API call logging (see `scripts/intercept/README.md`) |
 
 Variants: `default`, `custom-output-style`, `system-prompt`, `system-prompt-file`,
 `append`, `subagent`. This snapshot captures all six for sonnet-5, `default`
@@ -105,15 +105,23 @@ variant's `summary.json`.
 | 2 | Static behavioral rules | 1h, global scope | 10,676 | 10,574 | 1,210 | 1,210 | 1,152 |
 | 3 | Session guidance, memory, environment (ecosystem facts only — see below), context mgmt | 1h, org scope | 16,895 | 17,128 | 8,546 | 9,571 | 5,278 |
 
-Blocks 0 and 1 are unchanged byte-for-byte from 2.1.235, for every model that
-existed to compare (same 132/57 chars, confirmed by `git diff` producing no
-hunk in that region for any of the eight variant pairs checked; Fable 5 and
-Opus 4.8 weren't in the 2.1.235 capture set at all, so there's no version
-comparison for them — only the cross-model one). Opus 4.7, Sonnet 5, and
-Opus 5's own block 2 is each individually unchanged byte-for-byte from
-2.1.235 — same result, and the char counts match the 2.1.235 doc's
-10,676/10,574/1,210 exactly. All of the version-over-version change for those
-three models is in block 3; see "What moved out of block 3" below.
+Block 1 is unchanged byte-for-byte from 2.1.235, for every model that existed
+to compare (same 57 chars, confirmed by `git diff` producing no hunk touching
+that line for any of the eight variant pairs checked; Fable 5 and Opus 4.8
+weren't in the 2.1.235 capture set at all, so there's no version comparison
+for them — only the cross-model one). Block 0 is *not* byte-identical: it's
+the billing header, and three fields inside it change on every capture
+regardless of version — `cc_version` (e.g. `2.1.235.cf9` -> `2.1.269.d5c`;
+the call-type-dependent suffix is covered in "Billing header fields" below),
+plus a per-run `cch` hash and `cc_prompt_id` UUID (the same per-run churn "How
+to re-capture" describes below). `cc_version` is the only one of the three
+that actually carries version information. What *is* unchanged is the length
+and shape: still exactly 132 chars with the same field layout, for all eight
+variant pairs checked. Opus 4.7, Sonnet 5, and Opus 5's own block 2 is each
+individually unchanged byte-for-byte from 2.1.235 — same result, and the char
+counts match the 2.1.235 doc's 10,676/10,574/1,210 exactly. All of the
+version-over-version change for those three models is in block 3; see "What
+moved out of block 3" below.
 
 **Block 2 is not one shared text per branch, though** — see "The prompt
 split is per model id, not per model family" for why the 1,210/1,210/1,152
@@ -123,7 +131,7 @@ Total `system_tokens` per variant (from `summary.json`, exact):
 
 | Variant | Opus 4.7 | Sonnet 5 | Opus 5 | Fable 5 | Opus 4.8 |
 |---|---|---|---|---|---|
-| `default` | 8,702 | 8,745 | 3,257 | 3,556 | 2,266 |
+| `default` | 8,702 | 8,745 | 3,252 | 3,556 | 2,266 |
 | `custom-output-style` | — | 8,761 | — | — | — |
 | `append` | — | 8,754 | — | — | — |
 | `subagent` | — | 8,743 | — | — | — |
@@ -194,7 +202,7 @@ Block 2 and block 3, across all five `default` captures now on disk:
 | Model | Branch | Block 2 chars | Block 3 chars | `system_tokens` | Block 3 headings |
 |---|---|---|---|---|---|
 | opus-4-8 | compressed | 1,152 | 5,278 | 2,266 | Session-specific guidance, Memory, Environment, Context management |
-| opus-5 | compressed | 1,210 | 8,546 | 3,257 | …the same four, plus **Delivering work**, **Corrections** |
+| opus-5 | compressed | 1,210 | 8,546 | 3,252 | …the same four, plus **Delivering work**, **Corrections** |
 | fable-5 | compressed | 1,210 | 9,571 | 3,556 | **Communicating with the user**, then the same four; no Delivering work / Corrections |
 | sonnet-5 | long-form | 10,574 | 17,128 | 8,745 | (multi-section — see system[3] in what-the-model-gets.md) |
 | opus-4-7 | long-form | 10,676 | 16,895 | 8,702 | (multi-section, same shape as sonnet-5) |
@@ -660,9 +668,10 @@ deferred-tools reminder rather than before it — confirmed in
 `subagent/subagents/001-request.json`.
 
 **Removed**: the `## Auto Mode Active` reminder (and opus's bare equivalent,
-`"While auto mode is active: ..."`) is **absent from every one of the nine
-captures in this batch**, checked case-insensitively across every
-`request.json` including `opus-5/default`, which in 2.1.235 had the bare form.
+`"While auto mode is active: ..."`) is **absent from all 13 `request.json`
+files in this batch** — the 11 top-level captures plus both
+`sonnet-5/subagent` children — checked case-insensitively, including
+`opus-5/default`, which in 2.1.235 had the bare form.
 2.1.235 had it in eight of eight relevant captures (case-insensitive check
 against that same file set). `capture.py`'s invocation is unchanged (no diff
 against 2.1.235 outside the trust-dialog fix), so this isn't a capture-script
@@ -719,19 +728,23 @@ skill/agent content, not CLI behavior):
   now points to instead of including inline.
 
 Per-message character totals (chars, not tokens, for the reasons given above),
-measured over the full `messages[]` array minus the fixed 18-character canary
-text (`"say exactly: done"`, unchanged in `capture.py` both versions):
+measured over the full `messages[]` array minus the fixed 17-character canary
+text (`"say exactly: done"`, unchanged in `capture.py` both versions). The
+canary appears exactly once per request, as the entire final text block of
+`messages[0]`, so each row below is that raw messages-array char count with
+17 subtracted once:
 
 | | Opus 4.7 | Sonnet 5 | Opus 5 |
 |---|---|---|---|
-| 2.1.235 | 13,041 | 13,025 | 12,042 |
-| 2.1.269 | 14,687 | 14,676 | 14,200 |
+| 2.1.235 | 13,042 | 13,026 | 12,043 |
+| 2.1.269 | 14,688 | 14,677 | 14,201 |
 
-All three grew by roughly 1,600-2,150 chars: + the Attribution reminder
-(~330 chars) + the relocated Environment/identity reminder (~500-700 chars,
-larger than what left block 3 because it now also carries the Scratchpad
-content) + the skill/agent wording growth above, − the removed Auto Mode
-reminder (~600-700 chars sonnet-side).
+All three grew by roughly 1,600-2,150 chars — a constant per-row offset, so
+the canary-length correction above doesn't change this: + the Attribution
+reminder (~330 chars) + the relocated Environment/identity reminder (~500-700
+chars, larger than what left block 3 because it now also carries the
+Scratchpad content) + the skill/agent wording growth above, − the removed
+Auto Mode reminder (~600-700 chars sonnet-side).
 
 ## Request parameters
 
