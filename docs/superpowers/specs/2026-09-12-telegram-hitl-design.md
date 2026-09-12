@@ -137,6 +137,28 @@ forget an update; doing it first opens a window in which a crash loses a human's
 answer with no way to recover it. This is the only irrecoverable data loss in the
 system, and the ordering is the whole mitigation.
 
+**The drain's error policy is deliberately not uniform**, and this was learned by
+crashing one. A probe drain died on `400 MESSAGE_ID_INVALID` while reacting to a
+chat-migration service message — *after* the append had succeeded, so the
+ordering above held and all six records survived. The acknowledgement step is
+what killed it. Hence:
+
+- Failure to durably record an update is **fatal**. Continuing past it silently
+  drops a human's answer.
+- Failure to acknowledge, send, or otherwise decorate is **logged and skipped**.
+
+Aborting the drain over a cosmetic failure converts it into total channel loss,
+and total channel loss reaches a waiting workflow as *"the human has not answered
+yet"* — indistinguishable from a slow human, which is the failure this design
+exists to prevent. Errors must stay loud without being fatal: a rejected reaction
+belongs in the log, where it is visible, not in an unhandled exception that takes
+the channel down with it.
+
+Not all messages are reactable. `new_chat_members` accepted a reaction while both
+migration service messages returned `MESSAGE_ID_INVALID`, so reactability is
+type-specific and not predictable from a simple rule — which is why this must be
+handled rather than avoided.
+
 ### Reading and waiting
 
 Two distinct needs, which want different mechanisms.
@@ -225,10 +247,40 @@ is `/mybots → select bot → Bot Settings → …`, which is verbatim-confirme
 other settings but not for this one; the submenu name is unverified. Look for
 "Threads", not "Topics".
 
-`is_anonymous` is currently `true` in those default rights, which would make the
-bot post as the group rather than as itself. This should be turned off before
-adopting the supergroup layout — attribution of who asked a question is load-
-bearing when several agents share a chat.
+**Default admin rights apply only at promotion time.** A test supergroup
+(`claude-channel-group`) has the bot as `administrator` with
+`can_manage_topics: false`, even though the bot's *defaults* carry it as `true` —
+the bot was promoted before the defaults were set, and nothing retroactively
+reconciles them. The bot cannot repair this itself: `promoteChatMember` against
+its own id returns `can't promote self`, and its membership shows
+`can_be_edited: false`. So the supergroup layout needs two human actions that are
+easy to conflate: **enable Topics on the group**, which is what sets `is_forum`
+and without which `createForumTopic` returns `the chat is not a forum` even for a
+fully-privileged bot; and **grant the bot Manage Topics** in that group's admin
+settings.
+
+`is_anonymous: true` is set in those rights, and it does **not** anonymize the
+bot's own messages. A send from that supergroup returned
+`from: {id: 8818446392, username: "claude_channel_bot"}` with `sender_chat: null`
+— attribution is intact and nothing needs changing. This corrects an earlier
+assumption in this spec that it would need turning off; the concern was
+speculative and the measurement contradicts it.
+
+**Enabling Topics migrates the chat and changes its id.** The test group was
+created as `group` id `-5480670982` and became `supergroup` id
+`-1004384191085`; the old id is now dead, returning `group chat was upgraded to a
+supergroup chat`. Any stored chat id must therefore follow `migrate_to_chat_id`
+rather than being treated as stable.
+
+**Privacy mode is not the relevant control here.** Disabling it
+(`can_read_all_group_messages: true`) governs what a *non-admin* bot receives in
+groups; an admin bot already receives everything —
+*"Privacy mode is enabled by default for all bots, except bots that were added to
+a group as admins (bot admins always receive all messages)"*. It is also
+per-membership, not retroactive: *"the bot will need to be re-added to the group
+for this change to take effect"*. So for an admin bot it is redundant, and
+disabling it after the bot joined has no effect on that group either way. It
+matters only as insurance against a future demotion.
 
 ## Prerequisites
 
@@ -237,10 +289,15 @@ bearing when several agents share a chat.
   first-party `telegram` plugin and `telegram-bot-skill`) each start their own
   poller and will silently steal the stream. They must not run concurrently with
   this proxy.
-- **A chat layout**, per the table above. The supergroup layout is the only one
-  both unblocked and fully featured; it requires a human to create the group,
-  because the Bot API has no method to create a chat — only
-  `createChatInviteLink` and `createChatSubscriptionInviteLink` exist.
+- **A chat layout**, per the table above. Each step below needs a human, because
+  the Bot API can neither create a chat (only `createChatInviteLink` and
+  `createChatSubscriptionInviteLink` exist) nor raise the bot's own rights.
+  `claude-channel-group` (`-1004384191085`) exists and the bot is an admin there
+  with working send and reaction access, so what remains for the supergroup
+  layout is: enable **Topics** on the group, and grant the bot **Manage
+  Topics**. Verify with `getChat` reporting `is_forum` and `getChatMember`
+  reporting `can_manage_topics: true`; `createForumTopic` succeeding is the real
+  confirmation.
 
 ## Deliberately excluded
 
