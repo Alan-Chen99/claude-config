@@ -41,7 +41,7 @@ agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
 These files replace Claude Code's own system prompt rather than adding to it.
 `--system-prompt-file` keeps one block — `You are Claude Code, Anthropic's official CLI for
 Claude.` — and drops every other section, which
-`docs/system-prompt-snapshot/opus-5/system-prompt-file/system-prompt.md` shows in full. So no
+`docs/system-prompt-snapshot/opus-5/system-prompt-file/prompt.md` shows in full. So no
 wording Anthropic ships reaches a `claude.sh` session, and the passages here that read like
 upstream's are copies taken once. Upstream rewrites its prose between releases; a copy goes stale
 with no signal at all.
@@ -176,6 +176,15 @@ API rejects for that model, and falls back from adaptive to plain extended think
 Passing the parameter per call, rather than shadowing the built-in with a user-defined `Explore`
 agent: `omitClaudeMd` is set only on built-in agent definitions and is never read from frontmatter,
 so a shadow re-attaches the whole CLAUDE.md hierarchy to every spawn.
+
+Two environment variables sit between the agent definition and the call, and only one of them
+leaves this line standing. `CLAUDE_CODE_SUBAGENT_MODEL` names a default subagent model; 2.1.251
+demoted it from an override, so an agent definition's `model:` and an explicit per-spawn `model`
+both take precedence and `Prefer model: haiku` still decides. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`,
+added in 2.1.257, reverses that: it applies the default to every subagent and ignores per-spawn and
+agent-definition models alike. Neither is set here. Set the second one and this line becomes an
+instruction the model follows and the harness discards — the Agent tool's own `model` parameter
+documents the precedence (`docs/system-prompt-snapshot/opus-5/default/tools/Agent.md`).
 
 Retire this if the built-in default returns to `haiku`, or if Explore spawns start failing on prompt
 size — which would mean the MCP surface has grown into the case #45357 describes.
