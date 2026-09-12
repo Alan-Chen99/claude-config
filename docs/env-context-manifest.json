@@ -1,24 +1,35 @@
 {
-  "version": "2.1.235",
-  "_comment": "window_literals: printable strings in a fixed byte window around the env-block anchor; job is to catch NEW fields cc adds nearby. required_literals: each field template this hook reimplements that window_literals cannot see, mapped to its whole-binary occurrence count at pin time \u2014 a changed count participates in Task 6's failure, and the exact number's job in that report is to say what moved. Three blind spots land a literal here: under the {12,} length floor (Platform: 10 chars; the bare Shell: prefix, 7); too far from the anchor for any reasonable window (cTm, ~150M bytes away in a separate embedded copy of the app); or non-ASCII, which forces the whole string to UTF-16 and hides it from the ASCII-only regex even inside the window (the worktree clause's em-dash sits at a byte offset squarely inside the current window and is still invisible). Full derivation, byte offsets, and rejected alternatives: notes/env-context-manifest.md. Do not fold required_literals back into window_literals.",
+  "version": "2.1.269",
+  "_comment": "window_literals: printable strings in a fixed byte window around drift.WINDOW_ANCHOR -- the env block's first field template, not its opening sentence; job is to catch NEW fields cc adds beside the ones this hook reimplements. The two were one anchor through 2.1.235, where the bundler laid the sentence down beside the templates; in 2.1.269 they sit ~420 KB apart and a window on the sentence sees no env field at all, so drift.py stands on the templates, which cluster because one function emits them. required_literals: each field template this hook reimplements that window_literals cannot see, mapped to its whole-binary occurrence count at pin time \u2014 a changed count participates in Task 6's failure, and the exact number's job in that report is to say what moved. Two blind spots land a literal here: under the {12,} length floor (Platform: 10 chars, Shell: 7), or non-ASCII, which forces the whole string to UTF-16 and hides it from the ASCII-only regex even inside the window (the worktree clause's em-dash sits at a byte offset squarely inside the window and is still invisible; the stash caution is the same, and is the one pinned here). Counts are plain byte-substring counts, so they are a lower bound that ignores UTF-16 copies, and most of them are unrelated reuse of a short label \u2014 that is fine, because a count is compared against its own pinned value, not against a census. Do not fold required_literals back into window_literals. Derivation of the 2.1.235 baseline, byte offsets and rejected alternatives: notes/env-context-manifest.md \u2014 written against 2.1.235 and not re-derived for 2.1.269, so its offsets, its four-anchor count and its `Shell: PowerShell` probe (0 occurrences in 2.1.269: cc moved the `Shell: ` label out of the value and into the field template) describe the older binary only.",
   "window_literals": [
-    "# Environment",
+    "# Output Style: G",
     ". The exact model ID is ",
+    "Additional working directories added:",
+    "Additional working directories removed:",
     "Additional working directories:",
+    "Always respond in ",
     "Assistant knowledge cutoff is ",
-    "Claude Code is available as a CLI in the terminal, desktop app (Mac/Windows), web app (claude.ai/code), and IDE extensions (VS Code, JetBrains).",
-    "Fast mode for Claude Code uses Claude Opus with faster output (it does not downgrade to a smaller model). It can be toggled with /fast and is available on Opus 5/4.8.",
     "Is a git repository: ",
-    "Iterator result interface is not an object.",
     "OS Version: ",
     "Primary working directory: ",
+    "Scratchpad directory: ",
+    "The language preference was cleared. Match the user's language.",
+    "The output style was reset to the default. Respond in your usual style.",
+    "The scratchpad directory announced earlier is no longer available; use it no further.",
     "You are powered by the model ",
     "You are powered by the model named ",
-    "You have been invoked in the following environment: "
+    "agentProxyNote",
+    "ephemeralSuffix",
+    "knowledgeCutoff",
+    "knowledge_cutoff",
+    "marketingName",
+    "nameOnlyContent",
+    "scratchpadDirectory",
+    "shellDescription]"
   ],
   "required_literals": {
-    "Platform: ": 14,
-    "Shell: PowerShell": 3,
+    "Platform: ": 9,
+    "Shell: ": 9,
     "The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` ": 1
   }
 }

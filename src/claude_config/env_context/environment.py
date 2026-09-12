@@ -1,10 +1,10 @@
 """Machine facts for the env block.
 
 Claude Code's own env block reports `$SHELL`, falling back to the literal
-string `unknown` (`Kml()`, globals/21.js:13560). That is not the shell it runs
-commands with: the Bash tool resolves one independently (globals/10.js:22633)
-and exports it. `resolve_shell` mirrors the Bash tool, so the reported shell is
-the one Bash tool commands execute under.
+string `unknown` (`vWr()`, chunk-dbb93264.js:29150). That is not the shell it
+runs commands with: the Bash tool resolves one independently (`das()`,
+chunk-dbb93264.js:134358) and exports it. `resolve_shell` mirrors the Bash
+tool, so the reported shell is the one Bash tool commands execute under.
 """
 
 from __future__ import annotations
@@ -28,7 +28,8 @@ def resolve_shell(
     search_dirs: Sequence[str] | None = None,
     found: Callable[[str], str | None] = shutil.which,
 ) -> str:
-    """Return the shell the Bash tool will run, mirroring globals/10.js:22633.
+    """Return the shell the Bash tool will run, mirroring `das()`,
+    chunk-dbb93264.js:134358.
 
     `found` looks up a shell name on PATH, defaulting to shutil.which. Tests
     pass a stub (e.g. `lambda _: None`) to keep the real PATH out of the result.
@@ -94,9 +95,12 @@ def is_git_repo(cwd: str) -> bool:
 def worktree_common_dir(cwd: str) -> str | None:
     """Return the shared git dir when cwd is a linked worktree, else None.
 
-    Claude Code emits its worktree warnings only for worktrees it created
-    itself (`cv()`, globals/04.js:7126), so it stays silent in one made by
-    hand. Asking git directly covers both.
+    Asking git directly is what covers a worktree made by hand. Through
+    2.1.235 that was the whole point: cc emitted its worktree warnings only
+    for worktrees it had created itself. 2.1.269 broadened its own test to
+    `pP()` (chunk-arxpc433.js:1653) -- git-common-dir differs from git-dir,
+    the same question this asks -- so the two now agree on which directories
+    count, and this no longer covers a case cc misses.
     """
     result = _git(
         ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"], cwd
@@ -113,7 +117,9 @@ def worktree_common_dir(cwd: str) -> str | None:
 
 
 def os_version() -> str:
-    """Mirrors os.type() + ' ' + os.release() (`Yml()`, globals/21.js:13572; POSIX branch)."""
+    """Mirrors os.type() + ' ' + os.release() (`xWr()`,
+    chunk-dbb93264.js:29165; POSIX branch).
+    """
     return f"{platform.system()} {platform.release()}"
 
 

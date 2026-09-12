@@ -583,20 +583,30 @@ def _binary(
     before: list[str] | None = None,
     far: list[str] | None = None,
 ) -> Path:
-    """A stand-in binary: padding, optional pre-anchor literals, the anchor,
-    post-anchor literals, then far strings.
+    """A stand-in binary: padding, optional pre-anchor literals, both
+    anchors, post-anchor literals, then far strings.
 
-    `before` mirrors production: in the real 2.1.235 binary, 12 of the 13
-    pinned window literals sit *before* the anchor (measured offsets -32 to
-    -1232) and only the anchor itself sits at offset 0 -- a fixture that
-    places everything after the anchor never exercises WINDOW_BEFORE at
-    all. `far` lands well past the scan window, standing in for the
-    string-table region `Kml()`'s literals occupy in the real binary.
+    Both anchors, because production has two jobs for them and 2.1.269 split
+    the strings that do them: `find_binary` identifies the binary by ANCHOR,
+    while `literals_in` windows on WINDOW_ANCHOR. Writing only one would
+    leave whichever test needs the other reading a binary cc would never
+    produce.
+
+    `before` mirrors production: roughly half the pinned window literals sit
+    *before* the window anchor, so a fixture that places everything after it
+    never exercises WINDOW_BEFORE at all. `far` lands well past the scan
+    window, standing in for the whole-binary reuse `required_literals`
+    counts rather than the window sees.
+
+    Every literal is NUL-delimited on both sides and the padding is far
+    wider than WINDOW_AFTER, so no match can touch a window edge -- which
+    `literals_in` discards as a half-read string, and which would otherwise
+    silently drop a fixture literal a test is asserting on.
     """
     blob = b"\x00" * 100
     for text in before or []:
         blob += text.encode() + b"\x00"
-    blob += b"You have been invoked in the following environment: "
+    blob += drift.ANCHOR + b"\x00" + drift.WINDOW_ANCHOR
     for text in literals:
         blob += b"\x00" + text.encode()
     blob += b"\x00" * 8000
@@ -608,16 +618,18 @@ def _binary(
 
 
 def _manifest(tmp_path: Path, window: list[str], required: dict[str, int]) -> Path:
-    """`_binary()` always writes the anchor, so a manifest that can ever
-    truly match one must always list it too -- centralized here rather than
-    repeated as a comment at each call site.
+    """`_binary()` always writes both anchors, so a manifest that can ever
+    truly match one must always list them too -- centralized here rather
+    than repeated as a comment at each call site.
     """
     path = tmp_path / "manifest.json"
     path.write_text(
         json.dumps(
             {
                 "version": "2.1.235",
-                "window_literals": sorted({*window, drift.ANCHOR.decode()}),
+                "window_literals": sorted(
+                    {*window, drift.ANCHOR.decode(), drift.WINDOW_ANCHOR.decode()}
+                ),
                 "required_literals": required,
             }
         )
@@ -685,6 +697,69 @@ def test_extract_raises_without_anchor(tmp_path: Path) -> None:
         assert "anchor" in str(exc)
     else:
         raise AssertionError("expected RuntimeError")
+
+
+def test_window_follows_the_field_anchor_not_the_binary_anchor() -> None:
+    """The 2.1.269 regression, in miniature.
+
+    Through 2.1.235 one string did both jobs, because the bundler happened
+    to lay cc's env-block opening sentence down beside the field templates.
+    In 2.1.269 they sit ~420 KB apart, and a window still measured from the
+    sentence returned markdown-parser regexes and HTTP/2 error strings --
+    a full set of literals, none of them an env field, which re-pins clean
+    and can never again catch a field change. The distance here is token;
+    what matters is that the window is measured from WINDOW_ANCHOR.
+    """
+    decoy = b"Iterator result interface is not an object."
+    field = b"Is a git repository: "
+    data = (
+        b"\x00" * 50
+        + drift.ANCHOR
+        + b"\x00"
+        + decoy
+        + b"\x00" * 5000
+        + drift.WINDOW_ANCHOR
+        + b"\x00"
+        + field
+        + b"\x00" * 5000
+    )
+
+    literals = drift.literals_in(data, "fixture")
+
+    assert field.decode() in literals
+    assert decoy.decode() not in literals
+
+
+def test_literals_cut_by_a_window_edge_are_discarded() -> None:
+    """Half a string is still a string `compare()` can diff, which is the
+    problem: it moves whenever anything near the boundary shifts, reporting
+    drift for releases that never touched the env block. The real pin
+    carried two of these before this was fixed -- `lastIngressUuidBySession`
+    entered the manifest as `essUuidBySession`.
+
+    Both edges, because they are separately reachable: WINDOW_BEFORE clamps
+    at 0 for an anchor near the start of the file and WINDOW_AFTER never
+    does, so a guard written for one end can pass while the other leaks.
+    """
+    anchor_at = drift.WINDOW_BEFORE + 500
+    leading = b"L" * 400  # starts before the window, ends inside it
+    trailing = b"T" * 400  # starts inside the window, ends past it
+    inside = b"Is a git repository: "
+
+    prefix = bytearray(b"\x00" * anchor_at)
+    prefix[300:300 + len(leading)] = leading
+    suffix = bytearray(b"\x00" * (drift.WINDOW_AFTER + 500))
+    start = drift.WINDOW_AFTER - len(drift.WINDOW_ANCHOR) - 200
+    suffix[start:start + len(trailing)] = trailing
+    suffix[50:50 + len(inside)] = inside
+
+    literals = drift.literals_in(bytes(prefix) + drift.WINDOW_ANCHOR + bytes(suffix), "x")
+
+    assert inside.decode() in literals
+    assert leading.decode() not in literals
+    assert trailing.decode() not in literals
+    assert not any(set(literal) <= {"L"} for literal in literals), literals
+    assert not any(set(literal) <= {"T"} for literal in literals), literals
 
 
 def test_compare_matches_pinned_manifest(tmp_path: Path) -> None:

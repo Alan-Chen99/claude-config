@@ -1,13 +1,27 @@
 """Assembling the prompt sections from collected facts.
 
-Bullets use the ` - ` prefix Claude Code's own formatter emits (`jSe`,
-globals/21.js:13158), so the bullet formatting matches the block cc produces
-in sessions that use its default prompt. The content itself deliberately
-diverges from cc's own env block (`_dE`, globals/21.js:13480) in three
-places: `Shell` reports a resolved path, not cc's bare shell name; `Session
-ID` has no cc equivalent; and the worktree line names the checkout path,
-where cc's own version names none — cc's line describes a worktree it
-created and owns, not one made by hand.
+Bullets use the ` - ` prefix Claude Code's own formatter emits (`RT`,
+chunk-dbb93264.js:29113), so the bullet formatting matches the block cc
+produces in sessions that use its default prompt. The content itself
+deliberately diverges from cc's own env block (`AWr`,
+chunk-dbb93264.js:29195) in three places: `Shell` reports the shell the Bash
+tool actually runs, where cc reports `$SHELL` or the literal `unknown`;
+`Session ID` has no cc equivalent; and the worktree line names the checkout
+path, where cc's own version names none.
+
+The reason once given for that third divergence -- that cc's line describes
+only a worktree it created and owns -- stopped being true in 2.1.269, which
+sets `isWorktree` from `pP()` (chunk-arxpc433.js:1653), the same
+common-dir-differs-from-git-dir test `environment.worktree_common_dir` uses,
+and so speaks about hand-made worktrees too. The divergence survives the
+correction: cc's wording still names no path.
+
+2.1.269 also moved the scratchpad from a section of its own into a bullet of
+this block, and the model and knowledge-cutoff lines out of it entirely, so
+this rendering no longer mirrors cc's shape. It is left as it is pending the
+larger question `__main__`'s docstring records: cc now emits this block
+itself even under --system-prompt-file, so most of what is rendered here is
+a second copy.
 """
 
 from __future__ import annotations
@@ -15,7 +29,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NotRequired, TypedDict
 
-# cc's own wording, `cTm`, globals/21.js:13688, in full. The second half
+# cc's own wording, `KUt`, chunk-dbb93264.js:29119, in full. The second half
 # defines what "bare" means by naming the safe alternative (a tagged,
 # recoverable stash) — drop it and "never use bare `git stash`" has no
 # working definition of non-bare, and the obvious misreading (bare means no

@@ -8,6 +8,20 @@ hand, the binary changes underfoot.
 The check sees labels only. A change to how cc computes a value without
 changing its label will not trip it, which is why the manifest pins the cc
 version alongside the literals.
+
+Two anchors, because the binary gives one string two jobs it stopped doing
+at once. ANCHOR identifies the binary: a file containing cc's env-block
+opening sentence is cc and not the wrapper script PATH resolves to.
+WINDOW_ANCHOR locates the fields: the window is scanned around it, not
+around ANCHOR. They were the same string through 2.1.235, where the bundler
+happened to lay the opening sentence down beside the field templates. In
+2.1.269 it does not -- the sentence and the templates are ~420 KB apart in
+the same string-table region -- so a window on ANCHOR sees markdown-parser
+regexes and HTTP/2 error strings and not one env field. The field templates
+still cluster with each other, because one function (`AWr`,
+chunk-dbb93264.js:29195) emits all of them, so the first of those templates
+is the durable place to stand; the opening sentence's adjacency to them was
+only ever a bundler coincidence.
 """
 
 from __future__ import annotations
@@ -26,8 +40,9 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 ANCHOR = b"You have been invoked in the following environment: "
-WINDOW_BEFORE = 3000
-WINDOW_AFTER = 1500
+WINDOW_ANCHOR = b"Primary working directory: "
+WINDOW_BEFORE = 1000
+WINDOW_AFTER = 1000
 PRINTABLE = re.compile(rb"[\x20-\x7e]{12,}")
 
 
@@ -105,7 +120,7 @@ def _has_anchor(path: Path) -> bool:
     """Whether `path` contains ANCHOR, without reading the whole file.
 
     PATH's `claude` is normally a small wrapper script, but on a non-Nix
-    install it can be the ~315 MB binary itself; mmap lets this check avoid
+    install it can be the ~220 MB binary itself; mmap lets this check avoid
     loading that into memory before the cache (consulted afterwards, in
     `compare()`) even gets a say. mmap refuses a zero-length file, so an
     empty file is treated as anchor-less directly rather than raising.
@@ -118,15 +133,40 @@ def _has_anchor(path: Path) -> bool:
 
 
 def literals_in(data: bytes, source: str) -> list[str]:
-    index = data.find(ANCHOR)
+    """Printable strings around the env block's first field template.
+
+    WINDOW_ANCHOR rather than ANCHOR, and +/-1000 rather than the -3000/+1500
+    those two constants carried while they were one anchor: at the field
+    cluster the useful span is short, and widening it only pulls in the
+    neighbouring output-style, language and HTTP/2 strings, which churn on
+    releases that leave the env block alone. 1000 each way covers every
+    field template `AWr` emits plus the model lines that follow them.
+    """
+    index = data.find(WINDOW_ANCHOR)
     if index < 0:
-        raise RuntimeError(f"env-block anchor not found in {source}")
-    window = data[max(0, index - WINDOW_BEFORE) : index + WINDOW_AFTER]
-    # PRINTABLE has no capture groups, so every match is the full bytes
-    # object; findall()'s return type is `list[Any]` in typeshed regardless
-    # (it has to accommodate patterns that do have groups), hence the cast.
-    matches = cast(list[bytes], PRINTABLE.findall(window))
-    return sorted({m.decode() for m in matches})
+        raise RuntimeError(
+            f"env-block field anchor {WINDOW_ANCHOR.decode()!r} not found in {source}"
+        )
+    start = max(0, index - WINDOW_BEFORE)
+    window = data[start : index + WINDOW_AFTER]
+    # A match that runs into either edge is a literal the window cut in half,
+    # not a literal: `lastIngressUuidBySession` pins as `essUuidBySession`.
+    # Half a string is still a string the comparison can diff, which is the
+    # problem -- it moves whenever anything near the boundary shifts, so it
+    # reports drift for releases that never touched the env block. Dropping
+    # it costs one watched neighbour and buys a set that only moves when
+    # something inside the window does.
+    #
+    # `finditer` rather than `findall` because deciding this needs each
+    # match's span. Match[bytes].group() is typed to return the full match
+    # for group 0, and PRINTABLE has no capture groups, so no cast is needed
+    # here the way `findall`'s `list[Any]` return once required one.
+    literals = {
+        match.group().decode()
+        for match in PRINTABLE.finditer(window)
+        if match.start() > 0 and match.end() < len(window)
+    }
+    return sorted(literals)
 
 
 def extract_literals(binary: Path) -> list[str]:
@@ -179,12 +219,12 @@ def installed_version(binary: Path) -> str:
 def compare(binary: Path, manifest: Path, version: str) -> Comparison:
     """Diff the installed binary against the pinned manifest.
 
-    The binary is 331 MB, so it is read once and both checks run over the same
-    bytes. `window_literals` catches fields cc adds near the anchor.
+    The binary is ~220 MB (331 MB at 2.1.235), so it is read once and both
+    checks run over the same bytes. `window_literals` catches fields cc adds near the anchor.
     `required_literals` catches a rename or removal of templates the
-    window cannot see: one under its 12-character floor, one too far from the
-    anchor, or one carrying a non-ASCII character, which the string table holds
-    as UTF-16 where the ASCII-only regex misses it even inside the window.
+    window cannot see: two under its 12-character floor, and one carrying a
+    non-ASCII character, which the string table holds as UTF-16 where the
+    ASCII-only regex misses it even inside the window.
     These are compared by occurrence count rather than presence, because the
     strings also occur elsewhere in the binary — a rename scoped to cc's env
     builders leaves them present while dropping the total. See

@@ -1,15 +1,36 @@
 """SessionStart hook: the dynamic context --system-prompt-file discards.
 
-Claude Code assembles its own `# Environment` and `# Scratchpad Directory`
-sections in `sV()` (globals/21.js:13336), and --system-prompt-file replaces
-that whole assembly. Everything else the default prompt carries still arrives:
-gitStatus is appended to the system prompt, and claudeMd, userEmail and
-currentDate come in the system-reminder user message.
+Through 2.1.235 Claude Code assembled its own `# Environment` and
+`# Scratchpad Directory` sections as system-prompt sections, and
+--system-prompt-file replaced that whole assembly, which is why this hook
+exists. Everything else the default prompt carries still arrives: gitStatus
+is appended to the system prompt, and claudeMd, userEmail and currentDate
+come in the system-reminder user message.
+
+That premise is half gone as of 2.1.269, and the hook has not yet been
+changed to match -- this paragraph records the finding, not a decision.
+2.1.269 moved the machine facts out of the system prompt and into an
+`environment` attachment (`JUt`, chunk-dbb93264.js:29201), delivered in a
+system-reminder user message and gated only on CLAUDE_CODE_SIMPLE and on
+bare/isolated forks (`p$t`, chunk-dbb93264.js:223650) -- not on the system
+prompt being custom. So a --system-prompt-file session now receives cc's own
+env block, verified in this repo's own session logs: the attachment appears
+in every session started after the upgrade and in none of the 1255 before
+it. What --system-prompt-file still discards is the `# Environment`
+*system-prompt* section, which in 2.1.269 holds only the model-family, CLI
+availability and fast-mode lines (`BRo`, chunk-dbb93264.js:69251), plus the
+separate model/knowledge-cutoff attachment text.
+
+What this hook still supplies that cc does not: the shell the Bash tool
+actually runs (cc reports `unknown` here), the session id, the worktree's
+main-checkout path, and the drift note. The rest of what it renders is now a
+second copy of a block cc already sent. Whether to trim this to its unique
+bullets or drop it is an open decision.
 
 Emitting the JSON envelope is not optional. Plain stdout from a SessionStart
 hook is injected as `SessionStart hook success: <text>`
-(globals/20.js:24499); only hookSpecificOutput.additionalContext is injected
-verbatim (globals/20.js:24485). A crash here is safer than it looks: cc
+(chunk-dbb93264.js:236006); only hookSpecificOutput.additionalContext is
+injected verbatim (chunk-dbb93264.js:227210). A crash here is safer than it looks: cc
 classifies a non-zero hook exit as `non_blocking_error`, which shows stderr
 to the *user* but maps to `[]` for the model, so failing loudly tells the
 human without polluting the prompt.
