@@ -7,6 +7,7 @@ No JSON parsing or schema validation here.
 from __future__ import annotations
 
 import json
+import re
 import textwrap
 from collections.abc import Callable
 from datetime import datetime
@@ -699,7 +700,30 @@ class Renderer:
             label = a.displayPath or a.path or a.filename or "?"
             return f"{C.DIM}  ⊞ {atype}: {label}{C.RESET}"
 
-        return f"{C.DIM}  ⊞ attachment [{atype}]{C.RESET}"
+        # Subtypes with no arm of their own still reached the model as a
+        # <system-reminder>, and `rendered` holds that exact text. A bare label
+        # would name the record while hiding what it said, which is the one
+        # thing the default view exists to show.
+        body = "\n".join(
+            str(block.get("content", ""))
+            for block in rec.rendered
+            if block.get("content")
+        ).strip()
+        if not body:
+            return f"{C.DIM}  ⊞ attachment [{atype}]{C.RESET}"
+        wrapper = re.fullmatch(
+            r"<system-reminder>\s*(.*?)\s*</system-reminder>", body, re.DOTALL
+        )
+        if wrapper:
+            body = wrapper.group(1)
+        # Bounded by --tool-max like every other body: a reader raising it to
+        # recover one truncated block expects the same reach here, and a cap
+        # of its own would ignore the flag.
+        head = trunc(body, self.tool_output_max)
+        line = f"{C.DIM}  ⊞ {atype}: {ind(head, '    ').lstrip()}{C.RESET}"
+        if len(body) > self.tool_output_max:
+            return f"{line}\n{self._hint(lineno, None, '.rendered[].content')}"
+        return line
 
     def render_permission_mode(self, rec: PermissionModeRecord) -> str:
         return f"{C.DIM}  ⊞ permission-mode: {rec.permissionMode}{C.RESET}"

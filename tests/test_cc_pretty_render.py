@@ -506,3 +506,52 @@ def test_cli_renders_session_with_scalar_tool_use_result(tmp_path) -> None:
     }) + "\n")
     proc = _run_cli(jsonl)
     assert proc.returncode == 0, proc.stderr
+
+
+def _rendered_record(atype: str, content: str) -> AttachmentRecord:
+    return AttachmentRecord(
+        type="attachment",
+        attachment=AttachmentData(type=atype),
+        rendered=[{"content": content}],
+    )
+
+
+def test_a_subtype_with_no_arm_prints_what_it_sent_the_model() -> None:
+    # Claude Code delivers most of its context as attachments whose subtype
+    # this renderer has never heard of -- the environment block among them.
+    # Naming the record while dropping its text is the failure that matters.
+    r = Renderer("/tmp/log.jsonl", tool_output_max=200, tool_input_max=200)
+    out = r.render_attachment(
+        _rendered_record(
+            "environment",
+            "<system-reminder>\n# Environment\nPrimary working directory: /x\n</system-reminder>",
+        ),
+        ts="00:00:00",
+        lineno=4,
+    )
+    assert out is not None
+    assert "environment" in out
+    assert "Primary working directory: /x" in out
+    # The wrapper is scaffolding every one of them carries; the text is not.
+    assert "<system-reminder>" not in out
+
+
+def test_an_overlong_attachment_preview_carries_its_recovery_path() -> None:
+    r = Renderer("/tmp/log.jsonl", tool_output_max=200, tool_input_max=200)
+    body = "x" * (r.tool_output_max + 500)
+    out = r.render_attachment(
+        _rendered_record("session_context", body), ts="00:00:00", lineno=9
+    )
+    assert out is not None
+    assert len(out.splitlines()[0]) < len(body)
+    # jq path must name where the text actually lives, or the hint is a dead end.
+    assert ".rendered[].content" in out
+    assert "sed -n '9p'" in out
+
+
+def test_an_attachment_carrying_no_rendered_text_still_names_itself() -> None:
+    r = Renderer("/tmp/log.jsonl", tool_output_max=200, tool_input_max=200)
+    rec = AttachmentRecord(type="attachment", attachment=AttachmentData(type="mystery"))
+    out = r.render_attachment(rec, ts="00:00:00", lineno=1)
+    assert out is not None
+    assert "mystery" in out

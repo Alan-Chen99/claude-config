@@ -8,12 +8,10 @@ Content block types: thinking, text, tool_use, tool_result
 toolUseResult: arbitrary tool-defined JSON — only the object form is
   modelled; see notes/tool-use-result-shapes.md
 Progress data types: bash_progress, agent_progress, hook_progress
-Attachment types: hook_additional_context (model-visible system-reminder text
-  produced by SessionStart / PostToolUse / etc.), hook_success (raw hook
-  execution metadata), task_reminder, skill_listing, output_style,
-  deferred_tools_delta, command_permissions, ultrathink_effort,
-  date_change, queued_command, compact_file_reference, edited_text_file,
-  file, nested_memory, hook_non_blocking_error.
+Attachment types: an open set — Claude Code adds and retires subtypes every
+  release, so AttachmentData models the fields the renderer reads and lets
+  pydantic carry the rest. See attachment_is_model_visible in main.py for
+  which records reach the model.
 """
 
 from __future__ import annotations
@@ -278,8 +276,8 @@ class QueueOperationRecord(_Base):
 
 # ─── Attachment payload (inner `.attachment` dict) ──────────────────────────
 # Fields vary by attachment subtype; declared permissively so any subtype
-# parses cleanly. See _MODEL_VISIBLE_ATTACHMENT_TYPES in main.py for which
-# subtypes contribute to the model's view.
+# parses cleanly. See attachment_is_model_visible in main.py for which records
+# contribute to the model's view.
 
 class AttachmentData(_Base):
     type: str = "unknown"
@@ -300,8 +298,9 @@ class AttachmentData(_Base):
     # skill_listing
     skillCount: int = 0
     isInitial: bool = False
-    # output_style
-    style: str = ""
+    # output_style carries the style's name; output_style_instructions carries
+    # the whole style object, so neither type nor shape is fixed here.
+    style: Any = ""
     # deferred_tools_delta
     addedNames: list[str] = []
     removedNames: list[str] = []
@@ -320,6 +319,7 @@ class AttachmentData(_Base):
     # queued_command
     prompt: str = ""
     commandMode: str = ""
+    renderedByBatchHead: bool = False
 
 
 class AttachmentRecord(_Base):
@@ -330,6 +330,11 @@ class AttachmentRecord(_Base):
     parentUuid: str | None = None
     isSidechain: bool = False
     attachment: AttachmentData = Field(default_factory=AttachmentData)
+    # The conversion output Claude Code captured for this record when it wrote
+    # the log — one {"content": str} entry per message the record became. Only
+    # sessions from 2.1.269 onward carry it, and only where every message the
+    # attachment produced was plain text.
+    rendered: list[dict[str, Any]] = []
     version: str = ""
     slug: str = ""
     cwd: str = ""

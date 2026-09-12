@@ -19,10 +19,10 @@ piping to `less -R`), --no-color forces it off.
 By default, only the last leg (after the last compaction boundary) is shown.
 Rewound conversation branches are collapsed to a single marker, and records
 not presented to the model (raw hook execution, progress, system metadata,
-permission-mode state) are hidden.  Model-visible attachment records — most
-importantly hook_additional_context, which carries the <system-reminder> text
-emitted by SessionStart / PostToolUse / etc. hooks — are shown by default.
-Use --show-all to surface the bookkeeping records as well.
+permission-mode state) are hidden.  Attachment records are judged one at a
+time, so the <system-reminder> text the model read — the # Environment block,
+the skill and agent listings, a hook's additional context — is shown by
+default.  Use --show-all to surface the bookkeeping records as well.
 
 This module also exposes :func:`add_shared_args` and :func:`run_pipeline` so
 other front-ends (e.g. opencode-pretty) can wire the same CLI surface and
@@ -54,23 +54,86 @@ from claude_config.cc_pretty.parse import (
 from claude_config.cc_pretty.render import C, Renderer, fmt_ts, render_skeleton, separator
 
 
-# Attachment subtypes whose content reaches the model (system-reminder text,
-# task/skill listings, output style, etc.).  Subtypes outside this set are
-# bookkeeping (raw hook execution, internal permission state) and stay hidden
-# unless --show-all is set.
-_MODEL_VISIBLE_ATTACHMENT_TYPES = frozenset({
-    "hook_additional_context",
-    "task_reminder",
-    "skill_listing",
-    "output_style",
-    "deferred_tools_delta",
-    "ultrathink_effort",
-    "date_change",
-    "queued_command",
-    "compact_file_reference",
-    "edited_text_file",
-    "file",
-    "nested_memory",
+# ─── Attachment model-visibility ─────────────────────────────────────────────
+#
+# Every attachment record reaches the API through one conversion,
+# normalizeAttachmentForAPI (Claude Code 2.1.269,
+# /repos/claude-code-decompiled/src/chunk-dbb93264.js:235627), and what that
+# conversion returns is what the request carries.  Two properties of it decide
+# the shape of this classification:
+#
+#   * It reads the whole record, not just its subtype.  A hook_success carries
+#     its hook's stdout only for three hook events (:236002); a queued_command
+#     drops itself when a batch head already rendered it (:235786).  So a
+#     subtype alone cannot answer for every record.
+#   * For a subtype it recognises, producing content is the default — only the
+#     arms named in _NEVER_VISIBLE_ATTACHMENT_TYPES return nothing for every
+#     record.  An allowlist keyed on subtype therefore hides each release's new
+#     subtypes until someone notices and extends it, and hiding model-facing
+#     content is the failure a reader cannot see.  A denylist fails the other
+#     way: an unmodelled subtype shows as a one-line summary, which is noise a
+#     reader can judge.
+#
+# Sessions from 2.1.269 onward settle it per record without either list: the
+# record's `rendered` field holds that same conversion's output, captured when
+# the log was written (:235526, stored by :235558).  Its absence is not an
+# answer — the persistence path also skips a conversion that produced
+# tool_use/tool_result blocks rather than text (:235549), and no log written
+# before 2.1.269 has the field at all.
+
+_NEVER_VISIBLE_ATTACHMENT_TYPES = frozenset({
+    # Conversion arms that return nothing whatever the record holds
+    # (chunk-dbb93264.js:235412-235414, :235463, :235503-235518).
+    "already_read_file",
+    "async_hook_response_batch",
+    "batching_reminder_sent",
+    "command_permissions",
+    "deferred_tools_record",
+    "edited_image_file",
+    "goal_status",
+    "hook_cancelled",
+    "hook_deferred_tool",
+    "hook_error_during_execution",
+    "hook_non_blocking_error",
+    "hook_permission_decision",
+    "hook_system_message",
+    "max_turns_reached",
+    "prompt_snapshot",
+    "secondary_reminder_sent",
+    "structured_output",
+    "teammate_shutdown_batch",
+    "thinking_stripped",
+    "tool_host_result_lines",
+    # The same, in the switch that follows the arm table (:235894, :236009).
+    "attention_budget",
+    "context_efficiency",
+    # Recognised and dropped before any arm runs (:236200).
+    "autocheckpointing",
+    "background_task_status",
+    "companion_intro",
+    "compaction_reminder",
+    "context_tip",
+    "current_session_memory",
+    "echo_activities",
+    "fold_nudge",
+    "pen_mode_enter",
+    "pen_mode_exit",
+    "task_progress",
+    "thinking_reminder",
+    "todo",
+    "ultramemory",
+    "ultrawork_request",
+    "verify_plan_reminder",
+})
+
+# A hook's stdout is forwarded to the model for these events only; any other
+# event, or empty stdout, converts to nothing (:236002).  A hook that wants to
+# be read at any other stage returns hookSpecificOutput.additionalContext
+# instead, which arrives as its own subtype.
+_HOOK_STDOUT_VISIBLE_EVENTS = frozenset({
+    "SessionStart",
+    "UserPromptSubmit",
+    "UserPromptExpansion",
 })
 
 
@@ -96,24 +159,48 @@ def is_chat_visible(rec: Record) -> bool:
     return False
 
 
+def attachment_is_model_visible(rec: AttachmentRecord) -> bool:
+    """True if this attachment record became content in an API request.
+
+    Prefers the conversion output the record carries; falls back to the
+    conversion's own subtype and field conditions when it carries none.  See
+    the notes above _NEVER_VISIBLE_ATTACHMENT_TYPES for where each comes from.
+
+    The fallback leaves the many arms that yield nothing for an empty payload
+    (an agent_listing_delta with no lines, a skill_listing with no skills)
+    counted as visible: the payload they would have carried is exactly what a
+    one-line summary elides, so being wrong there costs a reader one dim line
+    rather than a silently dropped system-reminder.
+    """
+    if rec.rendered:
+        return True
+    a = rec.attachment
+    if a.type in _NEVER_VISIBLE_ATTACHMENT_TYPES:
+        return False
+    if a.type == "hook_success":
+        return bool(a.content) and a.hookEvent in _HOOK_STDOUT_VISIBLE_EVENTS
+    if a.type == "queued_command":
+        return not a.renderedByBatchHead
+    return True
+
+
 def is_model_visible(rec: Record) -> bool:
     """True if this record contributes to the model's view of the conversation.
 
     user and assistant messages are always sent.  system messages only when
-    subtype is local_command.  attachment records whose subtype reaches the
-    model (see _MODEL_VISIBLE_ATTACHMENT_TYPES) are sent — most notably
-    hook_additional_context, which carries the <system-reminder> text emitted
-    by SessionStart / PostToolUse / etc. hooks.  Bookkeeping records (progress,
-    file-history-snapshot, queue-operation, last-prompt, permission-mode,
-    raw hook_success, turn_duration, etc.) are filtered out before the API
-    call.
+    subtype is local_command.  attachment records are asked individually
+    (see attachment_is_model_visible) — most carry text the model read as a
+    <system-reminder>, such as the # Environment block, the skill and agent
+    listings, or a hook's additional context.  The remaining record kinds
+    (progress, file-history-snapshot, queue-operation, last-prompt,
+    permission-mode) never leave the log.
     """
     if isinstance(rec, (AssistantRecord, UserRecord)):
         return True
     if isinstance(rec, SystemRecord) and rec.subtype == "local_command":
         return True
-    if isinstance(rec, AttachmentRecord) and rec.attachment.type in _MODEL_VISIBLE_ATTACHMENT_TYPES:
-        return True
+    if isinstance(rec, AttachmentRecord):
+        return attachment_is_model_visible(rec)
     return False
 
 
