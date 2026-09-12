@@ -4,6 +4,13 @@ Investigated 2026-09-04 against the decompiled **Claude Code 2.1.235** tree at `
 
 Concrete consequence for this repo: under bypass-permissions mode the harness instructs the agent to make file changes through Bash rather than through Edit/Write. That instruction and file checkpointing are mutually exclusive — a session following it produces edits that `/rewind` cannot undo, while the same session's conversation restore still succeeds, leaving files ahead of the transcript. The `[may-rewind]` marker in `sys_prompt/alan-default-next.md` (`# Tone markers`) tells an agent the user may drop an exchange from its context; it deliberately carries none of these mechanics, so this note is the only place the restore boundary is written down.
 
+> **Citations below are pinned to 2.1.235.** `/repos/claude-code-decompiled` now
+> holds a re-extraction of 2.1.269 in an unrelated chunk-file layout, so every
+> `src/globals/*.js:<line>` reference below — including `src/_entry.js`, cited
+> as the export table (that role is now `defs.tsv` at the repo's root) —
+> resolves to nothing. To re-resolve one, see that repo's README,
+> "Re-resolving an old citation."
+
 ## Evidence (source, 2.1.235)
 
 The file-history engine is `src/globals/10.js:17732-18800`. Readable names from the export table at `src/_entry.js:4436-4447` (`fileHistoryTrackEdit → _ht`, `fileHistoryMakeSnapshot → zJe`, `fileHistoryRewind → mFn`).

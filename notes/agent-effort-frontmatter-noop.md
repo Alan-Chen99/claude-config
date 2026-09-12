@@ -4,6 +4,12 @@ Investigated 2026-05-23 → 2026-05-27 on Claude Code **2.1.143** (latest at the
 
 Concrete consequence: an `~/.claude/agents/general-purpose.md` override with `effort: high` was previously installed in this repo to make the general-purpose subagent think harder. It did nothing measurable. Removed in the same commit that adds this note.
 
+> **Citations below are pinned to 2.1.143.** `/repos/claude-code-decompiled` has
+> since been re-extracted twice and now holds 2.1.269 in an unrelated
+> chunk-file layout with no `src/globals/` tree and no `bundle/` directory, so
+> every `globals/*.js:<line>` reference below resolves to nothing. To
+> re-resolve one, see that repo's README, "Re-resolving an old citation."
+
 ## Evidence
 
 MITM proxy capture of API requests on a spawned CC session (see `docs/system-prompt-snapshot/capture.py --subagent general-purpose --capture-model opus`):
@@ -54,7 +60,7 @@ Reproductions in #43083 confirm broken on 2.1.128, 2.1.129, 2.1.143, 2.1.146 for
 1. **`claude -p --agent <name>`** — reportedly honors frontmatter effort (per @jaredthirsk's 2.1.146 token counts in #43083, ~45% more output tokens for `effort: high` vs `effort: low` on the same prompt). One-shot non-interactive only; not the Task-tool path.
 2. **`CLAUDE_CODE_ALWAYS_ENABLE_EFFORT=1`** — adds `output_config.effort` to every request, but value is the session default, not the agent's, and `thinking` is still absent. Breaks any Haiku-using subagent with HTTP 400 (#47175).
 3. **Session-wide `settings.json: { "effortLevel": "high" }`** — applies to main thread; subagent dispatch still hits the `thinkingConfig: {type: 'disabled'}` hardcode.
-4. **Patch CC bundle** — change `globals/09.js:15466` (or the matching literal in `bundle/cli.js`) to inherit/branch on `H.effort`. Requires rebuilding the bundle; lost on every upgrade.
+4. **Patch CC bundle** — change `globals/09.js:15466` (2.1.143; see the banner above — there is no `bundle/cli.js` in the current decompiled tree) to inherit/branch on `H.effort`. Requires rebuilding the bundle; lost on every upgrade.
 
 ## Revisiting this
 

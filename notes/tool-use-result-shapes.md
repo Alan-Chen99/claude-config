@@ -2,6 +2,12 @@
 
 Investigated 2026-08-31 against Claude Code **2.1.235** (`/repos/claude-code-decompiled`).
 
+> **Citations below are pinned to 2.1.235.** `/repos/claude-code-decompiled` has
+> since been re-extracted from 2.1.269, a different layout with no
+> `src/globals/` or `src/modules/` tree, so every `src/globals/*.js:<line>` and
+> `src/modules/*.js:<line>` reference below resolves to nothing. To re-resolve
+> one, see that repo's README, "Re-resolving an old citation."
+
 `cc-pretty` crashed with `ValueError: unexpected toolUseResult type: <class 'list'>` on a
 transcript containing `mcp__claude-in-chrome__*` calls. `parse_tool_use_result` modelled the
 field as a closed union of `None | str | dict` and raised on anything else.

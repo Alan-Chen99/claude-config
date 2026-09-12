@@ -1,5 +1,14 @@
 # wrap-task vs Claude Code native bash — experiment notes
 
+> **No version is stated in this file.** It was committed 2026-05-18 (`d493cc2`),
+> citing `/repos/claude-code-decompiled/bundle/cli.js`. That repo's own history
+> shows `bundle/cli.js` existed only from 2026-05-17 until the 2026-08-22
+> re-extraction to 2.1.235, extracting 2.1.143 the whole time — so this was most
+> likely measured against **2.1.143**, inferred here, not stated by the file
+> itself. The decompiled repo has since been re-extracted twice and dropped
+> `bundle/` entirely; see its README, "Re-resolving an old citation," for the
+> current equivalent.
+
 ## What we ran
 
 1. **Baseline (wrap-task active)** — captured bash state inside a normal

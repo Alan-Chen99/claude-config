@@ -14,6 +14,13 @@
 > reconciles (Task 12, Step 5c) and the mutation-testing rounds — including
 > the byte-offset evidence behind the drift manifest's scan window — that
 > each fix below responded to.
+>
+> **Its Claude Code source citations are stale too.** They point at
+> `/repos/claude-code-decompiled`'s 2.1.235 dump (`src/globals/<file>.js`,
+> `src/modules/<file>.js`); that repo has since been re-extracted twice and now
+> holds 2.1.269 in an unrelated chunk-file layout, so those paths — and the
+> `sed -n` recipe under "Background an implementer needs" below — no longer
+> resolve. See that repo's README, "Re-resolving an old citation."
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -37,7 +44,7 @@ You are working in `/root/claude-config-work`, a git worktree of `/repos/claude-
 
 **`agent-tools` is the installed binary** at `~/.local/bin/agent-tools`, symlinked to the *canonical* repo's build — not this worktree's. To exercise this worktree's Python you invoke it through `uv run` directly, as the test command above does. Do not rebuild or reinstall `agent-tools`; this change touches no Rust.
 
-**Claude Code source references** point at `/repos/claude-config-work`'s sibling checkout `/repos/claude-code-decompiled`, a dump of the 2.1.235 binary. Read a cited line with `sed -n '<line>p' /repos/claude-code-decompiled/src/globals/<file>`.
+**Claude Code source references** point at `/repos/claude-config-work`'s sibling checkout `/repos/claude-code-decompiled`, a dump of the 2.1.235 binary at the time this plan was written. That repo has since moved to a different version and layout (see the banner at the top of this file); to read a cited line today, follow its README's "Re-resolving an old citation" section rather than running `sed -n` against a `src/globals/` path that no longer exists.
 
 **Why the JSON envelope matters.** A `SessionStart` hook that prints plain text gets it injected as `` `SessionStart hook success: <text>` `` (`src/globals/20.js:24499`). Only the JSON form with `hookSpecificOutput.additionalContext` is injected verbatim (`src/globals/20.js:24485`). The envelope is not optional.
 

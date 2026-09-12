@@ -5,9 +5,16 @@ Redesign of `agent-tools env-context` (`src/claude_config/env_context/`), the
 comes from `sys_prompt/alan-default-next.md`.
 
 Source citations below point at `/repos/claude-code-decompiled`, an ESM-rewritten
-dump of the Claude Code 2.1.235 binary. `claude --version` reports 2.1.235, so the
-dump matches what is installed. Identifier hashes are version-specific; the line
-numbers hold for 2.1.235 only.
+dump of the Claude Code 2.1.235 binary — the version installed when this spec was
+written, which is why the dump matched it at the time. Identifier hashes are
+version-specific; the line numbers hold for 2.1.235 only.
+
+> **`/repos/claude-code-decompiled` has moved on twice since.** It now holds a
+> 2.1.269 re-extraction in an unrelated chunk-file layout (`src/chunk-<hash>.js`,
+> no `src/globals/` or `src/modules/` tree), and the installed `claude --version`
+> reports 2.1.269 too. Every `globals/*.js:<line>` citation below resolves to
+> nothing — see that repo's README, "Re-resolving an old citation," for how to
+> find the current equivalent.
 
 ## Problem
 

@@ -16,6 +16,16 @@ to "a different string-table region" and got the arithmetic behind the
 `Platform: ` count wrong. Both are corrected here; see the two sections below
 for what was actually true.
 
+> **These byte offsets and occurrence counts are pinned to 2.1.235.** Re-running
+> the probes below against the installed 2.1.269 binary does not error — it
+> silently returns different numbers, e.g. the `Shell: PowerShell` probe now
+> counts 0 because cc moved the `Shell: ` label out of the value and into the
+> field template; `docs/env-context-manifest.json`'s `_comment` is pinned to
+> 2.1.269 and is the authority for current numbers. The `globals/21.js`
+> citations below are stale for the same reason every `/repos/claude-code-decompiled`
+> citation now is: that repo holds a 2.1.269 chunk-file layout with no
+> `src/globals/` tree — see its README, "Re-resolving an old citation."
+
 ## The binary embeds the app twice
 
 `data.find(ANCHOR)` (Python bytes, first match only) is how the manifest
