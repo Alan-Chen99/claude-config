@@ -26,7 +26,8 @@ Claude Code stores conversation history in `~/.claude/projects/` with directorie
   |   |-- {session-uuid}.jsonl          # Main conversation
   |   |-- {session-uuid}/
   |       |-- subagents/
-  |       |   |-- agent-{hash}.jsonl    # Subagent conversations
+  |       |   |-- agent-{agentId}.jsonl     # Subagent conversations
+  |       |   |-- agent-{agentId}.meta.json # Agent type, description, toolUseId
   |       |-- tool-results/             # Large tool outputs
   |-- -Users-leon-git-myproject/        # /Users/leon/git/myproject
       |-- ...
@@ -34,22 +35,35 @@ Claude Code stores conversation history in `~/.claude/projects/` with directorie
 
 ### Path Encoding
 
-Working directory paths are encoded:
+Working directory paths are encoded by a single rule: **every character outside
+`[a-zA-Z0-9]` becomes `-`**, then names over 200 characters get truncated and hashed. The
+familiar slash cases are consequences of it, not the rule:
 
-| Original       | Encoded        | Rule                |
-| -------------- | -------------- | ------------------- |
-| `/Users/leon`  | `-Users-leon`  | Leading `/` -> `-`  |
-| `/git/project` | `-git-project` | Internal `/` -> `-` |
-| `/.claude`     | `--claude`     | `/.` -> `--`        |
+| Original         | Encoded          | Why                                        |
+| ---------------- | ---------------- | ------------------------------------------ |
+| `/Users/leon`    | `-Users-leon`    | Each `/` is non-alphanumeric               |
+| `/git/project`   | `-git-project`   | Same                                       |
+| `/.claude`       | `--claude`       | `/` and `.` are each replaced, giving two  |
+| `/tmp/foo_bar`   | `-tmp-foo-bar`   | An underscore is replaced too              |
+| `/root/.emacs.d` | `-root--emacs-d` | A dot not preceded by `/` is still replaced |
+
+SKILL.md, "Project Path Resolution", has the working `sed` and the source citations. Keep the
+two in step — a `/`-only rule silently produces a directory name that does not exist.
 
 ### Message Format
 
 Each line in a JSONL file is a self-contained message with:
 
-- `type`: Message type (user, assistant, system, queue-operation)
+- `type`: Entry type. `user`, `assistant`, `system` and `attachment` are the four that make
+  up the conversation itself; the other ~34 are session metadata and bookkeeping. See
+  SKILL.md, "Message Types", for the full roster and its source citation — a reader who
+  treats the conversational types as the whole file silently drops the `attachment` stream,
+  which is where system-reminders, hook output and skill listings live
 - `uuid`: Unique identifier for this message
 - `parentUuid`: Links to predecessor message (forms conversation chain)
-- `timestamp`: ISO 8601 timestamp
+- `timestamp`: ISO 8601 timestamp, with milliseconds. Present on the conversational types
+  and a few others; absent on most session-metadata types (SKILL.md, "Timestamps", has the
+  measured list)
 - `message`: Payload containing role, content, and usage statistics
 
 Assistant messages have structured content blocks:
@@ -71,29 +85,48 @@ Shell commands + jq compose better than custom tooling for this use case:
 
 The documentation approach lets the LLM compose queries on demand rather than learning a custom API.
 
-### Skill Recognition Pattern
+### Skill Recognition Has Three Patterns, Not One
 
-Skills are invoked via bash with pattern `python3 -m skills.{name}.{module}`. This pattern is general enough to capture all skills without enumeration:
+A single regex used to be enough, when `python3 -m skills.{name}.{module}` was the only way a
+skill got run. It no longer is, and the old regex silently under-counts rather than failing:
 
-```regex
-python3 -m skills\.([a-z_]+)\.
-```
+1. **The `Skill` tool.** Claude Code 2.1.269 has a first-class `Skill` tool, input
+   `{skill, args?}`. It leaves a `tool_use` block, not a shell command, so no command-line
+   regex sees it at all.
+2. **`agent-tools skill {name}.{module}`.** This repo's own convention for custom skills
+   (`skills/CLAUDE.md`). Also invisible to the old regex.
+3. **`python3 -m skills.{name}.{module}`.** Still live, for upstream skills.
 
-Capture group 1 extracts the skill name. No need to maintain a list of valid skill names.
+All three coexist in the logs on this machine. The right shape is therefore a small jq
+expression over `tool_use` blocks rather than a regex over raw text — it also avoids two
+false-positive sources a `grep` cannot: the per-session `skill_listing` attachment, which
+names every *available* skill, and sessions that analyse other sessions and so quote their
+text. SKILL.md, "Skill Invocation Detection", carries the expression.
 
-### Subagent Correlation Challenge
+The underlying design decision still holds: no enumeration of valid skill names is needed.
+Note only that the two bash routes spell names with underscores and the `Skill` tool with
+hyphens, so `decision_critic` and `decision-critic` are one skill.
 
-Subagent files are named `agent-{hash}.jsonl` but the hash is not stored in the parent conversation's Task tool call. Correlation requires:
+### Subagent Correlation Is Cheap Now
 
-1. List all subagent files for the session
-2. Read each subagent's first user message (contains task description)
-3. Match description text to Task tool_use inputs in parent
+This section used to describe a three-step text-matching dance, on the premise that the
+`agentId` in the filename appears nowhere in the parent. The premise is still true; the
+conclusion is not, because the companion `.meta.json` carries `toolUseId`, and that is
+verbatim the `id` of the `Agent` `tool_use` block in the parent. One `jq -r .toolUseId` per
+file and the join is exact.
 
-This is mildly inconvenient but not worth building tooling for -- it's a rare operation.
+Two corrections to the old text while we are here. The tool is **`Agent`**, not `Task` —
+recipes keyed on `.name=="Task"` return nothing. And the `.meta.json` was already documented
+in SKILL.md, so the two files disagreed with each other; they now agree.
+
+Description-matching survives only as a fallback for `.meta.json` files old enough to predate
+`toolUseId` (8 of 641 written here since 2026-08-15). It is unreliable when several agents
+share a description, which parallel fan-out makes common — another reason the old advice was
+worth replacing rather than keeping.
 
 ### Token Usage Fields
 
-The `usage` object in assistant messages contains:
+The four fields worth summing:
 
 - `input_tokens`: Tokens in prompt (excluding cache)
 - `output_tokens`: Tokens in response
@@ -101,6 +134,13 @@ The `usage` object in assistant messages contains:
 - `cache_creation_input_tokens`: Tokens written to cache
 
 Total billable input = `input_tokens + cache_creation_input_tokens` (cache reads are cheaper).
+
+They are not the whole object. A 2.1.269 assistant entry's `usage` carries eleven keys:
+the four above plus `cache_creation` (a `{ephemeral_5m_input_tokens,
+ephemeral_1h_input_tokens}` breakdown), `service_tier`, `inference_geo`, `iterations`,
+`output_tokens_details`, `server_tool_use` and `speed`. Read `keys` before assuming a shape;
+`jq -c 'select(.type=="assistant") | .message.usage | keys' file.jsonl | sort -u` settles it
+for a given log.
 
 ## Example Usage
 
@@ -120,14 +160,17 @@ done | sort -rn | head -10
 ### Analyze Skill Usage
 
 ```bash
-# Which skills were used in a conversation?
-grep -oE "python3 -m skills\.[a-z_]+" file.jsonl | \
-  sed 's/python3 -m skills\.//' | \
-  cut -d. -f1 | \
-  sort -u
+# Which skills were used in a conversation? (all three invocation routes)
+jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") |
+  if .name=="Skill" then .input.skill
+  elif .name=="Bash" then
+    ((.input.command // "") |
+     capture("(?:agent-tools skill|python3 -m skills\\.)\\s?(?<n>[a-z_]+)") | .n)
+  else empty end' file.jsonl | sort -u
 
-# Find all planner skill conversations
-grep -l "python3 -m skills\.planner\." "$PROJECT_DIR"/*.jsonl
+# Find all planner skill conversations (hyphen and underscore spellings)
+grep -lE '"skill":"planner"|agent-tools skill planner\.|python3 -m skills\.planner\.' \
+  "$PROJECT_DIR"/*.jsonl
 ```
 
 ### Token Growth Analysis
