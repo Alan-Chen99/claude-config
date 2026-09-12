@@ -1,11 +1,16 @@
 """The session scratchpad directory.
 
-Claude Code creates this itself (`_Fi()`, globals/20.js:18630) and names it in
-subagent prompts (`Xff`, globals/14.js:26405), but the section is dropped from
-the main agent's prompt under --system-prompt-file. Creation is gated
-(`b1e()`, globals/20.js:18583) on a remote feature gate or artifact-tool
-eligibility, and an unauthenticated session gets no directory at all, so this
-module creates it rather than assuming it exists.
+Claude Code names this directory to the model in its `# Environment` block
+(`src/chunk-dbb93264.js:29193`) and, separately, in the worker-tools context
+(`src/chunk-4zcseazt.js:1377`). It computes the path in `AH()`
+(`src/chunk-tnzzwz8r.js:13393`) as `join(WR(), <session id>, "scratchpad")`,
+caching `null` when that throws -- computing is not creating, and creation
+happens elsewhere and conditionally, so an unauthenticated session can get no
+directory at all. This module creates it rather than assuming it exists.
+
+The gate on creation was traced against 2.1.235 as a remote feature gate or
+artifact-tool eligibility and has not been re-traced for 2.1.269; what is
+re-verified here is the path, which is what this module has to agree with.
 """
 
 from __future__ import annotations
@@ -16,20 +21,20 @@ import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
-# `vie`, globals/02.js:2753. Past this cc appends a hash suffix to the slug.
+# `N6`, src/chunk-jaqbht4s.js:676. Past this cc appends a hash suffix (`lT`, :684).
 SLUG_LIMIT = 200
 
 _NON_ALPHANUMERIC = re.compile(r"[^a-zA-Z0-9]")
 
 
 def tmp_root(env: Mapping[str, str] | None = None) -> str:
-    """Mirrors `Spe()`, globals/05.js:8056."""
+    """Mirrors `AS()`, src/chunk-tht8x923.js:19."""
     env = os.environ if env is None else env
     return env.get("CLAUDE_CODE_TMPDIR") or tempfile.gettempdir()
 
 
 def project_slug(cwd: str) -> str:
-    """Mirrors `FDo()`/`q9()`, globals/02.js:2156-2164.
+    """Mirrors `k()`/`lT()`, src/chunk-jaqbht4s.js:680-688.
 
     Past SLUG_LIMIT cc appends `-<hash>` using a hash this module does not
     implement. Raising beats emitting a path cc does not use.
@@ -97,7 +102,7 @@ def scratchpad_path(
     """The path ensure() creates -- the only place that computes it.
 
     Not pure: realpaths the `claude-<uid>` directory before descending
-    further, mirroring `yJ()` (globals/05.js:8230), even though this
+    further, mirroring `Id()` (src/chunk-tnzzwz8r.js:12739), even though this
     function creates nothing itself. A pure version would silently
     disagree with both cc and ensure() whenever the tmp root -- or
     `claude-<uid>` itself -- is a symlink (e.g. macOS, where TMPDIR sits
@@ -132,8 +137,8 @@ def ensure(
     is created -- uid_dir.mkdir() used to run first, leaving claude-<uid>
     behind after a rejected cwd. uid_dir and the final scratchpad dir are
     both unconditionally chmod'd to 0700 after mkdir, matching cc's own
-    repair (`JIt`, globals/05.js:8106: `if ((i.mode & 511) !== 448)
-    fchmodSync(o, 448)`) -- mkdir's mode argument is only requested at
+    repair (`cne`, src/chunk-tht8x923.js:25, whose check at :57 is
+    `if ((o.mode & 511) !== 448) E(n, 448)`) -- mkdir's mode argument is only requested at
     creation and left alone for a directory that already existed, so
     without the explicit chmod a pre-existing, loosely-permissioned
     uid_dir would stay that way. The intermediate slug and session

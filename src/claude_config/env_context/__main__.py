@@ -110,10 +110,11 @@ def scratchpad_or_none(
     background-session gate below be exercised in-process, with an injected
     mapping, instead of only through a subprocess.
 
-    Suppressed entirely in a background session. cc drops its own scratchpad
-    section there (`cvi()`, globals/21.js:13624) and names `$CLAUDE_JOB_DIR/tmp`
-    instead, so emitting ours would give that session two conflicting
-    temp-directory instructions. Hooks come from settings.json and fire
+    Suppressed entirely in a background session. cc names `$CLAUDE_JOB_DIR/tmp`
+    as the temp directory there instead of the session scratchpad, so emitting
+    ours would give that session two conflicting temp-directory instructions.
+    (2.1.269 has no `# Scratchpad Directory` section for cc to drop any more --
+    the scratchpad is a bullet inside the `# Environment` block.) Hooks come from settings.json and fire
     regardless of which prompt the session runs, so this gate has to live here.
 
     A cwd whose slug exceeds cc's 200-character limit, a read-only tmp root and
