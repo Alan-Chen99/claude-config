@@ -291,6 +291,27 @@ bot's own messages. A send from that supergroup returned
 assumption in this spec that it would need turning off; the concern was
 speculative and the measurement contradicts it.
 
+**The setup errors form a diagnostic ladder**, and each rung names a different
+missing step — worth knowing, because the two group-side actions are easy to
+mistake for one:
+
+| `createForumTopic` returns | Meaning |
+| --- | --- |
+| `the chat is not a forum` | Topics is not enabled on the chat (`getChat` has no `is_forum`) |
+| `not enough rights to create a topic` | Topics is on, but the bot lacks `can_manage_topics` |
+| a `ForumTopic` | working |
+
+`CHAT_ADMIN_REQUIRED` from the `*GeneralForumTopic*` methods indicates the same
+missing right.
+
+**The General topic is not addressable.** Messages sent to a forum without a
+thread id land in General and come back with `message_thread_id: null`, and an
+explicit `message_thread_id=1` returns `message thread not found`. So General is
+the unaddressable default, and a conversation is only routable once a topic has
+been created for it. Sending is otherwise unaffected by the missing right — a
+bot without `can_manage_topics` can still post to the forum and react there; it
+simply cannot create the topics that make routing possible.
+
 **Enabling Topics migrates the chat and changes its id.** The test group was
 created as `group` id `-5480670982` and became `supergroup` id
 `-1004384191085`; the old id is now dead, returning `group chat was upgraded to a
