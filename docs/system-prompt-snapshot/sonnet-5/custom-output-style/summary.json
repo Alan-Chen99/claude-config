@@ -1,7 +1,7 @@
 {
   "model": "claude-sonnet-5",
   "system_blocks": 4,
-  "system_tokens": 9679,
+  "system_tokens": 8761,
   "tools_upfront": [
     "Agent",
     "Artifact",
@@ -12,12 +12,13 @@
     "Read",
     "ReportFindings",
     "ScheduleWakeup",
+    "SendFeedback",
     "Skill",
     "ToolSearch",
     "Workflow",
     "Write"
   ],
-  "tools_upfront_count": 13,
+  "tools_upfront_count": 14,
   "tools_deferred_placeholder": [
     "DeferredToolPlaceholder"
   ],
@@ -42,7 +43,7 @@
     "WebSearch"
   ],
   "tools_deferred_count": 18,
-  "tools_total_tokens": 29427,
+  "tools_total_tokens": 35834,
   "has_output_style": true,
   "has_doing_tasks": true,
   "subagent_count": 0

@@ -1,7 +1,7 @@
 {
   "model": "claude-opus-4-7",
   "system_blocks": 4,
-  "system_tokens": 9329,
+  "system_tokens": 8702,
   "tools_upfront": [
     "Agent",
     "Artifact",
@@ -12,12 +12,13 @@
     "Read",
     "ReportFindings",
     "ScheduleWakeup",
+    "SendFeedback",
     "Skill",
     "ToolSearch",
     "Workflow",
     "Write"
   ],
-  "tools_upfront_count": 13,
+  "tools_upfront_count": 14,
   "tools_deferred_placeholder": [
     "DeferredToolPlaceholder"
   ],
@@ -45,7 +46,7 @@
     "WebSearch"
   ],
   "tools_deferred_count": 21,
-  "tools_total_tokens": 31542,
+  "tools_total_tokens": 36155,
   "has_output_style": false,
   "has_doing_tasks": true,
   "subagent_count": 0

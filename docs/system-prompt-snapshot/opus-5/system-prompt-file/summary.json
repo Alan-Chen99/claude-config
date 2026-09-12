@@ -1,7 +1,7 @@
 {
   "model": "claude-opus-5",
-  "system_blocks": 4,
-  "system_tokens": 3257,
+  "system_blocks": 3,
+  "system_tokens": 117,
   "tools_upfront": [
     "Agent",
     "Artifact",
