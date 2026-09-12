@@ -65,22 +65,6 @@ message it answers, under `reply_to_message`. A reader can therefore determine
 *which question was answered* from the inbound record alone, with no join against
 outbound state and no separate question ledger.
 
-**`message_thread_id` alone does not identify a topic.** The field is documented
-as *"Unique identifier of a message thread **or forum topic** to which the message
-belongs"* (`message.d.ts:11`) — one field carrying two different things. Measured
-in the same chat, minutes apart:
-
-| Inbound | `message_thread_id` | `is_topic_message` | What it is |
-| --- | --- | --- | --- |
-| reply in General | `2` | absent | reply chain rooted at message 2 |
-| reply in topic 6 | `6` | `true` | forum topic 6 |
-
-So routing must key on `is_topic_message` to decide whether
-`message_thread_id` means a topic at all. Keying on `message_thread_id` alone
-silently classifies ordinary reply chains as topics, and topic ids and message
-ids are drawn from the same per-chat counter, so the mistaken value is not even
-obviously out of range.
-
 ## Architecture
 
 Three components, split along the inbound/outbound asymmetry above.
@@ -97,10 +81,16 @@ One long-lived local process, guarded by an exclusive `flock`, which:
 "The drain" below names this process in its inbound role; it is not a separate
 component. One process, one lock, one token, one cursor.
 
-It originates nothing. Every message, reaction and topic in the chat is some
-agent's send that it forwarded. This is what keeps the log a faithful record of
-who did what, and it is why the proxy needs no behaviour of its own to be
-documented, configured, or reasoned about.
+It originates nothing and interprets nothing. Every message, reaction and topic
+in the chat is some agent's send that it forwarded, and no field of an update
+carries meaning to it — updates are bytes to be recorded, not data to be routed.
+Routing, correlation and topic choice all happen in agent scripts reading the
+log.
+
+This is why the proxy has no behaviour of its own to document, configure, or
+reason about, and it is what keeps the log a faithful record of who did what. It
+also means the API's semantics stay the agent's concern: the design takes no
+position on what any field means, so it cannot be wrong about one.
 
 **Why a proxy rather than a client library.** A library wrapping `sendMessage`
 must decide how to represent failure, and every such decision is an abstraction
@@ -129,11 +119,50 @@ the drain would pass until the list is updated. This is accepted deliberately �
 the alternative fails closed on legitimate work, which in an interactive
 human-in-the-loop system is the more expensive failure.
 
+**Limits are diagnosed, not absorbed.** The proxy does no rate limiting, no
+pacing and no retrying. Flood control, `retry_after`, and any cap on topics or
+messages reach the agent that provoked them, as the error Telegram sent.
+
+Absorbing them would be the wrong trade twice over. A proxy-level retry has no
+idea whether the call still matters, whether the human has since answered, or
+whether the workflow is looping — it can only delay blindly, which converts a
+diagnosable fault into latency. And traffic heavy enough to trip flood control is
+itself the finding: at human-in-the-loop volumes it should not happen, so pacing
+it would hide a defect rather than fix one. The agent that hit the limit is the
+only party with the context to decide whether to back off, restructure, or stop.
+
+This also retires limits as a design question. An unknown ceiling that announces
+itself at runtime, to a party equipped to interpret it, is not something the
+design needs to know in advance.
+
 ### The log
 
-A single append-only JSONL file carrying inbound updates and outbound calls with
-their responses. It is the only read interface. Sessions never query the proxy for
-history.
+A single append-only JSONL file carrying inbound updates, outbound calls with
+their responses, and errors. It is the only read interface. Sessions never query
+the proxy for history.
+
+**Errors are logged, not just returned.** A failed call's response is logged like
+any successful one — an error is a response. More importantly the proxy logs its
+*own* faults: a `getUpdates` failure, a 409 meaning another poller has seized the
+stream, a write failure, its own startup and shutdown.
+
+This is what finally separates the two states a waiting workflow otherwise cannot
+tell apart. Until now a watcher could observe only "answer" or "no answer yet",
+and a broken channel looked exactly like a human who had not replied — the
+failure shape this design keeps running into. With the channel's own faults in
+the same stream, a watcher can distinguish *no answer yet* from *the channel is
+down*, and act differently. The human gains the same visibility, from the same
+file, without being told separately.
+
+It also means propagation and durability are not in tension. An error still
+reaches the caller verbatim, per "Limits are diagnosed, not absorbed"; logging it
+additionally means the fault survives a script that crashed before reading it, or
+an agent that never looked.
+
+One constraint follows: log error *transitions*, not occurrences. A stolen stream
+makes every subsequent poll fail, and recording each one at poll rate would bury
+the log in identical lines. The interesting events are entering and leaving a
+failing state.
 
 **Why one file and not a database.** Readers need no coordination at all:
 concurrent readers of an append-only file require no locks, and at
@@ -288,45 +317,19 @@ is `/mybots → select bot → Bot Settings → …`, which is verbatim-confirme
 other settings but not for this one; the submenu name is unverified. Look for
 "Threads", not "Topics".
 
-**Default admin rights apply only at promotion time.** A test supergroup
-(`claude-channel-group`) has the bot as `administrator` with
-`can_manage_topics: false`, even though the bot's *defaults* carry it as `true` —
-the bot was promoted before the defaults were set, and nothing retroactively
-reconciles them. The bot cannot repair this itself: `promoteChatMember` against
-its own id returns `can't promote self`, and its membership shows
-`can_be_edited: false`. So the supergroup layout needs two human actions that are
-easy to conflate: **enable Topics on the group**, which is what sets `is_forum`
-and without which `createForumTopic` returns `the chat is not a forum` even for a
-fully-privileged bot; and **grant the bot Manage Topics** in that group's admin
-settings.
+**The supergroup layout needs two human actions, and they are easy to conflate:**
+enabling Topics on the group, and granting the bot the Manage Topics right. The
+bot's *default* admin rights do not settle the second — defaults apply only at
+promotion, and the bot cannot repair its own rights afterwards
+(`promoteChatMember` on itself returns `can't promote self`). `createForumTopic`
+distinguishes the two: `the chat is not a forum` means Topics is off,
+`not enough rights to create a topic` means the right is missing, and a returned
+`ForumTopic` means both are done.
 
-`is_anonymous: true` is set in those rights, and it does **not** anonymize the
-bot's own messages. A send from that supergroup returned
-`from: {id: 8818446392, username: "claude_channel_bot"}` with `sender_chat: null`
-— attribution is intact and nothing needs changing. This corrects an earlier
-assumption in this spec that it would need turning off; the concern was
-speculative and the measurement contradicts it.
-
-**The setup errors form a diagnostic ladder**, and each rung names a different
-missing step — worth knowing, because the two group-side actions are easy to
-mistake for one:
-
-| `createForumTopic` returns | Meaning |
-| --- | --- |
-| `the chat is not a forum` | Topics is not enabled on the chat (`getChat` has no `is_forum`) |
-| `not enough rights to create a topic` | Topics is on, but the bot lacks `can_manage_topics` |
-| a `ForumTopic` | working |
-
-`CHAT_ADMIN_REQUIRED` from the `*GeneralForumTopic*` methods indicates the same
-missing right.
-
-**The General topic is not addressable.** Messages sent to a forum without a
-thread id land in General and come back with `message_thread_id: null`, and an
-explicit `message_thread_id=1` returns `message thread not found`. So General is
-the unaddressable default, and a conversation is only routable once a topic has
-been created for it. Sending is otherwise unaffected by the missing right — a
-bot without `can_manage_topics` can still post to the forum and react there; it
-simply cannot create the topics that make routing possible.
+**A forum's General topic is not addressable**, so a conversation becomes
+routable only once a topic has been created for it. This is why the Manage Topics
+right is a prerequisite rather than a nicety: without it a bot can still post and
+react in the forum, but every message lands in one undifferentiated stream.
 
 **Enabling Topics migrates the chat and changes its id.** The test group was
 created as `group` id `-5480670982` and became `supergroup` id
@@ -360,6 +363,32 @@ matters only as insurance against a future demotion.
   reporting `is_forum` and `getChatMember` reporting `can_manage_topics: true`
   confirm each; `createForumTopic` succeeding confirms both.
 
+## The skill
+
+The second component is a skill, because the first deliberately knows nothing.
+Since the proxy neither interprets updates nor smooths over errors, everything an
+agent needs to work the channel correctly is knowledge, not API surface — and
+knowledge has to live somewhere a fresh session will read.
+
+It carries the working rules (how to pick or create a topic, how to wait, when to
+react) and the Bot API traps that cost real time to find. Those traps are not
+design content and are deliberately absent from this spec, but they must not be
+lost, so they are enumerated here as the skill's scope:
+
+- `message_thread_id` carries *either* a reply-chain id or a forum-topic id
+  (`message.d.ts:11`); `is_topic_message` is the discriminator. Keying on the
+  former alone files ordinary replies as topics, and both ids come from the same
+  per-chat counter, so the wrong value is not out of range.
+- Reactability is type-specific and unpredictable — `new_chat_members` accepts a
+  reaction, chat-migration service messages return `MESSAGE_ID_INVALID`.
+- The reaction alphabet is fixed, and excludes the obvious checkmark.
+- A forum's General topic cannot be addressed by thread id.
+- Enabling Topics migrates a group to a supergroup and changes its chat id; the
+  old id then returns `group chat was upgraded to a supergroup chat`, and
+  `migrate_to_chat_id` is the forwarding pointer.
+- Reading a file that is being appended to needs care in Python, which yields
+  partial final lines where a shell `read` loop does not.
+
 ## Deliberately excluded
 
 - **Exactly-once claiming of answers.** A question belongs to one session, keyed
@@ -385,20 +414,14 @@ back `thread=6, is_topic_message=true`; `editForumTopic` renamed a topic;
 reactions worked inside a topic; and human replies in two different threads
 arrived correctly discriminated. Topic routing is measured, not inferred.
 
-**Topic creation showed no rate limiting at the scale tested.** Fifteen
-consecutive `createForumTopic` calls all succeeded with no `retry_after` and no
-failures, and fifteen `deleteForumTopic` calls then ran at a uniform ~0.7s
-round-trip (1.4/s sustained) with no throttling. This bounds nothing: the burst
-was deliberately small to avoid flooding a real chat, so **no cap was found
-because none was looked for past fifteen**. Treat the cap as unmeasured rather
-than absent, and note that `deleteForumTopic` works, so a lifecycle is available
-if one is ever needed.
+One item remains open, by choice rather than obstruction: **the DM layout is
+unverified.** BotFather's Threaded mode was not located, `has_topics_enabled` is
+`false`, and `createForumTopic` against the DM returns `the chat is not a forum`.
+Since the layouts are the same code path and the supergroup one works, this
+blocks nothing.
 
-Two items remain genuinely open.
-
-- **The DM layout is still unverified**, and remains so by choice rather than
-  obstruction: BotFather's Threaded mode was not located, `has_topics_enabled` is
-  `false`, and `createForumTopic` against the DM returns `the chat is not a
-  forum`. Since the layouts are the same code path and the supergroup one is
-  working, this blocks nothing.
-- **The topic cap is unknown**, per above.
+Topic caps and rate limits are deliberately *not* listed here. Fifteen
+consecutive `createForumTopic` calls and fifteen `deleteForumTopic` calls showed
+no throttling and no `retry_after`, but that bounds nothing — the burst was kept
+small on purpose. It does not need bounding: per "Limits are diagnosed, not
+absorbed", a ceiling that announces itself at runtime is not a gap in the design.
