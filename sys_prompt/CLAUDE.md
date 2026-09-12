@@ -7,8 +7,8 @@ Background and forked sessions do not inherit them — read `docs/background-ses
 
 | File                   | What                                                  | When to read |
 | ---------------------- | ----------------------------------------------------- | ------------ |
-| `alan-default.md`      | Known-good production prompt                          | -            |
-| `alan-default-next.md` | Active development prompt; the one `claude.sh` loads  | -            |
+| `alan-default.md`      | Known-good production prompt; forked from Claude Code's non-lean prompt body | -            |
+| `alan-default-next.md` | Active development prompt, the one `claude.sh` loads; forked from the lean body Opus 5 receives | -            |
 
 ## Keep it concise
 
@@ -112,7 +112,7 @@ changes.
 | Upstream text | Why it is not here |
 | --- | --- |
 | `Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it` — live for Opus 5 since 2.1.269 | This repo delegates by design: `settings.json` holds subagents in the foreground so a report returns as the launching call's result, and `# Session-specific guidance` says when to spawn one. Upstream's own exception would cover it regardless, since the asking here is done by CLAUDE.md and by skills. |
-| `The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results.` | Upstream serves two variants of this `# Harness` bullet from one flag; this prompt carries the other one, which is equally current. Neither was chosen on evidence. |
+| `The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results.` | Upstream serves this `# Harness` bullet in two variants off one flag, and this prompt carries the one both capture rounds did **not** show. Both ship in the 2.1.269 binary, so it is a live alternative rather than stale text, but nothing records why this side was taken. |
 | `Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.` — closes the action-caution paragraph | `# Error Propagation` and `# Epistemic Integrity` say it at length. |
 | `If what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding` — follows `look at the target` | **Not reviewed.** It predates the 2.1.235 baseline and no entry explains it. Nothing else in the prompt says what to do when the look turns up a surprise; `# Executing actions with care` covers only the pattern-matched case. Decide it at the next edit to that section. |
 
@@ -122,9 +122,7 @@ One entry per release reviewed. The next rebase starts from the last entry, so e
 
 #### 2.1.235 → 2.1.269, reviewed 2026-09-12 — no prompt text changed
 
-Both files reviewed.
-
-Section keys were diffed between the two extractions, and the pins in
+Both prompt files reviewed. Section keys were diffed between the two extractions, and the pins in
 `scripts/check-prompt-upstream.py` were run against the 2.1.235 tree
 (`git -C /repos/claude-code-decompiled archive 56801e78 src`) as well as the installed one — all
 thirteen resolve in both, so every borrowed passage is byte-identical across the two builds.
