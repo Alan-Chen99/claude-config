@@ -1,4 +1,4 @@
-x-anthropic-billing-header: cc_version=2.1.269.d5c; cc_entrypoint=cli; cch=2e282; cc_prompt_id=575c08c8-0b2b-40d6-a51a-1c91991b3c0e;
+x-anthropic-billing-header: cc_version=2.1.269.d5c; cc_entrypoint=cli; cch=d288f; cc_prompt_id=942acbf1-bf9d-4415-85e1-c6655351f246;
 
 ---BLOCK_SEPARATOR---
 
@@ -33,7 +33,7 @@ For actions that are hard to reverse or outward-facing, confirm first unless dur
 
 # Memory
 
-You have a persistent file-based memory at `/root/.claude/projects/-tmp-capture-cwd-l1vlo4e7/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence). Each memory is one file holding one fact, with frontmatter:
+You have a persistent file-based memory at `/root/.claude/projects/-tmp-capture-cwd-dbyqqha-/memory/`. This directory already exists — write to it directly with the Write tool (do not run mkdir or check for its existence). Each memory is one file holding one fact, with frontmatter:
 
 ```markdown
 ---
