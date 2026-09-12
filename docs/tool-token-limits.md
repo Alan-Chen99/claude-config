@@ -1,6 +1,9 @@
 # Tool Token Limits and Truncation Behavior
 
-Source: `/home/chenxy/repos/claude-code-src/` (Claude Code source)
+Source: `/repos/claude-code-src/`, the sourcemap-leaked tree pinned to cc **2.1.88**.
+Nothing here has been re-derived against a later version, so treat every figure as
+2.1.88's until someone re-measures it; `/repos/claude-code-decompiled` (2.1.269) is
+where that would come from.
 
 ## Token Counting Mechanism
 
