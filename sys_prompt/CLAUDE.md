@@ -87,8 +87,13 @@ python3 scripts/check-prompt-upstream.py
 It pins the passages `alan-default-next.md` took from upstream and requires each to appear verbatim
 on both sides. A pin missing from the source means upstream reworded a line this file still carries;
 a pin missing from the prompt means a borrowed line was edited without the divergence being
-recorded. Both are decisions to make here, not edits to the script. Without a re-extracted decompile
-it exits 2 rather than searching an empty tree and reporting success.
+recorded. Both are decisions to make here, not edits to the script. It exits 2 rather than reporting
+success when the decompiled tree is missing, or when its `src/cli.js` version is not the installed
+one — a stale tree answers about the wrong release.
+
+Each pin also records how many times the passage occurs, because the two prompt bodies are built
+from separate literals: the opening line is in both, so a check that only required a non-zero count
+would pass on whichever copy had not changed.
 
 It is silent about upstream text this prompt never carried, which is most of it. New sections come
 from the key diff above.
@@ -112,7 +117,7 @@ changes.
 | Upstream text | Why it is not here |
 | --- | --- |
 | `Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it` — live for Opus 5 since 2.1.269 | This repo delegates by design: `settings.json` holds subagents in the foreground so a report returns as the launching call's result, and `# Session-specific guidance` says when to spawn one. Upstream's own exception would cover it regardless, since the asking here is done by CLAUDE.md and by skills. |
-| `The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results.` | Upstream serves this `# Harness` bullet in two variants off one flag, and this prompt carries the one both capture rounds did **not** show. Both ship in the 2.1.269 binary, so it is a live alternative rather than stale text, but nothing records why this side was taken. |
+| `The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results.` | Upstream serves this `# Harness` bullet in two variants and picks per model. In the 2.1.269 captures Opus 5 and Fable 5 get the wording above; Opus 4.8 gets the wording this prompt carries. Both ship in one build, so this is a live alternative rather than stale text — but the model `claude.sh` runs is served the other one, and nothing records why this side was taken. |
 | `Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.` — closes the action-caution paragraph | `# Error Propagation` and `# Epistemic Integrity` say it at length. |
 | `If what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding` — follows `look at the target` | **Not reviewed.** It predates the 2.1.235 baseline and no entry explains it. Nothing else in the prompt says what to do when the look turns up a surprise; `# Executing actions with care` covers only the pattern-matched case. Decide it at the next edit to that section. |
 
@@ -136,7 +141,7 @@ thirteen resolve in both, so every borrowed passage is byte-identical across the
 | new `willow_tern` section, `# Writing for the user`: a ten-rule contract for the final message | **Not adopted.** It is off by default for Opus 5, so it is a preview rather than shipped guidance, and it contradicts `## Response template`, which requires headers on every response where the new text bans them under about 500 words. Revisit if it ships on by default. |
 | new `brook_heron` section, whose text arrives from client data or growthbook keyed by model | Nothing to rebase — served, not shipped. Recorded so that unfamiliar text in a future capture is recognised instead of hunted for in the binary. |
 | everything `alan-default-next.md` borrows: the five `# Harness` bullets, the action-caution paragraph, `# Context management`, three `# Session-specific guidance` bullets | Byte-identical across the two builds. Now pinned by `scripts/check-prompt-upstream.py` instead of re-read by hand. |
-| the legacy prompt body, which `alan-default.md` is the copy of | Nothing. The four removals above hit that branch too, and its six prose sections are unchanged between the 2.1.235 and 2.1.269 sonnet captures. Unpinned: nothing loads this file — `claude.sh` and all three prompt-test runners default to `-next`, so it is reachable only as an explicit runner argument. |
+| the legacy prompt body, which `alan-default.md` is the copy of | Nothing. The four removals above hit that branch too, and its six prose sections are unchanged between the 2.1.235 and 2.1.269 sonnet captures. Unpinned: nothing loads this file. `claude.sh` and the three runners that take a prompt file — `prompt-test-cc.sh`, `prompt-test-cc-leg2.sh`, `prompt-test-run.sh` — all default to `-next`, and `prompt-test-cc-downstream.sh` deliberately runs the stock prompt with no prompt file at all. Reaching this file takes an explicit runner argument. |
 
 ## Why the prompt says what it says
 

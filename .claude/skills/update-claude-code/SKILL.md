@@ -47,7 +47,7 @@ Ordering is load-bearing — each step's reason is why it sits where it does.
 | 11 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / `OK: 13 borrowed passages still match the installed build` / no citecheck output / `329 passed` / 15 cargo test binaries all `ok` /
+binary` / `OK: 13 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `329 passed` / 15 cargo test binaries all `ok` /
 `prompt coupling OK` / `8 file(s) checked: clean`.
 
 **Where to run each step.** Steps 4, 10 and 11 touch shared state and belong in the
@@ -77,7 +77,7 @@ This table is the point of the skill. A green run below still leaves all of this
 | `cc-render-coverage` | The default view's **selection**. It renders with `show_all` set and draws needles only from `assistant`/`user` records, so attachment/progress/system records contribute none. It cannot see a record being dropped. |
 | `pytest` | Every citation but one. `tests/test_model_visibility.py::test_denylist_still_matches_the_conversion_source` re-derives `_NEVER_VISIBLE_ATTACHMENT_TYPES` from the decompiled source by string marker — and `skipif`s when `/repos/claude-code-decompiled/src` is absent, so it reports success by not running. |
 | `check-prompt-coupling.sh` | Claude Code entirely. It greps this repo's own files against each other. |
-| `check-prompt-upstream.py` | Everything upstream says that this repo never copied. It re-checks 13 borrowed passages; a section a release adds, or reworded text this prompt does not carry, is invisible to it. |
+| `check-prompt-upstream.py` | Everything upstream says that this repo never copied. It re-checks 13 borrowed passages, so a section a release adds — or reworded text this prompt does not carry — is invisible to it. Where a passage occurs more than once it reports that the count moved, not which copy moved. |
 | CI | Everything. `.github/workflows/skills-test.yml` runs only `skills/scripts/` tests, only on `skills/scripts/**` paths. No drift check runs in CI. |
 
 ## 3. The coupling inventory — what an upgrade can break
@@ -201,7 +201,7 @@ re-diagnose these as upgrade fallout)
 
 | Mistake | What actually happens |
 |---|---|
-| Running the checks before re-extracting the decompile | `citecheck.sh` and the denylist test both pass without testing anything. |
+| Running the checks before re-extracting the decompile | `citecheck.sh` and the denylist test both pass without testing anything — a stale tree still has the files, and they are still long enough. `check-prompt-upstream.py` is the only one that refuses, by comparing `src/cli.js` against `claude --version`. |
 | Treating a green `cc-render-coverage` as "the renderer is fine" | It never looks at attachment records or at what the default view selects. |
 | Grepping for the old version string and calling it done | That finds stale *references*. It cannot find a live code path whose input shape changed underneath it — which is how the skeleton bug (§4) survived a full audit. |
 | Diffing the prompt captures and calling that the upstream delta | A capture is one environment on one day, and most prompt sections sit behind a server-resolved flag. `act_dont_rederive` vanished between the 2.1.235 and 2.1.269 captures while staying in both binaries. |
