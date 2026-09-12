@@ -208,6 +208,11 @@ new gap rather than leaving it in a session transcript.
   `sys_prompt/alan-default-next.md`, resuming under the MITM proxy a session started before the
   edit, and comparing the intercepted `system[]` against the file. Until then, exercise a prompt
   change in a fresh session rather than a resumed one.
+- The captured variants do not include the one this repo runs: `scripts/claude.sh` launches
+  `--dangerously-skip-permissions`, every capture takes the default permission mode, and the
+  bypass-permissions reminder a `claude.sh` session carries is therefore in none of them.
+  `regenerate.py` defines a `bypass-permissions` variant; capturing it is what closes this, and
+  settles which of `auto_mode`'s three texts a 2.1.269 session reaches.
 - The 2.1.247-2.1.268 release notes were read once in full and screened only for the identifiers
   §3 already names. On a loose screen roughly 200 of the 635 bullets touch some surface in §3's
   list; the concrete hits are now in §3.1 and in the snapshot README. A bullet-by-bullet pass

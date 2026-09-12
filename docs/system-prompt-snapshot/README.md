@@ -84,6 +84,14 @@ specifically to test whether fable's prompt was an oddity of the Fable
 family or genuinely per-model (see "The prompt split is per model id, not
 per model family" below — it's per-model).
 
+None of them is the configuration this repo itself runs. `scripts/claude.sh`
+launches `--dangerously-skip-permissions` with `--system-prompt-file`, and a
+capture takes the default permission mode — which is why the bypass-permissions
+reminder that a `claude.sh` session demonstrably carries appears in no file
+here (see "Removed: the `## Auto Mode Active` reminder"). `regenerate.py` now
+defines a `bypass-permissions` variant for it; it has not been captured yet, so
+that directory is absent rather than empty.
+
 ### Subagent captures
 
 `capture.py --subagent` adds a `subagents/` directory:
