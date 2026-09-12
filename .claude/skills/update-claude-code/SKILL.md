@@ -102,7 +102,7 @@ This table is the point of the skill. A green run below still leaves all of this
 | `settings.json:116-127` | `PostToolUseFailure` | A distinct event name. Folded back into `PostToolUse` and errored calls stop being delivery points. |
 | `sys_prompt/alan-default-next.md`, and any `agents/*.md` named after a built-in agent | passages copied verbatim from Claude Code's own system prompt | `--system-prompt-file` drops every upstream section, so a rule upstream reworded or added never arrives and the copy here keeps saying the old thing. `sys_prompt/CLAUDE.md` governs: procedure, deliberate divergences, per-release log. |
 | `scripts/claude.sh:13` | `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` | Without it an agent-view fork drops `--system-prompt-file` and silently runs the stock prompt. |
-| `scripts/claude.sh:45` | the prompt text a conversation recorded on its first request | Since 2.1.267 a conversation records its system prompt once, and "every later request and resume sends the record as-is, even when a later launch passes different text, until the conversation is compacted" (`claude --help`, `--system-prompt-snapshot`). A `--resume`/`--continue` after editing `sys_prompt/alan-default-next.md` would then exercise the old text with no signal; `--system-prompt-snapshot off` renders fresh every request. Whether recording is enabled for these sessions is unestablished — §4. |
+| `scripts/claude.sh:45`, `scripts/prompt-test-cc-leg2.sh:77` | the system prompt a conversation recorded on its first request | Since 2.1.267 a conversation records its prompt once and "every later request and resume sends the record as-is, even when a later launch passes different text, until the conversation is compacted" (`claude --help`, `--system-prompt-snapshot`). Recording is on unless `CLAUDE_CODE_SIMPLE` is set (`GWe`, `src/chunk-dbb93264.js:130178`, `e.systemPromptSnapshot === !1`), and it is on here: this repo's own transcripts carry `prompt_snapshot` attachments holding `alan-default-next.md` verbatim. So a resumed session runs the prompt as it was, not as the file now reads. The leg-2 runner passes `--system-prompt-snapshot off` for that reason; anywhere else, exercise a prompt edit in a fresh session. |
 | `settings.json:4-6` (`env`) | which settings scope may set which environment variable | 2.1.251 stopped a project-level `.claude/settings.json` `env` from setting `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_TMPDIR` or `TMPDIR`/`TMP`/`TEMP`. This file installs as *user* settings and sets only `CLAUDE_CODE_FORK_SUBAGENT`, so it is unaffected; a project-level copy adding one of those three would be ignored silently. |
 
 ### 3.2 Mirrors of cc's own algorithms — re-read the source, don't just test
@@ -200,14 +200,6 @@ new gap rather than leaving it in a session transcript.
   caught the skeleton bug.
 
 **Opened by reading the 2.1.269 capture in full, 2026-09-12**
-- Whether Claude Code records this repo's system prompt per conversation. 2.1.267 added
-  `--system-prompt-snapshot`, whose `on` default "sends the record as-is, even when a later launch
-  passes different text, until the conversation is compacted", and whose help ends "No effect where
-  system-prompt recording is not yet enabled". No record carrying a system prompt appears in this
-  session's JSONL, which is consistent with either answer. Settle it by editing
-  `sys_prompt/alan-default-next.md`, resuming under the MITM proxy a session started before the
-  edit, and comparing the intercepted `system[]` against the file. Until then, exercise a prompt
-  change in a fresh session rather than a resumed one.
 - The captured variants do not include the one this repo runs: `scripts/claude.sh` launches
   `--dangerously-skip-permissions`, every capture takes the default permission mode, and the
   bypass-permissions reminder a `claude.sh` session carries is therefore in none of them.

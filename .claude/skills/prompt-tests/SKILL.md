@@ -385,7 +385,12 @@ Five mechanics it depends on:
   the command line, so the arm file is appended after the one `scripts/claude.sh`
   passes and the launcher needs no argument of its own. Verified against the
   intercepted request body: a run with an override sends the override's text as
-  the entire system block, with no trace of the launcher's file.
+  the entire system block, with no trace of the launcher's file. That holds for
+  a session's **first** request only. `scripts/prompt-test-cc-leg2.sh` resumes,
+  and since cc 2.1.267 a resumed conversation replays the system prompt it
+  recorded rather than the one the command line passes — so that script also
+  passes `--system-prompt-snapshot off`, without which its arm argument is
+  validated and then ignored.
 - **Plugins off.** A generated `--settings` file sets every key of the
   checkout's `enabledPlugins` to `false`. It carries `enabledPlugins` and nothing
   else, so it registers no hook of its own and the checkout's hooks stay

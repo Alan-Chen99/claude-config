@@ -76,3 +76,11 @@ def test_rendering_drops_nothing(request_path: Path) -> None:
         body = (captured / "tools" / f"{tool['name']}.md").read_text()
         assert tool.get("description", "") in body
         assert json.dumps(tool.get("input_schema", {}), indent=2, ensure_ascii=False) in body
+        attrs = {k: v for k, v in tool.items() if k not in ("name", "description", "input_schema")}
+        if attrs:
+            assert json.dumps(attrs, indent=2, ensure_ascii=False) in body
+        # Order is a property of the request, not of the directory listing.
+        assert f"- `{tool['name']}`" in prompt
+
+    params = {k: v for k, v in request.items() if k not in ("tools", "system", "messages")}
+    assert json.dumps(params, indent=2, ensure_ascii=False) in prompt

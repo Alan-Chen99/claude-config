@@ -60,12 +60,21 @@ mkdir -p "$SNAP"
 find "$SCRATCH" -maxdepth 1 -type f ! -name '.prompt-test-settings.json' -exec cp -a {} "$SNAP/" \;
 echo "leg-1 snapshot: $SNAP"
 
+# --system-prompt-snapshot off is what makes --system-prompt-file mean anything
+# on a resume. Since cc 2.1.267 a conversation records its system prompt on the
+# first request and every later request and resume sends the record as-is, "even
+# when a later launch passes different text, until the conversation is
+# compacted" (claude --help). Recording is on unless CLAUDE_CODE_SIMPLE is set
+# (GWe, src/chunk-dbb93264.js:130178) and the records are in the transcript as
+# attachments of type prompt_snapshot. Without the flag, an arm passed here is
+# accepted, validated, and then silently ignored in favour of leg 1's prompt.
 ( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" "$AT" claude \
     -p --output-format json \
     --resume "$SID" \
     --thinking-display summarized \
     --settings "$SETTINGS" \
     --system-prompt-file "$PROMPT_FILE" \
+    --system-prompt-snapshot off \
     < "$LEG2" > "$OUT.raw" ) 2>"$OUT.stderr"
 sed -n '/^{/,$p' "$OUT.raw" > "$OUT"
 
