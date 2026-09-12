@@ -3,94 +3,100 @@
 Everything the model receives, in order, on a fresh interactive session with a
 project CLAUDE.md, no output style.
 
-v2.1.235. Source: `sonnet-5/default/request.json`, `opus-5/default/request.json`.
-A third capture, `opus-4-7/default/`, sits on the other side of the prompt
-branch; see README.md, "The prompt split is per model id, not per model family".
-Capture uses `--setting-sources project,local` to isolate from user settings.
+v2.1.269. Source: `sonnet-5/default/request.json`, `opus-5/default/request.json`,
+`opus-4-7/default/request.json`. Capture uses `--setting-sources project,local`
+to isolate from user settings. See README.md for capture mechanics, the
+per-block character methodology, and everything flagged there as not
+re-verified this round (backgrounding, `-p` mode, the security-monitor calls).
 
-**Sonnet 5 and Opus 5 do not receive the same prompt.** Through 2.1.143 the two
-models got byte-identical text and differed only in tokenizer. In 2.1.235 the
-tokenizers agree and the *text* diverges: opus-5 gets a compressed harness
-prompt and shorter descriptions for the core tools, while opus-4-7 gets the same
-long prompt sonnet does. Every section below is therefore
-given per model.
+**Sonnet 5 and Opus 5 still do not receive the same prompt**, and the split is
+still per model id rather than per family: opus-4-7 sits on the same branch as
+sonnet, and opus-5 alone gets the compressed harness prompt. Every section
+below is given per model where the two differ, same as the 2.1.235 version of
+this document.
 
-Token counts from the Anthropic count_tokens API (exact).
+Sizes below are **characters**, measured directly from the `request.json`
+files in this worktree. The 2.1.235 version of this document used
+`count_tokens`-measured tokens per block and per tool; that backend requires
+`ANTHROPIC_TOKEN_COUNT_API_KEY`, which is not available from this worktree
+(see README.md's token-count note), so this revision was re-derived in
+characters instead of carrying the old token figures forward. Whole-request
+**token** totals (`system_tokens`, `tools_total_tokens`) are still exact,
+taken from each variant's `summary.json` at capture time.
 
-## system[0] (sonnet 83 / opus 86 tokens, not cached)
+## system[0] (132 chars, not cached)
 
 ```
-x-anthropic-billing-header: cc_version=2.1.235.cf9; cc_entrypoint=cli; cch=00000; cc_prompt_id=00000000-0000-0000-0000-000000000000;
+x-anthropic-billing-header: cc_version=2.1.269.d5c; cc_entrypoint=cli; cch=aa850; cc_prompt_id=ac495608-d169-47e9-8d35-d48e0903bff5;
 ```
 
-`cc_prompt_id` is new in 2.1.235. Follow-up turns add `cc_prev_req=req_...`;
-subagent calls add `cc_is_subagent=true`. All of these change per request, so
-the header is not stable across captures.
+Byte-length unchanged from 2.1.235 (132 chars there too — the version string
+and prompt-id are both fixed-width, so a version bump doesn't change the
+header's length). `cc_prompt_id` is still present and still changes per
+request; follow-up turns still add `cc_prev_req=req_...`; subagent calls still
+add `cc_is_subagent=true`.
 
-## system[1] (sonnet 24 / opus 24 tokens, not cached)
+## system[1] (57 chars, not cached)
 
 ```
 You are Claude Code, Anthropic's official CLI for Claude.
 ```
 
-Identical text, identical count — the ~38% opus tokenizer inflation seen with
-`claude-opus-4-7` vs `claude-sonnet-4-6` is gone.
+Byte-identical across sonnet, opus-5, and opus-4-7, and unchanged from
+2.1.235 (confirmed by diff, not just by matching length).
 
-## system[2] — sonnet (3,247 tokens, cached 1h global)
+## system[2] — sonnet (10,574 chars, cached 1h global)
 
-Static behavioral rules, 10,574 chars. Cross-org cacheable (`scope: global`).
+**Byte-for-byte unchanged from 2.1.235** — confirmed by `git diff` producing no
+hunk anywhere in this block. Reproduced here because the 2.1.235 version of
+this document only summarized it:
 
 ```
-You are an interactive agent that helps users with software engineering tasks...
+You are an interactive agent that helps users with software engineering tasks. Use the instructions below and the tools available to you to assist the user.
 
-{preamble changes when output style is active:
- - default: "...helps users with software engineering tasks..."
- - with output style: "...according to your 'Output Style' below..."}
+IMPORTANT: Assist with authorized security testing, defensive security, CTF challenges, and educational contexts. Refuse requests for destructive techniques, DoS attacks, mass targeting, supply chain compromise, or detection evasion for malicious purposes. Dual-use security tools (C2 frameworks, credential testing, exploit development) require clear authorization context: pentesting engagements, CTF competitions, security research, or defensive use cases.
+IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.
 
-IMPORTANT: {security policy}
-IMPORTANT: {URL policy — NEVER generate or guess URLs}
-
-# System                        [1,615 ch, 6 bullets]
+# System                        [6 bullets]
 {output rendering, permission model, system-reminder tags, prompt injection,
 hooks, context compression}
 
-# Doing tasks                   [3,304 ch, 14 bullets]
+# Doing tasks                   [14 bullets]
 {software engineering framing, defer to user judgement, 2-3 sentence response
 for exploratory questions, prefer editing existing files, OWASP security,
 no extras/abstractions, no speculative error handling, no comments by default,
 no WHAT comments, dev server for UI changes, no backwards-compat hacks,
 /help link}
 
-# Executing actions with care   [3,552 ch, 4 bullets]
+# Executing actions with care   [4 bullets]
 {reversibility/blast radius policy, 4 categories of risky actions,
 investigate before destroying, prefer reversible steps over deletion,
 git status before work-discarding commands, secret review before pushing}
 
-# Using your tools              [628 ch, 2 bullets]
+# Using your tools              [2 bullets]
 {prefer dedicated tools over Bash, parallel calls when independent}
 
-# Tone and style                [537 ch, 4 bullets]
+# Tone and style                [4 bullets]
 {no emojis, concise, file_path:line_number references, no colon before
 tool calls}
 ```
 
-Changed from 2.1.143:
+Nothing changed 2.1.235 -> 2.1.269 in this block, for either model on this
+branch (opus-4-7's copy differs from sonnet's only in fixed, pre-existing
+ways — see the per-branch table in README.md — and is likewise unchanged
+since 2.1.235).
 
-- `# Executing actions with care` gained the reversibility preference
-  (move/rename/stash over delete), a carve-out for self-created scratch files,
-  a mandatory `git status` before work-discarding git commands, and a
-  secret-review step before pushing.
-- `# Using your tools` lost `Use TaskCreate to plan and track work`, dropping
-  from 3 bullets to 2. The task tools were removed in the same release.
+## system[2] — opus (1,210 chars, cached 1h global)
 
-## system[2] — opus (393 tokens, cached 1h global)
-
-1,210 chars — an eighth of sonnet's. The five sonnet sections collapse into one:
+An eighth of sonnet's, unchanged from 2.1.235. The five sonnet sections
+collapse into one, and — confirmed now by reading the literal text rather than
+inferring from the old doc's placeholder — opus's copy has never carried the
+URL-guessing `IMPORTANT` line sonnet and opus-4-7 have:
 
 ```
 You are an interactive agent that helps users with software engineering tasks.
 
-IMPORTANT: {security policy — identical wording to sonnet}
+IMPORTANT: Assist with authorized security testing, defensive security, CTF challenges, and educational contexts. Refuse requests for destructive techniques, DoS attacks, mass targeting, supply chain compromise, or detection evasion for malicious purposes. Dual-use security tools (C2 frameworks, credential testing, exploit development) require clear authorization context: pentesting engagements, CTF competitions, security research, or defensive use cases.
 
 # Harness                       [5 bullets]
 {markdown-in-terminal rendering, permission model and denied calls,
@@ -98,126 +104,214 @@ mid-conversation system turns and hooks, prefer file/search tools + parallel
 calls, file_path:line_number is clickable}
 ```
 
-There is no opus equivalent of `# Doing tasks`, `# Executing actions with
-care`, or `# Tone and style` in this block; the surviving guidance moves to
+Same gap as 2.1.235: no opus equivalent of `# Doing tasks`, `# Executing
+actions with care`, or `# Tone and style` here; that guidance still lives in
 `# Delivering work` and `# Corrections` in system[3].
 
-## system[3] — sonnet (6,013 tokens, cached 1h org)
+## system[3] — sonnet (17,128 chars, cached 1h org)
 
-18,812 chars.
+This is where everything changed. Structure, using `custom-output-style`'s
+capture as the representative one (see below for how `default` compares):
 
 ```
-# Text output (does not apply to tool calls)      [1,654 ch]
+# Text output (does not apply to tool calls)
 {narrate before first tool call, short updates at key moments, no internal
 deliberation, end-of-turn summary, no comments in code by default}
 
-{they/them default for unstated pronouns — NEW in 2.1.235, applies to
- visible thinking too}
+{they/them default for unstated pronouns, applies to visible thinking too}
 
-# Session-specific guidance                       [1,384 ch, 4 bullets]
+# Session-specific guidance                       [4 bullets]
 {`!` prefix for user-run commands, subagent_type "fork", /<skill-name>,
-/code-review ultra}
+/code-review ultra / deprecated /ultrareview alias}
 
-# auto memory                                     [663 ch + 6 subsections]
+# auto memory                                     [+ 6 subsections]
 {memory dir path, then:
- ## Types of memory                 [7,195 ch]
- ## What NOT to save in memory      [686 ch, 5 bullets]
- ## How to save memories            [1,505 ch, 9 bullets]
- ## When to access memories         [770 ch, 4 bullets]
- ## Before recommending from memory [679 ch, 3 bullets]
- ## Memory and other forms of persistence [1,112 ch, 2 bullets]}
+ ## Types of memory
+ ## What NOT to save in memory
+ ## How to save memories
+ ## When to access memories
+ ## Before recommending from memory
+ ## Memory and other forms of persistence}
 
-# Environment                                     [958 ch, 10 bullets]
-{cwd, is-git-repo, platform, shell, OS version, model name + id,
-knowledge cutoff, model family + ids, surfaces, fast mode}
+# Environment                                     [3 bullets — was 10]
+{most-recent-models roster, Claude Code's available surfaces, fast mode —
+see "What left this block" below for what used to be here}
 
-# Scratchpad Directory                            [718 ch, 5 bullets]  NEW
-{/tmp/claude-0/<project-slug>/<session-id>/scratchpad — use instead of /tmp}
+# Context management
+{summarization notice only — see "What left this block" below}
 
-# Context management                              [1,135 ch]
-{summarization notice, act-when-you-have-enough-information, EndConversation
-usage note, <total_tokens>N tokens left</total_tokens>}
+EndConversation (deferred tool): use only for sustained user abuse directed
+at the assistant, or when the user explicitly asks to see it demonstrated.
+Load the full guidance via ToolSearch("select:EndConversation") before using
+it.
 
-gitStatus: {branch, main branch, git user, status, recent commits}
+<total_tokens>N tokens left</total_tokens>
 ```
 
-Changed from 2.1.143:
+No more `gitStatus` at the tail — see "messages structure" below for where it
+went.
 
-- **New**: they/them pronoun default, `# Scratchpad Directory`, the
-  act-when-you-have-enough-information paragraph, the `EndConversation` note,
-  and the `<total_tokens>` budget line.
-- `# Session-specific guidance` was rewritten around `subagent_type: "fork"`;
-  the Explore-for-broad-exploration bullet and the `/schedule` offer policy
-  paragraph are gone. `/ultrareview` is now described as a deprecated alias
-  for `/code-review ultra`.
-- `# Environment` reports Sonnet 5 / `claude-sonnet-5`, knowledge cutoff
-  January 2026, and the Claude 5 family ids (Fable 5, Opus 5, Sonnet 5,
-  Haiku 4.5).
+This section's structural findings come from `custom-output-style`
+(17,128 chars) and are cross-checked against `append`, `subagent`, and
+`default` itself (17,157 / 17,128 / 17,128 chars), which all agree.
+`default` didn't always agree: the capture first taken for this snapshot was
+missing both `SendFeedback` and `EndConversation`, and its own system[3] read
+233 characters shorter (16,895) for lacking the `EndConversation` paragraph
+below. A same-version re-capture ~1h45m later came back with both tools and
+the canonical 17,128. See README.md, "The upfront tool roster is not a pure
+function of version and model id," for the full account — it's a real,
+kept finding, just not one that belongs to this block's structure.
 
-## system[3] — opus (3,365 tokens, cached 1h org)
+### What left this block (2.1.235 -> 2.1.269)
 
-10,231 chars. Different sections, not a subset.
+Diffed directly against the 2.1.235 capture, not summarized:
+
+- **Absent from every capture, but still in source**: the
+  act-when-you-have-enough-information paragraph (`"When you have enough
+  information to act, act. Do not re-derive facts already established..."`,
+  new in 2.1.235). Grepped the full 2.1.269 request bodies for the phrase
+  "enough information" — zero matches in any of the three models. But the
+  2.1.269 decompile shows the line is still built by the same
+  feature-flag-gated code as 2.1.235 (`tengu_cedar_lantern`, defaulting to
+  on in both versions — see README.md for the exact citation), so this reads
+  as the flag currently resolving off for this account, not a 2.1.269
+  removal.
+- **Relocated into a new system-reminder in `messages[]`** (see below): the
+  entire per-session `# Environment` payload (cwd, is-git-repo, platform,
+  shell, OS version, `"You are powered by the model named ..."`, knowledge
+  cutoff) and `gitStatus`.
+- **Relocated, and its section-builder call actually deleted from the
+  assembly code** (unlike the paragraph above, which is only flag-suppressed):
+  the entire `# Scratchpad Directory` section. Its content lives in the
+  relocated `# Environment` reminder now, but 2.1.235's dedicated
+  `scratchpad` list entry has no 2.1.269 counterpart at all — see README.md
+  for the citation.
+
+What's left under `# Environment` in the cached block is only the three
+bullets that don't vary by session — the model-id roster, Claude Code's
+available surfaces, and fast mode — which is presumably why they were safe to
+leave cached while everything session-specific moved out.
+
+Net effect on this block alone: 2.1.235's `default` was 18,812 chars and
+2.1.269's `custom-output-style` is 17,128 — a genuine ~1,700-character
+reduction once
+you account for the output-style preamble both share, driven entirely by the
+relocation above.
+
+## system[3] — opus (8,546 chars, cached 1h org)
+
+Same relocation, applied to opus's differently-organized block:
 
 ```
-{preamble, 975 ch: write code that reads like the surrounding code;
+{preamble: write code that reads like the surrounding code;
  they/them pronoun default; confirm hard-to-reverse or outward-facing
  actions; report outcomes faithfully}
 
-# Session-specific guidance   [892 ch, 3 bullets]
-# Memory                      [2,063 ch, 2 bullets]   (vs sonnet's ~12,600 ch
-                                                       "# auto memory" tree)
-# Environment                 [950 ch, 10 bullets]
-# Scratchpad Directory        [718 ch, 5 bullets]     (identical to sonnet)
-# Context management          [538 ch]
-# Delivering work             [1,999 ch]              opus only
-# Corrections                 [1,951 ch]              opus only
+# Session-specific guidance   [3 bullets]
+# Memory                      [2 bullets]
+# Environment                 [3 bullets — was 10, same relocation as sonnet]
+# Context management          {summarization notice only — the
+                               act-when-you-have-enough-info paragraph present
+                               in 2.1.235 is gone here too, no replacement}
+# Delivering work
+# Corrections                 [wording changed — see below]
 
-gitStatus: {...}
+EndConversation (deferred tool): use only for sustained user abuse directed
+at the assistant, or when the user explicitly asks to see it demonstrated.
+Load the full guidance via ToolSearch("select:EndConversation") before using
+it.
+
+<total_tokens>N tokens left</total_tokens>
 ```
 
-Opus has no `# Text output` block. `# Delivering work` (act on the actual
-request, requested scope is the deliverable) and `# Corrections` (do not
-over-correct earlier statements) carry guidance that sonnet gets inside
-`# Doing tasks` and `# Text output`.
+No `# Scratchpad Directory` section and no `gitStatus` tail here either — same
+relocation as sonnet, confirmed by the same diff-against-2.1.235 method.
 
-## Tools — upfront
+`# Corrections` lost two sentences and gained one, changing what counts as
+authorization to use certain tools:
 
-13 callable tools plus a `DeferredToolPlaceholder` entry flagged
-`defer_loading: true`. Sent in `tools[]`, not in the system prompt.
+| 2.1.235 | 2.1.269 |
+|---|---|
+| `"Do not call the AgentTool unless the user requested it"` + `"Do not use workflows or deep-research unless the user requested it"` | `"Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it"` |
 
-| Tool | Sonnet tokens | Opus tokens | Description identical? |
-|---|---|---|---|
-| Workflow | 8,254 | 8,186 | yes |
-| Artifact | 6,922 | 6,854 | yes |
-| Bash | 4,484 | 1,237 | **no** — 10,067 vs 1,043 chars |
-| Agent | 3,213 | 1,295 | **no** — 7,081 vs 1,811 chars |
-| ScheduleWakeup | 2,049 | 1,981 | yes |
-| AskUserQuestion | 1,961 | 1,968 | **no** — 1,531 vs 1,786 chars |
-| Read | 1,260 | 894 | **no** — 1,782 vs 790 chars |
-| ReportFindings | 1,175 | 1,107 | yes |
-| Skill | 977 | 909 | yes |
-| Edit | 933 | 634 | **no** — 1,094 vs 360 chars |
-| ToolSearch | 889 | 821 | yes |
-| ListAgents | 751 | 683 | yes |
-| Write | 714 | 522 | **no** — 618 vs 240 chars |
-| DeferredToolPlaceholder | 432 | 364 | yes |
-| **total in request** | **29,427** | **23,752** | |
+Consolidated to one sentence, and the set of things that authorize using
+Agent/workflows/deep-research widened from "the user" alone to "the user, a
+CLAUDE.md file, or a skill." Sonnet's system[3] has no equivalent sentence in
+either version — this is opus-only, both before and after.
 
-Every tool that predates 2.1.235 has a shortened opus description; every tool
-introduced in it is byte-identical across models. `AskUserQuestion` is the
-lone tool whose opus description is longer.
+Opus still has no `# Text output` block; `# Delivering work` and
+`# Corrections` still carry the guidance sonnet gets inside `# Doing tasks`
+and `# Text output`.
 
-Against 2.1.143: **added** `Artifact`, `ListAgents`, `ReportFindings`,
-`Workflow`; **removed** `ShareOnboardingGuide`. The upfront tool payload went
-from 10,559 to 29,427 sonnet tokens, most of it `Workflow` and `Artifact`.
+## Tools — upfront (14, one new)
 
-`DeferredToolPlaceholder` is new: a single stub carrying `defer_loading: true`.
-In 2.1.143 each deferred tool appeared in `tools[]` with its own
-`defer_loading` flag. One practical consequence: `count_tokens` rejects a
-request in which every tool is deferred, so the placeholder must be measured
-with the flag stripped.
+14 callable tools plus a `DeferredToolPlaceholder` entry flagged
+`defer_loading: true`. Sent in `tools[]`, not in the system prompt. (The
+capture first taken for `sonnet-5/default` read 13, missing `SendFeedback`;
+a re-capture came back at 14, matching every other capture in the batch —
+see README.md, "The upfront tool roster is not a pure function of version
+and model id.")
 
-## Tools — deferred (18)
+| Tool | Sonnet chars | Opus chars | Same text both models? | Changed since 2.1.235? |
+|---|---|---|---|---|
+| Artifact | 25,099 | 25,099 | yes | **yes** — 12,564 -> 25,099, comments/database/assets/watch added |
+| Bash | 10,078 | 1,315 | no | **yes** — attribution text replaced by a system-reminder pointer (both); opus also gained a cat/head/tail-avoidance sentence sonnet already had |
+| Agent | 7,081 | 1,811 | no | no — byte-identical to 2.1.235 |
+| Workflow | 3,480 | 3,480 | yes | **yes** — 19,290 -> 3,480, authoring detail moved to a new `workflow-authoring` skill |
+| SendFeedback | 3,467 | 3,467 | yes | **new tool** |
+| ScheduleWakeup | 3,148 | 3,148 | yes | no |
+| AskUserQuestion | 1,531 | 1,786 | no (opus longer) | no |
+| Read | 1,782 | 790 | no | no |
+| Skill | 1,417 | 1,417 | yes | no |
+| Edit | 1,094 | 360 | no | no |
+| ToolSearch | 953 | 953 | yes | no |
+| ListAgents | 777 | 777 | yes | **yes** — 749 -> 777, gained "the teammates on your team" |
+| Write | 618 | 240 | no | no |
+| ReportFindings | 574 | 574 | yes | no |
+| DeferredToolPlaceholder | 83 | 83 | yes | no (chars unchanged; not comparable to the old token figures, see methodology note) |
+| **total in request (`tools_total_tokens`, exact)** | **35,834** (sonnet, every variant including `default`) | **30,283** | | |
+
+"Same text both models?" is checked by literal string equality here, not by
+comparing lengths or token counts — the 2.1.235 doc's own per-tool token table
+shows `Skill` at 977 vs 909 "tokens" on text it also calls identical, which is
+a tokenizer artifact (opus and sonnet don't tokenize identically even where
+the text matches exactly). Character-count equality plus a direct string
+comparison is what "yes" means in this table.
+
+Every tool that predates 2.1.235 and has a shorter opus description
+(`Bash`, `Agent`, `Read`, `Edit`, `Write`) still does; `AskUserQuestion` is
+still the lone exception where opus's is longer. That pattern is unchanged —
+what changed is which tools' text moved at all: of the 13 pre-2.1.235 upfront
+tools, only `Artifact`, `Bash`, `Workflow`, and `ListAgents` differ from their
+2.1.235 text; the other nine (`Agent`, `AskUserQuestion`, `Read`, `Edit`,
+`Write`, `ScheduleWakeup`, `Skill`, `ToolSearch`, `ReportFindings`) are
+byte-for-byte unchanged, in both models — as is the `DeferredToolPlaceholder`
+entry alongside them.
+
+`SendFeedback` drafts feedback about Claude Code itself (product bugs or
+model-behavior issues) into a local queue; it's never sent without explicit
+user approval, and its description is identical across models — like every
+other tool introduced after 2.1.235's baseline.
+
+`Workflow`'s description shrank because its authoring detail — the
+`meta`/`phases` shape, the `pipeline`/`parallel` script API, worked examples —
+moved to a new on-demand skill, `workflow-authoring`, referenced by name
+inside the shortened description. The description that remains is mostly
+about *whether* to call it at all: explicit opt-in only (an "ultracode"
+keyword or session flag, a direct request in the user's own words, or a
+skill/slash-command that calls it), plus a configurable size guideline
+("medium — keep workflows under 15 agents" by default, adjustable via
+`/config`).
+
+`Artifact`'s description grew because it now documents capabilities the
+2.1.235 capture's `Artifact` didn't have at all: a shared per-artifact
+database (`get`/`list`/`query`/`set`/`update`/`str_replace`/`delete`/`batch`),
+comment-thread reading and replying, asset upload/list/read/delete, and
+multi-file listing/reading. (This document's own tool list, at the top of the
+session that produced it, carries this same expanded `Artifact` definition —
+consistent with the capture.)
+
+## Tools — deferred (18, unchanged from 2.1.235)
 
 Named in a system-reminder, schemas not loaded:
 
@@ -228,50 +322,74 @@ PushNotification, RemoteTrigger, SendMessage, TaskOutput, TaskStop, WebFetch,
 WebSearch
 ```
 
-Against 2.1.143: **added** `DesignSync`, `EndConversation`, `SendMessage`;
-**removed** `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate`. MCP tools
-(`mcp__claude_ai_Google_Drive__*` in the 2.1.143 capture) depend on the
-capturing account's connectors, not the CLI version, and are absent here.
+**Unchanged from 2.1.235** — same 18 names for the 5-family (opus-4-7 gets 21:
+this list minus `EndConversation`, plus `TaskCreate`/`TaskGet`/`TaskList`/
+`TaskUpdate`), checked by set difference, not just count. The entire
+"one more upfront tool" story this version is `SendFeedback`; nothing moved
+between the upfront and deferred lists, and nothing was added to or dropped
+from the deferred list itself.
 
-The Bash tool description still says `NEVER use the TaskCreate or Agent tools`
-in its git-commit examples — a reference to a tool that exists in neither list.
+The Bash tool description still says `NEVER use the TaskCreate or Agent
+tools` (commit example) and `DO NOT use the TaskCreate or Agent tools` (PR
+example), verbatim, confirmed by grep against the 2.1.269 capture — a
+reference to a tool that exists in neither list on the 5-family models, and
+still exists (deferred) on opus-4-7.
 
-## messages structure (changed in 2.1.235)
+## messages structure (two new reminders, one removed)
 
 ```
 messages[0]  role: user
-  [0] text   <system-reminder> claudeMd + userEmail + currentDate </system-reminder>
-  [1] text   the actual human input
+  [0] text   <system-reminder> claudeMd </system-reminder>
+  [1] text   <system-reminder> userEmail + gitStatus </system-reminder>
+  [2] text   <system-reminder> git/PR attribution </system-reminder>      NEW
+  [3] text   the actual human input
 
-messages[1]  role: system                              NEW in 2.1.235
-  [0] text   <system-reminder> deferred tools </system-reminder>
+messages[1]  role: system
+  [0] text   <system-reminder> Environment + model identity </system-reminder>  NEW (content)
+             <system-reminder> deferred tools </system-reminder>
              <system-reminder> available agent types </system-reminder>
              <system-reminder> available skills </system-reminder>
-             <system-reminder> ## Auto Mode Active </system-reminder>
              <system-reminder> <total_tokens>N tokens left</total_tokens> </system-reminder>
 ```
 
-In 2.1.143 all of these were content blocks inside `messages[0]`, ahead of the
-human input. They now live in a dedicated `system`-role message placed *after*
-it.
+Compared to 2.1.235's version of this same diagram: `claudeMd` is now its own
+block instead of being combined with `userEmail`+`currentDate`; `gitStatus`
+joined `userEmail` (it used to live at the tail of the cached system[3]
+block); a new Attribution block was inserted before the user's own text; the
+Environment/model-identity content that used to be baked into cached
+system[3] now opens `messages[1]` instead; and **`## Auto Mode Active` is
+gone** — checked case-insensitively across every capture in this batch, absent
+from all nine, versus present in eight of eight comparable 2.1.235 captures.
+See README.md for what this document could and couldn't establish about why.
 
-Shape caveats when parsing:
+A bare `Today's date is <date>.` line (no `# currentDate` header, no
+surrounding "as you answer the user's questions" preamble) is now its own
+trailing reminder inside `messages[1]` rather than being folded into
+`messages[0]`'s claudeMd block — confirmed present in this exact bare form in
+every capture checked.
 
-- `messages[1].content` is a **list of blocks** on the first turn and a **bare
-  string** on later turns. Both occur in one session.
-- Every reminder shares a single text block. Sonnet wraps each in
-  `<system-reminder>` tags; opus emits them bare, separated by blank lines.
-  Neither delimiter is dependable — bound the deferred-tool listing by shape
-  (one bare identifier per line under the intro sentence) instead.
-- `## Auto Mode Active` appears only when the session runs in auto mode, which
-  is the interactive default in 2.1.235. Setting
-  `permissions.defaultMode: "default"` removes both the TUI indicator and the
-  reminder; the other reminders are unaffected. It is also absent from a `-p`
-  capture.
+Shape caveats, unchanged from 2.1.235:
 
-The system-role message costs 4,300 tokens (sonnet) / 3,958 (opus) in this
-capture. Its size tracks the user's installed skills and agents, so it is not
-comparable across machines.
+- `messages[1].content` is a list of blocks on the first turn and a bare
+  string on later turns.
+- Sonnet wraps each reminder in `<system-reminder>` tags; opus emits the same
+  content bare, separated by blank lines. For a subagent, the relocated
+  Environment reminder appears *after* the deferred-tools reminder rather
+  than before it (order differs slightly from the main session).
+
+Measured over the full `messages[]` array, minus the fixed 18-character canary
+text (`"say exactly: done"`):
+
+| | Opus 4.7 | Sonnet 5 | Opus 5 |
+|---|---|---|---|
+| 2.1.235 | 13,041 | 13,025 | 12,042 |
+| 2.1.269 | 14,687 | 14,676 | 14,200 |
+
+Grew by roughly 1,600-2,150 chars across all three: the new Attribution and
+Environment/identity reminders outweigh the removed Auto Mode reminder and the
+small skill/agent-roster wording changes (see README.md for the itemized
+list). Its size still tracks the user's installed skills and agents, so it's
+still not comparable across machines.
 
 ## API parameters
 
@@ -279,18 +397,43 @@ comparable across machines.
 // Sonnet
 {
   "model": "claude-sonnet-5",
-  "max_tokens": 64000,                                     // was 32000
+  "max_tokens": 64000,                                       // unchanged
   "stream": true,
-  "thinking": {"type": "adaptive"},
-  "output_config": {"effort": "max"},
+  "thinking": {"type": "adaptive", "display": "updates"},    // "display" is NEW
+  "output_config": {"effort": "high"},                       // varies per request — see below
   "context_management": {"edits": [{"type": "clear_thinking_20251015", "keep": "all"}]},
-  "diagnostics": {"previous_message_id": null}
+  "diagnostics": {"previous_message_id": null},
+  "thread": {"type": "create"}                                // NEW key, every request checked
 }
 
-// Opus — same, plus:
+// Opus 5 — same, except:
 {
   "model": "claude-opus-5",
-  "max_tokens": 64000,                                     // unchanged
-  "fallbacks": [{"model": "claude-opus-4-8"}]              // NEW
+  "output_config": {"effort": "high"}                         // unchanged from 2.1.235
+  // "fallbacks" is GONE — 2.1.235 had [{"model": "claude-opus-4-8"}] here;
+  // opus-4-7 never had a fallbacks key in either version
+}
+
+// Opus 4.7 — same shape as sonnet, plus:
+{
+  "model": "claude-opus-4-7",
+  "output_config": {"effort": "xhigh"}                        // unchanged from 2.1.235
 }
 ```
+
+`output_config.effort` was already per-request in 2.1.235, not the flat "max"
+the 2.1.235 version of this document reported — checking each individual
+2.1.235 capture shows opus-4-7 was already `xhigh`, opus-5 was already
+`high`, and sonnet-5's own captures already split between `max` and `high`
+depending on which variant. That's a correction to the old doc, not a
+2.1.269 change. What this batch actually shows: opus-4-7 and opus-5 read the
+same effort level as in 2.1.235, and all eight `claude-sonnet-5` requests this
+round (6 variants + 2 subagent children) read `high` (no `max` observed) —
+plausibly still adaptive/per-request rather than newly fixed, since a
+same-day batch is exactly the sample that looked
+stable in 2.1.235 too.
+
+`thread: {"type": "create"}` is new in every request checked (all three
+models, every variant). This document has no evidence for what other `type`
+values exist or what a non-`"create"` thread looks like — no capture in this
+batch is a follow-up turn on an existing thread.
