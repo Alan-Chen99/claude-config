@@ -81,6 +81,11 @@ One long-lived local process, guarded by an exclusive `flock`, which:
 "The drain" below names this process in its inbound role; it is not a separate
 component. One process, one lock, one token, one cursor.
 
+It originates nothing. Every message, reaction and topic in the chat is some
+agent's send that it forwarded. This is what keeps the log a faithful record of
+who did what, and it is why the proxy needs no behaviour of its own to be
+documented, configured, or reasoned about.
+
 **Why a proxy rather than a client library.** A library wrapping `sendMessage`
 must decide how to represent failure, and every such decision is an abstraction
 the caller has to learn and the author has to keep faithful. A pass-through proxy
@@ -137,27 +142,32 @@ forget an update; doing it first opens a window in which a crash loses a human's
 answer with no way to recover it. This is the only irrecoverable data loss in the
 system, and the ordering is the whole mitigation.
 
-**The drain's error policy is deliberately not uniform**, and this was learned by
-crashing one. A probe drain died on `400 MESSAGE_ID_INVALID` while reacting to a
-chat-migration service message — *after* the append had succeeded, so the
-ordering above held and all six records survived. The acknowledgement step is
-what killed it. Hence:
+**The drain does nothing else.** Poll, append, flush, advance. It does not react,
+does not interpret, does not decide what an update means. Everything else —
+reacting, replying, creating topics — is an agent's send, passing through the
+proxy like any other call.
 
-- Failure to durably record an update is **fatal**. Continuing past it silently
-  drops a human's answer.
-- Failure to acknowledge, send, or otherwise decorate is **logged and skipped**.
+The motive is blast radius. The drain is the one component no other component can
+replace, because it holds the only cursor and the 409 measurement means a
+replacement cannot simply be started alongside it. Any work it takes on is work
+that can kill it, and a dead drain reaches a waiting workflow as *"the human has
+not answered yet"* — indistinguishable from a slow human, which is the failure
+this design exists to prevent. So its failure surface is held to two cases:
+network errors on `getUpdates`, which it retries, and failure to durably record
+an update, which is fatal because continuing past it would silently drop a human's
+answer.
 
-Aborting the drain over a cosmetic failure converts it into total channel loss,
-and total channel loss reaches a waiting workflow as *"the human has not answered
-yet"* — indistinguishable from a slow human, which is the failure this design
-exists to prevent. Errors must stay loud without being fatal: a rejected reaction
-belongs in the log, where it is visible, not in an unhandled exception that takes
-the channel down with it.
+This was learned by crashing a probe drain that *did* react. It died on
+`400 MESSAGE_ID_INVALID` reacting to a chat-migration service message — after the
+append had succeeded, so the durability ordering above held and all six records
+survived. A cosmetic call took down the channel, which is the whole argument for
+keeping such calls out of the drain rather than merely wrapping them in a
+`try`.
 
-Not all messages are reactable. `new_chat_members` accepted a reaction while both
-migration service messages returned `MESSAGE_ID_INVALID`, so reactability is
-type-specific and not predictable from a simple rule — which is why this must be
-handled rather than avoided.
+Reactability is type-specific and unpredictable: `new_chat_members` accepted a
+reaction while both migration service messages returned `MESSAGE_ID_INVALID`.
+Agent scripts that react will meet this, and should — a script crashing on it is
+loud, local, and harms nothing else.
 
 ### Reading and waiting
 
@@ -201,13 +211,28 @@ The system's obligation is therefore to make the choice *possible*: expose the
 existing threads (from the log, per above) and the means to create one, and stop
 there.
 
-**Acknowledgement is two-state.** A reaction is replaceable, which makes it a
-free status field that adds no messages to the chat and generates no
-notifications. 👀 means the proxy durably logged the message; 👍 means a session
-actually consumed it. These are different facts and both are worth having — a
-message that is logged but never consumed is precisely the silent failure this
-design exists to prevent. 👀 must be set after the durable append, or the
-acknowledgement asserts something untrue.
+**Acknowledgement is the agent's act, not the proxy's.** The session that was
+waiting reacts to the human's message from its own script, once it has read it.
+The proxy never reacts — reacting is an ordinary send like any other, made by
+whoever has something to assert.
+
+A reaction is a good carrier for this because it is replaceable and adds no
+message to the chat, so it generates no notification and no log noise.
+
+**Why the proxy must not react.** A proxy-side acknowledgement could only ever
+mean "durably logged", which is not the question a human is asking. They want to
+know whether the thing that was waiting has their answer. Worse, a proxy-side
+reaction would *mask* the one failure that matters: if the proxy marks every
+inbound message as seen, then a message that was logged but never picked up by
+any session looks identical to one that was acted on. The human reads
+acknowledgement as progress and stops watching. Leaving the reaction to the agent
+makes the absence of one informative — an unreacted message is a message nobody
+has taken.
+
+This also keeps the proxy free of behaviour that has to be specified and learned.
+Reactions become a thing agents do, on their own judgement, with the same API
+surface as everything else — consistent with the reasons for choosing a
+pass-through proxy in the first place.
 
 ## Chat layout
 
