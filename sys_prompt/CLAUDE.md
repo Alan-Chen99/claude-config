@@ -127,10 +127,15 @@ One entry per release reviewed. The next rebase starts from the last entry, so e
 
 #### 2.1.235 → 2.1.269, reviewed 2026-09-12 — no prompt text changed
 
-Both prompt files reviewed. Section keys were diffed between the two extractions, and the pins in
-`scripts/check-prompt-upstream.py` were run against the 2.1.235 tree
-(`git -C /repos/claude-code-decompiled archive 56801e78 src`) as well as the installed one — all
-thirteen resolve in both, so every borrowed passage is byte-identical across the two builds.
+Both prompt files reviewed, against a 2.1.235 tree extracted beside the installed one
+(`git -C /repos/claude-code-decompiled archive 56801e78 src`). Section keys were diffed, then every
+section present in both builds had its text compared, not only the sections these files borrow —
+a key list shows what a release added and removed, never what it rewrote in place.
+
+All thirteen pins in `scripts/check-prompt-upstream.py` resolve against both trees. Of the sections
+this prompt does not borrow, `bg-session`, `focus_mode`, `brief` and `subagent_steer_delegation`
+differ only in renamed identifiers and in the quote style the decompiler emits, so compare the
+decoded string rather than the source line.
 
 | Upstream change | Done |
 | --- | --- |
