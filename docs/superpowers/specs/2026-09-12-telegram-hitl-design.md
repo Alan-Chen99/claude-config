@@ -196,7 +196,7 @@ and `createForumTopic`. The layout is configuration.
 | Layout | Status | Setup required | Threading | Notes |
 | --- | --- | --- | --- | --- |
 | Supergroup forum | **Available now** | Human creates a supergroup, enables Topics, adds the bot as admin | `message_thread_id` | Mature — forums arrived in Bot API 6.3 (2022-11-05). An admin bot receives all messages regardless of privacy mode, so no reply gymnastics. |
-| DM with topic mode | **Blocked** | BotFather setting for topics in private chats | `message_thread_id` | Bot API 9.3 (2025-12-31), newest and least proven. Lives in the existing DM, so no new chat. |
+| DM with topic mode | **Blocked** | BotFather: enable **Threaded mode** (see below) | `message_thread_id` | Bot API 9.3 (2025-12-31), newest and least proven. Lives in the existing DM, so no new chat. |
 | DM with reply-threading | **Works today** | none | `reply_to_message` | Exact machine correlation, but no visual grouping beyond the quoted message. |
 
 **Why parameterize instead of choosing.** The two topic layouts are
@@ -211,6 +211,19 @@ supergroups only" (`manage.d.ts:678`) and is unrelated to topic mode in private
 chats: with those rights granted, `has_topics_enabled` remains `false` and
 `createForumTopic` against the DM still returns `the chat is not a forum`. Two
 separate settings.
+
+**The DM layout's setting is called "Threaded mode", not "topics".** This
+terminology gap costs real time — searching BotFather for "topics" finds nothing.
+`core.telegram.org/api/forum` states it verbatim: *"Bots can also behave like
+forums if Threaded mode is enabled via @botfather, this mode is especially useful
+for AI chatbots"*. The companion option is named *"Disallow users to create new
+threads"*, and it is what `allows_users_to_create_topics` reports. Enabling
+Threaded mode is what sets `has_topics_enabled`.
+
+Telegram documents no menu path for it. The standard navigation for bot settings
+is `/mybots → select bot → Bot Settings → …`, which is verbatim-confirmed for
+other settings but not for this one; the submenu name is unverified. Look for
+"Threads", not "Topics".
 
 `is_anonymous` is currently `true` in those default rights, which would make the
 bot post as the group rather than as itself. This should be turned off before
