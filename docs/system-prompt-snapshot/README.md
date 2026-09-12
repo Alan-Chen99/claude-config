@@ -66,7 +66,7 @@ mkdir -p /tmp/old/opus-5/default
 git show b318e59:docs/system-prompt-snapshot/opus-5/default/request.json \
   > /tmp/old/opus-5/default/request.json
 ./render_capture.py --tree /tmp/old
-diff -ru /tmp/old/opus-5/default opus-5/default
+diff -ru -x request.json -x summary.json /tmp/old/opus-5/default opus-5/default
 ```
 
 What no diff here can show: the deferred tools. A capture carries their names
