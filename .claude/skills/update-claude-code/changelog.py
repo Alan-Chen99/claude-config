@@ -37,12 +37,23 @@ _HEADING = re.compile(r"^## (\d+)\.(\d+)\.(\d+)$")
 
 
 def _literal_end(src: str, start: int) -> int:
-    """Index of the quote closing the literal that opens at `start`."""
+    """Index of the quote closing the literal that opens at `start`.
+
+    A quote is escaped by an odd run of backslashes, not merely by one: `\\"`
+    closes nothing, `\\\\"` closes the literal. Looking at a single preceding
+    character reads the second as escaped, runs past the true end into
+    unrelated JS, and hands `json.loads` a slice that fails to parse. Release
+    notes ending in a literal backslash are all it would take.
+    """
     i = start + 1
     while True:
-        i = src.index('"', i + 1)
-        if src[i - 1] != "\\":
+        i = src.index('"', i)
+        run = 0
+        while src[i - 1 - run] == "\\":
+            run += 1
+        if run % 2 == 0:
             return i
+        i += 1
 
 
 def changelog(src_dir: Path) -> str:
