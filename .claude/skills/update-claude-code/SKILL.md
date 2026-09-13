@@ -49,7 +49,7 @@ Ordering is load-bearing — each step's reason is why it sits where it does.
 | 13 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `356 passed` / 15 cargo test binaries all `ok` /
+binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `371 passed` / 15 cargo test binaries all `ok` /
 `prompt coupling OK` / `8 file(s) checked: clean`.
 
 **Where to run each step.** Steps 5, 11 and 13 touch shared state and belong in the
@@ -75,9 +75,9 @@ This table is the point of the skill. A green run below still leaves all of this
 | Check | Blind to |
 |---|---|
 | `check-env-context.sh` | Anything outside a ±1000-byte window around `Primary working directory: ` plus three whole-binary string counts. It sees the env block's *field set*, not behaviour. |
-| `citecheck.sh` | Whether the cited line still says what the citing text claims. It proves the file exists and is long enough — nothing more. Line numbers shift; a resolving citation can point at unrelated code. |
+| `citecheck.sh` | Whether the cited line still says what the citing text claims. It proves the file exists and is long enough — nothing more. Line numbers shift; a resolving citation can point at unrelated code, which is how five same-repo citations were found stale on 2026-09-12 while every one of them resolved. It also sees only `chunk-*.js:LINE`: citations into this repo's own files are checked by nothing. A collapsed scan is no longer silent — below 100 citations it exits 2 rather than printing a clean run. |
 | `cc-render-coverage` | The default view's **selection**. It renders with `show_all` set and draws needles only from `assistant`/`user` records, so attachment/progress/system records contribute none. It cannot see a record being dropped. |
-| `pytest` | Every citation but one. `tests/test_model_visibility.py::test_denylist_still_matches_the_conversion_source` re-derives `_NEVER_VISIBLE_ATTACHMENT_TYPES` from the decompiled source by string marker — and `skipif`s when `/repos/claude-code-decompiled/src` is absent, so it reports success by not running. |
+| `pytest` | Every citation but two. `tests/test_model_visibility.py` re-derives `_NEVER_VISIBLE_ATTACHMENT_TYPES` and `_HOOK_STDOUT_VISIBLE_EVENTS` from the decompiled source by string marker — and both `skipif` when `/repos/claude-code-decompiled/src` is absent, so they report success by not running. |
 | `check-prompt-coupling.sh` | Claude Code entirely. It greps this repo's own files against each other. |
 | `check-prompt-upstream.py` | Everything upstream says that this repo never copied. It re-checks 15 borrowed passages, so a section a release adds — or reworded text this prompt does not carry — is invisible to it. Where a passage occurs more than once it reports that the count moved, not which copy moved. |
 | `changelog.py` | Anything upstream chose not to write down, and every release older than the window the binary carries — 15 entries in 2.1.269, reaching back to 2.1.247. The running version has no entry of its own, and a release with no user-facing notes has none either, so a gap in the sequence is not evidence of a truncated window. |
@@ -94,27 +94,42 @@ This table is the point of the skill. A green run below still leaves all of this
 | `agent-tools/src/hook_post.rs:118-172` | `backgroundTaskId`, `backgroundedByUser`, `backgroundedByTurnAbort`, `backgroundedToDeliverMessage`, `timedOutAfterMs`, `run_in_background` | A rename yields `Cause: not stated by the tool response` instead of an error. 2.1.269 already deleted `assistantAutoBackgrounded`; the replacement fields are what these are. |
 | `agent-tools/src/hook_post.rs:22` | `REPORT_BUDGET = 9_000` | Justified by a 2.1.269 measurement that a **local command hook's** stdout escapes the 8,000-char/200-line `additionalContext` cap (the cap sits on `ego`, which only sanitizes cloud-relay and callback hooks). If a release routes local hooks through the sanitizer, reports get truncated to a stub. |
 | `agent-tools/src/hook_pre.rs:22`, `hook_post.rs:57` | tool names `Bash`, `Monitor` | A renamed or new shell tool is simply not wrapped. |
-| `agent-tools/src/paths.rs:65-105` | `CLAUDE_CODE_SESSION_ID` (read at `:105`) | A rename breaks bare `!` commands. |
-| `statusline.sh:5-17` | `.model.display_name`, `.context_window.*`, `.cost.total_cost_usd`, `.workspace.current_dir` | Every field defaults (`// 0`, `// "?"`). A rename shows zeros. |
-| `src/claude_config/cc_pretty/parse.py:28`, `:186-374` | record `type` values | `extra: "allow"`, so new fields are safe; a renamed record type becomes `UnknownRecord` and vanishes from the render. |
-| `settings.json:19-50` | `Notification` matchers `permission_prompt`, `idle_prompt`, `elicitation_dialog` | Literal strings cc must still emit. |
-| `settings.json:82-92` | `PreToolUse` matcher `"Agent"` + `jq` rewriting `run_in_background` to `false` | With `CLAUDE_CODE_FORK_SUBAGENT=0` this is what makes subagents synchronous. If either half stops working, `sys_prompt/alan-default-next.md:214-216` becomes a lie the model acts on. |
+| `agent-tools/src/paths.rs:66-105` | `CLAUDE_CODE_SESSION_ID` (read at `:105`) | A rename breaks bare `!` commands. |
+| `statusline.sh:5-19` | `.model.display_name`, `.context_window.*`, `.cost.total_cost_usd`, `.workspace.current_dir`, `.transcript_path`, `.session_id` | Every field defaults (`// 0`, `// "?"`, `// empty`). A rename shows zeros — except `.session_id` (`:19`), which is the key `agent-tools ps --format statusline` scopes to, so a rename there blanks the open-tasks row rather than zeroing it. 2.1.269 also supplies `prompt_cache` and `rate_limits.spend_limit`, which this script does not read. |
+| `src/claude_config/cc_pretty/parse.py:28`, `:188-375` | record `type` values | `extra: "allow"`, so new fields are safe; a renamed record type becomes `UnknownRecord` and vanishes from the render. |
+| `settings.json:19-50` | `Notification` matchers `permission_prompt`, `idle_prompt`, `elicitation_dialog` | Matched as **unanchored regexes**, not literals (`src/chunk-dbb93264.js:227871`), so `permission_prompt` also catches `worker_permission_prompt` — by luck, not design. The declared matcher set is 16 values — `VAr`'s 14 (`src/chunk-70hqkjxq.js:12`) plus `elicitation_complete` and `elicitation_response` (`src/chunk-c29sfp49.js:76`). These three select 3 of the 16; the rest are dropped silently. |
+| `settings.json:82-92` | `PreToolUse` matcher `"Agent"` + `jq` rewriting `run_in_background` to `false` | With `CLAUDE_CODE_FORK_SUBAGENT=0` this is what makes subagents synchronous. If either half stops working, `sys_prompt/alan-default-next.md:215` becomes a lie the model acts on. |
 | `settings.json:116-127` | `PostToolUseFailure` | A distinct event name. Folded back into `PostToolUse` and errored calls stop being delivery points. |
 | `sys_prompt/alan-default-next.md`, and any `agents/*.md` named after a built-in agent | passages copied verbatim from Claude Code's own system prompt | `--system-prompt-file` drops every upstream section, so a rule upstream reworded or added never arrives and the copy here keeps saying the old thing. `sys_prompt/CLAUDE.md` governs: procedure, deliberate divergences, per-release log. |
 | `scripts/claude.sh:13` | `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` | Without it an agent-view fork drops `--system-prompt-file` and silently runs the stock prompt. |
-| `scripts/claude.sh:45`, `scripts/prompt-test-cc-leg2.sh:77` | the system prompt a conversation recorded on its first request | Since 2.1.267 a conversation records its prompt once and "every later request and resume sends the record as-is, even when a later launch passes different text, until the conversation is compacted" (`claude --help`, `--system-prompt-snapshot`). Recording is on unless `CLAUDE_CODE_SIMPLE` is set (`GWe`, `src/chunk-dbb93264.js:130178`, `e.systemPromptSnapshot === !1`), and it is on here: this repo's own transcripts carry `prompt_snapshot` attachments holding `alan-default-next.md` verbatim. So a resumed session runs the prompt as it was, not as the file now reads. The leg-2 runner passes `--system-prompt-snapshot off` for that reason; anywhere else, exercise a prompt edit in a fresh session. Measured through the proxy: a resume passing a different prompt file sent the first leg's text, and the same resume with the flag sent the new one. |
+| `scripts/claude.sh:45`, `scripts/prompt-test-cc-leg2.sh:80` | the system prompt a conversation recorded on its first request | Since 2.1.267 a conversation records its prompt once and "every later request and resume sends the record as-is, even when a later launch passes different text, until the conversation is compacted" (`claude --help`, `--system-prompt-snapshot`). Recording is on unless `CLAUDE_CODE_SIMPLE` is set (`GWe`, `src/chunk-dbb93264.js:130178`, `e.systemPromptSnapshot === !1`), and it is on here: this repo's own transcripts carry `prompt_snapshot` attachments holding `alan-default-next.md` verbatim. So a resumed session runs the prompt as it was, not as the file now reads. The leg-2 runner passes `--system-prompt-snapshot off` for that reason; anywhere else, exercise a prompt edit in a fresh session. Measured through the proxy: a resume passing a different prompt file sent the first leg's text, and the same resume with the flag sent the new one. |
 | `settings.json:4-6` (`env`) | which settings scope may set which environment variable | 2.1.251 stopped a project-level `.claude/settings.json` `env` from setting `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_TMPDIR` or `TMPDIR`/`TMP`/`TEMP`. This file installs as *user* settings and sets only `CLAUDE_CODE_FORK_SUBAGENT`, so it is unaffected; a project-level copy adding one of those three would be ignored silently. |
 
 ### 3.2 Mirrors of cc's own algorithms — re-read the source, don't just test
 
 `src/claude_config/env_context/` reimplements cc behaviour and must track it:
-`environment.py:26-66` (`resolve_shell` ≙ cc's `das()`), `:95-116` (`worktree_common_dir` ≙ `pP()`),
+`environment.py:26-66` (`resolve_shell` ≙ cc's `das()`) and `:22-45` (`_executable` ≙ `cbt()`, incl. the `--version` fallback that makes a bare `CLAUDE_CODE_SHELL=bash` resolve), `:95-116` (`worktree_common_dir` ≙ `pP()`),
 `scratchpad.py:22-54` (path algorithm, incl. the 200-char slug limit past which cc appends a hash
 this module does not implement — it raises instead), `render.py:41-50` (`STASH_CAUTION` copied
 verbatim from cc's `KUt`, and pinned by `scripts/check-prompt-upstream.py` — `check-env-context.sh`
 covers the block's field set, not its wording), `drift.py:42-46` (anchor and window constants tuned to the binary layout),
-`drift.py:186-203` (a timeout budget whose comment says to re-check the sum if any of the three
+`drift.py:187-208` (a timeout budget whose comment says to re-check the sum if any of the three
 numbers moves).
+
+### 3.2b Knobs that are unset here, and what each would do if set
+
+Inert today, so nothing reads them — which is exactly why an upgrade that starts setting one, or a
+future edit that adds one, changes behaviour this repo's other rows assert. Same shape as
+`CLAUDE_AUTO_BACKGROUND_TASKS` in `CLAUDE.md`.
+
+| Unset knob | What setting it would do here |
+|---|---|
+| `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (2.1.257) | Applies one model to every subagent, ignoring per-spawn and agent-definition overrides — re-breaking what 2.1.251 fixed, and silently voiding every `model:` in `agents/*.md`. |
+| `CLAUDE_CODE_RESTRICTED` / `--restricted` (2.1.248) | Ignores user, project and local settings files — i.e. disables this repo's entire hook set, `settings.json` and all. |
+| `CLAUDE_CODE_ENABLE_TODO_TOOLS` (2.1.268) | Restores the task-tracking tools (`TodoWrite`, `TaskCreate/Get/Update/List`), which are otherwise offered only to older models. |
+| `subagentStatusLine` (settings key) | A second status-line command decorating agent-panel rows. Different payload and different output contract from `statusLine` (one `{id, content}` JSON object per line), so `statusline.sh` could not serve it. |
+| Hook events this repo does not configure | The event list is 33 names (`Sle`, `src/chunk-5cs6j3p3.js:16934`); `settings.json` uses 7. `PermissionRequest` answers a permission dialog in place of the user and is allow/deny only — unreachable under `--dangerously-skip-permissions` for most decisions. `PreModelSwitch`/`PostModelSwitch` (2.1.251) and `SubagentStart` are the other three worth knowing exist. |
+| `permissionDecision: "defer"` | A `PreToolUse` hook may return it (the enum is allow/deny/ask/defer, `src/chunk-5cs6j3p3.js:16886`); it parks the tool call and ends the turn for a later `-p --resume`. Print-mode only, single-tool-call only, and converted to `deny` for a cloud-served call — so in this repo's interactive sessions it is discarded with a warning. The two `PreToolUse` hooks here only emit `"allow"`. |
 
 ### 3.3 Pins to re-pin vs. records to leave alone
 
@@ -137,7 +152,7 @@ and `tests/test_model_visibility.py`, the captured artifacts under `docs/system-
 
 `docs/system-prompt-snapshot/capture.py`: the trust-dialog cursor reader (`:351-369` — the default
 already flipped once between 2.1.235 and 2.1.269), the main-request selector (`:596-606`), the
-`cc_is_subagent=true` billing-header marker (`:612-624`). `regenerate.py:254-259` excludes the
+`cc_is_subagent=true` billing-header marker (`:611-624`). `regenerate.py:263-268` excludes the
 `defer_loading` placeholder. `render_capture.py` derives `prompt.md` and `tools/` from each
 `request.json`, and `tests/test_snapshot_rendering.py` re-renders all 13 captures and fails when
 the tracked files drift from it — so a hand-edited capture is caught rather than read as evidence.
@@ -150,73 +165,75 @@ adjust them by hand.
 Open items with what would retire each. Delete an entry when it is closed; add one when you find a
 new gap rather than leaving it in a session transcript.
 
-**Known defect, not yet fixed**
-- `src/claude_config/cc_pretty/render.py:973-983` — the skeleton renderer reads only
-  `a.content` and `continue`s when empty, so it emits **no line at all** for an attachment whose
-  payload lives in the record-level `rendered` array. Measured: 1,097 such records across every log
-  on disk, 15 subtypes (`environment`, `instructions`, `session_context`, `model`,
-  `agent_listing_delta`, `deferred_tools_delta`, `auto_mode`, `output_style`, …), **every one of them
-  version 2.1.269 and zero in any older log** — so this is upgrade-caused. The default view was fixed
-  (`render.py:702-726`) and the visibility selector was fixed (`main.py:175`, in
-  `attachment_is_model_visible`, `:162-184`); the skeleton was
-  not. It matters because `skills/session-analysis/SKILL.md` mandates the skeleton as reading
-  substrate and claims "one line per content block". `cc-render-coverage` is structurally unable to
-  catch this (§2). Retire when render.py falls back to `rendered` and a test covers the skeleton path.
-
-**Traced against an older build, never re-traced**
-- `CLAUDE.md:54` — which SessionStart call sites pass `model` into the payload builder `uIn`
-  (2.1.235).
+**Pins never re-derived for this build**
 - `docs/env-context-manifest.json:3` → `notes/env-context-manifest.md` — byte offsets, four-anchor
   count and the `Shell: PowerShell` probe describe 2.1.235 only.
-- `agent-tools/src/hook_pre.rs:29` cites `queryHelpers.ts:262-272` for `updatedInput` being a full
-  replacement rather than a merge — a 2.1.88-era path never re-resolved to the chunk layout. The
-  behaviour is relied on; the citation is unresolvable.
-- `src/claude_config/cc_pretty/main.py:133-137` — `_HOOK_STDOUT_VISIBLE_EVENTS` is asserted only
-  against itself. Unlike the denylist beside it, no test re-derives it from source.
-- `docs/system-prompt-snapshot/README.md:889-905` — two "Not re-verified this round" blocks
-  (security-monitor calls; interactive-vs-`-p` differences).
-- `docs/system-prompt-snapshot/builtin-output-styles/` — pinned to v2.1.87 with no staleness banner.
+- `docs/system-prompt-snapshot/README.md:944-952` and `:954-962` — two "Not re-verified this round"
+  blocks (security-monitor calls; interactive-vs-`-p` differences).
+- `docs/system-prompt-snapshot/builtin-output-styles/` — captured from v2.1.87, and 2.1.257's notes
+  name a `Proactive` built-in the directory has no file for, so the set is incomplete as well as
+  stale. Retire by re-capturing every built-in style.
 
-**Found in the 2.1.269 audit, never actioned** (from session `f4987f69`, 2026-09-12)
-- Four integration-surface items reported as new since 2.1.235 and not followed up:
-  `subagentStatusLine`, `PermissionRequest`, `agent_needs_input`, `quota_auto_resume`.
-- Two env vars whose effect was "not fully determinable": `CLAUDE_CODE_CHILD_SESSION`,
-  `CLAUDE_CODE_SHELL`.
-- A `"defer"` permission decision new relative to what `CLAUDE.md` documents.
-- Dropped at a `/compact` boundary and never revisited: a 2.1.269 backgrounded-session capture,
-  whether the Auto Mode reminder fires for a `capture.py` session, and testing `/feedback` from an
-  interactively-logged-in session.
+**Captures not taken**
+- The one configuration this repo runs is uncaptured: `scripts/claude.sh` launches
+  `--dangerously-skip-permissions`, every capture takes the default permission mode, and the
+  bypass-permissions reminder a `claude.sh` session carries is in none of them. `regenerate.py:97-100`
+  defines the variant; capturing it closes this. Which of `auto_mode`'s three texts a `claude.sh`
+  session reaches is no longer part of it — a live session log answers `e.bypass` directly (snapshot
+  README, "Removed: the `## Auto Mode Active` reminder"); what a capture still adds is the rest of
+  the request under that mode, beside a default-mode capture in one artifact. 2.1.257 adds a second
+  reason to take it: `defaultMode: "bypassPermissions"`
+  is now ignored from project settings, so the mode's only supported entry points are user settings
+  and `--permission-mode`.
+- No backgrounded-session capture for 2.1.269 (`regenerate.py`'s `VARIANTS` has no such key), and two
+  live checks dropped at a `/compact` boundary: whether the Auto Mode reminder fires for a
+  `capture.py` session, and `/feedback` from an interactively-logged-in session.
+
+**Opened by the release-notes pass, 2026-09-12** — all 635 bullets of 2.1.247-2.1.268 read against §3.
+Each row is a claim in this repo that a bullet puts in doubt; none was re-measured.
+
+| What to re-check | Why, and what retires it |
+|---|---|
+| `docs/agent-tools-status-reference.md` "The kill boundary" | 2.1.257 fixed background commands that detach via `setsid` surviving a **task stop** or **Claude Code exit** — the escape `agent-tools run --background` is built on. The doc measures only a foreground Bash call killed at its `timeout`, so it is not falsified, it is silent on both paths cc changed. Retire by measuring: `--background`, then `TaskStop` on the enclosing task; and `--background`, then quitting Claude Code. |
+| `agent-tools/src/hook_post.rs:22` (`REPORT_BUDGET = 9_000`) | 2.1.247 added a bound on hook/background output that could "overflow the conversation". The 9,000 figure post-dates it and still measured whole at 18,611 chars, so the number holds — but the comment's reason ("this ceiling is the only one in force") is now incomplete. Retire by finding and citing the other bound. |
+| `agent-tools/src/hook_post.rs:118-172` (background causes) | 2.1.257 fixed "Claude not being told when you stop a background command from the tasks panel or a connected client" — possibly a sixth cause field. An unmodelled one yields `Cause: not stated by the tool response`, not an error. Retire by re-reading the Bash output schema at `src/chunk-dbb93264.js:215694-215699`. |
+| `docs/tool-token-limits.md` | 2.1.261 added `bashOutputMaxChars` and `taskOutputMaxChars` (ceiling 128K, against the documented 30,000-150,000 `BASH_MAX_OUTPUT_LENGTH` range) and 2.1.265 added a 1 GB cap on tool results saved to disk. The file carries a 2.1.88 banner, so it is labelled rather than wrong. Retire on its next re-measurement. |
+| `settings.json:2` (`cleanupPeriodDays: 36500`) | 2.1.257 routed `cc-daemon-*` temp-folder cleanup through the same retention sweep. Pinning retention to 100 years to keep transcripts now also disables that cleanup, in the **system** temp dir, which `scripts/prune-scratch.sh` does not reach. Retire by measuring the accumulation and deciding whether a second reclaimer is wanted. |
+| `settings.json:19-50` (`Notification` matchers) | The declared matcher set is 16 values (`src/chunk-c29sfp49.js:76`: `VAr`'s 14 at `src/chunk-70hqkjxq.js:12`, plus two elicitation values), of which this file configures three, and matchers are unanchored regexes (`src/chunk-dbb93264.js:227871`) — so `permission_prompt` also matches `worker_permission_prompt`, by luck rather than design. The three `quota_auto_resume_*` values are exactly the case the ntfy hook exists for: a session parked on a rate limit that later resumes, or silently will not. Retire by deciding which of the 16 deserve a push; it is a product decision, not a defect. |
+| `settings.json:82-92` (the `jq` hook) | 2.1.248 changed a stdout `{…}` that is not valid JSON from silently-ignored text into a reported hook error. That hook is the half §3.1 says must not stop working. Retire by confirming jq emits nothing on stdout when `.tool_input` is absent or the filter errors mid-write. |
+| `agent-tools env-context` on resume | 2.1.268 stopped `--continue`/`--resume` waiting for SessionStart hooks before rendering. Retire by confirming the env block still arrives on a resume rather than being raced past. |
+| `scripts/prompt-test-cc*.sh` | 2.1.257 made `claude -p` wait for an armed Monitor instead of exiting ~5 s after its result, so a case that arms one now blocks for the full Monitor timeout. Retire by confirming no case arms a Monitor, or by bounding it. |
+| `scripts/claude.sh:45`, `scripts/prompt-test-cc-leg2.sh:80` | 2.1.267 extended prompt recording to **tool definitions** and to subagents, so a resumed session replays the whole old request prefix, not just the prompt file. Retire by confirming `--system-prompt-snapshot off` covers tool definitions too. |
+| `sys_prompt/alan-default-next.md` under `/compact` | 2.1.247 fixed `/compact` summarizing under the default prompt instead of the conversation's own — for `--agent` sessions only. Whether a `--system-prompt-file` session compacts under its own prompt is unsettled, and a summary turn running under the stock prompt would silently drop every rule in `sys_prompt/`. Retire by measuring one compaction through the proxy. |
+| `src/claude_config/env_context/environment.py:95-116` (`worktree_common_dir` ≙ `pP()`) | 2.1.259 changed cc's handling of a `git rev-parse` failure whose message is not "not a git repository". §3.2 says re-read the source; this names the reason. |
+| `src/claude_config/cc_pretty/` record handling | Three in-window shape changes: per-second subagent progress ticks now replace their predecessor rather than accumulating (2.1.251); async hook completion notices batch onto one line (2.1.257); nested background subagent results are saved into the **parent subagent's** transcript (2.1.259), which moves what a session-analysis pass finds. Retire by re-reading real logs for each. |
+| `agent-tools run` byte-for-byte passthrough | 2.1.261 has cc scanning background Bash output for `<claude-code-hint>` and transforming it. That is a content transformation applied to bytes the wrapper promises to forward unchanged. Retire by confirming the transformation is cc-side only and does not reach the capture file. |
 
 **Open design questions, not defects**
 - Whether to trim `agent-tools env-context` now that 2.1.269 sends its own `# Environment` block to
-  `--system-prompt-file` sessions as a `messages[]` attachment. What the hook still uniquely adds:
-  the shell the Bash tool actually runs, the session id, the worktree's parent checkout, the drift
-  note. Recorded at `src/claude_config/env_context/__main__.py:10-22` as a finding, not a decision.
+  `--system-prompt-file` sessions as a `messages[]` attachment — a direction 2.1.268 confirms
+  deliberate ("deliver environment, model and settings details as attachments"). What the hook still
+  uniquely adds: the shell the Bash tool actually runs, the session id, the worktree's parent
+  checkout, the drift note. Recorded at `src/claude_config/env_context/__main__.py:10-22` as a
+  finding, not a decision.
 - One passage `sys_prompt/alan-default-next.md` borrowed from upstream diverges with no recorded
   reason and nothing else in the prompt covering it — the row marked **Not reviewed** under
   "Deliberate divergences" in `sys_prompt/CLAUDE.md`. It predates the 2.1.235 baseline, so the
   2.1.269 rebase neither caused nor closed it.
 - `cc-render-coverage` cannot see selection defects at all (§2). Extending it is what would have
-  caught the skeleton bug.
-
-**Opened by reading the 2.1.269 capture in full, 2026-09-12**
-- The captured variants do not include the one this repo runs: `scripts/claude.sh` launches
-  `--dangerously-skip-permissions`, every capture takes the default permission mode, and the
-  bypass-permissions reminder a `claude.sh` session carries is therefore in none of them.
-  `regenerate.py` defines a `bypass-permissions` variant; capturing it is what closes this, and
-  settles which of `auto_mode`'s three texts a 2.1.269 session reaches.
-- The 2.1.247-2.1.268 release notes were read once in full and screened only for the identifiers
-  §3 already names. On a loose screen roughly 200 of the 635 bullets touch some surface in §3's
-  list; the concrete hits are now in §3.1 and in the snapshot README. A bullet-by-bullet pass
-  against the whole inventory was not done.
+  caught the skeleton-renderer bug fixed on 2026-09-12.
+- Same-repo `file:line` citations still have no checker. `citecheck.sh` resolves only
+  `chunk-*.js:LINE`, and line-existence would not have caught the drift found on 2026-09-12 anyway:
+  every stale citation pointed at a real, non-blank line of unrelated code. Pinning by string, the
+  way `scripts/check-prompt-coupling.sh` does, is the only mechanism here that has teeth.
 
 **Pre-existing, not upgrade-caused** (verified absent from the 2.1.235 capture too, so don't
 re-diagnose these as upgrade fallout)
-- `README.md:5-9` tells the reader to run `~/claude-config/hooks/install.sh`; neither the path nor a
-  `hooks/` directory exists.
 - `agents/*.md` and ~30 sites under `skills/scripts/` name `Grep`, `Glob`, `TodoWrite` and `Task`;
-  the live roster has none of them. Whether the model reliably maps `Task`→`Agent` is untested.
-- `scripts/check-env-context.sh:38` cites `agent-tools/src/main.rs:389`; the line is now `:437`.
+  the live roster has none of them. `TodoWrite` is the one with a known cause and a one-setting fix:
+  2.1.268 gates the task-tracking tools to older models and `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`
+  restores them, so it is a settings decision. `Grep`, `Glob` and `Task` are text edits, and whether
+  the model reliably maps `Task`→`Agent` is untested.
 
 ## Common mistakes
 
