@@ -49,7 +49,7 @@ Ordering is load-bearing — each step's reason is why it sits where it does.
 | 13 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `377 passed` / 15 cargo test binaries all `ok` /
+binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `379 passed` / 15 cargo test binaries all `ok` /
 `prompt coupling OK` / `8 file(s) checked: clean`.
 
 **Where to run each step.** Steps 5 and 13 repoint shared installs and belong in the
@@ -102,6 +102,7 @@ This table is the point of the skill. A green run below still leaves all of this
 | `settings.json:116-127` | `PostToolUseFailure` | A distinct event name. Folded back into `PostToolUse` and errored calls stop being delivery points. |
 | `sys_prompt/alan-default-next.md`, and any `agents/*.md` named after a built-in agent | passages copied verbatim from Claude Code's own system prompt | `--system-prompt-file` drops every upstream section, so a rule upstream reworded or added never arrives and the copy here keeps saying the old thing. `sys_prompt/CLAUDE.md` governs: procedure, deliberate divergences, per-release log. |
 | `scripts/claude.sh:13` | `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` | Without it an agent-view fork drops `--system-prompt-file` and silently runs the stock prompt. |
+| `scripts/intercept/proxy.py:28`, `:84-91` | the `x-claude-code-session-id` request header, and `sessionId`/`pid`/`cwd`/`startedAt`/`kind`/`entrypoint` in `~/.claude/sessions/*.json` | A renamed header sends every capture to `requests-log/unknown/`; a renamed session-file field drops that key from the log's `session` block. Both are plain `.get()` misses — the capture still gets written, just anonymous. |
 | `scripts/claude.sh:45`, `scripts/prompt-test-cc-leg2.sh:73` | the system prompt and tool definitions a conversation recorded on its first request | Since 2.1.267 a resume replays the record, not what the command line passes (`GWe`, `src/chunk-dbb93264.js:130178`; the record holds the tool definitions too, `Mos`, `:130134`, and `--system-prompt-snapshot off` bypasses both). It is on here: this repo's transcripts carry `prompt_snapshot` attachments holding `alan-default-next.md` verbatim. Measured on 2.1.269 through the proxy: a resume passing a different prompt file sent the first leg's text; with the flag it sent the new one. The leg-2 runner passes the flag; anywhere else, exercise a prompt edit in a fresh session. |
 | `settings.json` `includeGitInstructions: false`, `attribution.commit/pr: ""` | one gate, `q7()` (`chunk-dbb93264.js:69382`), that removes the Bash tool's `# Git` block, cc's `gitStatus` reminder and the attribution reminder | A release that renames the key, or stops gating the block by it, puts `Commit or push only when the user asks. If on the default branch, branch first.` back beside the `# Git` section of `sys_prompt/alan-default-next.md`, which then contradicts it. The capture cannot answer it: `capture.py:471` passes `--setting-sources project,local` and this file installs as *user* settings, so `tools/Bash.md` carries the block whether the gate holds or not — as the committed `opus-5/default/tools/Bash.md:21` does today. What does answer it: a live `claude.sh` session's own Bash description, and `prompt-tests/general/commit-own-changes`, whose runner applies the gate because `agent-tools claude` copies this file into `CLAUDE_CONFIG_DIR`. `sys_prompt/CLAUDE.md`, "`# Git`", governs. |
 | `settings.json:4-6` (`env`) | which settings scope may set which environment variable | 2.1.251 stopped a project-level `.claude/settings.json` `env` from setting `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_TMPDIR` or `TMPDIR`/`TMP`/`TEMP`. This file installs as *user* settings and sets only `CLAUDE_CODE_FORK_SUBAGENT`, so it is unaffected; a project-level copy adding one of those three would be ignored silently. |
@@ -136,7 +137,9 @@ assertion.
 **Re-verify the claim, keep the label:** the version banners in `docs/system-prompt-anatomy*.md`,
 `docs/tool-token-limits.md`, `docs/background-sessions.md`, `docs/system-prompt-snapshot/README.md`,
 `skills/cc-history/SKILL.md`, `output-styles/README.md`, `agent-tools/CLAUDE.md`,
-`docs/agent-tools-status-reference.md`.
+`docs/agent-tools-status-reference.md`, and the first-byte-watchdog window in
+`scripts/intercept/README.md`, "Pass-through streaming" — if that number moves, an
+intercepted session's turns start aborting at the new one.
 
 **Do NOT re-pin — these are dated records of an older build, and rewriting them destroys the
 evidence:** everything under `notes/` (each carries a staleness banner), `plans/`,

@@ -5,6 +5,10 @@ Resolves sessions from X-Claude-Code-Session-Id header against
 entrypoint, kind). Logs are stored per-session:
   ~/.claude/requests-log/{session_id}/NNNN.json
 
+Response bodies are forwarded to the client as they arrive and captured on the
+way past, so an intercepted SSE stream still streams. See README.md,
+"Pass-through streaming", for what buffering costs.
+
 Load with: mitmdump -s proxy.py -p 9160
 Or use the CLI wrapper: python3 run-proxy.py [--port PORT]
 """
@@ -278,17 +282,47 @@ class InterceptAddon:
 
     def __init__(self) -> None:
         self._flow_start: dict[str, float] = {}
+        self._streamed: dict[str, bytearray] = {}
 
     def request(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         self._flow_start[flow.id] = time.time()
 
     def error(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         self._flow_start.pop(flow.id, None)
+        self._streamed.pop(flow.id, None)
+
+    def responseheaders(self, flow: "mitmproxy.http.HTTPFlow") -> None:
+        """Forward each response chunk onward as it arrives, keeping a copy.
+
+        mitmproxy buffers the whole body by default and sends the client its
+        first byte -- status line included -- only once the server is done.
+        Claude Code cancels a first-party request whose response headers have
+        not arrived inside a fixed window, so buffering an SSE stream turns a
+        long generation into a client-side abort. README.md, "Pass-through
+        streaming", carries the measurement and the source citations.
+
+        A `stream` callable receives every chunk and returns what to forward;
+        capturing here rather than through mitmproxy's `store_streamed_bodies`
+        option keeps the capture scoped to this host and working under a bare
+        `mitmdump -s proxy.py`.
+        """
+        if flow.request.pretty_host != TARGET_HOST:
+            return
+
+        captured = bytearray()
+        self._streamed[flow.id] = captured
+
+        def relay(chunk: bytes) -> bytes:
+            captured.extend(chunk)
+            return chunk
+
+        flow.response.stream = relay
 
     def response(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         if flow.request.pretty_host != TARGET_HOST:
             return
 
+        captured = self._streamed.pop(flow.id, None)
         start_ms = self._flow_start.pop(flow.id, time.time())
         duration_ms = int((time.time() - start_ms) * 1000)
 
@@ -318,6 +352,11 @@ class InterceptAddon:
 
         if flow.response is None:
             return
+
+        # Streaming leaves raw_content unset (mitmproxy Message.raw_content),
+        # so restore what relay() saw before anything reads the body.
+        if captured is not None:
+            flow.response.raw_content = bytes(captured)
 
         if flow.response.status_code != 200:
             write_log(
