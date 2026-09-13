@@ -538,6 +538,7 @@ Create `tests/conftest.py`:
 """Shared fixtures: a stand-in Bot API, and an HTTP client that never raises."""
 
 import json
+import sys
 import threading
 import time
 import urllib.error
@@ -626,12 +627,22 @@ def _handler_class(fake: FakeTelegram) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
+class _Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address) -> None:
+        """A proxy killed mid-poll drops its connection, which is a test ending
+        rather than a fault of the fake. Its traceback in teardown reads exactly
+        like a failure, so it is suppressed; everything else still prints."""
+        if not isinstance(sys.exception(), (BrokenPipeError, ConnectionResetError)):
+            super().handle_error(request, client_address)
+
+
 @pytest.fixture
 def fake_telegram():
     """A Bot API on loopback that the proxy can be pointed at."""
     fake = FakeTelegram()
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _handler_class(fake))
-    server.daemon_threads = True
+    server = _Server(("127.0.0.1", 0), _handler_class(fake))
     fake.base = f"http://127.0.0.1:{server.server_port}"
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield fake
@@ -1466,7 +1477,7 @@ def launch(tmp_path, fake_telegram):
         }
         if token is None:
             environment.pop("TELEGRAM_BOT_TOKEN", None)
-            environment["TELEGRAM_HITL_TOKEN_FILE"] = str(tmp_path / "absent.env")
+            environment["TELEGRAM_HITL_TOKEN_FILE"] = str(tmp_path / "token.env")
         else:
             environment["TELEGRAM_BOT_TOKEN"] = token
         process = subprocess.Popen([sys.executable, "-m", "claude_config.telegram_hitl"],
@@ -1547,6 +1558,15 @@ def test_a_restart_resumes_from_the_persisted_offset(launch, tmp_path, fake_tele
         time.sleep(0.05)
     assert _of_kind(log_path, "inbound")[0]["update"]["update_id"] == 41
 
+    # The record is fsynced before the offset advances, so waiting on the record
+    # is not waiting on the offset: a signal landing between them leaves nothing
+    # persisted, and the restart correctly re-fetches from 0 instead of resuming.
+    offset_file = tmp_path / "state" / "offset"
+    deadline = time.monotonic() + 15
+    while not offset_file.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert offset_file.read_text().strip() == "42"
+
     first.send_signal(signal.SIGTERM)
     assert first.wait(timeout=15) == 0
     fake_telegram.requests.clear()
@@ -1559,10 +1579,25 @@ def test_a_restart_resumes_from_the_persisted_offset(launch, tmp_path, fake_tele
     assert _polls(fake_telegram)[0]["offset"] == 42
 
 
-def test_a_missing_token_stops_the_process_loudly(launch) -> None:
+@pytest.mark.parametrize("content, named", [
+    (None, "token.env"),                  # no token file at all
+    ("OTHER=1\n", "TELEGRAM_BOT_TOKEN"),  # a token file with no usable token
+])
+def test_a_misconfigured_token_stops_the_process_loudly(launch, tmp_path, content,
+                                                        named) -> None:
+    """Either way it exits non-zero with a backtrace naming its own cause, rather
+    than starting and presenting as a channel nobody happens to be answering on.
+
+    The two faults raise different exceptions — an absent file is a
+    FileNotFoundError from the read, a file without the key is the RuntimeError
+    config.token() raises — and each names the thing the operator has to fix."""
+    if content is not None:
+        (tmp_path / "token.env").write_text(content)
+
     process = launch(token=None)
+
     assert process.wait(timeout=15) != 0
-    assert "TELEGRAM_BOT_TOKEN" in process.stderr.read()
+    assert named in process.stderr.read()
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1663,13 +1698,13 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_process.py -q`
-Expected: 5 passed
+Expected: 6 passed
 
 - [ ] **Step 5: Run the whole suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
-Expected: `371 passed` — 329 before this work, plus 15, 14, 8 and 5. Task 5 adds
-the last 11, for 382.
+Expected: `372 passed` — 329 before this work, plus 15, 14, 8 and 6. Task 5 adds
+the last 11, for 383.
 
 - [ ] **Step 6: Commit**
 
@@ -2283,6 +2318,7 @@ Run after the last task, against
 | The log is the topic registry | `test_the_topic_registry_is_reconstructed_from_the_log` |
 | Durability ordering | `test_the_log_is_written_before_telegram_is_told_to_forget` |
 | The drain does nothing else | `drain.py` has no call but `getUpdates`; `test_a_failure_to_record_is_fatal` |
+| A misconfigured start fails loudly instead of presenting as a quiet channel | `test_a_misconfigured_token_stops_the_process_loudly` |
 | A down channel is distinguishable from a slow human | `test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one` |
 | The agent decides topics | Task 5, stated as judgement with no mechanism behind it |
 | The traps must not be lost | `test_the_skill_still_carries_every_trap_that_cost_time` |
