@@ -3,9 +3,13 @@
 Through 2.1.235 Claude Code assembled its own `# Environment` and
 `# Scratchpad Directory` sections as system-prompt sections, and
 --system-prompt-file replaced that whole assembly, which is why this hook
-exists. Everything else the default prompt carries still arrives: gitStatus
-is appended to the system prompt, and claudeMd, userEmail and currentDate
-come in the system-reminder user message.
+exists. claudeMd, userEmail and currentDate still arrive in the
+system-reminder user message. cc's gitStatus reminder does not: settings.json
+sets `includeGitInstructions: false`, one gate for both that reminder and
+the Bash tool's `# Git` block, and the block is what the setting is there to
+remove (`sys_prompt/CLAUDE.md`, "Git"); a -p session never carried the
+reminder anyway. `environment.git_snapshot` is the replacement, and it
+re-fires with this hook on resume, /clear and compact.
 
 That premise is half gone as of 2.1.269, and the hook has not yet been
 changed to match -- this paragraph records the finding, not a decision.
@@ -199,9 +203,10 @@ def main() -> int:
     cwd = _require_str(payload, "cwd")
     session_id = _require_str(payload, "session_id")
 
+    is_git_repo = environment.is_git_repo(cwd)
     facts: render.Facts = {
         "cwd": cwd,
-        "is_git_repo": environment.is_git_repo(cwd),
+        "is_git_repo": is_git_repo,
         "worktree_common_dir": environment.worktree_common_dir(cwd),
         "platform": environment.platform_name(),
         "shell": resolved_shell(),
@@ -210,6 +215,7 @@ def main() -> int:
         "session_id": session_id,
         "scratchpad": scratchpad_or_none(cwd, session_id),
         "drift_note": drift_note(),
+        "git_snapshot": environment.git_snapshot(cwd) if is_git_repo else None,
     }
 
     json.dump(

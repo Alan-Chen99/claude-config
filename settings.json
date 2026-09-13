@@ -155,6 +155,11 @@
     }
   },
   "outputStyle": "default",
+  "includeGitInstructions": false,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "effortLevel": "high",
   "showClearContextOnPlanAccept": true,
   "tui": "default",

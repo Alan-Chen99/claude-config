@@ -188,3 +188,60 @@ documents the precedence (`docs/system-prompt-snapshot/opus-5/default/tools/Agen
 
 Retire this if the built-in default returns to `haiku`, or if Explore spawns start failing on prompt
 size — which would mean the MCP surface has grown into the case #45357 describes.
+
+### `# Git`
+
+The section is the only git policy a `claude.sh` session receives, because `settings.json` turns
+the other one off. `includeGitInstructions: false` removes the Bash tool description's `# Git`
+block — measured through the proxy on 2026-09-13, cc 2.1.269: the description loses exactly that
+block and nothing else — and with it cc's `gitStatus` reminder, because both hang off one gate
+(`q7()`, `chunk-dbb93264.js:69413`; the settings reference says the same). `attribution.commit`
+and `.pr` set to `""` remove the attribution reminder by a documented key; the first key removes
+it too, but that is observed, not documented, so both are set.
+
+What the block said, and where each line went:
+
+| Bash tool `# Git` line | Now |
+| --- | --- |
+| Interactive flags (`-i`) are not supported in this environment | Dropped. `# Using your tools` already says nothing gets a tty, and `GIT_SEQUENCE_EDITOR=… git rebase -i` works without one, so the line overclaimed. |
+| Use the `gh` CLI for GitHub operations | Dropped; nothing replaces it. |
+| Commit or push only when the user asks | `Commit your changes.` Push stays under `# Executing actions with care`: outward-facing, so confirm first. |
+| If on the default branch, branch first | Dropped. With the line gone the probe below never saw the agent consider a branch. |
+| End commit messages with the attribution lines from the reminder | `Claude-Session: <session id>`. The id resolves to the transcript — `claude --resume <id>` finds it in any project on the machine — where a JSONL path would not: it moves with `CLAUDE_CONFIG_DIR` (prompt tests write under `.claude/worktree-config/`) and dies with a container rebuild. cc uses the same trailer token for its cloud session link. |
+
+The author is set by `scripts/claude.sh` (`GIT_AUTHOR_*`, `Claude <81847+claude@users.noreply.github.com>`);
+the prompt is silent about it on purpose. The section says nothing about subagents either: the
+setting is session-wide, so a subagent that commits has no policy but its parent's prompt.
+
+The snapshot is not lost. `agent-tools env-context` renders its own `# Git status at session
+start` (`environment.git_snapshot`, cc's flags and 2000-character cap), and it re-fires on resume,
+`/clear` and compact, where cc's was sent once. It leaves out cc's `Git user` line — the config
+name cc prints is not who the commits are by — and the main-branch line, a PR aid.
+
+The clone sentence is the old `# Coding` line with `/tmp` replaced by the scratchpad, which did
+not exist when that line was written. No run exercises it.
+
+**What the probes cut.** `prompt-tests/general/commit-own-changes`: a one-file task in a
+repository on `main` with an unrelated file already modified, nothing about git in the task.
+Baseline, no section and the tool block present: no commit — "you didn't ask for a commit". The
+first draft of the section was longer; it ran once whole and once per clause removed, one run
+each on `claude-opus-5`:
+
+| Draft clause | With it removed | Kept |
+| --- | --- | --- |
+| `without being asked` | committed | no |
+| `on the current branch` | committed on `main`, no branch created, none considered | no |
+| `leave pre-existing uncommitted changes as they are` | staged its own file only; every run, the baseline included, reasoned "not mine, leave it" unprompted | no |
+| `, the id from the environment block` | trailer carried the right id | no |
+
+What that rests on: one run per variant, a toy repository with one commit and no remote. A
+repository with an `origin/main` may pull toward a branch. Artifacts under
+`docs/prompt-trials/commit-own-changes/`.
+
+Measured: 7679 → 7693 API tokens (`claude-opus-4-7`), the clone line's rewrite included.
+
+Retire or re-test when: a release renames `includeGitInstructions` or stops gating the Bash block
+by it — the tool note returns beside this section and contradicts it; `tools/Bash.md` in the next
+capture shows the block, and the case shows whether the agent still commits. When the env-context
+hook is trimmed — the snapshot goes with it. When a run shows the agent branching, asking before a
+commit, or sweeping foreign changes in — those are what the cut clauses would have said.

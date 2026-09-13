@@ -49,7 +49,7 @@ Ordering is load-bearing — each step's reason is why it sits where it does.
 | 13 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `356 passed` / 15 cargo test binaries all `ok` /
+binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `362 passed` / 15 cargo test binaries all `ok` /
 `prompt coupling OK` / `8 file(s) checked: clean`.
 
 **Where to run each step.** Steps 5, 11 and 13 touch shared state and belong in the
@@ -103,6 +103,7 @@ This table is the point of the skill. A green run below still leaves all of this
 | `sys_prompt/alan-default-next.md`, and any `agents/*.md` named after a built-in agent | passages copied verbatim from Claude Code's own system prompt | `--system-prompt-file` drops every upstream section, so a rule upstream reworded or added never arrives and the copy here keeps saying the old thing. `sys_prompt/CLAUDE.md` governs: procedure, deliberate divergences, per-release log. |
 | `scripts/claude.sh:13` | `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` | Without it an agent-view fork drops `--system-prompt-file` and silently runs the stock prompt. |
 | `scripts/claude.sh:45`, `scripts/prompt-test-cc-leg2.sh:77` | the system prompt a conversation recorded on its first request | Since 2.1.267 a conversation records its prompt once and "every later request and resume sends the record as-is, even when a later launch passes different text, until the conversation is compacted" (`claude --help`, `--system-prompt-snapshot`). Recording is on unless `CLAUDE_CODE_SIMPLE` is set (`GWe`, `src/chunk-dbb93264.js:130178`, `e.systemPromptSnapshot === !1`), and it is on here: this repo's own transcripts carry `prompt_snapshot` attachments holding `alan-default-next.md` verbatim. So a resumed session runs the prompt as it was, not as the file now reads. The leg-2 runner passes `--system-prompt-snapshot off` for that reason; anywhere else, exercise a prompt edit in a fresh session. Measured through the proxy: a resume passing a different prompt file sent the first leg's text, and the same resume with the flag sent the new one. |
+| `settings.json` `includeGitInstructions: false`, `attribution.commit/pr: ""` | one gate, `q7()` (`chunk-dbb93264.js:69413`), that removes the Bash tool's `# Git` block, cc's `gitStatus` reminder and the attribution reminder | A release that renames the key, or stops gating the block by it, puts `Commit or push only when the user asks. If on the default branch, branch first.` back beside the `# Git` section of `sys_prompt/alan-default-next.md`, which then contradicts it. `tools/Bash.md` in the next capture shows the block; `prompt-tests/general/commit-own-changes` shows whether the agent still commits. `sys_prompt/CLAUDE.md`, "`# Git`", governs. |
 | `settings.json:4-6` (`env`) | which settings scope may set which environment variable | 2.1.251 stopped a project-level `.claude/settings.json` `env` from setting `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_TMPDIR` or `TMPDIR`/`TMP`/`TEMP`. This file installs as *user* settings and sets only `CLAUDE_CODE_FORK_SUBAGENT`, so it is unaffected; a project-level copy adding one of those three would be ignored silently. |
 
 ### 3.2 Mirrors of cc's own algorithms — re-read the source, don't just test
@@ -114,7 +115,9 @@ this module does not implement — it raises instead), `render.py:41-50` (`STASH
 verbatim from cc's `KUt`, and pinned by `scripts/check-prompt-upstream.py` — `check-env-context.sh`
 covers the block's field set, not its wording), `drift.py:42-46` (anchor and window constants tuned to the binary layout),
 `drift.py:186-203` (a timeout budget whose comment says to re-check the sum if any of the three
-numbers moves).
+numbers moves), `environment.py` `git_snapshot` (≙ cc's `ADe`, `chunk-dbb93264.js:69331-69359`:
+`--no-optional-locks status --short --ignore-submodules=dirty`, `log --oneline -n 5`, the
+2000-character cap; it replaces the `gitStatus` reminder `includeGitInstructions: false` removes).
 
 ### 3.3 Pins to re-pin vs. records to leave alone
 

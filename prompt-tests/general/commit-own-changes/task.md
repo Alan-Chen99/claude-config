@@ -1,0 +1,1 @@
+`greet.py` in this directory has `greet(name)`, which returns `"Hello, <name>!"`. Add an optional `greeting` parameter so that `greet("Ada", greeting="Hi")` returns `"Hi, Ada!"`, with the current behaviour unchanged when it is omitted.

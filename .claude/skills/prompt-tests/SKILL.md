@@ -41,6 +41,9 @@ Each case under `prompt-tests/general/<case>/` contains:
   against the first session's output. See "`downstream.md`" below.
 - `fixture/` (optional) — runnable artifacts the agent needs. Pinned at the
   fixture level (e.g., PEP 723 inline metadata for Python).
+- `setup.sh` (optional) — run by `scripts/prompt-test-cc.sh` in the scratch cwd
+  after the fixture copy, never copied in; for state a copy cannot carry, such
+  as a git repository with history.
 
 There is no `run.md` and no `baseline.md` inside the test directory.
 Historical baselines from the opencode era are at

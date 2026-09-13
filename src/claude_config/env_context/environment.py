@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
+from typing import TypedDict
 
 SEARCH_DIRS: tuple[str, ...] = ("/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin")
 
@@ -73,9 +74,9 @@ def _git(args: Sequence[str], cwd: str) -> subprocess.CompletedProcess[str] | No
     rather than exiting non-zero. The hook must still produce a block, so an
     unrunnable git reads the same as "not a repository".
 
-    `timeout=2`: this is called twice per hook run (is_git_repo, then
-    worktree_common_dir), so a hung git costs up to 2x this value before the
-    hook can move on. It shares the settings.json SessionStart hook's 30 s
+    `timeout=2`: this is called up to five times per hook run (is_git_repo,
+    worktree_common_dir, then git_snapshot's three reads), so a hung git
+    costs up to 5x this value before the hook can move on. It shares the settings.json SessionStart hook's 30 s
     budget with drift.installed_version's own subprocess call -- see that
     function's docstring for the full arithmetic across all three numbers.
     """
@@ -128,3 +129,57 @@ def platform_name() -> str:
     that matter here: `linux`, `darwin`, `win32`.
     """
     return sys.platform
+
+
+class GitSnapshot(TypedDict):
+    branch: str
+    status: str
+    recent_commits: str
+
+
+# cc caps its own status output at 2000 characters (`ADe`,
+# chunk-dbb93264.js:69331); the marker is this hook's own.
+STATUS_CAP = 2000
+STATUS_TRUNCATED = "\n[status truncated at 2000 characters]"
+
+
+def git_snapshot(cwd: str) -> GitSnapshot | None:
+    """Branch, `status --short` and the last five commits, or None outside a repo.
+
+    cc sends the same facts as its `gitStatus` reminder, but that reminder
+    shares one gate with the Bash tool's `# Git` block -- `q7()`,
+    chunk-dbb93264.js:69413: `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, else the
+    `includeGitInstructions` setting -- and settings.json turns that gate off
+    so `sys_prompt/` is the only git policy the agent receives. A `-p`
+    session never carried the reminder at all. This is the copy that survives
+    both, and it re-fires with the hook on resume, `/clear` and compact where
+    cc's is taken once. The git flags mirror cc's builder (`ADe`,
+    chunk-dbb93264.js:69347-69359; literal `This is the git status at the
+    start of the conversation`): `--no-optional-locks` so a snapshot never
+    takes the index lock from a concurrent session, `--ignore-submodules=dirty`,
+    five commits, the 2000-character cap. What it leaves out of cc's block:
+    `Git user` (claude.sh sets the author through the environment, and the
+    config name cc prints is not who the commits are by) and the main-branch
+    line (a PR aid; nothing here opens PRs).
+    """
+    branch = _git(["branch", "--show-current"], cwd)
+    if branch is None or branch.returncode != 0:
+        return None
+    status = _git(
+        ["--no-optional-locks", "status", "--short", "--ignore-submodules=dirty"], cwd
+    )
+    log = _git(["--no-optional-locks", "log", "--oneline", "-n", "5"], cwd)
+
+    def out(result: subprocess.CompletedProcess[str] | None) -> str:
+        if result is None or result.returncode != 0:
+            return ""
+        return result.stdout.rstrip("\n")
+
+    status_text = out(status)
+    if len(status_text) > STATUS_CAP:
+        status_text = status_text[:STATUS_CAP] + STATUS_TRUNCATED
+    return {
+        "branch": branch.stdout.strip() or "(detached HEAD)",
+        "status": status_text,
+        "recent_commits": out(log),
+    }
