@@ -196,6 +196,11 @@ def installed_version(binary: Path) -> str:
     ~2 s for a slower-than-measured cold read/scan + ~1 s of uncapped misc
     work (platform/shell/os_version, scratchpad mkdir, cache stat, JSON
     parsing) totals roughly 17 s against the 30 s outer timeout --
+    `environment._executable`'s `--version` probe sits in that misc second:
+    it runs only where the access check already failed, a nonexistent path
+    fails to spawn instead of waiting, and a real shell answers at once, so
+    the measured addition is 2 ms and only a path that exists and then hangs
+    can spend its 1 s cap --
     comfortably inside it, not matching it, so cc's SIGTERM
     lands after this function would already have raised on its own, not
     instead of it. If any of these three numbers moves again, re-check this

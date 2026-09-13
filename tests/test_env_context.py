@@ -72,6 +72,34 @@ def test_shell_override_ignored_when_not_bash_or_zsh(tmp_path: Path) -> None:
     assert result == str(tmp_path / "bin/zsh")
 
 
+def test_bare_name_override_is_honoured_like_cc(tmp_path: Path) -> None:
+    """`CLAUDE_CODE_SHELL=bash` names no path, and cc obeys it anyway.
+
+    cc's `cbt()` falls back to running the candidate with `--version` when the
+    access check fails, so a bare name resolves through PATH. A mirror without
+    that fallback silently ignores the override and then reports a shell the
+    Bash tool is not using -- a wrong answer, not a missing one.
+    """
+    _fake_tree(tmp_path, ["/bin/zsh"])
+    result = environment.resolve_shell(
+        env={"CLAUDE_CODE_SHELL": "bash"},
+        search_dirs=[str(tmp_path / "bin")],
+        found=lambda _: None,
+    )
+    assert result == "bash"
+
+
+def test_bare_name_override_still_rejected_when_it_does_not_run(tmp_path: Path) -> None:
+    assert "bash" not in str(tmp_path) and "zsh" not in str(tmp_path)
+    _fake_tree(tmp_path, ["/bin/zsh"])
+    result = environment.resolve_shell(
+        env={"CLAUDE_CODE_SHELL": "definitely-not-a-real-bash-on-this-box"},
+        search_dirs=[str(tmp_path / "bin")],
+        found=lambda _: None,
+    )
+    assert result == str(tmp_path / "bin/zsh")
+
+
 def test_zsh_preferred_when_shell_unset(tmp_path: Path) -> None:
     _fake_tree(tmp_path, ["/bin/bash", "/bin/zsh"])
     result = environment.resolve_shell(
