@@ -17,7 +17,13 @@ explanatory content (architecture, decisions, invariants) belongs in README.md.
 CLAUDE.md may additionally contain agent policy -- behavioral rules and
 constraints that agents must follow. Policy in a parent directory applies to all
 descendants. Claude Code auto-loads CLAUDE.md from the working directory and all
-parent directories upward, so policy placement at any level is effective.
+parent directories upward. That covers ancestors, not descendants: this repo
+tracks 60 CLAUDE.md files and a session started at the root carries two of them
+— the user's `~/.claude/CLAUDE.md` and this repo's root file — with every nested
+one absent from the opening context (observed 2026-09-13, cc 2.1.269). Put
+policy an agent must obey from its first turn at the root or above; a nested
+file reaches the agent only once something pulls it in, and by what mechanism is
+unverified here.
 
 **README.md = invisible knowledge**: README.md files capture knowledge NOT
 visible from reading source code. If ANY invisible knowledge exists for a
