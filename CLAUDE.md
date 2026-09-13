@@ -214,9 +214,12 @@ with no volume of its own. A path under either home would not: the host's is
 Docker here is rootless, so a container's root is the host's `alan` and the
 0600 socket and log are readable from inside without widening either.
 
-`telegram-bot@telegram-bot-skill` is disabled in `settings.json` because it polls
-`getUpdates` on the same bot token. A second consumer is not refused by Telegram
-— it evicts the first, and the channel then goes silent rather than erroring.
+`telegram-bot@telegram-bot-skill` must stay off: it polls `getUpdates` on the
+same bot token, and a second consumer is not refused by Telegram — it evicts the
+first, and the channel then goes silent rather than erroring. An installed
+marketplace plugin that no `enabledPlugins` entry names is never a load
+candidate, so leaving it out of `settings.json` disables it exactly as `false`
+does (`claude plugin list` reports both as `disabled`).
 
 ### `skills/copy-writing-style/`
 
