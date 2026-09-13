@@ -222,6 +222,17 @@ def test_an_upstream_that_never_answers_is_reported_and_logged(tmp_path, unix_ca
     assert _faults(log_path)[0]["source"] == "forward"
 
 
+SENDERS = 32
+"""Enough to overrun socketserver's default backlog of 5 every time.
+
+At 10 senders the default failed 2 runs in 15 — a guard that mostly does not
+fire. At 32 it fails every run and passes on the 128 `ProxyServer` configures
+(measured 2026-09-13: 5/5 failures at 5, 0/15 at 128). The fake upstream in
+`conftest.py` carries the same raised backlog, or its own refusals arrive here
+as the proxy's 502s.
+"""
+
+
 def test_concurrent_senders_all_succeed_and_are_all_logged(proxy, unix_call) -> None:
     """Outbound needs no coordination — the measurement the design rests on."""
     results: list[int] = []
@@ -234,16 +245,16 @@ def test_concurrent_senders_all_succeed_and_are_all_logged(proxy, unix_call) -> 
         with lock:
             results.append(status)
 
-    threads = [threading.Thread(target=send, args=(n,)) for n in range(10)]
+    threads = [threading.Thread(target=send, args=(n,)) for n in range(SENDERS)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
 
-    assert results == [200] * 10
+    assert results == [200] * SENDERS
     records = _records(proxy.log_path)
-    assert len(records) == 10
-    assert {r["params"]["text"] for r in records} == {f"q{n}" for n in range(10)}
+    assert len(records) == SENDERS
+    assert {r["params"]["text"] for r in records} == {f"q{n}" for n in range(SENDERS)}
 
 
 def test_the_forwarder_serves_on_a_unix_socket(tmp_path, fake_telegram, unix_call) -> None:

@@ -95,6 +95,12 @@ def _handler_class(fake: FakeTelegram) -> type[BaseHTTPRequestHandler]:
 class _Server(ThreadingHTTPServer):
     daemon_threads = True
 
+    # The concurrency tests open one upstream connection per sender, and at
+    # socketserver's default backlog of 5 the fake refuses some of them -- the
+    # proxy then answers 502 and the test reads as a proxy fault. Raised so the
+    # measurement is of the proxy, not of this fixture.
+    request_queue_size = 128
+
     def handle_error(self, request, client_address) -> None:
         """A proxy killed mid-poll drops its connection, which is a test ending
         rather than a fault of the fake. Its traceback in teardown reads exactly

@@ -38,6 +38,7 @@ What the socket says when it does not answer:
 | No such file | No proxy has ever run against this directory. |
 | Connection refused | One ran and died without unlinking its socket. Start another; it clears the stale file itself. |
 | Permission denied | A proxy is running under an identity yours does not share. The socket is mode 0600 like the log, so you cannot read the log either — this is a deployment fault, not something to work around. |
+| Resource temporarily unavailable | More senders are connecting at once than the accept backlog holds. A connect to a full AF_UNIX backlog fails immediately rather than waiting, so this is the one refusal worth a retry. The backlog is 128 (`server.py`, `ProxyServer.request_queue_size`), so reaching it means a burst, not a stuck proxy. |
 
 To start one:
 
@@ -282,7 +283,7 @@ Each of these cost real time to find.
   `GroupAnonymousBot`**, not under their own name. The answer still correlates
   through `reply_to_message`, so nothing breaks — but `from` will not tell you
   who answered, and you should not claim it does.
-- **Never start another poller.** The first-party `telegram` plugin and
-  `telegram-bot-skill` each start their own, and a newcomer does not get
-  refused — it seizes the stream and kills the existing consumer. A 409 in the
-  log means exactly this has happened.
+- **Never start another poller.** The first-party `telegram` plugin and the
+  third-party `telegram-bot-skill` each start their own, and a newcomer does
+  not get refused — it seizes the stream and kills the existing consumer. A
+  409 in the log means exactly this has happened.

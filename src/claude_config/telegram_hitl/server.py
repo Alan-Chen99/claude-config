@@ -150,6 +150,15 @@ class ProxyServer(socketserver.ThreadingUnixStreamServer):
 
     daemon_threads = True
 
+    # socketserver defaults the accept backlog to 5, and a connect to a full
+    # AF_UNIX backlog fails with EAGAIN instead of waiting -- ten concurrent
+    # senders lost 2 of 15 runs at the default (measured 2026-09-13,
+    # tests/test_telegram_hitl_forwarding.py::test_concurrent_senders_all_succeed_and_are_all_logged).
+    # Every session on the machine shares this one socket, so the queue has to
+    # absorb a burst the accept loop has not reached yet. Linux clamps the
+    # value to net.core.somaxconn.
+    request_queue_size = 128
+
     def __init__(self, socket_path: Path, log: ChannelLog, *,
                  api_base: str, token: str) -> None:
         encoded = os.fsencode(socket_path)
