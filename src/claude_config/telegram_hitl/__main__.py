@@ -63,23 +63,32 @@ def main() -> None:
     reason = "the drain returned"
     failed = False
     try:
-        server = ProxyServer(("127.0.0.1", config.port()), log,
-                             api_base=config.api_base(), token=token)
-        config.port_path().write_text(f"{server.server_port}\n")
-        log.append({"kind": "proxy", "event": "started", "pid": os.getpid(),
-                    "port": server.server_port})
-        print(f"telegram-hitl: 127.0.0.1:{server.server_port} -> {config.log_path()}",
-              flush=True)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
-
         stop = threading.Event()
 
         def _signalled(number: int, _frame: object) -> None:
             stop.set()
             raise _Stopped(signal.Signals(number).name)
 
+        # Before anything writes `started`. A watcher reads a trailing `started`
+        # as a channel that is up, so a process dying to the default disposition
+        # after writing one presents as a human who has not replied yet. Measured
+        # with the handlers installed after the bind: a SIGTERM arriving while the
+        # `started` append was still in its fsync killed the process outright and
+        # left that record as the log's last word.
         signal.signal(signal.SIGTERM, _signalled)
         signal.signal(signal.SIGINT, _signalled)
+
+        # Safe only because the lock is already held: nothing else can be serving
+        # on this path, so a file here was left by a process that died without
+        # unlinking it, and bind would otherwise fail on a dead address. Unlinking
+        # before the lock would take the address from a proxy still using it.
+        socket_path = config.socket_path()
+        socket_path.unlink(missing_ok=True)
+        server = ProxyServer(socket_path, log, api_base=config.api_base(), token=token)
+        log.append({"kind": "proxy", "event": "started", "pid": os.getpid(),
+                    "socket": str(socket_path)})
+        print(f"telegram-hitl: {socket_path} -> {config.log_path()}", flush=True)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
 
         drain.run(log, ErrorTransitions(log, "drain"), api_base=config.api_base(),
                   token=token, offset_path=config.offset_path(), stop=stop)

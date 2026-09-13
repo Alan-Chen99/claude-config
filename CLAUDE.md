@@ -190,7 +190,7 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | `claude_config.config`          | Load `/repos/claude-config/.env` into `os.environ` | (library — `from claude_config.config import load`) |
 | `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |
 | `claude_config.env_context`     | SessionStart hook: `# Environment` and `# Scratchpad Directory` for `--system-prompt-file` sessions | `agent-tools env-context` |
-| `claude_config.telegram_hitl`   | Local Bot API proxy for human-in-the-loop over Telegram: one flock-guarded process owns the single `getUpdates` drain, forwards sends from any number of sessions, and appends both directions plus its own faults to one JSONL log. Design: `docs/superpowers/specs/2026-09-12-telegram-hitl-design.md` | `python -m claude_config.telegram_hitl` |
+| `claude_config.telegram_hitl`   | Local Bot API proxy for human-in-the-loop over Telegram: one flock-guarded process owns the single `getUpdates` drain, forwards sends from any number of sessions, and appends both directions plus its own faults to one JSONL log. Lock, socket, log and offset all live in `TELEGRAM_HITL_STATE_DIR`, which is required and has no default — the directory is shared across containers whose homes differ, and a home-derived path would give each its own lock and its own drain. Sends go over `proxy.sock` in that directory rather than a port, because a port number names a different socket in every network namespace that reads it. Design: `docs/superpowers/specs/2026-09-12-telegram-hitl-design.md` | `python -m claude_config.telegram_hitl` |
 
 ### `skills/copy-writing-style/`
 

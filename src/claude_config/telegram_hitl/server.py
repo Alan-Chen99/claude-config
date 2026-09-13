@@ -7,11 +7,14 @@ ordinary Bot API request and reads an ordinary Bot API answer, errors included.
 """
 
 import json
+import os
 import re
+import socketserver
 import sys
 import time
 import urllib.error
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
+from pathlib import Path
 from typing import Any
 
 from claude_config.telegram_hitl import upstream
@@ -38,6 +41,11 @@ METHOD_NAME = re.compile(r"[A-Za-z][A-Za-z0-9]*\Z")
 
 FORWARD_TIMEOUT = 30.0
 IDLE_TIMEOUT = 120.0
+
+# struct sockaddr_un carries char sun_path[108], NUL terminator included, so a
+# path may be at most 107 bytes. It is far below PATH_MAX, which is why a state
+# directory deep enough to break the socket still opens the log without complaint.
+SUN_PATH_MAX = 108
 
 
 def _envelope(code: int, description: str) -> bytes:
@@ -126,18 +134,54 @@ class _Handler(BaseHTTPRequestHandler):
         """Silent: the channel log is the record, and nobody reads this stderr."""
 
 
-class ProxyServer(ThreadingHTTPServer):
-    """Threaded because sends are stateless and safely parallel."""
+class ProxyServer(socketserver.ThreadingUnixStreamServer):
+    """Threaded because sends are stateless and safely parallel.
+
+    It serves on a Unix socket, not a port. A path resolves to the same endpoint
+    for every process that can see the file, so the containers sharing this
+    channel and the host running it all dial one address; a port number would
+    name a different socket in each of their network namespaces.
+
+    It never unlinks an existing socket at this path. Only the lock proves that
+    a file here is stale, and the lock is the caller's — unlinking on the
+    caller's behalf would let a second proxy take the address from a first one
+    that is still serving on it.
+    """
 
     daemon_threads = True
 
-    def __init__(self, address: tuple[str, int], log: ChannelLog, *,
+    def __init__(self, socket_path: Path, log: ChannelLog, *,
                  api_base: str, token: str) -> None:
-        super().__init__(address, _Handler)
+        encoded = os.fsencode(socket_path)
+        if len(encoded) >= SUN_PATH_MAX:
+            raise OSError(
+                f"socket path is {len(encoded)} bytes: sun_path holds "
+                f"{SUN_PATH_MAX} including its terminator, so at most "
+                f"{SUN_PATH_MAX - 1}. Shorten the state directory: {socket_path}")
+        # Created 0600, matching the channel log, so reaching the socket and
+        # reading the log need the same identity: a participant can do both or
+        # neither, rather than half the job with no clue which half is missing.
+        # The umask rather than a chmod after bind, because bind also listens —
+        # a connection arriving in the gap would be queued at the ambient mode
+        # and served once the accept loop starts.
+        previous = os.umask(0o177)
+        try:
+            super().__init__(os.fspath(socket_path), _Handler)
+        finally:
+            os.umask(previous)
         self.log = log
         self.api_base = api_base
         self.token = token
         self.faults = ErrorTransitions(log, "forward")
+
+    def get_request(self):
+        """Hand the handler an address it can index.
+
+        A Unix peer is unnamed, so socketserver reports it as an empty string and
+        BaseHTTPRequestHandler.address_string() indexes straight off the end of it.
+        """
+        connection, _ = super().get_request()
+        return connection, ("local", 0)
 
     def handle_error(self, request: object, client_address: object) -> None:
         """Record a handler that raised, where everyone is already looking.

@@ -23,7 +23,22 @@ def test_state_paths_follow_the_state_dir_override(monkeypatch, tmp_path) -> Non
     assert config.log_path() == tmp_path / "chan" / "channel.jsonl"
     assert config.offset_path() == tmp_path / "chan" / "offset"
     assert config.lock_path() == tmp_path / "chan" / "proxy.lock"
-    assert config.port_path() == tmp_path / "chan" / "port"
+    assert config.socket_path() == tmp_path / "chan" / "proxy.sock"
+
+
+def test_an_unset_state_dir_is_refused_rather_than_guessed(monkeypatch) -> None:
+    """A home-derived default is what makes a second drain possible.
+
+    The channel is shared by processes whose homes differ — one per container,
+    plus the host's. A default under any one of those homes resolves to a
+    different directory in each, so a process that missed the variable would
+    take its own lock, start its own drain, and seize the update stream from
+    the real one. Telegram does not refuse the newcomer; it evicts the
+    incumbent. So there is nothing to default to.
+    """
+    monkeypatch.delenv("TELEGRAM_HITL_STATE_DIR", raising=False)
+    with pytest.raises(RuntimeError, match="TELEGRAM_HITL_STATE_DIR"):
+        config.state_dir()
 
 
 def test_token_is_read_from_the_channel_env_file(monkeypatch, tmp_path) -> None:

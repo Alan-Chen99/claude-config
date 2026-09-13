@@ -7,13 +7,22 @@ description: Use when a session needs a human decision it cannot make alone - as
 
 Reach the human by making ordinary Bot API calls against a local proxy, and read
 their answers out of one append-only log. Any number of sessions do this at
-once. Nothing is assigned to you, and no chat, topic or message is yours alone.
+once, from any number of containers and from the host. Nothing is assigned to
+you, and no chat, topic or message is yours alone.
+
+`$TELEGRAM_HITL_STATE_DIR` names the channel, and everything else lives under it:
 
 | | |
 | --- | --- |
-| Proxy | `http://127.0.0.1:18420` (the bound port is in `~/.claude/channels/telegram-hitl/port`) |
-| Log | `~/.claude/channels/telegram-hitl/channel.jsonl` |
-| Chat id | `~/.claude/channels/telegram-hitl/chat_id` |
+| Proxy | `$TELEGRAM_HITL_STATE_DIR/proxy.sock` |
+| Log | `$TELEGRAM_HITL_STATE_DIR/channel.jsonl` |
+| Chat id | `$TELEGRAM_HITL_STATE_DIR/chat_id` |
+
+If that variable is unset, the channel is not configured here. It has no default
+and must not be guessed: the directory is shared by processes whose homes differ
+— one per container, plus the host's — so a home-relative path resolves
+somewhere different in each of them, and each would take its own lock and start
+its own drain. Telegram does not refuse a second consumer; it evicts the first.
 
 If `chat_id` is absent, the channel is not set up on this machine, and reading it
 anyway just puts an empty value in your request. Setting it up needs a human: a
@@ -22,7 +31,15 @@ Manage Topics, and the chat id written to that file. The Bot API can do none of
 it — it can neither create a chat nor raise its own rights. `getChat` reporting
 `is_forum: true` confirms the first two.
 
-If the port does not answer, the proxy is not running:
+What the socket says when it does not answer:
+
+| | |
+| --- | --- |
+| No such file | No proxy has ever run against this directory. |
+| Connection refused | One ran and died without unlinking its socket. Start another; it clears the stale file itself. |
+| Permission denied | A proxy is running under an identity yours does not share. The socket is mode 0600 like the log, so you cannot read the log either — this is a deployment fault, not something to work around. |
+
+To start one:
 
 ```bash
 UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/claude-config \
@@ -31,20 +48,35 @@ agent-tools run --background --desc "telegram-hitl proxy" \
 ```
 
 The environment variable is this repo's convention; without it `uv` would build
-a `.venv` inside the canonical checkout. It refuses to start if another instance holds the lock, which is intended — one
-process owns the update stream, and a second consumer would evict the first.
+a `.venv` inside the canonical checkout. The proxy inherits
+`TELEGRAM_HITL_STATE_DIR` from your environment, which is what makes the one you
+start the same channel everyone else is reading.
+
+It refuses to start if another instance holds the lock, which is intended — one
+process owns the update stream, and a second consumer would evict the first. The
+lock is a file in the shared directory, so it excludes proxies in other
+containers and on the host as well as other processes in yours.
+
+Whoever wins that lock serves everybody, because the socket sits in the same
+shared directory: a proxy started from any container is reachable from all of
+them. The difference is lifetime — one started inside a container dies with that
+container, while one started on the host outlives every container.
 
 ## Sending
 
 Take any Bot API URL, drop `https://api.telegram.org/bot<token>`, and point what
-is left at the proxy. What comes back is Telegram's own JSON.
+is left at the proxy socket. What comes back is Telegram's own JSON.
 
 ```bash
-curl -s -X POST http://127.0.0.1:18420/sendMessage \
+STATE=$TELEGRAM_HITL_STATE_DIR
+curl -s --unix-socket "$STATE/proxy.sock" -X POST http://localhost/sendMessage \
   -H 'Content-Type: application/json' \
   -H "X-Session-Id: $CLAUDE_CODE_SESSION_ID" \
-  -d "{\"chat_id\": $(cat ~/.claude/channels/telegram-hitl/chat_id), \"message_thread_id\": 6, \"text\": \"Ship it?\"}"
+  -d "{\"chat_id\": $(cat "$STATE/chat_id"), \"message_thread_id\": 6, \"text\": \"Ship it?\"}"
 ```
+
+The `localhost` in that URL is a placeholder curl requires and never resolves;
+`--unix-socket` decides where the request goes. Only the path after it matters.
 
 `X-Session-Id` is optional and uninterpreted; it lands in the log so the record
 says who called.
@@ -218,8 +250,9 @@ script, once you actually have it. Nothing else reacts, so an unreacted message
 is one nobody has taken, and that absence is informative.
 
 ```bash
-CHAT=$(cat ~/.claude/channels/telegram-hitl/chat_id)
-curl -s -X POST http://127.0.0.1:18420/setMessageReaction \
+STATE=$TELEGRAM_HITL_STATE_DIR
+CHAT=$(cat "$STATE/chat_id")
+curl -s --unix-socket "$STATE/proxy.sock" -X POST http://localhost/setMessageReaction \
   -H 'Content-Type: application/json' \
   -d "{\"chat_id\": $CHAT, \"message_id\": 51, \"reaction\": [{\"type\":\"emoji\",\"emoji\":\"👍\"}]}"
 ```

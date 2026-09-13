@@ -1,6 +1,8 @@
-"""Shared fixtures: a stand-in Bot API, and an HTTP client that never raises."""
+"""Shared fixtures: a stand-in Bot API, and HTTP clients that never raise."""
 
+import http.client
 import json
+import socket
 import sys
 import threading
 import time
@@ -126,5 +128,42 @@ def http_call():
                 return answer.status, answer.read()
         except urllib.error.HTTPError as error:
             return error.code, error.read()
+
+    return call
+
+
+class _UnixConnection(http.client.HTTPConnection):
+    """An HTTP connection over AF_UNIX, which urllib cannot express.
+
+    The proxy serves on a socket rather than a port, so every caller — the tests
+    included — reaches it by path. http.client needs only its connect() replaced;
+    everything above the socket is ordinary HTTP.
+    """
+
+    def __init__(self, path: str, timeout: float) -> None:
+        super().__init__("localhost", timeout=timeout)
+        self._path = path
+
+    def connect(self) -> None:
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.settimeout(self.timeout)
+        self.sock.connect(self._path)
+
+
+@pytest.fixture
+def unix_call():
+    """Call a Bot API method on a proxy socket; a 4xx/5xx is an answer, not a raise."""
+
+    def call(socket_path, method: str, *, data: bytes | None = None,
+             headers: dict[str, str] | None = None, verb: str | None = None,
+             timeout: float = 10.0) -> tuple[int, bytes]:
+        connection = _UnixConnection(str(socket_path), timeout)
+        try:
+            connection.request(verb or ("POST" if data else "GET"), f"/{method}",
+                               body=data, headers=headers or {})
+            answer = connection.getresponse()
+            return answer.status, answer.read()
+        finally:
+            connection.close()
 
     return call

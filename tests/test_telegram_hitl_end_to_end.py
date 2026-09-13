@@ -12,7 +12,6 @@ import signal
 import subprocess
 import sys
 import time
-import urllib.request
 from pathlib import Path
 
 import pytest
@@ -72,17 +71,16 @@ def proxy_process(tmp_path, fake_telegram):
         env=os.environ | {
             "TELEGRAM_HITL_STATE_DIR": str(state),
             "TELEGRAM_HITL_API_BASE": fake_telegram.base,
-            "TELEGRAM_HITL_PORT": "0",
             "TELEGRAM_BOT_TOKEN": "42:end-to-end",
             "PYTHONPATH": str(Path(claude_config.__file__).resolve().parents[1]),
         },
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         deadline = time.monotonic() + 20
-        while not (state / "port").exists() and time.monotonic() < deadline:
+        while not (state / "proxy.sock").exists() and time.monotonic() < deadline:
             time.sleep(0.05)
-        assert (state / "port").exists(), "the proxy never bound a port"
-        yield process, state, int((state / "port").read_text())
+        assert (state / "proxy.sock").exists(), "the proxy never bound its socket"
+        yield process, state, state / "proxy.sock"
     finally:
         if process.poll() is None:
             process.terminate()
@@ -92,8 +90,8 @@ def proxy_process(tmp_path, fake_telegram):
                 process.kill()
 
 
-def test_a_whole_cycle_runs_through_the_real_process(proxy_process) -> None:
-    process, state, port = proxy_process
+def test_a_whole_cycle_runs_through_the_real_process(proxy_process, unix_call) -> None:
+    process, state, socket_path = proxy_process
     log = state / "channel.jsonl"
     records = _recipe("read-log")["records"]
     answer_to = _recipe("answers")["answer_to"]
@@ -101,12 +99,11 @@ def test_a_whole_cycle_runs_through_the_real_process(proxy_process) -> None:
     topics = _recipe("topics")["topics"]
 
     def call(method: str, payload: dict) -> dict:
-        request = urllib.request.Request(
-            f"http://127.0.0.1:{port}/{method}", data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json", "X-Session-Id": "end-to-end"},
-            method="POST")
-        with urllib.request.urlopen(request, timeout=10) as answer:
-            return json.loads(answer.read())
+        status, answer = unix_call(
+            socket_path, method, data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json", "X-Session-Id": "end-to-end"})
+        assert status == 200, answer
+        return json.loads(answer)
 
     assert inbound_state(records(log)) == "up"
 

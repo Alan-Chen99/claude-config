@@ -100,6 +100,22 @@ reads back Telegram's own JSON, including its own errors, verbatim. Flood contro
 `REACTION_INVALID`, `message thread not found` — each arrives as itself. Less to
 document, less to drift, and nothing between the agent and the real thing.
 
+**Why a Unix socket rather than a port.** The participants are containers with
+separate network namespaces, so a port number is not an address: `18420` names a
+different socket in each namespace that reads it, and a file recording it cannot
+say which one a reader should dial. Whoever won the lock would decide who could
+send, and the losers would meet connection-refused while the drain and the log
+both reported a healthy channel — *a down channel looking like a slow human*,
+the failure this design exists to prevent, re-entering through the boundary.
+
+A path has no such ambiguity. The socket sits in the shared state directory
+beside the lock and the log, so a participant that can see the channel's state
+can reach the process holding it: "the channel is up" and "I can send" become
+one fact rather than two that can disagree. It keeps the token off every network
+interface, and it works in either direction — proxy on the host serving
+containers, or proxy in a container serving its siblings and the host — with no
+address to configure for either.
+
 **Why this costs nothing extra in liveness.** Routing sends through a daemon
 appears to make sending depend on a process that could be down. It does not add a
 dependency, because the drain must already be running for the channel to function
@@ -347,8 +363,57 @@ for this change to take effect"*. So for an admin bot it is redundant, and
 disabling it after the bot joined has no effect on that group either way. It
 matters only as insurance against a future demotion.
 
+## Crossing the container boundary
+
+The channel is shared by several containers and by the host they run on. Three
+properties make that work. Each was measured on this machine — rootless Docker,
+slirp4netns, ext4 bind mounts — on 2026-09-13, rather than assumed.
+
+**One directory, seen under different names.** A container's home is a bind
+mount of a host directory, so the state directory is the same inode from either
+side: `stat` reported `dev=64513 ino=669888` identically from two containers.
+Only the spelling of the path differs, which is why the directory is named by an
+environment variable and never derived from `$HOME`. A home-derived default
+would resolve somewhere different in each participant, and each would then take
+its own lock and start its own drain.
+
+**`flock` crosses the boundary.** A lock held by a process in one container
+blocked a process in another on the same bind-mounted file. So *exactly one
+drain* — enforced locally because Telegram will not enforce it — covers every
+container and the host, and not merely one container's process table.
+
+**A Unix socket crosses it too.** A server bound to a socket in a shared
+directory was reached by a client in a different container, through that
+container's own path to it. AF_UNIX resolves to an inode, and a bind mount is
+the same inode.
+
+**What bounds all three.** They are properties of one kernel and one local
+filesystem. Where the filesystem is not local — NFS, virtiofs, a Docker Desktop
+bind mount from macOS — the socket does not carry, and the log's own guarantee
+is already void: `open(2)` states that `O_APPEND` *"may lead to corrupted files
+on NFS filesystems if more than one process appends data to a file at once"*,
+which is precisely this design's access pattern. The socket therefore forfeits
+no portability the log has not already spent.
+
+The one constraint the socket adds by itself is path length. `sun_path` holds
+108 bytes including its terminator — measured: 107 binds, 108 does not — far
+below `PATH_MAX`, so a state directory deep enough to break the socket still
+opens the log without complaint. The proxy checks the budget at bind and names
+it, because the kernel's own `AF_UNIX path too long` names neither the path nor
+the limit.
+
+**Identity.** The socket is mode 0600, matching the log, so every participant
+must present the same uid. That holds here because every container maps uid 0 to
+one host uid. Where it stops holding, the log becomes unreadable at the same
+moment the socket becomes unreachable — a coherent failure rather than a partial
+one where a session can read answers it has no way to acknowledge.
+
 ## Prerequisites
 
+- **One shared state directory**, named by `TELEGRAM_HITL_STATE_DIR` and mounted
+  into every participating container. It carries the lock, the socket, the log
+  and the offset, and it has no default — see "Crossing the container boundary"
+  for why guessing one is what allows a second drain.
 - **Exactly one drain.** The 409 measurement makes this the system's central
   invariant. The other two Telegram integrations installed on this machine (the
   first-party `telegram` plugin and `telegram-bot-skill`) each start their own

@@ -3,22 +3,35 @@
 Every value is environment-overridable so tests can point the proxy at a fake
 Bot API and a scratch directory instead of the live channel.
 
-State sits beside the first-party telegram plugin's directory rather than in
-it: that plugin runs its own poller, and per the design's "exactly one drain"
-prerequisite the two must never share anything.
+The state directory has no default at all. The channel is shared by processes
+whose homes differ — one per container, plus the host's — so a home-derived
+path resolves somewhere different in each of them, and a process that missed
+the variable would take its own lock, start its own drain, and seize the update
+stream from the real one. Telegram does not refuse a second consumer; it evicts
+the first. Refusing to guess is what keeps the single lock single.
+
+The token file is different, and does keep a home-derived default: only the
+proxy reads it, only one proxy runs, and a wrong or absent token fails loudly
+at startup rather than quietly forking the channel in two.
 """
 
 import os
 from pathlib import Path
 
-DEFAULT_STATE_DIR = Path.home() / ".claude" / "channels" / "telegram-hitl"
 DEFAULT_TOKEN_FILE = Path.home() / ".claude" / "channels" / "telegram" / ".env"
 DEFAULT_API_BASE = "https://api.telegram.org"
-DEFAULT_PORT = 18420
 
 
 def state_dir() -> Path:
-    return Path(os.environ.get("TELEGRAM_HITL_STATE_DIR", DEFAULT_STATE_DIR))
+    directory = os.environ.get("TELEGRAM_HITL_STATE_DIR")
+    if not directory:
+        raise RuntimeError(
+            "TELEGRAM_HITL_STATE_DIR is not set, and there is no default to fall "
+            "back to: the channel is shared across homes, so a home-derived path "
+            "would give each process its own lock and its own drain, and the "
+            "newcomer would steal the update stream from the one already running. "
+            "Point it at the one directory every participant shares.")
+    return Path(directory)
 
 
 def log_path() -> Path:
@@ -33,18 +46,20 @@ def lock_path() -> Path:
     return state_dir() / "proxy.lock"
 
 
-def port_path() -> Path:
-    """The port actually bound, so a caller never has to guess it."""
-    return state_dir() / "port"
+def socket_path() -> Path:
+    """The Unix socket the forwarder serves on.
+
+    It lives beside the lock deliberately. A caller that can see the lock can
+    reach the proxy, so "the channel is up" and "I can send" are one fact rather
+    than two that can disagree — which is what a host:port would make them, since
+    a port number names a different endpoint in every network namespace that
+    reads it.
+    """
+    return state_dir() / "proxy.sock"
 
 
 def api_base() -> str:
     return os.environ.get("TELEGRAM_HITL_API_BASE", DEFAULT_API_BASE)
-
-
-def port() -> int:
-    """0 asks the kernel for a free port; the bound one lands in port_path()."""
-    return int(os.environ.get("TELEGRAM_HITL_PORT", DEFAULT_PORT))
 
 
 def token() -> str:
