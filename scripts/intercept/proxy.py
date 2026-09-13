@@ -32,21 +32,19 @@ SESSION_HEADER = "x-claude-code-session-id"
 
 
 class SessionInfo:
-    __slots__ = ("session_id", "pid", "cwd", "started_at", "kind", "entrypoint")
+    __slots__ = ("session_id", "pid", "cwd", "kind", "entrypoint")
 
     def __init__(
         self,
         session_id: str,
         pid: int | None = None,
         cwd: str | None = None,
-        started_at: int | None = None,
         kind: str | None = None,
         entrypoint: str | None = None,
     ):
         self.session_id = session_id
         self.pid = pid
         self.cwd = cwd
-        self.started_at = started_at
         self.kind = kind
         self.entrypoint = entrypoint
 
@@ -86,7 +84,6 @@ def resolve_session(session_id: str) -> SessionInfo:
                     session_id=session_id,
                     pid=data.get("pid"),
                     cwd=data.get("cwd"),
-                    started_at=data.get("startedAt"),
                     kind=data.get("kind"),
                     entrypoint=data.get("entrypoint"),
                 )
@@ -296,10 +293,13 @@ class InterceptAddon:
 
         mitmproxy buffers the whole body by default and sends the client its
         first byte -- status line included -- only once the server is done.
-        Claude Code cancels a first-party request whose response headers have
-        not arrived inside a fixed window, so buffering an SSE stream turns a
-        long generation into a client-side abort. README.md, "Pass-through
-        streaming", carries the measurement and the source citations.
+        Claude Code cancels a first-party request whose response headers are
+        late, on a window it computes per attempt -- 180s for a first-party
+        provider plus 1s per 32KB of request body, or the 599s cap on an
+        escalated retry -- so buffering an SSE stream turns a long generation
+        into a client-side abort. The buffering is measured; the abort is read
+        off Claude Code's source and has not been observed firing. README.md,
+        "Pass-through streaming", carries both.
 
         A `stream` callable receives every chunk and returns what to forward;
         capturing here rather than through mitmproxy's `store_streamed_bodies`

@@ -104,7 +104,9 @@ is a complete conversation, so `cc-pretty-intercept` renders these.
 Only bodies carrying both `model` and `messages` are logged, so every file on
 disk is a conversation-shaped request. That includes Claude Code's own
 auxiliary calls — its WebSearch tool reaches the API as a separate
-`claude-haiku-4-5` request declaring one server-side `web_search` tool.
+`claude-haiku-4-5-20251001` request whose `tools` array holds exactly one
+entry, the server-side `web_search_20250305` with `max_uses: 8` (observed in
+this machine's own intercept logs, 2.1.269).
 
 SSE reassembly keeps each `content_block_start` block whole and lets deltas
 fill in `text`, `thinking`, and `input`. Keeping the whole block is
@@ -129,10 +131,14 @@ both halves — the relay and the capture — against a real `mitmdump`.
 
 What makes this a correctness problem rather than a cosmetic one is that Claude
 Code (read on **2.1.269**) cancels a first-party request whose response headers
-have not arrived within ~180s of dispatch, and reaching the API through
-`HTTPS_PROXY` leaves it first-party. Under a buffering proxy that window has to
-cover the whole generation, so long turns abort. Claude Code's own error text for
-that failure names the cause: *"If a
+are late, and reaching the API through `HTTPS_PROXY` leaves it first-party. The
+window is computed per attempt rather than fixed: 180s for a first-party
+provider plus 1s per 32KB of request body, capped at `API_TIMEOUT_MS - 1000`,
+and an escalated retry takes the 599s cap instead. Under a buffering proxy that
+window has to cover the whole generation, so long turns abort. No intercepted
+session has been observed aborting — the window is read off the source, joined
+to the measured fact that headers are withheld to the end. Claude Code's own
+error text for that failure names the cause: *"If a
 proxy or gateway on your network holds responses until they complete, raise
 API_TIMEOUT_MS or CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS to wait longer."* The
 measurement, the watchdog's arithmetic and the source citations are in
