@@ -31,6 +31,7 @@ The spec deliberately excludes implementation detail. These are the choices it l
 | A short write terminates the damaged bytes with a newline before raising | The partial bytes cannot be taken back, and unterminated they swallow the next record: measured, a reader then dies with `JSONDecodeError` on the pair and everything appended afterwards is unreachable for good. A newline bounds the damage to one line. |
 | A method name's *shape* is validated separately from the denylist | The denylist names the dangerous methods; it cannot also answer for every spelling that resolves to them. Measured without a shape check: `/getUpdates/`, `/get%55pdates`, `/%67etUpdates` and `/sendMessage/../getUpdates` all passed it and were forwarded with the denied name intact. The check constrains characters, not which methods pass, so the denylist decision stands. |
 | A chunked request body is refused with 411 rather than forwarded | It carries no `Content-Length`, so it reads as empty. Measured: the body was dropped and the caller got a success — a send the agent believes it made. Refusing is the only answer that does not interpret a body. |
+| A `getUpdates` result that is not a list is retried, not fatal | Measured: an object there reached the append loop and died on a `TypeError`, taking the channel down until a human restarted it. A malformed payload is a transient upstream fault like an unparseable one, and the design reserves fatality for failing to record an update. |
 | `upstream.call` raises `URLError` for every unreachable or unusable answer | Both callers watch for `URLError`, and `urlopen` wraps only what fails while *sending*. Measured escaping: `ConnectionResetError`, `TimeoutError`, `BadStatusLine`. An uncaught one kills the drain in its own thread, which reaches a waiting session as a human who has not replied — the failure this design exists to prevent. |
 | A forwarder handler that raises is logged, not fatal | Its answer is lost either way and stderr is read by nobody, so the fault has to reach the log to exist. Unlike the drain's equivalent it is not fatal: a dropped send is the caller's to retry and it sees the broken connection, while a dropped update is gone for good. |
 | No code anywhere branches on chat layout | The spec's three layouts use the same primitives, so the layout is a chat id in a file and nothing else. A branch would be the first thing to rot when the DM layout is finally verified. |
@@ -679,12 +680,15 @@ Create `tests/test_telegram_hitl_forwarding.py`:
 """Tests for the forwarder: it passes calls through and interprets nothing."""
 
 import json
+import socket
 import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+from claude_config.telegram_hitl import server as server_module
 from claude_config.telegram_hitl.log import ChannelLog
 from claude_config.telegram_hitl.server import DENIED, ProxyServer
 
@@ -695,6 +699,10 @@ def _records(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines()]
 
 
+def _faults(path: Path) -> list[dict]:
+    return [r for r in _records(path) if r["kind"] == "fault"]
+
+
 @pytest.fixture
 def proxy(tmp_path, fake_telegram):
     """The forwarder in-process, pointed at the fake Bot API."""
@@ -703,7 +711,7 @@ def proxy(tmp_path, fake_telegram):
     server = ProxyServer(("127.0.0.1", 0), log, api_base=fake_telegram.base, token=TOKEN)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield SimpleNamespace(base=f"http://127.0.0.1:{server.server_port}",
-                          log_path=log_path, fake=fake_telegram)
+                          port=server.server_port, log_path=log_path, fake=fake_telegram)
     server.shutdown()
     server.server_close()
     log.close()
@@ -761,6 +769,51 @@ def test_a_denied_method_never_reaches_telegram(proxy, http_call, method) -> Non
     assert _records(proxy.log_path)[0]["kind"] == "denied"
 
 
+@pytest.mark.parametrize("spelling", ["getUpdates/", "get%55pdates", "%67etUpdates",
+                                     "sendMessage/../getUpdates"])
+def test_a_denied_method_cannot_be_reached_by_respelling_it(proxy, http_call,
+                                                            spelling) -> None:
+    """Measured before the shape check existed: every one of these passed the
+    denylist and reached Telegram with the denied name intact. Stealing the
+    update cursor is the worst thing a caller can do to this system."""
+    status, answer = http_call(f"{proxy.base}/{spelling}", data=b"{}",
+                               headers={"Content-Type": "application/json"})
+
+    assert status == 400
+    assert "not a Bot API method name" in json.loads(answer)["description"]
+    assert proxy.fake.requests == []
+
+
+def test_a_chunked_body_is_refused_rather_than_forwarded_empty(proxy) -> None:
+    """A chunked body carries no Content-Length, so it reads as empty. Forwarding
+    it would be a send with no fields that the agent believes it made."""
+    payload = b'{"chat_id":-100,"text":"a chunked message"}'
+    sock = socket.create_connection(("127.0.0.1", proxy.port), timeout=10)
+    sock.sendall(b"POST /sendMessage HTTP/1.1\r\nHost: proxy\r\n"
+                 b"Content-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n"
+                 + f"{len(payload):x}".encode() + b"\r\n" + payload + b"\r\n0\r\n\r\n")
+    answer = sock.recv(4096)
+    sock.close()
+
+    assert b"411" in answer.split(b"\r\n")[0]
+    assert proxy.fake.requests == []
+    assert _records(proxy.log_path)[0]["kind"] == "denied"
+
+
+def test_a_handler_that_raises_is_recorded_rather_than_lost(proxy) -> None:
+    """A raising handler answers nobody and this server's stderr is read by
+    nobody, so the fault has to reach the log to exist at all."""
+    sock = socket.create_connection(("127.0.0.1", proxy.port), timeout=10)
+    sock.sendall(b"POST /sendMessage HTTP/1.1\r\nHost: proxy\r\n"
+                 b"Content-Type: application/json\r\nContent-Length: not-a-number\r\n\r\n")
+    sock.close()
+
+    deadline = time.monotonic() + 10
+    while not _faults(proxy.log_path) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert _faults(proxy.log_path)[0]["signature"] == "handler:ValueError"
+
+
 def test_every_denied_method_states_why(proxy) -> None:
     assert set(DENIED) == {"getupdates", "setwebhook", "deletewebhook", "close", "logout"}
     assert all(reason for reason in DENIED.values())
@@ -810,6 +863,36 @@ def test_an_unreachable_telegram_is_reported_and_logged(tmp_path, http_call) -> 
     assert (fault["kind"], fault["source"], fault["state"]) == ("fault", "forward", "failing")
 
 
+def test_an_upstream_that_never_answers_is_reported_and_logged(tmp_path, http_call,
+                                                              monkeypatch) -> None:
+    """A hang is the likeliest outage shape and the one that used to leave no
+    record at all: what it raises is not a URLError until upstream.call makes
+    it one, so nothing caught it and the caller got a dropped connection."""
+    monkeypatch.setattr(server_module, "FORWARD_TIMEOUT", 0.5)
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    held: list[socket.socket] = []
+    threading.Thread(target=lambda: held.append(listener.accept()[0]), daemon=True).start()
+
+    log_path = tmp_path / "channel.jsonl"
+    log = ChannelLog(log_path)
+    server = ProxyServer(("127.0.0.1", 0), log, token=TOKEN,
+                         api_base=f"http://127.0.0.1:{listener.getsockname()[1]}")
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    status, answer = http_call(f"http://127.0.0.1:{server.server_port}/sendMessage",
+                               data=b"{}", headers={"Content-Type": "application/json"})
+
+    server.shutdown()
+    server.server_close()
+    log.close()
+    listener.close()
+    assert status == 502
+    assert "telegram-hitl proxy" in json.loads(answer)["description"]
+    assert _faults(log_path)[0]["source"] == "forward"
+
+
 def test_concurrent_senders_all_succeed_and_are_all_logged(proxy, http_call) -> None:
     """Outbound needs no coordination — the measurement the design rests on."""
     results: list[int] = []
@@ -849,8 +932,17 @@ Create `src/claude_config/telegram_hitl/upstream.py`:
 A 4xx or 5xx comes back as a Response rather than an exception: Telegram's
 error bodies carry retry_after, REACTION_INVALID and the rest, which are the
 useful part and must reach the caller verbatim.
+
+Anything else is raised as a URLError, which is what both callers watch for.
+urlopen only wraps what fails while sending the request; everything raised while
+reading the answer comes through unwrapped, and each of these was measured
+escaping: ConnectionResetError from a peer that closes, TimeoutError from one
+that accepts and never answers, BadStatusLine from one that answers with
+something that is not HTTP. A drain that misses any of them dies in its own
+thread, which reaches a waiting session as a human who has not replied yet.
 """
 
+import http.client
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -867,8 +959,8 @@ def call(api_base: str, token: str, method: str, *, verb: str = "POST", query: s
          body: bytes = b"", content_type: str = "", timeout: float = 30.0) -> Response:
     """Issue one request and return Telegram's own answer.
 
-    Raises urllib.error.URLError only when Telegram could not be reached at all,
-    which is the one case a caller has to decide about.
+    Raises urllib.error.URLError when Telegram could not be reached or did not
+    answer usably, which is the one case a caller has to decide about.
     """
     url = f"{api_base}/bot{token}/{method}"
     if query:
@@ -881,6 +973,10 @@ def call(api_base: str, token: str, method: str, *, verb: str = "POST", query: s
                             answer.read())
     except urllib.error.HTTPError as error:
         return Response(error.code, error.headers.get("Content-Type", ""), error.read())
+    except urllib.error.URLError:
+        raise
+    except (OSError, http.client.HTTPException) as error:
+        raise urllib.error.URLError(error) from error
 ```
 
 - [ ] **Step 5: Write `server.py`**
@@ -897,6 +993,8 @@ ordinary Bot API request and reads an ordinary Bot API answer, errors included.
 """
 
 import json
+import re
+import sys
 import time
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -915,7 +1013,17 @@ DENIED: dict[str, str] = {
     "logout": "would invalidate the bot token",
 }
 
+# A Bot API method name is alphanumeric, so anything else is not one. Measured,
+# without this check: /getUpdates/, /get%55pdates, /%67etUpdates and
+# /sendMessage/../getUpdates all passed the denylist and reached Telegram with
+# the denied name intact. The denylist names the dangerous methods; it cannot
+# also answer for every spelling that resolves to them, so the shape is checked
+# separately. This constrains the characters a method name may contain and
+# nothing about which methods pass, so the denylist decision stands.
+METHOD_NAME = re.compile(r"[A-Za-z][A-Za-z0-9]*\Z")
+
 FORWARD_TIMEOUT = 30.0
+IDLE_TIMEOUT = 120.0
 
 
 def _envelope(code: int, description: str) -> bytes:
@@ -936,6 +1044,7 @@ def _decoded(raw: bytes) -> Any:
 
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    timeout = IDLE_TIMEOUT
     server: "ProxyServer"
 
     def do_GET(self) -> None:
@@ -944,17 +1053,27 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         method, _, query = self.path.lstrip("/").partition("?")
+        if "Transfer-Encoding" in self.headers:
+            # A chunked body carries no Content-Length, so it reads as empty and
+            # would be forwarded as a send with no fields — which Telegram
+            # answers by naming the fields it is missing, for a message the agent
+            # believes it sent. Refuse rather than forward a body that is not
+            # there.
+            self._refuse(411, method, "send a body with Content-Length; a chunked "
+                                      "body cannot be forwarded")
+            return
         length = int(self.headers.get("Content-Length") or 0)
         self._forward(method, query, self.rfile.read(length),
                       self.headers.get("Content-Type", ""))
 
     def _forward(self, method: str, query: str, body: bytes, content_type: str) -> None:
         session = self.headers.get("X-Session-Id")
+        if not METHOD_NAME.match(method):
+            self._refuse(400, method, "not a Bot API method name")
+            return
         denial = DENIED.get(method.lower())
         if denial is not None:
-            self.server.log.append({"kind": "denied", "session": session,
-                                    "method": method, "reason": denial})
-            self._answer(403, _envelope(403, denial))
+            self._refuse(403, method, denial)
             return
 
         started = time.monotonic()
@@ -975,6 +1094,12 @@ class _Handler(BaseHTTPRequestHandler):
             "status": answer.status, "response": _decoded(answer.body),
         })
         self._answer(answer.status, answer.body, answer.content_type)
+
+    def _refuse(self, code: int, method: str, reason: str) -> None:
+        """Log and answer without forwarding. Every refusal takes this path."""
+        self.server.log.append({"kind": "denied", "session": self.headers.get("X-Session-Id"),
+                                "method": method, "reason": reason})
+        self._answer(code, _envelope(code, reason))
 
     def _answer(self, status: int, body: bytes, content_type: str = "") -> None:
         self.send_response(status)
@@ -999,18 +1124,32 @@ class ProxyServer(ThreadingHTTPServer):
         self.api_base = api_base
         self.token = token
         self.faults = ErrorTransitions(log, "forward")
+
+    def handle_error(self, request: object, client_address: object) -> None:
+        """Record a handler that raised, where everyone is already looking.
+
+        Its answer to the caller is lost either way and this server's stderr is
+        read by nobody. Not fatal, unlike the drain's equivalent: a dropped send
+        is the caller's to retry and it sees the broken connection, while a
+        dropped update is gone for good.
+        """
+        error = sys.exception()
+        try:
+            self.faults.failed(f"handler:{type(error).__name__}", repr(error))
+        except OSError:
+            super().handle_error(request, client_address)  # the log is what failed
 ```
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_forwarding.py -q`
-Expected: 14 passed
+Expected: 21 passed
 
 - [ ] **Step 7: Check the new conftest did not disturb the existing suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
-Expected: `358 passed` — 329 in the suite before this work, plus 15 from Task 1
-and 14 from Task 2
+Expected: `365 passed` — 329 in the suite before this work, plus 15 from Task 1
+and 21 from Task 2
 
 - [ ] **Step 8: Commit**
 
@@ -1234,6 +1373,7 @@ def test_an_unreachable_telegram_is_retried(tmp_path, fake_telegram) -> None:
         daemon=True)
     thread.start()
     _wait_until(lambda: len(_faults(tmp_path / "channel.jsonl")) == 1)
+    assert thread.is_alive(), "the drain died on a fault instead of retrying it"
     stop.set()
     thread.join(timeout=5)
     log.close()
@@ -1355,6 +1495,13 @@ def run(log: ChannelLog, faults: ErrorTransitions, *, api_base: str, token: str,
 
         try:
             updates = json.loads(answer.body)["result"]
+            if not isinstance(updates, list):
+                # Raised into this handler deliberately: a result that is not a
+                # list is the same kind of fault as one that will not parse, and
+                # earns the same retry. Measured without this, an object here
+                # reached the loop below and died on a TypeError, taking the
+                # channel down until a human restarted it.
+                raise TypeError(f"result is {type(updates).__name__}, not a list")
         except (json.JSONDecodeError, UnicodeDecodeError, KeyError, TypeError) as error:
             faults.failed("getUpdates:unparseable", repr(error))
             backoff = _pause(stop, backoff, backoff_cap)
@@ -1583,6 +1730,30 @@ def test_a_restart_resumes_from_the_persisted_offset(launch, tmp_path, fake_tele
     assert _polls(fake_telegram)[0]["offset"] == 42
 
 
+def test_a_crashing_drain_records_why_it_stopped(launch, tmp_path, fake_telegram) -> None:
+    """A watcher has to be able to tell a dead channel from a slow human, so the
+    reason a drain died belongs in the log and not only in an unread stderr.
+
+    An update with no update_id is appended and fsynced, and then kills the drain
+    on the one field it does interpret — the fatal path, since continuing past an
+    update it cannot account for would lose a human's answer.
+    """
+    def answer(recorded) -> tuple[int, bytes]:
+        if recorded.method != "getUpdates":
+            return 200, b'{"ok":true,"result":{}}'
+        return 200, b'{"ok":true,"result":[{"no_update_id":1}]}'
+
+    fake_telegram.handler = answer
+
+    process = launch()
+
+    assert process.wait(timeout=20) != 0
+    lifecycle = _of_kind(tmp_path / "state" / "channel.jsonl", "proxy")
+    assert lifecycle[0]["event"] == "started"
+    assert lifecycle[-1]["event"] == "stopped"
+    assert "KeyError" in lifecycle[-1]["reason"]
+
+
 @pytest.mark.parametrize("content, named", [
     (None, "token.env"),                  # no token file at all
     ("OTHER=1\n", "TELEGRAM_BOT_TOKEN"),  # a token file with no usable token
@@ -1702,13 +1873,13 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_process.py -q`
-Expected: 6 passed
+Expected: 7 passed
 
 - [ ] **Step 5: Run the whole suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
-Expected: `372 passed` — 329 before this work, plus 15, 14, 8 and 6. Task 5 adds
-the last 11, for 383.
+Expected: `380 passed` — 329 before this work, plus 15, 21, 8 and 7. Task 5 adds
+the last 11, for 391.
 
 - [ ] **Step 6: Commit**
 
@@ -2317,13 +2488,16 @@ Run after the last task, against
 | The proxy interprets nothing | `test_a_send_reaches_telegram_unchanged`, `test_a_get_is_forwarded_as_a_get_with_its_query` |
 | Limits are diagnosed, not absorbed | `test_an_error_reaches_the_caller_verbatim` |
 | The denylist is derived from the invariants | `test_a_denied_method_never_reaches_telegram`, `test_every_denied_method_states_why` |
+| The denylist cannot be walked past by respelling the method | `test_a_denied_method_cannot_be_reached_by_respelling_it` |
+| A send is forwarded whole or refused, never silently emptied | `test_a_chunked_body_is_refused_rather_than_forwarded_empty` |
+| An upstream that hangs or garbles is a logged fault, not a dead component | `test_an_upstream_that_never_answers_is_reported_and_logged`, `test_a_handler_that_raises_is_recorded_rather_than_lost` |
 | Errors are logged, not just returned | `test_an_unreachable_telegram_is_reported_and_logged`, the drain fault tests, `test_startup_and_shutdown_leave_a_record` |
 | Log transitions, not occurrences | `test_repeated_faults_log_one_transition_then_one_clearance` |
 | The log is the topic registry | `test_the_topic_registry_is_reconstructed_from_the_log` |
 | Durability ordering | `test_the_log_is_written_before_telegram_is_told_to_forget` |
 | The drain does nothing else | `drain.py` has no call but `getUpdates`; `test_a_failure_to_record_is_fatal` |
 | A misconfigured start fails loudly instead of presenting as a quiet channel | `test_a_misconfigured_token_stops_the_process_loudly` |
-| A down channel is distinguishable from a slow human | `test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one` |
+| A down channel is distinguishable from a slow human | `test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one`, `test_a_crashing_drain_records_why_it_stopped` |
 | The agent decides topics | Task 5, stated as judgement with no mechanism behind it |
 | The traps must not be lost | `test_the_skill_still_carries_every_trap_that_cost_time` |
 | The fault channel survives concurrent reporters | `test_concurrent_reporters_log_one_transition_per_episode` (fails 5/5 runs without the lock) |
