@@ -754,10 +754,19 @@ under different minified names for the same fragments). Byte-identical
 logic in both versions rules out a code change to *what* this reminder says;
 what's not established is *whether* the case fires at all for a plain
 `capture.py` session, which depends on something upstream of this function
-that this pass did not trace. Settling it would need either finding that
-caller, or a capture that explicitly forces a permission mode
-(`acceptEdits`, or a `settings.local.json` with `defaultMode` set) to see
-which of the three branches — or none — a 2.1.269 session reaches.
+that this pass did not trace.
+
+**Which branch a `claude.sh` session reaches is settled, and it is `e.bypass`.**
+Read off a live 2.1.269 session log rather than a capture: an `auto_mode`
+attachment whose `rendered[].content` is
+`<system-reminder>\nWhile bypass permissions mode is active:\n\n` followed by
+the bash-first steer text, with no heading — the `e.bypass` shape exactly.
+That is the mode `scripts/claude.sh` launches, so it is the branch this repo's
+own sessions get. It says nothing about a plain `capture.py` session, which
+takes the default permission mode and shows none of the three; only the
+uncaptured `bypass-permissions` variant puts the two side by side in the same
+artifact, together with whatever else that mode changes in the system blocks
+and tool set.
 
 This document's own capture chain is running under
 `--dangerously-skip-permissions` (see `scripts/claude.sh` in the parent

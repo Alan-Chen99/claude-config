@@ -29,7 +29,7 @@ while [ $# -gt 0 ]; do
 done
 
 cd "$root"
-# Same venv agent-tools' uv_run pins (agent-tools/src/main.rs:389) and the same
+# Same venv agent-tools' uv_run pins (agent-tools/src/main.rs:437) and the same
 # one .envrc derives. Unpinned, `uv run` builds a 400 MB .venv inside the
 # checkout: this script runs outside direnv often enough -- from cron, from a
 # hook, from a bare shell -- that leaving the name to the environment puts a

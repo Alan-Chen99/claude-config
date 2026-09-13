@@ -4,10 +4,16 @@ Clone this repo somewhere, then run the installer to create symlinks into `~/.cl
 
 ```bash
 git clone https://github.com/<you>/claude-config ~/claude-config
-~/claude-config/hooks/install.sh
+~/claude-config/install.sh
 ```
 
-This creates directory-level symlinks (`~/.claude/hooks -> ~/claude-config/hooks`, etc.) for: `agents`, `conventions`, `hooks`, `output-styles`, `skills`, `settings.json`, `statusline.sh`.
+This creates directory-level symlinks (`~/.claude/skills -> ~/claude-config/skills`, etc.) for
+`agents`, `conventions`, `output-styles`, `skills` and `opencode`, file symlinks for
+`settings.json` and `statusline.sh`, builds `agent-tools` and links it plus `scripts/claude.sh`
+into `~/.local/bin`, and provisions the canonical Python venv.
+
+Run it from the canonical checkout only. A worktree that installs its own build repoints
+`~/.local/bin` at the worktree and breaks every other session when that worktree is deleted.
 
 ---
 

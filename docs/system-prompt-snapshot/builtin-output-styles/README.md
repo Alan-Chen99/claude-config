@@ -1,7 +1,12 @@
 # Built-in Output Styles
 
+**Captured from Claude Code v2.1.87 and not re-captured since; the installed version is 2.1.269.**
+Treat every file here as a record of that older build. The set is also known to be incomplete:
+2.1.257's release notes name a `Proactive` style, and the literal appears in the 2.1.269 decompile,
+but no file here corresponds to it. Re-capture every built-in before relying on this directory.
+
 From `constants/outputStyles.ts` in Claude Code v2.1.87.
-These are the three built-in output styles. Custom styles go in `~/.claude/output-styles/*.md`.
+Custom styles go in `~/.claude/output-styles/*.md`.
 
 ## default
 
