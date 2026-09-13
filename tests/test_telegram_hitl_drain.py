@@ -6,8 +6,6 @@ import threading
 import time
 from pathlib import Path
 
-import pytest
-
 from claude_config.telegram_hitl import drain
 from claude_config.telegram_hitl.log import ChannelLog, ErrorTransitions
 
@@ -202,15 +200,31 @@ def test_an_unreachable_telegram_is_retried(tmp_path, fake_telegram) -> None:
 
 
 def test_a_failure_to_record_is_fatal(tmp_path, fake_telegram) -> None:
-    """Continuing past an unrecorded update would silently drop a human's answer."""
+    """Continuing past an unrecorded update would silently drop a human's answer.
+
+    Bounded by a join rather than run inline: if the guarantee regresses the
+    drain polls forever, and a test for a fatal path has to fail rather than
+    hang. Nothing else in this suite would stop it — there is no global timeout.
+    """
     log = ChannelLog(tmp_path / "channel.jsonl")
     log.close()
     _pace(fake_telegram, [_batch({"update_id": 1, "message": {"text": "lost"}})])
+    raised: list[BaseException] = []
 
-    with pytest.raises(OSError):
-        drain.run(log, ErrorTransitions(log, "drain"), api_base=fake_telegram.base,
-                  token=TOKEN, offset_path=tmp_path / "offset",
-                  stop=threading.Event(), backoff_first=0.01, backoff_cap=0.02)
+    def record() -> None:
+        try:
+            drain.run(log, ErrorTransitions(log, "drain"), api_base=fake_telegram.base,
+                      token=TOKEN, offset_path=tmp_path / "offset",
+                      stop=threading.Event(), backoff_first=0.01, backoff_cap=0.02)
+        except BaseException as error:  # noqa: BLE001 - re-raised by the assertion
+            raised.append(error)
+
+    thread = threading.Thread(target=record, daemon=True)
+    thread.start()
+    thread.join(timeout=5)
+
+    assert not thread.is_alive(), "the drain kept polling on an unwritable log"
+    assert isinstance(raised[0], OSError)
 
 
 def test_a_persisted_offset_is_resumed(tmp_path, fake_telegram) -> None:

@@ -5,9 +5,11 @@ replace — a newcomer cannot simply be started alongside it, because a second
 consumer evicts the first. A dead drain reaches a waiting session as "the human
 has not answered yet", which is the failure this whole design exists to prevent.
 
-Its failure surface is therefore held to two cases: a failed poll, which it
-retries, and a failure to durably record an update, which is fatal because
-continuing past it would silently drop a human's answer.
+Its failure surface is therefore held to three cases: a failed poll, which it
+retries; a failure to durably record an update, which is fatal because
+continuing past it would silently drop a human's answer; and an update whose
+update_id is missing or unusable, which is fatal for the same reason, since
+there is then no safe offset to advance to.
 """
 
 import json
@@ -52,6 +54,11 @@ def run(log: ChannelLog, faults: ErrorTransitions, *, api_base: str, token: str,
     The durability ordering is the whole mitigation for the system's only
     irrecoverable loss: every update is appended and fsynced before the next
     poll carries the advanced offset, which is what tells Telegram to forget it.
+
+    `stop` is observed between polls and during a backoff, never mid-call: a poll
+    already in flight runs to its own timeout first, so a caller wanting a prompt
+    exit needs its own mechanism. The process raises from its signal handler,
+    which is what makes SIGTERM prompt.
     """
     offset = read_offset(offset_path)
     backoff = backoff_first
@@ -76,7 +83,7 @@ def run(log: ChannelLog, faults: ErrorTransitions, *, api_base: str, token: str,
         try:
             updates = json.loads(answer.body)["result"]
             if not isinstance(updates, list):
-                # Raised into this handler deliberately: a result that is not a
+                # Raised into this handler: a result that is not a
                 # list is the same kind of fault as one that will not parse, and
                 # earns the same retry. Measured without this, an object here
                 # reached the loop below and died on a TypeError, taking the
@@ -91,6 +98,10 @@ def run(log: ChannelLog, faults: ErrorTransitions, *, api_base: str, token: str,
         backoff = backoff_first
         for update in updates:
             log.append({"kind": "inbound", "update": update})
+            # Fatal if update_id is missing or unusable, by the same logic as a
+            # failure to record: there is no safe value to advance the offset to.
+            # Skipping the update would either re-serve it forever or advance
+            # past an answer that nothing accounted for.
             offset = update["update_id"] + 1
         if updates:
             write_offset(offset_path, offset)
