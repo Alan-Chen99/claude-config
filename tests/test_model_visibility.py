@@ -238,3 +238,28 @@ def test_denylist_still_matches_the_conversion_source() -> None:
     assert skipped is not None, "the recognized-and-dropped list moved"
     derived |= set(re.findall(r'"(\w+)"', skipped.group(1)))
     assert derived == set(_NEVER_VISIBLE_ATTACHMENT_TYPES)
+
+
+@pytest.mark.skipif(not _DECOMPILED.is_dir(), reason="decompiled Claude Code not present")
+def test_hook_stdout_visible_events_still_match_the_conversion_source() -> None:
+    """The sibling set, re-derived rather than asserted against itself.
+
+    `_NEVER_VISIBLE_ATTACHMENT_TYPES` is pinned to the source; this set sat
+    beside it hand-maintained, so a release adding a fourth event whose stdout
+    reaches the model would have gone unnoticed in every view built on it.
+
+    The arm lives in the same function as the denylist but not in its dispatch
+    table -- it is a `case` in the `switch` that follows -- so the shape being
+    matched is the event guard, not a table entry.
+    """
+    source = _conversion_source()
+    assert source is not None, f"{_MARKER} not found in {_DECOMPILED}"
+    # The template literal the model actually receives; unique tree-wide. A
+    # reworded arm fails here rather than silently matching nothing below.
+    assert "hook success: " in source, "the hook_success arm moved or was reworded"
+    arm = re.search(
+        r'case "hook_success":\s*if \(\w+\.hookEvent[^)]*\) return \[\];', source
+    )
+    assert arm is not None, "the hook_success event guard moved"
+    derived = set(re.findall(r'hookEvent !== "(\w+)"', arm.group(0)))
+    assert derived == set(_HOOK_STDOUT_VISIBLE_EVENTS)
