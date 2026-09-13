@@ -16,24 +16,76 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "docs" / "system-prompt-snapshot"
-CAPTURES = sorted(SNAPSHOT.rglob("request.json"))
 
 
 def _render_capture() -> ModuleType:
     """Import the renderer from a directory that is not on `pythonpath`."""
-    spec = importlib.util.spec_from_file_location(
-        "render_capture", SNAPSHOT / "render_capture.py"
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    global _MODULE
+    if _MODULE is None:
+        spec = importlib.util.spec_from_file_location(
+            "render_capture", SNAPSHOT / "render_capture.py"
+        )
+        assert spec and spec.loader
+        _MODULE = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_MODULE)
+    return _MODULE
+
+
+_MODULE: ModuleType | None = None
+
+# Discovered by the renderer's own `find_captures`, not by a bare rglob here:
+# `regenerate.py`'s gitignored `capture-output/` holds a `request.json` too, and
+# a bare rglob picks it up. What that costs is not a stray directory in the
+# listing -- it is that `render_capture.py --tree` renders into the same
+# directory, after which the two tests below compare that render against itself
+# and pass having checked nothing tracked. Sharing one discovery function is
+# what stops the test's idea of a capture from drifting from the renderer's.
+CAPTURES = _render_capture().find_captures(SNAPSHOT)
 
 
 def test_captures_exist() -> None:
-    # Guards the two parametrized tests below: an empty CAPTURES list makes
-    # pytest report them as passing-by-not-running.
+    # Guards the two parametrized tests below: an empty CAPTURES list turns
+    # them into skips, and a bare `pytest` exit code cannot tell an all-skipped
+    # run from a passing one.
     assert len(CAPTURES) >= 13
+
+
+def test_discovery_excludes_working_directories(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The scratch `regenerate.py` writes into must never be read as a capture.
+
+    Without this the suite's own failure mode is silent: `capture-output/`
+    holds a real `request.json`, so discovery that does not consult git finds
+    a 14th capture whose rendered files it then verifies against itself.
+
+    The directory is staged rather than skipped-if-absent, because a machine
+    that has not run a capture yet is exactly the machine where the bug looks
+    fixed.
+    """
+    # Pinned so the relative spelling below is always expressible, whatever
+    # directory pytest was invoked from.
+    monkeypatch.chdir(ROOT)
+    scratch = SNAPSHOT / "capture-output"
+    request = scratch / "request.json"
+    had_dir, had_file = scratch.is_dir(), request.exists()
+    try:
+        scratch.mkdir(exist_ok=True)
+        if not had_file:
+            request.write_text("{}")
+        for root in (SNAPSHOT, SNAPSHOT.relative_to(ROOT)):
+            # Both spellings, because git resolves a relative path against the
+            # subprocess cwd: passing one through unresolved asks about a
+            # doubled path, matches nothing, and returns the scratch capture
+            # as though it were tracked. `--tree` is invoked with a relative
+            # root, so testing only the absolute one misses it entirely.
+            found = _render_capture().find_captures(root)
+            assert request.exists()  # the thing discovery must decline to return
+            assert request.resolve() not in [f.resolve() for f in found], root
+            assert len(found) >= 13, root
+    finally:
+        if not had_file and request.exists():
+            request.unlink()
+        if not had_dir and scratch.is_dir():
+            scratch.rmdir()
 
 
 @pytest.mark.parametrize("request_path", CAPTURES, ids=lambda p: str(p.parent.relative_to(SNAPSHOT)))

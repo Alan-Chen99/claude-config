@@ -31,6 +31,7 @@ Usage:
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -145,6 +146,49 @@ def render_file(request_path: Path, out_dir: Path | None = None) -> list[str]:
     )
 
 
+def find_captures(root: Path) -> list[Path]:
+    """Every capture beneath `root`, minus the ones git is told to ignore.
+
+    `regenerate.py` stages a run in `capture-output/`, a gitignored working
+    directory sitting among the tracked captures, so a bare `rglob` finds a
+    phantom capture on any machine that has ever run one. Rendering into it is
+    harmless by itself; what is not is that `tests/test_snapshot_rendering.py`
+    discovers the same directory, and once rendered it compares that render
+    against itself and passes while checking nothing.
+
+    git owns the definition of which directories are working state, so asking
+    git is what keeps the two definitions from drifting apart. A `check-ignore`
+    that cannot answer raises: falling back to the unfiltered list is how the
+    phantom would return.
+    """
+    # Resolved first: git interprets a relative path against `cwd`, so
+    # `--tree docs/system-prompt-snapshot` would ask about
+    # `docs/system-prompt-snapshot/docs/system-prompt-snapshot/...`, match
+    # nothing, and report every scratch capture as tracked.
+    root = root.resolve()
+    found = sorted(root.rglob("request.json"))
+    if not found:
+        return []
+    # NUL-separated both ways: a newline in a directory name would otherwise
+    # split one path into two, and the halves match nothing, so the capture
+    # comes back un-ignored with no error anywhere.
+    probe = subprocess.run(
+        ["git", "check-ignore", "-z", "--stdin"],
+        input="".join(f"{p}\0" for p in found),
+        capture_output=True,
+        text=True,
+        cwd=root,
+    )
+    # 0 = some path is ignored, 1 = none is; anything else is a real failure.
+    if probe.returncode not in (0, 1):
+        raise RuntimeError(
+            f"git check-ignore failed under {root} "
+            f"(exit {probe.returncode}): {probe.stderr.strip()}"
+        )
+    ignored = {Path(entry) for entry in probe.stdout.split("\0") if entry}
+    return [path for path in found if path not in ignored]
+
+
 def main() -> int:
     argv = sys.argv[1:]
     if not argv:
@@ -156,7 +200,7 @@ def main() -> int:
             print("--tree takes exactly one root directory", file=sys.stderr)
             return 2
         root = Path(argv[1])
-        found = sorted(root.rglob("request.json"))
+        found = find_captures(root)
         if not found:
             print(f"no request.json beneath {root}", file=sys.stderr)
             return 1
