@@ -82,6 +82,7 @@ visible and the records after it stay readable.
 | `tests/test_telegram_hitl_drain.py` | the drain, in-process |
 | `tests/test_telegram_hitl_process.py` | the real process as a subprocess: lock, lifecycle, restart |
 | `tests/test_telegram_hitl_skill.py` | the skill's code recipes actually run |
+| `tests/test_telegram_hitl_end_to_end.py` | one whole cycle through the real process, driven by the skill's recipes |
 | `skills/telegram-hitl/SKILL.md` | the agent-facing rules, recipes and API traps |
 
 **Modify:** `CLAUDE.md` (the `src/claude_config/` table), `skills/CLAUDE.md` (the Subdirectories table).
@@ -2432,7 +2433,194 @@ MSG
 
 ---
 
-### Task 7: Live verification
+### Task 7: End to end
+
+Every other task's tests drive one layer. None of them proves the layers fit, or
+that the skill's recipes work against what the proxy actually writes — and the
+recipes cannot be covered by anything else, because they live in a markdown
+document and are only executed out of it.
+
+This task adds one test that runs the real process against a fake Bot API and
+drives a whole cycle with the skill's own code: create a topic, ask, wait for the
+answer, acknowledge it, then stop and confirm the channel reads as down.
+
+It carries its own launcher rather than reusing Task 4's, because it needs a fake
+that answers by method — delivering the human's reply only once a question has
+been asked — and because duplicating fifteen lines of setup is cheaper than
+restructuring two tasks that are already reviewed.
+
+**Files:**
+- Test: `tests/test_telegram_hitl_end_to_end.py`
+
+- [ ] **Step 1: Write the test**
+
+Create `tests/test_telegram_hitl_end_to_end.py`:
+
+```python
+"""One question, one answer, one acknowledgement, through the real process.
+
+Every other test drives a single layer. This one proves the layers fit, and that
+the recipes in `skills/telegram-hitl/SKILL.md` work against what the proxy
+actually writes — which nothing else checks, since those recipes live in a
+document and are only ever executed out of it.
+"""
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+import urllib.request
+from pathlib import Path
+
+import pytest
+
+import claude_config
+
+SKILL = Path(__file__).resolve().parents[1] / "skills" / "telegram-hitl" / "SKILL.md"
+
+
+def _recipe(name: str) -> dict:
+    """Exec one marked python block from the skill and return its namespace."""
+    text = SKILL.read_text()
+    opening = text.index("```python", text.index(f"<!-- recipe: {name} -->"))
+    body = text[opening + len("```python"):text.index("```", opening + 3)]
+    namespace: dict = {}
+    exec(compile(body, str(SKILL), "exec"), namespace)
+    return namespace
+
+
+def _answering_fake(fake) -> None:
+    """A Bot API that answers by method, and delivers a reply once asked."""
+    asked: list[int] = []
+    delivered: list[bool] = []
+
+    def answer(recorded) -> tuple[int, bytes]:
+        if recorded.method == "sendMessage":
+            asked.append(4242)
+            return 200, json.dumps({"ok": True, "result": {"message_id": 4242}}).encode()
+        if recorded.method == "createForumTopic":
+            return 200, json.dumps({"ok": True, "result": {
+                "message_thread_id": 6, "name": recorded.payload["name"]}}).encode()
+        if recorded.method == "setMessageReaction":
+            return 200, b'{"ok":true,"result":true}'
+        if recorded.method == "getUpdates":
+            if asked and not delivered:
+                delivered.append(True)
+                return 200, json.dumps({"ok": True, "result": [{
+                    "update_id": 77, "message": {
+                        "message_id": 99, "message_thread_id": 6,
+                        "is_topic_message": True, "text": "yes, ship it",
+                        "reply_to_message": {"message_id": asked[0],
+                                             "text": "Ship it?"}}}]}).encode()
+            time.sleep(0.2)
+            return 200, b'{"ok":true,"result":[]}'
+        return 200, b'{"ok":true,"result":{}}'
+
+    fake.handler = answer
+
+
+@pytest.fixture
+def proxy_process(tmp_path, fake_telegram):
+    """The real process, against the fake, torn down however the test ends."""
+    _answering_fake(fake_telegram)
+    state = tmp_path / "state"
+    process = subprocess.Popen(
+        [sys.executable, "-m", "claude_config.telegram_hitl"],
+        env=os.environ | {
+            "TELEGRAM_HITL_STATE_DIR": str(state),
+            "TELEGRAM_HITL_API_BASE": fake_telegram.base,
+            "TELEGRAM_HITL_PORT": "0",
+            "TELEGRAM_BOT_TOKEN": "42:end-to-end",
+            "PYTHONPATH": str(Path(claude_config.__file__).resolve().parents[1]),
+        },
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        deadline = time.monotonic() + 20
+        while not (state / "port").exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert (state / "port").exists(), "the proxy never bound a port"
+        yield process, state, int((state / "port").read_text())
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+
+
+def test_a_whole_cycle_runs_through_the_real_process(proxy_process) -> None:
+    process, state, port = proxy_process
+    log = state / "channel.jsonl"
+    records = _recipe("read-log")["records"]
+    answer_to = _recipe("answers")["answer_to"]
+    inbound_state = _recipe("health")["inbound_state"]
+    topics = _recipe("topics")["topics"]
+
+    def call(method: str, payload: dict) -> dict:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/{method}", data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json", "X-Session-Id": "end-to-end"},
+            method="POST")
+        with urllib.request.urlopen(request, timeout=10) as answer:
+            return json.loads(answer.read())
+
+    assert inbound_state(records(log)) == "up"
+
+    topic = call("createForumTopic", {"chat_id": -100, "name": "research: alpha"})
+    thread = topic["result"]["message_thread_id"]
+    asked = call("sendMessage", {"chat_id": -100, "message_thread_id": thread,
+                                 "text": "Ship it?"})
+
+    deadline = time.monotonic() + 20
+    found = None
+    while found is None and time.monotonic() < deadline:
+        found = answer_to(records(log), asked["result"]["message_id"])
+        time.sleep(0.05)
+    assert found is not None, "the skill's recipe never found the human's reply"
+    assert found["text"] == "yes, ship it"
+    assert found["is_topic_message"] is True
+
+    assert call("setMessageReaction", {
+        "chat_id": -100, "message_id": found["message_id"],
+        "reaction": [{"type": "emoji", "emoji": "\N{THUMBS UP SIGN}"}]})["ok"] is True
+
+    # The Bot API has no getForumTopics, so this is the only registry there is.
+    assert topics(records(log)) == {thread: "research: alpha"}
+    assert inbound_state(records(log)) == "up"
+
+    process.send_signal(signal.SIGTERM)
+    assert process.wait(timeout=20) == 0
+
+    # The design's central promise: a down channel does not read as a slow human.
+    assert inbound_state(records(log)) == "down: SIGTERM"
+    assert [r["kind"] for r in records(log)] == [
+        "proxy", "outbound", "outbound", "inbound", "outbound", "proxy"]
+    assert {r["session"] for r in records(log)
+            if r["kind"] == "outbound"} == {"end-to-end"}
+```
+
+- [ ] **Step 2: Run it**
+
+Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_end_to_end.py -q`
+Expected: 1 passed
+
+- [ ] **Step 3: Run the whole suite**
+
+Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
+Expected: `399 passed` — 398 plus this one.
+
+- [ ] **Step 4: Commit**
+
+```bash
+cd /root/claude-config-work2
+git add tests/test_telegram_hitl_end_to_end.py
+git commit -m "test(telegram-hitl): one whole cycle through the real process"
+```
+
+### Task 8: Live verification
 
 Not a test: it needs the real token, the real group, and a human at a phone. Run
 it once, at the end. Until this branch merges, substitute the worktree path for
@@ -2593,8 +2781,8 @@ Run after the last task, against
 | --- | --- |
 | Inbound is exclusive and the incumbent loses | `test_a_second_proxy_refuses_to_start_and_leaves_the_first_serving` |
 | Outbound needs no coordination | `test_concurrent_senders_all_succeed_and_are_all_logged` |
-| Inbound records are self-describing | `test_the_answer_finder_matches_the_reply_to_a_question`, Task 7 Step 8 |
-| Reactions work, with a restricted alphabet | Task 5 traps, Task 7 Step 9 |
+| Inbound records are self-describing | `test_the_answer_finder_matches_the_reply_to_a_question`, Task 8 Step 8 |
+| Reactions work, with a restricted alphabet | Task 5 traps, Task 8 Step 9 |
 | The proxy interprets nothing | `test_a_send_reaches_telegram_unchanged`, `test_a_get_is_forwarded_as_a_get_with_its_query` |
 | Limits are diagnosed, not absorbed | `test_an_error_reaches_the_caller_verbatim` |
 | The denylist is derived from the invariants | `test_a_denied_method_never_reaches_telegram`, `test_every_denied_method_states_why` |
@@ -2613,6 +2801,7 @@ Run after the last task, against
 | The traps must not be lost | `test_the_skill_still_carries_every_trap_that_cost_time` |
 | The skill does not drift from what the proxy actually answers | `test_the_skill_documents_every_refusal_the_proxy_returns` |
 | The skill's examples name variables that exist | `test_the_skill_names_the_session_variable_that_exists` |
+| The layers fit, and the recipes work on what the proxy really writes | `test_a_whole_cycle_runs_through_the_real_process` |
 | The fault channel survives concurrent reporters | `test_concurrent_reporters_log_one_transition_per_episode` (fails 5/5 runs without the lock) |
 | One failed write does not make the log unreadable | `test_a_short_write_raises_and_bounds_the_damage_to_one_line`, `test_the_log_reader_surfaces_a_damaged_line_and_keeps_going` |
 | A blanked or shell-style token file fails locally, not at Telegram | `test_an_empty_token_value_is_treated_as_missing`, `test_an_export_prefix_is_accepted`, `test_the_last_assignment_wins` |
