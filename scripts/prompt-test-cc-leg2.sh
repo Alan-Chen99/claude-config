@@ -60,17 +60,10 @@ mkdir -p "$SNAP"
 find "$SCRATCH" -maxdepth 1 -type f ! -name '.prompt-test-settings.json' -exec cp -a {} "$SNAP/" \;
 echo "leg-1 snapshot: $SNAP"
 
-# --system-prompt-snapshot off is what makes --system-prompt-file mean anything
-# on a resume. Since cc 2.1.267 a conversation records its system prompt on the
-# first request and every later request and resume sends the record as-is, "even
-# when a later launch passes different text, until the conversation is
-# compacted" (claude --help). Recording is on unless CLAUDE_CODE_SIMPLE is set
-# (GWe, src/chunk-dbb93264.js:130178) and the records are in the transcript as
-# attachments of type prompt_snapshot. Without the flag, an arm passed here is
-# accepted, validated, and then silently ignored in favour of leg 1's prompt.
-# Measured through the MITM proxy on 2.1.269, three `claude -p` calls in one
-# temp cwd: a first leg under prompt A sent A; a resume passing prompt B sent A
-# again; the same resume with this flag sent B.
+# Since cc 2.1.267 a resume replays the system prompt recorded on the first
+# request, whatever a later launch passes (GWe, src/chunk-dbb93264.js:130178);
+# without this flag the arm file above is validated and then ignored. Measured
+# on 2.1.269 through the proxy: a resume passing prompt B sent A; with the flag, B.
 ( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" "$AT" claude \
     -p --output-format json \
     --resume "$SID" \

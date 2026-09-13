@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 """Print the release notes Claude Code ships inside its own binary.
 
-Upstream writes these; nothing else in this runbook does. They name the change
-behind a diff you would otherwise have to explain from evidence — the `Agent`
-tool's schema moving in 2.1.269 is "`CLAUDE_CODE_SUBAGENT_MODEL` became a
-default rather than an override" at 2.1.251, which no capture or decompiled
-identifier says out loud.
-
+They name the change behind a diff that nothing else in the runbook can explain.
 Bounds worth knowing before trusting a quiet run:
 
   the binary carries a fixed window, 15 entries in 2.1.269 (2.1.247-2.1.268),

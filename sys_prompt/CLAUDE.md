@@ -84,24 +84,11 @@ drop it. Captures show where to look; the source decides.
 python3 scripts/check-prompt-upstream.py
 ```
 
-It pins the passages `alan-default-next.md` took from upstream and requires each to appear verbatim
-on both sides. It covers the other file that authors prompt text by copying Claude Code's, too: the
-SessionStart hook in `src/claude_config/env_context/`, which re-emits the environment block
-`--system-prompt-file` discards. `scripts/check-env-context.sh` pins that block's *field set*
-against the installed binary and not its wording, so the two borrowed sentences are pinned here
-instead. That hook keeps its own record of what it duplicates and why, in
-`src/claude_config/env_context/__main__.py`. A pin missing from the source means upstream reworded a line this file still carries;
-a pin missing from the prompt means a borrowed line was edited without the divergence being
-recorded. Both are decisions to make here, not edits to the script. It exits 2 rather than reporting
-success when the decompiled tree is missing, or when its `src/cli.js` version is not the installed
-one — a stale tree answers about the wrong release.
-
-Each pin also records how many times the passage occurs, because the two prompt bodies are built
-from separate literals: the opening line is in both, so a check that only required a non-zero count
-would pass on whichever copy had not changed.
-
-It is silent about upstream text this prompt never carried, which is most of it. New sections come
-from the key diff above.
+It pins every passage `alan-default-next.md` and the env-context hook (`src/claude_config/env_context/`)
+took from upstream, and requires each verbatim on both sides, as many times as recorded — the two
+prompt bodies are separate literals, so a passage in both can move in one. A failing pin is a
+decision, not an edit to the script: adopt upstream's wording, or record a divergence below. It is
+silent about upstream text this prompt never carried; new sections come from the key diff above.
 
 ### When `agents/` joins this
 
@@ -111,8 +98,7 @@ named after a built-in — `Explore`, `general-purpose`, `Plan`, `claude-code-gu
 `statusline-setup` — therefore replaces Anthropic's prompt for that agent, and that copy needs
 rebasing exactly like this one. The six files in `agents/` today are all new names, so none is
 upstream-coupled and `check-prompt-upstream.py` pins nothing from them. Adding a shadow is what
-changes that. `Prefer model: haiku` below is the standing example of preferring a per-call parameter
-over a shadow.
+changes that.
 
 ### Deliberate divergences
 
@@ -152,7 +138,7 @@ decoded string rather than the source line.
 | new `brook_heron` section, whose text arrives from client data or growthbook keyed by model | Nothing to rebase — served, not shipped. Recorded so that unfamiliar text in a future capture is recognised instead of hunted for in the binary. |
 | everything `alan-default-next.md` borrows: the five `# Harness` bullets, the action-caution paragraph, `# Context management`, three `# Session-specific guidance` bullets | Byte-identical across the two builds. Now pinned by `scripts/check-prompt-upstream.py` instead of re-read by hand. |
 | the environment block, which the env-context hook re-emits: its facts left the system prompt for the attachment, it gained a scratchpad bullet, and the model and knowledge-cutoff lines left it | Nothing, and that is a deferred decision rather than a finished one — a `--system-prompt-file` session now receives Claude Code's own copy as well, so most of what the hook renders is a second copy. `env_context/__main__.py` holds the finding. Its two borrowed sentences are unchanged and now pinned. |
-| the legacy prompt body, which `alan-default.md` is the copy of | Nothing. The four removals above hit that branch too, and its six prose sections are unchanged between the 2.1.235 and 2.1.269 sonnet captures. Unpinned: nothing loads this file. `claude.sh` and the three runners that take a prompt file — `prompt-test-cc.sh`, `prompt-test-cc-leg2.sh`, `prompt-test-run.sh` — all default to `-next`, and `prompt-test-cc-downstream.sh` deliberately runs the stock prompt with no prompt file at all. Reaching this file takes an explicit runner argument. |
+| the legacy prompt body, which `alan-default.md` is the copy of | Nothing. The four removals above hit that branch too, and its six prose sections are unchanged between the 2.1.235 and 2.1.269 sonnet captures. Unpinned: nothing loads this file unless a prompt-test runner is given it explicitly. |
 
 ## Why the prompt says what it says
 
@@ -177,14 +163,9 @@ Passing the parameter per call, rather than shadowing the built-in with a user-d
 agent: `omitClaudeMd` is set only on built-in agent definitions and is never read from frontmatter,
 so a shadow re-attaches the whole CLAUDE.md hierarchy to every spawn.
 
-Two environment variables sit between the agent definition and the call, and only one of them
-leaves this line standing. `CLAUDE_CODE_SUBAGENT_MODEL` names a default subagent model; 2.1.251
-demoted it from an override, so an agent definition's `model:` and an explicit per-spawn `model`
-both take precedence and `Prefer model: haiku` still decides. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`,
-added in 2.1.257, reverses that: it applies the default to every subagent and ignores per-spawn and
-agent-definition models alike. Neither is set here. Set the second one and this line becomes an
-instruction the model follows and the harness discards — the Agent tool's own `model` parameter
-documents the precedence (`docs/system-prompt-snapshot/opus-5/default/tools/Agent.md`).
+`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (2.1.257, unset here) would override every per-spawn `model`,
+turning this line into an instruction the harness discards; `CLAUDE_CODE_SUBAGENT_MODEL` would not,
+since 2.1.251 made it a default that an explicit `model` beats.
 
 Retire this if the built-in default returns to `haiku`, or if Explore spawns start failing on prompt
 size — which would mean the MCP surface has grown into the case #45357 describes.

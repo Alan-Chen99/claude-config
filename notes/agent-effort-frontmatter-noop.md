@@ -4,15 +4,12 @@ Investigated 2026-05-23 → 2026-05-27 on Claude Code **2.1.143** (latest at the
 
 Concrete consequence: an `~/.claude/agents/general-purpose.md` override with `effort: high` was previously installed in this repo to make the general-purpose subagent think harder. It did nothing measurable. Removed in the same commit that adds this note.
 
-> **Upstream reports this fixed since.** Claude Code's own release notes say
-> 2.1.259 fixed "frontmatter `model:` on custom commands and skills being
-> ignored in interactive sessions" and 2.1.267 fixed "`effort:` frontmatter on
-> custom commands, skills, and subagents being ignored on models whose default
-> effort is still pinned (Opus 4.7, Opus 4.8, Fable 5)" — read them with
-> `.claude/skills/update-claude-code/changelog.py 2.1.143`. Nothing below has
-> been re-measured against 2.1.269, so treat the finding as a record of 2.1.143
-> and not as current behaviour. Re-running the capture in the Evidence section
-> is what would settle it.
+> **Upstream reports this fixed since.** Claude Code's release notes for 2.1.267
+> say it fixed "`effort:` frontmatter on custom commands, skills, and subagents
+> being ignored on models whose default effort is still pinned (Opus 4.7, Opus
+> 4.8, Fable 5)" (`.claude/skills/update-claude-code/changelog.py 2.1.143`).
+> Not re-measured against 2.1.269: treat the finding as a record of 2.1.143.
+> Re-running the capture in the Evidence section is what would settle it.
 
 > **Citations below are pinned to 2.1.143.** `/repos/claude-code-decompiled` has
 > since been re-extracted twice and now holds 2.1.269 in an unrelated

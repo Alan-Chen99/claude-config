@@ -235,6 +235,13 @@ its original process exits as soon as the forked wrapper reports a start, so the
 already reparented to init by the time the call returns, and out of the tree the kill walks.
 The new session it also acquires is not what saves it — `setsid --wait` has one and dies.
 
+A `TaskStop` on a backgrounded call walks the same tree. Measured on 2.1.269: a backgrounded
+Bash call ran `agent-tools run --background timeout 907 tail -f /dev/null` and then held
+itself open with a foreground `timeout 100`; `TaskStop` on that task killed the call's shell
+and the foreground `timeout`, and the wrapper and its child were still running afterwards.
+2.1.257's release notes claim to have closed the `setsid` escape on task stop and on Claude
+Code exit; only the exit half is unmeasured.
+
 So for a job that must outlive its call, `--background` is the form to reach for: it needs no
 bounded wait, and it keeps the job reachable through the status channel, through `ps`, and
 through the wrapper pid on its start line. For a bare `&` the guidance stays "let the call

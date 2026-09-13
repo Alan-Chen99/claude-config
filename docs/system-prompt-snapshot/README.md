@@ -88,9 +88,9 @@ None of them is the configuration this repo itself runs. `scripts/claude.sh`
 launches `--dangerously-skip-permissions` with `--system-prompt-file`, and a
 capture takes the default permission mode — which is why the bypass-permissions
 reminder that a `claude.sh` session demonstrably carries appears in no file
-here (see "Removed: the `## Auto Mode Active` reminder"). `regenerate.py` now
-defines a `bypass-permissions` variant for it; it has not been captured yet, so
-that directory is absent rather than empty.
+here (see "Removed: the `## Auto Mode Active` reminder"). `regenerate.py`
+defines a `bypass-permissions` variant for it, not yet captured, so that
+directory is absent rather than empty.
 
 ### Subagent captures
 
@@ -592,13 +592,9 @@ entries total), **nine are byte-for-byte unchanged** in both models:
 rendering the 2.1.235 `request.json` files into this directory's layout and
 diffing `tools/` per model with zero output. The remaining five changed:
 
-**Correction to this section's first revision**, which reported ten unchanged
-and four changed. That comparison read `description` and not `input_schema`.
-`Agent`'s description is identical in both builds and its schema is not, so it
-was filed as unchanged; `Bash` and `Artifact` changed on both sides and only
-the description side was written up. The per-tool files render the whole
-definition, so a schema-only change now lands in the same diff as a reworded
-sentence.
+A tool counts as changed when either its `description` or its `input_schema`
+moved; `Agent` moved on the schema side only. The per-tool files render both,
+so a schema-only change lands in the same diff as a reworded sentence.
 
 | Tool | Sonnet 5 description | Opus 5 description | What changed |
 |---|---|---|---|
@@ -756,17 +752,12 @@ what's not established is *whether* the case fires at all for a plain
 `capture.py` session, which depends on something upstream of this function
 that this pass did not trace.
 
-**Which branch a `claude.sh` session reaches is settled, and it is `e.bypass`.**
-Read off a live 2.1.269 session log rather than a capture: an `auto_mode`
-attachment whose `rendered[].content` is
+**A `claude.sh` session reaches `e.bypass`.** Read off a live 2.1.269 session
+log: an `auto_mode` attachment whose `rendered[].content` is
 `<system-reminder>\nWhile bypass permissions mode is active:\n\n` followed by
-the bash-first steer text, with no heading — the `e.bypass` shape exactly.
-That is the mode `scripts/claude.sh` launches, so it is the branch this repo's
-own sessions get. It says nothing about a plain `capture.py` session, which
-takes the default permission mode and shows none of the three; only the
-uncaptured `bypass-permissions` variant puts the two side by side in the same
-artifact, together with whatever else that mode changes in the system blocks
-and tool set.
+the bash-first steer text, with no heading. A plain `capture.py` session takes
+the default permission mode and shows none of the three; the uncaptured
+`bypass-permissions` variant is what would put the two side by side.
 
 This document's own capture chain is running under
 `--dangerously-skip-permissions` (see `scripts/claude.sh` in the parent
@@ -992,10 +983,6 @@ but not established here. Settling it needs one `claude -p` capture on
 Do not run two `regenerate.py` invocations in parallel — they share
 `capture-output/` and `~/.claude/requests-log/` and will overwrite each
 other's intermediates.
-
-Once the last variant lands, `git diff docs/system-prompt-snapshot` is the
-review — every configuration, every tool file, read through rather than
-skimmed. "Reading a capture as a diff" above says what that diff cannot show.
 
 ### Trust-dialog default flipped — the failure this version will most likely hit
 

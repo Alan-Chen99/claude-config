@@ -575,13 +575,10 @@ def _skeleton(*records: object) -> str:
 
 
 def test_skeleton_rows_an_attachment_whose_payload_is_in_rendered() -> None:
-    """2.1.269 delivers most context with `.attachment.content` empty.
-
-    The default view was taught to read `rendered`; the skeleton was not, and
-    it `continue`d on empty content -- emitting no row at all. That breaks the
-    one promise the skeleton makes (`skills/session-analysis/SKILL.md`: one
-    line per content block), and it breaks it silently, in the substrate a
-    reader uses to decide what to extract.
+    """2.1.269 delivers most context with `.attachment.content` empty and the
+    text in `rendered`; a skeleton that reads only the former emits no row,
+    breaking its one promise (`skills/session-analysis/SKILL.md`: one line per
+    content block).
     """
     out = _skeleton(
         _rendered_record(

@@ -242,15 +242,10 @@ def test_denylist_still_matches_the_conversion_source() -> None:
 
 @pytest.mark.skipif(not _DECOMPILED.is_dir(), reason="decompiled Claude Code not present")
 def test_hook_stdout_visible_events_still_match_the_conversion_source() -> None:
-    """The sibling set, re-derived rather than asserted against itself.
-
-    `_NEVER_VISIBLE_ATTACHMENT_TYPES` is pinned to the source; this set sat
-    beside it hand-maintained, so a release adding a fourth event whose stdout
-    reaches the model would have gone unnoticed in every view built on it.
-
-    The arm lives in the same function as the denylist but not in its dispatch
-    table -- it is a `case` in the `switch` that follows -- so the shape being
-    matched is the event guard, not a table entry.
+    """The sibling of the denylist test: a release adding an event whose stdout
+    reaches the model must fail here, not go unnoticed in every view built on
+    the set. The arm is a `case` in the `switch` after the dispatch table, so
+    the shape matched is the event guard, not a table entry.
     """
     source = _conversion_source()
     assert source is not None, f"{_MARKER} not found in {_DECOMPILED}"

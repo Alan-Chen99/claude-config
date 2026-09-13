@@ -89,11 +89,8 @@ VARIANTS: dict[str, dict] = {
         "claude_args": [],
         "capture_flags": ["--capture-output-style", "default", "--subagent"],
     },
-    # The mode `scripts/claude.sh` actually launches. Defined but never yet
-    # captured, so a missing directory here is a capture not run, not a failure.
-    # It is the only variant that can settle which of `auto_mode`'s three texts
-    # a session reaches -- see README, "Removed: the `## Auto Mode Active`
-    # reminder", where every capture in the 2.1.269 batch has none of them.
+    # The mode `scripts/claude.sh` launches. Not yet captured, so its directory
+    # is absent, not failed.
     "bypass-permissions": {
         "claude_args": ["--dangerously-skip-permissions"],
         "capture_flags": ["--capture-output-style", "default"],

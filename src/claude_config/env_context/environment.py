@@ -23,18 +23,11 @@ def _executable(path: str) -> bool:
     """Whether `path` names something runnable, mirroring `cbt()`,
     chunk-dbb93264.js:134345.
 
-    The access check answers for a real path. cc falls back to running the
-    candidate with `--version` when it does not, and that fallback is what
-    makes a bare name work: `CLAUDE_CODE_SHELL=bash` passes no access check
-    and cc honours it anyway, because `bash --version` exits 0 through PATH.
-    Without it this module ignores an override the Bash tool obeys and then
-    reports a shell that is not the one commands run under -- the single
-    thing `resolve_shell` exists to get right.
-
-    Cost is near zero rather than `timeout` per candidate: the fallback runs
-    only where access already failed, and a path that does not exist fails to
-    spawn immediately instead of waiting. Only a path that exists, spawns, and
-    then hangs can spend the full second.
+    The access check answers for a real path; cc falls back to running the
+    candidate with `--version` when it fails, which is what makes a bare
+    `CLAUDE_CODE_SHELL=bash` resolve through PATH. Without the fallback this
+    module ignores an override the Bash tool obeys and reports a shell that
+    is not the one commands run under. Cost: `drift.py`'s timeout budget.
     """
     if os.path.isfile(path) and os.access(path, os.X_OK):
         return True

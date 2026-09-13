@@ -28,13 +28,9 @@ pub fn run() -> Result<()> {
     // other field. updatedInput is a full replacement, not a merge — anything
     // we don't echo back (timeout, description, run_in_background,
     // dangerouslyDisableSandbox, future fields) is silently dropped from the
-    // executed tool call. Both consumers assign straight over the model's
-    // original input (`case "hookUpdatedInput":`, chunk-dbb93264.js:161881 and
-    // :177139), and cc validates the hook's updatedInput alone against the
-    // tool's whole schema — denying the call when a required field is missing
-    // — which a merge would never need. Re-find by the error string
-    // "returned updatedInput that failed schema validation", unique tree-wide;
-    // chunk names and line numbers rotate every build.
+    // executed tool call: both consumers assign it over the original input
+    // (`case "hookUpdatedInput":`, chunk-dbb93264.js:161881 and :177139; re-find
+    // by the error string "returned updatedInput that failed schema validation").
     let Some(command) = input.tool_input.get("command").and_then(|v| v.as_str()) else {
         eprintln!(
             "agent-tools hook-pre: tool_input.command missing or not a string; \

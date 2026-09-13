@@ -8,9 +8,9 @@ git clone https://github.com/<you>/claude-config ~/claude-config
 ```
 
 This creates directory-level symlinks (`~/.claude/skills -> ~/claude-config/skills`, etc.) for
-`agents`, `conventions`, `output-styles`, `skills` and `opencode`, file symlinks for
-`settings.json` and `statusline.sh`, builds `agent-tools` and links it plus `scripts/claude.sh`
-into `~/.local/bin`, and provisions the canonical Python venv.
+`agents`, `conventions`, `output-styles` and `skills`, plus `~/.config/opencode -> opencode/`, file
+symlinks for `settings.json` and `statusline.sh`, builds `agent-tools` and links it plus
+`scripts/claude.sh` into `~/.local/bin`, and provisions the canonical Python venv.
 
 Run it from the canonical checkout only. A worktree that installs its own build repoints
 `~/.local/bin` at the worktree and breaks every other session when that worktree is deleted.

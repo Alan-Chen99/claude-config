@@ -1,28 +1,15 @@
 #!/usr/bin/env python3
 """Render a captured API request into files whose `git diff` is readable.
 
-`request.json` holds the whole request, and it is the artifact of record — but
-it is one line per string, every newline escaped as `\\n`, so a reworded
-paragraph inside a 25,000-character tool description shows up in `git diff` as
-one changed line 25,000 characters wide. Nobody reads that, which is how a tool
-description can change across a release without anyone noticing. This module
-writes the same content back out as text:
+`request.json` is the artifact of record and is one line per string, so a
+reworded paragraph inside a tool description is one changed line thousands of
+characters wide. This writes the same content as text:
 
     <capture>/prompt.md          everything in the request except the tools
     <capture>/tools/<Name>.md    one file per tool definition
 
-Split that way because the reader is `git diff` between two releases. A tool
-whose description changed shows as one file with line-level hunks; a tool that
-did not is absent from the diff entirely; an added or removed tool is an added
-or removed file. Splitting per tool also keeps one tool's rewrite from
-displacing another's in the same hunk. The non-tool content -- request
-parameters, system blocks, every message -- is one file because it is read as a
-whole: the blocks are ordered, they reference each other, and a section moving
-between system and messages (which 2.1.269 did to the environment block) is only
-visible if both are in the same diff.
-
-Both files are derived. `request.json` stays the artifact of record: render
-anything you are unsure about rather than hand-editing what is rendered.
+Why the split falls there is in README.md, "Reading a capture as a diff". Both
+files are derived; render rather than hand-edit.
 
 Usage:
     ./render_capture.py <request.json> [<out-dir>]   # default: the file's dir
@@ -147,31 +134,23 @@ def render_file(request_path: Path, out_dir: Path | None = None) -> list[str]:
 
 
 def find_captures(root: Path) -> list[Path]:
-    """Every capture beneath `root`, minus the ones git is told to ignore.
+    """Every capture beneath `root` that git does not ignore.
 
-    `regenerate.py` stages a run in `capture-output/`, a gitignored working
-    directory sitting among the tracked captures, so a bare `rglob` finds a
-    phantom capture on any machine that has ever run one. Rendering into it is
-    harmless by itself; what is not is that `tests/test_snapshot_rendering.py`
-    discovers the same directory, and once rendered it compares that render
-    against itself and passes while checking nothing.
-
-    git owns the definition of which directories are working state, so asking
-    git is what keeps the two definitions from drifting apart. A `check-ignore`
-    that cannot answer raises: falling back to the unfiltered list is how the
-    phantom would return.
+    `regenerate.py` stages a run in the gitignored `capture-output/`, which holds
+    a `request.json` of its own: a bare rglob returns it, `--tree` renders into
+    it, and `tests/test_snapshot_rendering.py` then verifies that render against
+    itself. git decides what is working state, so git is asked, and a
+    `check-ignore` that cannot answer raises rather than returning the
+    unfiltered list.
     """
-    # Resolved first: git interprets a relative path against `cwd`, so
-    # `--tree docs/system-prompt-snapshot` would ask about
-    # `docs/system-prompt-snapshot/docs/system-prompt-snapshot/...`, match
-    # nothing, and report every scratch capture as tracked.
+    # Resolved first: git reads a relative path against the subprocess cwd, so
+    # an unresolved `--tree docs/...` would match nothing and report every
+    # scratch capture as tracked.
     root = root.resolve()
     found = sorted(root.rglob("request.json"))
     if not found:
         return []
-    # NUL-separated both ways: a newline in a directory name would otherwise
-    # split one path into two, and the halves match nothing, so the capture
-    # comes back un-ignored with no error anywhere.
+    # NUL-separated both ways, so a newline in a directory name cannot split a path.
     probe = subprocess.run(
         ["git", "check-ignore", "-z", "--stdin"],
         input="".join(f"{p}\0" for p in found),
