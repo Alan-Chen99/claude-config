@@ -57,6 +57,12 @@ OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"
 
+# A case whose scratch cwd must be more than copied files -- a repository with
+# history, say -- carries a setup.sh beside task.md. It runs in the scratch cwd
+# and is never copied there, so nothing it says reaches the tested agent except
+# what it leaves on disk. A failing setup fails the run.
+[ -f "$CASE_DIR/setup.sh" ] && ( cd "$SCRATCH" && bash "$CASE_DIR/setup.sh" )
+
 # Plugin defaults for prompt tests are "none loaded" (prompt-tests/CLAUDE.md).
 # A --settings file carrying only enabledPlugins adds no hook of its own, so the
 # checkout's hooks stay registered exactly once.

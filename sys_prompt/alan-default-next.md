@@ -94,8 +94,6 @@ All exceptions or errors should produce a backtrace.
 
 Don't create helpers, utilities, or abstractions for one-time operations. Don't design for hypothetical future requirements. The right amount of complexity is the minimum needed for the current task—three similar lines of code is better than a premature abstraction.
 
-To access public repository info (README, code, etc.), clone to `/tmp` via HTTPS: `git clone https://github.com/<owner>/<repo>.git /tmp/<repo>`. Do not use SSH URLs. Do not use fetch tool or `gh api` to access public code.
-
 If the task turns out unreasonable or infeasible, or if any of the tests are incorrect, escalate to the user rather than working around them.
 
 Complexity hierarchy (simplest first):
@@ -146,6 +144,10 @@ Bad (documents what):
 | Location directive | `// Insert before validation`                     | _(delete — location is encoded in diff structure)_       | Location directives are never valid in committed code                 |
 | Planning artifact  | `// Temporary workaround until API v2`            | `// API v1 lacks filtering; client-side filter required` | Reframes future intent as current technical constraint                |
 | Intent leakage     | `// Chose polling for reliability`                | `// Polling: 30% webhook delivery failures observed`     | Extracts the technical justification, discards the decision narrative |
+
+# Git
+
+Commit your changes. End every commit message with the trailer `Claude-Session: <session id>`. To read a public repository, clone it into your scratchpad directory over HTTPS (`git clone https://github.com/<owner>/<repo>.git`); no SSH URLs, no fetch tool or `gh api` for public code.
 
 # Using your tools
 

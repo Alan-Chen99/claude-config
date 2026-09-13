@@ -185,17 +185,17 @@ def installed_version(binary: Path) -> str:
     note, but not a hang.
 
     The budget this shares with the SessionStart hook's own 30 s timeout
-    (settings.json) and environment._git's 2 s (called twice per run):
+    (settings.json) and environment._git's 2 s (called up to five times per run):
     measured cold -- binary dropped from page cache, as happens on the
     first session after every Claude Code upgrade -- `claude --version`
     took 3.365 s and a from-disk compare() (the read plus the
     required_literals count passes) took 0.75 s; both comfortably clear
     their old, tighter caps (the version call's old 2 s cap, in particular,
     is why this number moved). Worst case, every capped call spends its
-    full budget rather than actually finishing: 2x2 s git + 10 s version +
+    full budget rather than actually finishing: 5x2 s git + 10 s version +
     ~2 s for a slower-than-measured cold read/scan + ~1 s of uncapped misc
     work (platform/shell/os_version, scratchpad mkdir, cache stat, JSON
-    parsing) totals roughly 17 s against the 30 s outer timeout --
+    parsing) totals roughly 23 s against the 30 s outer timeout --
     `environment._executable`'s `--version` probe sits in that misc second:
     it runs only where the access check already failed, a nonexistent path
     fails to spawn instead of waiting, and a real shell answers at once, so

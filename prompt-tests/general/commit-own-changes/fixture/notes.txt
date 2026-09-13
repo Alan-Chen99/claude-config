@@ -1,0 +1,2 @@
+Ideas for greet.py
+- accept a list of names

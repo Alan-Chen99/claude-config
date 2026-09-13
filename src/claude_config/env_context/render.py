@@ -29,6 +29,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NotRequired, TypedDict
 
+from .environment import GitSnapshot
+
 # cc's own wording, `KUt`, chunk-dbb93264.js:29119, in full. Pinned by
 # `scripts/check-prompt-upstream.py`, which is what fails when cc rewords it:
 # `scripts/check-env-context.sh` pins only the first 182 characters, and the
@@ -73,6 +75,7 @@ class Facts(TypedDict):
     model: NotRequired[str | None]
     scratchpad: NotRequired[str | None]
     drift_note: NotRequired[str | None]
+    git_snapshot: NotRequired[GitSnapshot | None]
 
 
 def _bullets(items: list[str]) -> str:
@@ -144,6 +147,17 @@ def scratchpad_section(path: str) -> str:
     )
 
 
+def git_status_section(snap: GitSnapshot) -> str:
+    """cc's gitStatus reminder minus its preamble: the header says when the
+    snapshot was taken, which is all the preamble said."""
+    return (
+        "# Git status at session start\n"
+        f"Current branch: {snap['branch']}\n\n"
+        f"Status:\n{snap['status'] or '(clean)'}\n\n"
+        f"Recent commits:\n{snap['recent_commits'] or '(none)'}"
+    )
+
+
 def sections(facts: Facts) -> str:
     """The env block, plus the scratchpad section when there is a path to name.
 
@@ -160,4 +174,7 @@ def sections(facts: Facts) -> str:
         # just re-wrap a str in str(), which scratchpad_or_none already did
         # to convert scratchpad.ensure()'s Path into the str this dict needs.
         blocks.append(scratchpad_section(path))
+    snap = facts.get("git_snapshot")
+    if snap:
+        blocks.append(git_status_section(snap))
     return "\n\n".join(blocks)

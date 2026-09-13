@@ -1900,3 +1900,84 @@ def test_empty_cwd_and_session_id_degrade_quietly(tmp_path: Path) -> None:
     context = out["hookSpecificOutput"]["additionalContext"]
     assert "# Environment" in context
     assert "# Scratchpad Directory" not in context
+
+
+# --- git snapshot ----------------------------------------------------------
+#
+# cc's own gitStatus reminder is gated together with the Bash tool's git block
+# by `includeGitInstructions`, and a -p session never carries it at all. This
+# is the copy that survives both, so these pin what it reports and how.
+
+
+def test_git_snapshot_none_outside_repo(tmp_path: Path) -> None:
+    assert environment.git_snapshot(str(tmp_path)) is None
+
+
+def test_git_snapshot_reports_branch_status_and_recent_commits(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+
+    def run(*args: str) -> str:
+        return subprocess.run(
+            args, cwd=tmp_path, check=True, capture_output=True, text=True
+        ).stdout
+
+    (tmp_path / "a.txt").write_text("x\n")
+    run("git", "add", "a.txt")
+    run("git", "-c", "commit.gpgsign=false", "commit", "-qm", "add a")
+    (tmp_path / "a.txt").write_text("y\n")  # modified, unstaged
+    (tmp_path / "b.txt").write_text("z\n")  # untracked
+
+    snap = environment.git_snapshot(str(tmp_path))
+
+    assert snap is not None
+    assert snap["branch"] == run("git", "branch", "--show-current").strip()
+    assert snap["status"].splitlines() == [" M a.txt", "?? b.txt"]
+    commits = snap["recent_commits"].splitlines()
+    assert len(commits) == 2
+    assert commits[0].endswith(" add a") and commits[1].endswith(" init")
+
+
+def test_git_snapshot_status_is_capped_like_cc(tmp_path: Path) -> None:
+    """cc cuts its own status output at 2000 characters; a tree with hundreds
+    of untracked files must cost a marker line, not the rest of the prompt."""
+    _init_repo(tmp_path)
+    for i in range(400):
+        (tmp_path / f"untracked-{i:04d}.txt").write_text("")
+
+    snap = environment.git_snapshot(str(tmp_path))
+
+    assert snap is not None
+    assert snap["status"].endswith(environment.STATUS_TRUNCATED)
+    body = snap["status"][: -len(environment.STATUS_TRUNCATED)]
+    assert len(body) == environment.STATUS_CAP
+
+
+def test_git_status_section_renders_branch_status_and_commits() -> None:
+    text = render.sections(
+        _facts(
+            git_snapshot={
+                "branch": "main",
+                "status": " M notes.txt",
+                "recent_commits": "abc1234 Add greet and notes",
+            }
+        )
+    )
+    assert text.endswith(
+        "\n\n# Git status at session start\n"
+        "Current branch: main\n\n"
+        "Status:\n M notes.txt\n\n"
+        "Recent commits:\nabc1234 Add greet and notes"
+    )
+
+
+def test_git_status_section_names_clean_tree_and_empty_history() -> None:
+    text = render.sections(
+        _facts(git_snapshot={"branch": "main", "status": "", "recent_commits": ""})
+    )
+    assert "Status:\n(clean)\n" in text
+    assert text.endswith("Recent commits:\n(none)")
+
+
+def test_git_status_section_omitted_without_a_snapshot() -> None:
+    assert "Git status" not in render.sections(_facts(git_snapshot=None))
+    assert "Git status" not in render.sections(_facts())
