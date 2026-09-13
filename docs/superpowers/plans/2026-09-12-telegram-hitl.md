@@ -405,7 +405,7 @@ Records are one O_APPEND write each, fsynced, so concurrent senders cannot
 interleave a line and the drain can order durability against the cursor.
 Faults log transitions rather than occurrences.
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 MSG
 )"
 ```
@@ -899,7 +899,7 @@ Five methods can break the drain or the token; everything else is forwarded
 untouched and Telegram's own status and body come back verbatim, so an error
 reaches the agent that provoked it instead of being absorbed here.
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 MSG
 )"
 ```
@@ -1265,7 +1265,7 @@ Every update is appended and fsynced before the next poll carries the advanced
 offset, since advancing it is what makes an update unrecoverable. A failed poll
 is retried and logged as a transition; a failure to record is fatal.
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 MSG
 )"
 ```
@@ -1571,7 +1571,7 @@ An exclusive flock, taken before anything reaches the network, is what keeps a
 second drain from evicting this one. Startup, shutdown and the bound port are
 recorded so a waiting session can tell a down channel from a slow human.
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 MSG
 )"
 ```
@@ -1930,7 +1930,7 @@ The proxy interprets nothing, so working the channel correctly is knowledge
 rather than API surface, and it has to live where a fresh session will read it.
 Its recipes are executed by the tests, so documented code cannot drift.
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 MSG
 )"
 ```
@@ -1972,7 +1972,7 @@ git add CLAUDE.md skills/CLAUDE.md
 git commit -m "$(cat <<'MSG'
 docs: register telegram-hitl in the module and skill tables
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 MSG
 )"
 ```
