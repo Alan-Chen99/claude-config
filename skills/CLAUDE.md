@@ -53,6 +53,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `diagnose-workflow/`  | Structural sub-agent workflow extraction   | Diagnosing multi-agent workflow success/failure |
 | `long-bash/`          | Long-running bash command protocol         | Running commands that may exceed 2min timeout   |
 | `git-surgery/`        | libgit2/pygit2 history rewrites without touching worktree, index, or HEAD; preserves SHA references in tracked files and commit messages | Squashing/dropping/reordering/amending commits when the worktree must survive or commit SHAs are checked in elsewhere |
+| `telegram-hitl/`      | Asking a human a question over Telegram and waiting hours for the answer: the local proxy, the channel log, topic choice, and the Bot API traps | When a session needs a human decision, or is reading or sending on the Telegram channel |
 
 ## Script Invocation
 
