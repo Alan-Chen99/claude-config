@@ -198,7 +198,6 @@ Each row is a claim in this repo that a bullet puts in doubt.
 |---|---|
 | `docs/agent-tools-status-reference.md` "The kill boundary" | 2.1.257 fixed background commands that detach via `setsid` surviving a **task stop** or **Claude Code exit** — the escape `agent-tools run --background` is built on. The task-stop half is measured there (the child survives). The exit half needs a human: start `agent-tools run --background sleep 900`, quit Claude Code, check whether the child is still running. |
 | `docs/tool-token-limits.md` | 2.1.261 added `bashOutputMaxChars` and `taskOutputMaxChars` (ceiling 128K) and 2.1.265 a 1 GB cap on tool results saved to disk; the file carries a 2.1.88 banner and knows neither. Retire on its next re-measurement. |
-| `agent-tools env-context` on resume | 2.1.268 stopped `--continue`/`--resume` waiting for SessionStart hooks before rendering. Retire by confirming the env block still arrives on a resume rather than being raced past. |
 | `src/claude_config/cc_pretty/` record handling | Three in-window shape changes: per-second subagent progress ticks now replace their predecessor rather than accumulating (2.1.251); async hook completion notices batch onto one line (2.1.257); nested background subagent results are saved into the **parent subagent's** transcript (2.1.259), which moves what a session-analysis pass finds. Retire by re-reading real logs for each. |
 
 **Open design questions, not defects**
