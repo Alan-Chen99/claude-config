@@ -100,6 +100,13 @@ def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> No
                                    "signature": "forward:URLError"}]) == "up"
 
 
+@pytest.mark.parametrize("status", ["`400`", "`403`", "`411`", "`502`"])
+def test_the_skill_documents_every_refusal_the_proxy_returns(status) -> None:
+    """An agent that meets a refusal has only this document to explain it, and
+    three of the four come from the proxy rather than from Telegram."""
+    assert status in SKILL.read_text()
+
+
 @pytest.mark.parametrize("trap", [
     "is_topic_message",          # message_thread_id carries two different ids
     "MESSAGE_ID_INVALID",        # reactability is type-specific

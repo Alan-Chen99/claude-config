@@ -46,6 +46,15 @@ Refused with `403`: `getUpdates`, `setWebhook`, `deleteWebhook`, `close`,
 `logOut`. Each would break the one update stream or the token. Everything else
 passes through.
 
+Three more refusals are the proxy's own rather than Telegram's, and each names
+`telegram-hitl proxy` in its `description` so you can tell which is which:
+
+| | |
+| --- | --- |
+| `400` | The method name is not alphanumeric. `sendMessage` is fine; `sendMessage/`, `send%4dessage` and `x/../getUpdates` are not — a respelling that resolves to a denied method would otherwise walk straight past the denylist. |
+| `411` | The body was sent chunked, so it carries no `Content-Length` and would forward as empty. Send a body with a length. |
+| `502` | Telegram could not be reached or did not answer usably. The same fault is in the log, so a watcher sees it too. |
+
 **Errors arrive as themselves** and nothing is retried for you — `retry_after`,
 `REACTION_INVALID`, `message thread not found`, `not enough rights to create a
 topic`. Read the error and decide. If you are hitting flood control at
