@@ -7,6 +7,8 @@ ordinary Bot API request and reads an ordinary Bot API answer, errors included.
 """
 
 import json
+import re
+import sys
 import time
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,7 +27,17 @@ DENIED: dict[str, str] = {
     "logout": "would invalidate the bot token",
 }
 
+# A Bot API method name is alphanumeric, so anything else is not one. Measured,
+# without this check: /getUpdates/, /get%55pdates, /%67etUpdates and
+# /sendMessage/../getUpdates all passed the denylist and reached Telegram with
+# the denied name intact. The denylist names the dangerous methods; it cannot
+# also answer for every spelling that resolves to them, so the shape is checked
+# separately. This constrains the characters a method name may contain and
+# nothing about which methods pass, so the denylist decision stands.
+METHOD_NAME = re.compile(r"[A-Za-z][A-Za-z0-9]*\Z")
+
 FORWARD_TIMEOUT = 30.0
+IDLE_TIMEOUT = 120.0
 
 
 def _envelope(code: int, description: str) -> bytes:
@@ -46,6 +58,7 @@ def _decoded(raw: bytes) -> Any:
 
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    timeout = IDLE_TIMEOUT
     server: "ProxyServer"
 
     def do_GET(self) -> None:
@@ -54,17 +67,27 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         method, _, query = self.path.lstrip("/").partition("?")
+        if "Transfer-Encoding" in self.headers:
+            # A chunked body carries no Content-Length, so it reads as empty and
+            # would be forwarded as a send with no fields — which Telegram
+            # answers by naming the fields it is missing, for a message the agent
+            # believes it sent. Refuse rather than forward a body that is not
+            # there.
+            self._refuse(411, method, "send a body with Content-Length; a chunked "
+                                      "body cannot be forwarded")
+            return
         length = int(self.headers.get("Content-Length") or 0)
         self._forward(method, query, self.rfile.read(length),
                       self.headers.get("Content-Type", ""))
 
     def _forward(self, method: str, query: str, body: bytes, content_type: str) -> None:
         session = self.headers.get("X-Session-Id")
+        if not METHOD_NAME.match(method):
+            self._refuse(400, method, "not a Bot API method name")
+            return
         denial = DENIED.get(method.lower())
         if denial is not None:
-            self.server.log.append({"kind": "denied", "session": session,
-                                    "method": method, "reason": denial})
-            self._answer(403, _envelope(403, denial))
+            self._refuse(403, method, denial)
             return
 
         started = time.monotonic()
@@ -85,6 +108,12 @@ class _Handler(BaseHTTPRequestHandler):
             "status": answer.status, "response": _decoded(answer.body),
         })
         self._answer(answer.status, answer.body, answer.content_type)
+
+    def _refuse(self, code: int, method: str, reason: str) -> None:
+        """Log and answer without forwarding. Every refusal takes this path."""
+        self.server.log.append({"kind": "denied", "session": self.headers.get("X-Session-Id"),
+                                "method": method, "reason": reason})
+        self._answer(code, _envelope(code, reason))
 
     def _answer(self, status: int, body: bytes, content_type: str = "") -> None:
         self.send_response(status)
@@ -109,3 +138,17 @@ class ProxyServer(ThreadingHTTPServer):
         self.api_base = api_base
         self.token = token
         self.faults = ErrorTransitions(log, "forward")
+
+    def handle_error(self, request: object, client_address: object) -> None:
+        """Record a handler that raised, where everyone is already looking.
+
+        Its answer to the caller is lost either way and this server's stderr is
+        read by nobody. Not fatal, unlike the drain's equivalent: a dropped send
+        is the caller's to retry and it sees the broken connection, while a
+        dropped update is gone for good.
+        """
+        error = sys.exception()
+        try:
+            self.faults.failed(f"handler:{type(error).__name__}", repr(error))
+        except OSError:
+            super().handle_error(request, client_address)  # the log is what failed
