@@ -97,7 +97,7 @@ visible and the records after it stay readable.
 - Create: `src/claude_config/telegram_hitl/log.py`
 - Test: `tests/test_telegram_hitl_state.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/test_telegram_hitl_state.py`:
 
@@ -317,12 +317,12 @@ def test_concurrent_reporters_log_one_transition_per_episode(tmp_path) -> None:
     assert sum(r.get("occurrences", 0) for r in records) == 480
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_state.py -q`
 Expected: collection error — `ModuleNotFoundError: No module named 'claude_config.telegram_hitl'`
 
-- [ ] **Step 3: Write the package and `config.py`**
+- [x] **Step 3: Write the package and `config.py`**
 
 Create `src/claude_config/telegram_hitl/__init__.py` as an empty file.
 
@@ -403,7 +403,7 @@ def token() -> str:
     raise RuntimeError(f"TELEGRAM_BOT_TOKEN is not in the environment or in {path}")
 ```
 
-- [ ] **Step 4: Run the tests to verify the failure has moved**
+- [x] **Step 4: Run the tests to verify the failure has moved**
 
 The test module imports `log` at the top, so nothing in it can run until Step 5.
 This step confirms `config` is no longer what is missing.
@@ -411,7 +411,7 @@ This step confirms `config` is no longer what is missing.
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_state.py -q 2>&1 | tail -3`
 Expected: collection error naming `claude_config.telegram_hitl.log`, not `config`
 
-- [ ] **Step 5: Write `log.py`**
+- [x] **Step 5: Write `log.py`**
 
 Create `src/claude_config/telegram_hitl/log.py`:
 
@@ -503,12 +503,12 @@ class ErrorTransitions:
         self._count = 0
 ```
 
-- [ ] **Step 6: Run the whole file to verify it passes**
+- [x] **Step 6: Run the whole file to verify it passes**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_state.py -q`
 Expected: 15 passed
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd /root/claude-config-work2
@@ -536,7 +536,7 @@ MSG
 - Create: `tests/conftest.py`
 - Test: `tests/test_telegram_hitl_forwarding.py`
 
-- [ ] **Step 1: Write the fake Bot API fixture**
+- [x] **Step 1: Write the fake Bot API fixture**
 
 Create `tests/conftest.py`:
 
@@ -673,7 +673,7 @@ def http_call():
     return call
 ```
 
-- [ ] **Step 2: Write the failing forwarder tests**
+- [x] **Step 2: Write the failing forwarder tests**
 
 Create `tests/test_telegram_hitl_forwarding.py`:
 
@@ -918,12 +918,12 @@ def test_concurrent_senders_all_succeed_and_are_all_logged(proxy, http_call) -> 
     assert {r["params"]["text"] for r in records} == {f"q{n}" for n in range(10)}
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_forwarding.py -q`
 Expected: collection error — `ModuleNotFoundError: No module named 'claude_config.telegram_hitl.server'`
 
-- [ ] **Step 4: Write `upstream.py`**
+- [x] **Step 4: Write `upstream.py`**
 
 Create `src/claude_config/telegram_hitl/upstream.py`:
 
@@ -980,7 +980,7 @@ def call(api_base: str, token: str, method: str, *, verb: str = "POST", query: s
         raise urllib.error.URLError(error) from error
 ```
 
-- [ ] **Step 5: Write `server.py`**
+- [x] **Step 5: Write `server.py`**
 
 Create `src/claude_config/telegram_hitl/server.py`:
 
@@ -1141,18 +1141,18 @@ class ProxyServer(ThreadingHTTPServer):
             super().handle_error(request, client_address)  # the log is what failed
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_forwarding.py -q`
 Expected: 21 passed
 
-- [ ] **Step 7: Check the new conftest did not disturb the existing suite**
+- [x] **Step 7: Check the new conftest did not disturb the existing suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
 Expected: `365 passed` — 329 in the suite before this work, plus 15 from Task 1
 and 21 from Task 2
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 cd /root/claude-config-work2
@@ -1177,7 +1177,7 @@ MSG
 - Create: `src/claude_config/telegram_hitl/drain.py`
 - Test: `tests/test_telegram_hitl_drain.py`
 
-- [ ] **Step 1: Write the failing drain tests**
+- [x] **Step 1: Write the failing drain tests**
 
 Create `tests/test_telegram_hitl_drain.py`:
 
@@ -1423,12 +1423,12 @@ def test_a_persisted_offset_is_resumed(tmp_path, fake_telegram) -> None:
     assert fake_telegram.requests[0].payload["offset"] == 77
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_drain.py -q`
 Expected: collection error — `ImportError: cannot import name 'drain'`
 
-- [ ] **Step 3: Write `drain.py`**
+- [x] **Step 3: Write `drain.py`**
 
 Create `src/claude_config/telegram_hitl/drain.py`:
 
@@ -1548,12 +1548,12 @@ def _pause(stop: threading.Event, backoff: float, cap: float) -> float:
     return min(backoff * 2, cap)
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_drain.py -q`
 Expected: 8 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /root/claude-config-work2
@@ -1576,7 +1576,7 @@ MSG
 - Create: `src/claude_config/telegram_hitl/__main__.py`
 - Test: `tests/test_telegram_hitl_process.py`
 
-- [ ] **Step 1: Write the failing process tests**
+- [x] **Step 1: Write the failing process tests**
 
 Create `tests/test_telegram_hitl_process.py`:
 
@@ -1835,12 +1835,12 @@ def test_a_misconfigured_token_stops_the_process_loudly(launch, tmp_path, conten
     assert named in process.stderr.read()
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_process.py -q 2>&1 | tail -5`
 Expected: failures — `No module named claude_config.telegram_hitl.__main__`
 
-- [ ] **Step 3: Write `__main__.py`**
+- [x] **Step 3: Write `__main__.py`**
 
 Create `src/claude_config/telegram_hitl/__main__.py`:
 
@@ -1948,18 +1948,18 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_process.py -q`
 Expected: 9 passed
 
-- [ ] **Step 5: Run the whole suite**
+- [x] **Step 5: Run the whole suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
 Expected: `382 passed` — 329 before this work, plus 15, 21, 8 and 9. Task 5 adds
 the last 16, for 398.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /root/claude-config-work2
@@ -1988,7 +1988,7 @@ that drifts.
 - Create: `skills/telegram-hitl/SKILL.md`
 - Test: `tests/test_telegram_hitl_skill.py`
 
-- [ ] **Step 1: Write the failing recipe tests**
+- [x] **Step 1: Write the failing recipe tests**
 
 Create `tests/test_telegram_hitl_skill.py`:
 
@@ -2139,12 +2139,12 @@ def test_the_skill_still_carries_every_trap_that_cost_time(trap) -> None:
     assert trap in SKILL.read_text()
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_skill.py -q 2>&1 | tail -3`
 Expected: 16 failed — `FileNotFoundError` on `skills/telegram-hitl/SKILL.md`
 
-- [ ] **Step 3: Write the skill**
+- [x] **Step 3: Write the skill**
 
 Create `skills/telegram-hitl/SKILL.md`:
 
@@ -2405,12 +2405,12 @@ Each of these cost real time to find.
   log means exactly this has happened.
 ````
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_skill.py -q`
 Expected: 16 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /root/claude-config-work2
@@ -2433,7 +2433,7 @@ MSG
 - Modify: `CLAUDE.md` (the `src/claude_config/` module table)
 - Modify: `skills/CLAUDE.md` (the Subdirectories table)
 
-- [ ] **Step 1: Add the module row**
+- [x] **Step 1: Add the module row**
 
 In `CLAUDE.md`, in the `### src/claude_config/` table, after the
 `claude_config.env_context` row, add:
@@ -2442,7 +2442,7 @@ In `CLAUDE.md`, in the `### src/claude_config/` table, after the
 | `claude_config.telegram_hitl`   | Local Bot API proxy for human-in-the-loop over Telegram: one flock-guarded process owns the single `getUpdates` drain, forwards sends from any number of sessions, and appends both directions plus its own faults to one JSONL log. Design: `docs/superpowers/specs/2026-09-12-telegram-hitl-design.md` | `python -m claude_config.telegram_hitl` |
 ```
 
-- [ ] **Step 2: Add the skill row**
+- [x] **Step 2: Add the skill row**
 
 In `skills/CLAUDE.md`, in the Subdirectories table, after the `git-surgery/`
 row, add:
@@ -2451,12 +2451,12 @@ row, add:
 | `telegram-hitl/`      | Asking a human a question over Telegram and waiting hours for the answer: the local proxy, the channel log, topic choice, and the Bot API traps | When a session needs a human decision, or is reading or sending on the Telegram channel |
 ```
 
-- [ ] **Step 3: Verify no other reference needs updating**
+- [x] **Step 3: Verify no other reference needs updating**
 
 Run: `cd /root/claude-config-work2 && grep -rn "telegram" --include="*.md" -il . | grep -v docs/superpowers | grep -v node_modules`
 Expected: `CLAUDE.md`, `skills/CLAUDE.md`, `skills/telegram-hitl/SKILL.md` and nothing else
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /root/claude-config-work2
@@ -2490,7 +2490,7 @@ restructuring two tasks that are already reviewed.
 **Files:**
 - Test: `tests/test_telegram_hitl_end_to_end.py`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 Create `tests/test_telegram_hitl_end_to_end.py`:
 
@@ -2640,17 +2640,17 @@ def test_a_whole_cycle_runs_through_the_real_process(proxy_process) -> None:
             if r["kind"] == "outbound"} == {"end-to-end"}
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_end_to_end.py -q`
 Expected: 1 passed
 
-- [ ] **Step 3: Run the whole suite**
+- [x] **Step 3: Run the whole suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
 Expected: `399 passed` — 398 plus this one.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /root/claude-config-work2
@@ -2664,7 +2664,7 @@ Not a test: it needs the real token, the real group, and a human at a phone. Run
 it once, at the end. Until this branch merges, substitute the worktree path for
 `/repos/claude-config` in the `--project` flag.
 
-- [ ] **Step 1: Confirm nothing else is polling**
+- [x] **Step 1: Confirm nothing else is polling**
 
 The invariant is exactly one drain, and a newcomer seizes the stream rather than
 being refused. The first-party `telegram` plugin and `telegram-bot-skill` each
@@ -2673,7 +2673,7 @@ start their own poller.
 Run: `pgrep -af "telegram|bridge" | grep -v pgrep`
 Expected: no output. If anything is listed, stop it before continuing.
 
-- [ ] **Step 2: Record the chat id**
+- [x] **Step 2: Record the chat id**
 
 ```bash
 mkdir -p ~/.claude/channels/telegram-hitl
@@ -2684,7 +2684,7 @@ That is `claude-channel-group`, verified as a forum with the bot holding
 `can_manage_topics`. If Topics is ever re-enabled on a fresh group the id
 changes — follow `migrate_to_chat_id`.
 
-- [ ] **Step 3: Start the proxy**
+- [x] **Step 3: Start the proxy**
 
 ```bash
 UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/claude-config \
@@ -2695,7 +2695,7 @@ agent-tools run --background --desc "telegram-hitl proxy" \
 Expected: a capture directory and pids. The capture's `output` holds one line:
 `telegram-hitl: 127.0.0.1:18420 -> /root/.claude/channels/telegram-hitl/channel.jsonl`
 
-- [ ] **Step 4: Confirm the bot answers and the denylist bites**
+- [x] **Step 4: Confirm the bot answers and the denylist bites**
 
 ```bash
 curl -s http://127.0.0.1:18420/getMe
@@ -2704,7 +2704,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18420/getUpdates
 
 Expected: `"username":"claude_channel_bot"` in the first, `403` from the second.
 
-- [ ] **Step 5: Confirm the chat is still a forum**
+- [x] **Step 5: Confirm the chat is still a forum**
 
 ```bash
 curl -s "http://127.0.0.1:18420/getChat?chat_id=$(cat ~/.claude/channels/telegram-hitl/chat_id)" \
@@ -2713,7 +2713,7 @@ curl -s "http://127.0.0.1:18420/getChat?chat_id=$(cat ~/.claude/channels/telegra
 
 Expected: `supergroup True`
 
-- [ ] **Step 6: Create a topic and ask a question**
+- [x] **Step 6: Create a topic and ask a question**
 
 ```bash
 CHAT=$(cat ~/.claude/channels/telegram-hitl/chat_id)
@@ -2730,9 +2730,9 @@ curl -s -X POST http://127.0.0.1:18420/sendMessage \
 Expected: a thread id, then a message id. The message appears in the group under
 its own topic.
 
-- [ ] **Step 7: Reply from the phone, as a reply to that message**
+- [x] **Step 7: Reply from the phone, as a reply to that message**
 
-- [ ] **Step 8: Confirm the answer is in the log, self-describing**
+- [x] **Step 8: Confirm the answer is in the log, self-describing**
 
 ```bash
 python3 -c '
@@ -2754,7 +2754,7 @@ for line in open(path, "rb"):
 Expected: one line per inbound message, the reply showing `is_topic True`, the
 thread from Step 5, and `replies_to` equal to the message id from Step 5.
 
-- [ ] **Step 9: Acknowledge it, and remove the smoke-test topic**
+- [x] **Step 9: Acknowledge it, and remove the smoke-test topic**
 
 Both ids come out of the log, so this step needs nothing carried over from an
 earlier shell.
@@ -2795,7 +2795,7 @@ curl -s -X POST http://127.0.0.1:18420/deleteForumTopic \
 Expected: the thread and reply ids, then `{"ok":true,"result":true}` twice. The
 reaction is visible on the phone before the topic goes.
 
-- [ ] **Step 10: Confirm the channel reports itself healthy, then stop it**
+- [x] **Step 10: Confirm the channel reports itself healthy, then stop it**
 
 ```bash
 grep -c '"kind": "fault"' ~/.claude/channels/telegram-hitl/channel.jsonl
