@@ -2298,10 +2298,11 @@ def inbound_state(records, failing_for=180.0):
 
     A drain fault younger than `failing_for` seconds still reads as up, because
     one failed poll is ordinary — Telegram resets a long poll and the next one
-    succeeds. Measured live: a connection reset cleared 26 seconds later, having
-    happened once, while a waiter that gave up the moment it appeared abandoned
-    an answer that was still coming. A stopped proxy is never a blip, however
-    recent.
+    succeeds. Measured live: two connection resets in a seven-minute run, each
+    having happened once and cleared within 27 seconds, while a waiter that gave
+    up the moment it saw one abandoned an answer that was still coming. Three
+    minutes therefore forgives the routine case and still notices a genuinely
+    dead channel quickly. A stopped proxy is never a blip, however recent.
     """
     state, since = "down: never started", None
     for record in records:
