@@ -1,5 +1,6 @@
 """The skill's recipes are executable, so they get executed here."""
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -80,22 +81,35 @@ def test_the_topic_registry_is_reconstructed_from_the_log() -> None:
 
 
 def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> None:
-    """The whole point of logging faults: silence has two causes."""
+    """The whole point of logging faults: silence has two causes. A single
+    failed poll is not one of them — measured live, one cleared 26 seconds
+    later, and treating it as a dead channel abandoned an answer still coming.
+    """
     inbound_state = _recipe("health")["inbound_state"]
-    started = [{"kind": "proxy", "event": "started"}]
-    quiet = started + [{"kind": "inbound", "update": {}}]
-    stolen = quiet + [{"kind": "fault", "source": "drain", "state": "failing",
-                       "signature": "getUpdates:http409"}]
+    now = datetime.now(UTC)
+
+    def at(seconds_ago: float) -> str:
+        return (now - timedelta(seconds=seconds_ago)).isoformat()
+
+    started = [{"ts": at(600), "kind": "proxy", "event": "started"}]
+    quiet = started + [{"ts": at(500), "kind": "inbound", "update": {}}]
+    blip = quiet + [{"ts": at(5), "kind": "fault", "source": "drain",
+                     "state": "failing", "signature": "getUpdates:URLError"}]
+    stuck = quiet + [{"ts": at(900), "kind": "fault", "source": "drain",
+                      "state": "failing", "signature": "getUpdates:http409"}]
 
     assert inbound_state([]) == "down: never started"
     assert inbound_state(quiet) == "up"
-    assert inbound_state(stolen) == "down: getUpdates:http409"
-    assert inbound_state(stolen + [{"kind": "fault", "source": "drain",
-                                    "state": "cleared",
-                                    "signature": "getUpdates:http409"}]) == "up"
-    assert inbound_state(started + [{"kind": "proxy", "event": "stopped",
+    assert inbound_state(blip) == "up"
+    assert inbound_state(stuck) == "down: getUpdates:http409"
+    assert inbound_state(blip + [{"ts": at(1), "kind": "fault", "source": "drain",
+                                  "state": "cleared",
+                                  "signature": "getUpdates:URLError"}]) == "up"
+    # a stopped proxy is not a blip, however recently it stopped
+    assert inbound_state(started + [{"ts": at(2), "kind": "proxy", "event": "stopped",
                                      "reason": "SIGTERM"}]) == "down: SIGTERM"
-    assert inbound_state(quiet + [{"kind": "fault", "source": "forward",
+    # a failed send says nothing about whether answers are arriving
+    assert inbound_state(quiet + [{"ts": at(900), "kind": "fault", "source": "forward",
                                    "state": "failing",
                                    "signature": "forward:URLError"}]) == "up"
 

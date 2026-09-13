@@ -1995,6 +1995,7 @@ Create `tests/test_telegram_hitl_skill.py`:
 ```python
 """The skill's recipes are executable, so they get executed here."""
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -2075,22 +2076,35 @@ def test_the_topic_registry_is_reconstructed_from_the_log() -> None:
 
 
 def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> None:
-    """The whole point of logging faults: silence has two causes."""
+    """The whole point of logging faults: silence has two causes. A single
+    failed poll is not one of them — measured live, one cleared 26 seconds
+    later, and treating it as a dead channel abandoned an answer still coming.
+    """
     inbound_state = _recipe("health")["inbound_state"]
-    started = [{"kind": "proxy", "event": "started"}]
-    quiet = started + [{"kind": "inbound", "update": {}}]
-    stolen = quiet + [{"kind": "fault", "source": "drain", "state": "failing",
-                       "signature": "getUpdates:http409"}]
+    now = datetime.now(UTC)
+
+    def at(seconds_ago: float) -> str:
+        return (now - timedelta(seconds=seconds_ago)).isoformat()
+
+    started = [{"ts": at(600), "kind": "proxy", "event": "started"}]
+    quiet = started + [{"ts": at(500), "kind": "inbound", "update": {}}]
+    blip = quiet + [{"ts": at(5), "kind": "fault", "source": "drain",
+                     "state": "failing", "signature": "getUpdates:URLError"}]
+    stuck = quiet + [{"ts": at(900), "kind": "fault", "source": "drain",
+                      "state": "failing", "signature": "getUpdates:http409"}]
 
     assert inbound_state([]) == "down: never started"
     assert inbound_state(quiet) == "up"
-    assert inbound_state(stolen) == "down: getUpdates:http409"
-    assert inbound_state(stolen + [{"kind": "fault", "source": "drain",
-                                    "state": "cleared",
-                                    "signature": "getUpdates:http409"}]) == "up"
-    assert inbound_state(started + [{"kind": "proxy", "event": "stopped",
+    assert inbound_state(blip) == "up"
+    assert inbound_state(stuck) == "down: getUpdates:http409"
+    assert inbound_state(blip + [{"ts": at(1), "kind": "fault", "source": "drain",
+                                  "state": "cleared",
+                                  "signature": "getUpdates:URLError"}]) == "up"
+    # a stopped proxy is not a blip, however recently it stopped
+    assert inbound_state(started + [{"ts": at(2), "kind": "proxy", "event": "stopped",
                                      "reason": "SIGTERM"}]) == "down: SIGTERM"
-    assert inbound_state(quiet + [{"kind": "fault", "source": "forward",
+    # a failed send says nothing about whether answers are arriving
+    assert inbound_state(quiet + [{"ts": at(900), "kind": "fault", "source": "forward",
                                    "state": "failing",
                                    "signature": "forward:URLError"}]) == "up"
 
@@ -2266,23 +2280,43 @@ agent-tools run --background --desc "await human" python3 <your-scratchpad>/wait
 It needs nothing but the standard library, so it runs under plain `python3`.
 
 A waiter that only looks for an answer cannot tell *no answer yet* from *the
-channel is down*. Check both:
+channel is down*. Check both — but do not abandon a wait on the first fault you
+see. A failed poll is ordinary, and the recipe below already forgives a recent
+one; only a fault that persists means the channel needs you.
 
 <!-- recipe: health -->
 ```python
-def inbound_state(records):
+from datetime import UTC, datetime
+
+
+def inbound_state(records, failing_for=180.0):
     """"up", or "down: <cause>" — whether a human's answer can still reach you.
 
-    Silence has two causes and they demand opposite responses: keep waiting, or
-    go fix the channel. Only drain faults are decisive here; a failed send says
-    nothing about whether answers are arriving.
+    Silence has two causes wanting opposite responses: keep waiting, or go fix
+    the channel. Only drain faults are decisive here; a failed send says nothing
+    about whether answers are arriving.
+
+    A drain fault younger than `failing_for` seconds still reads as up, because
+    one failed poll is ordinary — Telegram resets a long poll and the next one
+    succeeds. Measured live: a connection reset cleared 26 seconds later, having
+    happened once, while a waiter that gave up the moment it appeared abandoned
+    an answer that was still coming. A stopped proxy is never a blip, however
+    recent.
     """
-    state = "down: never started"
+    state, since = "down: never started", None
     for record in records:
         if record["kind"] == "proxy":
             state = "up" if record["event"] == "started" else "down: " + record["reason"]
+            since = None
         elif record["kind"] == "fault" and record["source"] == "drain":
-            state = "up" if record["state"] == "cleared" else "down: " + record["signature"]
+            if record["state"] == "cleared":
+                state, since = "up", None
+            else:
+                state, since = "down: " + record["signature"], record["ts"]
+    if since is not None:
+        age = (datetime.now(UTC) - datetime.fromisoformat(since)).total_seconds()
+        if age < failing_for:
+            return "up"
     return state
 ```
 
@@ -2361,6 +2395,10 @@ Each of these cost real time to find.
   a stored chat id as stable.
 - **Reading a file under append needs care in Python**, which yields a partial
   final line where a shell `read` loop does not. Use the reader above.
+- **A human replying as an anonymous group admin arrives as
+  `GroupAnonymousBot`**, not under their own name. The answer still correlates
+  through `reply_to_message`, so nothing breaks — but `from` will not tell you
+  who answered, and you should not claim it does.
 - **Never start another poller.** The first-party `telegram` plugin and
   `telegram-bot-skill` each start their own, and a newcomer does not get
   refused — it seizes the stream and kills the existing consumer. A 409 in the
@@ -2797,6 +2835,7 @@ Run after the last task, against
 | A misconfigured start fails loudly instead of presenting as a quiet channel | `test_a_misconfigured_token_stops_the_process_loudly`, `test_a_start_that_fails_is_recorded_too` |
 | The lock is the descriptor, not the file a dead process left behind | `test_a_stale_lock_file_does_not_block_a_start` |
 | A down channel is distinguishable from a slow human | `test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one`, `test_a_crashing_drain_records_why_it_stopped` |
+| A blipping channel is not mistaken for a dead one | the same test's `blip` case — found live, where one reset cleared in 26s |
 | The agent decides topics | Task 5, stated as judgement with no mechanism behind it |
 | The traps must not be lost | `test_the_skill_still_carries_every_trap_that_cost_time` |
 | The skill does not drift from what the proxy actually answers | `test_the_skill_documents_every_refusal_the_proxy_returns` |

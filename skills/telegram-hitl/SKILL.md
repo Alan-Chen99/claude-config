@@ -129,23 +129,43 @@ agent-tools run --background --desc "await human" python3 <your-scratchpad>/wait
 It needs nothing but the standard library, so it runs under plain `python3`.
 
 A waiter that only looks for an answer cannot tell *no answer yet* from *the
-channel is down*. Check both:
+channel is down*. Check both — but do not abandon a wait on the first fault you
+see. A failed poll is ordinary, and the recipe below already forgives a recent
+one; only a fault that persists means the channel needs you.
 
 <!-- recipe: health -->
 ```python
-def inbound_state(records):
+from datetime import UTC, datetime
+
+
+def inbound_state(records, failing_for=180.0):
     """"up", or "down: <cause>" — whether a human's answer can still reach you.
 
-    Silence has two causes and they demand opposite responses: keep waiting, or
-    go fix the channel. Only drain faults are decisive here; a failed send says
-    nothing about whether answers are arriving.
+    Silence has two causes wanting opposite responses: keep waiting, or go fix
+    the channel. Only drain faults are decisive here; a failed send says nothing
+    about whether answers are arriving.
+
+    A drain fault younger than `failing_for` seconds still reads as up, because
+    one failed poll is ordinary — Telegram resets a long poll and the next one
+    succeeds. Measured live: a connection reset cleared 26 seconds later, having
+    happened once, while a waiter that gave up the moment it appeared abandoned
+    an answer that was still coming. A stopped proxy is never a blip, however
+    recent.
     """
-    state = "down: never started"
+    state, since = "down: never started", None
     for record in records:
         if record["kind"] == "proxy":
             state = "up" if record["event"] == "started" else "down: " + record["reason"]
+            since = None
         elif record["kind"] == "fault" and record["source"] == "drain":
-            state = "up" if record["state"] == "cleared" else "down: " + record["signature"]
+            if record["state"] == "cleared":
+                state, since = "up", None
+            else:
+                state, since = "down: " + record["signature"], record["ts"]
+    if since is not None:
+        age = (datetime.now(UTC) - datetime.fromisoformat(since)).total_seconds()
+        if age < failing_for:
+            return "up"
     return state
 ```
 
@@ -224,6 +244,10 @@ Each of these cost real time to find.
   a stored chat id as stable.
 - **Reading a file under append needs care in Python**, which yields a partial
   final line where a shell `read` loop does not. Use the reader above.
+- **A human replying as an anonymous group admin arrives as
+  `GroupAnonymousBot`**, not under their own name. The answer still correlates
+  through `reply_to_message`, so nothing breaks — but `from` will not tell you
+  who answered, and you should not claim it does.
 - **Never start another poller.** The first-party `telegram` plugin and
   `telegram-bot-skill` each start their own, and a newcomer does not get
   refused — it seizes the stream and kills the existing consumer. A 409 in the
