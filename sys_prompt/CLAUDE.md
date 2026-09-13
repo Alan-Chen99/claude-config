@@ -243,5 +243,8 @@ Measured: 7679 → 7693 API tokens (`claude-opus-4-7`), the clone line's rewrite
 Retire or re-test when: a release renames `includeGitInstructions` or stops gating the Bash block
 by it — the tool note returns beside this section and contradicts it; `tools/Bash.md` in the next
 capture shows the block, and the case shows whether the agent still commits. When the env-context
-hook is trimmed — the snapshot goes with it. When a run shows the agent branching, asking before a
+hook is trimmed — the snapshot goes with it, and so does the `Session ID:` line the trailer rule
+reads: cc's own block never states the id, it only embeds it in the scratchpad path
+(`…/<cwd-slug>/<session id>/scratchpad`), and Bash subprocesses carry it as
+`CLAUDE_CODE_SESSION_ID`. When a run shows the agent branching, asking before a
 commit, or sweeping foreign changes in — those are what the cut clauses would have said.
