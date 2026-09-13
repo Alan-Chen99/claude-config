@@ -555,3 +555,64 @@ def test_an_attachment_carrying_no_rendered_text_still_names_itself() -> None:
     out = r.render_attachment(rec, ts="00:00:00", lineno=1)
     assert out is not None
     assert "mystery" in out
+
+
+# ── Skeleton: an attachment whose payload lives in `rendered` gets a row ─────
+
+
+def _skeleton(*records: object) -> str:
+    from claude_config.cc_pretty.render import render_skeleton
+
+    return render_skeleton(
+        [(rec, i + 1) for i, rec in enumerate(records)],
+        log_path="/tmp/x.jsonl",
+        compact_hidden=set(),
+        hidden_for_rewind=set(),
+        compaction_markers={},
+        rewind_markers={},
+        record_visible=lambda _rec: True,
+    )
+
+
+def test_skeleton_rows_an_attachment_whose_payload_is_in_rendered() -> None:
+    """2.1.269 delivers most context with `.attachment.content` empty.
+
+    The default view was taught to read `rendered`; the skeleton was not, and
+    it `continue`d on empty content -- emitting no row at all. That breaks the
+    one promise the skeleton makes (`skills/session-analysis/SKILL.md`: one
+    line per content block), and it breaks it silently, in the substrate a
+    reader uses to decide what to extract.
+    """
+    out = _skeleton(
+        _rendered_record(
+            "environment",
+            "<system-reminder>\n# Environment\nPrimary working directory: /x\n</system-reminder>",
+        )
+    )
+    assert "attach:environment" in out
+    row = next(line for line in out.splitlines() if "attach:environment" in line)
+    # The jq leaf must name where the text actually is, or extraction from the
+    # skeleton lands on the empty field.
+    assert ".rendered[].content" in row
+    assert "Primary working directory: /x" in row
+    # Scaffolding every one of them carries; it would crowd out the 50 chars
+    # that distinguish one row from the next.
+    assert "<system-reminder>" not in row
+
+
+def test_skeleton_prefers_attachment_content_when_it_is_populated() -> None:
+    rec = AttachmentRecord(
+        type="attachment",
+        attachment=AttachmentData(type="diagnostics", content="real payload here"),
+        rendered=[{"content": "conversion output"}],
+    )
+    row = next(
+        line for line in _skeleton(rec).splitlines() if "attach:diagnostics" in line
+    )
+    assert ".attachment.content" in row
+    assert "real payload here" in row
+
+
+def test_skeleton_still_omits_an_attachment_with_no_payload_anywhere() -> None:
+    rec = AttachmentRecord(type="attachment", attachment=AttachmentData(type="mystery"))
+    assert "attach:mystery" not in _skeleton(rec)

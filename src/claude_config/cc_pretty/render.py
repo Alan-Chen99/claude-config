@@ -254,6 +254,42 @@ def recovery_cmd(log_path: str, lineno: int, block_idx: int | None, leaf: str) -
             f"jq -r '.message.content[{block_idx}]{leaf}'")
 
 
+def attachment_payload(rec: Any) -> tuple[str, str]:
+    """An attachment's text and the jq leaf it lives under.
+
+    Two places hold it. `.attachment.content` is the original field; since
+    2.1.269 most subtypes leave it empty and put the text Claude Code actually
+    sent — the `<system-reminder>` verbatim — in the record-level `rendered`
+    array instead. A reader given the wrong leaf extracts nothing, so the leaf
+    travels with the text rather than being assumed by the caller.
+
+    Returns `("", "")` when neither holds anything.
+    """
+    body = rec.attachment.content
+    text = "\n\n".join(str(x) for x in body) if isinstance(body, list) else str(body or "")
+    if text:
+        return text, ".attachment.content"
+    text = "\n".join(
+        str(block.get("content", ""))
+        for block in rec.rendered
+        if block.get("content")
+    ).strip()
+    return (text, ".rendered[].content") if text else ("", "")
+
+
+def unwrap_system_reminder(text: str) -> str:
+    """The text inside a `<system-reminder>` wrapper, or the text unchanged.
+
+    The wrapper is scaffolding every delivered attachment carries; it is the
+    same 34 characters each time, so leaving it in costs the reader the part
+    that distinguishes one from another.
+    """
+    match = re.fullmatch(
+        r"<system-reminder>\s*(.*?)\s*</system-reminder>", text, re.DOTALL
+    )
+    return match.group(1) if match else text
+
+
 def legend_lines(log_path: str) -> list[str]:
     """The two hint lines documenting refs + recovery for this log source."""
     if log_path.startswith("opencode://"):
@@ -274,7 +310,8 @@ def legend_lines(log_path: str) -> list[str]:
     return [
         "# refs @L<n>[i] = line n, .message.content[i] (i=0 omitted) · "
         "leafs: thinking .thinking · text .text · ▶ .input · ◀ result .content · "
-        "◀ context .text · user .message.content · attach .attachment.content",
+        "◀ context .text · user .message.content · "
+        "attach .attachment.content or .rendered[].content",
         f"# recover: sed -n '<n>p' {log_path} | jq -r '<path>'",
     ]
 
@@ -711,11 +748,7 @@ class Renderer:
         ).strip()
         if not body:
             return f"{C.DIM}  ⊞ attachment [{atype}]{C.RESET}"
-        wrapper = re.fullmatch(
-            r"<system-reminder>\s*(.*?)\s*</system-reminder>", body, re.DOTALL
-        )
-        if wrapper:
-            body = wrapper.group(1)
+        body = unwrap_system_reminder(body)
         # Bounded by --tool-max like every other body: a reader raising it to
         # recover one truncated block expects the same reach here, and a cap
         # of its own would ignore the flag.
@@ -971,16 +1004,16 @@ def render_skeleton(
                              f'"{_preview(raw)}"')
 
         elif isinstance(rec, AttachmentRecord):
-            a = rec.attachment
-            body = a.content
-            text = ("\n\n".join(str(x) for x in body)
-                    if isinstance(body, list) else str(body or ""))
+            text, leaf = attachment_payload(rec)
             if not text:
-                continue  # nothing extractable — no skeleton line
-            emit(fmt_ref(lineno), f"attach:{a.type}",
+                continue  # nothing extractable anywhere — no skeleton line
+            # Size measures what the leaf yields, since that is what the reader
+            # is budgeting to extract; the preview drops the wrapper, since
+            # that is what the reader is reading the row to tell apart.
+            emit(fmt_ref(lineno), f"attach:{rec.attachment.type}",
                  f"{_tok(text)}~tok",
-                 ".attachment.content",
-                 f'"{_preview(text)}"')
+                 leaf,
+                 f'"{_preview(unwrap_system_reminder(text))}"')
 
         elif isinstance(rec, SystemRecord):
             if rec.subtype == "compact_boundary":
