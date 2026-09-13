@@ -166,31 +166,6 @@ def _require_str(payload: Mapping[str, object], field: str) -> str:
     return value
 
 
-def _optional_str(payload: Mapping[str, object], field: str) -> str | None:
-    """model, checked the same way _require_str checks cwd and session_id,
-    minus the requiredness: absence is a normal, expected case here (print
-    mode never carries a model at all -- see the design spec's "Hook input
-    and wiring"), not a contract violation, so it is the one branch this
-    function takes quietly where _require_str would raise.
-
-    A present value that is not a string is exactly the same contract
-    violation _require_str's wrong-type branch catches, and is just as
-    loud: measured, a payload carrying {"model": {"id": "x"}} used to
-    render as " - You are powered by the model {'id': 'x'}" -- a Python
-    repr inside the prompt -- because the old `cast("str | None", ...)`
-    performs no runtime check at all. cast() only tells the type checker
-    what to assume; it does nothing at runtime, so the one payload field
-    that skipped _require_str was also the one field with no actual check.
-    """
-    if field not in payload or payload[field] is None:
-        return None
-    value = payload[field]
-    if not isinstance(value, str):
-        raise SystemExit(
-            f"SessionStart payload field {field!r} is {type(value).__name__}, "
-            + "expected str; Claude Code's hook contract may have changed"
-        )
-    return value
 
 
 def main() -> int:
@@ -208,10 +183,7 @@ def main() -> int:
         "cwd": cwd,
         "is_git_repo": is_git_repo,
         "worktree_common_dir": environment.worktree_common_dir(cwd),
-        "platform": environment.platform_name(),
         "shell": resolved_shell(),
-        "os_version": environment.os_version(),
-        "model": _optional_str(payload, "model"),
         "session_id": session_id,
         "scratchpad": scratchpad_or_none(cwd, session_id),
         "drift_note": drift_note(),

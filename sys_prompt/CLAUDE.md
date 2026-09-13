@@ -56,6 +56,14 @@ system prompt reads half of what the model is told. Nothing here pins that half:
 `scripts/check-prompt-upstream.py` covers passages borrowed from the system prompt, and a
 reminder upstream rewords lands unreviewed.
 
+A `/compact` turn runs under this prompt, not the stock one. 2.1.247's notes fix that for
+`--agent` sessions and say nothing about `--system-prompt-file`, so it was an open question
+until measured: the compaction request captured through the proxy on 2026-09-13 carries a
+`system[2]` of 24,613 characters, byte-identical to `alan-default-next.md` after stripping, the
+same as every ordinary turn in that session. Every rule here therefore applies to the summary
+turn as well — which matters, because a summary written under the stock prompt would silently
+drop all of them and the summary is what the next context window is built from.
+
 A release therefore needs a rebase rather than a diff: for each thing upstream changed, adopt it,
 adapt it, or keep diverging on purpose — and write down which, because the next reader cannot tell
 a considered divergence from an unnoticed one.
@@ -235,9 +243,9 @@ Retire or re-test when: a release renames `includeGitInstructions` or stops gati
 by it — the tool note returns beside this section and contradicts it. No capture will show that:
 `capture.py` passes `--setting-sources project,local` and `settings.json` installs as user
 settings, so `tools/Bash.md` carries the block either way. Read a live session's own Bash
-description instead; the case shows whether the agent still commits. When the env-context
-hook is trimmed — the snapshot goes with it, and so does the `Session ID:` line the trailer rule
-reads: cc's own block never states the id, it only embeds it in the scratchpad path
-(`…/<cwd-slug>/<session id>/scratchpad`), and Bash subprocesses carry it as
-`CLAUDE_CODE_SESSION_ID`. When a run shows the agent branching, asking before a
+description instead; the case shows whether the agent still commits. The hook was trimmed on 2026-09-13 and the
+`Session ID:` line the trailer rule reads survived it — being unique to the hook is what kept it,
+since cc's own block never states the id, only embedding it in the scratchpad path
+(`…/<cwd-slug>/<session id>/scratchpad`). Retire this clause if that line ever goes; Bash
+subprocesses would still carry the id as `CLAUDE_CODE_SESSION_ID`, but no text would say so. When a run shows the agent branching, asking before a
 commit, or sweeping foreign changes in — those are what the cut clauses would have said.

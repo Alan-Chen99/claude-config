@@ -247,18 +247,6 @@ def test_git_timeout_is_2_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
     assert environment.is_git_repo("/tmp") is False
 
 
-def test_os_version_returns_nonempty_string() -> None:
-    result = environment.os_version()
-    assert isinstance(result, str)
-    assert result != ""
-
-
-def test_platform_name_returns_nonempty_string() -> None:
-    result = environment.platform_name()
-    assert isinstance(result, str)
-    assert result != ""
-
-
 def test_tmp_root_prefers_env(tmp_path: Path) -> None:
     assert scratchpad.tmp_root({"CLAUDE_CODE_TMPDIR": str(tmp_path)}) == str(tmp_path)
 
@@ -505,10 +493,7 @@ def _facts(**overrides: object) -> render.Facts:
         "cwd": "/root/claude-config-work",
         "is_git_repo": True,
         "worktree_common_dir": None,
-        "platform": "linux",
         "shell": "/bin/bash",
-        "os_version": "Linux 6.18.7",
-        "model": "claude-opus-5",
         "session_id": "abc-123",
         "scratchpad": "/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad",
         "drift_note": None,
@@ -522,19 +507,30 @@ def _facts(**overrides: object) -> render.Facts:
 
 def test_env_block_has_expected_bullets() -> None:
     text = render.sections(_facts())
-    assert text.startswith("# Environment\nYou have been invoked in the following environment: \n")
-    assert " - Primary working directory: /root/claude-config-work" in text
-    assert " - Is a git repository: true" in text
-    assert " - Platform: linux" in text
-    assert " - Shell: /bin/bash" in text
-    assert " - OS Version: Linux 6.18.7" in text
-    assert " - You are powered by the model claude-opus-5" in text
+    assert text.startswith(
+        "# Environment (supplement)\n"
+        "Facts and rules Claude Code's own environment block does not carry:\n"
+    )
+    assert " - Shell the Bash tool runs: /bin/bash" in text
     assert " - Session ID: abc-123" in text
 
 
-def test_model_line_omitted_when_absent() -> None:
-    text = render.sections(_facts(model=None))
+def test_the_block_states_nothing_cc_already_states() -> None:
+    """The five bullets dropped on 2026-09-13, kept out by name.
+
+    Each is stated unconditionally in cc's own environment attachment, so
+    re-emitting it gave the session two copies -- and for `Shell:`, two copies
+    that disagree. Asserting absence is the only way to notice one creeping
+    back, since nothing else here would fail if it did.
+    """
+    text = render.sections(_facts())
+    assert "Primary working directory" not in text
+    assert "Is a git repository" not in text
+    assert "Platform:" not in text
+    assert "OS Version" not in text
     assert "powered by the model" not in text
+    # `Shell:` unqualified is cc's spelling; this block must not use it.
+    assert " - Shell:" not in text
 
 
 def test_worktree_lines_present_only_in_a_worktree() -> None:
@@ -544,7 +540,7 @@ def test_worktree_lines_present_only_in_a_worktree() -> None:
     linked = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
     # Not .../.git: the common-dir's trailing .git names the git directory,
     # not the checkout an agent should read or run commands in.
-    assert " - This is a git worktree of /repos/claude-config." in linked
+    assert " - The checkout this worktree belongs to is /repos/claude-config:" in linked
     assert "git stash" in linked
 
 
@@ -557,7 +553,7 @@ def test_worktree_line_names_bare_main_unchanged() -> None:
     the latter should be stripped to its parent.
     """
     text = render.sections(_facts(worktree_common_dir="/repos/bare-repo.git"))
-    assert " - This is a git worktree of /repos/bare-repo.git." in text
+    assert " - The checkout this worktree belongs to is /repos/bare-repo.git:" in text
 
 
 def test_scratchpad_section_names_the_path() -> None:
@@ -571,11 +567,6 @@ def test_drift_note_appears_as_a_bullet() -> None:
     assert " - NOTE: Claude Code 2.1.240 changed its env block." in text
 
 
-def test_git_repo_false_renders_lowercase() -> None:
-    text = render.sections(_facts(is_git_repo=False))
-    assert " - Is a git repository: false" in text
-
-
 def test_scratchpad_section_omitted_when_unavailable() -> None:
     """An uncreatable scratchpad must cost the section, not the whole block."""
     text = render.sections(_facts(scratchpad=None))
@@ -585,14 +576,14 @@ def test_scratchpad_section_omitted_when_unavailable() -> None:
 
 
 def test_full_text_matches_snapshot_when_fully_populated() -> None:
-    """Pins bullet order, the header's trailing space, the blank line between
-    sections, and that every bullet after the header carries the ` - ` prefix
-    -- properties none of the substring assertions above pin individually.
+    """Pins bullet order, the two-line header, the blank line between sections,
+    and that every bullet after the header carries the ` - ` prefix -- properties
+    none of the substring assertions above pin individually.
     """
     text = render.sections(
         _facts(drift_note="Claude Code 2.1.240 changed its env block.")
     )
-    expected = '# Environment\nYou have been invoked in the following environment: \n - Primary working directory: /root/claude-config-work\n - Is a git repository: true\n - Platform: linux\n - Shell: /bin/bash\n - OS Version: Linux 6.18.7\n - You are powered by the model claude-opus-5\n - Session ID: abc-123\n - NOTE: Claude Code 2.1.240 changed its env block.\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
+    expected = "# Environment (supplement)\nFacts and rules Claude Code's own environment block does not carry:\n - Shell the Bash tool runs: /bin/bash\n - Session ID: abc-123\n - NOTE: Claude Code 2.1.240 changed its env block.\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given."
     assert text == expected
 
 
@@ -601,7 +592,7 @@ def test_full_text_matches_snapshot_for_worktree() -> None:
     lines' exact wording and position in the bullet order.
     """
     text = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
-    expected = '# Environment\nYou have been invoked in the following environment: \n - Primary working directory: /root/claude-config-work\n - This is a git worktree of /repos/claude-config. Run all commands from this directory and make changes only here; reading /repos/claude-config is fine, but do not edit, commit, or build there.\n - The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session\'s changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m "<unique-tag>"`, immediately capture your entry\'s SHA via `git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first.\n - Is a git repository: true\n - Platform: linux\n - Shell: /bin/bash\n - OS Version: Linux 6.18.7\n - You are powered by the model claude-opus-5\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
+    expected = '# Environment (supplement)\nFacts and rules Claude Code\'s own environment block does not carry:\n - The checkout this worktree belongs to is /repos/claude-config: reading it is fine, but do not edit, commit, or build there.\n - The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session\'s changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m "<unique-tag>"`, immediately capture your entry\'s SHA via `git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first.\n - Shell the Bash tool runs: /bin/bash\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
     assert text == expected
 
 
@@ -1465,9 +1456,9 @@ def test_hook_emits_the_envelope(tmp_path: Path) -> None:
     hook = out["hookSpecificOutput"]
     assert hook["hookEventName"] == "SessionStart"
     context = hook["additionalContext"]
-    assert "# Environment" in context
+    assert "# Environment (supplement)" in context
     assert "# Scratchpad Directory" in context
-    assert "You are powered by the model claude-opus-5" in context
+    assert "Shell the Bash tool runs: " in context
     assert "Session ID: abc-123" in context
     # This repo's manifest is pinned against the installed binary (Task 5),
     # so a real, unmocked run against it must be drift-free. An independent
@@ -1476,20 +1467,6 @@ def test_hook_emits_the_envelope(tmp_path: Path) -> None:
     # has no NOTE bullet at all, so cached_note() misreading one file as the
     # other (and failing) looked the same as a clean, no-drift run.
     assert "NOTE:" not in context
-
-
-def test_hook_omits_model_in_print_mode(tmp_path: Path) -> None:
-    payload = json.dumps(
-        {
-            "session_id": "abc-123",
-            "transcript_path": "/dev/null",
-            "cwd": str(ROOT),
-            "hook_event_name": "SessionStart",
-            "source": "startup",
-        }
-    )
-    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
-    assert "powered by the model" not in out["hookSpecificOutput"]["additionalContext"]
 
 
 def test_hook_creates_the_scratchpad(tmp_path: Path) -> None:
@@ -1609,9 +1586,9 @@ def test_main_wires_every_collaborator_into_its_own_key(
     subprocess cannot inject a fixture, so main()'s facts dict had zero
     coverage of which value lands under which key. An independent mutation
     sweep found two concrete failures of exactly this kind: shell and
-    os_version's call sites swapped (the block can report `Shell: <the OS
-    version>` / `OS Version: <the shell path>`), and, separately, deleting
-    drift_note() entirely and hardcoding "drift_note": None in main() --
+    os_version's call sites swapped, back when both were rendered, and,
+    separately, deleting drift_note() entirely and hardcoding
+    "drift_note": None in main() --
     with every subprocess test still green either way, because none of them
     assert a specific value behind any of these labels. Monkeypatching every
     collaborator to its own distinguishable sentinel and asserting each
@@ -1630,8 +1607,6 @@ def test_main_wires_every_collaborator_into_its_own_key(
     monkeypatch.setattr(
         entry.environment, "worktree_common_dir", lambda cwd: "SENTINEL-WORKTREE"
     )
-    monkeypatch.setattr(entry.environment, "platform_name", lambda: "SENTINEL-PLATFORM")
-    monkeypatch.setattr(entry.environment, "os_version", lambda: "SENTINEL-OSVER")
     monkeypatch.setattr(entry, "resolved_shell", lambda: "SENTINEL-SHELL")
     monkeypatch.setattr(
         entry, "scratchpad_or_none", lambda cwd, session_id: "SENTINEL-SCRATCHPAD"
@@ -1648,8 +1623,6 @@ def test_main_wires_every_collaborator_into_its_own_key(
     assert captured["session_id"] == "s1"
     assert captured["is_git_repo"] == "SENTINEL-GITREPO"
     assert captured["worktree_common_dir"] == "SENTINEL-WORKTREE"
-    assert captured["platform"] == "SENTINEL-PLATFORM"
-    assert captured["os_version"] == "SENTINEL-OSVER"
     assert captured["shell"] == "SENTINEL-SHELL"
     assert captured["scratchpad"] == "SENTINEL-SCRATCHPAD"
     assert captured["drift_note"] == "SENTINEL-DRIFT"
@@ -1825,59 +1798,35 @@ def test_wrong_type_session_id_exits_loudly_naming_the_contract() -> None:
     assert "Traceback" not in result.stderr
 
 
-def test_model_absent_is_accepted_by_the_type_check(tmp_path: Path) -> None:
-    """The first of the three cases _optional_str must get right: a payload
-    with no "model" key at all -- print mode's normal shape -- must render
-    cleanly with no model line, not raise.
+def test_the_payload_model_field_is_ignored_whatever_its_shape(tmp_path: Path) -> None:
+    """The hook stopped reading `model` on 2026-09-13, when the model bullet
+    went as a duplicate of cc's own richer line.
+
+    Absent, null and wrong-typed all have to render the same clean block now,
+    where absent and null used to take one branch of a type check and a
+    wrong type used to exit. Asserting all three here is what would fail if a
+    model fact were reintroduced without its parsing.
     """
-    payload = json.dumps(
-        {
-            "session_id": "abc-123",
-            "transcript_path": "/dev/null",
-            "cwd": str(ROOT),
-            "hook_event_name": "SessionStart",
-            "source": "startup",
-        }
-    )
-    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
-    context = out["hookSpecificOutput"]["additionalContext"]
-    assert "# Environment" in context
-    assert "powered by the model" not in context
+    base = {
+        "session_id": "abc-123",
+        "transcript_path": "/dev/null",
+        "cwd": str(ROOT),
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+    }
+    rendered: list[str] = []
+    for model in (..., None, "claude-opus-5", {"id": "x"}, 12345):
+        payload = dict(base) if model is ... else {**base, "model": model}
+        out = _run_hook(json.dumps(payload), {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
+        context = out["hookSpecificOutput"]["additionalContext"]
+        assert "# Environment (supplement)" in context, model
+        assert "powered by the model" not in context, model
+        rendered.append(context)
 
-
-def test_model_none_is_accepted_by_the_type_check(tmp_path: Path) -> None:
-    """The second case: an explicit JSON null must degrade the same quiet
-    way absence does, not be treated as a wrong-typed value.
-    """
-    payload = json.dumps(
-        {
-            "session_id": "abc-123",
-            "transcript_path": "/dev/null",
-            "cwd": str(ROOT),
-            "hook_event_name": "SessionStart",
-            "source": "startup",
-            "model": None,
-        }
-    )
-    out = _run_hook(payload, {"CLAUDE_CODE_TMPDIR": str(tmp_path)})
-    context = out["hookSpecificOutput"]["additionalContext"]
-    assert "# Environment" in context
-    assert "powered by the model" not in context
-
-
-def test_wrong_type_model_exits_loudly_naming_the_contract() -> None:
-    """The third case, and the one with no guard at all before this fix:
-    measured, a payload carrying {"model": {"id": "x"}} used to render
-    " - You are powered by the model {'id': 'x'}" -- a Python repr inside
-    the prompt -- instead of failing here, because the old
-    `cast("str | None", ...)` performs no runtime check at all.
-    """
-    result = _run_hook_expecting_exit(
-        json.dumps({"cwd": str(ROOT), "session_id": "s1", "model": {"id": "x"}})
-    )
-    assert result.returncode != 0
-    assert "field 'model' is dict, expected str" in result.stderr
-    assert "Traceback" not in result.stderr
+    # The invariant, stated once: the field changes nothing at all. A model
+    # fact reintroduced under any name would break this before it broke the
+    # substring assertion above.
+    assert len(set(rendered)) == 1
 
 
 def test_empty_cwd_and_session_id_degrade_quietly(tmp_path: Path) -> None:

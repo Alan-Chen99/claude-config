@@ -41,7 +41,7 @@ Ordering is load-bearing — each step's reason is why it sits where it does.
 | 5 | Re-sync the editable venv — **canonical checkout only** | from `/repos/claude-config`: `UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/claude-config uv sync --reinstall-package claude-config` | `check-env-context.sh` runs under this venv, so a stale install loads the old `drift.py`. `--reinstall-package` is required because the package version never bumps. **Run it from a worktree and it repoints the shared venv's editable install at that worktree** (`+ claude-config @ file:///root/claude-config-work2`), breaking every other session once the worktree is deleted — the same hazard as `install.sh`. A worktree has its own venv at `$HOME/.claude/venvs/<basename>`, selected by the `UV_PROJECT_ENVIRONMENT` that `.envrc` exports through direnv, so a worktree needs no step 5. |
 | 6 | Check, then re-pin, env-context | `./scripts/check-env-context.sh` → review the `+`/`-`/`~` diff → `./scripts/check-env-context.sh --update` | The diff is the single best summary of what changed in cc's own `# Environment` block. Re-pin only after reading it — `--update` overwrites the evidence. |
 | 7 | Resolve every source citation | `bash .claude/skills/update-claude-code/citecheck.sh` | 136 `chunk-*.js:LINE` citations live in tracked files; only 2 are re-derived by any test. Exit 0 = all resolve; 1 = the unresolved ones are named on stdout; 2 = no decompiled tree, i.e. step 2 was skipped. |
-| 8 | Rebase the upstream-derived prompts | `python3 scripts/check-prompt-upstream.py`, then the section-key diff it does not do | `sys_prompt/` replaces Claude Code's own system prompt wholesale and the env-context hook renders its own environment block — a second copy since 2.1.269, not a stand-in for a discarded one — so passages copied from either go stale with no signal and nothing else in this list reads prose. The replacement is not total either: Anthropic's own wording still arrives through `messages[]`, which neither this script nor anything else here reads. The script needs step 2's tree and exits 2 without it. The procedure, the deliberate divergences and the per-release log are in `sys_prompt/CLAUDE.md`, "Rebasing on an upstream release" — that text governs; this row only says when to run it. |
+| 8 | Rebase the upstream-derived prompts | `python3 scripts/check-prompt-upstream.py`, then the section-key diff it does not do | `sys_prompt/` replaces Claude Code's own system prompt wholesale and the env-context hook renders an environment block of its own — since the 2026-09-13 trim it carries only what cc's does not, and the stash caution is the one passage it still borrows — so passages copied from either go stale with no signal and nothing else in this list reads prose. The replacement is not total either: Anthropic's own wording still arrives through `messages[]`, which neither this script nor anything else here reads. The script needs step 2's tree and exits 2 without it. The procedure, the deliberate divergences and the per-release log are in `sys_prompt/CLAUDE.md`, "Rebasing on an upstream release" — that text governs; this row only says when to run it. |
 | 9 | Rebuild and test | `cd agent-tools && cargo build --release && cargo test --release`; `uv run pytest tests/ -q`; `./scripts/check-prompt-coupling.sh` | |
 | 10 | Check the renderer against real logs | `ls -t /root/.claude/projects/*/*.jsonl \| head -8 \| uv run cc-render-coverage --quiet` | New record and attachment shapes land here first. |
 | 11 | Re-capture the system-prompt snapshots | see `docs/system-prompt-snapshot/README.md` "Regenerating" | Needs an authenticated `claude` — `CLAUDE_CODE_OAUTH_TOKEN`, which Claude Code strips from tool subprocesses, or an access token in `~/.claude/.credentials.json`, which comes and goes with login state — and any checkout's venv (`mitmdump` is a project dependency; `capture.py` starts its own proxy when 9160 is dead). Never run two `regenerate.py` in parallel — they share `capture-output/` and `~/.claude/requests-log/`. |
@@ -50,7 +50,7 @@ Ordering is load-bearing — each step's reason is why it sits where it does.
 | 14 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `455 passed` / 15 cargo test binaries all `ok` /
+binary` / `OK: 14 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `449 passed` / 15 cargo test binaries all `ok` /
 `prompt coupling OK` / `8 file(s) checked: clean`.
 
 **Where to run each step.** Steps 5 and 14 repoint shared installs and belong in the
@@ -114,9 +114,10 @@ This table is the point of the skill. A green run below still leaves all of this
 `src/claude_config/env_context/` reimplements cc behaviour and must track it:
 `environment.py`: `resolve_shell` ≙ cc's `das()`, `_executable` ≙ `cbt()` (incl. the `--version` fallback that makes a bare `CLAUDE_CODE_SHELL=bash` resolve), `worktree_common_dir` ≙ `pP()`, `git_snapshot` ≙ `ADe()` (`chunk-dbb93264.js:69331-69369`: `--no-optional-locks status --short --ignore-submodules=dirty`, `log --oneline -n 5`, the 2000-character cap; it replaces the `gitStatus` reminder `includeGitInstructions: false` removes);
 `scratchpad.py:22-54` (path algorithm, incl. the 200-char slug limit past which cc appends a hash
-this module does not implement — it raises instead), `render.py:41-50` (`STASH_CAUTION` copied
-verbatim from cc's `KUt`, and pinned by `scripts/check-prompt-upstream.py` — `check-env-context.sh`
-covers the block's field set, not its wording), `drift.py:42-46` (anchor and window constants tuned to the binary layout),
+this module does not implement — it raises instead), `render.py:43-61` (`STASH_CAUTION` copied
+verbatim from cc's `KUt`, and the only passage the hook still borrows — pinned by
+`scripts/check-prompt-upstream.py`, since `check-env-context.sh` covers cc's field set, not this
+block's wording), `drift.py:42-46` (anchor and window constants tuned to the binary layout),
 `drift.py:187-208` (a timeout budget whose comment says to re-check the sum if any of the three
 numbers moves).
 
@@ -200,20 +201,9 @@ Each row is a claim in this repo that a bullet puts in doubt.
 | `settings.json:19-50` (`Notification` matchers) | Three of the 16 declared values are configured (§3.1). The three `quota_auto_resume_*` values are exactly the case the ntfy hook exists for — a session parked on a rate limit that later resumes, or silently will not — and are dropped. Retire by deciding which of the 16 deserve a push; a product decision, not a defect. |
 | `agent-tools env-context` on resume | 2.1.268 stopped `--continue`/`--resume` waiting for SessionStart hooks before rendering. Retire by confirming the env block still arrives on a resume rather than being raced past. |
 | `scripts/prompt-test-cc*.sh` | 2.1.257 made `claude -p` wait for an armed Monitor instead of exiting ~5 s after its result. No case text names Monitor (grep, 2026-09-13), but the model decides whether to arm one and neither runner bounds its `claude -p` call. Retire by bounding it. |
-| `sys_prompt/alan-default-next.md` under `/compact` | 2.1.247 fixed `/compact` summarizing under the default prompt instead of the conversation's own — for `--agent` sessions only. Whether a `--system-prompt-file` session compacts under its own prompt is unsettled, and a summary turn running under the stock prompt would silently drop every rule in `sys_prompt/`. Retire by measuring one compaction through the proxy. |
 | `src/claude_config/cc_pretty/` record handling | Three in-window shape changes: per-second subagent progress ticks now replace their predecessor rather than accumulating (2.1.251); async hook completion notices batch onto one line (2.1.257); nested background subagent results are saved into the **parent subagent's** transcript (2.1.259), which moves what a session-analysis pass finds. Retire by re-reading real logs for each. |
 
 **Open design questions, not defects**
-- Whether to trim `agent-tools env-context` to what it uniquely adds, now that 2.1.269 delivers its
-  own `# Environment` block to `--system-prompt-file` sessions too. The finding, and what stays
-  unique, are in `src/claude_config/env_context/__main__.py` and `CLAUDE.md`. Retire by trimming, or by
-  recording a reason to keep the duplicate. Removing the hook outright is the larger change of the
-  two and costs three things a replacement would have to cover, each observed in a live `claude.sh`
-  session on 2026-09-13: cc's own block reports `Shell: unknown` where the hook reports the shell
-  the Bash tool actually runs; `settings.json` sets `includeGitInstructions: false`, so nothing else
-  states git status; and the `Claude-Session` trailer rule reads the hook's `Session ID:` line
-  (`sys_prompt/CLAUDE.md`, "Retire or re-test when") — the id itself survives as
-  `CLAUDE_CODE_SESSION_ID` in Bash subprocesses, but no text would tell the model so.
 - One passage `sys_prompt/alan-default-next.md` borrowed from upstream diverges with no recorded
   reason and nothing else in the prompt covering it — the row marked **Not reviewed** under
   "Deliberate divergences" in `sys_prompt/CLAUDE.md`. It predates the 2.1.235 baseline, so the

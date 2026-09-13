@@ -15,8 +15,10 @@ stale whether the block around it is the only copy or the second one.
 
 `scripts/check-env-context.sh` covers the env block's *field set* against the
 installed binary. It does not cover the wording: it pins the stash caution as a
-182-character prefix of a 540-character copy, and does not pin the preamble at
-all. Those two are pinned here.
+182-character prefix of a 540-character copy, and the clause that matters is past
+that. The whole caution is pinned here. The hook's preamble was pinned here too
+until 2026-09-13, when the block stopped mirroring cc's and took a header of its
+own -- there is no borrowed preamble left to go stale.
 
 Each pin must appear in what its local author emits, and appear in the decompiled
 source exactly as many times as recorded:
@@ -73,7 +75,6 @@ PINS = [
     ("guidance/subagents", 1, "prompt", "tool with specialized agents when the task at hand matches the agent's description. Subagents are valuable for parallelizing independent queries or for protecting the main context window from excessive results, but they should not be used excessively when not needed. Importantly, avoid duplicating work that subagents are already doing - if you delegate research to a subagent, do not also perform the same searches yourself."),
     ("guidance/explore", 1, "prompt", "For broad codebase exploration or research that'll take more than "),
     ("guidance/skills", 1, "prompt", "Only use skills listed in the user-invocable skills section — don't guess."),
-    ("env/preamble", 1, "env-context", "You have been invoked in the following environment: "),
     ("env/stash-caution", 1, "env-context", "The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session's changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m \"<unique-tag>\"`, immediately capture your entry's SHA via `git stash list --format='%H %gs'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first."),
 ]
 

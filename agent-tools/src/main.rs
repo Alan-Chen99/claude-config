@@ -245,8 +245,9 @@ enum Cmd {
         args: Vec<String>,
     },
     /// SessionStart hook: reads the hook payload on stdin, emits the
-    /// hookSpecificOutput envelope carrying `# Environment` and
-    /// `# Scratchpad Directory`. Not usable interactively — it waits on stdin.
+    /// hookSpecificOutput envelope carrying `# Environment (supplement)`,
+    /// `# Scratchpad Directory` and `# Git status at session start`.
+    /// Not usable interactively — it waits on stdin.
     /// Run by hand with a synthetic payload:
     /// echo '{"cwd":"/path","session_id":"test"}' | agent-tools env-context
     #[command(name = "env-context")]

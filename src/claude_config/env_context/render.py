@@ -16,12 +16,21 @@ common-dir-differs-from-git-dir test `environment.worktree_common_dir` uses,
 and so speaks about hand-made worktrees too. The divergence survives the
 correction: cc's wording still names no path.
 
-2.1.269 also moved the scratchpad from a section of its own into a bullet of
-this block, and the model and knowledge-cutoff lines out of it entirely, so
-this rendering no longer mirrors cc's shape. It is left as it is pending the
-larger question `__main__`'s docstring records: cc now emits this block
-itself even under --system-prompt-file, so most of what is rendered here is
-a second copy.
+Since 2.1.269 cc emits its own environment block even under
+--system-prompt-file, so this block no longer mirrors it -- it carries only
+what cc's does not. Dropped as duplicates on 2026-09-13: the working
+directory, the is-a-git-repo flag, the platform, the OS version and the model
+line, each of which cc states unconditionally inside the attachment its
+`p$t` gate delivers.
+
+The scratchpad section stays, and is the one deliberate duplicate. cc's own
+scratchpad bullet and cc's own `mkdir` of that directory sit behind the same
+server-resolved gate -- `NA()` (`src/chunk-tnzzwz8r.js:13367`) is
+`tengu_scratch` or `isArtifactToolEligible()`, and `CWr()`
+(`src/chunk-dbb93264.js:29188`) returns early without it -- so cc's bullet can
+disappear with no change to the binary, which is the one thing
+`scripts/check-env-context.sh` watches. A gate flip would otherwise leave the
+session with no scratchpad instruction at all.
 """
 
 from __future__ import annotations
@@ -67,12 +76,9 @@ class Facts(TypedDict):
 
     cwd: str
     is_git_repo: bool
-    platform: str
     shell: str
-    os_version: str
     session_id: str
     worktree_common_dir: NotRequired[str | None]
-    model: NotRequired[str | None]
     scratchpad: NotRequired[str | None]
     drift_note: NotRequired[str | None]
     git_snapshot: NotRequired[GitSnapshot | None]
@@ -101,37 +107,37 @@ def _main_checkout(common_dir: str) -> str:
 
 
 def environment_section(facts: Facts) -> str:
-    items: list[str] = [f"Primary working directory: {facts['cwd']}"]
+    items: list[str] = []
 
     common_dir = facts.get("worktree_common_dir")
     if common_dir:
         main_checkout = _main_checkout(common_dir)
         items.append(
             (
-                f"This is a git worktree of {main_checkout}. Run all commands "
-                "from this directory and make changes only here; reading "
-                f"{main_checkout} is fine, but do not edit, commit, or build "
-                "there."
+                f"The checkout this worktree belongs to is {main_checkout}: "
+                "reading it is fine, but do not edit, commit, or build there."
             )
         )
         items.append(STASH_CAUTION)
 
-    items.append(f"Is a git repository: {str(facts['is_git_repo']).lower()}")
-    items.append(f"Platform: {facts['platform']}")
-    items.append(f"Shell: {facts['shell']}")
-    items.append(f"OS Version: {facts['os_version']}")
-
-    model = facts.get("model")
-    if model:
-        items.append(f"You are powered by the model {model}")
-
+    # Labelled, not `Shell:`, because cc's block carries a `Shell:` line of its
+    # own reporting a different quantity -- measured in a live session on
+    # 2026-09-13, cc said `unknown` where this says `/bin/bash`. Two bullets
+    # spelled the same way and disagreeing is worse than either alone.
+    items.append(f"Shell the Bash tool runs: {facts['shell']}")
     items.append(f"Session ID: {facts['session_id']}")
 
     note = facts.get("drift_note")
     if note:
         items.append(f"NOTE: {note}")
 
-    header = "# Environment\nYou have been invoked in the following environment: "
+    # Not cc's own preamble, which this block used to borrow verbatim: it no
+    # longer mirrors cc's block, and two identically-headed `# Environment`
+    # sections in one context read as a contradiction rather than an addition.
+    header = (
+        "# Environment (supplement)\n"
+        "Facts and rules Claude Code's own environment block does not carry:"
+    )
     return f"{header}\n{_bullets(items)}"
 
 
@@ -159,7 +165,7 @@ def git_status_section(snap: GitSnapshot) -> str:
 
 
 def sections(facts: Facts) -> str:
-    """The env block, plus the scratchpad section when there is a path to name.
+    """The supplement block, plus the scratchpad section when there is a path.
 
     A scratchpad that could not be created leaves `scratchpad` None. Rendering
     that into the prompt as a path would point the agent at a directory which

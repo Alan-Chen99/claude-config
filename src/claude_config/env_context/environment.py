@@ -10,10 +10,8 @@ tool, so the reported shell is the one Bash tool commands execute under.
 from __future__ import annotations
 
 import os
-import platform
 import shutil
 import subprocess
-import sys
 from collections.abc import Callable, Mapping, Sequence
 from typing import TypedDict
 
@@ -132,20 +130,6 @@ def worktree_common_dir(cwd: str) -> str | None:
     if not git_dir or not common_dir or git_dir == common_dir:
         return None
     return common_dir
-
-
-def os_version() -> str:
-    """Mirrors os.type() + ' ' + os.release() (`xWr()`,
-    chunk-dbb93264.js:29165; POSIX branch).
-    """
-    return f"{platform.system()} {platform.release()}"
-
-
-def platform_name() -> str:
-    """Node's `process.platform` and Python's `sys.platform` agree on the names
-    that matter here: `linux`, `darwin`, `win32`.
-    """
-    return sys.platform
 
 
 class GitSnapshot(TypedDict):
