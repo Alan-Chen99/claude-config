@@ -87,7 +87,7 @@ def launch(tmp_path, fake_telegram):
             process.terminate()
             try:
                 process.wait(timeout=5)
-            except subprocess.TimeExpired:
+            except subprocess.TimeoutExpired:
                 process.kill()
 
 
