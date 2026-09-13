@@ -2,7 +2,8 @@
   "cleanupPeriodDays": 36500,
   "model": "opus",
   "env": {
-    "CLAUDE_CODE_FORK_SUBAGENT": "0"
+    "CLAUDE_CODE_FORK_SUBAGENT": "0",
+    "TELEGRAM_HITL_STATE_DIR": "/home/alan/personal/telegram-hitl"
   },
   "hooks": {
     "SessionStart": [

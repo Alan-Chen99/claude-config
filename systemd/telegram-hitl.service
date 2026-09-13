@@ -1,0 +1,35 @@
+[Unit]
+Description=telegram-hitl proxy: one Bot API forwarder and update drain for every session
+Documentation=file:///home/alan/repos/claude-config/skills/telegram-hitl/SKILL.md
+
+# Five failed starts inside two minutes stop the retries and leave the unit in
+# `failed`, where `systemctl --user status` and the journal show the cause. A
+# permanent fault — no token, no venv, a second proxy holding the lock — would
+# otherwise restart every ten seconds forever and present as a channel that is
+# merely quiet.
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=exec
+
+# The state directory is written out in full rather than derived from %h. The
+# channel is shared by processes whose homes differ — this service under
+# /home/alan, each container's under /root — and a home-derived path would give
+# each of them its own lock, its own drain, and an update stream that evicts the
+# one already running. The interpreter beside it is genuinely home-local, so it
+# keeps %h.
+Environment=TELEGRAM_HITL_STATE_DIR=/home/alan/personal/telegram-hitl
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/.claude/venvs/claude-config/bin/python -m claude_config.telegram_hitl
+
+# No ordering against the network: the drain retries a failed poll on its own
+# backoff and records the fault, so a start before the link is up costs a few
+# logged retries rather than a dead channel. A user manager has no
+# network-online.target to order against in any case.
+Restart=always
+RestartSec=10
+SyslogIdentifier=telegram-hitl
+
+[Install]
+WantedBy=default.target

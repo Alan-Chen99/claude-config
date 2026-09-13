@@ -40,7 +40,23 @@ What the socket says when it does not answer:
 | Permission denied | A proxy is running under an identity yours does not share. The socket is mode 0600 like the log, so you cannot read the log either — this is a deployment fault, not something to work around. |
 | Resource temporarily unavailable | More senders are connecting at once than the accept backlog holds. A connect to a full AF_UNIX backlog fails immediately rather than waiting, so this is the one refusal worth a retry. The backlog is 128 (`server.py`, `ProxyServer.request_queue_size`), so reaching it means a burst, not a stuck proxy. |
 
-To start one:
+On a machine that has the unit, it is already running as a systemd user service
+and nothing needs starting:
+
+```bash
+systemctl --user status telegram-hitl     # up, and since when
+journalctl --user -u telegram-hitl -n 20  # why it is not
+```
+
+That unit is `systemd/telegram-hitl.service` in this repo, symlinked into
+`~/.config/systemd/user/` by `install.sh` and enabled by a human. It names the
+state directory itself, restarts ten seconds after any exit, and stops retrying
+after five failed starts inside two minutes: a unit sitting in `failed` is a
+permanent fault — no token, no interpreter, a lock held elsewhere — rather than a
+channel that is merely quiet.
+
+Where there is no such unit — another machine, a container with no user manager —
+start one by hand:
 
 ```bash
 UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/claude-config \
@@ -53,15 +69,16 @@ a `.venv` inside the canonical checkout. The proxy inherits
 `TELEGRAM_HITL_STATE_DIR` from your environment, which is what makes the one you
 start the same channel everyone else is reading.
 
-It refuses to start if another instance holds the lock, which is intended — one
-process owns the update stream, and a second consumer would evict the first. The
-lock is a file in the shared directory, so it excludes proxies in other
-containers and on the host as well as other processes in yours.
+Either way it refuses to start if another instance holds the lock, which is
+intended — one process owns the update stream, and a second consumer would evict
+the first. The lock is a file in the shared directory, so it excludes proxies in
+other containers and on the host as well as other processes in yours.
 
 Whoever wins that lock serves everybody, because the socket sits in the same
 shared directory: a proxy started from any container is reachable from all of
 them. The difference is lifetime — one started inside a container dies with that
-container, while one started on the host outlives every container.
+container, while the host's service outlives every container and returns after a
+reboot.
 
 ## Sending
 

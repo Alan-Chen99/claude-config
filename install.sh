@@ -54,6 +54,39 @@ if [ -d "$src" ]; then
     echo "linked: $dst -> $src"
 fi
 
+# Link systemd user units. Symlink only: enabling is left to a human, because a
+# unit here can need machine-local state that no install step can provide —
+# telegram-hitl.service will not start until a bot token exists at
+# ~/.claude/channels/telegram/.env. Enabling it at install time on a machine
+# without one would present as a service in `failed`.
+SYSTEMD_SRC_DIR="${REPO_DIR}/systemd"
+SYSTEMD_DST_DIR="${HOME}/.config/systemd/user"
+if [ -d "$SYSTEMD_SRC_DIR" ]; then
+    mkdir -p "$SYSTEMD_DST_DIR"
+    for unit in "${SYSTEMD_SRC_DIR}"/*.service; do
+        [ -e "$unit" ] || continue
+        dst="${SYSTEMD_DST_DIR}/$(basename "$unit")"
+
+        if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+            echo "error: $dst exists and is not a symlink -- remove it manually"
+            exit 1
+        fi
+
+        ln -sf "$unit" "$dst"
+        echo "linked: $dst -> $unit"
+    done
+
+    # Containers run no user manager, so the reload is conditional rather than
+    # assumed; the symlinks above are still worth making there, since the same
+    # $HOME may be a host bind mount.
+    if systemctl --user show-environment >/dev/null 2>&1; then
+        systemctl --user daemon-reload
+        echo "reloaded: systemd user manager (enable a unit with: systemctl --user enable --now <name>)"
+    else
+        echo "note: no systemd user manager here, skipping daemon-reload"
+    fi
+fi
+
 # Build and install agent-tools binary.
 # IMPORTANT: Only the canonical repo (/repos/claude-config) should install here.
 # Worktrees must NEVER install their build into ~/.local/bin — the symlink must

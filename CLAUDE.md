@@ -15,9 +15,9 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `pyproject.toml`          | Python project config, entry points for cc-pretty etc.      | Adding dependencies, modifying build settings |
 | `.gitignore`              | Git ignore patterns                                         | Adding new generated/temp files to ignore     |
 | `.envrc`                  | direnv environment config                                   | Modifying shell environment for development   |
-| `settings.json`           | Claude Code user settings; `includeGitInstructions` and `attribution` hand git policy to `sys_prompt/` (`sys_prompt/CLAUDE.md`, "`# Git`") | Modifying hooks, statusline, permissions, git keys |
+| `settings.json`           | Claude Code user settings; `includeGitInstructions` and `attribution` hand git policy to `sys_prompt/` (`sys_prompt/CLAUDE.md`, "`# Git`"); `env.TELEGRAM_HITL_STATE_DIR` names the Telegram channel for every session, host and container alike, because `docker_home/.claude/settings.json` symlinks to this file | Modifying hooks, statusline, permissions, git keys |
 | `statusline.sh`           | Status line script wired up via `settings.json`; its open-tasks row is `agent-tools ps --format statusline` | Customizing the in-session status line        |
-| `install.sh`              | Symlinks dirs/files into `~/.claude/`, builds `agent-tools`, puts `claude.sh` on PATH | Installing or reinstalling the config         |
+| `install.sh`              | Symlinks dirs/files into `~/.claude/` and `systemd/*.service` into `~/.config/systemd/user/`, builds `agent-tools`, puts `claude.sh` on PATH | Installing or reinstalling the config         |
 | `.env` / `.env.example`   | Unified config (NTFY URL, OpenRouter, Anthropic token-count) | Setting up secrets — see `.env.example`       |
 
 ## Subdirectories
@@ -36,6 +36,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 | `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
 | `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — read `sys_prompt/CLAUDE.md` (conciseness rule, the reasoning behind individual lines, and the upstream rebase) and `docs/background-sessions.md` first; after a Claude Code upgrade |
 | `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py`, `check-env-context.sh`, `check-prompt-upstream.py` (pins the passages `sys_prompt/` and the env-context hook borrowed from Claude Code's own prompt), `prune-scratch.sh` (frees scratch disk space), and the prompt-test runners: `prompt-test-cc.sh` (Claude Code, the standard one for `sys_prompt/`), `prompt-test-cc-downstream.sh` (feeds a run's artifact to the reader it was written for), `prompt-test-cc-leg2.sh` (sends a case's second-leg instruction into the session leg 1 left behind), `prompt-test-run.sh` (opencode) | Running or modifying utility scripts              |
+| `systemd/`         | systemd **user** units, symlinked into `~/.config/systemd/user/` by `install.sh` and enabled by hand — `telegram-hitl.service` runs the Telegram proxy | Adding a long-running service, or diagnosing one that is `failed` |
 | `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
 
 ### `agent-tools/`
@@ -191,6 +192,31 @@ Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv lo
 | `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |
 | `claude_config.env_context`     | SessionStart hook: `# Environment (supplement)`, `# Scratchpad Directory` and `# Git status at session start` — only what cc's own env block does not carry | `agent-tools env-context` |
 | `claude_config.telegram_hitl`   | Local Bot API proxy for human-in-the-loop over Telegram: one flock-guarded process owns the single `getUpdates` drain, forwards sends from any number of sessions, and appends both directions plus its own faults to one JSONL log. Lock, socket, log and offset all live in `TELEGRAM_HITL_STATE_DIR`, which is required and has no default — the directory is shared across containers whose homes differ, and a home-derived path would give each its own lock and its own drain. Sends go over `proxy.sock` in that directory rather than a port, because a port number names a different socket in every network namespace that reads it. Design: `docs/superpowers/specs/2026-09-12-telegram-hitl-design.md` | `python -m claude_config.telegram_hitl` |
+
+### The telegram-hitl channel on this machine
+
+One proxy serves the host and every container, run by the systemd user service
+`systemd/telegram-hitl.service`. Nothing else should start one; a session that
+does is refused by the lock.
+
+| | |
+| --- | --- |
+| State directory | `/home/alan/personal/telegram-hitl` — socket, log, `chat_id`, offset, lock |
+| Bot token | `/home/alan/.claude/channels/telegram/.env`, mode 600 (`config.DEFAULT_TOKEN_FILE` for the service's user) |
+| Who is told the path | `settings.json` `env` for Claude sessions; `environment:` in `personal/telegram-test/docker-compose.yml` for everything else in that container |
+
+The state directory sits under `/home/alan/personal` because every `personal-env`
+compose file bind-mounts that tree at its own path, so the same absolute path
+reaches the same socket from the host and from inside any of those containers
+with no volume of its own. A path under either home would not: the host's is
+`/home/alan`, each container's is `/root`.
+
+Docker here is rootless, so a container's root is the host's `alan` and the
+0600 socket and log are readable from inside without widening either.
+
+`telegram-bot@telegram-bot-skill` is disabled in `settings.json` because it polls
+`getUpdates` on the same bot token. A second consumer is not refused by Telegram
+— it evicts the first, and the channel then goes silent rather than erroring.
 
 ### `skills/copy-writing-style/`
 
