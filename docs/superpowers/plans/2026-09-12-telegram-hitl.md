@@ -1585,6 +1585,7 @@ Create `tests/test_telegram_hitl_process.py`:
 import json
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -1644,11 +1645,12 @@ def launch(tmp_path, fake_telegram):
     source_root = Path(claude_config.__file__).resolve().parents[1]
     fake_telegram.default_delay = 0.2
 
-    def start(*, state_dir: Path | None = None, token: str | None = "42:test-token"):
+    def start(*, state_dir: Path | None = None, token: str | None = "42:test-token",
+              port: int = 0):
         environment = os.environ | {
             "TELEGRAM_HITL_STATE_DIR": str(state_dir or tmp_path / "state"),
             "TELEGRAM_HITL_API_BASE": fake_telegram.base,
-            "TELEGRAM_HITL_PORT": "0",
+            "TELEGRAM_HITL_PORT": str(port),
             "PYTHONPATH": str(source_root),
         }
         if token is None:
@@ -1755,6 +1757,38 @@ def test_a_restart_resumes_from_the_persisted_offset(launch, tmp_path, fake_tele
     assert _polls(fake_telegram)[0]["offset"] == 42
 
 
+def test_a_start_that_fails_is_recorded_too(launch, tmp_path) -> None:
+    """A failed start must not leave the previous run's `started` as the log's
+    last word, because a watcher reads that as a channel that is up."""
+    held = socket.socket()
+    held.bind(("127.0.0.1", 0))
+    held.listen(1)
+    try:
+        process = launch(port=held.getsockname()[1])
+        assert process.wait(timeout=20) != 0
+        assert "Address already in use" in process.stderr.read()
+    finally:
+        held.close()
+
+    lifecycle = _of_kind(tmp_path / "state" / "channel.jsonl", "proxy")
+    assert [r["event"] for r in lifecycle] == ["stopped"]
+    assert "in use" in lifecycle[0]["reason"]
+
+
+def test_a_stale_lock_file_does_not_block_a_start(launch, tmp_path) -> None:
+    """The lock lives on the descriptor, not in the file, so a process that died
+    without cleaning up leaves nothing to clear. The pid written there is for a
+    human reading it and must not be mistaken for the lock itself."""
+    state = tmp_path / "state"
+    state.mkdir(parents=True)
+    (state / "proxy.lock").write_text("999999\n")
+
+    launch()
+
+    _serving(state)
+    assert int((state / "proxy.lock").read_text()) != 999999
+
+
 def test_a_crashing_drain_records_why_it_stopped(launch, tmp_path, fake_telegram) -> None:
     """A watcher has to be able to tell a dead channel from a slow human, so the
     reason a drain died belongs in the log and not only in an unread stderr.
@@ -1819,6 +1853,7 @@ locally, before any process reaches the network.
 Run it as `python -m claude_config.telegram_hitl`.
 """
 
+import errno
 import fcntl
 import os
 import signal
@@ -1828,6 +1863,12 @@ from pathlib import Path
 from claude_config.telegram_hitl import config, drain
 from claude_config.telegram_hitl.log import ChannelLog, ErrorTransitions
 from claude_config.telegram_hitl.server import ProxyServer
+
+# The errnos flock reports when someone else holds the lock. Anything else — no
+# locking on this filesystem, a bad descriptor — is a different fault, and
+# calling it contention sends the operator hunting for a second proxy that does
+# not exist.
+CONTENDED = frozenset({errno.EACCES, errno.EAGAIN, errno.EWOULDBLOCK})
 
 
 class _Stopped(Exception):
@@ -1843,7 +1884,9 @@ def _acquire_lock(path: Path) -> int:
     handle = os.open(path, os.O_WRONLY | os.O_CREAT, 0o600)
     try:
         fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
+    except OSError as error:
+        if error.errno not in CONTENDED:
+            raise
         raise SystemExit(f"telegram-hitl: another proxy holds {path}; refusing to start")
     os.ftruncate(handle, 0)
     os.write(handle, f"{os.getpid()}\n".encode())
@@ -1857,38 +1900,47 @@ def main() -> None:
     _acquire_lock(config.lock_path())
 
     log = ChannelLog(config.log_path())
-    server = ProxyServer(("127.0.0.1", config.port()), log,
-                         api_base=config.api_base(), token=token)
-    config.port_path().write_text(f"{server.server_port}\n")
-    log.append({"kind": "proxy", "event": "started", "pid": os.getpid(),
-                "port": server.server_port})
-    print(f"telegram-hitl: 127.0.0.1:{server.server_port} -> {config.log_path()}",
-          flush=True)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    stop = threading.Event()
-
-    def _signalled(number: int, _frame: object) -> None:
-        stop.set()
-        raise _Stopped(signal.Signals(number).name)
-
-    signal.signal(signal.SIGTERM, _signalled)
-    signal.signal(signal.SIGINT, _signalled)
-
+    # Everything after the log opens sits inside the try, so a start that fails
+    # halfway is recorded as well. Measured without it: a port already in use
+    # exited 1 and wrote nothing, leaving whatever the previous run wrote as the
+    # log's last word — and a run killed outright leaves `started`, which a
+    # watcher reads as a channel that is up.
     reason = "the drain returned"
+    failed = False
     try:
+        server = ProxyServer(("127.0.0.1", config.port()), log,
+                             api_base=config.api_base(), token=token)
+        config.port_path().write_text(f"{server.server_port}\n")
+        log.append({"kind": "proxy", "event": "started", "pid": os.getpid(),
+                    "port": server.server_port})
+        print(f"telegram-hitl: 127.0.0.1:{server.server_port} -> {config.log_path()}",
+              flush=True)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+
+        stop = threading.Event()
+
+        def _signalled(number: int, _frame: object) -> None:
+            stop.set()
+            raise _Stopped(signal.Signals(number).name)
+
+        signal.signal(signal.SIGTERM, _signalled)
+        signal.signal(signal.SIGINT, _signalled)
+
         drain.run(log, ErrorTransitions(log, "drain"), api_base=config.api_base(),
                   token=token, offset_path=config.offset_path(), stop=stop)
     except _Stopped as signalled:
         reason = str(signalled)
     except BaseException as error:
         reason = repr(error)
+        failed = True
         raise
     finally:
         try:
             log.append({"kind": "proxy", "event": "stopped", "reason": reason})
         except OSError:
-            pass  # the log is what failed; the propagating exception carries it
+            if not failed:
+                raise  # nothing else is propagating, so this fault has to
 
 
 if __name__ == "__main__":
@@ -1898,13 +1950,13 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_process.py -q`
-Expected: 7 passed
+Expected: 9 passed
 
 - [ ] **Step 5: Run the whole suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
-Expected: `380 passed` — 329 before this work, plus 15, 21, 8 and 7. Task 5 adds
-the last 15, for 395.
+Expected: `382 passed` — 329 before this work, plus 15, 21, 8 and 9. Task 5 adds
+the last 15, for 397.
 
 - [ ] **Step 6: Commit**
 
@@ -2537,7 +2589,8 @@ Run after the last task, against
 | The log is the topic registry | `test_the_topic_registry_is_reconstructed_from_the_log` |
 | Durability ordering | `test_the_log_is_written_before_telegram_is_told_to_forget` |
 | The drain does nothing else | `drain.py` has no call but `getUpdates`; `test_a_failure_to_record_is_fatal` |
-| A misconfigured start fails loudly instead of presenting as a quiet channel | `test_a_misconfigured_token_stops_the_process_loudly` |
+| A misconfigured start fails loudly instead of presenting as a quiet channel | `test_a_misconfigured_token_stops_the_process_loudly`, `test_a_start_that_fails_is_recorded_too` |
+| The lock is the descriptor, not the file a dead process left behind | `test_a_stale_lock_file_does_not_block_a_start` |
 | A down channel is distinguishable from a slow human | `test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one`, `test_a_crashing_drain_records_why_it_stopped` |
 | The agent decides topics | Task 5, stated as judgement with no mechanism behind it |
 | The traps must not be lost | `test_the_skill_still_carries_every_trap_that_cost_time` |

@@ -3,6 +3,7 @@
 import json
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -62,11 +63,12 @@ def launch(tmp_path, fake_telegram):
     source_root = Path(claude_config.__file__).resolve().parents[1]
     fake_telegram.default_delay = 0.2
 
-    def start(*, state_dir: Path | None = None, token: str | None = "42:test-token"):
+    def start(*, state_dir: Path | None = None, token: str | None = "42:test-token",
+              port: int = 0):
         environment = os.environ | {
             "TELEGRAM_HITL_STATE_DIR": str(state_dir or tmp_path / "state"),
             "TELEGRAM_HITL_API_BASE": fake_telegram.base,
-            "TELEGRAM_HITL_PORT": "0",
+            "TELEGRAM_HITL_PORT": str(port),
             "PYTHONPATH": str(source_root),
         }
         if token is None:
@@ -171,6 +173,38 @@ def test_a_restart_resumes_from_the_persisted_offset(launch, tmp_path, fake_tele
     while not _polls(fake_telegram) and time.monotonic() < deadline:
         time.sleep(0.05)
     assert _polls(fake_telegram)[0]["offset"] == 42
+
+
+def test_a_start_that_fails_is_recorded_too(launch, tmp_path) -> None:
+    """A failed start must not leave the previous run's `started` as the log's
+    last word, because a watcher reads that as a channel that is up."""
+    held = socket.socket()
+    held.bind(("127.0.0.1", 0))
+    held.listen(1)
+    try:
+        process = launch(port=held.getsockname()[1])
+        assert process.wait(timeout=20) != 0
+        assert "Address already in use" in process.stderr.read()
+    finally:
+        held.close()
+
+    lifecycle = _of_kind(tmp_path / "state" / "channel.jsonl", "proxy")
+    assert [r["event"] for r in lifecycle] == ["stopped"]
+    assert "in use" in lifecycle[0]["reason"]
+
+
+def test_a_stale_lock_file_does_not_block_a_start(launch, tmp_path) -> None:
+    """The lock lives on the descriptor, not in the file, so a process that died
+    without cleaning up leaves nothing to clear. The pid written there is for a
+    human reading it and must not be mistaken for the lock itself."""
+    state = tmp_path / "state"
+    state.mkdir(parents=True)
+    (state / "proxy.lock").write_text("999999\n")
+
+    launch()
+
+    _serving(state)
+    assert int((state / "proxy.lock").read_text()) != 999999
 
 
 def test_a_crashing_drain_records_why_it_stopped(launch, tmp_path, fake_telegram) -> None:
