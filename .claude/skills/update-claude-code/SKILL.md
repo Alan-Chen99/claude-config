@@ -52,9 +52,20 @@ Expected clean output, as of 2.1.269: `OK: env-context field set matches the ins
 binary` / `OK: 15 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `371 passed` / 15 cargo test binaries all `ok` /
 `prompt coupling OK` / `8 file(s) checked: clean`.
 
-**Where to run each step.** Steps 5, 11 and 13 touch shared state and belong in the
+**Where to run each step.** Steps 5 and 13 repoint shared installs and belong in the
 canonical checkout `/repos/claude-config`. Everything else is worktree-safe and should
 be done in a worktree, because steps 6 and 9 rewrite tracked files.
+
+Step 11 is worktree-safe too, and what blocks it is a credential rather than a location:
+`capture.py` refuses to spawn unless `CLAUDE_CODE_OAUTH_TOKEN` is in its environment or
+`~/.claude/.credentials.json` carries an access token, and **Claude Code strips that
+variable from tool subprocess environments**, so an agent cannot run a capture from
+inside a session no matter which checkout it stands in. A human exports the token and
+runs it, or it goes in `.env`, which `capture.py` loads at startup. The shared state that
+does constrain it is `~/.claude/requests-log/` and `capture-output/`, and the rule there
+is not-in-parallel, which the canonical checkout does nothing to enforce. Everything else
+resolves per-checkout: `mitmproxy` is a project dependency, so a worktree venv has
+`mitmdump`, and `capture.py` starts a proxy itself when 9160 is dead.
 
 **When a check fails.** `check-env-context.sh` printing `+`/`-`/`~` lines means cc's own
 env block changed shape — read the diff against `src/claude_config/env_context/render.py`
