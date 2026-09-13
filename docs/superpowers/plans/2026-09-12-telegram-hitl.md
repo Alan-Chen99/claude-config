@@ -27,6 +27,8 @@ The spec deliberately excludes implementation detail. These are the choices it l
 | A 409 is logged as a fault and polling continues | The interloper is usually another session's short-lived poller, so automatic recovery matters for an unattended overnight wait, and exiting would hand the channel over permanently. **Hazard:** because a newcomer wins the stream, our retry can steal it back, and two pollers can flap — splitting a human's messages between two logs. The fault records make the contention visible; the fix is the spec's "exactly one drain" prerequisite, not a retry policy. This is the one question the spec left open that this plan answers by judgement. |
 | No `[project.scripts]` entry point | `python -m claude_config.telegram_hitl` works in any checkout without reinstalling console scripts. |
 | `deleteWebhook` is denied for `drop_pending_updates`, not for webhook exclusivity | The spec's parenthetical compresses both webhook methods into one reason. The accurate one: `setWebhook` disables `getUpdates`, while `deleteWebhook` can discard updates Telegram is still holding — the only irrecoverable loss in the system. Same denylist, truer reasons. |
+| `ErrorTransitions` holds a lock across its state check, mutation and append | The forwarder shares one instance across every request thread of a threaded HTTP server. Measured unlocked: 12 threads reporting one fault signature produced 948 records with 728 duplicate adjacent states, and 545 counted occurrences for 480 calls — the fault channel corrupting exactly the signal the design relies on. |
+| A short write terminates the damaged bytes with a newline before raising | The partial bytes cannot be taken back, and unterminated they swallow the next record: measured, a reader then dies with `JSONDecodeError` on the pair and everything appended afterwards is unreachable for good. A newline bounds the damage to one line. |
 | No code anywhere branches on chat layout | The spec's three layouts use the same primitives, so the layout is a chat id in a file and nothing else. A branch would be the first thing to rot when the DM layout is finally verified. |
 
 **Not built, deliberately.** The spec excludes exactly-once claiming of answers,
@@ -51,6 +53,10 @@ Every record is one JSON object on one line, with an ISO-8601 UTC `ts` first. Ag
 ```
 
 `ts` on an `outbound` record is completion time; `elapsed_ms` recovers the start.
+
+One shape the proxy never writes: a reader that meets a line damaged by a failed
+write yields `{"kind": "damaged", "raw": "..."}` in its place, so the damage stays
+visible and the records after it stay readable.
 
 ## File structure
 
@@ -93,6 +99,7 @@ Create `tests/test_telegram_hitl_state.py`:
 """Tests for the proxy's state: where it lives, and how records are written."""
 
 import json
+import os
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -140,6 +147,34 @@ def test_a_missing_token_raises_rather_than_defaulting(monkeypatch, tmp_path) ->
         config.token()
 
 
+def test_an_empty_token_value_is_treated_as_missing(monkeypatch, tmp_path) -> None:
+    """A blanked token must fail here rather than as a 401 from Telegram later."""
+    env_file = tmp_path / ".env"
+    env_file.write_text('TELEGRAM_BOT_TOKEN=\nOTHER=1\n')
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("TELEGRAM_HITL_TOKEN_FILE", str(env_file))
+    with pytest.raises(RuntimeError, match="TELEGRAM_BOT_TOKEN"):
+        config.token()
+
+
+def test_an_export_prefix_is_accepted(monkeypatch, tmp_path) -> None:
+    """A shell-sourceable file must not report the token it contains as absent."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("export TELEGRAM_BOT_TOKEN=123:secret\n")
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("TELEGRAM_HITL_TOKEN_FILE", str(env_file))
+    assert config.token() == "123:secret"
+
+
+def test_the_last_assignment_wins(monkeypatch, tmp_path) -> None:
+    """What a shell and dotenv both do, so a rotated token appended below wins."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("TELEGRAM_BOT_TOKEN=old\nTELEGRAM_BOT_TOKEN=new\n")
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("TELEGRAM_HITL_TOKEN_FILE", str(env_file))
+    assert config.token() == "new"
+
+
 def test_append_writes_one_timestamped_json_line_per_record(tmp_path) -> None:
     log = ChannelLog(tmp_path / "channel.jsonl")
     log.append({"kind": "inbound", "update": {"update_id": 1}})
@@ -182,12 +217,30 @@ def test_concurrent_writers_never_interleave_a_line(tmp_path) -> None:
     }
 
 
-def test_a_short_write_is_fatal_rather_than_a_truncated_record(tmp_path) -> None:
-    """A half-written line is corruption, so it must raise, not be retried."""
-    log = ChannelLog(tmp_path / "channel.jsonl")
-    with mock.patch("os.write", lambda fd, data: len(data) - 1):
+def test_a_short_write_raises_and_bounds_the_damage_to_one_line(tmp_path) -> None:
+    """Unterminated bytes swallow the next record, which breaks every reader of
+    the file permanently. A short write must raise, and leave one bad line."""
+    path = tmp_path / "channel.jsonl"
+    log = ChannelLog(path)
+    real_write = os.write
+    calls: list[bytes] = []
+
+    def short_once(fd: int, data: bytes) -> int:
+        calls.append(data)
+        return real_write(fd, data[:-5] if len(calls) == 1 else data)
+
+    with mock.patch("os.write", short_once):
         with pytest.raises(OSError, match="short write"):
-            log.append({"kind": "inbound", "update": {}})
+            log.append({"kind": "inbound", "update": {"update_id": 1}})
+    log.append({"kind": "inbound", "update": {"update_id": 2}})
+    log.close()
+
+    lines = path.read_bytes().splitlines(keepends=True)
+    assert len(lines) == 2
+    assert all(line.endswith(b"\n") for line in lines)
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(lines[0])
+    assert json.loads(lines[1])["update"]["update_id"] == 2
 
 
 def test_repeated_faults_log_one_transition_then_one_clearance(tmp_path) -> None:
@@ -224,6 +277,38 @@ def test_a_healthy_source_writes_nothing(tmp_path) -> None:
     ErrorTransitions(log, "drain").ok()
     log.close()
     assert (tmp_path / "channel.jsonl").read_text() == ""
+
+
+def test_concurrent_reporters_log_one_transition_per_episode(tmp_path) -> None:
+    """The forwarder shares one tracker across every request thread, so the
+    check, the mutation and the append have to be one step.
+
+    The alternation matters: a repeated signature alone takes the increment
+    path, which never blocks and so never yields mid-update. It is `_clear`'s
+    fsync, inside the critical section, that opens the window this exercises.
+    """
+    log = ChannelLog(tmp_path / "channel.jsonl")
+    faults = ErrorTransitions(log, "forward")
+    barrier = threading.Barrier(12)
+
+    def hammer() -> None:
+        barrier.wait()
+        for _ in range(40):
+            faults.failed("forward:URLError", "unreachable")
+            faults.ok()
+
+    threads = [threading.Thread(target=hammer) for _ in range(12)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    faults.ok()
+    log.close()
+
+    records = _records(tmp_path / "channel.jsonl")
+    states = [r["state"] for r in records]
+    assert all(a != b for a, b in zip(states, states[1:])), f"state repeated: {states[:8]}"
+    assert sum(r.get("occurrences", 0) for r in records) == 480
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -292,15 +377,23 @@ def token() -> str:
 
     Parsed directly rather than through dotenv, which would load the repo's own
     .env and export into os.environ — neither of which this process wants.
+
+    An `export` prefix is accepted and the last assignment wins, matching what a
+    shell would do with the same file, so a rotated token appended to the end is
+    the one used. An empty value counts as absent: a blanked token has to fail
+    here rather than as an opaque 401 from Telegram.
     """
     from_environment = os.environ.get("TELEGRAM_BOT_TOKEN")
     if from_environment:
         return from_environment
     path = Path(os.environ.get("TELEGRAM_HITL_TOKEN_FILE", DEFAULT_TOKEN_FILE))
+    found = ""
     for line in path.read_text().splitlines():
-        key, separator, value = line.partition("=")
-        if separator and key.strip() == "TELEGRAM_BOT_TOKEN":
-            return value.strip().strip("\"'")
+        key, separator, value = line.strip().removeprefix("export ").partition("=")
+        if separator and key.strip() == "TELEGRAM_BOT_TOKEN" and value.strip():
+            found = value.strip().strip("\"'")
+    if found:
+        return found
     raise RuntimeError(f"TELEGRAM_BOT_TOKEN is not in the environment or in {path}")
 ```
 
@@ -320,13 +413,14 @@ Create `src/claude_config/telegram_hitl/log.py`:
 """The append-only JSONL channel log: the system's only read interface.
 
 Many processes append here at once, so every record is one O_APPEND write
-syscall — the kernel then orders whole records and no two can interleave.
-Each write is fsynced because the drain's durability ordering depends on a
-record being on disk before Telegram is told to forget the update.
+syscall — on a local filesystem the kernel then orders whole records and no two
+can interleave. Each write is fsynced because the drain's durability ordering
+depends on a record being on disk before Telegram is told to forget the update.
 """
 
 import json
 import os
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -345,6 +439,12 @@ class ChannelLog:
                           ensure_ascii=False).encode() + b"\n"
         written = os.write(self._fd, line)
         if written != len(line):
+            # The partial bytes are in the file already and cannot be taken back.
+            # Terminating them bounds the damage to one unparseable line: without
+            # a newline they swallow the next record, and every reader of the file
+            # then fails on the pair and never reaches anything appended after it.
+            os.write(self._fd, b"\n")
+            os.fsync(self._fd)
             raise OSError(f"short write to channel log: {written} of {len(line)} bytes")
         os.fsync(self._fd)
 
@@ -357,26 +457,38 @@ class ErrorTransitions:
 
     A stolen update stream fails every poll, and recording each one at poll rate
     would bury the log in identical lines. The interesting events are the edges.
+
+    The lock is required rather than defensive: the forwarder shares one instance
+    across every request thread, and the state check, the mutation and the append
+    have to be one step or concurrent callers duplicate each other's transitions.
     """
 
     def __init__(self, log: ChannelLog, source: str) -> None:
         self._log = log
         self._source = source
+        self._lock = threading.Lock()
         self._signature: str | None = None
         self._count = 0
 
     def failed(self, signature: str, detail: str) -> None:
-        if signature == self._signature:
-            self._count += 1
-            return
-        self.ok()
-        self._signature = signature
-        self._count = 1
-        self._log.append({"kind": "fault", "source": self._source, "state": "failing",
-                          "signature": signature, "detail": detail})
+        with self._lock:
+            if signature == self._signature:
+                self._count += 1
+                return
+            self._clear()
+            self._signature = signature
+            self._count = 1
+            self._log.append({"kind": "fault", "source": self._source,
+                              "state": "failing", "signature": signature,
+                              "detail": detail})
 
     def ok(self) -> None:
         """No-op while healthy, so a working component writes nothing."""
+        with self._lock:
+            self._clear()
+
+    def _clear(self) -> None:
+        """Close any open failing episode. The caller holds the lock."""
         if self._signature is None:
             return
         self._log.append({"kind": "fault", "source": self._source, "state": "cleared",
@@ -388,7 +500,7 @@ class ErrorTransitions:
 - [ ] **Step 6: Run the whole file to verify it passes**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_state.py -q`
-Expected: 11 passed
+Expected: 15 passed
 
 - [ ] **Step 7: Commit**
 
@@ -882,7 +994,7 @@ Expected: 14 passed
 - [ ] **Step 7: Check the new conftest did not disturb the existing suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
-Expected: `354 passed` — 329 in the suite before this work, plus 11 from Task 1
+Expected: `358 passed` — 329 in the suite before this work, plus 15 from Task 1
 and 14 from Task 2
 
 - [ ] **Step 8: Commit**
@@ -1556,8 +1668,8 @@ Expected: 5 passed
 - [ ] **Step 5: Run the whole suite**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
-Expected: `367 passed` — 329 before this work, plus 11, 14, 8 and 5. Task 5 adds
-the last 10, for 377.
+Expected: `371 passed` — 329 before this work, plus 15, 14, 8 and 5. Task 5 adds
+the last 11, for 382.
 
 - [ ] **Step 6: Commit**
 
@@ -1624,6 +1736,20 @@ def test_the_log_reader_skips_a_partial_final_line(tmp_path) -> None:
     records = _recipe("read-log")["records"]
 
     assert [r["kind"] for r in records(path)] == ["proxy", "inbound"]
+
+
+def test_the_log_reader_surfaces_a_damaged_line_and_keeps_going(tmp_path) -> None:
+    """A failed write must not make everything appended after it unreadable."""
+    path = tmp_path / "channel.jsonl"
+    path.write_bytes(b'{"kind":"proxy","event":"started"}\n'
+                     b'{"kind":"outbound","method":"sendMes\n'
+                     b'{"kind":"inbound","update":{"update_id":9}}\n')
+
+    records = _recipe("read-log")["records"]
+
+    found = list(records(path))
+    assert [r["kind"] for r in found] == ["proxy", "damaged", "inbound"]
+    assert "sendMes" in found[1]["raw"]
 
 
 def test_the_answer_finder_matches_the_reply_to_a_question(tmp_path) -> None:
@@ -1697,7 +1823,7 @@ def test_the_skill_still_carries_every_trap_that_cost_time(trap) -> None:
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_skill.py -q 2>&1 | tail -3`
-Expected: 10 failed — `FileNotFoundError` on `skills/telegram-hitl/SKILL.md`
+Expected: 11 failed — `FileNotFoundError` on `skills/telegram-hitl/SKILL.md`
 
 - [ ] **Step 3: Write the skill**
 
@@ -1774,12 +1900,19 @@ def records(path):
 
     A final line with no newline is a record another process is still
     appending. Python's file iterator hands it over anyway, so stop there.
+
+    A line that will not parse is a record damaged by a failed write. It is
+    yielded as one, so the damage stays visible and the records after it stay
+    readable.
     """
     with open(path, "rb") as handle:
         for raw in handle:
             if not raw.endswith(b"\n"):
                 return
-            yield json.loads(raw)
+            try:
+                yield json.loads(raw)
+            except json.JSONDecodeError:
+                yield {"kind": "damaged", "raw": raw.decode("utf-8", errors="replace")}
 ```
 
 ## Asking, then waiting
@@ -1916,7 +2049,7 @@ Each of these cost real time to find.
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_skill.py -q`
-Expected: 10 passed
+Expected: 11 passed
 
 - [ ] **Step 5: Commit**
 
@@ -2153,3 +2286,6 @@ Run after the last task, against
 | A down channel is distinguishable from a slow human | `test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one` |
 | The agent decides topics | Task 5, stated as judgement with no mechanism behind it |
 | The traps must not be lost | `test_the_skill_still_carries_every_trap_that_cost_time` |
+| The fault channel survives concurrent reporters | `test_concurrent_reporters_log_one_transition_per_episode` (fails 5/5 runs without the lock) |
+| One failed write does not make the log unreadable | `test_a_short_write_raises_and_bounds_the_damage_to_one_line`, `test_the_log_reader_surfaces_a_damaged_line_and_keeps_going` |
+| A blanked or shell-style token file fails locally, not at Telegram | `test_an_empty_token_value_is_treated_as_missing`, `test_an_export_prefix_is_accepted`, `test_the_last_assignment_wins` |
