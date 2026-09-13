@@ -48,10 +48,28 @@ if "{{ARTIFACT}}" not in tpl:
 open(sys.argv[3], "w").write(tpl.replace("{{ARTIFACT}}", art))
 PY
 
-( cd "$SCRATCH" && CLAUDE_CONFIG_DIR="$CFG" claude \
+# 2.1.257 made `claude -p` wait for an armed Monitor instead of exiting once its
+# result is in, so an unbounded call can outlive the run it belongs to with
+# nothing to say so. No case text names Monitor, but the model decides whether to
+# arm one, so the bound is on the call rather than on the cases. `agent-tools
+# claude` and `claude.sh` both exec, so the process `timeout` signals is claude
+# itself. Raise it for a case that legitimately runs longer:
+#   PROMPT_TEST_TIMEOUT=3600 scripts/prompt-test-cc.sh ...
+TIMEOUT="${PROMPT_TEST_TIMEOUT:-900}"
+
+status=0
+( cd "$SCRATCH" && CLAUDE_CONFIG_DIR="$CFG" timeout --kill-after=30 "$TIMEOUT" claude \
     -p --output-format json --dangerously-skip-permissions \
     --thinking-display summarized \
-    < "$PROMPT" > "$OUT" ) 2>"$OUT.stderr"
+    < "$PROMPT" > "$OUT" ) 2>"$OUT.stderr" || status=$?
+if [ "$status" -eq 124 ]; then
+    echo "claude -p exceeded ${TIMEOUT}s and was killed; raise PROMPT_TEST_TIMEOUT" >&2
+    exit 124
+fi
+if [ "$status" -ne 0 ]; then
+    echo "claude -p exited $status; see $OUT.stderr" >&2
+    exit "$status"
+fi
 
 echo "case:       $CASE (downstream)"
 echo "tag:        $TAG"

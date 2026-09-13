@@ -55,6 +55,10 @@ NOTIFY_TYPES: dict[str, tuple[str, str]] = {
     "permission": ("Claude Code: Permission needed", "lock"),
     "idle": ("Claude Code: Idle", "hourglass"),
     "question": ("Claude Code: Question", "question"),
+    # A session parked on a rate limit is the case this hook exists for: it is
+    # not idle, not asking, and will either come back on its own or not at all.
+    "resumed": ("Claude Code: Resumed after rate limit", "arrows_counterclockwise"),
+    "stalled": ("Claude Code: Parked on a rate limit", "no_entry"),
 }
 
 _SUMMARY_ROLE = (
@@ -85,6 +89,16 @@ SUMMARY_PROMPTS: dict[str, str] = {
     "stop": (
         f"{_SUMMARY_ROLE}\n\n"
         "Summarize what the AI assistant just finished. Use past tense."
+    ),
+    "resumed": (
+        f"{_SUMMARY_ROLE}\n\n"
+        "Summarize what the AI assistant was doing when it was interrupted and "
+        "has now gone back to. Use present tense."
+    ),
+    "stalled": (
+        f"{_SUMMARY_ROLE}\n\n"
+        "Summarize what the AI assistant was doing when it stopped. Say that it "
+        "is waiting on a rate limit and will not continue by itself."
     ),
 }
 
@@ -579,6 +593,10 @@ def do_notify(args: argparse.Namespace) -> None:
         "permission_prompt": "permission",
         "idle_prompt": "idle",
         "elicitation_dialog": "question",
+        "elicitation_url_dialog": "question",
+        "quota_auto_resume_fired": "resumed",
+        "quota_auto_resume_stale": "stalled",
+        "quota_auto_resume_disabled": "stalled",
     }
     notify_type = _TYPE_MAP.get(raw_type, raw_type) if raw_type else "idle"
     if notify_type not in NOTIFY_TYPES:
@@ -709,7 +727,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--type",
-        choices=["permission", "idle", "question"],
+        choices=["permission", "idle", "question", "resumed", "stalled"],
         help="Notification type (for --action notify)",
     )
 

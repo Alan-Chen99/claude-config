@@ -370,6 +370,13 @@ one, disables plugins, sources the OAuth token, and prints the result JSON path,
 the transcript path, and the session id. Read the transcript with
 `agent-tools cc-pretty <FILE> --skeleton`.
 
+The `claude -p` call is bounded at 900 seconds, because since 2.1.257 it waits
+for an armed Monitor rather than exiting once its result is in — a case whose
+model arms one would otherwise hang the runner with nothing said. A run that hits
+the bound exits 124 and says so. `PROMPT_TEST_TIMEOUT=<seconds>` raises it, and
+the same bound and variable apply to `prompt-test-cc-leg2.sh` and
+`prompt-test-cc-downstream.sh`.
+
 Read the `transcript:` path, not `result:`. `--output-format json` puts only the
 **final** assistant message in `.result`, while this prompt's `## Before response`
 gate makes `agent-tools pre_output.record` the last tool call — so an agent that

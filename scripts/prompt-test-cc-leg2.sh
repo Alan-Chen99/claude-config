@@ -64,14 +64,32 @@ echo "leg-1 snapshot: $SNAP"
 # request, whatever a later launch passes (GWe, src/chunk-dbb93264.js:130178);
 # without this flag the arm file above is validated and then ignored. Measured
 # on 2.1.269 through the proxy: a resume passing prompt B sent A; with the flag, B.
-( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" "$AT" claude \
+# 2.1.257 made `claude -p` wait for an armed Monitor instead of exiting once its
+# result is in, so an unbounded call can outlive the run it belongs to with
+# nothing to say so. No case text names Monitor, but the model decides whether to
+# arm one, so the bound is on the call rather than on the cases. `agent-tools
+# claude` and `claude.sh` both exec, so the process `timeout` signals is claude
+# itself. Raise it for a case that legitimately runs longer:
+#   PROMPT_TEST_TIMEOUT=3600 scripts/prompt-test-cc.sh ...
+TIMEOUT="${PROMPT_TEST_TIMEOUT:-900}"
+
+status=0
+( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" timeout --kill-after=30 "$TIMEOUT" "$AT" claude \
     -p --output-format json \
     --resume "$SID" \
     --thinking-display summarized \
     --settings "$SETTINGS" \
     --system-prompt-file "$PROMPT_FILE" \
     --system-prompt-snapshot off \
-    < "$LEG2" > "$OUT.raw" ) 2>"$OUT.stderr"
+    < "$LEG2" > "$OUT.raw" ) 2>"$OUT.stderr" || status=$?
+if [ "$status" -eq 124 ]; then
+    echo "claude -p exceeded ${TIMEOUT}s and was killed; raise PROMPT_TEST_TIMEOUT" >&2
+    exit 124
+fi
+if [ "$status" -ne 0 ]; then
+    echo "claude -p exited $status; see $OUT.stderr" >&2
+    exit "$status"
+fi
 sed -n '/^{/,$p' "$OUT.raw" > "$OUT"
 
 SID2="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("session_id",""))' "$OUT")"

@@ -82,12 +82,30 @@ PY
 # `agent-tools claude` also runs check-prompt-coupling.sh, whose "prompt coupling
 # OK" lands on the same stdout as the result JSON, so the raw stream is kept and
 # the JSON cut out of it rather than the check being silenced.
-( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" "$AT" claude \
+# 2.1.257 made `claude -p` wait for an armed Monitor instead of exiting once its
+# result is in, so an unbounded call can outlive the run it belongs to with
+# nothing to say so. No case text names Monitor, but the model decides whether to
+# arm one, so the bound is on the call rather than on the cases. `agent-tools
+# claude` and `claude.sh` both exec, so the process `timeout` signals is claude
+# itself. Raise it for a case that legitimately runs longer:
+#   PROMPT_TEST_TIMEOUT=3600 scripts/prompt-test-cc.sh ...
+TIMEOUT="${PROMPT_TEST_TIMEOUT:-900}"
+
+status=0
+( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" timeout --kill-after=30 "$TIMEOUT" "$AT" claude \
     -p --output-format json \
     --thinking-display summarized \
     --settings "$SETTINGS" \
     --system-prompt-file "$PROMPT_FILE" \
-    < "$TASK_FILE" > "$OUT.raw" ) 2>"$OUT.stderr"
+    < "$TASK_FILE" > "$OUT.raw" ) 2>"$OUT.stderr" || status=$?
+if [ "$status" -eq 124 ]; then
+    echo "claude -p exceeded ${TIMEOUT}s and was killed; raise PROMPT_TEST_TIMEOUT" >&2
+    exit 124
+fi
+if [ "$status" -ne 0 ]; then
+    echo "claude -p exited $status; see $OUT.stderr" >&2
+    exit "$status"
+fi
 sed -n '/^{/,$p' "$OUT.raw" > "$OUT"
 
 SID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("session_id",""))' "$OUT")"

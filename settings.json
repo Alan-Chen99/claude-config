@@ -46,6 +46,46 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "elicitation_url_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-tools ntfy-hook --action notify --type question",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "quota_auto_resume_fired",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-tools ntfy-hook --action notify --type resumed",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "quota_auto_resume_stale",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-tools ntfy-hook --action notify --type stalled",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "quota_auto_resume_disabled",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-tools ntfy-hook --action notify --type stalled",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [
