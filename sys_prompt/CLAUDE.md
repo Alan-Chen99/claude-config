@@ -41,10 +41,20 @@ agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
 These files replace Claude Code's own system prompt rather than adding to it.
 `--system-prompt-file` keeps one block — `You are Claude Code, Anthropic's official CLI for
 Claude.` — and drops every other section, which
-`docs/system-prompt-snapshot/opus-5/system-prompt-file/prompt.md` shows in full. So no
-wording Anthropic ships reaches a `claude.sh` session, and the passages here that read like
-upstream's are copies taken once. Upstream rewrites its prose between releases; a copy goes stale
-with no signal at all.
+`docs/system-prompt-snapshot/opus-5/system-prompt-file/prompt.md` shows in full. The passages
+here that read like upstream's are copies taken once, and upstream rewrites its prose between
+releases, so a copy goes stale with no signal at all.
+
+The replacement covers one channel of two. Anthropic-authored wording still reaches a
+`claude.sh` session through `messages[]`, which the flag does not touch, and the same capture
+shows it: the CLAUDE.md wrapper with its "these instructions OVERRIDE any default behavior"
+line (`messages[0] content[0]`), the `userEmail` rule (`content[1]`), the git/PR Attribution
+reminder (`content[2]`), and one `messages[1] system` block carrying `# Environment`, the
+model-identity line, the deferred-tool listing, the agent-type roster and every skill
+description — several of which are behavioural rules, not facts. A rebase that reads only the
+system prompt reads half of what the model is told. Nothing here pins that half:
+`scripts/check-prompt-upstream.py` covers passages borrowed from the system prompt, and a
+reminder upstream rewords lands unreviewed.
 
 A release therefore needs a rebase rather than a diff: for each thing upstream changed, adopt it,
 adapt it, or keep diverging on purpose — and write down which, because the next reader cannot tell

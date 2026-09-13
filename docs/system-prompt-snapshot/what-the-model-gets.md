@@ -57,9 +57,11 @@ Byte-identical across sonnet, opus-5, and opus-4-7, and unchanged from
 
 ## system[2] — sonnet (10,574 chars, cached 1h global)
 
-**Byte-for-byte unchanged from 2.1.235** — confirmed by `git diff` producing no
-hunk anywhere in this block. Reproduced here because the 2.1.235 version of
-this document only summarized it:
+**Byte-for-byte unchanged from 2.1.235** in the `default` variant — confirmed by
+`git diff` producing no hunk anywhere in this block. It is not constant across
+variants: with an output style active the opening sentence changes and the block
+measures 10,631 chars (README, "System prompt structure"). Reproduced here
+because the 2.1.235 version of this document only summarized it:
 
 ```
 You are an interactive agent that helps users with software engineering tasks. Use the instructions below and the tools available to you to assist the user.

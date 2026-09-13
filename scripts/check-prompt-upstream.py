@@ -5,9 +5,13 @@ build.
 Two files author prompt text by copying Claude Code's. `--system-prompt-file`
 replaces every system-prompt block but the one-line identity block, so
 `sys_prompt/alan-default-next.md` supplies the whole prompt; and the SessionStart
-hook in `src/claude_config/env_context/` re-emits the environment block that
-replacement discards. Both carry passages lifted from upstream, whose own copy is
-their only source of truth — and upstream rewords prose between releases.
+hook in `src/claude_config/env_context/` renders an environment block of its own.
+Since 2.1.269 that block sits beside the copy Claude Code delivers through
+`messages[]` rather than standing in for a discarded one — `env_context/__main__.py`
+holds that finding. Both files carry passages lifted from upstream, whose own copy
+is their only source of truth — and upstream rewords prose between releases. That
+is what this script pins, and the pin holds either way: a borrowed sentence goes
+stale whether the block around it is the only copy or the second one.
 
 `scripts/check-env-context.sh` covers the env block's *field set* against the
 installed binary. It does not cover the wording: it pins the stash caution as a

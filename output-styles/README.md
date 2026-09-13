@@ -2,9 +2,14 @@
 
 ## Design Decisions
 
-Behavioral rules live here, not CLAUDE.md, because output styles inject into the
-system prompt where the model treats them as core identity — CLAUDE.md injects
-into a user message and can be overridden. See [Injection Points](#injection-points).
+Behavioral rules live here, not CLAUDE.md, because the style arrives as a
+`role: "system"` message and the cached system prompt rewrites its own preamble to
+defer to it — `helps users according to your "Output Style"` replaces `helps users
+with software engineering tasks` (`../docs/system-prompt-snapshot/sonnet-5/custom-output-style/prompt.md`,
+`system[2]`) — where CLAUDE.md arrives as a `user` message and can be overridden.
+Since 2.1.269 the style is not inside the system prompt itself; see
+[Where the style is delivered](#where-the-style-is-delivered) for the shape, and
+[Injection points](#injection-points).
 
 `keep-coding-instructions` is omitted because the custom Coding section replaces
 the built-in one with different rules. See [Section Suppression](#section-suppression)

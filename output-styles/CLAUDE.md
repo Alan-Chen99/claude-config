@@ -1,6 +1,8 @@
 # output-styles/
 
-Output formatting styles injected into the system prompt.
+Output formatting styles. Since 2.1.269 a style arrives as a `role: "system"`
+message in `messages[]`, not inside the system prompt; `README.md`, "Where the
+style is delivered", governs.
 
 ## Files
 

@@ -153,6 +153,15 @@ variant's `summary.json`.
 | 2 | Static behavioral rules | 1h, global scope | 10,676 | 10,574 | 1,210 | 1,210 | 1,152 |
 | 3 | Session guidance, memory, environment (ecosystem facts only — see below), context mgmt | 1h, org scope | 16,895 | 17,128 | 8,546 | 9,571 | 5,278 |
 
+Every figure above is the `default` variant, and block 2 is not a pure function
+of the model: its opening sentence tracks the active output style. With one
+selected, `helps users with software engineering tasks` becomes `helps users
+according to your "Output Style", which describes how you should respond to user
+queries`, and sonnet-5's block 2 measures 10,631 chars rather than 10,574
+(`sonnet-5/custom-output-style/request.json` against `sonnet-5/default/request.json`;
+`append` and `subagent` both stay at 10,574). Calling the block static is true
+of a release, not of a session.
+
 Block 1 is unchanged byte-for-byte from 2.1.235, for every model that existed
 to compare (same 57 chars, confirmed by `git diff` producing no hunk touching
 that line for any of the eight variant pairs checked; Fable 5 and Opus 4.8
@@ -884,11 +893,21 @@ What `--system-prompt` removes (blocks 2-3): all behavioral rules, output
 style, session-specific guidance, memory instructions, the ecosystem-trivia
 `# Environment` remnant, context management.
 
-What survives: billing header, identity, `userEmail`+`gitStatus`+the new
-Attribution reminder (all in `messages[0]` now, not in the system blocks), the
-new Environment/model-identity reminder (in the system-role message or
-prepended to `messages[0]`), all upfront tool definitions, the deferred-tool
-placeholder.
+What survives: billing header, identity, the CLAUDE.md wrapper reminder with
+its "these instructions OVERRIDE any default behavior" line,
+`userEmail`+`gitStatus`+the new Attribution reminder (all in `messages[0]` now,
+not in the system blocks), all upfront tool definitions, the deferred-tool
+placeholder, and one system-role block (or a prepend to `messages[0]`) holding
+`# Environment`, the model-identity line, the deferred-tool listing, the
+agent-type roster and every skill description.
+
+Read that last item as behaviour, not as facts. The skill and agent text in it
+is Anthropic-authored guidance — trigger conditions, "load this before writing
+that", roster entries telling the model when to delegate — and an override
+displaces none of it. `sonnet-5/system-prompt/prompt.md` and
+`opus-5/system-prompt-file/prompt.md` each hold it under
+`## messages[1] system, content[0]`, byte-identical in structure to their
+`default` counterparts.
 
 ### Background sessions do not inherit the flag
 
