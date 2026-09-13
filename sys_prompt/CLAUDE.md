@@ -176,7 +176,7 @@ The section is the only git policy a `claude.sh` session receives, because `sett
 the other one off. `includeGitInstructions: false` removes the Bash tool description's `# Git`
 block — measured through the proxy on 2026-09-13, cc 2.1.269: the description loses exactly that
 block and nothing else — and with it cc's `gitStatus` reminder, because both hang off one gate
-(`q7()`, `chunk-dbb93264.js:69413`; the settings reference says the same). `attribution.commit`
+(`q7()`, `chunk-dbb93264.js:69382`; the settings reference says the same). `attribution.commit`
 and `.pr` set to `""` remove the attribution reminder by a documented key; the first key removes
 it too, but that is observed, not documented, so both are set.
 

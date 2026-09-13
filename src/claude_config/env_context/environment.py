@@ -154,8 +154,8 @@ class GitSnapshot(TypedDict):
     recent_commits: str
 
 
-# cc caps its own status output at 2000 characters (`ADe`,
-# chunk-dbb93264.js:69331); the marker is this hook's own.
+# cc caps its own status output at 2000 characters (`oat`,
+# chunk-dbb93264.js:69331, applied at :69364); the marker is this hook's own.
 STATUS_CAP = 2000
 STATUS_TRUNCATED = "\n[status truncated at 2000 characters]"
 
@@ -165,15 +165,17 @@ def git_snapshot(cwd: str) -> GitSnapshot | None:
 
     cc sends the same facts as its `gitStatus` reminder, but that reminder
     shares one gate with the Bash tool's `# Git` block -- `q7()`,
-    chunk-dbb93264.js:69413: `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, else the
+    chunk-dbb93264.js:69382: `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, else the
     `includeGitInstructions` setting -- and settings.json turns that gate off
     so `sys_prompt/` is the only git policy the agent receives. A `-p`
     session never carried the reminder at all. This is the copy that survives
     both, and it re-fires with the hook on resume, `/clear` and compact where
     cc's is taken once. The git flags mirror cc's builder (`ADe`,
-    chunk-dbb93264.js:69347-69359; literal `This is the git status at the
-    start of the conversation`): `--no-optional-locks` so a snapshot never
-    takes the index lock from a concurrent session, `--ignore-submodules=dirty`,
+    chunk-dbb93264.js:69333; the status flags are the `nPo` array at :69332,
+    the log call at :69350, and the literal `This is the git status at the
+    start of the conversation` at :69369): `--no-optional-locks` so a
+    snapshot never takes the index lock from a concurrent session,
+    `--ignore-submodules=dirty`,
     five commits, the 2000-character cap. What it leaves out of cc's block:
     `Git user` (claude.sh sets the author through the environment, and the
     config name cc prints is not who the commits are by) and the main-branch
