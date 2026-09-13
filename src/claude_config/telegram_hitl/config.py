@@ -52,13 +52,21 @@ def token() -> str:
 
     Parsed directly rather than through dotenv, which would load the repo's own
     .env and export into os.environ — neither of which this process wants.
+
+    An `export` prefix is accepted and the last assignment wins, matching what a
+    shell would do with the same file, so a rotated token appended to the end is
+    the one used. An empty value counts as absent: a blanked token has to fail
+    here rather than as an opaque 401 from Telegram.
     """
     from_environment = os.environ.get("TELEGRAM_BOT_TOKEN")
     if from_environment:
         return from_environment
     path = Path(os.environ.get("TELEGRAM_HITL_TOKEN_FILE", DEFAULT_TOKEN_FILE))
+    found = ""
     for line in path.read_text().splitlines():
-        key, separator, value = line.partition("=")
-        if separator and key.strip() == "TELEGRAM_BOT_TOKEN":
-            return value.strip().strip("\"'")
+        key, separator, value = line.strip().removeprefix("export ").partition("=")
+        if separator and key.strip() == "TELEGRAM_BOT_TOKEN" and value.strip():
+            found = value.strip().strip("\"'")
+    if found:
+        return found
     raise RuntimeError(f"TELEGRAM_BOT_TOKEN is not in the environment or in {path}")

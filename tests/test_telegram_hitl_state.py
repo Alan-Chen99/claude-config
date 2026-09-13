@@ -1,6 +1,7 @@
 """Tests for the proxy's state: where it lives, and how records are written."""
 
 import json
+import os
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +49,34 @@ def test_a_missing_token_raises_rather_than_defaulting(monkeypatch, tmp_path) ->
         config.token()
 
 
+def test_an_empty_token_value_is_treated_as_missing(monkeypatch, tmp_path) -> None:
+    """A blanked token must fail here rather than as a 401 from Telegram later."""
+    env_file = tmp_path / ".env"
+    env_file.write_text('TELEGRAM_BOT_TOKEN=\nOTHER=1\n')
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("TELEGRAM_HITL_TOKEN_FILE", str(env_file))
+    with pytest.raises(RuntimeError, match="TELEGRAM_BOT_TOKEN"):
+        config.token()
+
+
+def test_an_export_prefix_is_accepted(monkeypatch, tmp_path) -> None:
+    """A shell-sourceable file must not report the token it contains as absent."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("export TELEGRAM_BOT_TOKEN=123:secret\n")
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("TELEGRAM_HITL_TOKEN_FILE", str(env_file))
+    assert config.token() == "123:secret"
+
+
+def test_the_last_assignment_wins(monkeypatch, tmp_path) -> None:
+    """What a shell and dotenv both do, so a rotated token appended below wins."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("TELEGRAM_BOT_TOKEN=old\nTELEGRAM_BOT_TOKEN=new\n")
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("TELEGRAM_HITL_TOKEN_FILE", str(env_file))
+    assert config.token() == "new"
+
+
 def test_append_writes_one_timestamped_json_line_per_record(tmp_path) -> None:
     log = ChannelLog(tmp_path / "channel.jsonl")
     log.append({"kind": "inbound", "update": {"update_id": 1}})
@@ -90,12 +119,30 @@ def test_concurrent_writers_never_interleave_a_line(tmp_path) -> None:
     }
 
 
-def test_a_short_write_is_fatal_rather_than_a_truncated_record(tmp_path) -> None:
-    """A half-written line is corruption, so it must raise, not be retried."""
-    log = ChannelLog(tmp_path / "channel.jsonl")
-    with mock.patch("os.write", lambda fd, data: len(data) - 1):
+def test_a_short_write_raises_and_bounds_the_damage_to_one_line(tmp_path) -> None:
+    """Unterminated bytes swallow the next record, which breaks every reader of
+    the file permanently. A short write must raise, and leave one bad line."""
+    path = tmp_path / "channel.jsonl"
+    log = ChannelLog(path)
+    real_write = os.write
+    calls: list[bytes] = []
+
+    def short_once(fd: int, data: bytes) -> int:
+        calls.append(data)
+        return real_write(fd, data[:-5] if len(calls) == 1 else data)
+
+    with mock.patch("os.write", short_once):
         with pytest.raises(OSError, match="short write"):
-            log.append({"kind": "inbound", "update": {}})
+            log.append({"kind": "inbound", "update": {"update_id": 1}})
+    log.append({"kind": "inbound", "update": {"update_id": 2}})
+    log.close()
+
+    lines = path.read_bytes().splitlines(keepends=True)
+    assert len(lines) == 2
+    assert all(line.endswith(b"\n") for line in lines)
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(lines[0])
+    assert json.loads(lines[1])["update"]["update_id"] == 2
 
 
 def test_repeated_faults_log_one_transition_then_one_clearance(tmp_path) -> None:
@@ -132,3 +179,35 @@ def test_a_healthy_source_writes_nothing(tmp_path) -> None:
     ErrorTransitions(log, "drain").ok()
     log.close()
     assert (tmp_path / "channel.jsonl").read_text() == ""
+
+
+def test_concurrent_reporters_log_one_transition_per_episode(tmp_path) -> None:
+    """The forwarder shares one tracker across every request thread, so the
+    check, the mutation and the append have to be one step.
+
+    The alternation matters: a repeated signature alone takes the increment
+    path, which never blocks and so never yields mid-update. It is `_clear`'s
+    fsync, inside the critical section, that opens the window this exercises.
+    """
+    log = ChannelLog(tmp_path / "channel.jsonl")
+    faults = ErrorTransitions(log, "forward")
+    barrier = threading.Barrier(12)
+
+    def hammer() -> None:
+        barrier.wait()
+        for _ in range(40):
+            faults.failed("forward:URLError", "unreachable")
+            faults.ok()
+
+    threads = [threading.Thread(target=hammer) for _ in range(12)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    faults.ok()
+    log.close()
+
+    records = _records(tmp_path / "channel.jsonl")
+    states = [r["state"] for r in records]
+    assert all(a != b for a, b in zip(states, states[1:])), f"state repeated: {states[:8]}"
+    assert sum(r.get("occurrences", 0) for r in records) == 480
