@@ -111,15 +111,49 @@ fill in `text`, `thinking`, and `input`. Keeping the whole block is
 load-bearing for server-side tools: `web_search_tool_result` delivers its
 result list on the start event and nothing later restores it.
 
+## Pass-through streaming
+
+Anthropic API responses are relayed to the client chunk by chunk and captured on
+the way past, so an intercepted session still renders token by token. This is not
+mitmproxy's default and the addon has to ask for it: `responseheaders` installs a
+`flow.response.stream` callable that appends each chunk to a buffer and returns it
+unchanged, and `response` hands that buffer back to `flow.response.raw_content` so
+the capture decodes exactly as an unstreamed body would.
+
+Without it mitmproxy buffers the entire body before the `response` hook runs and
+sends the client its first byte — **status line included** — only once the server
+is done. Measured against a local SSE origin emitting 4 events 0.4s apart: direct,
+the client saw them at 0.001s / 0.401s / 0.802s / 1.202s; through the buffering
+addon it saw one 320-byte delivery at 1.651s. `tests/test_intercept_proxy.py` pins
+both halves — the relay and the capture — against a real `mitmdump`.
+
+What makes this a correctness problem rather than a cosmetic one is that Claude
+Code (read on **2.1.269**) cancels a first-party request whose response headers
+have not arrived within ~180s of dispatch, and reaching the API through
+`HTTPS_PROXY` leaves it first-party. Under a buffering proxy that window has to
+cover the whole generation, so long turns abort. Claude Code's own error text for
+that failure names the cause: *"If a
+proxy or gateway on your network holds responses until they complete, raise
+API_TIMEOUT_MS or CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS to wait longer."* The
+measurement, the watchdog's arithmetic and the source citations are in
+`notes/intercept-proxy-response-buffering.md`.
+
+mitmproxy's `store_streamed_bodies` option would also preserve the capture, and is
+deliberately not used: it is global, so it would buffer every streamed body from
+every host the proxy sees, and it lives in `run-proxy.py` rather than in the addon
+— leaving a bare `mitmdump -s proxy.py` (documented above) writing empty captures.
+
 ## Architecture
 
 ```
 Client ──CONNECT──▶ mitmproxy (127.0.0.1:9160)
                       │
-                      ├─ api.anthropic.com ──▶ MITM ──▶ log + forward
+                      ├─ api.anthropic.com ──▶ MITM ──▶ relay each chunk onward,
+                      │                                 capture it, log at end
                       └─ other hosts        ──▶ pass through
 ```
 
 `proxy.py` is a mitmproxy addon. mitmproxy handles TLS, MITM certs, and the
 CONNECT tunnel. The addon filters for Anthropic API calls, resolves sessions,
-parses SSE streams, and writes log entries per-session.
+streams and captures response bodies, parses the captured SSE, and writes log
+entries per-session.
