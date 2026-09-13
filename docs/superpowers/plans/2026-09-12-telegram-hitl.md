@@ -1904,7 +1904,7 @@ Expected: 7 passed
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
 Expected: `380 passed` — 329 before this work, plus 15, 21, 8 and 7. Task 5 adds
-the last 11, for 391.
+the last 15, for 395.
 
 - [ ] **Step 6: Commit**
 
@@ -2042,6 +2042,13 @@ def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> No
                                    "signature": "forward:URLError"}]) == "up"
 
 
+@pytest.mark.parametrize("status", ["`400`", "`403`", "`411`", "`502`"])
+def test_the_skill_documents_every_refusal_the_proxy_returns(status) -> None:
+    """An agent that meets a refusal has only this document to explain it, and
+    three of the four come from the proxy rather than from Telegram."""
+    assert status in SKILL.read_text()
+
+
 @pytest.mark.parametrize("trap", [
     "is_topic_message",          # message_thread_id carries two different ids
     "MESSAGE_ID_INVALID",        # reactability is type-specific
@@ -2058,7 +2065,7 @@ def test_the_skill_still_carries_every_trap_that_cost_time(trap) -> None:
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_skill.py -q 2>&1 | tail -3`
-Expected: 11 failed — `FileNotFoundError` on `skills/telegram-hitl/SKILL.md`
+Expected: 15 failed — `FileNotFoundError` on `skills/telegram-hitl/SKILL.md`
 
 - [ ] **Step 3: Write the skill**
 
@@ -2112,6 +2119,15 @@ says who called.
 Refused with `403`: `getUpdates`, `setWebhook`, `deleteWebhook`, `close`,
 `logOut`. Each would break the one update stream or the token. Everything else
 passes through.
+
+Three more refusals are the proxy's own rather than Telegram's, and each names
+`telegram-hitl proxy` in its `description` so you can tell which is which:
+
+| | |
+| --- | --- |
+| `400` | The method name is not alphanumeric. `sendMessage` is fine; `sendMessage/`, `send%4dessage` and `x/../getUpdates` are not — a respelling that resolves to a denied method would otherwise walk straight past the denylist. |
+| `411` | The body was sent chunked, so it carries no `Content-Length` and would forward as empty. Send a body with a length. |
+| `502` | Telegram could not be reached or did not answer usably. The same fault is in the log, so a watcher sees it too. |
 
 **Errors arrive as themselves** and nothing is retried for you — `retry_after`,
 `REACTION_INVALID`, `message thread not found`, `not enough rights to create a
@@ -2284,7 +2300,7 @@ Each of these cost real time to find.
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_skill.py -q`
-Expected: 11 passed
+Expected: 15 passed
 
 - [ ] **Step 5: Commit**
 
@@ -2525,6 +2541,7 @@ Run after the last task, against
 | A down channel is distinguishable from a slow human | `test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one`, `test_a_crashing_drain_records_why_it_stopped` |
 | The agent decides topics | Task 5, stated as judgement with no mechanism behind it |
 | The traps must not be lost | `test_the_skill_still_carries_every_trap_that_cost_time` |
+| The skill does not drift from what the proxy actually answers | `test_the_skill_documents_every_refusal_the_proxy_returns` |
 | The fault channel survives concurrent reporters | `test_concurrent_reporters_log_one_transition_per_episode` (fails 5/5 runs without the lock) |
 | One failed write does not make the log unreadable | `test_a_short_write_raises_and_bounds_the_damage_to_one_line`, `test_the_log_reader_surfaces_a_damaged_line_and_keeps_going` |
 | A blanked or shell-style token file fails locally, not at Telegram | `test_an_empty_token_value_is_treated_as_missing`, `test_an_export_prefix_is_accepted`, `test_the_last_assignment_wins` |
