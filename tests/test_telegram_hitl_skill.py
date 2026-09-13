@@ -100,6 +100,16 @@ def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> No
                                    "signature": "forward:URLError"}]) == "up"
 
 
+def test_the_skill_names_the_session_variable_that_exists() -> None:
+    """Claude Code sets CLAUDE_CODE_SESSION_ID and there is no CLAUDE_SESSION_ID.
+    An example reading the wrong one sends an empty header rather than failing,
+    so the log's record of who called comes out blank — worse than an error.
+    """
+    text = SKILL.read_text()
+    assert "$CLAUDE_CODE_SESSION_ID" in text
+    assert "$CLAUDE_SESSION_ID" not in text
+
+
 @pytest.mark.parametrize("status", ["`400`", "`403`", "`411`", "`502`"])
 def test_the_skill_documents_every_refusal_the_proxy_returns(status) -> None:
     """An agent that meets a refusal has only this document to explain it, and

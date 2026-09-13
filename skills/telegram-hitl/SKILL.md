@@ -15,6 +15,13 @@ once. Nothing is assigned to you, and no chat, topic or message is yours alone.
 | Log | `~/.claude/channels/telegram-hitl/channel.jsonl` |
 | Chat id | `~/.claude/channels/telegram-hitl/chat_id` |
 
+If `chat_id` is absent, the channel is not set up on this machine, and reading it
+anyway just puts an empty value in your request. Setting it up needs a human: a
+Telegram supergroup with Topics enabled, the bot added as an administrator with
+Manage Topics, and the chat id written to that file. The Bot API can do none of
+it — it can neither create a chat nor raise its own rights. `getChat` reporting
+`is_forum: true` confirms the first two.
+
 If the port does not answer, the proxy is not running:
 
 ```bash
@@ -35,7 +42,7 @@ is left at the proxy. What comes back is Telegram's own JSON.
 ```bash
 curl -s -X POST http://127.0.0.1:18420/sendMessage \
   -H 'Content-Type: application/json' \
-  -H "X-Session-Id: $CLAUDE_SESSION_ID" \
+  -H "X-Session-Id: $CLAUDE_CODE_SESSION_ID" \
   -d "{\"chat_id\": $(cat ~/.claude/channels/telegram-hitl/chat_id), \"message_thread_id\": 6, \"text\": \"Ship it?\"}"
 ```
 

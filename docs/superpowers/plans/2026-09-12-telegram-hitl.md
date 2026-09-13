@@ -1956,7 +1956,7 @@ Expected: 9 passed
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/ -q 2>&1 | tail -3`
 Expected: `382 passed` — 329 before this work, plus 15, 21, 8 and 9. Task 5 adds
-the last 15, for 397.
+the last 16, for 398.
 
 - [ ] **Step 6: Commit**
 
@@ -2094,6 +2094,16 @@ def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> No
                                    "signature": "forward:URLError"}]) == "up"
 
 
+def test_the_skill_names_the_session_variable_that_exists() -> None:
+    """Claude Code sets CLAUDE_CODE_SESSION_ID and there is no CLAUDE_SESSION_ID.
+    An example reading the wrong one sends an empty header rather than failing,
+    so the log's record of who called comes out blank — worse than an error.
+    """
+    text = SKILL.read_text()
+    assert "$CLAUDE_CODE_SESSION_ID" in text
+    assert "$CLAUDE_SESSION_ID" not in text
+
+
 @pytest.mark.parametrize("status", ["`400`", "`403`", "`411`", "`502`"])
 def test_the_skill_documents_every_refusal_the_proxy_returns(status) -> None:
     """An agent that meets a refusal has only this document to explain it, and
@@ -2117,7 +2127,7 @@ def test_the_skill_still_carries_every_trap_that_cost_time(trap) -> None:
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_skill.py -q 2>&1 | tail -3`
-Expected: 15 failed — `FileNotFoundError` on `skills/telegram-hitl/SKILL.md`
+Expected: 16 failed — `FileNotFoundError` on `skills/telegram-hitl/SKILL.md`
 
 - [ ] **Step 3: Write the skill**
 
@@ -2141,6 +2151,13 @@ once. Nothing is assigned to you, and no chat, topic or message is yours alone.
 | Log | `~/.claude/channels/telegram-hitl/channel.jsonl` |
 | Chat id | `~/.claude/channels/telegram-hitl/chat_id` |
 
+If `chat_id` is absent, the channel is not set up on this machine, and reading it
+anyway just puts an empty value in your request. Setting it up needs a human: a
+Telegram supergroup with Topics enabled, the bot added as an administrator with
+Manage Topics, and the chat id written to that file. The Bot API can do none of
+it — it can neither create a chat nor raise its own rights. `getChat` reporting
+`is_forum: true` confirms the first two.
+
 If the port does not answer, the proxy is not running:
 
 ```bash
@@ -2161,7 +2178,7 @@ is left at the proxy. What comes back is Telegram's own JSON.
 ```bash
 curl -s -X POST http://127.0.0.1:18420/sendMessage \
   -H 'Content-Type: application/json' \
-  -H "X-Session-Id: $CLAUDE_SESSION_ID" \
+  -H "X-Session-Id: $CLAUDE_CODE_SESSION_ID" \
   -d "{\"chat_id\": $(cat ~/.claude/channels/telegram-hitl/chat_id), \"message_thread_id\": 6, \"text\": \"Ship it?\"}"
 ```
 
@@ -2352,7 +2369,7 @@ Each of these cost real time to find.
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /root/claude-config-work2 && uv run pytest tests/test_telegram_hitl_skill.py -q`
-Expected: 15 passed
+Expected: 16 passed
 
 - [ ] **Step 5: Commit**
 
@@ -2595,6 +2612,7 @@ Run after the last task, against
 | The agent decides topics | Task 5, stated as judgement with no mechanism behind it |
 | The traps must not be lost | `test_the_skill_still_carries_every_trap_that_cost_time` |
 | The skill does not drift from what the proxy actually answers | `test_the_skill_documents_every_refusal_the_proxy_returns` |
+| The skill's examples name variables that exist | `test_the_skill_names_the_session_variable_that_exists` |
 | The fault channel survives concurrent reporters | `test_concurrent_reporters_log_one_transition_per_episode` (fails 5/5 runs without the lock) |
 | One failed write does not make the log unreadable | `test_a_short_write_raises_and_bounds_the_damage_to_one_line`, `test_the_log_reader_surfaces_a_damaged_line_and_keeps_going` |
 | A blanked or shell-style token file fails locally, not at Telegram | `test_an_empty_token_value_is_treated_as_missing`, `test_an_export_prefix_is_accepted`, `test_the_last_assignment_wins` |
