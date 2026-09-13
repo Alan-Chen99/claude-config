@@ -222,8 +222,10 @@ repository with an `origin/main` may pull toward a branch. Artifacts under
 Measured: 7679 → 7693 API tokens (`claude-opus-4-7`), the clone line's rewrite included.
 
 Retire or re-test when: a release renames `includeGitInstructions` or stops gating the Bash block
-by it — the tool note returns beside this section and contradicts it; `tools/Bash.md` in the next
-capture shows the block, and the case shows whether the agent still commits. When the env-context
+by it — the tool note returns beside this section and contradicts it. No capture will show that:
+`capture.py` passes `--setting-sources project,local` and `settings.json` installs as user
+settings, so `tools/Bash.md` carries the block either way. Read a live session's own Bash
+description instead; the case shows whether the agent still commits. When the env-context
 hook is trimmed — the snapshot goes with it, and so does the `Session ID:` line the trailer rule
 reads: cc's own block never states the id, it only embeds it in the scratchpad path
 (`…/<cwd-slug>/<session id>/scratchpad`), and Bash subprocesses carry it as
