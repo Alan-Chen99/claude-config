@@ -11,9 +11,12 @@ Status is injected as `additionalContext` by hooks on three events, and only tho
 timer and no `Stop`-event injection. An agent is therefore never woken: a status change
 becomes visible on its next tool result or on the user's next turn, whichever comes first.
 Nothing here blocks, so a job that outlives a single Bash call (max 600000 ms) needs some
-other way to be waited on. `--background` prints its wrapper pid, and `timeout <s> tail
---pid=<n> -f /dev/null` blocks on that across calls; `ps`'s default JSON is a current-state
-listing and can be polled. Only the `--events` log cannot — see "`ps`" below.
+other way to be waited on. The default is the harness's own: `run_in_background: true` on an
+ordinary wrapped command, which re-invokes the agent when the wrapper exits — at
+`final(<code>)`, not at the child's exit (Passthrough, point 7). Where the harness is not the
+one waiting, `--background` prints its wrapper pid and `timeout <s> tail --pid=<n> -f
+/dev/null` blocks on that across calls; `ps`'s default JSON is a current-state listing and can
+be polled. Only the `--events` log cannot — see "`ps`" below.
 
 ## Block shape
 
@@ -242,7 +245,15 @@ and the foreground `timeout`, and the wrapper and its child were still running a
 2.1.257's release notes claim to have closed the `setsid` escape on task stop and on Claude
 Code exit; only the exit half is unmeasured.
 
-So for a job that must outlive its call, `--background` is the form to reach for: it needs no
-bounded wait, and it keeps the job reachable through the status channel, through `ps`, and
-through the wrapper pid on its start line. For a bare `&` the guidance stays "let the call
+The harness's own background task is no escape from that kill — it is what `TaskStop` is for.
+Measured on 2.1.269: a `run_in_background: true` call wrapping an ordinary `agent-tools run`
+appended a line per second; `TaskStop` on its task id stopped the appends at once, left no
+surviving process, and the status channel reported `final(143)`.
+
+So `--background` is the form to reach for when a job must survive the call being killed — by
+a `TaskStop`, or at a timeout the command is not promoted out of: it needs no bounded wait,
+and it keeps the job reachable through the status channel, through `ps`, and through the
+wrapper pid on its start line. A job that merely has to outlive a call nothing is killing
+wants `run_in_background: true` instead, which keeps the task id and the completion
+notification a detached run gives up. For a bare `&` the guidance stays "let the call
 return on its own", which is the only form that keeps such a job reachable at all.

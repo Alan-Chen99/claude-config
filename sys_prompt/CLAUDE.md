@@ -249,3 +249,39 @@ since cc's own block never states the id, only embedding it in the scratchpad pa
 (`…/<cwd-slug>/<session id>/scratchpad`). Retire this clause if that line ever goes; Bash
 subprocesses would still carry the id as `CLAUDE_CODE_SESSION_ID`, but no text would say so. When a run shows the agent branching, asking before a
 commit, or sweeping foreign changes in — those are what the cut clauses would have said.
+
+### Backgrounding: `run_in_background: true` by default, `--background` by exception
+
+The prompt names one default — `run_in_background: true` on an ordinary `agent-tools run` —
+and gates `agent-tools run --background` behind one trigger: the job must survive the call
+being killed, by a `TaskStop` or at a timeout the command is not promoted out of.
+
+This is a preference the user stated on 2026-09-14, about this bullet: the default should not
+be `--background`. No measurement forced it, so it can be revisited by asking. What supports
+it: a detached run gives up the task id and the harness's completion notification and delivers
+only `final(<code>)` on the status channel, which arrives on the next tool result or user turn
+rather than waking the agent — so the default path is the one that reports, and the flag is
+what you pay for surviving a kill. Both sides of the trade are in the prompt already, which is
+why no reason for the ordering is.
+
+Before the edit the bullet named `run_in_background: true` first and then described
+`--background` at twice the length with no trigger and no cost stated in contrast. Length and
+final position were doing the recommending; that is what changed, not the facts.
+
+`docs/agent-tools-status-reference.md` was reconciled in the same change — its "Delivery" and
+"kill boundary" sections each named `--background` as the form to reach for whenever a job
+outlives its call, which contradicts the prompt's gate. That doc is the prompt's exhaustive
+half, so an agent that reads it gets whichever default it states.
+
+Two places still reach for `--background` unconditionally, both deliberate and neither covered
+by the prompt's gate as written: `skills/telegram-hitl/SKILL.md` starts the proxy and the
+hours-long waiter that way. The waiter is the one to re-examine — a harness background task
+would wake the session on the answer instead of waiting for the next turn to surface
+`final(<code>)`.
+
+The `TaskStop` half of the trigger is measured on both sides, in
+`docs/agent-tools-status-reference.md`, "The kill boundary": `--background` survives it, a
+harness background task is killed by it (`final(143)`).
+
+Retire or revisit this if `--background` gains a completion notification of its own, which
+would leave the flag with no cost to trade against.
