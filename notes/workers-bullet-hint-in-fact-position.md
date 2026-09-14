@@ -216,10 +216,16 @@ disclaimer) is still empty.
 connections; as of <date> the admin console is one example`, with the ceiling
 sentence dropped. Recovers the structural fact the source only implies — the
 pool is *per tenant*, so shared — and puts the instance where it belongs, dated
-and as an example. Low cost if wrong: nothing else takes a connection, and one
-sits idle. Drops the count, which is what makes four derivable and gives
-counting a baseline; under pressure "five minus an unknown" reads as headroom.
-And the fixture has no date to write.
+and as an example. Its claim is an *existence* claim — something besides the
+workers holds connections — and it is wrong when that class is empty. An
+earlier draft of this note priced that at one idle connection; the user's
+correction, 2026-09-14: the price is a check on every change that touches the
+pool, returning nothing every time, with no event that ever retires the hint.
+A wrong fact costs one misdiagnosed incident; a wrong hint costs a silent tax
+per change, and which is cheaper is a product of change rate, check cost and
+incident cost that the fixture does not give. Drops the count, which is what
+makes four derivable and gives counting a baseline; under pressure "five minus
+an unknown" reads as headroom. And the fixture has no date to write.
 
 **The observation form**, the parent's — `shared by everything of ours that
 connects to them; at last check the admin console held one … cannot be found
@@ -284,15 +290,18 @@ on it. What this changes:
   finding nothing* relaxes to *I depend on X being nowhere*), which is why
   "always holding one" is a legitimate budget where "permanently" was not a
   legitimate fact.
-- **`[hint]` licenses one use**: look here before acting. It makes no claim
-  that can be wrong, so it has no upkeep and no staleness; what it costs is the
-  bound — "other things may take connections" gives the reader five minus an
-  unknown, which under pressure reads as headroom. The user's observation that
-  *other things may take up connections* is technically a fact, just one with
-  low risk when wrong and high use, is right: the primary axis is not
-  fact-versus-not but *what may the reader do with this without checking, and
-  who pays if it is wrong*. A hint is a fact whose wrong-cost is one idle
-  connection.
+- **`[hint]` licenses one use**: look here before acting. It is still a
+  claim — the user's point that *other things may take up connections* is
+  technically a fact — and the claim is existence: the class it names is
+  non-empty. When the class is empty the hint is wrong, and the cost is not one
+  idle connection but a check on every change that touches the pool, always
+  returning nothing, with nothing that ever tells anyone to delete the line.
+  By the case's upkeep test that is a failure of the same shape as the fact
+  form's: being wrong produces no feedback that points at the hint. So the two
+  forms trade a loud, misattributed incident for a silent, recurring tax. The
+  axis is not fact-versus-not but *what may the reader do with this without
+  checking, who pays if it is wrong, and how often*. What the hint also costs
+  is the bound — five minus an unknown, which under pressure reads as headroom.
 - **Merging is contravariant.** Two statements with different tags merged into
   one sentence carry the intersection of their licences — the stricter tag —
   or the merge is invalid. This is what the compressor did not do to the
@@ -302,7 +311,7 @@ on it. What this changes:
   S40–S46.
 - **Each tag needs a form constraint, or the tags are nominal.** A `[fact]`
   names its check or its source; a `[dependency]` names what depends on it; a
-  `[hint]` makes no claim; a `[symptom]` is observable from the reader's
+  `[hint]` names what to look for and where; a `[symptom]` is observable from the reader's
   position; a `[pointer]` names a file. Then a wrong tag is caught by reading
   the sentence — `[fact] the console holds one` fails for want of a check —
   rather than by a grader's opinion.
@@ -328,10 +337,12 @@ only when the fixture supports it:
 | --- | --- | --- | --- |
 | fact + check | `the console holds one — see <where>` | the bound and how to re-verify | yes, and findably |
 | dependency | `four counts on the console always holding one` | the bound as a record of design | no — retired by a design change |
-| hint | `other things may take connections; the console is one` | a direction to look, no bound | no — no claim |
+| hint | `other things may take connections; the console is one` | a direction to look, no bound | yes, silently — an emptied class leaves a check that always returns nothing |
 
 The source supports the middle rung — it states the derivation, so the
-author's assumption is known — and the middle rung contains the hint. The top
+author's assumption is known — and the middle rung contains the hint without
+the hint's standing check: a dependency is re-examined only when the design
+changes, a hint on every change. The top
 rung needs an observation point the fixture lacks; in a real repository
 `git blame` on the line supplies the date and often the author, which is the
 user's hunt-before-compress point and the one place a compressor can honestly
