@@ -273,11 +273,11 @@ final position were doing the recommending; that is what changed, not the facts.
 outlives its call, which contradicts the prompt's gate. That doc is the prompt's exhaustive
 half, so an agent that reads it gets whichever default it states.
 
-Two places still reach for `--background` unconditionally, both deliberate and neither covered
-by the prompt's gate as written: `skills/telegram-hitl/SKILL.md` starts the proxy and the
-hours-long waiter that way. The waiter is the one to re-examine — a harness background task
-would wake the session on the answer instead of waiting for the next turn to surface
-`final(<code>)`.
+`skills/telegram-hitl/SKILL.md` was brought under the same gate: its hours-long waiter now
+runs as a harness background task, because a detached one delivers no completion notification
+and the answer would sit unread until something else gave the session a turn. Its proxy keeps
+`--background` and now says why — a harness background task is session-scoped and the proxy
+has to outlive the session that starts it.
 
 The `TaskStop` half of the trigger is measured on both sides, in
 `docs/agent-tools-status-reference.md`, "The kill boundary": `--background` survives it, a

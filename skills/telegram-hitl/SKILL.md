@@ -64,10 +64,12 @@ agent-tools run --background --desc "telegram-hitl proxy" \
   uv run --project /repos/claude-config python -m claude_config.telegram_hitl
 ```
 
-The environment variable is this repo's convention; without it `uv` would build
-a `.venv` inside the canonical checkout. The proxy inherits
-`TELEGRAM_HITL_STATE_DIR` from your environment, which is what makes the one you
-start the same channel everyone else is reading.
+`--background` here, unlike the waiter below: a harness background task is
+session-scoped — a `TaskStop` kills it — and this proxy has to outlive the
+session that starts it. The environment variable is this repo's convention;
+without it `uv` would build a `.venv` inside the canonical checkout. The proxy
+inherits `TELEGRAM_HITL_STATE_DIR` from your environment, which is what makes the
+one you start the same channel everyone else is reading.
 
 Either way it refuses to start if another instance holds the lock, which is
 intended — one process owns the update stream, and a second consumer would evict
@@ -169,14 +171,19 @@ def answer_to(records, message_id):
 ```
 
 Waits here are measured in hours, so wait against the file, not against a socket.
-Write a small waiter to your scratchpad and background it — it exits on the
-answer, which produces exactly one notification:
+Write a small waiter to your scratchpad and run it with `run_in_background: true`
+— the harness re-invokes you when it exits on the answer, which is the one
+notification you want:
 
 ```bash
-agent-tools run --background --desc "await human" python3 <your-scratchpad>/waiter.py 51
+agent-tools run --desc "await human" python3 <your-scratchpad>/waiter.py 51
 ```
 
-It needs nothing but the standard library, so it runs under plain `python3`.
+It needs nothing but the standard library, so it runs under plain `python3`. Not
+`agent-tools run --background`: that detaches the waiter from the harness, so its
+exit produces no notification — only a `final(<code>)` status line, which is
+visible on your next tool result or the user's next turn and wakes nothing. An
+answer would sit unread until something else gave you a turn.
 
 A waiter that only looks for an answer cannot tell *no answer yet* from *the
 channel is down*. Check both — but do not abandon a wait on the first fault you
