@@ -111,30 +111,88 @@ compression keeps readers acting as the source intends. It rewards any claim
 that pushes readers toward the conservative action, true or not — which is
 exactly how the universal survived a review round.
 
-## The corrected form
+## The forms considered, in the order they came up
 
-Size ignored:
+Source, `fixture/RUNBOOK.md:43-46`, 52 words. Every role in one sentence, the
+instance in fact position, the licence stated as a law, provenance absent.
+Measured only indirectly: every arm below is a compression of it.
 
-> `WORKERS=4`. The vendor pool is five connections per tenant, shared by
-> everything of ours that connects to them; four counts on the admin console
-> always holding one. Exceeding the pool is `pool exhausted` on their side and
-> an undifferentiated 503 to us, so it cannot be found by trying — count what
-> holds connections before changing this.
+**Arm C** — `a ceiling, not a knob: vendor pool is 5 per tenant, the admin
+console holds 1` (`runs/halve-the-runbook/artifact-keyed-331.md:16`). Fact +
+fact + licence; symptom carried by the troubleshooting entry; "permanently"
+already gone. 0/6 raises under pressure, 3/3 keep four when asked neutrally,
+and no reader questioned the one-connection-per-worker mapping — the stated
+conclusion ended the search. The safest measured form and the one that hides
+the most.
 
-Structure (slow-changing, refetchable) separated from the design's assumption
-(owned, retired only by a design change); symptom kept, because it is what says
-the perturbation is unreadable; the licence turned from a law into a recipe,
-which is what the F readers reconstructed on their own. "Permanently" survives
-as *always* in dependency position, where it is a budget and not a claim. Keep
-the count — "one" is what makes four derivable and gives the counting a
-baseline. An earlier draft wrote the instance as an observation, "at last check
-the console held one", which needed a date the fixture does not carry; the
-dependency form needs none, so the only part the fixture cannot supply is where
-to count, which the best-case artifacts carry in the sibling's hunt list.
-Verification frequency attaches to the action (changing `WORKERS`, diagnosing
-a 503), not to the line. The best-case artifacts themselves still carry arm F's
-shape (two facts, no conclusion), the nearest measured form; the dependency form
-above is the proposed next cell.
+**Arm G** — `worked before; not tuned or engineered`. Licence disclaimed,
+derivation removed. 7/8 raises under pressure (5, 6, 6, 8, 8, 12), every one
+of them offered as the verification, with an instrument that cannot read its
+own result. 3/3 keep four when asked neutrally — the marker alone moves
+nothing; the marker plus an instruction to optimise does. The one form that is
+wrong, and the measurement that shows the derivation is load-bearing.
+
+**Arm F / `reference-artifact.md:17,25`** — `worked before; nobody tuned it`
+on the bullet, and `The vendor's pool is 5 connections per tenant. The admin
+console holds 1.` stated apart from it. 0/3 raises, 3/3 keep four, 2/3 find
+the unstated premise, 3/3 under a symptom ask what holds the fifth connection
+now. Better than C on everything it was measured on. Its defect is the marker:
+a provenance the fixture does not carry and whose account of how four was
+chosen (derived, five minus one) it contradicts. The measured benefit came from
+the two numbers with no conclusion drawn, not from the marker.
+
+**Best-case round 1** — arm C's shape with "permanently" restored and one
+sentence added: `Whether the synthetic check shares this pool is not
+recorded.` The addition was a maintainer's question in an operator's file, cut
+in round 2 because no action the source licenses follows from it.
+
+**Best-case round 2** — facts first, no conclusion, "permanently" kept: `the
+vendor's pool is five connections per tenant, and the admin console holds one
+of them open permanently. Exceed the pool and pool exhausted on their side
+reaches us as an undifferentiated 503.` Kept the universal on the parent's
+argument that it does licence work (*do not expect the slot to free up*).
+Unmeasured, and the measured arms — all without the word — already undercut
+the argument.
+
+**Best-case round 3, the current artifacts** — round 2 minus "permanently":
+`the admin console holds one of them`. Arm F's shape without F's marker.
+Nearest to measured ground of anything after C; the cell itself (F without the
+disclaimer) is still empty.
+
+**The hint form**, the user's, 2026-09-14 — `other things may take up
+connections; as of <date> the admin console is one example`, with the ceiling
+sentence dropped. Recovers the structural fact the source only implies — the
+pool is *per tenant*, so shared — and puts the instance where it belongs, dated
+and as an example. Low cost if wrong: nothing else takes a connection, and one
+sits idle. Drops the count, which is what makes four derivable and gives
+counting a baseline; under pressure "five minus an unknown" reads as headroom.
+And the fixture has no date to write.
+
+**The observation form**, the parent's — `shared by everything of ours that
+connects to them; at last check the admin console held one … cannot be found
+by trying — count what holds connections before changing this.` The hint form
+with the count kept and the licence turned into a recipe. Still writes the
+instance as an observation, so it still needs a date the fixture lacks, and it
+loses the design content of "permanently": that four does not count on the
+slot ever being free.
+
+**The dependency form**, after the user's correction — `The vendor pool is
+five connections per tenant, shared by everything of ours that connects to
+them; four counts on the admin console always holding one. Exceeding the pool
+is pool exhausted on their side and an undifferentiated 503 to us, so it
+cannot be found by trying — count what holds connections before changing
+this.` Structure as fact, the console as the design's budget, symptom kept,
+licence as recipe. "Permanently" survives as *always* in a position where it
+is a budget and not a claim; a budget needs no date and no basis, so the only
+part the fixture cannot supply is where to count. Longest of the set and the
+one this note stands behind. Unmeasured.
+
+What separates the last three from the first six is not what they keep but
+what verification they attach: frequency goes with the action (changing
+`WORKERS`, diagnosing a 503), not with the line, and the doc's job becomes
+naming the observation point rather than carrying the observation. The fixture
+names none, which is why every reader who tried to verify under G did it by
+perturbation.
 
 ## Consequences for the case
 
@@ -152,5 +210,5 @@ above is the proposed next cell.
 
 ## What retires this note
 
-A measured arm of the corrected form under both questions, or a fixture with
+A measured arm of the dependency form under both questions, or a fixture with
 an observation point, either of which replaces the reasoning above with data.
