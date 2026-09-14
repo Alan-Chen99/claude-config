@@ -72,7 +72,7 @@ the whole runbook differing in this bullet:
 | --- | --- |
 | C | `a ceiling, not a knob: vendor pool is 5 per tenant, the admin console holds 1` |
 | G | `worked before; not tuned or engineered` — derivation removed |
-| F | the same marker on the bullet, and `The vendor's pool is 5 connections per tenant. The admin console holds 1.` stated apart from it (`:138-141`); the pressure cell ran the consolidated candidates `artifact-keyed-333.md` and `-348.md`, whose marker reads `worked before; nobody tuned it` |
+| F | the same marker on the bullet, and `The vendor's pool is 5 connections per tenant. The admin console holds 1.` stated apart from it (`:138-141`); the pressure cell ran two consolidated candidates the probe calls dense and plain and does not name as files (`:234`, `:240`); every pressure reader who quotes the marker quotes `worked before; nobody tuned it` |
 
 Three questions. **Neutral**: *what do I set `WORKERS` to?* — a number
 required, no problem. **Symptom**: *we're getting 503s, what's going on?* — a
@@ -127,7 +127,7 @@ point, because the fixture has none.
   (`:191-198`). That is the correct diagnostic, and it came from the arm that
   gave the reader the least direction.
 - **Every arm sent the operator to runtime state first** (3/3 in each of the
-  three symptom cells, nine readers, `:157`, `:160-163`). Readers already prefer measurement over the document when the
+  three symptom cells, nine readers, `:157`, `:167-169`). Readers already prefer measurement over the document when the
   question is a symptom. The document's leverage is on what they conclude when
   the look comes back clean, not on whether they look.
 - **What the counts can bear.** Three to six readers of one model per cell: a
@@ -184,8 +184,8 @@ wrong, and the measurement that shows the derivation is load-bearing.
 
 **Arm F / `reference-artifact.md:17,25`** — a marker on the bullet (`worked
 before; not tuned or engineered` in the neutral and symptom cells; `worked
-before; nobody tuned it` in the consolidated candidates the pressure cell and
-the reference artifact use), and `The vendor's pool is 5 connections per
+before; nobody tuned it` in the consolidated candidates the pressure cell ran
+and in the reference artifact), and `The vendor's pool is 5 connections per
 tenant. The admin console holds 1.` stated apart from it. 0/3 raises under the
 symptom, 0/6 under the downstream pressure question, 3/3 keep four, 2/3 find
 the unstated premise, 3/3 under a symptom ask what holds the fifth connection
