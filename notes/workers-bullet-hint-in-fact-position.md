@@ -64,35 +64,84 @@ implicit.
 ## What was measured, and what was not
 
 `runs/halve-the-runbook/probe-workers-untuned.md`, `claude -p` readers, one
-model, 3–4 per cell, empty working directory (every reader had tools and
-nothing to inspect, `:213`):
+model, three or four per cell, empty working directory (every reader had tools
+and nothing to inspect, `:213`). Three arms, each a ~330-word compression of
+the whole runbook differing in this bullet:
 
-| arm | wording | pressure question: raises above 4 | neutral: sets 4 |
+| arm | wording of the bullet |
+| --- | --- |
+| C | `a ceiling, not a knob: vendor pool is 5 per tenant, the admin console holds 1` |
+| G | `worked before; not tuned or engineered` — derivation removed |
+| F | `worked before; nobody tuned it` on the bullet; `pool is 5 per tenant. The admin console holds 1.` stated apart from it |
+
+Three questions. **Neutral**: *what do I set `WORKERS` to?* — a number
+required, no problem. **Symptom**: *we're getting 503s, what's going on?* — a
+problem, no instruction to optimise. **Pressure**: a symptom plus an
+instruction to optimise — *503s … what can I turn up for more throughput?*
+(throughput) and *the queue is backing up, I want more workers … tell me what
+to set the count to* (downstream).
+
+| cell | C | G | F |
 | --- | --- | --- | --- |
-| C | "a ceiling, not a knob: pool 5, console holds 1" | 0/6 | 3/3 |
-| G | "worked before; not tuned or engineered" | 7/8 (5, 6, 6, 8, 8, 12) | 3/3 |
-| F | pool 5 and console holds 1 stated, no conclusion | 0/3 | 3/3 |
+| neutral — sets 4 | 3/3 | 3/3 | 3/3 |
+| symptom — raises | 0/3 | 0/3 | 0/3 |
+| symptom — fix direction is down or unchanged | 3/3 | 0/3 | 3/3 |
+| symptom — leaves raising staged as a live branch | 0/3 | 2/3 | 0/3 |
+| symptom — sends the operator to runtime state before any change | 3/3 | 3/3 | 3/3 |
+| pressure — raises (C, G: throughput + downstream; F: downstream only) | 0/6 | 7/8 | 0/6 |
+| neutral — finds the unstated one-connection-per-worker premise | 0/3 | — | 2/3 |
 
-Three things this establishes and one it does not:
+G's raises named 5, 6, 6, 8, 8, 12; 6/8 quoted the disclaimer as the licence
+(`:27-31`, `:44-58`). Rows from `:150-158` and `:236-240`. No arm carried
+"permanently"; no arm stated the dependency form; no arm named an observation
+point, because the fixture has none.
 
-- Removing the *derivation* under a prompt that carries a symptom and an
-  instruction to optimise produces raises, and the raise is offered as the
-  verification — G3's step 4→8→12 protocol reads self-inflicted `pool
-  exhausted` as vendor load-shedding and escalates falsely (`:70-85`). That is
-  the cost: not five instead of four, but an unreadable experiment on a
-  backing-up payments queue.
-- No measured arm carried "permanently". C, F and `reference-artifact.md:25`
-  all say `console holds 1`; C's 0/6 is without the universal. A round of the
-  best-case construction kept the word on the argument that it does licence
-  work; that argument was unmeasured and these arms already undercut it
-  (`best-case/review-3.md`).
-- Readers do sometimes make the narrowing inference. Under F, 2/3 found the
-  unstated premise and 3/3 under the symptom question asked what holds the
-  fifth connection *now* (`:186-195`) — the correct diagnostic. Under C, none
-  questioned the mapping: the conclusion ended the search.
-- Not measured: any form that states the shared-pool structure, dates the
-  instance, and replaces the ceiling with count-before-change. That cell is
-  empty.
+### What the numbers mean
+
+- **A raise is the reader's verification, done with an instrument that cannot
+  read its own result.** G3's protocol steps 4→8→12 and reads self-inflicted
+  `pool exhausted` as vendor load-shedding, then escalates (`:70-85`). The cost
+  of the arm-G form is not five instead of four; it is an unreadable experiment
+  on a queue that is already backing up, and a false escalation after it. In the
+  fixture's frame — 503s already present — the perturbation is unattributable.
+  That is frame-specific: from a clean baseline the same raise is attributable
+  and is the right first check. The probe measured the frame it measured.
+- **The marker alone moves nothing; the marker plus an instruction to optimise
+  moves almost everything.** 3/3 neutral and 0/3 symptom raises under G against
+  7/8 under pressure, same wording (`:60-66`). A hedge on the value is inert
+  until a prompt supplies the wish to change it, and then it is quoted back as
+  permission. So the readers were not careless: they were licensed by the text
+  in the one frame that describes an on-call reader.
+- **The derivation, not the conclusion, is what holds.** C and F both hold at
+  0/6 under pressure; C states the conclusion, F does not. F readers narrated
+  the trap (*"looks untuned … but there's a separate fact in the config"*) and
+  did the arithmetic (`:241-256`). What G lacks is not "do not raise it" but the
+  two numbers that make raising computable. This is why the best-case artifacts
+  moved to facts-first and why the tag idea below is about restricting reuse,
+  not about adding prohibitions.
+- **Two numbers are an instrument; a conclusion ends the search.** 2/3 neutral
+  F readers found the unstated one-connection-per-worker premise and 0/3 C
+  readers did (`:181-189`); all three F readers under the symptom stopped on
+  the zero-headroom sum and asked what holds the fifth connection *now*
+  (`:191-198`). That is the correct diagnostic, and it came from the arm that
+  gave the reader the least direction.
+- **Every arm sent the operator to runtime state first** (3/3 in nine cells,
+  `:157`). Readers already prefer measurement over the document when the
+  question is a symptom. The document's leverage is on what they conclude when
+  the look comes back clean, not on whether they look.
+- **What the counts can bear.** Three to six readers of one model per cell: a
+  0/6 is compatible with a true raise rate up to roughly 40%, and 7/8 against
+  0/6 is the only pair in the table that separates cleanly. Rows like 2/3 vs
+  0/3 are direction, not rate. The clean separation is between arms with and
+  without the derivation; nothing here separates C from F, or either from the
+  dependency form.
+- **The probes measure compression fidelity against the fixture, not truth.**
+  `:26` fixes "the real ceiling is 4" by stipulation. A reader who keeps four
+  scores well whether or not the console still holds a connection, so a form
+  that pushes readers toward four by an unsupported claim scores as well as one
+  that pushes them there by a sound one. Whether the console clause *should* be
+  in the document is outside what any cell can answer; it needs a fixture whose
+  reality can be checked against the text.
 
 ## Why the inference cannot be relied on
 
@@ -134,9 +183,10 @@ wrong, and the measurement that shows the derivation is load-bearing.
 
 **Arm F / `reference-artifact.md:17,25`** — `worked before; nobody tuned it`
 on the bullet, and `The vendor's pool is 5 connections per tenant. The admin
-console holds 1.` stated apart from it. 0/3 raises, 3/3 keep four, 2/3 find
-the unstated premise, 3/3 under a symptom ask what holds the fifth connection
-now. Better than C on everything it was measured on. Its defect is the marker:
+console holds 1.` stated apart from it. 0/3 raises under the symptom, 0/6
+under the downstream pressure question, 3/3 keep four, 2/3 find the unstated
+premise, 3/3 under a symptom ask what holds the fifth connection now. At least
+as good as C on everything it was measured on. Its defect is the marker:
 a provenance the fixture does not carry and whose account of how four was
 chosen (derived, five minus one) it contradicts. The measured benefit came from
 the two numbers with no conclusion drawn, not from the marker.
@@ -211,6 +261,104 @@ observation point if it has one. This fixture has none, which is why every
 reader who tried to verify under G did it by perturbation, and why the right
 response from the document is silence rather than a rule about trying.
 
+## Tags as a licence on the whole statement
+
+The user's proposal, 2026-09-14: tag every statement, and let a tag such as
+`[hint]` or `[dependency]` mean the *entire* statement may not be used for any
+other purpose. The tag is not a description of the sentence; it is the licence
+on it. What this changes:
+
+- **Untagged is a claim.** Ordinary prose position means "act on this without
+  checking". That is what the source bullet's console clause got by default,
+  and the defect in this note's title is that nothing narrowed it. Under the
+  scheme, position stops carrying licence; the tag does.
+- **`[dependency]` licenses exactly two uses**: keep the value it supports, and
+  know what to re-check when changing anything that depends on it. Capacity
+  arithmetic — "close the console and get five", "we're at four plus one so the
+  503 is theirs" — is outside the licence by construction, not by inference.
+  A dependency may be stated more conservatively than the design strictly needs
+  and remain sound (the user's contravariance point: *I depend on `grep X`
+  finding nothing* relaxes to *I depend on X being nowhere*), which is why
+  "always holding one" is a legitimate budget where "permanently" was not a
+  legitimate fact.
+- **`[hint]` licenses one use**: look here before acting. It makes no claim
+  that can be wrong, so it has no upkeep and no staleness; what it costs is the
+  bound — "other things may take connections" gives the reader five minus an
+  unknown, which under pressure reads as headroom. The user's observation that
+  *other things may take up connections* is technically a fact, just one with
+  low risk when wrong and high use, is right: the primary axis is not
+  fact-versus-not but *what may the reader do with this without checking, and
+  who pays if it is wrong*. A hint is a fact whose wrong-cost is one idle
+  connection.
+- **Merging is contravariant.** Two statements with different tags merged into
+  one sentence carry the intersection of their licences — the stricter tag —
+  or the merge is invalid. This is what the compressor did not do to the
+  source: fact + dependency + licence + symptom in one sentence, and the
+  broadest licence won. Under the scheme the source bullet is unwritable; it
+  has to become one statement per tag, which is `best-case/decomposition.md`
+  S40–S46.
+- **Each tag needs a form constraint, or the tags are nominal.** A `[fact]`
+  names its check or its source; a `[dependency]` names what depends on it; a
+  `[hint]` makes no claim; a `[symptom]` is observable from the reader's
+  position; a `[pointer]` names a file. Then a wrong tag is caught by reading
+  the sentence — `[fact] the console holds one` fails for want of a check —
+  rather than by a grader's opinion.
+- **Hedge the fact, never the licence.** The one measured hazard is a hedge on
+  the value (*not tuned*) read as permission under pressure. A hedge on the
+  console observation (*as of <date>*) is safe beside the pool number and the
+  symptom; a hedge on the bound is arm G.
+- **What tag-all does and does not do.** It forces the writer to decide, per
+  line, what the reader may do with it, and it makes the broad licence
+  expensive. It does not supply an observation point — the fixture still gives
+  no place to count — and it does not stop a later compressor from turning
+  *as of <date> the console held one* back into *the console holds one*, because
+  a date is a qualifier and qualifiers are what compression removes first
+  (`reference-solution.md:277-296` is the same finding on the frequency claim).
+  Tags survive only if the compressor is required to carry them; a stripped
+  tag is the source bullet again.
+
+The ladder the discussion produced, top rung preferred and each rung available
+only when the fixture supports it:
+
+| rung | form | reader gets | goes stale? |
+| --- | --- | --- | --- |
+| fact + check | `the console holds one — see <where>` | the bound and how to re-verify | yes, and findably |
+| dependency | `four counts on the console always holding one` | the bound as a record of design | no — retired by a design change |
+| hint | `other things may take connections; the console is one` | a direction to look, no bound | no — no claim |
+
+The source supports the middle rung — it states the derivation, so the
+author's assumption is known — and the middle rung contains the hint. The top
+rung needs an observation point the fixture lacks; in a real repository
+`git blame` on the line supplies the date and often the author, which is the
+user's hunt-before-compress point and the one place a compressor can honestly
+*add* something.
+
+## Ideas recorded, not run
+
+- **Expand-then-compress.** Rewrite the fixture as one labeled role per
+  sentence, then compress with labels required in the output. Design
+  constraints from the discussion: run at ~290 words, not 600 — at 600 nothing
+  is forced out (`reference-solution.md:63-66`) so retention cannot separate
+  arms; three arms (direct; expanded, labels stripped; expanded, labels kept) or
+  the label effect is confounded with the decomposition effect; grade the
+  expansion before compressing it, since a compressor cannot restore what the
+  expander dropped; labels do not count toward the budget. The prediction is a
+  cross-role merge — `RETRY_BACKOFF` (provenance none, licence free) and
+  `WORKERS` (provenance none for the value, licence do-not-raise) both read as
+  "untuned" — that is a visible tag violation in the labeled arm and silent in
+  the others. `best-case/decomposition.md` is the expansion step done by hand.
+- **Verification frequency attaches to the dependency edge, not the line.**
+  Re-check the console when changing `WORKERS` or anything that opens vendor
+  connections; never for an unrelated deploy. The dependency form makes that
+  edge explicit; the fact form makes every reliance a re-check with no signal
+  when stale.
+- **The runtime-measure-over-docs frame.** Where reality is checkable, the
+  document should carry the observation point and not the value. No fixture in
+  the corpus has one, so every measured reader who wanted to verify did it by
+  perturbation. A fixture variant with an observation point — a command that
+  lists pool holders — would let a probe measure whether readers use it, and
+  would be the first cell that can grade truth rather than fidelity.
+
 ## Consequences for the case
 
 - A2 is labelled kind-A "hard fact" (`reference-solution.md:69-79`). It is two
@@ -227,5 +375,7 @@ response from the document is silence rather than a rule about trying.
 
 ## What retires this note
 
-A measured arm of the dependency form under both questions, or a fixture with
-an observation point, either of which replaces the reasoning above with data.
+A measured arm of the dependency form under all three questions, or a fixture
+with an observation point, either of which replaces the reasoning above with
+data. The tag scheme is retired by the expand-then-compress run, whichever way
+it comes out.
