@@ -72,7 +72,7 @@ the whole runbook differing in this bullet:
 | --- | --- |
 | C | `a ceiling, not a knob: vendor pool is 5 per tenant, the admin console holds 1` |
 | G | `worked before; not tuned or engineered` — derivation removed |
-| F | `worked before; nobody tuned it` on the bullet; `pool is 5 per tenant. The admin console holds 1.` stated apart from it |
+| F | the same marker on the bullet, and `The vendor's pool is 5 connections per tenant. The admin console holds 1.` stated apart from it (`:138-141`); the pressure cell ran the consolidated candidates `artifact-keyed-333.md` and `-348.md`, whose marker reads `worked before; nobody tuned it` |
 
 Three questions. **Neutral**: *what do I set `WORKERS` to?* — a number
 required, no problem. **Symptom**: *we're getting 503s, what's going on?* — a
@@ -92,7 +92,8 @@ to set the count to* (downstream).
 | neutral — finds the unstated one-connection-per-worker premise | 0/3 | — | 2/3 |
 
 G's raises named 5, 6, 6, 8, 8, 12; 6/8 quoted the disclaimer as the licence
-(`:27-31`, `:44-58`). Rows from `:150-158` and `:236-240`. No arm carried
+(`:27-31`, `:44-56`). Rows from `:150-158` and `:236-240`; the F pressure
+readers are `probe-alerts-line-variants/reader-{pl,dn}D*.txt`. No arm carried
 "permanently"; no arm stated the dependency form; no arm named an observation
 point, because the fixture has none.
 
@@ -125,8 +126,8 @@ point, because the fixture has none.
   the zero-headroom sum and asked what holds the fifth connection *now*
   (`:191-198`). That is the correct diagnostic, and it came from the arm that
   gave the reader the least direction.
-- **Every arm sent the operator to runtime state first** (3/3 in nine cells,
-  `:157`). Readers already prefer measurement over the document when the
+- **Every arm sent the operator to runtime state first** (3/3 in each of the
+  three symptom cells, nine readers, `:157`, `:160-163`). Readers already prefer measurement over the document when the
   question is a symptom. The document's leverage is on what they conclude when
   the look comes back clean, not on whether they look.
 - **What the counts can bear.** Three to six readers of one model per cell: a
@@ -136,7 +137,7 @@ point, because the fixture has none.
   without the derivation; nothing here separates C from F, or either from the
   dependency form.
 - **The probes measure compression fidelity against the fixture, not truth.**
-  `:26` fixes "the real ceiling is 4" by stipulation. A reader who keeps four
+  `:31` fixes "the real ceiling is 4" by stipulation. A reader who keeps four
   scores well whether or not the console still holds a connection, so a form
   that pushes readers toward four by an unsupported claim scores as well as one
   that pushes them there by a sound one. Whether the console clause *should* be
@@ -145,24 +146,24 @@ point, because the fixture has none.
 
 ## Why the inference cannot be relied on
 
-The saving is about fifteen words. The failure is a misdiagnosed incident. The
-readers who inferred correctly did so under one form, three per cell, with
-nothing to look at; the same readers under G designed the experiment that
-cannot be read. A document that needs its reader to notice that a fact-shaped
+The saving — the source bullet against a version that also states what the
+console clause may be used for — is about fifteen words. The failure is a
+misdiagnosed incident. The readers who inferred correctly did so under one
+form, three per cell, with nothing to look at; the same model under G designed
+the experiment that cannot be read. A document that needs its reader to notice that a fact-shaped
 line is only a fact for one action has moved the cost of the writer's sentence
 onto every reader's judgement, and the case's own measurement shows that
 judgement is frame-dependent (`:60-66`: the wording did not change between
 the null result and the 7/8; the question did).
 
-The reader-probe methodology also cannot see this defect directly: it takes
-the fixture as reality (`:31`, "the real ceiling is 4") and grades whether a
-compression keeps readers acting as the source intends. It rewards any claim
-that pushes readers toward the conservative action, true or not — which is
-exactly how the universal survived a review round.
+The reader-probe methodology also cannot see this defect directly (last
+bullet above): it rewards any claim that pushes readers toward the conservative
+action, true or not — which is exactly how the universal survived a review
+round.
 
 ## The forms considered, in the order they came up
 
-Source, `fixture/RUNBOOK.md:43-46`, 52 words. Every role in one sentence, the
+Source, `fixture/RUNBOOK.md:43-46`, 48 words. Every role in one sentence, the
 instance in fact position, the licence stated as a law, provenance absent.
 Measured only indirectly: every arm below is a compression of it.
 
@@ -181,12 +182,14 @@ own result. 3/3 keep four when asked neutrally — the marker alone moves
 nothing; the marker plus an instruction to optimise does. The one form that is
 wrong, and the measurement that shows the derivation is load-bearing.
 
-**Arm F / `reference-artifact.md:17,25`** — `worked before; nobody tuned it`
-on the bullet, and `The vendor's pool is 5 connections per tenant. The admin
-console holds 1.` stated apart from it. 0/3 raises under the symptom, 0/6
-under the downstream pressure question, 3/3 keep four, 2/3 find the unstated
-premise, 3/3 under a symptom ask what holds the fifth connection now. At least
-as good as C on everything it was measured on. Its defect is the marker:
+**Arm F / `reference-artifact.md:17,25`** — a marker on the bullet (`worked
+before; not tuned or engineered` in the neutral and symptom cells; `worked
+before; nobody tuned it` in the consolidated candidates the pressure cell and
+the reference artifact use), and `The vendor's pool is 5 connections per
+tenant. The admin console holds 1.` stated apart from it. 0/3 raises under the
+symptom, 0/6 under the downstream pressure question, 3/3 keep four, 2/3 find
+the unstated premise, 3/3 under a symptom ask what holds the fifth connection
+now. At least as good as C on everything it was measured on. Its defect is the marker:
 a provenance the fixture does not carry and whose account of how four was
 chosen (derived, five minus one) it contradicts. The measured benefit came from
 the two numbers with no conclusion drawn, not from the marker.
@@ -254,7 +257,7 @@ use and stays as the source states it, without a deduction hung on it; whether
 it sits in this bullet or under "503s from the vendor" is placement. The form
 this note stands behind. Unmeasured.
 
-What separates the last forms from the first six is where verification lives:
+What separates the last three forms from the first seven is where verification lives:
 with the action (changing `WORKERS`, diagnosing a 503), not with the line.
 The document's part is to carry the structure and the budget and to name an
 observation point if it has one. This fixture has none, which is why every
@@ -311,11 +314,12 @@ on it. What this changes:
   line, what the reader may do with it, and it makes the broad licence
   expensive. It does not supply an observation point — the fixture still gives
   no place to count — and it does not stop a later compressor from turning
-  *as of <date> the console held one* back into *the console holds one*, because
-  a date is a qualifier and qualifiers are what compression removes first
-  (`reference-solution.md:277-296` is the same finding on the frequency claim).
-  Tags survive only if the compressor is required to carry them; a stripped
-  tag is the source bullet again.
+  *as of <date> the console held one* back into *the console holds one*. A date
+  is a qualifier, and the one qualifier this case followed downstream — the
+  softened *Often* on the crash-cause rate — was deleted by the reader who
+  reached it (`reference-solution.md:285-289`). Tags survive only if the
+  compressor is required to carry them; a stripped tag is the source bullet
+  again.
 
 The ladder the discussion produced, top rung preferred and each rung available
 only when the fixture supports it:
@@ -344,14 +348,31 @@ user's hunt-before-compress point and the one place a compressor can honestly
   expansion before compressing it, since a compressor cannot restore what the
   expander dropped; labels do not count toward the budget. The prediction is a
   cross-role merge — `RETRY_BACKOFF` (provenance none, licence free) and
-  `WORKERS` (provenance none for the value, licence do-not-raise) both read as
-  "untuned" — that is a visible tag violation in the labeled arm and silent in
+  `WORKERS` (value derived from a fact whose provenance is none, licence
+  do-not-raise) both read as "untuned" — that is a visible tag violation in the labeled arm and silent in
   the others. `best-case/decomposition.md` is the expansion step done by hand.
 - **Verification frequency attaches to the dependency edge, not the line.**
   Re-check the console when changing `WORKERS` or anything that opens vendor
   connections; never for an unrelated deploy. The dependency form makes that
   edge explicit; the fact form makes every reliance a re-check with no signal
   when stale.
+- **The doc-ref frame.** The user's point, 2026-09-14: a real request to
+  compress document X arrives with the rest of the repository — other notes,
+  linked incidents, `git log -S "admin console"`, the vendor ticket — so the
+  compressor is not required to *infer* what a line previously meant; it can
+  go and read it. The console clause's provenance, date and author are
+  findable in that frame and unfindable in this one. Two consequences. The
+  "hint in fact position" defect is, in the real frame, repaired at compress
+  time by climbing the ladder (find the basis, write the check or the
+  dependency) rather than tolerated by choosing the least-bad rung from the
+  text alone. And the corpus measures only the frame with no context, which is
+  the worst case for every ambiguous line and so biases every result toward
+  *keep it as written*: a compressor that would have resolved the line in a
+  repository is graded here on how well it guesses. `MAINTAINERS.md`'s hunt
+  list is the fixture-frame stand-in for that lookup — the questions written
+  down because nothing here can answer them. A fixture that ships a second
+  file or a fake history would let a probe measure whether compressors go and
+  look, which no case does now.
 - **The runtime-measure-over-docs frame.** Where reality is checkable, the
   document should carry the observation point and not the value. No fixture in
   the corpus has one, so every measured reader who wanted to verify did it by
