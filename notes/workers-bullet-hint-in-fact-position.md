@@ -174,25 +174,42 @@ by trying — count what holds connections before changing this.` The hint form
 with the count kept and the licence turned into a recipe. Still writes the
 instance as an observation, so it still needs a date the fixture lacks, and it
 loses the design content of "permanently": that four does not count on the
-slot ever being free.
+slot ever being free. Its last clause is also wrong, see the next entry.
 
-**The dependency form**, after the user's correction — `The vendor pool is
-five connections per tenant, shared by everything of ours that connects to
-them; four counts on the admin console always holding one. Exceeding the pool
-is pool exhausted on their side and an undifferentiated 503 to us, so it
-cannot be found by trying — count what holds connections before changing
-this.` Structure as fact, the console as the design's budget, symptom kept,
-licence as recipe. "Permanently" survives as *always* in a position where it
-is a budget and not a claim; a budget needs no date and no basis, so the only
-part the fixture cannot supply is where to count. Longest of the set and the
-one this note stands behind. Unmeasured.
+**The dependency form, first draft** — the budget sentence followed by
+`Exceeding the pool is pool exhausted on their side and an undifferentiated
+503 to us, so it cannot be found by trying — count what holds connections
+before changing this.` The user's objection, 2026-09-14, stands: the second
+sentence does not belong in a dependency bullet, and its deduction is false as
+a general claim. The probe's unreadability finding is frame-specific — an
+operator *already seeing* 503s raises `WORKERS` and still sees 503s. From a
+clean baseline, raising and getting new 503s is attributable and is exactly
+the signal to investigate connection count. "Cannot be found by trying"
+generalises one frame into a law, nothing in the sentence bounds it, and a
+reader elsewhere would apply it to every experiment. The recipe, "count what
+holds connections", instructs a check the document gives no place to perform.
+Both add little and carry risk — the parent's own rule about a claim that
+outruns its evidence, broken in the sentence meant to fix the bullet. When a
+claim can be not made, do not make it.
 
-What separates the last three from the first six is not what they keep but
-what verification they attach: frequency goes with the action (changing
-`WORKERS`, diagnosing a 503), not with the line, and the doc's job becomes
-naming the observation point rather than carrying the observation. The fixture
-names none, which is why every reader who tried to verify under G did it by
-perturbation.
+**The dependency form** — `WORKERS=4`. `The vendor pool is five connections per
+tenant, shared by everything of ours that connects to them; four counts on the
+admin console always holding one.` Structure as fact, the console as the
+design's budget, and nothing else. "Permanently" survives as *always* in a
+position where it is a budget and not a claim; a budget needs no date and no
+basis, so the fixture can supply everything in it. The source's symptom
+sentence — exceeding the pool is `pool exhausted` on their side and an
+undifferentiated 503 to us — is a source-attested fact with a troubleshooting
+use and stays as the source states it, without a deduction hung on it; whether
+it sits in this bullet or under "503s from the vendor" is placement. The form
+this note stands behind. Unmeasured.
+
+What separates the last forms from the first six is where verification lives:
+with the action (changing `WORKERS`, diagnosing a 503), not with the line.
+The document's part is to carry the structure and the budget and to name an
+observation point if it has one. This fixture has none, which is why every
+reader who tried to verify under G did it by perturbation, and why the right
+response from the document is silence rather than a rule about trying.
 
 ## Consequences for the case
 
