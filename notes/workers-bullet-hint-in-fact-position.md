@@ -27,13 +27,21 @@ other, and silent about the difference. The writer almost certainly meant it as
 the *justification for four* (a dependency); ordinary prose put it in fact
 position, and nothing marks the narrowing.
 
-"Permanently" is a second, separable defect: a universal with no stated basis
-and no staleness signal. By the case's own upkeep test
+"Permanently" is the same defect seen twice, not a second one — the user's
+correction, 2026-09-14, to an earlier draft of this note that called it a
+separable universal. Read as a fact about the world it is a universal with no
+stated basis and no staleness signal, and by the case's own upkeep test
 (`reference-solution.md:277-284` — does being wrong produce feedback that points
-at it?) both the universal and the bare clause fail: the console dropping its
-connection produces nothing; the console taking two produces `pool exhausted`,
-which points at the pool. The reference-solution applied that test to the
-frequency claim and declined to extend it (`:291-295`); it extends here.
+at it?) it fails along with the bare clause: the console dropping its connection
+produces nothing; the console taking two produces `pool exhausted`, which points
+at the pool. Read as a **dependency** — *four counts on the console's connection
+never being free* — it is exactly right: a conservative assumption the design
+makes, authoritative from the author, needing no basis and carrying no staleness,
+because it is retired by whoever changes the design and not by the world. The
+word is bad only in the position the sentence gives it. The reference-solution
+applied the upkeep test to the frequency claim and declined to extend it
+(`:291-295`); it extends to the fact reading here and not to the dependency
+reading.
 
 ## The roles the sentence bundles
 
@@ -41,7 +49,8 @@ frequency claim and declined to extend it (`:291-295`); it extends here.
 | --- | --- | --- | --- |
 | fact, refetchable | pool is five per tenant | vendor's docs | operator, mildly |
 | fact, local instance | console holds one | count at the console | operator: misdiagnosed 503 |
-| universal | "permanently" | none available | same, plus nobody can tell it went stale |
+| "permanently" as fact | the console always holds one | none available | same, plus nobody can tell it went stale |
+| "permanently" as dependency | four counts on that connection never being free | design record | maintainer, and only when the design changes |
 | dependency | `WORKERS=4` assumes ≤4 available; unstated: one connection per worker, one replica | design record | maintainer |
 | licence | "ceiling, not a tuning choice" | derived from the two facts | operator under pressure |
 | symptom | exceeding → `pool exhausted` → undifferentiated 503 | vendor behaviour | operator: unreadable experiment |
@@ -107,24 +116,30 @@ exactly how the universal survived a review round.
 Size ignored:
 
 > `WORKERS=4`. The vendor pool is five connections per tenant, shared by
-> everything of ours that connects to them; at last check the admin console
-> held one. Exceeding the pool is `pool exhausted` on their side and an
-> undifferentiated 503 to us, so it cannot be found by trying — count what
+> everything of ours that connects to them; four counts on the admin console
+> always holding one. Exceeding the pool is `pool exhausted` on their side and
+> an undifferentiated 503 to us, so it cannot be found by trying — count what
 > holds connections before changing this.
 
-Structure (slow-changing, refetchable) separated from instance (fast-changing,
-counted, to be dated); symptom kept, because it is what says the perturbation
-is unreadable; the licence turned from a law into a recipe, which is what the F
-readers reconstructed on their own. Keep the count — "one" is what makes four
-derivable and gives the counting a baseline. Two parts cannot be written from
-the fixture: the date, and where to count. The best-case artifacts carry those
-as the sibling's hunt list. Verification frequency attaches to the action
-(changing `WORKERS`, diagnosing a 503), not to the line.
+Structure (slow-changing, refetchable) separated from the design's assumption
+(owned, retired only by a design change); symptom kept, because it is what says
+the perturbation is unreadable; the licence turned from a law into a recipe,
+which is what the F readers reconstructed on their own. "Permanently" survives
+as *always* in dependency position, where it is a budget and not a claim. Keep
+the count — "one" is what makes four derivable and gives the counting a
+baseline. An earlier draft wrote the instance as an observation, "at last check
+the console held one", which needed a date the fixture does not carry; the
+dependency form needs none, so the only part the fixture cannot supply is where
+to count, which the best-case artifacts carry in the sibling's hunt list.
+Verification frequency attaches to the action (changing `WORKERS`, diagnosing
+a 503), not to the line. The best-case artifacts themselves still carry arm F's
+shape (two facts, no conclusion), the nearest measured form; the dependency form
+above is the proposed next cell.
 
 ## Consequences for the case
 
 - A2 is labelled kind-A "hard fact" (`reference-solution.md:69-79`). It is two
-  facts, an unstated premise, an unsupported universal and a licence. The right
+  facts, an unstated premise, a design assumption in fact position and a licence. The right
   treatment is conversion, graded as credit like the frequency claim, not
   retention.
 - `reference-artifact.md:17`, `worked before; nobody tuned it`, is a provenance
