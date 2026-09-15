@@ -17,19 +17,25 @@ Write that step-1 answer for every case to be run **into its `reference-solution
 - Presence/absence arms, one session each, read whole through `session-analysis` (`mode: evidence`, one per focus, stored as `sa-<arm>-<focus>.md`, JSONL beside it). Add sessions only when the pair disagrees with the prediction or each other. A count is a lead, never a result (n=8 bands held 17–33% power). One closely read session where the line misleads its writer refutes it.
 - First candidate: "Claim less" recommends the hint form; `notes/workers-bullet-hint-in-fact-position.md` found it harmful.
 
-## Instruments — grade the maintainer's move
+## Updates
 
-Real docs grow by successors appending cases; nobody orders a cut. Grade: (1) net size not larger; (2) maintainer probe — a cold `claude -p` reader given only the rewritten doc and one real miss, asked what it *would* check next upgrade; it runs nothing; (3) per-element presence/absence probe, ties to omission. No arm models detecting an unnoticed miss; say so wherever a result is quoted.
+in `halve-the-runbook`, replace fixture runbook with current `.claude/skills/update-claude-code/SKILL.md`, and modify rubric accordingly. Also remove or replace other test cases on the "Writing for other agents" block; each one kept you must justify that the test case is providing positive value.
 
-Two new cases in `prompt-tests/general/` (foci change = new case; old cases stay as regression):
+To save cost just give it the skill not the decompile. Compression is possible with just that (right? or no?).
 
-- `upgrade-runbook-compress`: fixture `.claude/skills/update-claude-code/SKILL.md` at HEAD; the task orders the cut. Every known miss is written into HEAD, so the probe asks whether the surviving framing still reaches what the cut removed.
-- `upgrade-runbook-incident`: fixture = the file at `a01fc12b` plus the env-context incident (`0ca74891`: cc ships its own env block, five bullets duplicated, the runbook missed it). `task.md` carries the user's preference verbatim — *the doc failed to cover all cases, but the solution is not to add all cases in*; `task-no-preference.md` omits it. Held-out, absent from that version, one class (a check whose success looks like failure; a step finding only what the inventory names): `be7ccee2`, `c03e155c`, `e6c134cf`, `a5dbef48`.
+[idea] As example, a valid compession here is from
 
-References cite commits and assert nothing history does not show. The fixture names `sys_prompt/alan-default-next.md`; keep the deliverable's text out of both. Existing rubrics: *fail only where worse than omission*; drop names of rules no longer in the prompt.
+> | `agent-tools/src/hook_input.rs:13-35` | `session_id`, `tool_name`, ...
+
+to something along the lines of "check/ensure that the hook still works"; there may be other correct compressions.
+The idea is that almost no doc exist to "answer a question". Here you answer questions with decompile. "update-claude-code" exist becuase without it, if user orders an update, a lot of these things get missed; user had to push agent to check multiple tings, and goal is that it "just work" next time, and do not create bugs. A test to "answer a factual question" is not appropriate, so existing tests/grading of this form should be removed.
+
+[idea] note: The "update-claude-code" skill comes from me asking it to update and then write a skill for next time. So one can perhaps argue that having no-skill is considered "correct" but not efficient (no-skill will then go and discover the same things). Adding anything (esp claims/prescribed approaches) almost always makes it less-correct, and hopefully more efficient. [idea] Maybe you can grade it just on correctness.
 
 ## Loop hygiene
 
+- You goal is to make somthing better-than-current as best as you can and to cleanup docs and remove technical debt on this repo, not to satisfy any particular goals on prompt tests.
+- All of this repo is mutable including any rubrics. Non represent user preferences; they represent ideas of prompt-engineering only, and may not be correct.
 - Memories are not injected; open each round with `ralph tools memory prime`.
 - `.ralph/agent/*` ≤ 6000 tokens by `agent-tools count-tokens`, net not larger from round 3; relocation is growth. Record cuts before additions.
 - A task line states its ground, never its expected finding. A gate names the finding it guards.
