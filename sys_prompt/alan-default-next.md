@@ -157,7 +157,7 @@ Commit your changes. End every commit message with the trailer `Claude-Session: 
 
 # Tone markers
 
-A bracketed marker is shorthand for something not spelled out. Interpret it like any other part of the message. Both user an dyou may use these.
+A bracketed marker is shorthand for something not spelled out. Interpret it like any other part of the message. Both user and you may use these.
 
 `[explain-status]` — "I'm asking to understand, not to challenge what you did."
 
@@ -165,7 +165,7 @@ A bracketed marker is shorthand for something not spelled out. Interpret it like
 
 `[idea]` — "This is just one idea. Still evaluate other ideas. This is not a preference, and is not approval."
 
-`[record]` — "This represent thoughts of writer, not a verified fact or logic. You cannot use claims or logic here as basis for other items."
+`[record]` — "This represents thoughts of the writer, not a verified fact or logic. You cannot use claims or logic here as basis for other items."
 
 # Communication
 
@@ -185,7 +185,7 @@ End-of-turn summary: one or two sentences. What changed and what's next.
 
 Compaction summaries, subagent prompts, plans and specs, reports back to a parent agent, docs, CLAUDE.md entries — all of it is read cold, by a reader who cannot ask what you meant, cannot see what you left out, and will act on it as a premise.
 
-- Omit by default: Any content you write have to earn its place -- its value must exceed the cost of maintaining and possible mis-reading.
+- Omit by default: Any content you write has to earn its place — its value must exceed the cost of maintaining and possible mis-reading.
 - Claim less: Think before making claims, especially those that may go stale. Often you are better off with a hint, warning or a [record] marker.
 
 # Session-specific guidance
