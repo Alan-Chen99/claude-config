@@ -16,6 +16,9 @@ Usage:
     ./capture.py --subagent                             # capture Explore + general-purpose
     ./capture.py --subagent general-purpose             # capture only general-purpose
     ./capture.py --subagent Explore,general-purpose     # comma-separated list
+    ./capture.py --capture-message "..."                # drive the session with this
+    ./capture.py --capture-select max-tools             # keep the largest tool roster
+    ./capture.py --capture-reply-timeout 90             # wait longer for the reply
 
 Output:
     stdout: system prompt text (blocks joined by ---BLOCK_SEPARATOR---)
@@ -97,6 +100,11 @@ SUBAGENT_MESSAGES = {
 
 # When --subagent is passed without a name, run this set in one session.
 DEFAULT_SUBAGENTS: tuple[str, ...] = ("Explore", "general-purpose")
+
+# The driving message for a plain capture. Its content is irrelevant to the
+# system prompt -- it exists only to make the session issue one API call -- so
+# it asks for the shortest possible reply.
+DEFAULT_MESSAGE = "say exactly: done"
 
 
 def build_subagent_message(names: list[str]) -> str:
@@ -212,11 +220,11 @@ def find_new_proxy_logs(start_time: float, child_pid: int) -> list[Path]:
 
 def find_all_requests_proxy(
     log_files: list[Path],
-) -> list[tuple[Path, int, bool, bool]]:
+) -> list[tuple[Path, int, int, bool]]:
     """Return deduplicated requests from proxy log files.
 
-    Each entry is (path_to_request_json, system_tokens, has_tools, is_subagent).
-    Deduplicates by system prompt content hash.
+    Each entry is (path_to_request_json, system_tokens, n_tools, is_subagent).
+    Deduplicates by system prompt content plus tool roster.
     """
     results = []
     seen: set[str] = set()
@@ -246,7 +254,13 @@ def find_all_requests_proxy(
         # each field, so a newly added fingerprint cannot silently break dedup
         # again.
         norm = _BILLING_HEADER_RE.sub("x-anthropic-billing-header: <normalized>", content)
-        h = hashlib.md5(norm.encode()).hexdigest()
+        # The tool roster is part of the identity, not just the system text. A
+        # ToolSearch call leaves the system blocks byte-identical and grows the
+        # tools array from 15 to 33, so hashing the system alone collapses the
+        # two into one and the request carrying the deferred schemas is the one
+        # discarded.
+        roster = ",".join(sorted(t.get("name", "") for t in req.get("tools", [])))
+        h = hashlib.md5(f"{norm}\n{roster}".encode()).hexdigest()
         if h in seen:
             continue
         seen.add(h)
@@ -254,12 +268,12 @@ def find_all_requests_proxy(
         req_path = tmp_dir / f"{log_path.stem}-request.json"
         req_path.write_text(json.dumps(req, indent=2))
 
-        has_tools = len(req.get("tools", [])) > 0
+        n_tools = len(req.get("tools", []))
         is_subagent = "cc_is_subagent=true" in content
         model = req.get("model", "claude-opus-4-6")
         sys_blocks = req.get("system", [])
         sys_tokens = count_tokens(model, system=sys_blocks) - _baseline(model)
-        results.append((req_path, sys_tokens, has_tools, is_subagent))
+        results.append((req_path, sys_tokens, n_tools, is_subagent))
     return results
 
 
@@ -386,6 +400,9 @@ def spawn_claude(
     model: str = "haiku",
     output_style: str | None = None,
     subagents: list[str] | None = None,
+    message: str | None = None,
+    reply_timeout_s: int = 30,
+    seed_git_origin: bool = False,
 ) -> int:
     env = os.environ.copy()
     # A capture inherits none of the capturing session's own Claude Code
@@ -428,6 +445,26 @@ def spawn_claude(
     # interactive mode works.
     work_dir = tempfile.mkdtemp(prefix="capture-cwd-")
     subprocess.run(["git", "init", "-q", work_dir], capture_output=True)
+    # Opt-in, because it changes what the session sees: an unborn branch becomes
+    # a repo with a commit and a remote, which a prompt or reminder can report.
+    # Every committed variant capture is taken without it, so their bytes stay
+    # comparable against history; only skill capture asks for it, and only
+    # because `/security-review` embeds `git diff origin/HEAD...` and injects
+    # nothing at all when that command fails.
+    if seed_git_origin:
+        _git = ["git", "-C", work_dir, "-c", "user.email=capture@example.com",
+                "-c", "user.name=capture"]
+        (Path(work_dir) / ".gitkeep").write_text("")
+        subprocess.run([*_git, "add", "-A"], capture_output=True)
+        subprocess.run([*_git, "commit", "-qm", "base"], capture_output=True)
+        head = subprocess.run(
+            [*_git, "rev-parse", "HEAD"], capture_output=True, text=True
+        ).stdout.strip()
+        if head:
+            subprocess.run([*_git, "update-ref", "refs/remotes/origin/HEAD", head],
+                           capture_output=True)
+            subprocess.run([*_git, "remote", "add", "origin", work_dir],
+                           capture_output=True)
     settings_dir = Path(work_dir) / ".claude"
     settings_dir.mkdir()
     settings = {}
@@ -467,10 +504,15 @@ def spawn_claude(
 
     if subagents:
         message = build_subagent_message(subagents)
+    elif message is None:
+        message = DEFAULT_MESSAGE
 
     cmd = ["claude", "--model", model, "--setting-sources", "project,local", *extra_args]
-    timeout_s = (130 + 90 * (len(subagents) - 1)) if subagents else 60
-    deadline = time.monotonic() + timeout_s
+    # How long to keep draining the pty after submitting the message. A subagent
+    # run has to outlast every child it spawns; anything else only has to outlast
+    # one reply.
+    if subagents:
+        reply_timeout_s = 110 + 90 * (len(subagents) - 1)
 
     # Use pty.fork() instead of expect. Expect's spawn loses proxy env vars
     # because it re-execs through a shell wrapper; pty.fork + os.execvpe
@@ -494,18 +536,11 @@ def spawn_claude(
         # Claude Code enables bracketed paste mode. A trailing \r in the same
         # write gets absorbed into the paste payload instead of submitting,
         # so write the message and the submit-Enter as separate writes.
-        if subagents:
-            transcript.append(_pty_drain(fd, 10))
-            os.write(fd, message.encode())
-            time.sleep(0.5)
-            os.write(fd, b"\r")
-            transcript.append(_pty_drain(fd, timeout_s - 20))
-        else:
-            transcript.append(_pty_drain(fd, 10))
-            os.write(fd, b"say exactly: done")
-            time.sleep(0.3)
-            os.write(fd, b"\r")
-            transcript.append(_pty_drain(fd, 30))
+        transcript.append(_pty_drain(fd, 10))
+        os.write(fd, message.encode())
+        time.sleep(0.5)
+        os.write(fd, b"\r")
+        transcript.append(_pty_drain(fd, reply_timeout_s))
 
         os.write(fd, b"/exit\r")
         transcript.append(_pty_drain(fd, 5))
@@ -554,6 +589,30 @@ def main() -> None:
             subagents = list(DEFAULT_SUBAGENTS)
             extra_args = extra_args[:idx] + extra_args[idx + 1:]
 
+    message: str | None = None
+    if "--capture-message" in extra_args:
+        idx = extra_args.index("--capture-message")
+        message = extra_args[idx + 1]
+        extra_args = extra_args[:idx] + extra_args[idx + 2:]
+
+    # Which of a session's requests is the capture. "last-turn" picks the one
+    # carrying the most tools, which is how a request whose roster ToolSearch
+    # has grown gets selected over the smaller one that preceded it.
+    select = "main"
+    if "--capture-select" in extra_args:
+        idx = extra_args.index("--capture-select")
+        select = extra_args[idx + 1]
+        extra_args = extra_args[:idx] + extra_args[idx + 2:]
+        if select not in ("main", "max-tools"):
+            print(f"ERROR: unknown --capture-select {select!r}", file=sys.stderr)
+            sys.exit(1)
+
+    reply_timeout_s = 30
+    if "--capture-reply-timeout" in extra_args:
+        idx = extra_args.index("--capture-reply-timeout")
+        reply_timeout_s = int(extra_args[idx + 1])
+        extra_args = extra_args[:idx] + extra_args[idx + 2:]
+
     # Subagent mode: force "default" output style to avoid output-style hooks
     # (e.g. pre_output.record) that add Bash tool calls before the Agent call,
     # which block on permission prompts that nobody answers.
@@ -572,7 +631,12 @@ def main() -> None:
     # Subtract 1s to tolerate clock skew between file mtimes and our wall clock.
     start_time = time.time() - 1
     child_pid = spawn_claude(
-        extra_args, model=model, output_style=output_style, subagents=subagents
+        extra_args,
+        model=model,
+        output_style=output_style,
+        subagents=subagents,
+        message=message,
+        reply_timeout_s=reply_timeout_s,
     )
 
     log_files = find_new_proxy_logs(start_time, child_pid)
@@ -599,11 +663,14 @@ def main() -> None:
     # With --system-prompt the main call can be smaller than the title-gen call,
     # so size alone is not sufficient — tools presence is the reliable signal.
     # Subagent calls also carry tools, and are excluded by their header flag.
-    main_idx = max(
-        range(len(all_reqs)),
-        # (not subagent, has_tools, size)
-        key=lambda i: (not all_reqs[i][3], all_reqs[i][2], all_reqs[i][1]),
-    )
+    if select == "max-tools":
+        # (not subagent, tool count) -- size is not a tiebreaker here because the
+        # request with the grown roster carries the same system prompt as the one
+        # before it, so they tie on size and the roster is the only signal.
+        key = lambda i: (not all_reqs[i][3], all_reqs[i][2])
+    else:
+        key = lambda i: (not all_reqs[i][3], all_reqs[i][2] > 0, all_reqs[i][1])
+    main_idx = max(range(len(all_reqs)), key=key)
     main_summary = extract_request(all_reqs[main_idx][0], OUT_DIR)
     content = (OUT_DIR / "system.txt").read_text()
     print(content)

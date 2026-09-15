@@ -33,7 +33,10 @@ what's measured about each and why the last three aren't directories here.
 | `<model-id>/<variant>/prompt.md` | Everything in that request except the tool definitions: parameters, the tool roster in request order, every system block, every message |
 | `<model-id>/<variant>/tools/<Name>.md` | One tool definition each — attributes, description, input schema |
 | `<model-id>/<variant>/summary.json` | Block count, token counts, tool inventory |
+| `builtin-skills/<name>.md` | What invoking that built-in skill injects into the context. Shared across models, not per-model: bodies measured byte-identical on opus-5 and sonnet-5 |
+| `builtin-skills/manifest.json` | Per skill: delivery shape, which route reached it, size, sha256 |
 | `capture.py` | Captures one variant via pty + MITM proxy |
+| `capture_skills.py` | Captures every built-in skill's body into `builtin-skills/` |
 | `regenerate.py` | Drives `capture.py` across every variant, writes `summary.json` |
 | `render_capture.py` | Renders `prompt.md` and `tools/` from a `request.json`; `--tree <root>` does every capture beneath a directory |
 | `scripts/intercept/` — repo root, not under this directory | MITM proxy for API call logging (see `scripts/intercept/README.md`) |
@@ -69,15 +72,31 @@ git show b318e59:docs/system-prompt-snapshot/opus-5/default/request.json \
 diff -ru -x request.json -x summary.json /tmp/old/opus-5/default opus-5/default
 ```
 
-What no diff here can show: the deferred tools. A capture carries their names
-in a reminder and a single `DeferredToolPlaceholder` entry, never their
-descriptions or schemas — so of the 33 tools a 5-family session can reach, 18
-are outside every file in this directory, and their text is only in the
-decompiled source.
+### What a default capture leaves out, and where it now lives
+
+A `default` capture records two things by name only. Both are text the model
+receives, both change between releases, and neither used to be in any file here:
+
+| Withheld from `default` | Now captured in |
+|---|---|
+| The 18 deferred tools' descriptions and schemas — the reminder lists their names, and `tools/` holds one `DeferredToolPlaceholder` stub | `<model-id>/tool-search-loaded/tools/` |
+| The 17 built-in skills' bodies — the reminder carries each name and description, never the text an invocation injects | `builtin-skills/` |
+
+Both are captured in the default configuration, not a contrived one. The
+deferred half works because `ToolSearch` does not behave the way its own
+description says: it advertises that it "returns the matched tools' complete
+JSONSchema definitions inside a `<functions>` block", and no such block exists
+anywhere in the binary except that sentence. What it actually returns is a
+`tool_result` of `{"type": "tool_reference", "tool_name": ...}` entries plus the
+text `Tool loaded.`, and the **server** expands those into the next request's
+`tools` array — measured, 15 tools before the call and 33 after. So the schemas
+arrive in a request, and a request is what this directory already knows how to
+render.
 
 Variants: `default`, `custom-output-style`, `system-prompt`, `system-prompt-file`,
-`append`, `subagent`. This snapshot captures all six for sonnet-5, `default`
-for opus-4-7, both `default` and `system-prompt-file` for opus-5, and
+`append`, `tool-search-loaded`, `subagent`. This snapshot captures the original
+six for sonnet-5, `default` for opus-4-7, `default` plus `system-prompt-file`
+and `tool-search-loaded` for opus-5, and
 `default` only for fable-5 and opus-4-8 — both added after an account
 entitlement upgrade partway through this snapshot's capture session, opus-4-8
 specifically to test whether fable's prompt was an oddity of the Fable
@@ -91,6 +110,27 @@ reminder that a `claude.sh` session demonstrably carries appears in no file
 here (see "Removed: the `## Auto Mode Active` reminder"). `regenerate.py`
 defines a `bypass-permissions` variant for it, not yet captured, so that
 directory is absent rather than empty.
+
+### Built-in skill captures
+
+`builtin-skills/` holds what invoking each of the 17 built-in skills injects —
+512,397 characters in total, none of it in a `default` capture. Full detail,
+including the per-skill table and the capture conditions that change the result,
+is in `builtin-skills/README.md`. The three that matter most when re-capturing:
+
+- interactive rather than `-p`, or the skills gated on the `Artifact` tool are
+  unreachable and `design` degrades from 55,398 characters to a 169-character
+  stub;
+- `--setting-sources project,local`, or `design` and `code-review` degrade too;
+- a repo with a resolvable `origin/HEAD`, or `/security-review` — whose prompt
+  interpolates `` !`git diff origin/HEAD...` `` — injects nothing at all.
+
+Each of those failures produces a plausible-looking short body rather than an
+error, which is why `capture_skills.py` refuses to write a body that opens with
+harness text and `tests/test_builtin_skills.py` checks the committed files for
+the same thing. Both exist because the first run of this capture wrote Claude
+Code's type-ahead suggester prompt into two files and a bare system reminder
+into a third.
 
 ### Subagent captures
 

@@ -1,0 +1,113 @@
+{
+  "skills": {
+    "artifact-capabilities": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 13278,
+      "sha256": "321f0094bbc794d75b0b17d090fea70e8e6817993f8b2554667ec562a2743b4a",
+      "normalized_paths": true
+    },
+    "artifact-design": {
+      "shape": "body",
+      "route": "skill",
+      "chars": 16627,
+      "sha256": "87179963700c8c9b8fce04045e527437c3066a6f312d71eeb8911ab5728b75aa"
+    },
+    "artifact-diagramming": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 3619,
+      "sha256": "ce72ec290ba02c129f83d6f42fbc8587b98c75d7d344dbc6fb3812a77571e683"
+    },
+    "claude-api": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 88344,
+      "sha256": "2d17cccc41d7b388e1e8646e2e40577ad5b1c56c7956f17d157c55b92584fbe9",
+      "normalized_paths": true
+    },
+    "code-review": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 1572,
+      "sha256": "393c737a840ac2aa8a9333f11cbb4eb24be4310701d75ead36fe99cb3cc6b3f9"
+    },
+    "dataviz": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 7036,
+      "sha256": "3f40e17bc8a44fb91c3c8048a249dc1c3186da15e5567fa937b95c5f4ecf43cd",
+      "normalized_paths": true
+    },
+    "design": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 55398,
+      "sha256": "99e6b6e197e4971578ad294606199c7470ff23176d36610150a5dcf2b201150f",
+      "normalized_paths": true
+    },
+    "fewer-permission-prompts": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 7523,
+      "sha256": "597c22d373718456c0f79a01fde065c65ea819c3eeae76c2a5ca0c93affa472d"
+    },
+    "init": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 2312,
+      "sha256": "a817e62370d0ddfd5de50247764ccd4938444e3efa6d59ef3cdf49ab733ebac6"
+    },
+    "keybindings-help": {
+      "shape": "body",
+      "route": "skill",
+      "chars": 13946,
+      "sha256": "a6729e1d5c325f96235e0a5ce6e11fba3289a67c07f485991a4599cf4bfc3a6c"
+    },
+    "loop": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 7865,
+      "sha256": "436506758738a3a9ed9816c02db6f4ea32d51fe018b11e9c0e91e1ba52ce68fd"
+    },
+    "run": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 3250,
+      "sha256": "467d8bfa3e8ee040fa0ea37f7264bdf5bd15b76bf58c8d535efe7fd13e95ad00",
+      "normalized_paths": true
+    },
+    "schedule": {
+      "shape": "stub",
+      "route": "slash",
+      "note": "a substitute reply, not the skill body",
+      "chars": 139,
+      "sha256": "5749294ae27f5417bd74752e5b326040353cf2474d8508e368615d0b4d0b7c5a"
+    },
+    "security-review": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 10763,
+      "sha256": "14f235f3368d6ec535e3cd370d3201bee8c259bfd28ba4507a56bdfd0edbc014"
+    },
+    "simplify": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 2817,
+      "sha256": "93afe5c60ecc4dbf96c0491abfa64b78ac58ce3035c6a11270e5beda3951b941"
+    },
+    "update-config": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 260942,
+      "sha256": "0e9927a633f2fd23550501e5e4fc6aa2b46bdb39fcd7a20ef3dd2a03a073a27e"
+    },
+    "workflow-authoring": {
+      "shape": "body",
+      "route": "slash",
+      "chars": 16966,
+      "sha256": "21a07b0a0ae6dd279f1a98e7723e3eb4325489a1a2232cbb7b9c727fadc0e195"
+    }
+  },
+  "model": "claude-opus-5"
+}
