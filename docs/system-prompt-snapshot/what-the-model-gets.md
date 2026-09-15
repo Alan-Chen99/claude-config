@@ -433,7 +433,16 @@ consistent with the capture.)
 
 ## Tools — deferred (18, unchanged from 2.1.235)
 
-Named in a system-reminder, schemas not loaded:
+Named in a system-reminder, schemas not loaded *in this request*. Their
+descriptions and schemas are captured in `<model-id>/tool-search-loaded/tools/`:
+one `ToolSearch` call makes the server expand the roster from 15 tools to 33,
+and the request after it carries every definition.
+
+Only 2 of the 18 take the per-model lean/full split that shortens `Bash` from
+10,078 characters on sonnet-5 to 1,315 on opus-5 — `WebFetch` (676 on opus-5
+against 1,909 on sonnet-5) and `WebSearch` (312 against 1,322). The other 16,
+`Monitor` and `EndConversation` among them, are byte-identical across the two
+models, compared definition by definition from the captures themselves.
 
 ```
 CronCreate, CronDelete, CronList, DesignSync, EndConversation, EnterPlanMode,

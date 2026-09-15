@@ -1,0 +1,1 @@
+We're having trouble connecting with your remote claude.ai account to set up a scheduled task. Please try /schedule again in a few minutes.
