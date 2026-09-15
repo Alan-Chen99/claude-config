@@ -93,10 +93,16 @@ text `Tool loaded.`, and the **server** expands those into the next request's
 arrive in a request, and a request is what this directory already knows how to
 render.
 
+`tool-search-loaded` is captured for opus-5 and sonnet-5, which is enough to
+separate what is per-model from what is not: of the 18 deferred tools, only
+`WebFetch` (676 characters on opus-5, 1,909 on sonnet-5) and `WebSearch` (312
+against 1,322) take the lean/full split. The other 16 are byte-identical across
+the two, so the remaining models would add little.
+
 Variants: `default`, `custom-output-style`, `system-prompt`, `system-prompt-file`,
 `append`, `tool-search-loaded`, `subagent`. This snapshot captures the original
-six for sonnet-5, `default` for opus-4-7, `default` plus `system-prompt-file`
-and `tool-search-loaded` for opus-5, and
+six for sonnet-5 plus `tool-search-loaded`, `default` for opus-4-7, `default`
+plus `system-prompt-file` and `tool-search-loaded` for opus-5, and
 `default` only for fable-5 and opus-4-8 — both added after an account
 entitlement upgrade partway through this snapshot's capture session, opus-4-8
 specifically to test whether fable's prompt was an oddity of the Fable

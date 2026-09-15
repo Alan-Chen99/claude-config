@@ -16,8 +16,8 @@ captured.
 Stored once rather than under each model directory, because the bodies do not
 vary by model: `workflow-authoring`, `code-review`, `design` and `loop` were
 captured on both opus-5 and sonnet-5 and came back byte-identical (same
-sha256). This is the opposite of tool *descriptions*, which do vary — `WebFetch`
-is 469 characters on opus-5 and 1,608 on sonnet-5 — which is why
+sha256). This is the opposite of tool *descriptions*, some of which do vary —
+`WebFetch` is 676 characters on opus-5 and 1,909 on sonnet-5 — which is why
 `tool-search-loaded` is captured per model and this directory is not.
 
 `manifest.json` records the model each body was captured on.
