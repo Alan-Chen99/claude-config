@@ -100,11 +100,11 @@ carry verdicts. Leave them as they are.
 
 ## Editing the system-under-test
 
-When editing the agent's system prompt or a skill in response to a failing case, the goal is to repair the invariant the case probes, not to make the case pass. A test case is one sample of the invariant's input space; treating it as the spec narrows the prompt to that sample. The general prompt-engineering hints in `skills/prompt-engineer-v2/SKILL.md` apply — in particular "No overfitting to the case at hand", "Overfitting review by a fresh subagent", "Implicit-guidance justification", and "Recognition before enforcement".
+When editing the agent's system prompt or a skill in response to a failing case, the goal is to repair the invariant the case probes, not to make the case pass. A test case is one sample of the invariant's input space; treating it as the spec narrows the prompt to that sample. The general prompt-engineering hints in `skills/prompt-engineer-v2/` apply — in particular "No overfitting to the case at hand" and "Overfitting review by a fresh subagent" in `SKILL.md`, and "Implicit-guidance justification" and "Recognition before enforcement" in `experiments.md`.
 
 ### An edit's force and its exceptions travel where the case cannot follow
 
-`skills/prompt-engineer-v2/SKILL.md:52` ("Every change is a regression risk")
+"Every change is a regression risk" in `skills/prompt-engineer-v2/SKILL.md`
 covers the behavioural half; that file's text governs. Two further things travel
 with an edit that no case exercises and that review tends to read as wording: the
 force it is written at, and whatever it permits.
@@ -117,7 +117,7 @@ two incidents do not contain, a rate and a cost. `No-Amplification` in
 `sys_prompt/alan-default-next.md` states this for evidential claims; for an
 instruction, the quantity that outruns the evidence is its scope.
 
-**Exceptions.** `skills/prompt-engineer-v2/SKILL.md:62` ("Edge-case the rule")
+**Exceptions.** "Edge-case the rule" in `skills/prompt-engineer-v2/SKILL.md`
 asks for exceptions to be carved out explicitly; that file's text governs. Before
 writing one, answer how much of the forbidden space it readmits — breadth is a
 property of the exception's extension, not of how narrow its wording sounds. The
@@ -128,7 +128,7 @@ is the half that repays the closer reading.
 **A restatement can subtract.** An addition restating a rule the file already
 carries is not a caution; it is a second, differently worded statement of the
 same rule, and nothing then says which governs. For the length half of this,
-`skills/prompt-engineer-v2/SKILL.md:68` ("Implicit-guidance justification")
+"Implicit-guidance justification" in `skills/prompt-engineer-v2/experiments.md`
 already requires an experiment before adding enforcement longer than its
 invariant; read it there.
 
