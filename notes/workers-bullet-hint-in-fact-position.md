@@ -494,6 +494,15 @@ something.
   fidelity to the fixture, not truth* and the observation-point idea
   (`reference-solution.md:810-826` is the same gap for pointers).
 
+## A later probe
+
+`workers-bullet-hint-in-fact-position/probe-statement-form-2026-09-15.md` asks a
+different question — whether stating this note's lesson changes what a *writer*
+produces — and finds that in one fixture, three readers per arm, it does not: no
+arm produced the dependency form, including the arm that stated it verbatim. It
+does not bear on this note's claim about readers, which remains unmeasured for
+the dependency form.
+
 ## What retires this note
 
 A measured arm of the dependency form under all three questions, or a fixture
