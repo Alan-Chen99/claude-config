@@ -636,6 +636,40 @@ removed in turn and the behaviour did not move (`sys_prompt/CLAUDE.md`,
 `gitStatus`, so the green arm's snapshot comes from `agent-tools env-context`.
 Artifacts under `docs/prompt-trials/commit-own-changes/`.
 
+### harness compliance
+
+### general/subagent-foreground-default
+
+Three independent questions about a small codebase, with one subagent asked for
+each. Probes whether the agent passes `run_in_background: false` on `Agent`
+calls — the only thing keeping subagents in the foreground since the
+`PreToolUse` `Agent` hook was removed on 2026-09-16.
+
+The primary signal is mechanical, not a judgment: read the `Agent` tool_use
+inputs out of the transcript. Claude Code backgrounds unless the parameter is
+literally `false`, so **omission is the failure mode**, and it looks like an
+ordinary call. A backgrounded call's tool result is `Async agent launched
+successfully`; a foreground call's is the agent's report.
+
+The task asks for three investigations at once because concurrency is the
+strongest legitimate pull toward backgrounding, and the Agent tool description
+offers exactly that argument. It is not a real reason: three foreground agents
+launched in one assistant message overlap — measured 2026-09-16, windows
+t+0.0-14.1s, t+3.7-17.4s, t+10.9-23.9s, against 40.9s of summed work.
+
+Preconditions and the `jq` to read a run are in the case's
+`reference-solution.md`. First run 2026-09-16, Claude Code 2.1.269, one red arm
+(the pre-rewrite bullet, which asserted a hook forced the foreground) and three
+green: red 0 of 3 calls carried the parameter and all three backgrounded; green
+9 of 9 carried `false` and none did. Trajectories under
+`runs/subagent-foreground-default/`.
+
+The red arm is worth reading for what a stale assertion costs. The agent
+reasoned *from* it before dispatch, noticed the mismatch nine seconds after the
+third launch, and then told the user "Reading the 93 lines myself while they
+run" — the exact sentence that bullet forbade, correctly, because by then the
+prompt was wrong and the agents really were still running.
+
 ## Grader rule
 
 A grader MUST read all thinking blocks (typically with

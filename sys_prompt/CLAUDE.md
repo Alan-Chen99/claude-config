@@ -125,7 +125,7 @@ changes.
 
 | Upstream text | Why it is not here |
 | --- | --- |
-| `Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it` — live for Opus 5 since 2.1.269 | This repo delegates by design: `settings.json` holds subagents in the foreground so a report returns as the launching call's result, and `# Session-specific guidance` says when to spawn one. Upstream's own exception would cover it regardless, since the asking here is done by CLAUDE.md and by skills. |
+| `Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it` — live for Opus 5 since 2.1.269 | This repo delegates by design: `# Session-specific guidance` says when to spawn one, and keeps the report in the launching call's own result. Upstream's own exception would cover it regardless, since the asking here is done by CLAUDE.md and by skills. |
 | `The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results.` | Upstream serves this `# Harness` bullet in two variants and picks per model. In the 2.1.269 captures Opus 5 and Fable 5 get the wording above; Opus 4.8 gets the wording this prompt carries. Both ship in one build, so this is a live alternative rather than stale text — but the model `claude.sh` runs is served the other one, and nothing records why this side was taken. |
 | `Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.` — closes the action-caution paragraph | `# Error Propagation` and `# Epistemic Integrity` say it at length. |
 | `If what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding` — follows `look at the target` | **Not reviewed.** It predates the 2.1.235 baseline and no entry explains it. Nothing else in the prompt says what to do when the look turns up a surprise; `# Executing actions with care` covers only the pattern-matched case. Decide it at the next edit to that section. |
@@ -250,7 +250,58 @@ since cc's own block never states the id, only embedding it in the scratchpad pa
 subprocesses would still carry the id as `CLAUDE_CODE_SESSION_ID`, but no text would say so. When a run shows the agent branching, asking before a
 commit, or sweeping foreign changes in — those are what the cut clauses would have said.
 
-### Backgrounding: `run_in_background: true` by default, `--background` by exception
+### Subagents: `run_in_background: false` on every Agent call
+
+Until 2026-09-16 this was a harness guarantee rather than a rule: a `PreToolUse` hook on `Agent`
+rewrote the parameter to `false` on every call, and the bullet stated the foreground as a fact
+about the session. The user asked for a prompt rule instead, so the model now decides per call
+and nothing checks it.
+
+`CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the precondition, not a second enforcement.
+With the fork gate on, `run_in_background` is omitted from the Agent tool's input schema outright
+(`rc() || Z8()`, `src/chunk-dbb93264.js:171779`) and the rule would be unfollowable.
+
+Each clause was measured or read out of the source, not assumed:
+
+- **`false`, not omission.** Claude Code backgrounds unless the parameter is literally `false`
+  (`q4o`'s last term `!s && r !== !1`, `src/chunk-dbb93264.js:103955`). The clause exists because
+  omission is the failure mode and it is invisible — a call without the parameter reads like any
+  other call. Measured 2026-09-16 with the hook removed and the old bullet still in place: 3 of 3
+  Agent calls omitted the parameter and all three backgrounded. That run's own agent noticed —
+  "All three ran in the background and returned via task notifications instead. The guidance does
+  not match this session's behavior."
+- **Concurrency is not a reason to background.** Several Agent calls in one assistant message run
+  concurrently in the foreground, so the strongest legitimate pull toward backgrounding does not
+  hold. Without the clause the model has a good reason to background in exactly the case that
+  needs several agents at once.
+- **The tool description recommends the opposite.** The Agent tool description and the
+  `run_in_background` property's own `.describe()` both say to background by default and offer
+  "so the user can hand you other work" as the reason. Named and overridden, that is a resolved
+  conflict; unnamed, it is an unresolved one the model settles per call.
+- **`Default` carries the escape hatch**, as in ``Prefer `model: haiku` `` above, so the prompt
+  spells out no exception.
+
+Dropped from the old bullet and not replaced: "never report an agent as still running and never
+wait for a notification that the launching call already answered". Both were true only while
+nothing could background. A backgrounded agent now genuinely is still running and a notification
+genuinely follows.
+
+`prompt-tests/general/subagent-foreground-default` is the check, and the only thing standing
+between this rule and silent decay. Measured the same day, same task, hook gone in both arms: with the old bullet, 3 of 3 Agent
+calls omitted the parameter and all three backgrounded; with this bullet, 9 of 9 across three
+trials passed `false`, none backgrounded, and every report returned as the launching call's own
+tool result. Trajectories under `prompt-tests/runs/subagent-foreground-default/`.
+
+**Unverified, decide at the next edit to this bullet:** no green trial's reasoning weighed the
+Agent tool's description against the prompt, and one of the three named neither the parameter nor
+the foreground at all while still passing `false`. So the override clause has no measured
+behaviour behind it — it may be what keeps the conflict from being weighed, or it may be text the
+first clause already covers. Removing it and re-running the case is what would tell them apart.
+
+Retire this if `settings.json` moves to `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which forces the
+foreground with no help from the model and makes every clause here dead text.
+
+### Backgrounding a wrapped command: `run_in_background: true` by default, `--background` by exception
 
 The prompt names one default — `run_in_background: true` on an ordinary `agent-tools run` —
 and gates `agent-tools run --background` behind one trigger: the job must survive the call
