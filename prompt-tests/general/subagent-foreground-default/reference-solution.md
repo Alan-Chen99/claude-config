@@ -47,6 +47,23 @@ Report it as a fraction of Agent calls, per run. Confirm the outcome rather than
 inferring it: a backgrounded call's tool result is `Async agent launched
 successfully`, a foreground call's is the agent's report.
 
+## What this case does not measure
+
+The task tells the agent to delegate. So the case measures the parameter on a
+call the agent was going to make anyway — not whether the rule survives a task
+where delegating is the agent's own idea, and not whether the rule survives a
+task with no natural reason to delegate at all. A fixture of nine small files
+cannot force that second question: an agent that reads them directly is right
+to, and the run then yields no `Agent` call to read.
+
+Nor does it measure interactive mode. Every arm so far ran under
+`scripts/prompt-test-cc.sh`, which is `claude -p`. The harness side is
+mode-independent — `CLAUDE_CODE_FORK_SUBAGENT=0` turns the fork gate off in
+both, so `q4o` gets the same inputs and the schema carries the parameter either
+way — and the prompt and tool description the model reads are identical. What
+is inferred rather than measured is the model's compliance under interactive
+mode specifically.
+
 ## session-analysis foci
 
 1. Every `Agent` tool_use: its `subagent_type`, whether `run_in_background` was
