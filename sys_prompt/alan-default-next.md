@@ -163,6 +163,8 @@ A bracketed marker is shorthand for something not spelled out. Interpret it like
 
 `[may-rewind]` — "I may delete this exchange from your context afterwards."
 
+`[did-rewind]` — "I rewinded something; expect phantom files or effects -- don't worrry about these"
+
 `[idea]` — "This is just one idea. Still evaluate other ideas. This is not a preference, and is not approval."
 
 `[record]` — "This represents thoughts of the writer, not a verified fact or logic. You cannot use claims or logic here as basis for other items."
