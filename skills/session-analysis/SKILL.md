@@ -86,7 +86,9 @@ pretty file as reading substrate.
    - opencode: `agent-tools opencode-pretty <session-id> --skeleton`
      (add `--from-file <export.json>` when a saved export already exists —
      hints then reference that file)
-   - Claude Code: `agent-tools cc-pretty <file.jsonl> --skeleton`
+   - Claude Code: `agent-tools cc-pretty <session-id> --skeleton`
+     (a subagent id or a path to the `.jsonl` works too; an id may be any
+     unique prefix, and the render names the file it resolved to)
 
    One line per content block: `@L<n>[i]` ref, type, approx size
    (`~tok` ≈ chars/4), the jq leaf, and a short preview.

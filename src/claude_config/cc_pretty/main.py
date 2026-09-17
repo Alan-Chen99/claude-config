@@ -1,11 +1,16 @@
 """Pretty-print a Claude Code JSONL session log to stdout.
 
-Usage: cc-pretty <session.jsonl> [--skeleton | --chat-only]
+Usage: cc-pretty <target>        [--skeleton | --chat-only]
                                  [--tool-max N] [--truncate-input]
                                  [--color | --no-color] [--no-thinking]
                                  [--show-rewound] [--show-all]
                                  [--compact-all] [--compact-leg N]
                                  [--agent]
+
+<target> is a path to a .jsonl log, or an id to look one up by: a session id or
+a subagent id, whole or as any unique prefix. An id resolves against both
+transcript families under <config dir>/projects, and the render then names the
+file it resolved to. See :mod:`claude_config.cc_pretty.locate`.
 
 Flags form four orthogonal axes (see --help): SELECTION (which records),
 DENSITY (full render / --skeleton / --chat-only), BODY-DETAIL (within full
@@ -37,6 +42,7 @@ import os
 import sys
 from dataclasses import dataclass
 
+from claude_config.cc_pretty.locate import SessionNotFound, resolve_log_arg
 from claude_config.cc_pretty.parse import (
     AssistantRecord,
     AttachmentRecord,
@@ -683,6 +689,9 @@ class PipelineInput:
     ``records``: pre-parsed records keyed by a synthetic line/index number.
     ``log_path``: shown in the legend at the top so readers know what to grep.
     ``args``: the argparse Namespace populated by :func:`add_shared_args`.
+    ``source_id``: the id ``log_path`` was looked up by, when it was. Set, the
+        render opens by naming the file the id resolved to — the reader typed an
+        id and has no other way to tell which file answered it.
     ``agent_chunk_prefix``: filename stem for ``--agent`` chunk files.
     ``rewound``: pre-computed rewound indices. When set (even to an empty
         set), the parent-fork auto-detector is skipped — the caller is
@@ -697,6 +706,7 @@ class PipelineInput:
     args: argparse.Namespace
     agent_chunk_prefix: str = "cc-pretty"
     rewound: set[int] | None = None
+    source_id: str | None = None
 
 
 def run_pipeline(inp: PipelineInput) -> None:
@@ -728,6 +738,10 @@ def run_pipeline(inp: PipelineInput) -> None:
     if args.agent:
         saved_stdout = sys.stdout
         sys.stdout = io.StringIO()
+
+    # After the --agent redirect, so the chunk files carry it too.
+    if inp.source_id is not None:
+        print(f"{C.HINT}# source: {inp.source_id} → {inp.log_path}{C.RESET}")
 
     # ── Compaction & rewind detection ────────────────────────────────────
     compaction_bounds = find_compaction_boundaries(records)
@@ -1006,11 +1020,23 @@ def main():
     parser = argparse.ArgumentParser(
         description="Pretty-print Claude Code JSONL session logs",
     )
-    parser.add_argument("file", help="Path to .jsonl session file")
+    parser.add_argument(
+        "target",
+        help="Path to a .jsonl log, or a session or subagent id to look one up "
+             "by — whole, or any unique prefix",
+    )
     add_shared_args(parser, default_tool_max=200)
     args = parser.parse_args()
 
-    raw_records = read_jsonl(args.file)
+    # A mistyped id is expected input at a command-line boundary, not an
+    # unexpected condition; everything else still propagates.
+    try:
+        located = resolve_log_arg(args.target)
+    except SessionNotFound as unresolved:
+        print(f"cc-pretty: {unresolved}", file=sys.stderr)
+        sys.exit(2)
+
+    raw_records = read_jsonl(located.path)
     records, errors = parse_all(raw_records)
 
     if args.validate_only:
@@ -1019,12 +1045,13 @@ def main():
         print(f"{ok}/{total} records parsed OK, {errors} errors", file=sys.stderr)
         sys.exit(1 if errors else 0)
 
-    session_id = os.path.basename(args.file).replace('.jsonl', '')[:8]
+    session_id = os.path.basename(located.path).replace('.jsonl', '')[:8]
     run_pipeline(PipelineInput(
         records=records,
-        log_path=args.file,
+        log_path=located.path,
         args=args,
         agent_chunk_prefix=f"cc-pretty-{session_id}",
+        source_id=located.source_id,
     ))
 
 
