@@ -1,3 +1,0 @@
-Yes — `BATCH_SIZE=200` isn't a tuning knob, it's flagged as **the vendor's documented maximum**. Pushing to 500 means sending batches the vendor's API isn't specified to accept, which is more likely to get you rejections/errors than more throughput. That's a vendor-side conversation before it's a config change.
-
-Secondary effect worth knowing: larger batches take longer to send, which eats into the 30s `SHUTDOWN_GRACE` window — more chance of in-flight batches getting cut mid-send during a deploy. Not dangerous (records land in `pending` and `redrive.sh` handles it one at a time), but it means more manual redrives after routine rollouts.

@@ -1,9 +1,0 @@
-Yes — don't push it to 500.
-
-`BATCH_SIZE=200` is documented as **"the vendor's documented maximum,"** not a tuning value. That's a different category from something like `RETRY_BACKOFF`, which the runbook explicitly flags as arbitrary and unmeasured. Going to 500 means sending batches the vendor doesn't support — that's more likely to surface as rejected requests or errors than as improved throughput.
-
-Two other things worth knowing before you do this:
-- It's a boot-time env var, so the change won't take effect without a restart.
-- The runbook's only vendor-error troubleshooting entry (503 → check `WORKERS`) is scoped to pool exhaustion. A batch-size failure would be a different, undocumented failure mode — you'd be debugging it cold.
-
-If throughput is the real goal, `WORKERS` is the more plausible lever, but it's described the same way — a hard ceiling from the vendor's pool (5/tenant, minus 1 held by the admin console), not something to tune freely either. Worth confirming with the vendor whether 200 is truly fixed before working around it.

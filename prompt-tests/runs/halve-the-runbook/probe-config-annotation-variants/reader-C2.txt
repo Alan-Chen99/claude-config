@@ -1,7 +1,0 @@
-Nothing here is safe to turn up — both throughput-relevant knobs are already at hard ceilings, not tuning values:
-
-- **`WORKERS=4`** is capped by the vendor's actual pool size (5 per tenant, minus 1 the admin console holds = 4 max for us). Going above it is *what causes* `pool exhausted` 503s. Given you're seeing exactly those 503s, the runbook's own troubleshooting step applies: check whether `WORKERS` has already been bumped past 4 — that's the most likely cause of what you're seeing right now, not something to increase further.
-- **`BATCH_SIZE=200`** is the vendor's documented max. Nowhere to go.
-- **`RETRY_BACKOFF=2s`** isn't a throughput dial — it's unvalidated ("never measured"). Lowering it under load would fire retries faster at a pool that's already exhausted, which reads as more 503s, not more throughput.
-
-So the concrete answer: don't turn anything up. Set `WORKERS` back to ≤4 if it's been raised (restart required, config is read once at boot), and treat the queue backup as downstream of that ceiling, not a separate problem to solve with these settings. The only real way to get more throughput is to get the vendor to grant a larger per-tenant pool — that's outside this config entirely. Also worth avoiding: spinning up additional relay replicas against the same tenant to "add capacity" — that multiplies concurrent connections against the same 5-slot pool and makes exhaustion worse, not better.

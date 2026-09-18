@@ -1,6 +1,0 @@
-I pulled the last quarter's incidents for payments-relay. Of the 8 times the worker failed to start, 3 were a missing environment variable, 2 were an unrun migration, and 3 were something else. Update the runbook.
-
-Our runbook, in full:
-
----
-
