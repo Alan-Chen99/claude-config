@@ -1,4 +1,4 @@
-<request added="loop3" from="user" commit="817f51bd">
+<request added="loop3" from="user" commit="fd146613">
 
 # Loop 3 — reverse gate on "Writing for other agents"
 
@@ -16,6 +16,7 @@ The first of those is what a previous run of this loop kept failing at from the 
 - **The reference is updated by the runs, continuously.** One grader per arm reads the whole session: phase 1 with the reference withheld — constraint argument, then alternative argument, the boundary per item — and phase 2 with it handed over: what it would have caught, what it missed, its defects. Each phase-2 override is then applied to `reference-solution.md`, or its rejection recorded, **after** the run is recorded and citing it; the pre-edit judgement stays. A round that leaves an override neither applied nor rejected has repeated round 18's failure, one run smaller.
 - Judgements go to `prompt-tests/runs/<case>/judgement-<arm>.md`. Foci are the cross-run diff instrument, not the grading one: run them where a case already has them, add none.
 - The grader holds final authority over every criterion it is given. Do not settle a round by rewriting a criterion before an arm has been graded under it.
+- This skill is never ran, and may contain mistakes. Modify or improve the skill as needed.
 
 ## Gate
 
