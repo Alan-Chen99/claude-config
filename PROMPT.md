@@ -1,4 +1,4 @@
-<request added="loop3" from="user" commit="fd146613">
+<request added="loop3" from="user" commit="2ccc1bb4">
 
 # Loop 3 — reverse gate on "Writing for other agents"
 
@@ -51,5 +51,6 @@ Both [idea]s are stakes for the reference to carry, not axes — there are no ax
 - A task line states its ground, never its expected finding. A gate names the finding it guards.
 - One prompt candidate per round, decided that round; nothing queued.
 - Every fifth round: cleanup.
+- Delete aggressively. Rubric changed? delete runs. Do not use rewinded loops runs as evidence -- only use those loops for what not to do at the loop level. I have deleted prior runs; round1 should remove all refernces to them, and mark all current rubrics as not-to-be-used-until-updated for new prompt test skill. Outdated information belong in git history only.
 
 </request>
