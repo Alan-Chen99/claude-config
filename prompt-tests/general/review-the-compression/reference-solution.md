@@ -11,11 +11,11 @@ The fixture pair is fixed: `RUNBOOK.md` is that case's source fixture, and
 target on 2026-09-08 (`current3`). So the reviewer is looking at a real
 compression, not a planted one, and the defect key is already written — the
 fragment table and the twelve-shift table in
-`../halve-the-runbook/reference-solution.md`.
+`../../payments-relay/key.md`.
 
 ## Two defects added to the key 2026-09-10, after both arms ran
 
-This case's key is `../halve-the-runbook/reference-solution.md` by reference, so
+This case's key is `../../payments-relay/key.md` by reference, so
 changes there land here. Two of them fall on one entry of `RUNBOOK-short.md`
 (`:36-37`) and neither arm was scored on either, because neither existed when
 they ran:
@@ -114,7 +114,7 @@ current arm reaches all three rules in its first thinking block before drafting 
 *"that's the exact failure the system warns about … I can't convert preferences
 into hard constraints … I must avoid amplifying claims"* — and repairs an
 amplification of its own mid-run, against zero matches for any of it in its
-paired ablated arm. See `general/halve-the-runbook/reference-solution.md`,
+paired ablated arm. See `payments-relay/key.md`,
 "The section is invoked, and only in the arm that has it". The difference between
 the two cases is that this one asks for a list and the other asks for a file
 under a length target; do not carry a null result across that boundary.

@@ -28,7 +28,7 @@ exists.
   rate and an arm that kept it are indistinguishable to the rubric as written."
   The item was found by a person reading the fixture, not by any instrument the
   case owns.
-- `general/halve-the-runbook/reference-solution.md` reached its present form by
+- `payments-relay/key.md` (until 2026-09-18 `general/halve-the-runbook/reference-solution.md`) reached its present form by
   post-hoc criticism from real outputs ("The case has been conflating two senses
   of recoverable"). It is the suite's best rubric and it got there by the
   mechanism this design makes routine.

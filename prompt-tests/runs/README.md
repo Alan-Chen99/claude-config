@@ -24,9 +24,17 @@ case's `reference-solution.md`.
 
 ## `halve-the-runbook`
 
-The case default is 50% (~600 words) since 2026-09-09; `v3` and everything named
+**Everything in this directory predates 2026-09-18**, when the case was rebuilt
+on `.claude/skills/update-claude-code/SKILL.md`. All of it measures the
+payments-relay runbook the case carried until then and none of it is comparable
+to a run of the case as it now stands. It is kept because
+`docs/prompt-testing-design.md` and two `notes/` files cite it as evidence about
+grading, and those claims remain true of the runs they were taken from. The
+analysis it belongs to is at `prompt-tests/payments-relay/`.
+
+The case default was 50% (~600 words) since 2026-09-09; `v3` and everything named
 `artifact-keyed-*` belong to the earlier quarter-length target (~290) and are
-kept as the binding-budget cell. `general/halve-the-runbook/reference-artifact.md` demonstrates the decisions at
+kept as the binding-budget cell. `payments-relay/reference-artifact.md` demonstrates the decisions at
 the harder quarter target and is not a length model for the 50% task;
 `artifact-50pct-nonbinding.md` here is the worked example of the 50% cut not
 binding — it holds every fragment because nothing forced a choice, which is a

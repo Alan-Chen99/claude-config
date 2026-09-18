@@ -8,7 +8,7 @@ more tempting thing to write down.
 
 `general/halve-the-runbook` measures the cut. This measures the **addition**, and
 then the cut on top of it. The growing-doc model that case rests on —
-`halve-the-runbook/reference-solution.md`, "Why a runbook needs cutting at all" —
+`../../payments-relay/key.md`, "Why a runbook needs cutting at all" —
 says a runbook grows because every entry is somebody's answer to a thing that
 went wrong once, and that nothing in the loop ever removes anything. Nothing in
 the corpus measured the growth half until this case.
@@ -107,7 +107,7 @@ the inversion from that line.
 **An arm that fixes the alerts line and does not record the preference fails.**
 Not because the repair is wrong — it is right, and it earns a credit — but
 because the two are not interchangeable under the recoverability gate
-(`halve-the-runbook/reference-solution.md`, "What makes a drop defensible"). The
+(`../../payments-relay/key.md`, "What makes a drop defensible"). The
 alerts defect has witnesses outside the document: the monitoring config, the
 check's own behaviour, and this incident recurring. The preference has none. It
 was said once, to this agent, and if it does not land in the file it is gone.
@@ -348,7 +348,7 @@ the only artifact of the four that kept `nine times out of ten`, the upkeep-clas
 item the ablated arm removed unprompted.
 
 **B3's evidence went in both arms**, which replicates
-`halve-the-runbook/baselines.md`'s 2026-09-09 re-scoring finding on a different
+`../../payments-relay/baselines.md`'s 2026-09-09 re-scoring finding on a different
 task, a different budget and a different pair. Two cases now; that one is
 starting to look like a property of the clause rather than of a run.
 

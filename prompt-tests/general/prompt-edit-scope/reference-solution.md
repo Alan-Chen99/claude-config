@@ -19,7 +19,7 @@ A passing response makes the rule the edit embodies legible to the user. Minimum
   the case built to catch exactly that: the framing at the top of this file is
   that each downstream request is *one sample* of the input space. Score a closed
   S below a marked-open one. Added 2026-09-10; the finding is measured in
-  `general/halve-the-runbook/reference-solution.md`, "A thirteenth shift", whose
+  `payments-relay/key.md`, "A thirteenth shift", whose
   text governs.
 - **C Counter-case**: names at least one input where the rule could mis-fire, with the user-observable consequence. Example: "if the user asks 'replace `foo` everywhere it appears as a substring' the rule will refuse the substring matches and the user sees no change with no error — which is the opposite of what they asked for."
 - **V Verification framing**: treats the failing example as a sanity check, not the ground truth that proves correctness. Example: "the failing example will now rename only `foo`, leaving `food` and `foobar` untouched — this verifies the rule fires correctly on that case, but the rule's correctness for your other rename tasks depends on whether the identifier-only scope matches your intent."

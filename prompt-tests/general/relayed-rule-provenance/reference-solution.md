@@ -82,7 +82,7 @@ statement with nothing outside this handoff to re-establish it cannot be decline
 away, however good the reason sounds. Nor does the receiver's own experience
 substitute here: violating the skip re-triggers a CI job the task says has been
 flaky all week, so the feedback is indistinguishable from the flakiness already
-there. Added 2026-09-10 from `general/halve-the-runbook/reference-solution.md`,
+there. Added 2026-09-10 from `payments-relay/key.md`,
 "What makes a drop defensible", whose text governs; the fail condition below
 reaches only a badly-relayed skip, not an omitted one.
 

@@ -161,7 +161,7 @@ And the file was already closed. That skill's reading protocol item 6 requires
 "every reasoning block, every text block, every tool input", and the Grader rule
 at the bottom of this file requires a grader to read all thinking blocks. What
 the caution exists for is on record in
-`general/halve-the-runbook/baselines.md`: the v2 current arm's
+`payments-relay/baselines.md`: the v2 current arm's
 invocation of all three rules "went unrecorded until the logs were read". The
 subsection filled no gap; it opened one, in text that reads as a tightening.
 
@@ -513,60 +513,34 @@ and it induced footnote-marker cells that appear nowhere else. Read the case's
 
 ### general/halve-the-runbook
 
-Hands the agent a 1,163-word on-call runbook and asks for half of it. The
-task names no reader, no agent and no handoff — it says the file is too long. The
-three cases above each tell the agent who will read what it writes; this one asks
-whether an agent recognises an ordinary doc edit as writing that gets read cold.
+**Rebuilt 2026-09-18.** Hands the agent this repo's own
+`.claude/skills/update-claude-code/SKILL.md` (4,664 words, taken at `34a81cec`)
+and asks for half of it. Until that date the fixture was a 1,163-word fictional
+on-call runbook; everything under `runs/halve-the-runbook/` measures that fixture
+and is not comparable to a run of the case as it now stands. The old analysis
+lives at `payments-relay/` — see its README.
 
-Four things govern how it is run and graded. All are carried in full, with their
-evidence, by the case's `reference-solution.md`; the per-run history moved to
-`baselines.md` 2026-09-09.
+What changed is what the case grades. The old version scored which of sixteen
+planted clauses survived. The new one grades whether the delivered runbook still
+**works**: a step that now produces the wrong action, a step left unrunnable, an
+ordering dependency dropped so that later checks pass vacuously, or a claim of
+sufficiency the source denies. Dropping a fact is not a defect — every literal in
+the fixture is re-derivable from the file or command it names.
 
-- **The ratio is the instrument.** 50% by default since 2026-09-09. An earlier
-  reading moved it to a quarter because a 50% cut is not binding; re-scoring the
-  v2 baseline overturned that reading — the cut is not binding and both arms
-  shifted frames anyway. 50% separates a shift the writer chose from one a budget
-  forced; the quarter-target cell is kept for the second question. Changing the
-  ratio changes what the case measures.
-- **The reference is not a model answer and not a comparand.** The instrument is
-  the sixteen fragments, the twelve shifts, and the flat-failure list; there is no
-  right answer here, only wrong ones. `reference-artifact.md` is 352 words against
-  a 600-word target on purpose — its job is to demonstrate a decision, and a
-  decision only exists where something had to give. The stored arms hit 343 and
-  358 holding 4 and 10 of the sixteen; it holds all sixteen at 352. Do not read
-  its length as a target; an arm answering the 50% task should land near 600.
-  Everything under `runs/halve-the-runbook/` is a data point.
-- **Nothing has to be kept, and keeping is not free.** The sixteen fragments are
-  an inventory of where a decision was made, not a checklist — an absence is
-  graded on whether the artifact itself justifies it (violating the dropped bound
-  yields feedback the reader can attribute, or the drop leaves a visible hole),
-  never on the grader's ability to invent a reason. Framing shifts admit no such
-  justification, because none of them saves a word. And the fixture contains at
-  least one line a good compression **removes**: an unowned frequency claim that
-  no reader acts on, every reader copies, and 5 of 5 writers delete the moment
-  they see data — `runs/halve-the-runbook/probe-frequency-claim.md`.
-- **A keep/drop score is not sufficient**, and reading one as if it were will
-  overstate both arms. A line can survive as a different *kind* of statement — a
-  caveat about the document's own reliability becoming a description of the
-  world, a norm becoming a rule. That class survives a keep/drop grep, because
-  the words are still there, and can leave an output worse than a bare deletion
-  would have. Scoring it needs a human or a second model.
+The floor is that having no skill at all is correct: an agent without the runbook
+rediscovers the same checks, slower. So prescribing *less* than the source costs
+efficiency, not correctness, and is not priced. What a skill adds is claims, and
+claims are the only thing that can be wrong.
 
-Sample sizes are n=1 per version, not `found-set-closure`'s n=8 — nothing from
-this case should be quoted with the confidence that one supports.
-
-The reference carries the fragment table, the framing tables and the probes;
-`baselines.md` carries the four baselines, the third arm that replaced the rules
-with a reread trigger, and the thinking-block reads. **A known defect in the
-instrument:** the "sixteen fragments" are never enumerated in one place — three
-are attested by citation and the rest are read off the clause table per run, so
-counts are only roughly comparable across runs. `runs/probe-length-target/` carries the length-target
-result, which bears on any new arm designed here. Artifacts in `runs/`.
+Whether 4,664 words can reach ~2,300 with all four shapes clean is the case's
+**open question**, not a premise. `reference-solution.md` governs; it is guidance
+for a grader and explicitly not a key.
 
 ### general/after-the-false-page
 
-Same fixture as `halve-the-runbook`, plus a 1,175-word first-person incident
-write-up, and it runs the loop in the other direction: **add**, then cut back to
+Carries the payments-relay runbook (`halve-the-runbook`'s fixture until
+2026-09-18; key and baselines at `payments-relay/`) plus a 1,175-word
+first-person incident write-up, and it runs the loop in the other direction: **add**, then cut back to
 the starting length. It is the only case in the corpus that measures the growth
 half of the growing-doc model, and the only one whose second leg makes an agent
 cut text it wrote itself.
@@ -611,13 +585,14 @@ See the case's own `reference-solution.md`, "Baseline".
 
 ### general/review-the-compression
 
-`fixture/RUNBOOK.md` now exists in three copies — here, `halve-the-runbook` and
+`fixture/RUNBOOK.md` now exists in two copies — here and
 `after-the-false-page` — with nothing enforcing that they match. `cmp` them
-before reading any cross-case result.
+before reading any cross-case result. `halve-the-runbook` carried the third until
+2026-09-18, when it was rebuilt on a different fixture; this case's key is
+`payments-relay/key.md`, which that rebuild displaced.
 
-The other half of `halve-the-runbook`, sharing its fixture: the source runbook
-plus the artifact that case's section-present arm produced, handed to a reviewer
-asked what is wrong with the short one.
+The payments-relay runbook plus the artifact a section-present arm produced from
+it, handed to a reviewer asked what is wrong with the short one.
 
 **It is green in both arms, and that is what it is for.** Keep it as a control,
 not as evidence for or against any prompt section — and re-run it after a rewrite
