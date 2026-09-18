@@ -81,10 +81,18 @@ unblinded rather than blind.
 
 ## Trial logging
 
-Every trial keeps its `session-analysis` evidence artifacts, one per focus, at
-`docs/prompt-trials/<case>/<YYYY-MM-DD>-<arm>__<focus-slug>.md`, with the
-run's provenance in the artifact header per the `session-analysis` skill.
-Those artifacts are the trial record. Do not append trials to a single growing
+Every trial keeps the grader's judgement at
+`prompt-tests/runs/<case>/judgement-<arm>.md` and, where the case has foci, its
+`session-analysis` evidence artifacts one per focus at
+`docs/prompt-trials/<case>/<YYYY-MM-DD>-<arm>__<focus-slug>.md`, with the run's
+provenance in the artifact header per the `session-analysis` skill. Together they
+are the trial record. (Two directories are in use for the artifacts; `runs/` holds
+the older ones.)
+
+**A reference edited in response to a run cites that run.** The judgement that
+forced the edit is kept, and the edit lands after the run is recorded, never
+before — a reference edited to fit the run it is grading manufactures its own
+agreement. Do not append trials to a single growing
 iteration log: one file grows past the point where readers can locate any
 specific trial.
 
@@ -672,10 +680,15 @@ prompt was wrong and the agents really were still running.
 
 ## Grader rule
 
-A grader MUST read all thinking blocks (typically with
-`agent-tools cc-pretty <FILE> --agent`, `agent-tools opencode-pretty <session> --agent`,
-or equivalent). `--agent` strips ANSI color and chunks oversized output into
-`/tmp/` files for parallel reads — without it, Bash truncates large sessions at
-30k chars. Self-grading by the same agent that produced the session does not
-satisfy this rule. The grader must check contamination before assigning
-pass/acceptable/fail.
+A grader reads the **whole session**, not the final answer and not a focus-scoped
+extract — typically with `agent-tools cc-pretty <FILE> --agent` or
+`agent-tools opencode-pretty <session> --agent`. `--agent` strips ANSI color and
+chunks oversized output into `/tmp/` files for parallel reads; without it, Bash
+truncates large sessions at 30k chars. Self-grading by the agent that produced the
+session satisfies nothing. Check contamination first — a contaminated run did not
+measure the task.
+
+The grader produces two arguments and the boundary between them, not a band:
+`.claude/skills/prompt-tests/SKILL.md`, "Grader dispatch". A reference is
+guidance, inadmissible as a requirement, and the grader may override any of it at
+the cost of a written claim. Reasoning: `docs/prompt-testing-design.md`.

@@ -20,12 +20,89 @@ skill authoring. Run the failing case first to capture the baseline (RED),
 then change the prompt (GREEN), then re-run affected cases to confirm no
 regression (REFACTOR). No exceptions for "small tweaks" or "obvious fixes".
 
-## Grader rule (load-bearing)
+## The grader
 
-A grader MUST read all thinking blocks (typically with `agent-tools cc-pretty`
-for Claude Code JSONL or `agent-tools opencode-pretty` for opencode sessions).
-**Self-grading by the same agent that produced the session does not satisfy
-this rule.** Final-answer-only review does not satisfy it either.
+One grader per arm, dispatched as a subagent, reading the **whole session** —
+`agent-tools cc-pretty` for Claude Code JSONL, `agent-tools opencode-pretty` for
+opencode — under the `session-analysis` reading protocol. The final answer, a
+focus-scoped extract and a list of graded axes are all projections, and a
+projection taken before judgement cannot show what the output paid to score well
+on it. Self-grading by the agent that produced the session satisfies nothing here.
+
+The grader is the only reader who reads the whole session; nobody downstream
+re-reads it. It therefore holds final authority over every criterion it is given.
+A criterion it cannot override is one whose defects go unrecorded, and a grader
+whose judgement is not trusted to override a criterion cannot be trusted to
+produce the evidence either.
+
+Reasoning for this and everything below: `docs/prompt-testing-design.md`.
+
+## What a rubric is
+
+`reference-solution.md` tells the grader what the caller cares about and why, so
+the grader can recognise a cost when it sees one. It is guidance. It does not
+bind, it does not score, and it is not the invariant — it is one sample of it,
+written by someone who had read the source and not this output.
+
+**The reference is inadmissible as a requirement.** The tested agent never saw
+it, so nothing in it is something that agent should have done. An element
+satisfiable only by an agent that had read the reference is defective as written:
+delete it, or rewrite it as the stake it came from.
+
+## Grader dispatch
+
+Stage the inputs in a scratch directory with no path under `prompt-tests/` —
+reading a path there injects `prompt-tests/CLAUDE.md`, which carries arm-level
+results, as a system-reminder. Stage `task.md`, the arm's system prompt, the
+fixture, the delivered artifact, and the session log. Withhold the reference.
+
+**Phase 1, reference withheld.** Two arguments, in this order, to
+`judgement-<arm>.md`:
+
+1. **Constraint argument** — the strongest case that this output was the right
+   move given what the agent had, argued as the agent rather than as the person
+   who wrote the prompt. Its conclusion is always a claim of *no alternative*.
+   Two admissible limbs: (a) quoted text required it; (b) quoted text predictably
+   reads that way, evidenced by the agent's own reasoning forming that reading,
+   cited by ref. Neither limb available means a **concession**, written as one.
+2. **Alternative argument** — the concrete better action available within the
+   requirements argument 1 quoted. Argument 2 exists to kill argument 1: an
+   alternative surviving those quotes refutes the forcing claim. Every
+   alternative names a **trigger**: something the agent had already seen at that
+   point, cited by ref, that should have prompted it. No trigger means the item
+   is **undiscoverable from the agent's position** — a finding about the task,
+   not a pass for the agent, and inventing a trigger to avoid writing it is this
+   dispatch's characteristic failure.
+
+Inadmissible in argument 2, and the tell is the word *just*: "it could have just
+noticed X", where what makes X worth noticing is knowing the answer; anything
+reached by reading the source as a grader with both documents side by side;
+anything reached from how the run turned out.
+
+The deliverable is the **boundary** — per item, which side survives. Both
+surviving means a defect in the requirements and a defect in the behaviour; do
+not force a winner. Add what the output bought and what it paid, including
+anything no reader looking for defects in the delivered text would notice.
+
+**Phase 2, reference handed over** (`SendMessage` to the same agent, so it keeps
+the session in context): which items the reference would have caught and which it
+would have missed; the reference's defects — inadmissible elements, anything it
+scores as the agent's fault that argument 1 showed was forced, anything it cannot
+separate a good output from a bad one on; and whether reading it changed the
+verdict. "Adequate for this output" is a listed outcome and is preferable to a
+manufactured complaint. Quote the reference text and the output text that strains
+it; no critique in the abstract.
+
+~900 words phase 1, ~600 phase 2, quotes excluded.
+
+**Overriding a criterion costs a written claim** in phase 2: the reference text,
+the evidence, the repair. The owner then applies it to `reference-solution.md` or
+records the rejection. Never before the run is recorded, and the pre-edit
+judgement stays — a reference edited to fit the run it is grading manufactures
+its own agreement. A reference edit breaks comparability with stored runs exactly
+as a foci change does, so it cites the run that forced it.
+
+Store at `prompt-tests/runs/<case>/judgement-<arm>.md`.
 
 ## Test case shape
 
@@ -57,18 +134,18 @@ Historical baselines from the opencode era are at
 2. **Run the test once from a scratch cwd under `/tmp`.** Choose the
    per-runner recipe below. Capture the session log under `/tmp/`.
 
-3. **Dispatch one `session-analysis` subagent per focus.** `mode: evidence`,
-   the foci taken from the case's `reference-solution.md`. Where a case was run
-   several times under one prompt version, give one subagent all the runs of
-   that arm and one focus: the artifact then covers the arm rather than a single
-   session, which is the unit an arm-to-arm comparison reads anyway, and it keeps
-   one focus per artifact. Give every subagent a word cap — roughly 500 words for
-   a single-turn session, 600 for an arm of three — because the parent reads
-   every artifact, and an uncapped batch of them costs more context than the
-   sessions did.
+3. **Dispatch the grader**, one per arm, per "Grader dispatch" above.
 
-4. **Read the artifacts.** They are the result of the run. Store them so the
-   next version of the prompt can be compared against them.
+4. **Where the case has foci, dispatch one `session-analysis` subagent per
+   focus.** `mode: evidence`, foci from the case's `reference-solution.md`. These
+   are the cross-run **diff** instrument, not the grading instrument: two
+   artifacts are comparable line by line only if taken under the same foci. Skip
+   them when nothing is being compared, and do not add foci to a case that has
+   none — 4 of 16 cases do. Where an arm ran several times, give one subagent all
+   its runs and one focus. Cap each at ~500 words for a single-turn session, 600
+   for an arm of three; the parent reads every artifact.
+
+5. **Read the judgement and the artifacts.** Store both.
 
 Trial count is task-dependent. Run once first; add runs when the artifacts of
 one arm disagree with each other.
@@ -78,18 +155,23 @@ one arm disagree with each other.
 The result of a run is the **trajectory**, not the agent's final answer. What
 reached the answer is one span of the session; what the agent weighed and
 discarded on the way is the rest of it, and a prompt edit moves that part first.
-So a run's recorded output is the set of `session-analysis` evidence artifacts
-taken under the foci the case's `reference-solution.md` names — the same foci
+So a run's recorded output is the grader's judgement plus, where the case has
+foci, the `session-analysis` evidence artifacts taken under them — the same foci
 every time, so two runs are comparable line by line.
 
 Compare a new run to the stored artifacts of the old one, artifact against
 artifact. A verdict does not carry enough to compare: `fail` and `fail` look
 identical whether the second run failed the same way or a new one.
 
-Do not stamp `pass` or `fail` on a run. Whoever reads the artifacts later is
-working on something specific, and what counts as passing depends on what that
-is. Record what the agent did and quote it; leave the judgment to the reader who
-has a question.
+Do not stamp `pass` or `fail` as a run's recorded result. Two runs can both pass
+and differ in every step that got them there, so a verdict does not survive the
+comparison a later reader needs. The grader's own judgement is not that result
+either: it is a probe of the instrument, stored beside the artifacts, never
+aggregated into a rate.
+
+A prompt edit is justified when a forcing claim that held under the old prompt
+dies under the new one. An edit that creates a new forcing claim is a regression
+even where the output looks better.
 
 `invalid` survives as a verdict, because it is a fact about the harness rather
 than about the agent: a contaminated run did not measure the task. See
