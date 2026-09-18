@@ -122,16 +122,6 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -c '.tool_input | .run_in_background = false | {hookSpecificOutput: {hookEventName: \"PreToolUse\", permissionDecision: \"allow\", updatedInput: .}}'",
-            "timeout": 5
-          }
-        ]
-      },
-      {
         "matcher": "Bash|Monitor",
         "hooks": [
           {
@@ -173,7 +163,7 @@
   },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
-    "playwright-skill@playwright-skill": false,
+    "playwright-skill@playwright-skill": true,
     "commit-commands@claude-plugins-official": false,
     "ralph-loop@claude-plugins-official": false,
     "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false,

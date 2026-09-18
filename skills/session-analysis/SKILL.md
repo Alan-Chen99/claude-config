@@ -25,7 +25,7 @@ inline is fine.
 
 ## Modes
 
-Two invocation modes. State `mode:` in the invocation brief; a direct
+Three invocation modes. State `mode:` in the invocation brief; a direct
 invocation with no `mode:` runs task mode. Both modes share one default
 task, used whenever no task or focus is given:
 
@@ -61,6 +61,33 @@ Required when a parent dispatches this skill via a subagent.
 - Gathering discipline: gather anything that MIGHT be relevant to the
   description. When in doubt, include (summarized). No interpretive answer.
 
+### adjudication mode
+
+For judging an agent's behaviour from its session: prompt-test grading, workflow
+reviews, compliance checks. The gap the other two leave is a **persisted
+interpretive** artifact — evidence mode persists and forbids interpretation, task
+mode interprets and persists only the facts, leaving the judgement in a response
+that nothing keeps.
+
+- Input: session ID(s) + what was being judged + the requirements the judged
+  agent was actually under (its prompt and task, staged). Not the criteria the
+  caller would like met — see "Focused audits" below.
+- Produces: a judgement document, persisted, plus its evidence inline.
+- Response shape: `{ judgement_path, five-line summary }`.
+- Discipline: read whole — the reading protocol below, in full, including the
+  coverage sweep. Argue from the judged agent's position, not the prompt
+  writer's. Every claim that something was **required** quotes the requiring
+  text; every claim that something was **available** names what the agent had
+  already seen that should have prompted it, cited by ref. A claim of either kind
+  with no such citation is written as what it is — a concession, or an item
+  undiscoverable from the agent's position.
+- The Anti-patterns below govern evidence artifacts; interpretation is this
+  mode's product. The quote-and-trigger requirements are what keep it
+  falsifiable in the absence of that ban.
+
+For prompt tests, the dispatch and the two arguments it asks for are in
+`.claude/skills/prompt-tests/SKILL.md` ("Grader dispatch").
+
 ## For parents dispatching this skill
 
 Before dispatching, read this SKILL.md so you know what the artifact
@@ -68,8 +95,9 @@ contains, what invariants apply, and how to phrase the focus.
 
 Brief format:
 
-- `mode: evidence` (required — parents MUST use evidence mode; for
-  grading/audits see "Focused audits" below)
+- `mode: evidence` (required for extraction — parents MUST NOT dispatch task
+  mode; use `mode: adjudication` when the dispatch is a judgement, per "Focused
+  audits" below)
 - session ID(s)
 - focus / description of what matters
 
@@ -86,7 +114,9 @@ pretty file as reading substrate.
    - opencode: `agent-tools opencode-pretty <session-id> --skeleton`
      (add `--from-file <export.json>` when a saved export already exists —
      hints then reference that file)
-   - Claude Code: `agent-tools cc-pretty <file.jsonl> --skeleton`
+   - Claude Code: `agent-tools cc-pretty <session-id> --skeleton`
+     (a subagent id or a path to the `.jsonl` works too; an id may be any
+     unique prefix, and the render names the file it resolved to)
 
    One line per content block: `@L<n>[i]` ref, type, approx size
    (`~tok` ≈ chars/4), the jq leaf, and a short preview.
@@ -326,6 +356,10 @@ at @L14; subagent A's session is inlined below / linked at `<path>`).
 
 ### Anti-patterns
 
+These govern the evidence artifact — evidence mode, and task mode's artifact. In
+adjudication mode interpretation is the product; its discipline is the
+quote-and-trigger requirement stated in that mode.
+
 - Classification words: `unrelated to focus`, `relevant`, `load-bearing`,
   `critical`, `important`. Rewrite as description or regex-negative.
 - Interpretive verbs in prose: `suggests`, `indicates`, `confirms`, `informs`,
@@ -357,10 +391,12 @@ focus-slug is 2–4 dash-separated words naming the focus. Example filenames:
 ## Focused audits (grading, compliance checks)
 
 For audits that need a verdict or causal attribution — prompt-tests grading,
-workflow reviews — dispatch evidence mode with the audit criteria as the
-focus, then synthesize the causal story from the artifact in your own turn.
-Do not use fixed findings-category checklists for this: they produce
-category-shaped items rather than causal attribution — findings get inflated
-to fit the list while the actual reason things happened may not fit any
-category. Verdicts cite artifact evidence and name the causal chain
-explicitly.
+workflow reviews — dispatch `mode: adjudication`.
+
+**Do not make the audit criteria the extraction focus.** A focus filters the
+session to what the criteria already name, so whatever the agent sacrificed
+off-criteria is discarded before anyone can weigh it — and an output can pay
+off-criteria to score on-criteria. The same holds for fixed findings-category
+checklists: they produce category-shaped items rather than causal attribution,
+findings inflate to fit the list, and the actual reason things happened may fit
+no category. Judge from a whole-session read, and cite the causal chain.

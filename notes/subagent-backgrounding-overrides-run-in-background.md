@@ -1,5 +1,13 @@
 # Subagent backgrounding ignores `run_in_background: false`
 
+> **Configuration changed 2026-09-16 — this note measures a setup the repo no longer runs.**
+> The `PreToolUse` `Agent` hook below was removed. `CLAUDE_CODE_FORK_SUBAGENT=0` stays, and
+> `sys_prompt/alan-default-next.md` now asks the model to pass `run_in_background: false`
+> itself, which the gate makes possible by leaving the parameter in the Agent schema. Every
+> measurement below still stands as a measurement; the sentences that describe the hook as
+> present do not. Current state: `CLAUDE.md`, "`settings.json` —
+> `CLAUDE_CODE_FORK_SUBAGENT`, and how subagents stay in the foreground".
+
 Investigated 2026-08-28 on Claude Code **2.1.235**; the workaround was re-checked on
 **2.1.269** on 2026-09-12 and still holds. Everything below, including every source
 citation, is the 2.1.235 reading — 2.1.269 re-extracts to a different tree shape
@@ -205,7 +213,7 @@ anything whose first word is in `JoE`, which is `['sleep']` (`src/modules/Cae.js
 `sleep 45; echo X` fails on both counts and is killed under either setting, while
 `bash <script>` qualifies.
 
-## Known defect in the current configuration
+## Known defect in the gate-plus-hook configuration
 
 With the fork gate off, the Agent description drops every mention of forking and asserts the
 opposite of what it asserted under the flag:

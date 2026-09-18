@@ -44,7 +44,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 Rust binary wrapping skill script and Python tool invocations. Subcommands:
 
 - `agent-tools skill <mod> [args]` — run a skill script via `uv run python3 -m skills.<mod>`
-- `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs. Color is auto-detected (on for TTYs, off when piped or when `NO_COLOR` is set); `--color` forces it on, `--no-color` forces it off.
+- `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs. Its target is a path to a `.jsonl` log, or an id to look one up by: a session id or a subagent id, whole or as any unique prefix. An existing file always wins, so a file named like an id opens as itself; anything else is searched for by stem prefix under `<config dir>/projects` (`$CLAUDE_CONFIG_DIR`, else `~/.claude`) across both transcript families — `<slug>/<uuid>.jsonl` and `<slug>/<uuid>/subagents/**/agent-<hex>.jsonl`. The `**` matters: Workflow-tool subagents sit a level deeper under `subagents/workflows/wf_<id>/`, and the `agent-` stem is what keeps that directory's `journal.jsonl` — a record file, not a transcript — out of the search. Both subagent id spellings resolve, bare hex as the `agentId` field holds it and `agent-`-prefixed as the filename spells it. An id that matches nothing, or more than one thing, exits 2 naming the directory searched or the candidates; no match is ever picked for you. The path in the legend's `# recover:` recipe is absolute, so the recipe runs from anywhere, and an id resolution adds a `# source: <id> → <path>` line so the reader can see which file answered. Color is auto-detected (on for TTYs, off when piped or when `NO_COLOR` is set); `--color` forces it on, `--no-color` forces it off.
 - `agent-tools cc-pretty-intercept [args]` — pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`)
 - `agent-tools cc-render-coverage [--quiet] [--max-findings N] [PATH..]` — report content `cc-pretty` / `cc-pretty-intercept` fails to show. Renders each log at `--tool-max 1000000000` and emits one of three findings per defect: `load_error` (the file did not load at all), `renderer_truncation` (a `[N more chars]` marker the renderer produced at that unbounded limit, i.e. a hardcoded character cap ignoring the flag — markers already in the source are subtracted, because sessions here capture cc-pretty's own output as tool results), and `missing_content` (a content string in the source that is absent from the render). Paths ending `.jsonl` go through cc-pretty, anything else through the intercept renderer; with no paths it reads them from stdin. Exits non-zero when anything is found. Needles come from conversation content only — request messages plus the response for a capture, assistant/user message blocks for a session — so a clean run does not speak for JSONL attachment, progress or system records, several of which render as deliberate one-line summaries; `renderer_truncation` still covers them because it reads the whole render. Findings and pins live in `tests/test_render_coverage.py`.
 - `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
@@ -80,31 +80,46 @@ cd agent-tools && cargo build --release
 CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module> [args...]
 ```
 
-### `settings.json` — `CLAUDE_CODE_FORK_SUBAGENT` and the `Agent` hook
+### `settings.json` — `CLAUDE_CODE_FORK_SUBAGENT`, and how subagents stay in the foreground
 
-`env` sets `CLAUDE_CODE_FORK_SUBAGENT=0`, and a `PreToolUse` hook on `Agent` rewrites
-`run_in_background` to `false` on every call. Together they make every subagent run in the
-foreground and return its report as the tool result of the call that launched it.
+`env` sets `CLAUDE_CODE_FORK_SUBAGENT=0`. That is the whole harness-side configuration:
+keeping subagents in the foreground is the system prompt's job, and the model's.
 
-Neither half works alone. Claude Code decides subagent backgrounding in the Agent tool with
-a disjunction (`q4o`, `src/chunk-dbb93264.js:103955-103969`): the fork-subagent gate is one
-term, and the last term is `run_in_background !== false`, which holds whenever the parameter
-is omitted. Turning the gate off without the hook still backgrounds, and the hook without
-the gate turned off is outvoted by the gate. The price is the `fork` subagent type, which
-disappears outright — `Agent type 'fork' not found. Available agents: …`.
+The gate does not foreground anything by itself — it decides whether the model gets a say.
+The Agent tool backgrounds on a disjunction (`q4o`, `src/chunk-dbb93264.js:103955-103969`),
+and with the gate on, two of its terms are out of reach: `forceAsync` is `Z8() && !callerIsInProcessTeammate`
+(`:172000`), and the input schema drops `run_in_background` outright (`rc() || Z8()`, `:171779`),
+so there is no parameter to pass. Turning the gate off clears `forceAsync` and puts the parameter
+back. What remains is the last term, `!s && r !== !1`: **the call backgrounds unless
+`run_in_background` is literally `false`**. Omitting it backgrounds exactly as `true` would.
+The price of the gate is the `fork` subagent type, which disappears outright — `Agent type
+'fork' not found. Available agents: …`.
 
-Two terms of that disjunction the hook cannot outvote: an agent definition declaring
-`background: true` of its own, and `isolation: "remote"`, which sits outside the
+So `sys_prompt/alan-default-next.md` tells the agent to pass `run_in_background: false` on
+every Agent call, and nothing enforces it. A call that leaves the parameter out is backgrounded
+and reads in the transcript like any other call.
+`prompt-tests/general/subagent-foreground-default` is the standing check; run it after any
+change to that bullet, to the Agent tool description, or to this gate.
+
+Until 2026-09-16 a `PreToolUse` hook on `Agent` rewrote `run_in_background` to `false` on
+every call, which made the foreground a harness guarantee rather than a model behaviour. It
+was removed so the model decides per call. Measured the same day on 2.1.269, hook removed and
+the prompt still describing it: 3 of 3 Agent calls omitted the parameter and all three returned
+`Async agent launched successfully`. With the bullet rewritten as an instruction, 9 of 9 calls
+across three trials passed `false` and none backgrounded.
+
+Two terms of the disjunction neither the gate nor the prompt reaches: an agent definition
+declaring `background: true` of its own, and `isolation: "remote"`, which sits outside the
 background-tasks guard entirely. No agent in `agents/` declares either, so neither is
 reachable here today; both would be, the moment one did.
 
-`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is the alternative. It holds subagents foreground
-on its own — bar a remote-isolation launch, which runs async regardless — with no hook, and
-keeps `fork`; what it costs instead is the whole
-background-task facility, a far larger loss than `fork`. Measured in one interactive session
-each:
+`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is the alternative, and the only setting that makes
+the foreground a guarantee again: it forces every subagent foreground — bar a remote-isolation
+launch, which runs async regardless — with no help from the model, and keeps `fork`. What it
+costs instead is the whole background-task facility, a far larger loss than `fork`. Reach for
+it if the prompt rule turns out not to hold. Measured in one interactive session each:
 
-| | `DISABLE_BACKGROUND_TASKS=1` | `FORK_SUBAGENT=0` + hook |
+| | `DISABLE_BACKGROUND_TASKS=1` | `FORK_SUBAGENT=0` |
 | --- | --- | --- |
 | Bash `run_in_background` | absent from the schema | present; returns a task id and re-invokes the agent when the command exits |
 | A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id, unless its first statement starts with `sleep`, which is still killed |
@@ -127,13 +142,14 @@ caller waiting (`src/chunk-dbb93264.js:54434`).
 
 `CLAUDE_AUTO_BACKGROUND_TASKS` is a third knob neither setting covers: set, it moves a
 foreground subagent to the background after its interval (`iTs`,
-`src/chunk-dbb93264.js:171747`, wired at `:172571`). Unset here, so inert — but it means
-the gate-plus-hook pair guarantees a synchronous subagent only in an environment that
-leaves it unset.
+`src/chunk-dbb93264.js:171747`, wired at `:172571`). Unset here, so inert — but it bounds
+`DISABLE_BACKGROUND_TASKS=1` too: even that setting guarantees a synchronous subagent only
+in an environment that leaves this one unset.
 
-The Agent tool's own description says subagents run in the background by default and that a
-notification follows. The hook makes that false, so `sys_prompt/alan-default-next.md`
-contradicts it explicitly.
+The Agent tool's own description, and the `run_in_background` property's description beside it,
+both recommend backgrounding by default. That is now accurate rather than false, so
+`sys_prompt/alan-default-next.md` overrides the recommendation instead of contradicting a fact
+— and the conflict is decided per call, by the model.
 
 Measured evidence and the source reading are in
 `notes/subagent-backgrounding-overrides-run-in-background.md`.
@@ -240,7 +256,8 @@ The binary itself is installed by the container image (`/workspace/docker/Docker
 | `opencode-system-prompt/`                  | opencode prompt notes: `alan-default-ids.md` per-delta annotation (`alan-default-commentary.md`), `min-commentary.md` (scope and design rationale for the diagnostic minimum baseline at `opencode/agents/min.md`), `build-self-reported.md` outlining the session prompt assembly | Investigating opencode prompt behavior, `alan-default-ids.md` deltas vs upstream codex gpt-5.5 `base_instructions` (from `/repos/codex/codex-rs/models-manager/models.json`), or why a specific clause is present |
 | `system-prompt-anatomy.md`                 | Simplified overview of system prompt assembly — pinned to cc 2.1.88 source | Quick orientation, understanding prompt structure       |
 | `system-prompt-anatomy-source-verified.md` | Detailed anatomy with function references — pinned to cc 2.1.88 source     | Debugging context loading, source-level understanding   |
-| `system-prompt-snapshot/`                  | Captured system prompts, messages and tool definitions, and the full API requests they come from — live capture, cc 2.1.269. Each capture is `request.json` (the artifact of record) plus a rendering of it that a `git diff` can be read in: `prompt.md` for everything that is not a tool, one file per tool under `tools/`. Directories are keyed by the model id the request carried (`opus-5/`, `opus-4-8/`, `opus-4-7/`, `sonnet-5/`, `fable-5/`), because cc serves two different default prompts and picks per model, not per version: the compressed `# Harness` one goes to models whose registry entry declares the `lean_prompt` capability (opus-5, opus-4-8, fable-5, fable-5-1, mythos-5-1), the older multi-section one to everything else including every sonnet and opus-4-7. Which models answer at all is an account entitlement, not a version fact — fable returned HTTP 429 "requires usage credits" until the subscription was upgraded, and mythos-5 still returns 404 | Comparing prompt versions, understanding API parameters, spawning a `claude` child that must authenticate |
+| `system-prompt-snapshot/`                  | Captured system prompts, messages and tool definitions, and the full API requests they come from — live capture, cc 2.1.269. Each capture is `request.json` (the artifact of record) plus a rendering of it that a `git diff` can be read in: `prompt.md` for everything that is not a tool, one file per tool under `tools/`. Directories are keyed by the model id the request carried (`opus-5/`, `opus-4-8/`, `opus-4-7/`, `sonnet-5/`, `fable-5/`), because cc serves two different default prompts and picks per model, not per version: the compressed `# Harness` one goes to models whose registry entry declares the `lean_prompt` capability (opus-5, opus-4-8, fable-5, fable-5-1, mythos-5-1), the older multi-section one to everything else including every sonnet and opus-4-7. Which models answer at all is an account entitlement, not a version fact — fable returned HTTP 429 "requires usage credits" until the subscription was upgraded, and mythos-5 still returns 404. Two things a default capture withholds are captured separately: the 18 deferred tools' descriptions and schemas in `<model>/tool-search-loaded/tools/` (one `ToolSearch` call grows the roster from 15 tools to 33, because the server expands the `tool_reference` entries it returns — not the `<functions>` block its own description advertises, which no code emits; captured for opus-5 and sonnet-5, which is enough because only `WebFetch` and `WebSearch` differ between them), and the 17 built-in skills' bodies in `builtin-skills/` (512,397 chars, model-independent so stored once; read `builtin-skills/README.md` before re-capturing — interactive mode, `--setting-sources project,local` and a resolvable `origin/HEAD` each silently degrade a body to a stub rather than erroring) | Comparing prompt versions, understanding API parameters, spawning a `claude` child that must authenticate |
+| `prompt-testing-design.md`                 | Why prompt testing here works as it does: what a run's result is, why a rubric cannot be written in advance, the two-argument grader and its two guards, and what none of it measures | Before changing a rubric, a grading dispatch, or `.claude/skills/prompt-tests/SKILL.md` |
 | `background-sessions.md`                   | How a session moves to the agent view (FleetView), what the fork inherits, disable knobs — cc 2.1.269 | Diagnosing a session that backgrounded itself, or a custom system prompt that stopped applying |
 | `tool-token-limits.md`                     | Token counting, truncation, and size limits per tool | Understanding tool output constraints, debugging limits |
 | `agent-tools-status-reference.md`          | Full `agent-tools run` status grammar, passthrough differences from bare, and the kill boundary — the exhaustive half of what `sys_prompt/alan-default-next.md` states in brief; pinned to source by `scripts/check-prompt-coupling.sh` | Reading a status line in detail, diagnosing a wrapped run, or editing either side of the prompt/source coupling |

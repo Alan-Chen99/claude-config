@@ -18,8 +18,8 @@ are provenance for whoever wrote it, not a pointer a later reader can follow.
 
 ## Naming
 
-`sa-<arm>-<focus>.md` for a session-analysis artifact, `artifact-<arm>.md` for
-what the tested agent wrote. Arm names match the baseline headings in the
+`judgement-<arm>.md` for the grader's judgement, `sa-<arm>-<focus>.md` for a
+session-analysis artifact, `artifact-<arm>.md` for what the tested agent wrote. Arm names match the baseline headings in the
 case's `reference-solution.md`.
 
 ## `halve-the-runbook`

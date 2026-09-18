@@ -81,10 +81,18 @@ unblinded rather than blind.
 
 ## Trial logging
 
-Every trial keeps its `session-analysis` evidence artifacts, one per focus, at
-`docs/prompt-trials/<case>/<YYYY-MM-DD>-<arm>__<focus-slug>.md`, with the
-run's provenance in the artifact header per the `session-analysis` skill.
-Those artifacts are the trial record. Do not append trials to a single growing
+Every trial keeps the grader's judgement at
+`prompt-tests/runs/<case>/judgement-<arm>.md` and, where the case has foci, its
+`session-analysis` evidence artifacts one per focus at
+`docs/prompt-trials/<case>/<YYYY-MM-DD>-<arm>__<focus-slug>.md`, with the run's
+provenance in the artifact header per the `session-analysis` skill. Together they
+are the trial record. (Two directories are in use for the artifacts; `runs/` holds
+the older ones.)
+
+**A reference edited in response to a run cites that run.** The judgement that
+forced the edit is kept, and the edit lands after the run is recorded, never
+before — a reference edited to fit the run it is grading manufactures its own
+agreement. Do not append trials to a single growing
 iteration log: one file grows past the point where readers can locate any
 specific trial.
 
@@ -100,11 +108,11 @@ carry verdicts. Leave them as they are.
 
 ## Editing the system-under-test
 
-When editing the agent's system prompt or a skill in response to a failing case, the goal is to repair the invariant the case probes, not to make the case pass. A test case is one sample of the invariant's input space; treating it as the spec narrows the prompt to that sample. The general prompt-engineering hints in `skills/prompt-engineer-v2/SKILL.md` apply — in particular "No overfitting to the case at hand", "Overfitting review by a fresh subagent", "Implicit-guidance justification", and "Recognition before enforcement".
+When editing the agent's system prompt or a skill in response to a failing case, the goal is to repair the invariant the case probes, not to make the case pass. A test case is one sample of the invariant's input space; treating it as the spec narrows the prompt to that sample. The general prompt-engineering hints in `skills/prompt-engineer-v2/` apply — in particular "No overfitting to the case at hand" and "Overfitting review by a fresh subagent" in `SKILL.md`, and "Implicit-guidance justification" and "Recognition before enforcement" in `experiments.md`.
 
 ### An edit's force and its exceptions travel where the case cannot follow
 
-`skills/prompt-engineer-v2/SKILL.md:52` ("Every change is a regression risk")
+"Every change is a regression risk" in `skills/prompt-engineer-v2/SKILL.md`
 covers the behavioural half; that file's text governs. Two further things travel
 with an edit that no case exercises and that review tends to read as wording: the
 force it is written at, and whatever it permits.
@@ -117,7 +125,7 @@ two incidents do not contain, a rate and a cost. `No-Amplification` in
 `sys_prompt/alan-default-next.md` states this for evidential claims; for an
 instruction, the quantity that outruns the evidence is its scope.
 
-**Exceptions.** `skills/prompt-engineer-v2/SKILL.md:62` ("Edge-case the rule")
+**Exceptions.** "Edge-case the rule" in `skills/prompt-engineer-v2/SKILL.md`
 asks for exceptions to be carved out explicitly; that file's text governs. Before
 writing one, answer how much of the forbidden space it readmits — breadth is a
 property of the exception's extension, not of how narrow its wording sounds. The
@@ -128,7 +136,7 @@ is the half that repays the closer reading.
 **A restatement can subtract.** An addition restating a rule the file already
 carries is not a caution; it is a second, differently worded statement of the
 same rule, and nothing then says which governs. For the length half of this,
-`skills/prompt-engineer-v2/SKILL.md:68` ("Implicit-guidance justification")
+"Implicit-guidance justification" in `skills/prompt-engineer-v2/experiments.md`
 already requires an experiment before adding enforcement longer than its
 invariant; read it there.
 
@@ -636,12 +644,51 @@ removed in turn and the behaviour did not move (`sys_prompt/CLAUDE.md`,
 `gitStatus`, so the green arm's snapshot comes from `agent-tools env-context`.
 Artifacts under `docs/prompt-trials/commit-own-changes/`.
 
+### harness compliance
+
+### general/subagent-foreground-default
+
+Three independent questions about a small codebase, with one subagent asked for
+each. Probes whether the agent passes `run_in_background: false` on `Agent`
+calls — the only thing keeping subagents in the foreground since the
+`PreToolUse` `Agent` hook was removed on 2026-09-16.
+
+The primary signal is mechanical, not a judgment: read the `Agent` tool_use
+inputs out of the transcript. Claude Code backgrounds unless the parameter is
+literally `false`, so **omission is the failure mode**, and it looks like an
+ordinary call. A backgrounded call's tool result is `Async agent launched
+successfully`; a foreground call's is the agent's report.
+
+The task asks for three investigations at once because concurrency is the
+strongest legitimate pull toward backgrounding, and the Agent tool description
+offers exactly that argument. It is not a real reason: three foreground agents
+launched in one assistant message overlap — measured 2026-09-16, windows
+t+0.0-14.1s, t+3.7-17.4s, t+10.9-23.9s, against 40.9s of summed work.
+
+Preconditions and the `jq` to read a run are in the case's
+`reference-solution.md`. First run 2026-09-16, Claude Code 2.1.269, one red arm
+(the pre-rewrite bullet, which asserted a hook forced the foreground) and three
+green: red 0 of 3 calls carried the parameter and all three backgrounded; green
+9 of 9 carried `false` and none did. Trajectories under
+`runs/subagent-foreground-default/`.
+
+The red arm is worth reading for what a stale assertion costs. The agent
+reasoned *from* it before dispatch, noticed the mismatch nine seconds after the
+third launch, and then told the user "Reading the 93 lines myself while they
+run" — the exact sentence that bullet forbade, correctly, because by then the
+prompt was wrong and the agents really were still running.
+
 ## Grader rule
 
-A grader MUST read all thinking blocks (typically with
-`agent-tools cc-pretty <FILE> --agent`, `agent-tools opencode-pretty <session> --agent`,
-or equivalent). `--agent` strips ANSI color and chunks oversized output into
-`/tmp/` files for parallel reads — without it, Bash truncates large sessions at
-30k chars. Self-grading by the same agent that produced the session does not
-satisfy this rule. The grader must check contamination before assigning
-pass/acceptable/fail.
+A grader reads the **whole session**, not the final answer and not a focus-scoped
+extract — typically with `agent-tools cc-pretty <FILE> --agent` or
+`agent-tools opencode-pretty <session> --agent`. `--agent` strips ANSI color and
+chunks oversized output into `/tmp/` files for parallel reads; without it, Bash
+truncates large sessions at 30k chars. Self-grading by the agent that produced the
+session satisfies nothing. Check contamination first — a contaminated run did not
+measure the task.
+
+The grader produces two arguments and the boundary between them, not a band:
+`.claude/skills/prompt-tests/SKILL.md`, "Grader dispatch". A reference is
+guidance, inadmissible as a requirement, and the grader may override any of it at
+the cost of a written claim. Reasoning: `docs/prompt-testing-design.md`.
