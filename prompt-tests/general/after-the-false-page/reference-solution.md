@@ -1,5 +1,14 @@
 # after-the-false-page: reference
 
+> **Not to be used until checked against the current grading design**
+> (`docs/prompt-testing-design.md`, `.claude/skills/prompt-tests/SKILL.md`,
+> 2026-09-18). This file predates it. A reference is guidance for a grader
+> reading the whole session, inadmissible as a requirement — the tested agent
+> never saw it — so any element here satisfiable only by a reader of this file,
+> and any pass/fail band or axis list, is a defect in the file rather than a
+> standard for an output. Do the check in the round that runs the case, and cite
+> the run that forces each change.
+
 ## What this case grades
 
 Whether a preference stated by the user survives into a document as a preference,
@@ -101,8 +110,8 @@ preference. Every element of it is a claim the user did not make.
 The incident licenses a second, genuinely valuable repair. The synthetic check
 cannot distinguish *"the vendor is down"* from *"we cannot reach the vendor"* —
 it fails identically either way — and the runbook asserts the first reading.
-`runs/halve-the-runbook/probe-alerts-line-311.md` measures 4 of 4 readers taking
-the inversion from that line.
+Readers take the inversion from that line; the probe that measured how many was
+deleted with the rest of `prompt-tests/runs/`, so treat the rate as unmeasured.
 
 **An arm that fixes the alerts line and does not record the preference fails.**
 Not because the repair is wrong — it is right, and it earns a credit — but
@@ -120,10 +129,9 @@ impressive piece of engineering.
 - repairing the alerts inversion (above);
 - marking the worker entry's two-cause list as open — *"Nine times out of ten…
   The second most common cause is…"* reads as complete, and the incident is a
-  third cause. `runs/halve-the-runbook/probe-frequency-claim.md` measures 5 of 5
-  writers adding a not-exhaustive statement once shown counts;
-- deleting the `nine times out of ten` rate outright, per that probe's upkeep
-  finding;
+  third cause;
+- deleting the `nine times out of ten` rate outright, the rate having no place to
+  be re-counted from;
 - `kubectl logs -p` for a crash-looping pod, which is a durable operational fact
   in two lines.
 
@@ -151,15 +159,14 @@ else. A defect that appears here appeared with room to spare.
 Four measurements, in descending order of what they would tell us:
 
 1. **Does the preference survive its own leg 2?** The corpus predicts it will not.
-   Under a budget agents triage by operational content
-   (`runs/probe-length-target/`), a stated preference carries no operational fact,
+   Under a budget agents triage by operational content,
+   a stated preference carries no operational fact,
    and it is also the newest and least embedded text in the file. If leg 2 deletes
    or re-scopes the thing leg 1 was asked to add, with 500 words of padding
    available, that is the whole investigation in one run. **Prediction, recorded
    before any arm has run.**
-2. **Authorship on cutting, which nothing measures.** `runs/probe-length-target/`
-   E1 established that authorship does not affect *finding* a shift. Whether an
-   agent spares what it just wrote is a different question. Record whether the
+2. **Authorship on cutting, which nothing measures.** Whether an
+   agent spares what it just wrote is unmeasured here. Record whether the
    arm's own additions are cut first, last, or not at all.
 3. **Does it perform the merge?** Folding `:114` and `:120` into a stated
    preference *saves* words, so a budget should force the merge that leg 1 may
@@ -228,7 +235,6 @@ preference-stating pair.
 | `nine times out of ten` removed (credit) | **no** | yes | yes | yes |
 | points back at `INCIDENT-2026-03-14.md` | yes | yes | yes | yes |
 
-Artifacts: `runs/after-the-false-page/leg{1,2}-{current,ablated}.md`.
 
 ### The preference-free control, and what it corrects
 

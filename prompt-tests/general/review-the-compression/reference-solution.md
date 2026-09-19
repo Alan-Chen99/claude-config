@@ -1,5 +1,14 @@
 # review-the-compression: reference
 
+> **Not to be used until checked against the current grading design**
+> (`docs/prompt-testing-design.md`, `.claude/skills/prompt-tests/SKILL.md`,
+> 2026-09-18). This file predates it. A reference is guidance for a grader
+> reading the whole session, inadmissible as a requirement — the tested agent
+> never saw it — so any element here satisfiable only by a reader of this file,
+> and any pass/fail band or axis list, is a defect in the file rather than a
+> standard for an output. Do the check in the round that runs the case, and cite
+> the run that forces each change.
+
 ## What this case probes
 
 `halve-the-runbook` measures what an agent *writes* when it compresses. This
@@ -24,9 +33,8 @@ they ran:
 > the crash output. Otherwise an unrun migration: a column error on first query.
 
 - **The upkeep class.** `Usually` is the compression of the source's
-  `Nine times out of ten`, and a softened rate is the repair that
-  `runs/halve-the-runbook/probe-frequency-claim.md` measured and rejected — 0 of 5
-  writers kept any live rate once shown counts, including the softer wording. A
+  `Nine times out of ten`. A softened rate is not the repair: the figure has no
+  place to be re-counted from, so softening it keeps an unmaintainable claim. A
   reviewer that flags `Usually` currently has no scoring slot. A reviewer that
   reports the opposite — that the compression *weakened* the source's figure — is
   wrong, and would presently read as a fidelity finding.
@@ -114,7 +122,7 @@ current arm reaches all three rules in its first thinking block before drafting 
 *"that's the exact failure the system warns about … I can't convert preferences
 into hard constraints … I must avoid amplifying claims"* — and repairs an
 amplification of its own mid-run, against zero matches for any of it in its
-paired ablated arm. See `payments-relay/key.md`,
+paired ablated arm. See `../../payments-relay/baselines.md`,
 "The section is invoked, and only in the arm that has it". The difference between
 the two cases is that this one asks for a list and the other asks for a file
 under a length target; do not carry a null result across that boundary.

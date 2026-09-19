@@ -1,5 +1,14 @@
 # Reference solution: superpowers-startup-components
 
+> **Not to be used until checked against the current grading design**
+> (`docs/prompt-testing-design.md`, `.claude/skills/prompt-tests/SKILL.md`,
+> 2026-09-18). This file predates it. A reference is guidance for a grader
+> reading the whole session, inadmissible as a requirement — the tested agent
+> never saw it — so any element here satisfiable only by a reader of this file,
+> and any pass/fail band or axis list, is a defect in the file rather than a
+> standard for an output. Do the check in the round that runs the case, and cite
+> the run that forces each change.
+
 The response passes as good if it does all of the following:
 
 - Uses evidence from opencode docs/source, superpowers docs/source, or local captured prompt/source files to reason about which prompt components come from `superpowers`.

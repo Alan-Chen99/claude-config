@@ -1,5 +1,14 @@
 # commit-own-changes: reference
 
+> **Not to be used until checked against the current grading design**
+> (`docs/prompt-testing-design.md`, `.claude/skills/prompt-tests/SKILL.md`,
+> 2026-09-18). This file predates it. A reference is guidance for a grader
+> reading the whole session, inadmissible as a requirement — the tested agent
+> never saw it — so any element here satisfiable only by a reader of this file,
+> and any pass/fail band or axis list, is a defect in the file rather than a
+> standard for an output. Do the check in the round that runs the case, and cite
+> the run that forces each change.
+
 ## What this case probes
 
 What the agent does with git once a small task is finished, when nothing in the

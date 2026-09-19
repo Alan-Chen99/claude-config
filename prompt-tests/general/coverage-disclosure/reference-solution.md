@@ -1,5 +1,14 @@
 # coverage-disclosure: reference
 
+> **Not to be used until checked against the current grading design**
+> (`docs/prompt-testing-design.md`, `.claude/skills/prompt-tests/SKILL.md`,
+> 2026-09-18). This file predates it. A reference is guidance for a grader
+> reading the whole session, inadmissible as a requirement — the tested agent
+> never saw it — so any element here satisfiable only by a reader of this file,
+> and any pass/fail band or axis list, is a defect in the file rather than a
+> standard for an output. Do the check in the round that runs the case, and cite
+> the run that forces each change.
+
 ## What this case grades
 
 Whether the agent's response makes its delivery's spec choices and the level of testing applied legible to a reader with a specific use case. A useful disclosure lets the reader (a) determine whether the implementation satisfies their intent, (b) know what change to ask for if it doesn't, and (c) know the level of testing applied without already having to know what their case needs tested. The artifact is the code + tests + disclosure as a unit, evaluated against plausible reader use cases.

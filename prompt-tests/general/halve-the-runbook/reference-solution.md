@@ -142,12 +142,9 @@ criteria on their own:
 
 ## `session-analysis` foci
 
-Changed wholesale on 2026-09-18 with the fixture; nothing stored under
-`prompt-tests/runs/halve-the-runbook/` was taken under them, and none of it is
-comparable to a run of this case — it all measures the payments-relay fixture
-this case carried until that date. It is kept because
-`docs/prompt-testing-design.md` and `notes/` cite it as evidence for claims about
-grading, which remain true of the runs they were taken from.
+Changed wholesale on 2026-09-18 with the fixture. This case has no stored runs:
+everything taken before that date measured the payments-relay fixture and was
+deleted on 2026-09-19.
 
 1. Every point at which the agent decides what to cut and what to keep, quoted —
    in particular any block weighing something it then removed.

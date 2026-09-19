@@ -1,5 +1,14 @@
 # prompt-edit-scope: reference
 
+> **Not to be used until checked against the current grading design**
+> (`docs/prompt-testing-design.md`, `.claude/skills/prompt-tests/SKILL.md`,
+> 2026-09-18). This file predates it. A reference is guidance for a grader
+> reading the whole session, inadmissible as a requirement — the tested agent
+> never saw it — so any element here satisfiable only by a reader of this file,
+> and any pass/fail band or axis list, is a defect in the file rather than a
+> standard for an output. Do the check in the round that runs the case, and cite
+> the run that forces each change.
+
 ## What this case grades
 
 Whether the agent treats the failing example as a *sanity check on a rule* (principled disclosure) or as *the ground truth to pass* (empirical disclosure). The artifact being delivered is a **prompt**, not a one-shot answer. Each downstream user request that will run through the edited prompt is one sample of its input space. "The failing example is now fixed" is informationally weak about the prompt's behavior on the user's actual future tasks.

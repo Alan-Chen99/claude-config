@@ -1,6 +1,21 @@
-# halve-the-runbook: reference
+# The payments-relay key
 
-## What this case grades
+> **Not to be used until checked against the current grading design**
+> (`docs/prompt-testing-design.md`, `.claude/skills/prompt-tests/SKILL.md`,
+> 2026-09-18). This file predates it and is a scoring key: it enumerates sixteen
+> fragments and asks "present, partial, absent" of each. Under the current design
+> a reference is guidance for a grader reading the whole session, inadmissible as
+> a requirement, and a fragment ledger is exactly the projection that design
+> rejects. It is kept because four live cases cite it, not because it is endorsed.
+>
+> Every `probe-*` and `artifact-*` name below is a label, not a path: those
+> artifacts were deleted on 2026-09-19 with the rest of `prompt-tests/runs/`, so
+> the counts here are a record and not re-checkable evidence.
+
+Written for `general/halve-the-runbook` when that case carried the payments-relay
+runbook; see `README.md` for which cases still key off it.
+
+## What this key grades
 
 Which clauses of a document survive a forced compression to half its length, and
 which are cut.
@@ -31,7 +46,7 @@ Two consequences the grading has to carry:
 - **Cutting is maintenance, not damage.** An item that no longer earns its place
   should go, and its going is not a loss to be charged to the arm.
 - **Correct maintenance makes the doc bigger.** Measured, not assumed:
-  `runs/halve-the-runbook/probe-frequency-claim.md` gave five writers one new
+  `probe-frequency-claim` gave five writers one new
   fact about one existing entry, and all five produced a better entry three to
   five times its length. The growth is the honest bookkeeping, which is why the
   cut has to be forced from outside the loop — the loop will never produce it.
@@ -60,7 +75,7 @@ distinguishable from one pair of sessions.
 outright — history, deploy mechanics, troubleshooting verbosity, the whole
 local-setup appendix. At the ~600-word default the padding covers the cut with
 room left, so no scored clause has to lose:
-`runs/halve-the-runbook/artifact-50pct-nonbinding.md` holds all sixteen at 643
+`artifact-50pct-nonbinding` holds all sixteen at 643
 words. A clause that goes anyway went by choice, and which one is
 the measurement. At the ~290-word target the padding alone is not enough — every
 arm landed 343–358 words — so there a loss is forced and the measurement is which
@@ -254,7 +269,7 @@ say so.
 
 Raised by the user, 2026-09-09: nobody is named as responsible for keeping the
 statistic true, and if we do not believe it, *"it may be true"* is not a reason
-to keep it. Measured in `runs/halve-the-runbook/probe-frequency-claim.md`, three
+to keep it. Measured in `probe-frequency-claim`, three
 arms differing by five words, twenty readers:
 
 - **It changes no action.** All three arms open on the same instruction — read
@@ -359,7 +374,7 @@ work the boundary out unaided:
 
 Shorter than either arm's version, asserts nothing about the trigger condition,
 and keeps the fact a reader can act on. Measured at 0/4 inversions against the
-source's 4/4, at ten words less — `runs/halve-the-runbook/probe-alerts-line-311.md`.
+source's 4/4, at ten words less — `probe-alerts-line-311`.
 An earlier version of this prescription illustrated it with *"Understand what
 checks do before proceeding. Note that the vendor may be down"*, which drops the
 mechanism as well as the claim; that probe measured the difference and the
@@ -437,8 +452,8 @@ marker buys hedging; a mechanism buys an action.
 #### And if the bullet is deleted outright?
 
 The `deleted` variant is `current3` with the two alerts lines removed and nothing
-else touched. (These two variants were not kept; the four documents that were
-are in `runs/halve-the-runbook/probe-alerts-line-variants/`.) Four readers, same probe:
+else touched. (These two variants were not kept, and neither were the four documents that
+were.) Four readers, same probe:
 
 | variant | inversion stated | every proxy it offered was bounded |
 | --- | --- | --- |
@@ -451,7 +466,7 @@ are in `runs/halve-the-runbook/probe-alerts-line-variants/`.) Four readers, same
 **Deleting the bullet is safer than compressing it — but it is not the best
 move, and a later probe found a cost this run did not see.** Cutting the claim
 while keeping the mechanism beats deletion on the same fixture, and three of four
-readers of a deletion arm run against `artifact-keyed-311.md` invented a
+readers of a deletion arm run against `artifact-keyed-311` invented a
 vendor-side check out of the `WORKERS` arithmetic. Read the paragraph below as
 what deletion buys, not as the recommendation; see "The mechanism and the trigger
 claim are different clauses". Every deletion reader here knew
@@ -482,7 +497,7 @@ The three probes above vary how much of the alerts line survives and treat it as
 one thing. It is two. `runs every minute against a fixed record id` is the
 mechanism; `alerts on its own if the vendor is down` is a specification of when
 it fires, and a specification is invertible. Separated and run four ways on
-`runs/halve-the-runbook/artifact-keyed-311.md` — `probe-alerts-line-311.md`, four
+`artifact-keyed-311` — `probe-alerts-line-311`, four
 readers per arm:
 
 | kept | reasons from alert silence | reads the check's own result |
@@ -522,7 +537,7 @@ scoring and re-run or read the transcript.
 
 That memory is written to `<CLAUDE_CONFIG_DIR>/projects/<cwd>/memory/` and read
 back by any later run sharing the directory, carrying one arm's answer into
-another's. Measured in `runs/probe-permission-free/`, where a re-run said so
+another's. Measured in `probe-permission-free`, where a re-run said so
 outright: *"This matches a scaling plan from earlier today that I have on
 record."* Give every re-run a fresh config directory, and check for
 `projects/*/memory/` before scoring. Runs launched in parallel are unaffected —
@@ -580,7 +595,7 @@ words.
 ### The reference artifact
 
 `reference-artifact.md`, 352 words. It is the one artifact this case designates;
-every `runs/halve-the-runbook/artifact-*.md` is a measured data point, not a
+every `artifact-*` named below was a measured data point, not a
 model answer. What it holds, what it drops and why it is not at the target are
 the next section.
 
@@ -596,14 +611,14 @@ That is why the reference is not at the target. Measured in decisions:
 
 | | fragments held | fragments that cost something | blocks dropped | decisions shown |
 | --- | --- | --- | --- | --- |
-| `runs/halve-the-runbook/artifact-50pct-nonbinding.md` (643w) | 16 | 0 — there was room | 2, both unscored | **~2** |
+| `artifact-50pct-nonbinding` (643w) | 16 | 0 — there was room | 2, both unscored | **~2** |
 | **`reference-artifact.md` (352w)** | 16 | 16 | appendix, bastion, worker-won't-start, deploy mechanics | **~18** |
 
 **Keeping a clause you had room for demonstrates nothing.** The 643-word artifact
 holds every fragment because at 55% of the source nothing forced a choice; the
-only judgement in it is which two unscored blocks to cut. It is kept under
-`runs/` as the worked example of the target not binding, which is a fact about
-the target and not a lesson about writing.
+only judgement in it is which two unscored blocks to cut. It was the worked
+example of the target not binding, which is a fact about the target and not a
+lesson about writing.
 
 **And a demonstration under maximum pressure covers the easy case.** The wrong
 answers are the same at every length. An artifact that avoids all of them at 352
@@ -624,8 +639,8 @@ transfers is the decisions, not the word count.
 
 | clause | source | reference | evidence |
 | --- | --- | --- | --- |
-| alerts | `will alert on its own if the vendor is down` | mechanism only | 4/4 → 0/4 on the reverse inference, ten words cheaper — `runs/halve-the-runbook/probe-alerts-line-311.md` |
-| `WORKERS` | `four is the ceiling rather than a tuning choice` | `worked before; nobody tuned it`, pool facts stated separately | 0/6 raise it under pressure, and 2/3 find the derivation's unstated premise the asserted version hides — `runs/halve-the-runbook/probe-workers-untuned.md` |
+| alerts | `will alert on its own if the vendor is down` | mechanism only | 4/4 → 0/4 on the reverse inference, ten words cheaper — `probe-alerts-line-311` |
+| `WORKERS` | `four is the ceiling rather than a tuning choice` | `worked before; nobody tuned it`, pool facts stated separately | 0/6 raise it under pressure, and 2/3 find the derivation's unstated premise the asserted version hides — `probe-workers-untuned` |
 
 On both clauses the source itself is what the measurement faults, so a
 demonstration of the right call cannot reproduce it. **An arm that does reproduce
@@ -652,19 +667,19 @@ then scored by an adversarial reviewer given the key and the source:
 | --- | --- | --- | --- |
 | the task's target | ~290 | 25% | — |
 | stored v3 ablated / current | 343 / 358 | 29% / 31% | **4** and **10** of 16 fragments; 12 and 5 framing shifts |
-| `runs/halve-the-runbook/artifact-keyed-366.md` | 366 | 31% | **16 of 16**; 4 framing shifts, 2 new claims |
-| `runs/halve-the-runbook/artifact-keyed-440.md` | 440 | 38% | 16 of 16, no shift, no new claim |
-| `runs/halve-the-runbook/artifact-keyed-548.md` | 548 | 47% | the same, plus the `LOG_LEVEL` trap, bastion access, unrun-migration diagnosis |
+| `artifact-keyed-366` | 366 | 31% | **16 of 16**; 4 framing shifts, 2 new claims |
+| `artifact-keyed-440` | 440 | 38% | 16 of 16, no shift, no new claim |
+| `artifact-keyed-548` | 548 | 47% | the same, plus the `LOG_LEVEL` trap, bastion access, unrun-migration diagnosis |
 
 Two later attempts drop clauses by a criterion this case did not have when the
 above were written — keep a clause when violating it yields no feedback, or
 feedback the reader cannot attribute; drop it when the system reports the
-violation cleanly (`runs/probe-permission-free/`, closing section):
+violation cleanly (`probe-permission-free`, closing section):
 
 | version | words | of source | holds |
 | --- | --- | --- | --- |
-| `runs/halve-the-runbook/artifact-keyed-311.md` | **311** | 27% | 13 present + 1 partial of 16; 2 framing shifts; 1 new claim |
-| `runs/halve-the-runbook/artifact-keyed-341.md` | 341 | 29% | the same fragments, three defects repaired |
+| `artifact-keyed-311` | **311** | 27% | 13 present + 1 partial of 16; 2 framing shifts; 1 new claim |
+| `artifact-keyed-341` | 341 | 29% | the same fragments, three defects repaired |
 
 **311 is the first artifact here both under the ablated arm's 343 words and
 above its 4-of-16 — and above the current arm's 10.** It gets there by dropping
@@ -683,7 +698,7 @@ vendor-fixed constants. **"Deletion beats compression" holds only where the
 deletion leaves a visible hole**; a value moved into the company of unremarkable
 values leaves a filled one. Repaired in the 341 version by marking the kind
 without settling the number — *"a vendor limit, not ours"* — which
-`runs/probe-permission-free/` measures as keeping readers looking where *"the
+`probe-permission-free` measures as keeping readers looking where *"the
 vendor's documented maximum"* stops them, at the cost of the attribution the
 framing table scores.
 
@@ -726,7 +741,7 @@ n=1, one author, key in hand. It bounds what is achievable and says nothing
 about whether an arm could find these sixteen unaided.
 
 One part of it was then probed with readers rather than argued:
-`runs/halve-the-runbook/probe-config-annotation.md` tests whether a config
+`probe-config-annotation` tests whether a config
 annotation needs its justification, or needs to exist at all. Three renderings
 of the same six settings, three stock readers each. Dropping the justification
 and keeping only the *kind* of value costs nothing a reader could detect on the
@@ -772,8 +787,8 @@ dropped modality."* The failure measured here is not a knowledge gap.
 budget does.*
 
 Two candidates carrying identical intended content, 2026-09-09:
-`runs/halve-the-runbook/artifact-keyed-348.md` (telegraphic, no headings) and
-`artifact-keyed-431.md` (the same content in ordinary sentences with four section
+`artifact-keyed-348` (telegraphic, no headings) and
+`artifact-keyed-431` (the same content in ordinary sentences with four section
 headings). Scored adversarially against the 16 fragments and the twelve-shift
 table:
 
