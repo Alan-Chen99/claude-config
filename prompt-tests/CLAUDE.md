@@ -3,9 +3,10 @@
 Runner-neutral prompt evaluation cases. See `.claude/skills/prompt-tests`
 for how to run, grade, and interpret results.
 
-`runs/` holds the recorded output of past runs — one `session-analysis` evidence
-artifact per trajectory, plus the artifact the tested agent produced. That is
-what a new run is compared against; see `runs/README.md`.
+`runs/` holds the recorded output of runs — the grader's judgement per arm, plus
+the tested agent's artifact and any focus extracts. It is empty: everything taken
+under the pre-2026-09-19 rubric-first practice was deleted when the grading design
+changed. See `runs/README.md`.
 
 ## Harness isolation
 
@@ -82,12 +83,10 @@ unblinded rather than blind.
 ## Trial logging
 
 Every trial keeps the grader's judgement at
-`prompt-tests/runs/<case>/judgement-<arm>.md` and, where the case has foci, its
-`session-analysis` evidence artifacts one per focus at
-`docs/prompt-trials/<case>/<YYYY-MM-DD>-<arm>__<focus-slug>.md`, with the run's
-provenance in the artifact header per the `session-analysis` skill. Together they
-are the trial record. (Two directories are in use for the artifacts; `runs/` holds
-the older ones.)
+`prompt-tests/runs/<case>/judgement-<arm>.md` and, where the case already has
+foci, its `session-analysis` evidence artifacts one per focus alongside it, with
+the run's provenance in the artifact header per the `session-analysis` skill.
+Together they are the trial record.
 
 **A reference edited in response to a run cites that run.** The judgement that
 forced the edit is kept, and the edit lands after the run is recorded, never
@@ -150,11 +149,12 @@ requirement and this exception:
 > Use a regex to *locate* blocks and to support an explicit negative about a
 > **literal string**; never to conclude something about a decision.
 
-Of the 33 distinct regexes recorded across `runs/*/sa-*.md`, 25 are a bare
-literal or an alternation of literals; the other 8 wrap literal terms in a word
-boundary, an optional suffix, a character class or a bounded gap. None matches a
-structural pattern rather than a wording. Every regex in this corpus therefore
-qualifies for the exception, and what is left of the prohibition is a rule about
+Of the 33 distinct regexes recorded across the evidence artifacts of the runs
+deleted on 2026-09-19, 25 were a bare
+literal or an alternation of literals; the other 8 wrapped literal terms in a word
+boundary, an optional suffix, a character class or a bounded gap. None matched a
+structural pattern rather than a wording. Every regex in that corpus therefore
+qualified for the exception, and what is left of the prohibition is a rule about
 how to phrase the negative — not the rule about reading that was asked for.
 
 And the file was already closed. That skill's reading protocol item 6 requires
@@ -516,9 +516,9 @@ and it induced footnote-marker cells that appear nowhere else. Read the case's
 **Rebuilt 2026-09-18.** Hands the agent this repo's own
 `.claude/skills/update-claude-code/SKILL.md` (4,664 words, taken at `34a81cec`)
 and asks for half of it. Until that date the fixture was a 1,163-word fictional
-on-call runbook; everything under `runs/halve-the-runbook/` measures that fixture
-and is not comparable to a run of the case as it now stands. The old analysis
-lives at `payments-relay/` — see its README.
+on-call runbook, and every run of the case measured that fixture; all of it was
+deleted on 2026-09-19. The old analysis lives at `payments-relay/` — see its
+README.
 
 What changed is what the case grades. The old version scored which of sixteen
 planted clauses survived. The new one grades whether the delivered runbook still
@@ -644,8 +644,8 @@ Preconditions and the `jq` to read a run are in the case's
 `reference-solution.md`. First run 2026-09-16, Claude Code 2.1.269, one red arm
 (the pre-rewrite bullet, which asserted a hook forced the foreground) and three
 green: red 0 of 3 calls carried the parameter and all three backgrounded; green
-9 of 9 carried `false` and none did. Trajectories under
-`runs/subagent-foreground-default/`.
+9 of 9 carried `false` and none did. The trajectories were deleted on 2026-09-19;
+the counts here are the surviving record.
 
 The red arm is worth reading for what a stale assertion costs. The agent
 reasoned *from* it before dispatch, noticed the mismatch nine seconds after the

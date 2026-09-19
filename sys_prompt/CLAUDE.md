@@ -290,7 +290,7 @@ genuinely follows.
 between this rule and silent decay. Measured the same day, same task, hook gone in both arms: with the old bullet, 3 of 3 Agent
 calls omitted the parameter and all three backgrounded; with this bullet, 9 of 9 across three
 trials passed `false`, none backgrounded, and every report returned as the launching call's own
-tool result. Trajectories under `prompt-tests/runs/subagent-foreground-default/`.
+tool result. The trajectories were deleted on 2026-09-19; these counts are the surviving record.
 
 **Unverified, decide at the next edit to this bullet:** no green trial's reasoning weighed the
 Agent tool's description against the prompt, and one of the three named neither the parameter nor

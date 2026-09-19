@@ -25,5 +25,3 @@ deleting it would break them silently, not because the practice it encodes is
 endorsed. A case rebuilt under the current design should stop citing it rather
 than inherit it.
 
-Everything under `runs/halve-the-runbook/` was measured against this fixture and
-is not comparable to any run of the rebuilt case.

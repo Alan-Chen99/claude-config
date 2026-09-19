@@ -4,13 +4,18 @@ Measured 2026-09-18 on one arm: `halve-the-runbook` `l3r7-presence` (session,
 artifact and key from `/root/claude-config-work`, the worktree that ran it).
 Two graders, one output.
 
-**Arm A, the practice as it stood.** `runs/halve-the-runbook/grading-l3r7-presence.md`
-there: the D1–D7 key applied blind to the source and the output, no session. A
+**Arm A, the practice as it stood.** The stored grading: the D1–D7 key applied
+blind to the source and the output, no session. A
 per-class count, two high-severity defects, `Verdict: fail`.
 
 **Arm B, the two-argument dispatch** now in `.claude/skills/prompt-tests/SKILL.md`:
 the whole 1.1 MB session plus the arm's own system prompt, the key withheld until
-a second phase. Judgements stored beside this file.
+a second phase.
+
+**Both judgements, the session and the key were deleted on 2026-09-19 with the
+rest of `prompt-tests/runs/`.** This note is the surviving record. It grounds the
+design in `docs/prompt-testing-design.md`; it is not re-checkable from the tree,
+so it is not admissible as evidence in any case.
 
 ## What arm B found that arm A's frame cannot hold
 

@@ -19,15 +19,11 @@ Not because writing is hard — because a rubric is written by someone who has r
 the source and not the output. What an output *costs* is only visible once it
 exists.
 
-**Measured, three times in this suite's own record:**
+**Measured, twice in this suite's own record:**
 
 - `general/trivial-task`'s bands classified a compliant run one notch below
   `pass` on 2026-08-23 and again on 2026-09-04. Both trials recorded that the
   band was probably narrower than the invariant. The bands are unchanged.
-- `runs/halve-the-runbook/probe-frequency-claim.md` — "An arm that deleted the
-  rate and an arm that kept it are indistinguishable to the rubric as written."
-  The item was found by a person reading the fixture, not by any instrument the
-  case owns.
 - `payments-relay/key.md` (until 2026-09-18 `general/halve-the-runbook/reference-solution.md`) reached its present form by
   post-hoc criticism from real outputs ("The case has been conflating two senses
   of recoverable"). It is the suite's best rubric and it got there by the
@@ -45,7 +41,7 @@ output paid for its score. This is one defect wearing three costumes:
 | a pass/fail band | everything the band does not name |
 
 **Measured, 2026-09-18**, on `halve-the-runbook` arm `l3r7-presence`. The stored
-grading (`runs/halve-the-runbook/grading-l3r7-presence.md`) is a D1–D7 count and
+grading was a D1–D7 count and
 `Verdict: fail`, produced blind from the source and the output alone. A grader
 given the same output plus the whole session found, outside that frame: a report
 telling the user the remaining length gap "can only come from deleting content
@@ -64,6 +60,11 @@ reads as a high-severity failure down its Source column and as clean under the
 key's own "losing a fact is not a defect" clause, and the stored grading had read
 it the second way without registering that the row decides the headline either
 way. Full record: `notes/prompt-test-grading-projection.md`.
+
+The session and grading artifacts behind both paragraphs were deleted on
+2026-09-19 with the rest of `prompt-tests/runs/`. The note is the record; the
+finding is not re-checkable from the tree, so it grounds this design and is not
+admissible as evidence in any case.
 
 ## Two instruments, two jobs
 

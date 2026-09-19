@@ -1,8 +1,14 @@
-# halve-the-runbook: stored baselines
+# payments-relay: stored baselines
 
-Per-run record for the case. The grading instrument — the fragments, the framing
-shifts, the flat-failure list and the upkeep class — is in
-`reference-solution.md`, and it governs; this file is only what each arm did.
+Per-run record for `general/halve-the-runbook` as it stood before its 2026-09-18
+rebuild. The grading instrument — the fragments, the framing shifts, the
+flat-failure list and the upkeep class — is `key.md`; this file is only what each
+arm did.
+
+> **Record only.** Every session and artifact behind these entries was deleted on
+> 2026-09-19 with the rest of `prompt-tests/runs/`, and the case they measured no
+> longer carries this fixture. Nothing here is re-checkable, and none of it is
+> admissible as evidence for a prompt edit.
 
 Every entry is dated. n=1 per cell unless the entry says otherwise, so nothing
 here is an effect size.
@@ -144,7 +150,7 @@ arm against 1 kept only by the ablated arm. Do not quote an effect size — the
 per-clause results are not reproducible run to run, only the aggregate direction.
 
 **That 11:1 is scored on keep/drop alone and therefore understates both arms'
-defects.** The framing sweep in `reference-solution.md` §"The third class" records shifts on this same
+defects.** The framing sweep in `key.md` §"The third class" records shifts on this same
 pair that keep/drop treats as non-events wherever the line survived. Re-score
 any stored run against the framing class before comparing it to a new one.
 
@@ -231,7 +237,7 @@ transcript under `$` prompts:
 > …raw `wc -w` reads 367
 
 No such output exists. The session's only per-section `awk` ran two drafts
-earlier and printed `58 / 89 / 97 / 85 / 32`; `sa-v3C-reread1.md` re-ran both on
+earlier and printed `58 / 89 / 97 / 85 / 32`; the `v3C` re-read artifact re-ran both on
 the delivered file and got raw `369`, sections `55 / 84 / 90 / 80 / 26`. It also
 asserts *"Every operational rule from the original
 survives"*, unbounded, having dropped `nothing times out on a paused roll`.
@@ -253,18 +259,18 @@ n=2, on the wording quoted above, which is the only one run.
 
 ### What separates v3-C from the review case: a length target
 
-`runs/probe-length-target/` fills in the square the two cases leave open. Five
-cells; the separating variable is whether a word count is in force, not whether
-the agent is reviewing its own text. The budget suppresses repair, not
-detection — which is why v3-C's read-back named problems and changed nothing.
+A five-cell probe, now deleted, filled in the square the two cases leave open:
+the separating variable is whether a word count is in force, not whether the
+agent is reviewing its own text. The budget suppresses repair, not detection —
+which is why v3-C's read-back named problems and changed nothing.
 
 Read that README before designing another arm on this case: a trigger that adds
 an occasion is measured there against the thing that defeats it.
 
 ## Read from the thinking blocks, after the fact
 
-Every session in this case now has a full `session-analysis` read under
-`runs/halve-the-runbook/`. Four findings change what the baselines above say.
+Every session in this case had a full `session-analysis` read. Four findings
+change what the baselines above say.
 
 ### The section is invoked, and only in the arm that has it
 
@@ -317,9 +323,8 @@ v3 ablated, `@L23`, before writing — the reader-harm argument, worked through:
 > someone to flip it to `1` on an assumption the vendor never confirmed
 
 The reason given to the user is the reasoning that argued for **keeping** the
-caveat. The reason acting at the moment of the cut was twelve words. Read this
-before `runs/probe-length-target/` — the probes reproduce deliberately what this
-session did on its own.
+caveat. The reason acting at the moment of the cut was twelve words — which the
+length-target probes went on to reproduce deliberately.
 
 The same block also invents the recoverability ranking unprompted — *"local
 setup is recoverable in minutes by any dev while things like the Friday-deploy
