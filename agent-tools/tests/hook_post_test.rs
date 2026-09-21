@@ -982,20 +982,20 @@ fn a_report_header_carries_the_clock_it_was_made_at() {
         first.ends_with(':'),
         "header ends with a colon, got: {first}"
     );
-    // A stamp with an offset, so the line still resolves after a compaction.
+    // A stamp carrying its own date and offset, so the line still resolves when
+    // it is re-read after a compaction — days later in a long session, where a
+    // bare time anchors the block's relative ages to the wrong day.
     let stamp = first
         .trim_start_matches("[agent-tools] run status @ ")
         .trim_end_matches(':');
+    let parsed = chrono::DateTime::parse_from_str(stamp, "%Y-%m-%d %H:%M:%S %z")
+        .unwrap_or_else(|e| panic!("stamp {stamp} did not parse whole: {e}"));
+    let age = (chrono::Utc::now() - parsed.with_timezone(&chrono::Utc))
+        .num_seconds()
+        .abs();
     assert!(
-        chrono::NaiveTime::parse_from_str(&stamp[..8], "%H:%M:%S").is_ok(),
-        "stamp did not start with HH:MM:SS: {stamp}"
-    );
-    let offset = &stamp[9..];
-    assert!(
-        offset.len() == 5
-            && (offset.starts_with('+') || offset.starts_with('-'))
-            && offset[1..].chars().all(|c| c.is_ascii_digit()),
-        "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
+        age < 120,
+        "stamp {stamp} is {age}s from now; it must name the instant the report was made"
     );
 }
 

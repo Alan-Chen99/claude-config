@@ -125,7 +125,7 @@ it if the prompt rule turns out not to hold. Measured in one interactive session
 | A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id. Upstream exempts a command whose first statement is `sleep`, but `hook_pre.rs` prepends two statements to every command, so that exemption is unreachable here — measured 2026-09-21, see `docs/agent-tools-status-reference.md` |
 | `BACKGROUNDED:` from `hook_post.rs` | cannot fire, since no tool response carries `backgroundTaskId` | fires, naming the cause, the task id, and the `long-bash` skill |
 | `subagent_type: "fork"` | available | `Agent type 'fork' not found` |
-| Foreground `sleep` | permitted | the Bash description says it is blocked, and to use Monitor with an until-loop |
+| Foreground `sleep` | permitted | blocked at 25 s or more, and only as the command's first statement — `echo hi; sleep 25` runs. The Bash description states the block unconditionally and points at Monitor with an until-loop. Measured 2026-09-21 |
 
 Source only, not exercised under either setting: MCP auto-background
 (`src/chunk-jtrs4f58.js:255`), the Ctrl+B backgrounding affordance

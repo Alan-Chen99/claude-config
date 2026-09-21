@@ -5,100 +5,80 @@ description: Use when a bash command will or did outrun the Bash tool's timeout 
 
 # Long-running bash commands
 
-A foreground Bash call is capped by its `timeout` (default 120000 ms, max 600000 ms;
-`BASH_DEFAULT_TIMEOUT_MS` and `BASH_MAX_TIMEOUT_MS` move the caps). Past the cap the
-command is moved to the background and keeps running — nothing it printed is lost,
-the output file holds all of it — but the tool result comes back **empty**. So
-running a long command foreground first buys nothing and costs the whole timeout
-window.
+A foreground Bash call that outruns its `timeout` (default 120000 ms, max
+600000 ms, silently clamped) is moved to the background and hands back a task
+id instead of its output. Nothing is lost — the output file keeps every byte —
+but you spent the whole window arriving where backgrounding would have put you
+at once. So when the duration is unclear, background it: a fast command costs
+one extra notification, a slow one costs the window.
 
-Fits in 600 s, with nothing else to do meanwhile? Raise `timeout` and run it
-foreground; the output arrives inline. This protocol is for the rest: longer than
-that, unknown duration, or work you want to continue during.
+**A subagent stops here.** You are never re-invoked by a completion
+notification, and a background task of yours is killed the moment you give your
+final response. Run the command foreground — still wrapped — with
+`timeout: 600000`. If it needs longer than that, `agent-tools run --background`
+detaches the job so it outlives your turn, prints its capture directory, and
+reports nothing back to you; hand that path to your caller.
 
-## Step 1: Launch
+The rest is **one example, not a procedure**. Take the shape; decide the details
+at runtime.
 
-| Call | Parameters                                                                                                         |
-| ---- | ------------------------------------------------------------------------------------------------------------------ |
-| Bash | `command: "agent-tools run --desc '<name>' bash -c '<command>'"`, `run_in_background: true`, `description: "<name>"` |
+## Launch
 
-`agent-tools run` is required for slow commands anyway, and is what gives Step 4 a
-clock: it records start time, elapsed, bytes, last-byte age and exit code for
-`agent-tools ps`. It execs rather than running a shell, so anything using shell syntax
-(`&&`, `|`, `>`, `$VAR`, globs) has to sit inside `bash -c '…'`.
+`Bash`, with `run_in_background: true` and `description: "cargo build"`:
 
-Set the Bash `description` as well — the completion notification quotes it, and
-without one it quotes the entire rewritten command line instead.
+```
+agent-tools run --desc 'cargo build' bash -c 'cargo build --release 2>&1 | awk "{ print strftime(\"%F %T\"), \$0; fflush() }"'
+```
 
-Prefer a command that prints progress (`-v`, `--verbose`, `--progress=plain`): a
-silent command is indistinguishable from a hung one. If it is expensive and might be
-misconfigured, run the cheap variant first — `make -n`, `cargo check`, `rsync -n`, a
-single test file.
+```
+Command running in background with ID: bni9g1bct. Output is being written to:
+…/tasks/bni9g1bct.output. You will be notified when it completes. To check
+interim output, use Read on that file path.
+```
 
-The call returns a task id and the path its output is being written to. Keep both.
+## Wait
 
-## Step 2: Arm a check-in timer — only to catch a stall before the command ends
+End the turn. Do unrelated work or stop — either way the notification
+re-invokes you, and calling `agent-tools ps` cannot make it arrive sooner.
 
-Completion wakes you by itself (Step 3), so a timer's only job is to let you judge
-progress *before* then. Skip it whenever you are willing to wait for whatever happens.
+To judge progress *before* the command ends, arm a timer beside it: `Bash`,
+`command: "sleep 600"`, `run_in_background: true`, `description: "build timer"`.
 
-| Call | Parameters                                                                                |
-| ---- | ------------------------------------------------------------------------------------------ |
-| Bash | `command: "sleep <seconds>"`, `run_in_background: true`, `description: "long-bash timer"` |
-
-Backgrounded `sleep` is always allowed. Never wait with a foreground one — as the
-first statement, `sleep` of 25 s or more is blocked outright.
-
-Unsure how long the command takes? Start at 60–120 s and re-arm longer. Several short
-check-ins beat one long blind wait.
-
-## Step 3: Stop polling
-
-The completion notification re-invokes you, so end your turn rather than calling tools
-to check on it. Unrelated work is fine — every tool call you make carries an
-`[agent-tools] run status` block naming your command, so status arrives free and a `ps`
-call buys nothing. Nothing on that channel ever wakes you; only the notification does.
-
-Write the command's task id and output path, and the timer's task id, into your
-response text — a compaction while you wait would otherwise lose them.
-
-**Subagents are not re-invoked.** A subagent that ends its turn returns to its caller
-and its background command is terminated with it; the subagent's launch message says
-so in place of "You will be notified". A subagent should run the command foreground
-with `timeout: 600000` instead, or hand the task id back to its caller to wait on.
-
-## Step 4: Handle the notification
+## Notification
 
 ```xml
 <task-notification>
 <task-id>bni9g1bct</task-id>
-<tool-use-id>toolu_…</tool-use-id>
+<tool-use-id>toolu_01Urq…</tool-use-id>
 <output-file>…/tasks/bni9g1bct.output</output-file>
 <status>completed</status>
-<summary>Background command "<your description>" completed (exit code 0)</summary>
+<summary>Background command "cargo build" completed (exit code 0)</summary>
 </task-notification>
 ```
 
-It arrives under a `[SYSTEM NOTIFICATION - NOT USER INPUT]` banner: it is not the user
-answering you. `<status>` is `completed`, `failed` (`… failed with exit code N`) or
-`killed`. Match the `<task-id>`.
+It arrives under a `[SYSTEM NOTIFICATION - NOT USER INPUT]` banner — not the
+user answering you. `<status>` is `completed`, `failed` or `killed`, and the
+output file ends `[exited with code N]` or `[killed]` to match. TaskStop any
+timer still armed.
 
-**The command's id.** Read `<output-file>` — it ends with `[exited with code N]` or
-`[killed]`. TaskStop the timer if one is armed.
-
-**The timer's id.** `agent-tools ps --all` gives the verdict without reading the
-output: `producing` = output still arriving; `quiet(30s|5m|30m|2h)` = how long it has
-been silent; `exited(<code>)` or `final(<code>)` = it finished while you were asleep;
-`abandoned` or `spawn-failed(<err>)` = it is not coming back. Elapsed is `elapsed_s`
-while it runs and `ran_s` once settled — you have no clock of your own, and turn count
-is not time. Then:
-
-- progressing → arm a new timer (Step 2)
-- silent, and this command has no reason to go quiet → TaskStop the command's task id
-- otherwise → re-arm, and escalate to the user with elapsed time and the output tail
-
-`quiet(5m)` is routine for a link step and fatal for a download; which one it is
-depends on the command, not the number. When unsure, re-arm — a wrong TaskStop
+If the timer fires first, `agent-tools ps --all` gives the verdict without
+reading output: `producing`, `quiet(30s|5m|30m|2h)`, `exited(<code>)` or
+`final(<code>)`, `abandoned`, `spawn-failed(<err>)`. `quiet(5m)` is routine for
+a link step and fatal for a download. Re-arm when unsure — a wrong TaskStop
 destroys the work, a wrong re-arm costs one turn.
 
-Both notifications may arrive together; if only one has, TaskStop the other task.
+## Fixed, not example
+
+- `run_in_background: true`, or it is an ordinary foreground call.
+- `bash -c` — `agent-tools run` execs rather than shelling, so `&&`, `|`, `>`,
+  `$VAR` and globs need a shell around them.
+- Bash `description` — the `<summary>` quotes it, and quotes the whole rewritten
+  command line when there is none, `unset …; export AGENT_TOOLS_PARENT_DIR=…;`
+  included.
+- A foreground `sleep` is blocked once it reaches 25 s, and only as the
+  command's first statement: `make && sleep 600` runs, `sleep 600` does not.
+  Wait with the backgrounded timer rather than routing around the block.
+
+Everything else is yours. The `awk` stamp earns its place when a command might
+stall or run past midnight, and is noise when it already timestamps its own
+output.

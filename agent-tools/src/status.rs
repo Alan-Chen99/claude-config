@@ -288,10 +288,30 @@ pub fn fmt_duration(secs: f64) -> String {
 /// correlating it against `date` is wrong by the offset with nothing on the
 /// line saying so. The conversion is here rather than at each display site so
 /// that no site can render the instant raw.
-pub fn fmt_local_hms(t: DateTime<Utc>) -> String {
-    t.with_timezone(&chrono::Local)
-        .format("%H:%M:%S")
-        .to_string()
+///
+/// The date is carried only when `t` falls on a different local day from
+/// `now`. A run that started yesterday renders `started 23:14:02` otherwise,
+/// which reads as tonight, and only the durations beside it disagree — an
+/// arithmetic step a reader with no clock of its own has no reason to take.
+/// Printing the date exactly when it differs makes its presence the signal,
+/// and costs nothing on the same-day lines that are nearly all of them.
+pub fn fmt_local_hms(t: DateTime<Utc>, now: DateTime<Utc>) -> String {
+    let t = t.with_timezone(&chrono::Local);
+    if t.date_naive() == now.with_timezone(&chrono::Local).date_naive() {
+        t.format("%H:%M:%S").to_string()
+    } else {
+        t.format("%m-%d %H:%M:%S").to_string()
+    }
+}
+
+/// The event log's timestamp: the same instant as `fmt_local_hms`, to the
+/// millisecond, because that log's whole job is ordering events that land in
+/// the same second. It carries the date on the same condition, and delegates
+/// that decision rather than repeating it so the two renderings cannot
+/// disagree about which day a line belongs to.
+pub fn fmt_local_hms_millis(t: DateTime<Utc>, now: DateTime<Utc>) -> String {
+    let millis = t.with_timezone(&chrono::Local).format("%.3f").to_string();
+    format!("{}{millis}", fmt_local_hms(t, now))
 }
 
 /// The statusline's timestamp: hour and minute, no seconds. That bar does not
@@ -305,12 +325,14 @@ pub fn fmt_local_hm(t: DateTime<Utc>) -> String {
     t.with_timezone(&chrono::Local).format("%H:%M").to_string()
 }
 
-/// The stamp a pushed report carries in its header. Local, with the offset,
-/// because a report line outlives the terminal it was printed to and is re-read
-/// after a compaction, when nothing else on the line says when "4s ago" was.
+/// The stamp a pushed report carries in its header. Local, with the date and
+/// the offset, because a report line outlives the terminal it was printed to
+/// and is re-read after a compaction — days later in a long session — when
+/// nothing else on the line says when "4s ago" was. It is also the day the
+/// bare times under it default to, so it has to name one.
 pub fn fmt_local_stamp(t: DateTime<Utc>) -> String {
     t.with_timezone(&chrono::Local)
-        .format("%H:%M:%S %z")
+        .format("%Y-%m-%d %H:%M:%S %z")
         .to_string()
 }
 
@@ -501,13 +523,13 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         // PROMPT-COUPLED
         (Some(m), Some(d)) if s.is_terminal() => Some(format!(
             "started {}, ran {}",
-            fmt_local_hms(m.started_at),
+            fmt_local_hms(m.started_at, now),
             fmt_duration(d)
         )),
         // PROMPT-COUPLED
         (Some(m), Some(d)) => Some(format!(
             "started {} (+{})",
-            fmt_local_hms(m.started_at),
+            fmt_local_hms(m.started_at, now),
             fmt_duration(d)
         )),
         // A terminal child with no duration: `abandoned`, where the wrapper
@@ -515,7 +537,7 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
         // ran to have one. Neither has a span to report, and a number here
         // would assert one. The record's start is what there is.
         // PROMPT-COUPLED
-        (Some(m), None) => Some(format!("started {}", fmt_local_hms(m.started_at))),
+        (Some(m), None) => Some(format!("started {}", fmt_local_hms(m.started_at, now))),
         // No meta to read a start from.
         (None, _) => None,
     };
@@ -531,7 +553,7 @@ pub fn render(dir: &Path, s: &Status, now: DateTime<Utc>) -> String {
 mod tests {
     use super::*;
     use crate::meta::{ChildMeta, Reaped};
-    use chrono::{Duration, Utc};
+    use chrono::{DateTime, Duration, SubsecRound, Utc};
     use tempfile::TempDir;
 
     fn base() -> ChildMeta {
@@ -1161,10 +1183,7 @@ mod tests {
         let now = Utc::now();
         let st = derive(dir.path(), now);
         let line = render(dir.path(), &st, now);
-        let expected = started
-            .with_timezone(&chrono::Local)
-            .format("%H:%M:%S")
-            .to_string();
+        let expected = fmt_local_hms(started, now);
         assert!(
             line.contains(&format!("started {expected}")),
             "line {line} did not carry the local start {expected}"
@@ -1184,10 +1203,7 @@ mod tests {
         let st = derive(dir.path(), now);
         assert_eq!(st.key, StatusKey::Abandoned);
         let line = render(dir.path(), &st, now);
-        let expected = started
-            .with_timezone(&chrono::Local)
-            .format("%H:%M:%S")
-            .to_string();
+        let expected = fmt_local_hms(started, now);
         assert!(
             line.contains(&format!("started {expected}")),
             "line: {line}"
@@ -1199,21 +1215,81 @@ mod tests {
         );
     }
 
-    /// A header stamp is re-read after a compaction, so it carries the offset
-    /// that an in-line time leaves out.
+    /// A header stamp is re-read after a compaction, possibly days later, so it
+    /// carries both things an in-line time leaves out: the day the bare times
+    /// under it default to, and the offset they are in.
     #[test]
-    fn a_header_stamp_carries_the_offset_an_in_line_time_omits() {
-        let t = Utc::now();
+    fn a_header_stamp_carries_the_date_and_offset_an_in_line_time_omits() {
+        let t = Utc::now().trunc_subsecs(0);
         let stamp = fmt_local_stamp(t);
-        let hms = fmt_local_hms(t);
-        let offset = stamp
-            .strip_prefix(&format!("{hms} "))
-            .unwrap_or_else(|| panic!("stamp {stamp} does not extend the in-line time {hms}"));
+        let parsed = chrono::DateTime::parse_from_str(&stamp, "%Y-%m-%d %H:%M:%S %z")
+            .unwrap_or_else(|e| panic!("stamp {stamp} did not parse whole: {e}"));
+        assert_eq!(
+            parsed.with_timezone(&Utc),
+            t,
+            "stamp {stamp} round-tripped to a different instant"
+        );
+        let hms = fmt_local_hms(t, t);
         assert!(
-            offset.len() == 5
-                && (offset.starts_with('+') || offset.starts_with('-'))
-                && offset[1..].chars().all(|c| c.is_ascii_digit()),
-            "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
+            stamp.contains(&hms),
+            "stamp {stamp} does not extend the in-line time {hms}"
+        );
+    }
+
+    /// Local noon on a fixed day, so both halves of the date rule are exercised
+    /// against instants that cannot drift across midnight mid-test.
+    fn local_noon(days_ago: i64) -> DateTime<Utc> {
+        use chrono::TimeZone;
+        let day = chrono::Local::now().date_naive() - Duration::days(days_ago);
+        chrono::Local
+            .from_local_datetime(&day.and_hms_opt(12, 0, 0).unwrap())
+            .single()
+            .expect("noon is never an ambiguous local time")
+            .with_timezone(&Utc)
+    }
+
+    /// An instant on today's local date renders bare: the date would be noise on
+    /// nearly every line, and its absence is what says "today".
+    #[test]
+    fn a_time_on_todays_local_date_renders_without_one() {
+        let now = local_noon(0);
+        let rendered = fmt_local_hms(now - Duration::seconds(90), now);
+        assert_eq!(rendered, "11:58:30", "today's times carry no date");
+    }
+
+    /// The multi-day case: `started 11:58:30` on a run that began yesterday
+    /// reads as this morning, and nothing on the line contradicts it.
+    #[test]
+    fn a_time_on_another_local_date_carries_it() {
+        let now = local_noon(0);
+        let yesterday = local_noon(1);
+        let rendered = fmt_local_hms(yesterday, now);
+        let expected = yesterday
+            .with_timezone(&chrono::Local)
+            .format("%m-%d 12:00:00")
+            .to_string();
+        assert_eq!(rendered, expected, "a time from another day names its day");
+    }
+
+    /// The rule has to reach the rendered line, not just the formatter: a
+    /// capture that outlives a midnight is the whole reason it exists.
+    #[test]
+    fn a_rendered_line_dates_a_start_from_another_day() {
+        let dir = TempDir::new().unwrap();
+        let mut m = base();
+        let now = local_noon(0);
+        m.started_at = local_noon(2);
+        write(&dir, &m);
+        let st = derive(dir.path(), now);
+        let line = render(dir.path(), &st, now);
+        let expected = fmt_local_hms(m.started_at, now);
+        assert!(
+            expected.len() > "12:00:00".len(),
+            "a start two days back must render with its date, not as {expected}"
+        );
+        assert!(
+            line.contains(&format!("started {expected}")),
+            "line {line} did not carry the dated start {expected}"
         );
     }
 

@@ -199,6 +199,20 @@ Measured on 2.1.269: a PostToolUse command hook returning 18,611 characters over
 lines arrived whole. The budget exists because the report rides on a tool result the
 agent asked for and must not crowd it out.
 
+The budget covers the whole report, not just its middle: `report_changes` charges the
+header and the prepended notes before `bound` packs a single child line. Budgeting from
+zero measured only the lines and let the ends push the emitted `additionalContext` past
+the ceiling — 9,003 characters from a 9,000-char budget, the size at which a runtime that
+does sanitize replaces the block with its stub. The backgrounding notice is the one part
+deliberately left uncharged; it rides on top because it must never be dropped for size.
+
+`bound` packs in two passes for the same reason in miniature. Its "N more changed, omitted
+for size" note has to have its room reserved before any line is recorded, or the note is
+what fails to fit — and a truncation nobody announced is indistinguishable from a report of
+no change, which is the failure the note exists to prevent. Pass one asks only whether
+anything drops and writes no ledger entry; the reserve it then takes is `omitted_note` at
+its widest possible count, so a second pass dropping more lines can never outgrow it.
+
 ### One derivation, four renderers
 
 `status::derive` is the single place a capture directory becomes a status, and every
@@ -498,6 +512,14 @@ every hook, because settings sources are unioned rather than overridden, so
 user source with `--setting-sources` instead drops user-level skills, agents,
 and output-styles along with it, which silently removes the output style the
 prompt depends on.
+
+`.credentials.json` is linked, not owned, so a child session is only as
+authenticated as the machine is: when its `expiresAt` has passed and no refresh
+succeeds, the child dies on its first request with `OAuth session expired and
+could not be refreshed`, and nothing before that point says so. Claude Code
+strips `CLAUDE_CODE_OAUTH_TOKEN` from tool subprocesses, so a session cannot
+pass its own along either. Source the token the prompt-test runners use —
+`set -a && . /workspace/.env && set +a` — before launching the child.
 
 The directory holds what `install.sh` would symlink into `~/.claude`, sourced
 from this checkout, plus `CLAUDE.md`, `.credentials.json`, and `plugins` linked

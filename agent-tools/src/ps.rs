@@ -350,7 +350,7 @@ fn render_text(
                 writeln!(
                     buf,
                     "  {}  {:<14} {:<20} {}",
-                    e.ts.format("%H:%M:%S%.3f"),
+                    crate::status::fmt_local_hms_millis(e.ts, now),
                     e.kind,
                     tid,
                     e.data
@@ -513,7 +513,7 @@ fn write_capture(
         writeln!(
             buf,
             "      started: {}",
-            crate::status::fmt_local_hms(m.started_at)
+            crate::status::fmt_local_hms(m.started_at, now)
         )?;
     }
     Ok(())

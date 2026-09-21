@@ -20,7 +20,7 @@ be polled. Only the `--events` log cannot — see "`ps`" below.
 
 ## Block shape
 
-A block opens with a stamped header, `[agent-tools] run status @ HH:MM:SS ±ZZZZ:`, built
+A block opens with a stamped header, `[agent-tools] run status @ YYYY-MM-DD HH:MM:SS ±ZZZZ:`, built
 once by `report_header` in `hook_post.rs` and used by both delivery channels. The stamp is
 taken when the report's lines were measured, not when the header was built, and every
 relative figure below it — each `<age>`, each running total — is relative to that instant.
@@ -114,7 +114,10 @@ of them, five shapes are reachable in all:
 | `pid -, started <t>, <age>, <bytes>` | Nothing ever ran, so there is no pid (`spawn-failed`) |
 | `pid -, <age>, <bytes>` | The child's own record did not read (`abandoned`) — the record is gone, not the line malformed. `<name>` falls back to the capture directory path on this shape alone |
 
-`<t>` is local `%H:%M:%S`; `<d>` is `Ns`, `Nm0Ss` or `Nh0Mm`.
+`<t>` is local `%H:%M:%S`, and `%m-%d %H:%M:%S` when the instant falls on a different
+local day from the report's own stamp — so a date on a line means "not today" and its
+absence means "today". `<d>` is `Ns`, `Nm0Ss` or `Nh0Mm`, and carries no day component:
+a run spanning three days reads `73h15m`.
 `<paths>` names the capture file: `<dir>/output` when the streams were merged, else the one
 brace form `<dir>/{stdout,stderr}` — a rendered line carries that compact shape, not two
 separate names, though the JSON `capture` field does list both real paths. The two pids on a line differ on purpose: `<pid>` is the
