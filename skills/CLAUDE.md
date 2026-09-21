@@ -51,7 +51,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `cc-history/`         | Claude Code conversation history analysis | Querying past conversations, token usage |
 | `session-analysis/`   | Session log analysis: skeleton-first reading protocol; task answers and facts-only evidence artifacts | Analyzing agent session logs (opencode exports or Claude Code JSONL) |
 | `diagnose-workflow/`  | Structural sub-agent workflow extraction   | Diagnosing multi-agent workflow success/failure |
-| `long-bash/`          | Long-running bash command protocol         | Running commands that may exceed 2min timeout   |
+| `long-bash/`          | Long-running bash command protocol (autoloads on its description) | Running, or recovering, a command that outruns the Bash timeout |
 | `git-surgery/`        | libgit2/pygit2 history rewrites without touching worktree, index, or HEAD; preserves SHA references in tracked files and commit messages | Squashing/dropping/reordering/amending commits when the worktree must survive or commit SHAs are checked in elsewhere |
 | `telegram-hitl/`      | Asking a human a question over Telegram and waiting hours for the answer: the local proxy, the channel log, topic choice, and the Bot API traps | When a session needs a human decision, or is reading or sending on the Telegram channel |
 

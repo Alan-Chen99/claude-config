@@ -167,6 +167,7 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
     Some(format!(
         "BACKGROUNDED: Command was backgrounded. Cause: {cause}. \
          Process is still running (task_id: {bg_task_id}). \
+         To wait for it without polling: load the long-bash skill. \
          To kill it: use TaskStop tool with task_id {bg_task_id}."
     ))
 }

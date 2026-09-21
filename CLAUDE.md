@@ -122,8 +122,8 @@ it if the prompt rule turns out not to hold. Measured in one interactive session
 | | `DISABLE_BACKGROUND_TASKS=1` | `FORK_SUBAGENT=0` |
 | --- | --- | --- |
 | Bash `run_in_background` | absent from the schema | present; returns a task id and re-invokes the agent when the command exits |
-| A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id, unless its first statement starts with `sleep`, which is still killed |
-| `BACKGROUNDED:` from `hook_post.rs` | cannot fire, since no tool response carries `backgroundTaskId` | fires, naming the cause and the task id |
+| A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id. Upstream exempts a command whose first statement is `sleep`, but `hook_pre.rs` prepends two statements to every command, so that exemption is unreachable here — measured 2026-09-21, see `docs/agent-tools-status-reference.md` |
+| `BACKGROUNDED:` from `hook_post.rs` | cannot fire, since no tool response carries `backgroundTaskId` | fires, naming the cause, the task id, and the `long-bash` skill |
 | `subagent_type: "fork"` | available | `Agent type 'fork' not found` |
 | Foreground `sleep` | permitted | the Bash description says it is blocked, and to use Monitor with an until-loop |
 

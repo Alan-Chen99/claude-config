@@ -184,6 +184,55 @@ fn explicit_run_in_background_is_not_reported_as_timeout() {
     );
 }
 
+/// The notice points the agent at a skill by name, and nothing else checks that
+/// the skill exists: a rename or a deletion leaves the pointer dangling, and an
+/// agent told to load it gets a refusal from the Skill tool at the one moment it
+/// needed the protocol. `check-prompt-coupling.sh` cannot cover this — its
+/// coverage assertion pairs one needle with one `// PROMPT-COUPLED` marker, and
+/// this literal shares an emit site with the `BACKGROUNDED:` prefix — so read the
+/// name back out of the emitted text and resolve it against `skills/`.
+#[test]
+fn the_backgrounding_notice_names_a_skill_that_exists() {
+    let home = tempfile::tempdir().unwrap();
+    let (status, stdout, stderr) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Bash",
+            "tool_input": {"command": "slow", "run_in_background": true},
+            "tool_use_id": "tuid",
+            "tool_response": {"backgroundTaskId": "bt-skill"}
+        }),
+    );
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+
+    let tail = ctx
+        .split_once("load the ")
+        .unwrap_or_else(|| panic!("notice no longer points at a skill: {ctx}"))
+        .1;
+    let name = tail
+        .split_once(" skill")
+        .unwrap_or_else(|| panic!("skill pointer lost its ` skill` suffix: {ctx}"))
+        .0;
+
+    let skill = worktree_root().join("skills").join(name).join("SKILL.md");
+    let body = std::fs::read_to_string(&skill).unwrap_or_else(|e| {
+        panic!(
+            "notice names skill `{name}`, but {} is unreadable: {e}",
+            skill.display()
+        )
+    });
+    assert!(
+        body.contains(&format!("\nname: {name}\n")),
+        "{} does not declare `name: {name}` in its frontmatter",
+        skill.display()
+    );
+}
+
 #[test]
 fn each_cause_field_the_tool_declares_gets_its_own_label() {
     // One arm per field in the Bash tool's output schema
