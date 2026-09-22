@@ -76,7 +76,7 @@ correct is not what decides it (a task asking only for an addition swept the sam
 way), and no arm preferred an obsolescence note to a deletion — so the growth
 worry is about creation, not maintenance.
 
-## Iteration 7 — `4772ae38` → ...
+## Iteration 7 — `4772ae38` → `d978372d`, `a72fd201`, `3f2404f9`, `de85ddc9`, `c451016c`, plus this commit
 
 ### Critique of iterations 1–6
 
