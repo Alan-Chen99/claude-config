@@ -132,8 +132,15 @@ repo is against; the round that finds one deletes it rather than repairing it.
 
 A probe still runs under the contamination rules below — the fixture is copied
 into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
-Its record is a `README.md` under `prompt-tests/runs/<probe>/` naming what was
-asked and what came back, and nothing else.
+
+**A probe lives entirely in one directory**, `prompt-tests/runs/<probe>/`: its
+`task.md`, its `fixture/`, and the `README.md` saying what was asked, what came
+back, and what deletes it. The runner takes that directory as its first argument
+— any `<case>` with a slash in it is used as given — so nothing is left in
+`prompt-tests/general/`, and deleting the probe is one `rm -r` with no second
+place to remember. Name the directory after the *task* and not after the
+behaviour under test: it reaches the child's `/proc/<pid>/cmdline`, which a peer
+agent on this machine can read.
 
 ## Test case shape
 

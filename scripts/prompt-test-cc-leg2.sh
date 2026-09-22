@@ -20,7 +20,11 @@ SCRATCH="${3:?missing scratch-dir — prompt-test-cc.sh prints it as 'scratch:'}
 TAG="${4:?missing tag}"
 PROMPT_FILE="${5:-$REPO/sys_prompt/alan-default-next.md}"
 
-CASE_DIR="$REPO/prompt-tests/general/$CASE"
+case "$CASE" in
+  */*) CASE_DIR="$CASE" ;;
+  *)   CASE_DIR="$REPO/prompt-tests/general/$CASE" ;;
+esac
+CASE_LABEL="$(basename "$CASE")"
 LEG2="$CASE_DIR/leg2.md"
 test -f "$LEG2" || { echo "no leg2.md for case: $CASE_DIR" >&2; exit 1; }
 test -d "$SCRATCH" || { echo "scratch dir is gone: $SCRATCH" >&2; exit 1; }
@@ -55,11 +59,11 @@ PY_SETTINGS
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-OUT="$OUT_DIR/${CASE}-${TAG}-leg2.json"
+OUT="$OUT_DIR/${CASE_LABEL}-${TAG}-leg2.json"
 
 # Leg 2 edits leg 1's artifact in place, so leg 1's is gone the moment this runs
 # and the pair cannot be scored. Snapshot first.
-SNAP="$OUT_DIR/${CASE}-${TAG}-leg1-artifacts"
+SNAP="$OUT_DIR/${CASE_LABEL}-${TAG}-leg1-artifacts"
 if [ -d "$SNAP" ]; then
   echo "leg-1 snapshot already exists, refusing to overwrite: $SNAP" >&2
   exit 1

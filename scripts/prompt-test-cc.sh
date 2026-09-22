@@ -4,7 +4,12 @@
 #
 #   scripts/prompt-test-cc.sh <case> <tag> [prompt-file]
 #
-# <case>        directory name under prompt-tests/general/
+# <case>        a bare name, resolved under prompt-tests/general/; or a path
+#               containing a slash, used as the case directory as given. The
+#               path form is what a probe uses: a probe's fixture and task live
+#               beside the README that states what deletes them, under
+#               prompt-tests/runs/<probe>/, and a probe that leaves nothing in
+#               the permanent case corpus needs no later round to remember it.
 # <tag>         label for the output log, e.g. full / stripped / baseline
 # [prompt-file] defaults to sys_prompt/alan-default-next.md
 #
@@ -23,8 +28,16 @@ CASE="${1:?usage: prompt-test-cc.sh <case> <tag> [prompt-file]}"
 TAG="${2:?usage: prompt-test-cc.sh <case> <tag> [prompt-file]}"
 PROMPT_FILE="${3:-$REPO/sys_prompt/alan-default-next.md}"
 
-CASE_DIR="$REPO/prompt-tests/general/$CASE"
+case "$CASE" in
+  */*) CASE_DIR="$CASE" ;;
+  *)   CASE_DIR="$REPO/prompt-tests/general/$CASE" ;;
+esac
 test -d "$CASE_DIR" || { echo "no such case: $CASE_DIR" >&2; exit 1; }
+CASE_DIR="$(cd "$CASE_DIR" && pwd)"
+# Both the log filename and the child's own /proc/<pid>/cmdline carry this, and
+# a probe directory sits several segments deep, so it is flattened to its last
+# segment rather than spelled as a path.
+CASE_LABEL="$(basename "$CASE_DIR")"
 test -f "$PROMPT_FILE" || { echo "no such prompt file: $PROMPT_FILE" >&2; exit 1; }
 PROMPT_FILE="$(readlink -f "$PROMPT_FILE")"
 
@@ -65,7 +78,7 @@ mkdir -p "$OUT_DIR"
 # in it, but it abbreviates this script, and the rule bans anything in the cwd
 # that names the harness, not just anything that names the case.
 SCRATCH="$(mktemp -d "/tmp/wk.XXXXXXXX")"
-OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
+OUT="$OUT_DIR/${CASE_LABEL}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"
 
@@ -130,7 +143,7 @@ sed -n '/^{/,$p' "$OUT.raw" > "$OUT"
 SID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("session_id",""))' "$OUT")"
 TRANSCRIPT="$(find "$REPO/.claude/worktree-config/projects" -name "$SID.jsonl" 2>/dev/null | head -1)"
 
-echo "case:       $CASE"
+echo "case:       $CASE_DIR"
 echo "tag:        $TAG"
 echo "prompt:     $PROMPT_FILE"
 echo "result:     $OUT"
