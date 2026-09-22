@@ -1,7 +1,7 @@
 # writing-for-agents loop3 — scratchpad
 
 ## Iteration 1
-start `9f6c03a0` → end (see final commit of this iteration)
+start `9f6c03a0` → end `e5f53f92` (this line added in a follow-up commit)
 
 ### Where the objective actually bites
 
