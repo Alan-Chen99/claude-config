@@ -99,7 +99,7 @@ Detail is in commit messages; anything justifying a prompt line is in
 shipped no edit and established that three wordings aimed at claim-handling all
 failed, because the node is premise **provenance**, not wording.
 
-## Iteration 10 — `01caa239` → (see end)
+## Iteration 10 — `01caa239` → `f7f28398` (+ this commit)
 
 ### Critique of iterations 1–9
 
