@@ -165,3 +165,39 @@ reaches claim-handling* and *no fixture has asked*, and until that is decided th
 paragraph is a standing invitation for a seventh wording. It is also the objective
 bullet with a measured mechanism behind it: the agent names the premise in the
 reply and ships the file asserting it flat.
+
+### The round's work and result
+
+Cleanup half, committed at `611dff06` and `70348021`: the ownership grep now
+requires a sentence naming a future observation, and runs in both directions;
+`prompt-tests/runs/inherited-project/` deleted. Measurement half: pre-registration
+at `86f0da49`, three arms and the blind read at `67665578`, claim at `609b90fc`.
+
+**Outcome 3.** The baseline records the unflagged, load-bearing premise as open
+unaided, and settles empirically what the working directory can settle — it
+started a Postgres container to find out which way `ON CONFLICT DO NOTHING`
+behaves and wrote the reader's own check into the page. A reading every arm
+passes separates nothing, so this is saturation and not a finding about either
+wording. Nothing shipped; the paragraph is replaced by a shorter one whose
+condition points at the premise the run showed is *not* saturated — the one
+reached for while writing a supporting sentence, asserted flat in all three arms.
+
+### `(instruction)` for iteration 21
+
+1. Every sentence in `# Writing for other agents` has now been measured alone and
+   kept, and both deletions have conditions that can fire. The block is finished
+   unless one of those conditions is observed. A round that wants to add to it is
+   adding to a block three rounds of deletion produced; say what that buys before
+   building a fixture for it.
+2. The largest untested surface left is not in this block. `sys_prompt/CLAUDE.md`
+   carries an explicit **Unverified** note on the subagent bullet's override
+   clause — no green trial's reasoning ever weighed the Agent tool description
+   against the prompt — and it names the experiment: remove the clause and re-run
+   `prompt-tests/general/subagent-foreground-default`. That is a shipped line
+   with a named unmeasured half, which outranks any new candidate.
+3. The user's `.ralph/agent/*` ceiling is 6000 tokens by
+   `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin`. This round
+   went over while adding memories and cut six that had been superseded by, or
+   duplicated into, `sys_prompt/CLAUDE.md` and the prompt-tests skill. Deleting a
+   memory whose claim now lives in a file the round reads anyway is the cheapest
+   room there is.
