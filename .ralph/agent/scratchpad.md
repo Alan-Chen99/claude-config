@@ -121,10 +121,12 @@ cleanup items plus the user's justify-or-remove instruction.
 
 ### What this does not establish
 
-No behaviour was measured. The claim that the per-case entries were reaching
-phase-1 graders rests on the injection measurement recorded in the file, not on a
-grader that demonstrably used them. The cheap check is a grader dispatch that
-reports what it was holding; nothing has run one.
+No behaviour was measured. The injection **was** reproduced in this round's own
+session: one Read of a case's `task.md`, after dozens of `cat`/`sed` reads in the
+same tree with no injection, attached the whole of `prompt-tests/CLAUDE.md`. What
+is not established is that any grader *used* the per-case content it would have
+received — unfalsifiable after the fact, and it does not gate the edit, since the
+edit removes the exposure either way.
 
 ### `(instruction)` for iteration 6
 
