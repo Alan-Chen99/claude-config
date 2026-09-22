@@ -289,22 +289,19 @@ the tested-agent transcript shows any of:
   a case name in it: a settings file, a log, a marker. An agent lists its working
   directory before it starts and reports what it found. Keep harness plumbing
   outside the cwd and give it a path that does not say *prompt test*.
+- **the command line**, which `--hide-cmdline` does not cover. It hides the
+  wrapper's argv; the wrapped command is its own process and its
+  `/proc/<pid>/cmdline` still spells out the case name and the arm, where a peer
+  test-agent can read them. Both runners take a `<case>` containing a slash as
+  given and `pwd` is logical, so a neutral symlink —
+  `ln -s "$REPO/prompt-tests/general/<case>" /tmp/<neutral>` — keeps the name out
+  of the argv and out of the log filename at once.
 
 **Harness-side channels (opencode).** Full inventory in
-`skills/opencode-subcommand/SKILL.md`, "System-prompt contamination". Two that
-bite probe work:
-
-- A spec loaded via `{file:PATH}` has its frontmatter injected verbatim.
-  `scripts/strip-frontmatter.py --check <spec>.md` exits 1 if markers remain;
-  without `--check` it writes `<spec>-clean.md`.
-- `agent-tools run --desc` leaves the description and the wrapped argv in
-  `/proc/*/cmdline`, where a peer test-agent can read them. Pass `--hide-cmdline`
-  for probe wraps — but it hides the **wrapper's** argv only. The wrapped command
-  is its own process and its `/proc/<pid>/cmdline` still spells out the case name
-  and the arm, so a run whose argv carries either is still readable there.
-  Measured 2026-09-22: wrapper `agent-tools: scripts/prompt-test-cc.sh`, child
-  `bash scripts/prompt-test-cc.sh <case> <arm> <prompt>`. Keep the identifying
-  words out of the command line, not only out of `--desc`.
+`skills/opencode-subcommand/SKILL.md`, "System-prompt contamination". The one
+that bites probe work: a spec loaded via `{file:PATH}` has its frontmatter
+injected verbatim. `scripts/strip-frontmatter.py --check <spec>.md` exits 1 if
+markers remain; without `--check` it writes `<spec>-clean.md`.
 
 ## Runners
 
