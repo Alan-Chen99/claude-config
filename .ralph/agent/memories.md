@@ -2,6 +2,14 @@
 
 ## Patterns
 
+### mem-1790069038-81d9
+> A round-15 claim that a prompt line asking for end-conditions does not reach REGISTER is withdrawn. Re-measured with the line isolated, the arm carrying it filed the fixture's one bare preference AS a preference ('owner's preference, stated directly') while the arm without it stated the same rule flat under House rules with no warrant at all -- the opposite direction. Hypothesis: a line that makes the agent ask what would end each item also makes it ask what each item rests on, so register marking rides along with the template rather than being untouched by it. Note for whoever reads a uniformity finding: applying one clause shape to every item is not by itself the failure a reference may call it -- check the WHY field before scoring the shape.
+<!-- tags: sys-prompt, writing-for-agents, docs | created: 2026-09-22 -->
+
+### mem-1790069030-eaf9
+> Where 'Say what ends it' reaches, measured with the block's preamble held constant: the rule whose exit is a DESIGN CHANGE. Four items differing in what would end them; both arms named a specific-act exit for the two whose ends are observations, and parted on 'jobs/<id>.json is the only record of an accepted upload' -- the arm with the bullet named a durable record elsewhere as the exit, the arm without wrote a permission rule and no exit. Hypothesis: an exit gets written once the agent can picture the act, and a design change becomes an act only once you are asked what would end this. The effect arrives as a DOCUMENT TEMPLATE carrying an exit as one field, not as four sentences -- all four exits were in the first write of the file -- so a line like this buys a shape, which is also why it writes a thin exit on the row where no act is picturable.
+<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-22 -->
+
 ### mem-1790067347-74ad
 > A null from a saturated baseline bounds the FIXTURE, not the clause, and a round that converts one into a general conclusion has shipped an unsupported claim. Iteration 16 did it with a handoff-note run and the sentence stood in sys_prompt/CLAUDE.md for two rounds. Check before writing the conclusion: did every arm, including the untreated one, already do the thing? If so the run says nothing about the treatment. Pre-registered outcome text is not a defence -- withdrawing the interpretation beats honouring it, provided the ground is a property of the fixture visible without the result.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
@@ -13,14 +21,6 @@
 ### mem-1790065267-fe47
 > A round's own read of its deciding criterion is not reliable enough to decide it. Iteration 17 read two compressed runbooks for claims their source does not make, found one and missed two -- including the one in the arm it would otherwise have kept, which reversed the outcome. A single reader given the artifacts relabelled and the criterion, told neither what is under test nor which arm is which, found all three. Hypothesis: the round holds a prior about which arm should look better and reads the arm it expects to be clean less adversarially; a reader with no prior has nothing to protect. Make the blind read the result, not a check on a result already written.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
-
-### mem-1790061552-775e
-> A prompt line asking for end-conditions does not reach REGISTER. Both arms promoted a fixture's one bare preference ('Also, unrelated to any of that: I'd rather we not use print()') to an incident heading with a cost it never had -- one writing outright that the four items 'are not style preferences' -- while correctly attaching no end-condition to it. Both did split the four, on detectability rather than provenance, so an agent reaches for a split and picks the axis visible in the code. Why this matters: a preference filed as a finding is a doc error only a human notices, and it is produced by the same care that produces good end-conditions.
-<!-- tags: sys-prompt, docs | created: 2026-09-22 -->
-
-### mem-1790061552-635c
-> Where 'Say what ends it' reaches, measured whole against an arm with no block: the rule whose exit is a DESIGN CHANGE rather than a measurement. Both arms named exits unaided for the two rules a person could settle by asking a vendor or running a comparison; they parted only on 'jobs/<id>.json is the only record of an accepted upload', where the arm with the block wrote 'Stops applying once an accepted upload is durably recorded somewhere else' and the arm without wrote the history and no exit. Hypothesis: an exit gets written when the agent can picture the act, and a design change becomes an act only once you are asked what would end this.
-<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-22 -->
 
 ### mem-1790052470-9c1e
 > A downstream reader does NOT stabilise an unstable baseline. It is a second stochastic session run against the first session's artifact, and the tested agent never sees it, so nothing about the tested agent becomes more determinate - it converts a spread in wording into a spread in reader behaviour. Use it for what it actually buys: turning 'does this sentence mislead' from the grader's opinion into an observation. To make a run readable at n=1, instrument the FIXTURE with several opportunities for the behaviour that differ in character, and read the line the agent drew between them.
@@ -41,6 +41,10 @@
 <!-- tags: sys-prompt, workflow | created: 2026-09-22 -->
 
 ## Fixes
+
+### mem-1790069038-9779
+> A diff staged for a blind reader leaks the case name: 'diff -u' writes the fixture's absolute path into its own header, so prompt-tests/general/<case>/fixture/... appears in the first two lines of every staged diff. Caught before dispatch by grepping the staged tree for the case name; fix is 'diff -u --label before/<f> --label after/<f>'. Same class as a probe directory sharing a word with its fixture, on the grader side instead of the tested agent's. Grep the staged tree for the case name and for 'prompt-test' before every blind dispatch.
+<!-- tags: prompt-tests, contamination | created: 2026-09-22 -->
 
 ### mem-1790067347-89d7
 > A probe directory sharing a word with its own fixture is found by the tested agent's ordinary search. An arm looking for the git history of a pinned dependency ran a bounded find for the fixture's project name, hit prompt-tests/runs/<that-name>, listed it, and named it in its own required notes -- contamination, whatever it then declined to read. Name a case or probe directory after the task using words that appear in neither its task.md nor its fixture/.
