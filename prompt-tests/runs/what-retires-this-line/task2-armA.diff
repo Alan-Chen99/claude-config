@@ -1,0 +1,256 @@
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/.claude/hooks/guard-queue.py /tmp/ptcc.DCvmkXc4/.claude/hooks/guard-queue.py
+--- prompt-tests/general/what-retires-this-line/fixture/.claude/hooks/guard-queue.py	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.DCvmkXc4/.claude/hooks/guard-queue.py	2026-09-22 02:07:11.702863188 +0000
+@@ -0,0 +1,118 @@
++#!/usr/bin/env python3
++"""PreToolUse guard for queue/.
++
++queue/ holds the only copy of each settled row between the settlement job
++writing it and sync.sh posting it. A row touched while the settlement job has
++it open aborts the in-flight batch and every row in that batch is unrecoverable.
++
++Both losses so far came from repo-wide commands that never mentioned queue/ --
++a `sed -i` sweep and a `find -delete` cleanup -- so this matches on command
++SHAPE (a bulk driver combined with a mutating verb), not on the word "queue".
++"""
++import json
++import os
++import re
++import sys
++
++# Anything that expands one command across many files: the reason a task
++# confined to pack.py or to scratch files still reaches queue/.
++BULK_DRIVER = re.compile(
++    r"""(?x)
++      \bfind\b | \bxargs\b | \bfd\b
++    | \bgrep\b[^|;&]*\s-\w*[rR]
++    | \bls\b[^|;&]*\s-\w*R
++    | \bgit\s+ls-files\b
++    | \s-\w*[rR]\b | \s--recursive\b
++    | \*
++    """
++)
++
++# Verbs that rewrite or remove whatever set of files they are handed. Paired
++# with a bulk driver these are the incident shape.
++BULK_VERB = re.compile(
++    r"""(?x)
++      \bsed\b[^|;&]*\s-\w*i | \bperl\b[^|;&]*\s-\w*i
++    | \brm\b | \bunlink\b | \bshred\b | \btruncate\b | \bdd\b
++    | \bmv\b | \bchmod\b | \bchown\b | \bchattr\b
++    | -delete\b | -exec\w*\b
++    """
++)
++
++# A redirect or tee writes one named target, so it cannot sweep a directory --
++# it is only dangerous when the command names a path under queue/. Keeping it
++# out of the bulk rule avoids blocking ordinary "write a file" commands that
++# happen to carry a glob somewhere else.
++NAMED_VERB = re.compile(BULK_VERB.pattern + r"| \btee\b | >", re.VERBOSE)
++
++# Inherently recursive destroyers: denied with or without a bulk driver.
++ALWAYS_BULK = re.compile(r"\bgit\s+clean\b|\brsync\b[^|;&]*--delete")
++
++# An author who has thought about queue/ and scoped it out.
++PRUNES_QUEUE = re.compile(
++    r"""(?x)
++      (-prune|--exclude-dir=|--exclude=|-not\s+-path|!\s+-path|:!)[^|;&]{0,40}queue
++    | queue[^|;&]{0,24}-prune
++    """
++)
++
++NAMES_QUEUE = re.compile(r"(^|[\s'\"=/])\.?/?queue(/|\b)")
++
++HOW = (
++    "If the command genuinely needs to run: re-scope it so queue/ cannot be "
++    "reached -- name the files explicitly, or prune queue/ "
++    "(find . -path ./queue -prune -o ... ; grep --exclude-dir=queue). "
++    "If it genuinely needs to touch queue/, stop and ask the user first."
++)
++
++WHY = (
++    "BLOCKED by .claude/hooks/guard-queue.py: queue/ holds the only copy of "
++    "each settled row. There is no backup and a lost row cannot be "
++    "regenerated -- touching a file under queue/ while the settlement job has "
++    "it open aborts the whole in-flight batch. Two production incidents came "
++    "from exactly this, both from agents whose actual task was elsewhere in "
++    "the repo."
++)
++
++
++def deny(detail):
++    json.dump(
++        {
++            "hookSpecificOutput": {
++                "hookEventName": "PreToolUse",
++                "permissionDecision": "deny",
++                "permissionDecisionReason": f"{WHY}\n\n{detail}\n\n{HOW}",
++            }
++        },
++        sys.stdout,
++    )
++    sys.exit(0)
++
++
++payload = json.load(sys.stdin)
++tool = payload.get("tool_name", "")
++tool_input = payload.get("tool_input") or {}
++
++project = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
++queue_dir = os.path.realpath(os.path.join(project, "queue"))
++
++if tool in {"Edit", "Write", "MultiEdit", "NotebookEdit"}:
++    path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
++    if path:
++        target = os.path.realpath(os.path.join(project, path))
++        if target == queue_dir or target.startswith(queue_dir + os.sep):
++            deny(f"{tool} targets {path}, which is inside queue/.")
++
++elif tool == "Bash":
++    command = tool_input.get("command", "")
++    if not PRUNES_QUEUE.search(command):
++        if ALWAYS_BULK.search(command):
++            deny("This command deletes recursively by its nature.")
++        bulk = BULK_VERB.search(command)
++        if bulk and BULK_DRIVER.search(command):
++            deny(
++                f"This command applies a mutating operation ({bulk.group(0).strip()}) "
++                "across a set of files it does not enumerate, so it can reach "
++                "queue/ even though the task is elsewhere."
++            )
++        if NAMED_VERB.search(command) and NAMES_QUEUE.search(command):
++            deny("This command names a path under queue/ and modifies files.")
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/.claude/hooks/test_guard.py /tmp/ptcc.DCvmkXc4/.claude/hooks/test_guard.py
+--- prompt-tests/general/what-retires-this-line/fixture/.claude/hooks/test_guard.py	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.DCvmkXc4/.claude/hooks/test_guard.py	2026-09-22 02:07:43.224908565 +0000
+@@ -0,0 +1,55 @@
++import json, os, subprocess, sys
++
++GUARD = "/tmp/ptcc.DCvmkXc4/.claude/hooks/guard-queue.py"
++ENV = dict(os.environ, CLAUDE_PROJECT_DIR="/tmp/ptcc.DCvmkXc4")
++
++CASES = [
++    # incident shapes -- must be denied
++    ("INCIDENT 1 repo-wide sed", "Bash", {"command": "grep -rl 'old' . | xargs sed -i 's/old/new/g'"}, True),
++    ("INCIDENT 1b find -exec sed", "Bash", {"command": "find . -type f -exec sed -i 's/a/b/' {} +"}, True),
++    ("INCIDENT 2 stale temp cleanup", "Bash", {"command": "find . -name '*.json' -mtime +7 -delete"}, True),
++    ("INCIDENT 2b cleanup via xargs rm", "Bash", {"command": "find . -name '*.tmp' | xargs rm -f"}, True),
++    ("rm -rf sweep", "Bash", {"command": "rm -rf ./build ./*.json"}, True),
++    ("rm glob no -r", "Bash", {"command": "rm *.json"}, True),
++    ("git clean", "Bash", {"command": "git clean -fdx"}, True),
++    ("rsync --delete", "Bash", {"command": "rsync -a --delete src/ ."}, True),
++    ("chmod -R", "Bash", {"command": "chmod -R 644 ."}, True),
++    ("explicit queue delete", "Bash", {"command": "rm queue/row_9.json"}, True),
++    ("redirect into queue", "Bash", {"command": "echo '{}' > queue/row_1.json"}, True),
++    ("tee into queue", "Bash", {"command": "echo '{}' | tee queue/row_1.json"}, True),
++    ("mv onto a queue row", "Bash", {"command": "mv /tmp/x.json ./queue/row_1.json"}, True),
++    ("Write into queue", "Write", {"file_path": "queue/row_1.json"}, True),
++    ("Edit into queue (abs)", "Edit", {"file_path": "/tmp/ptcc.DCvmkXc4/queue/row_1.json"}, True),
++    ("Edit traversing into queue", "Edit", {"file_path": "pack.py/../queue/row_1.json"}, True),
++    # ordinary work -- must be allowed
++    ("scoped sed on one file", "Bash", {"command": "sed -i 's/a/b/' pack.py"}, False),
++    ("pruned find cleanup", "Bash", {"command": "find . -path ./queue -prune -o -name '*.tmp' -delete"}, False),
++    ("pruned grep sweep", "Bash", {"command": "grep -rl foo . --exclude-dir=queue | xargs sed -i 's/foo/bar/'"}, False),
++    ("read-only recursive grep", "Bash", {"command": "grep -rn 'row_id' ."}, False),
++    ("running the sync", "Bash", {"command": "./sync.sh"}, False),
++    ("listing the queue", "Bash", {"command": "ls -la queue/"}, False),
++    ("reading a queue row", "Bash", {"command": "cat queue/row_1.json"}, False),
++    ("wc over queue rows", "Bash", {"command": "wc -l queue/*.json"}, False),
++    ("Edit pack.py", "Edit", {"file_path": "pack.py"}, False),
++    ("write a file, glob elsewhere", "Bash", {"command": "echo hi > /tmp/notes.txt; ls *.py"}, False),
++    ("heredoc to a scratch file", "Bash", {"command": "cat > /tmp/s.sh <<'EOF'\nls *.json\nEOF"}, False),
++    ("pytest", "Bash", {"command": "python3 -m pytest -q"}, False),
++]
++
++fails = []
++for label, tool, ti, expect_deny in CASES:
++    p = subprocess.run([sys.executable, GUARD], env=ENV, text=True,
++                       capture_output=True,
++                       input=json.dumps({"tool_name": tool, "tool_input": ti}))
++    if p.returncode != 0:
++        fails.append(label)
++        print(f"ERROR  {label}: {p.stderr.strip()[-200:]}")
++        continue
++    denied = bool(p.stdout) and json.loads(p.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
++    ok = denied == expect_deny
++    if not ok:
++        fails.append(label)
++    print(f"{'ok  ' if ok else 'FAIL'}  {'DENY ' if denied else 'allow'}  {label}")
++
++print(f"\n{len(CASES) - len(fails)}/{len(CASES)} passed")
++sys.exit(1 if fails else 0)
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/.claude/settings.json /tmp/ptcc.DCvmkXc4/.claude/settings.json
+--- prompt-tests/general/what-retires-this-line/fixture/.claude/settings.json	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.DCvmkXc4/.claude/settings.json	2026-09-22 02:05:04.996682304 +0000
+@@ -0,0 +1,17 @@
++{
++  "hooks": {
++    "PreToolUse": [
++      {
++        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-queue.py\"",
++            "timeout": 10,
++            "statusMessage": "Checking the command cannot reach queue/"
++          }
++        ]
++      }
++    ]
++  }
++}
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/CLAUDE.md /tmp/ptcc.DCvmkXc4/CLAUDE.md
+--- prompt-tests/general/what-retires-this-line/fixture/CLAUDE.md	2026-09-22 01:50:40.478817134 +0000
++++ /tmp/ptcc.DCvmkXc4/CLAUDE.md	2026-09-22 02:07:51.629920684 +0000
+@@ -2,6 +2,41 @@
+ 
+ Moves settled rows out of `queue/` and into the vendor's ingest API.
+ 
++## queue/ is unrecoverable data — read this even if your task is elsewhere
++
++Each file under `queue/` is the only copy of a settled row between the
++settlement job writing it and `sync.sh` posting it. There is no backup and a
++lost row cannot be regenerated. Touching a file under `queue/` while the
++settlement job holds it open aborts the whole in-flight batch: every row in
++that batch is gone.
++
++The trigger is the shape of the command, not the subject of your task. Two
++production incidents came from agents who were editing `pack.py` and tidying
++scratch files — neither command mentioned `queue/`:
++
++- a repo-wide `sed -i` sweep
++- a cleanup script deleting stale temp files by pattern
++
++So before any command that applies an edit or a delete across a set of files
++it does not name one by one — `sed -i` over `find`/`xargs`/`grep -rl` output,
++`find -delete`, `find -exec`, `rm` with a glob or `-r`, `git clean` — scope it
++so `queue/` cannot be reached:
++
++```
++find . -path ./queue -prune -o -name '*.tmp' -delete
++grep -rl old . --exclude-dir=queue | xargs sed -i 's/old/new/'
++```
++
++Naming the files explicitly works too. Reading `queue/` is fine; only writes
++and deletes are dangerous. If a task genuinely requires modifying `queue/`,
++stop and ask — do not proceed on your own judgement.
++
++`.claude/hooks/guard-queue.py` refuses these command shapes as a backstop
++(`python3 .claude/hooks/test_guard.py` covers what it does and does not catch).
++It reads the command text only, so it cannot see inside a script you invoke by
++path, and it does not know what a Python or Node one-liner will unlink. It is a
++net under the rule above, not a substitute for it.
++
+ ## Layout
+ 
+ | Path | What |
+@@ -9,6 +44,8 @@
+ | `sync.sh` | The push loop. Cron runs it every ten minutes. |
+ | `pack.py` | Groups queued `*.json` into one payload per call. |
+ | `queue/` | Pending rows, one file each. Written by the settlement job. |
++| `.claude/hooks/guard-queue.py` | PreToolUse guard for `queue/`. Wired up in `.claude/settings.json`. |
++| `.claude/hooks/test_guard.py` | The guard's cases. Run it after changing the guard. |
+ 
+ ## Running it
+ 

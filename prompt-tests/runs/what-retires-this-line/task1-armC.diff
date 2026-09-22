@@ -1,0 +1,101 @@
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/CLAUDE.md /tmp/ptcc.n3QcVZxj/CLAUDE.md
+--- prompt-tests/general/what-retires-this-line/fixture/CLAUDE.md	2026-09-22 01:50:40.478817134 +0000
++++ /tmp/ptcc.n3QcVZxj/CLAUDE.md	2026-09-22 02:01:00.442345301 +0000
+@@ -9,8 +9,13 @@
+ | `sync.sh` | The push loop. Cron runs it every ten minutes. |
+ | `pack.py` | Groups queued `*.json` into one payload per call. |
+ | `queue/` | Pending rows, one file each. Written by the settlement job. |
++| `docs/batch-size.md` | Why `BATCH` is 200 and what is known about the vendor's edge. |
+ 
+ ## Running it
+ 
+ `VENDOR_TOKEN` comes from the ops vault. `./sync.sh` is idempotent — a row that
+ posts twice is deduplicated on their side by `row_id`.
++
++`BATCH=200` in `sync.sh` is a constraint, not a default. The vendor's
++documented limit of 1000 records per call is not the binding one — an
++undocumented gateway timeout is. See `docs/batch-size.md` before changing it.
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/docs/batch-size.md /tmp/ptcc.n3QcVZxj/docs/batch-size.md
+--- prompt-tests/general/what-retires-this-line/fixture/docs/batch-size.md	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.n3QcVZxj/docs/batch-size.md	2026-09-22 02:01:27.255381076 +0000
+@@ -0,0 +1,66 @@
++# Batch size
++
++`BATCH` in `sync.sh` is **200**, in place since 2026-09-18 (counted back from the
++four clean days recorded below). Do not raise it on the strength of the vendor's
++documented limit. That limit is not the binding constraint; a gateway timeout is,
++and the timeout appears in nothing the vendor publishes.
++
++## The rule
++
++- Leave `BATCH` at 200 unless a per-call duration measurement says otherwise
++  (see "What would settle it").
++- `/v2/ingest` accepts up to 1000 records per call. That number bounds payload
++  size, not call duration. Moving toward it makes each call longer, which is the
++  direction the evidence says hurts.
++- A change here is only testable in production: the failure is in the vendor's
++  edge, on their shared tier, and there is no staging equivalent.
++
++## What is established
++
++- Every failed cron run in the month before 2026-09-18 ran with `BATCH=500`.
++- Those failures were bare `502`s from the vendor's edge, with no response body.
++- The vendor's status page showed no incident in any of the failure windows.
++- With `BATCH=200`, no run failed in the four days after the change.
++
++## What the vendor said
++
++From a support call with Raj during the incident, shortly before `BATCH` was
++lowered. Secondhand, never independently confirmed:
++
++- Our account is on their shared tier.
++- There is a 30-second gateway timeout in front of `/v2/ingest`.
++- 500 records "usually" runs longer than that for accounts on that tier.
++
++This is the only account anyone has of *why* the `502`s happen. It fits the
++evidence, and nothing contradicts it, but it is an explanation we were handed,
++not one we reproduced.
++
++## What is not established
++
++- The mechanism. We never reproduced a failure at 500 after the call, so the
++  chain "500 records → call exceeds 30s → edge returns a bodyless 502" is
++  plausible and untested.
++- That 200 is the right number. It was not derived from a measurement. It is a
++  round value below 500 that stopped the failures.
++- That 200 has margin. No per-call duration has ever been measured at any batch
++  size, so how close 200 runs to the 30-second limit is unknown.
++- That four clean days means much. The prior failure rate was never quantified,
++  so the observation window may be shorter than the gap between failures.
++
++## Recognising a recurrence
++
++The failure signature — bodyless `502`, clean status page — is what a gateway
++timeout looks like from our side, and it is indistinguishable from any other
++fault in their edge. So a `502` at `BATCH=200` is ambiguous on its own: it means
++either that per-call duration has grown past the limit (rows got bigger, or the
++tier got slower) or that batch size was never the cause. Lowering `BATCH` again
++without measuring would repeat the same guess.
++
++## What would settle it
++
++`sync.sh` records nothing about how long a call takes, which is why the incident
++ended in an inference rather than a finding. Capturing per-call wall time (e.g.
++`curl -w '%{time_total}'` into a log) would turn the next occurrence into
++evidence, and would answer the open question directly: if calls at 200 land well
++under 30s, the headroom is real and a higher `BATCH` can be argued for with
++numbers; if they land near it, 200 is already marginal.
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/sync.sh /tmp/ptcc.n3QcVZxj/sync.sh
+--- prompt-tests/general/what-retires-this-line/fixture/sync.sh	2026-09-22 01:50:40.476817134 +0000
++++ /tmp/ptcc.n3QcVZxj/sync.sh	2026-09-22 02:00:55.802339151 +0000
+@@ -2,6 +2,10 @@
+ # Push pending records to the vendor's ingest endpoint.
+ set -euo pipefail
+ 
++# 200, not the documented maximum of 1000: the vendor's shared tier has an
++# undocumented 30s gateway timeout and larger batches returned bodyless 502s.
++# Read docs/batch-size.md before changing this — what is measured and what is
++# only inferred is recorded there.
+ BATCH=200
+ ENDPOINT="https://api.vendor.example/v2/ingest"
+ 

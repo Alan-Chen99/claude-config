@@ -2,6 +2,10 @@
 
 ## Patterns
 
+### mem-1790042873-a2c2
+> An adversarial prompt-test case meant to test WHERE text goes must not admit a non-text solution. Built one where a repo-wide hazard belongs in the always-loaded file; both arms wrote a .claude/hooks/ guard instead and the placement question never arose. Design the fixture so the only available lever is the one under test.
+<!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
+
 ### mem-1790041345-2f2f
 > Verify a doc compression with a differential probe, not a review: two fresh readers, one per version, same question ('what must you get right, what goes wrong if you miss it, would you notice'), no repo access. A reviewer who has read both versions knows the answer and cannot see a silently-removed trap. Cost: two single-turn subagents. It found one real loss and one contradiction.
 <!-- tags: docs, verification | created: 2026-09-22 -->
@@ -16,6 +20,10 @@
 
 ## Decisions
 
+### mem-1790042873-8b10
+> The sys_prompt 'Omit by default' bullet prices content by existence (maintenance, mis-reading), not by reach. Measured on one case, 2 runs per arm: with the block, everything went into the auto-loaded CLAUDE.md (+2.1 and +2.7 kB) and no new file was made; with the block deleted, CLAUDE.md grew +0.35 and +0.44 kB and the detail went to a separate file. Total bytes written was LOWER with the block and per-session cost was ~5x HIGHER. Hypothesis: creating a new file is a more conspicuous act of adding than appending to one already there, so omit-pressure suppresses the cheaper placement.
+<!-- tags: sys-prompt, docs | created: 2026-09-22 -->
+
 ### mem-1790041345-44ea
 > Hypothesis (untested): length hides contradictions by separation. 'One grader per arm' and 'give the grader both sessions A and B' sat ~300 lines apart in the long skill and its reader missed the conflict; at ~80 lines apart the compressed reader led with it. If true, compression is a correctness instrument, not only a cost cut, and a doc's error rate tracks distance between related claims rather than word count.
 <!-- tags: docs, compression | created: 2026-09-22 -->
@@ -26,6 +34,10 @@
 
 ## Fixes
 
+### mem-1790042866-d56c
+> The tested agent reads its own cwd (Claude Code environment block, scratchpad path, every shell prompt), so a prompt-test scratch directory built from the case name tells the agent what is being measured. Measured 2026-09-22: slug 45x and 64x in two transcripts, and both arms wrote a heading from the phrase the case was named for; zero and no heading after the runners moved to /tmp/ptcc.XXXXXXXX. Check with: grep -c '<case-slug>' on the transcript.
+<!-- tags: prompt-tests, contamination | created: 2026-09-22 -->
+
 ### mem-1790041345-5b39
 > docs/opencode-system-prompt/baselines/ was deleted at 42c9b9f2. Two live instruction files still cited into it as of iteration 2. When deleting a directory, grep the whole tree for its path before committing - a cleanup sweep that removes content without its citers leaves dead pointers in the files a grader is handed.
 <!-- tags: docs, cleanup | created: 2026-09-22 -->
@@ -35,7 +47,3 @@
 <!-- tags: prompt-tests, contamination | created: 2026-09-22 -->
 
 ## Context
-
-### mem-1790038068-3fef
-> prompt-tests case corpus is 14 cases as of 2026-09-22; 3 carry session-analysis foci (commit-own-changes, halve-the-runbook, subagent-foreground-default). Note subagent-foreground-default spells the heading without backticks, so grep patterns requiring them undercount.
-<!-- tags: prompt-tests | created: 2026-09-22 -->

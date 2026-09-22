@@ -1,0 +1,126 @@
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/CLAUDE.md /tmp/ptcc.5x9AdLOB/CLAUDE.md
+--- prompt-tests/general/what-retires-this-line/fixture/CLAUDE.md	2026-09-22 01:50:40.478817134 +0000
++++ /tmp/ptcc.5x9AdLOB/CLAUDE.md	2026-09-22 01:56:46.443034930 +0000
+@@ -9,8 +9,15 @@
+ | `sync.sh` | The push loop. Cron runs it every ten minutes. |
+ | `pack.py` | Groups queued `*.json` into one payload per call. |
+ | `queue/` | Pending rows, one file each. Written by the settlement job. |
++| `docs/batch-size.md` | Why `BATCH` is 200, what the 502 incident did and did not prove. |
+ 
+ ## Running it
+ 
+ `VENDOR_TOKEN` comes from the ops vault. `./sync.sh` is idempotent — a row that
+ posts twice is deduplicated on their side by `row_id`.
++
++`BATCH` is bounded by a 30-second gateway timeout at the vendor's edge, not by
++the 1000-record limit in their `/v2/ingest` docs. Oversized calls fail as bare
++`502`s with no body. Read `docs/batch-size.md` before changing the value: it
++records what the last investigation established, what it left unproven, and the
++measurement that would settle it.
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/docs/batch-size.md /tmp/ptcc.5x9AdLOB/docs/batch-size.md
+--- prompt-tests/general/what-retires-this-line/fixture/docs/batch-size.md	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.5x9AdLOB/docs/batch-size.md	2026-09-22 01:57:49.838106103 +0000
+@@ -0,0 +1,87 @@
++# Why `BATCH=200` in `sync.sh`
++
++## Working theory: the binding constraint is time, not record count
++
++Per vendor support, a **30-second gateway timeout** sits in front of
++`/v2/ingest`, and a call that exceeds it is killed at the edge. That is the
++theory `BATCH=200` acts on: `BATCH` is a *duration* budget and the record count
++is only a proxy for it. The theory fits every observation we have and no
++observation contradicts it, but it was never confirmed — see the table below
++before treating it as settled.
++
++It is enough to settle one thing regardless. `/v2/ingest` documents a limit of
++1000 records per call, and that limit governs what the endpoint will *accept*,
++not what the gateway in front of it will *wait for*. Under any reading of the
++evidence, the documented 1000 is not permission to raise `BATCH` to 1000.
++
++Support also puts the account on a **shared tier**. If that is right, per-call
++latency varies with load we do not control, and the same batch size could pass at
++one hour and fail at another. Whether our failures actually behaved that way is
++not recorded either way.
++
++## What is established, and how firmly
++
++| Claim | Basis | Strength |
++| --- | --- | --- |
++| Every failed cron run in the month before the change had `BATCH=500` | Our own run history | Solid |
++| No failure in the four days since `BATCH=200` | Our own run history; cron fires every 10 min, so ~575 invocations | Solid, but see below |
++| Failures were bare `502` from the vendor edge, no body | Our own logs | Solid |
++| There is a 30-second gateway timeout in front of `/v2/ingest` | Raj, vendor support, on a call | Single verbal source, unverified |
++| We are on the shared tier | Same call | Single verbal source, unverified |
++| 500 records "usually" exceeds 30s on the shared tier | Same call, and hedged by him | Single verbal source, hedged |
++| 500 records *causes* the timeouts | Inferred from the above | **Not established** |
++
++Known gaps, so they are not rediscovered:
++
++- **Causation was never demonstrated.** `BATCH=500` was never reproduced after
++  the support call. The change from 500 to 200 was not a controlled test; nothing
++  rules out a concurrent change on the vendor's side over the same days.
++- **The 500-record failure rate is unknown.** "Every failure ran at 500" does not
++  say every run at 500 failed. If runs at 500 also succeeded, record count alone
++  does not determine the outcome and shared-tier load is part of the mechanism.
++- **No call duration has ever been measured.** The quantity the whole theory
++  turns on is the one number nobody has. The `502`s are consistent with a
++  30-second timeout but were never timed against one.
++- **200 is chosen headroom, not a measured ceiling.** No batch size between 200
++  and 500 was tried. The largest safe batch is unknown; it is somewhere above
++  200 and probably below 500.
++- **Four clean days is thinner than the invocation count suggests.** Queue depth
++  per run is not recorded, and an invocation with few pending rows exercises
++  nothing. The number of clean runs at a *full* 200-row batch is unknown.
++
++## Ruled out
++
++Do not re-check these; they were checked during the incident and came back clean.
++
++- **Vendor incident.** Their status page showed nothing for any failure window.
++- **Response body detail.** The `502`s carry no body. There is no vendor-side
++  error message to find; absence of one is expected for an edge timeout.
++
++## Before changing `BATCH`
++
++Raising it re-opens a question that cost a morning. The cheap decisive move is
++to measure, not to bisect again:
++
++1. **Record per-call wall time and record count** for every call in `sync.sh`
++   (`curl -w '%{time_total}'`). One week of this data answers every gap above
++   and costs nothing.
++2. Then set `BATCH` from the observed p99 duration with real margin, rather than
++   from the record-count limit in the vendor's docs.
++
++Do not raise `BATCH` on the argument that the docs allow 1000, or that 200
++"seems conservative" — neither produces a duration measurement, and reasoning
++about this without one is what cost the morning this file records. A vendor
++statement that the timeout has been raised is a reason to measure, not a reason
++to raise `BATCH` on its own: the timeout claim in this file is itself a single
++unverified verbal source, and a second one is no firmer than the first.
++
++## When this record goes stale
++
++The 200 is justified only while the premises hold. It stops being the right
++value if any of these change, and the reasoning here should be redone rather
++than patched:
++
++- The account moves off the shared tier, or the vendor removes or raises the
++  30-second gateway timeout.
++- `pack.py`'s payload shape changes such that per-record processing cost moves.
++- Per-call durations get measured, which supersedes this entire file.
+diff -ruN prompt-tests/general/what-retires-this-line/fixture/sync.sh /tmp/ptcc.5x9AdLOB/sync.sh
+--- prompt-tests/general/what-retires-this-line/fixture/sync.sh	2026-09-22 01:50:40.476817134 +0000
++++ /tmp/ptcc.5x9AdLOB/sync.sh	2026-09-22 01:57:26.969079787 +0000
+@@ -2,6 +2,12 @@
+ # Push pending records to the vendor's ingest endpoint.
+ set -euo pipefail
+ 
++# BATCH is a duration budget, not a record budget: vendor support reports a
++# 30-second gateway timeout at their edge, which kills an overlong call as a bare
++# 502 with no body. 200 is chosen headroom, never a measured ceiling, and no call
++# duration has ever been measured. The 1000-record limit in the /v2/ingest docs
++# governs what the endpoint accepts, not what the gateway waits for.
++# Read docs/batch-size.md before changing this value.
+ BATCH=200
+ ENDPOINT="https://api.vendor.example/v2/ingest"
+ 

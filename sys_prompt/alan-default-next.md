@@ -187,7 +187,7 @@ End-of-turn summary: one or two sentences. What changed and what's next.
 
 Compaction summaries, subagent prompts, plans and specs, reports back to a parent agent, docs, CLAUDE.md entries — all of it is read cold, by a reader who cannot ask what you meant, cannot see what you left out, and will act on it as a premise.
 
-- Omit by default: Any content you write has to earn its place — its value must exceed the cost of maintaining and possible mis-reading.
+- Omit by default: Any content you write has to earn its place, priced by how often it will be read and by whom — a line in a file that every session loads is paid for by every session, including the ones it has nothing to do with.
 - Claim less: Think before making claims, especially those that may go stale. Often you are better off with a hint, warning or a [record] marker.
 
 # Session-specific guidance

@@ -1,107 +1,86 @@
 # Decision journal — writing-for-agents loop3
 
-## DEC-001 — `prompt-tests/CLAUDE.md` states no run result
-- **Chosen**: Strip every arm-level count, prediction and verdict from the file,
-  and write the rule into it with a mechanical test ("a sentence naming an arm, a
-  count, or an outcome does not belong here").
-- **Confidence**: 88.
-- **Alternatives**: keep staging graders outside `prompt-tests/` (the prior
-  mitigation); move the results to a sibling file; add a banner.
-- **Reasoning**: the file reaches a grader by a channel the grader cannot see or
-  decline. Staging is a procedure someone must remember; removing the payload is
-  a property of the file. A rule with a mechanical test is one a future writer
-  can apply without reading the history, which is the point.
-- **Re-evaluate**: if a grader is ever shown to need per-case results to judge —
-  then they belong in the staged inputs, chosen per run, not in an injected file.
-- **Framing bias**: I chose the rule that makes my own later rounds cheaper to
-  trust. A reader who wanted the historical results back would find this rule
-  convenient to me and costly to them.
-- **Independent evaluation**: not-started (must be a different iteration).
-- 2026-09-22T00:50:00Z
+Entries 001–005 are compressed to their durable content; the full reasoning is in
+the commit messages of `e5f53f92` and `843b812f`.
 
-## DEC-002 — delete `handoff-confidence` and `review-the-compression`; keep four
-- **Chosen**: delete both; keep `halve-the-runbook`, `relayed-rule-provenance`,
-  `found-set-closure`, `after-the-false-page`, each with a written justification
-  in the file a reader meets first.
-- **Confidence**: 70.
-- **Alternatives**: keep both; delete `found-set-closure` instead of
-  `handoff-confidence`; delete `after-the-false-page` as unrunnable.
-- **Reasoning**: `handoff-confidence` and `found-set-closure` are the same shape
-  — a subagent's short report to a parent that will not re-check — and the
-  guidance says build cross-domain cases rather than replicate. Of the two,
-  `found-set-closure`'s pressure is structural (the column type forbids the
-  qualifier), so its result is attributable to the text rather than to how hard
-  the task leaned. `review-the-compression` is green in both arms by its own
-  design; a case that cannot separate arms cannot change a belief about a prompt
-  edit, and it existed to watch for an unobserved future harm.
-- **Re-evaluate**: if a later round wants the social-pressure mechanism
-  `handoff-confidence` carried, rebuild it cross-domain rather than restoring it.
-- **Framing bias**: the burden I applied was on *keeping*, per the objective's
-  bias against things only a human can remove. Someone weighing corpus coverage
-  first would keep both and reach the opposite answer.
+## DEC-001 — `prompt-tests/CLAUDE.md` states no run result (iter 1, conf 88)
+Strip every arm-level count, prediction and verdict; the rule has a mechanical
+test. Why: the file reaches a grader by a channel the grader cannot decline, so
+removing the payload is a property of the file where staging is a procedure
+someone must remember. **Iter 2 evaluation**: sound; incompletely executed.
+**Iter 3 evaluation**: still holds; no counterexample found this round.
+
+## DEC-002 — delete `handoff-confidence` and `review-the-compression` (iter 1, conf 70)
+Burden placed on *keeping*, per the objective's bias against things only a human
+removes. **Iter 2**: reasoning holds. **Iter 3**: no change.
+
+## DEC-003 — leave `payments-relay/` in place (iter 1, conf 62)
+Its own clause: two rounds without action is evidence the deletion is not
+actually wanted. **This is round two of that count.** Iteration 4 either deletes
+it with its citers or the clause has said what it was going to say.
+
+## DEC-004 — compress by class-of-line, not by target length (iter 2, conf 84)
+Claim / restatement / duplicate-of-code / trap, cut in that order, stop at trap.
+**Iter 3 evaluation**: the rule is sound and I reused it, but its *verification*
+was over-trusted — see DEC-005 below and scratchpad C2. The decision was right;
+the evidence offered for it was thinner than recorded.
+
+## DEC-005 — verify a doc edit with a differential probe (iter 2, conf 80)
+Two fresh readers, one per version, same question, diff the lists.
+**Iter 3 evaluation — partially wrong as executed.** The instrument is good and
+its positive findings stand. Its *null* does not: the question asked pre-selects
+for enumerable preconditions, which is the class the compression rule keeps, so
+it structurally cannot detect a lost habit or posture. DEC-005's own re-evaluate
+clause said to try a second phrasing before trusting a null, and one phrasing
+ran. Confidence in the null: low. Confidence in the instrument: unchanged.
+
+## DEC-006 — fix cwd contamination in the runners, not in a naming rule
+- **Chosen**: scratch cwd becomes `/tmp/ptcc.XXXXXXXX` in all three runner
+  scripts; the skill gets a detection entry and the neutral `mktemp` in its
+  hand-rolled recipe. Case names stay descriptive.
+- **Confidence**: 92.
+- **Alternatives**: rename cases to opaque ids; add a rule that case names must
+  not describe the behaviour; hash the case name into the path.
+- **Reasoning**: the leak is real and was measured (slug 45× and 64× in two
+  transcripts; both arms wrote a heading from the phrase the case is named for;
+  zero occurrences and no heading after the fix). Opaque case names would move
+  the cost onto every human reader to protect the subject. A mechanism holds
+  without anyone remembering it and this one is checkable by grep, which is the
+  property a rule does not have.
+- **Re-evaluate**: if a future leak is found through a channel the scratch path
+  does not carry — the settings file, an env var, a fixture filename.
+- **Framing bias**: I found this bug by writing a case whose name was unusually
+  on-the-nose. A leak through a blander name would have been invisible to me, so
+  "fixed" here means "this channel is closed", not "the agent cannot tell".
 - **Independent evaluation**: not-started.
-- 2026-09-22T00:50:00Z
+- 2026-09-22T02:05:00Z
 
-## DEC-003 — leave `payments-relay/` in place this round
-- **Chosen**: fix the one statement in its README that my deletions falsified;
-  do not delete the archive.
-- **Confidence**: 62.
-- **Alternatives**: delete it now and repair the five citing lines.
-- **Reasoning**: deleting it means reading 12.9k words to know what five citations
-  in three live references lean on. That is a second milestone, and doing it
-  half-way leaves three references citing nothing — worse than the present state.
-- **Re-evaluate**: next round, as its own piece of work.
-- **Framing bias**: "next round" is how things survive indefinitely. If two more
-  rounds pass without it, that is evidence the deletion is not actually wanted.
+## DEC-007 — price written content by reach, not by existence
+- **Chosen**: replace the `# Writing for other agents` "Omit by default" bullet's
+  cost clause (`its value must exceed the cost of maintaining and possible
+  mis-reading`) with a price that has a unit: *how often it will be read and by
+  whom*, naming the always-loaded file as the expensive case.
+- **Confidence**: 74. Shipped. It did what it was meant to on the case that
+  motivated it (793 bytes into the always-loaded file, the lowest of five runs,
+  detail in `docs/`) and did not misfire on the adversarial pair (2251 bytes
+  into the always-loaded file where the content binds every session, against the
+  old wording's 2334). Held below 80 because the treatment arm is n=1 on one
+  fixture, and because the adversarial task admitted a non-text answer that both
+  arms took, so it tests the edit less sharply than it was built to.
+- **Alternatives**: delete the bullet; add a third bullet about placement; leave
+  it and write the finding up for iteration 4.
+- **Reasoning**: the current wording measurably reduces total volume and
+  measurably *increases* what lands in the file every session loads — 2.1–2.7 kB
+  into an auto-loaded `CLAUDE.md` in both of its runs, against 0.35–0.44 kB in
+  both runs with the block deleted. Maintenance and mis-reading cost are the same
+  wherever a line sits; per-session cost is not, and the bullet does not
+  distinguish them. Hypothesis for the mechanism: creating a new file is a more
+  conspicuous act of adding than appending to a file already there, so pressure
+  to omit suppresses the cheaper placement.
+- **Re-evaluate**: the effect is one case. A second case in a different domain
+  is the next thing that could overturn it.
+- **Framing bias**: I designed the probe after forming the hypothesis, and the
+  fixture's `CLAUDE.md` is small enough that appending to it is the obvious move.
+  A repo whose `CLAUDE.md` was already large might show no arm difference at all.
 - **Independent evaluation**: not-started.
-- 2026-09-22T00:50:00Z
-
-## DEC-004 — compress the skill by class-of-line, not by target length
-- **Chosen**: sort every line into claim / restatement / duplicate-of-code / trap,
-  cut in that order, stop at trap. No size target set before or during.
-- **Confidence**: 84.
-- **Alternatives**: cut to a word budget; cut only the sections a reader
-  demonstrably skips; leave it and probe the system prompt instead.
-- **Reasoning**: the objective forbids a human-set size limit, so the cut needs a
-  rule that decides each line on what it is. Only claims can be wrong; a wrong
-  recipe fails loudly where a wrong claim about a recipe fails silently; and
-  prescribing less than the source costs efficiency rather than correctness. That
-  makes deletion the default and each *keep* the thing needing an argument, which
-  is the polarity the objective wants.
-- **Re-evaluate**: if a later reader gets something wrong that the cut text
-  covered. The probe checked this once; one check is not the population.
-- **Framing bias**: a rule whose default is delete flatters an agent that has
-  already decided to delete. Someone who valued the corpus's coverage first would
-  demand an argument per cut instead, and would keep most of it.
-- **Independent evaluation**: not-started.
-- 2026-09-22T02:10:00Z
-
-## DEC-005 — verify a doc edit with a differential probe, not a review
-- **Chosen**: two fresh readers, one per version, asked what they would have to
-  get right and whether they would notice missing it; diff the two lists.
-- **Confidence**: 80.
-- **Alternatives**: self-review against the diff; a full prompt-test case; ship it.
-- **Reasoning**: the risk of a compression is a trap removed silently, and neither
-  a diff nor a reviewer who has read both versions can see that — they know the
-  answer. A reader holding only one version is in the position the compression
-  actually creates. It cost two single-turn subagents and it found both a real
-  loss and a contradiction the long version had hidden.
-- **Re-evaluate**: if a probe reader's list turns out to be shaped more by the
-  question than by the document — try a second phrasing before trusting a null.
-- **Framing bias**: asking "what would you have to get right" biases toward
-  enumerable preconditions and away from judgement the document shapes. A lost
-  *habit* would not show up in either list.
-- **Independent evaluation**: not-started.
-- 2026-09-22T02:10:00Z
-
-## Independent evaluations by iteration 2
-- **DEC-001** (grader-facing file states no run result): sound, and the rule held
-  up — it is mechanical enough that this iteration applied it to a second file
-  without re-reading the reasoning. Incompletely executed, not wrongly decided:
-  the same commit re-armed the defect in `SKILL.md` (scratchpad C1, C2).
-- **DEC-002** (delete two cases, keep four): reasoning holds. The stated bias —
-  burden on keeping — is the right polarity for this objective, and the surviving
-  justifications are written where a reader meets them.
-- **DEC-003** (leave `payments-relay/`): its own re-evaluation clause says two more
-  rounds without action is evidence the deletion is not wanted. One round has
-  passed; this is round two of that count.
+- 2026-09-22T02:05:00Z
