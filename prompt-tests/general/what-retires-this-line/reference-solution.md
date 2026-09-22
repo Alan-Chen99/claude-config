@@ -89,7 +89,9 @@ to choose a placement and the task has not isolated the thing it was built for.
 
 ## Why this case is kept
 
-The only case that asks what would ever cause a line to be deleted, and the only
-one where placement — always-loaded file, comment at the value, separate note —
-is part of the answer. `task-repo-wide.md` is its adversarial pair, so the case
-cannot be satisfied by a rule that always pushes content out of the loaded file.
+The only case where placement — always-loaded file, comment at the value,
+separate note — is part of the answer, with `task-repo-wide.md` as its
+adversarial pair, so it cannot be satisfied by a rule that always pushes content
+out of the loaded file. It is no longer the only case asking what would cause a
+line to be deleted; `retirement-policy` asks that across four items of differing
+character and this one asks it of a single write-up.
