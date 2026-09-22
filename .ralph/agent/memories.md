@@ -2,6 +2,10 @@
 
 ## Patterns
 
+### mem-1790043360-e05f
+> The prompt-test cwd leak (case slug in the agent's cwd) does NOT automatically invalidate an arm comparison: the slug is constant across arms, so it cannot produce a between-arm difference, and if the baseline arm carrying the same cwd did not show the behaviour, the cwd alone is not sufficient for it. What it does invalidate is any claim about an arm's ABSOLUTE behaviour. Checked against the 2026-09-13 commit-own-changes trials before nearly deleting sound evidence.
+<!-- tags: prompt-tests, contamination | created: 2026-09-22 -->
+
 ### mem-1790042873-a2c2
 > An adversarial prompt-test case meant to test WHERE text goes must not admit a non-text solution. Built one where a repo-wide hazard belongs in the always-loaded file; both arms wrote a .claude/hooks/ guard instead and the placement question never arose. Design the fixture so the only available lever is the one under test.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->

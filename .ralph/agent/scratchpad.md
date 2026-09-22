@@ -30,7 +30,7 @@ conflicting sentences ~300 lines apart went unnoticed by the long version's
 reader and were led with at ~80 lines apart. If true, a document's error rate
 tracks the distance between related claims rather than its word count.
 
-## Iteration 3 — `0f176202` → (see end)
+## Iteration 3 — `0f176202` → `bab1e3ff`
 
 ### Critique of iterations 1–2
 
@@ -158,3 +158,26 @@ note and nothing has measured it); `payments-relay/`, whose two-round clause is
 now spent (DEC-003); `after-the-false-page`, still not runnable and the only case
 that measures a document *growing*; `prompt-tests/CLAUDE.md` at ~7.5k tokens,
 never put through the compression rule.
+
+Found and not touched: `docs/opencode-system-prompt/trials/`, 22.8k tokens of
+pass/fail-stamped records under a design that rejects pass/fail, several for
+cases iteration 1 deleted. `prompt-tests/CLAUDE.md:113` says "Leave them as they
+are", which is the permanence this objective is against. Deleting them means
+sweeping citers across `notes/compliance-check-failure-mode/`, which quotes the
+paths as observations of what agents read — that is a milestone, not a tail. Good
+candidate for the fifth-round cleanup.
+
+### A near-miss worth keeping
+
+The cwd leak was live for every run these scripts ever made, including the
+2026-09-13 `commit-own-changes` trials that `sys_prompt/CLAUDE.md`'s `# Git`
+section rests on — a case whose slug reads as an instruction to do the thing
+being measured. I was about to withdraw that evidence. It holds: the slug is
+constant across arms so it cannot produce a difference between them, and the
+baseline arm carrying the same cwd did not commit. Only the green arm's absolute
+behaviour is unattributable. The general rule is in memories; the specific note
+sits with the artifacts so it dies when they do.
+
+The move that caught it was reading the claim the evidence supports before
+deciding the evidence was bad. "Contaminated" is not a verdict on a run; it is a
+question about which claims that run can still carry.
