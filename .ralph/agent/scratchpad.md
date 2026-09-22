@@ -99,88 +99,18 @@ Detail is in commit messages; anything justifying a prompt line is in
 shipped no edit and established that three wordings aimed at claim-handling all
 failed, because the node is premise **provenance**, not wording.
 
-## Iteration 10 — `01caa239` → `f7f28398` (+ this commit)
+## Iteration 10 — `01caa239` → `391c35d0`
 
-### Critique of iterations 1–9
+Cleanup priced by reach (`prompt-tests/CLAUDE.md` 137→31 lines, one job per file
+across the three that stated the prompt-testing design, `sys_prompt/CLAUDE.md`
+8401→7419 with per-round narrative gone). **Instrument defect, durable:** every
+Claude Code trial for nine rounds wrote `.prompt-test-settings.json` into the
+tested agent's cwd and the opencode runner's scratch cwd was literally
+`/tmp/prompt-test.XXXXXXXX`; the contamination rule banned the *case* name and
+nobody checked the *category* name. Fixed in all three runners. No arm stored
+before 2026-09-22 is comparable to one run after it.
 
-**C1 (workflow).** Iter 9's `(instruction)` ordered this cleanup by line count,
-and omitted `prompt-tests/CLAUDE.md` entirely — the only file in the set that
-attaches itself to sessions that did not ask for it, including every grader, and
-the most duplicated. Ordering by size is how a cleanup misses the file that costs
-most. The prompt already ships the rule that fixes this (`Omit by default`,
-priced by reach); no round had applied it to this repo's own documents.
-
-**C2 (fact).** Three files stated the prompt-testing design and had drifted:
-`prompt-tests/CLAUDE.md` told a grader to read a session with `--agent`, the
-skill told it `--skeleton` under the `session-analysis` protocol. Two wordings,
-nothing saying which governs — the loop's own compression-rule class 2, sitting
-in the loop's own instrument for nine rounds.
-
-**C3 (fact).** `sys_prompt/CLAUDE.md`'s `# Writing for other agents` ran 1921
-tokens to justify three bullets totalling ~120, and about half documented lines
-that are **not in the prompt**. Its stated job is "reasoning cut from the prompt";
-what it had accumulated was each round's run narrative, which the user's rules
-make non-citable across rounds. The loop was manufacturing the objective's ratchet
-in the file it writes most.
-
-**C4 (fact, instrument).** Every Claude Code trial for nine rounds wrote
-`.prompt-test-settings.json` into the tested agent's working directory, and the
-opencode runner's scratch cwd was literally `/tmp/prompt-test.XXXXXXXX`. The
-contamination rule bans the *case* name in the cwd; nobody checked the *category*
-name. Found because this round's probe listed its cwd and named the file back.
-**Every arm stored before this round is not comparable to one run after it.**
-
-Checked and **not** a concern, against my own assumption: the user's
-`halve-the-runbook` instructions were done (fixture is the real
-`update-claude-code/SKILL.md` verbatim, no bands or axes, no factual-question
-grading), and all 16 cases already carry a `## Why this case is kept`.
-
-### The round's work
-
-Cleanup, priced by reach: `prompt-tests/CLAUDE.md` 137 lines → 31 (it keeps only
-the rule about itself — the Read-path attachment channel — and points at the
-skill); `docs/prompt-testing-design.md` reasoning only, no instructions;
-`.claude/skills/prompt-tests/SKILL.md` instructions only, no reasoning, plus the
-three rules that were stranded in `prompt-tests/CLAUDE.md`. `sys_prompt/CLAUDE.md`
-8401 → 7419 tokens with the narrative gone and the semantics kept. Harness fixed
-in all three runner scripts.
-
-### The probe — `restated-cap`, one arm, pre-registered
-
-One fact written in a README, a runbook, a contributing guide and a docstring;
-a change that falsifies all four; nothing in the task mentions documentation.
-Five opportunities differing in character, so one run reads as a policy.
-
-Result and its limits are in `prompt-tests/runs/restated-cap/README.md`. The
-finding: **4 statements in, 4 statements out.** All four were found by grep and
-corrected, derived arithmetic included and empirically checked. The restatement
-count is never weighed, mentioned or noticed — the maintenance succeeds, so
-nothing registers that the next change costs four edits and will silently become
-three. That is growth with no failure event attached to it, and no bullet in the
-block reaches it.
-
-Also, not attributable at one arm: the rule whose stated cause had expired was
-rewritten with the old cause retired and the new number's basis named, and the
-prohibition it replaced was deleted rather than reissued — `Say what ends it`'s
-predicted behaviour on a fixture other than the one it was measured on, and its
-feared boilerplate failure absent.
-
-No prompt edit shipped. The iter-6 contract is satisfied by the paragraph in
-`sys_prompt/CLAUDE.md` saying what the measurement showed and why one arm cannot
-carry a line.
-
-### `(instruction)` for iteration 11
-
-1. **The target is the restatement count.** `restated-cap` is the fixture and the
-   task is unchanged. **Re-run the baseline** — arm A predates the C4 harness fix
-   and is not comparable to anything run after it.
-2. **Pre-register the death condition.** The likeliest bad outcome of any line
-   here is an agent writing pointers where a sentence served the reader better.
-   A treated arm that collapses statements while making any single file worse to
-   read alone kills the candidate.
-3. Do not re-run `retirement-policy` to confirm its bullet; its condition is a
-   comparison, not a repetition.
-4. Cleanup is done for this cycle. Do not spend iteration 11 on documents.
+Probe `restated-cap`, one arm — void, see iteration 11's C1. No prompt edit.
 
 ## Iteration 11 — `391c35d0` → (see end)
 
@@ -215,3 +145,44 @@ state no retirement condition at all, so iter 9's `(contract)` — retired by th
 condition its own README states — can never fire on them. That is the objective's
 ratchet, manufactured inside the instrument. Overriding iter 10's instruction 4
 only far enough to delete them: it is a `rm`, not a milestone.
+
+### The round's work
+
+Deleted the four stored run directories: every arm in them was declared
+incomparable by iteration 10's own harness finding, and three state no retirement
+condition at all, so the iter-9 `(contract)` could never fire on them. The skill
+now requires a stored run's README to state what deletes it.
+
+`restated-cap`, two arms, pre-registered with a channel per reading. Result in
+`prompt-tests/runs/restated-cap/README.md`. **The candidate bullet — price a copy
+before adding one — does not ship, and the reason rules out its phrasing rather
+than its wording: no copy is added.** Both arms wrote a fact the fixture did not
+contain into every document they touched, because every one of those documents
+already carried a sentence the change falsified; the new fact entered during the
+correction. A rule naming the moment of adding a copy names a moment that does
+not occur.
+
+Second finding, unlooked-for: the arms diverged on whether to overrule
+`CONTRIBUTING.md`'s rule at all — A rewrote it at the new figure, B declined and
+handed the unverifiable half back. Both defensible, both reported. That is
+baseline spread on the behaviour `Say what ends it` was read against in rounds 9
+and 10, so both of those readings sampled one side of it. Written into
+`sys_prompt/CLAUDE.md`.
+
+`sys_prompt/CLAUDE.md` 7419 → 7417 with both findings in and two narrative
+clauses out, satisfying the iter-9 no-edit clause.
+
+### `(instruction)` for iteration 12
+
+1. **The lever moved.** Neither arm gave the new fact a home in a document that
+   did not already discuss the subject — but the fixture has no such document, so
+   this is **unobserved, not established**. If the restatement count is bounded by
+   how many documents already carry the subject, then the growth lever is at
+   *document creation*, which `Omit by default` already prices, and the
+   restatement line of attack is finished. Settle that first: one probe, a fixture
+   where a plausible-but-silent host document exists.
+2. Do not re-run `restated-cap` for the accretion finding. Its subject-bearing
+   sentences are what produced it; delete the case and the run directory together
+   once (1) has its own fixture.
+3. `Say what ends it`'s two-sided spread is now on record. Any round reading a
+   rule-overruling fixture at one arm states which side it sampled.

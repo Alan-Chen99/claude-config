@@ -28,65 +28,47 @@ durable method in scratchpad (*buy resolution inside the run*) and its finding i
 `sys_prompt/CLAUDE.md`. Framing bias both recorded: each fitted a wording to the
 run before it. Independent evaluation: not-started.
 
-## DEC-013 — ship `Say what ends it` (iter 9, conf 76)
-- **Chosen**: add the bullet, measured against a two-arm probe on a four-item
-  fixture. Baseline stated one end-condition, treated three, in three forms
-  matched to three characters, writing 1202 bytes less.
-- **Alternatives**: ship nothing, on the ground that O2's antecedent is borderline
-  (rejected — the borderline reading counts the report channel, and the
-  pre-registration's read section names the artifact); aim at the register defect
-  instead, which neither arm handled (rejected — not measured this round, and
-  the contract forbids composing a target after the arms land).
-- **Reasoning**: the invariant is where the ratchet is sharpest, and it is exactly
-  where the baseline wrote a permanent rule and the treated arm wrote an exit.
-  That is the objective's sharpest clause, bought for 45 tokens and negative
-  bytes.
-- **Re-evaluate**: the condition is in `sys_prompt/CLAUDE.md` and is a comparison.
-  Do not re-run the same fixture to confirm it.
-- **Framing bias**: I wrote the fixture's four characters from the shape of the
-  line I intended to test, so the gradient is built around the distinction the
-  bullet makes. A fixture built by someone testing a different line would sort
-  these four differently.
-- **Independent evaluation**: not-started.
-- 2026-09-22T05:30:00Z
+## DEC-013 — ship `Say what ends it` (iter 9); DEC-014, DEC-015 — discharged (iter 10)
+DEC-013 shipped the bullet; its retirement condition, and the two-sided spread
+iteration 11 found underneath it, are in `sys_prompt/CLAUDE.md`. Do not re-run
+its fixture to confirm it. DEC-014 (cut by reach, not by the instructed order)
+and DEC-015 (ship no line off a one-arm probe) are both spent — DEC-015 by
+DEC-016. Framing bias recorded on all three: each fixture was written from the
+shape of the line its round intended to test. Independent evaluation:
+not-started.
 
-## DEC-014 — cut by reach, not by the instructed order (iter 10, conf 84)
-- **Chosen**: reorder the cleanup around which file reaches a reader unasked, and
-  add `prompt-tests/CLAUDE.md` — absent from iteration 9's list — as the first
-  target, because it attaches itself to every session that Reads a path under
-  `prompt-tests/`, graders included.
-- **Alternatives**: follow the instructed line-count order (rejected — size is not
-  what the objective prices, and the largest file in the set was the one nobody
-  is forced to open); cut nothing and spend the round measuring (rejected — every
-  fifth round is a cleanup round and three documents had drifted apart).
-- **Reasoning**: the prompt already ships this exact rule (`Omit by default`,
-  priced by reach). Nine rounds shipped it without applying it here.
-- **Re-evaluate**: if a session is observed needing a contamination or grading rule
-  that now lives only in the skill and failing to load the skill, the split is
-  wrong and the rules go back into the auto-attached file.
-- **Framing bias**: I chose reach as the price because the prompt line I was
-  measuring says to. A round optimising for a reader who greps would order these
-  differently.
+## DEC-016 — kill the copy-pricing line on its mechanism, not its score (iter 11, conf 87)
+- **Chosen**: no prompt edit. The bullet is rejected because the act it names
+  ("before adding a copy") does not occur — new facts enter documents during the
+  rewrite of a sentence the change falsified.
+- **Alternatives**: try a second wording (rejected — the null is explained by the
+  mechanism, so another wording of the same shape is predicted to null too);
+  ship it on arm B's "three doc sites" line (rejected — confounded, arm B was
+  pricing a pending change arm A never had).
+- **Reasoning**: a null whose cause is understood retires a whole family of
+  candidate lines; a null read as a score retires nothing and invites replication.
+- **Re-evaluate**: if a fixture with a plausible-but-silent host document shows an
+  agent giving a new fact a home where the subject was absent, addition is real
+  after all and the family reopens.
+- **Framing bias**: I designed both the fixture's subject coverage and the reading
+  that found the mechanism. Every document in the fixture mentions retries, which
+  is what makes accretion the only available route — a fixture built by someone
+  else might not be so clean.
 - **Independent evaluation**: not-started.
-- 2026-09-22T05:40:00Z
+- 2026-09-22T06:05:00Z
 
-## DEC-015 — ship no prompt line off a one-arm probe (iter 10, conf 88)
-- **Chosen**: record the restatement-count finding as a semantic claim with its
-  hypothesis and hand iteration 11 a pre-registerable target, rather than write a
-  bullet now.
-- **Alternatives**: ship a line telling agents to make one statement govern
-  (rejected — the user's rule requires a prompt test showing it functions as
-  intended plus adversarial understanding of negative effects, and one arm with
-  no comparison is neither); drop the finding (rejected — it is the first
-  observation of the growth mechanism with no failure event attached).
-- **Reasoning**: the observed behaviour was *correct* on every axis the run could
-  score. A line aimed at it trades a real reader cost (a pointer is worse than a
-  sentence for someone who opens one file) against a cost that never materialises
-  in a single session. That trade needs two arms.
-- **Re-evaluate**: iteration 11, on a re-run baseline. If a treated arm collapses
-  statements and any single file gets worse to read alone, the line dies.
-- **Framing bias**: the fixture's four statements were written by me to be
-  obviously redundant. A real repository's restatements usually differ in
-  audience, and collapsing those is a worse idea than collapsing these.
+## DEC-017 — delete stored runs that state no retirement condition (iter 11, conf 92)
+- **Chosen**: delete all four pre-fix run directories; require the condition in
+  the skill so the next record is retirable when written.
+- **Alternatives**: retrofit conditions onto them (rejected — a condition written
+  by someone who did not run the arm is a guess, and the arms are incomparable
+  anyway); keep them as history (rejected — git is the history).
+- **Reasoning**: a directory removable only by a human who reads it is exactly the
+  artefact the objective names, and it had accumulated inside the instrument built
+  to find it.
+- **Re-evaluate**: if a round needs a pre-2026-09-22 artifact and finds git
+  archaeology too expensive, the deletion was too aggressive.
+- **Framing bias**: I am the round that benefits from a smaller tree and pays none
+  of the cost of the deletion.
 - **Independent evaluation**: not-started.
-- 2026-09-22T05:40:00Z
+- 2026-09-22T06:05:00Z

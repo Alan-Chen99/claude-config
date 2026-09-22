@@ -2,9 +2,13 @@
 
 ## Patterns
 
-### mem-1790055498-07c2
-> Growth mechanism observed (iter 10, restated-cap probe, n=1): one fact stated in four places stayed in four places. The agent found all four by grep and corrected all four including derived arithmetic. Nothing in the session weighed the restatement count. Hypothesis: a defect that costs nothing this time is the one that accumulates -- where maintenance succeeds every round, no failure event is ever attached to the quantity that is growing.
-<!-- tags: prompt, documentation, growth | created: 2026-09-22 -->
+### mem-1790056288-d79b
+> alan-default-next.md at 391c35d0 spans two answers when a task contradicts a written rule whose cause the task retires: rewrite the rule at the new figure recording what the new number rests on, OR decline the change and hand the unverifiable half back. Two arms differing only in an unrelated bullet took one each, both reporting the open question. Read any single-arm run of a rule-overruling fixture as a sample of that spread.
+<!-- tags: prompt-tests, sys-prompt | created: 2026-09-22 -->
+
+### mem-1790056284-4f2f
+> Documentation restatement grows by ACCRETION, not addition: an agent handed a change that falsifies a sentence rewrites that sentence, and any new fact rides into the rewrite. Every document already carrying the subject acquires the new fact; no moment exists at which a copy is 'added'. Measured on restated-cap, two arms, 2026-09-22. Consequence: any prompt rule phrased around 'before adding a copy' names an act that never happens and nulls.
+<!-- tags: prompt-tests, writing-for-agents | created: 2026-09-22 -->
 
 ### mem-1790052470-b93e
 > An artifact's uncertainty structure tracks the READER the task names, not the artifact's cold-read-ness. Same fixture, same prompt: asked for an on-call runbook the agent re-asserted an inherited vendor guarantee and added no confidence structure; asked for a brief for 'another agent in a fresh session with no access to this conversation' it labelled every section by distance from evidence and attacked the same inherited claim. Untested which half of the prompt does this - the '# Writing for other agents' block opens on readers who cannot ask what you meant, which is the brief task's literal wording. A deletion arm on that block would settle it.
@@ -35,10 +39,6 @@
 ### mem-1790055493-2a80
 > Three files stated the prompt-testing design (prompt-tests/CLAUDE.md, .claude/skills/prompt-tests/SKILL.md, docs/prompt-testing-design.md) and had drifted to contradictory reading commands. Split applied iter 10: the skill carries instructions, the design doc carries reasoning, and prompt-tests/CLAUDE.md carries only the rule about itself, because it auto-attaches on the Read path.
 <!-- tags: prompt-tests, documentation | created: 2026-09-22 -->
-
-### mem-1790041345-44ea
-> Hypothesis (untested): length hides contradictions by separation. 'One grader per arm' and 'give the grader both sessions A and B' sat ~300 lines apart in the long skill and its reader missed the conflict; at ~80 lines apart the compressed reader led with it. If true, compression is a correctness instrument, not only a cost cut, and a doc's error rate tracks distance between related claims rather than word count.
-<!-- tags: docs, compression | created: 2026-09-22 -->
 
 ## Fixes
 
