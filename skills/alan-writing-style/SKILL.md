@@ -15,6 +15,8 @@ Same content, Alan's shape and sentences. In practice the agent writes first and
 
 Rewrite and write output the text and nothing else: no preamble, no list of what changed. Check outputs the list and nothing else.
 
+Source material given with the input (a fact sheet, the artifact the text is about) is usable in every job: quote the artifact from it rather than from the draft's paraphrase. Add no fact the input and the material do not carry.
+
 ## Registers
 
 - `doc` (default): README, notes, specs, status reports, anything read later by someone else. Capitalized sentences, no contractions, no typos.
