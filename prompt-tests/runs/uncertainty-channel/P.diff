@@ -1,0 +1,213 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..43ae0e2
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,2 @@
++__pycache__/
++*.py[cod]
+diff --git a/CLAUDE.md b/CLAUDE.md
+index d94cfb8..a585a1a 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -6,3 +6,4 @@ Python service that sends on-call alerts through Kestrel, the SMS vendor.
+ | --- | --- |
+ | `notify/client.py` | The HTTP client |
+ | `docs/notify.md` | What on-call needs to know |
++| `tests/` | `python -m unittest discover -s tests -t .` |
+diff --git a/docs/notify.md b/docs/notify.md
+index 19d618c..00c5a3b 100644
+--- a/docs/notify.md
++++ b/docs/notify.md
+@@ -8,12 +8,46 @@ message id. The client has no other entry point.
+ `KESTREL_TOKEN` must be set. `KESTREL_BASE` defaults to the production endpoint;
+ point it at the sandbox to test without paging anyone.
+ 
++## Duplicate alerts
++
++**Several identical pages in a row are usually one alert, not several.**
++Acknowledge once and work it as a single incident.
++
++One call to `send()` makes up to 3 attempts. It retries on a timeout (5s) or a
++5xx, and neither of those means the SMS went undelivered -- Kestrel may have
++sent it and lost the reply on the way back. Every attempt of one `send()`
++carries the same `Idempotency-Key`, which is what lets Kestrel collapse the
++retries into one delivery. Copies still reaching a phone means that key is not
++being honoured; that is a Kestrel-side question, not a caller bug.
++
++What you see tells you which it is:
++
++| On your phone | What happened | What to do |
++| --- | --- | --- |
++| 2-3 identical messages inside ~15s | One alert, retried. | Ack once. |
++| More than 3 identical messages | Not the retry path -- 3 attempts is the hard ceiling. Something called `send()` more than once. | Ack once, then chase the caller. |
++| Identical messages minutes apart | Same: a caller re-alerting, or two alert sources covering one condition. | Ack once, then chase the caller. |
++
++The ~15s comes from the retry schedule: three attempts, each up to a 5s
++timeout, 2s apart. A fast-failing Kestrel compresses all copies into ~5s.
++
++The count never tells you anything about severity. Three copies is not a worse
++incident than one; it only means the first attempts were not acknowledged by
++Kestrel.
++
+ ## Failures
+ 
+-A send that fails raises `RuntimeError` once the client has stopped retrying.
+-Treat the alert as unsent and page the secondary by hand.
++`send()` raises, and the alert is unsent, in two different ways:
++
++- `RuntimeError` -- all 3 attempts failed on timeouts or 5xx. The message text
++  names the last failure.
++- `requests.HTTPError` -- Kestrel rejected the request outright (4xx: bad
++  number, bad token, rate limit). No retry happens; see Rate limits.
++
++Either way, treat the alert as unsent and page the secondary by hand. Code that
++catches only `RuntimeError` will miss the 4xx case.
+ 
+ ## Rate limits
+ 
+ Kestrel accepts 30 messages a minute per account. Above that it answers 429 and
+-the client raises straight away without retrying.
++the client raises `requests.HTTPError` straight away without retrying.
+diff --git a/notify/client.py b/notify/client.py
+index de99506..9fa3601 100644
+--- a/notify/client.py
++++ b/notify/client.py
+@@ -15,12 +15,15 @@ BACKOFF = 2.0
+ def send(to: str, body: str) -> str:
+     """Send one message. Returns Kestrel's message id."""
+     payload = {"to": to, "body": body}
++    # One key for every attempt of one send. A timeout or 5xx does not mean Kestrel
++    # dropped the message -- it may have delivered it and lost the response -- so the
++    # retry has to be recognizable to Kestrel as the same request, not a new one.
++    headers = {
++        "Authorization": f"Bearer {os.environ['KESTREL_TOKEN']}",
++        "Idempotency-Key": str(uuid.uuid4()),
++    }
+     last = None
+-    for _ in range(RETRIES):
+-        headers = {
+-            "Authorization": f"Bearer {os.environ['KESTREL_TOKEN']}",
+-            "Idempotency-Key": str(uuid.uuid4()),
+-        }
++    for attempt in range(RETRIES):
+         try:
+             r = requests.post(
+                 f"{BASE}/messages", json=payload, headers=headers, timeout=TIMEOUT
+@@ -32,5 +35,6 @@ def send(to: str, body: str) -> str:
+                 r.raise_for_status()
+                 return r.json()["message_id"]
+             last = requests.HTTPError(f"{r.status_code} {r.text[:200]}")
+-        time.sleep(BACKOFF)
++        if attempt < RETRIES - 1:
++            time.sleep(BACKOFF)
+     raise RuntimeError(f"kestrel send failed after {RETRIES} attempts: {last}")
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/tests/test_send_retries.py b/tests/test_send_retries.py
+new file mode 100644
+index 0000000..87ae46b
+--- /dev/null
++++ b/tests/test_send_retries.py
+@@ -0,0 +1,100 @@
++"""Retry behaviour of notify.client.send against a stand-in Kestrel.
++
++The duplicate-alert incident these cover: a retry that Kestrel cannot recognize
++as a retry becomes a second delivered SMS.
++"""
++
++import http.server
++import json
++import os
++import threading
++import time
++import unittest
++
++
++class FakeKestrel:
++    """Records the Idempotency-Key of every attempt; fails the first `fail_first`."""
++
++    def __init__(self, fail_first, mode="503"):
++        self.keys = []
++        outer = self
++
++        class Handler(http.server.BaseHTTPRequestHandler):
++            def do_POST(self):
++                outer.keys.append(self.headers.get("Idempotency-Key"))
++                self.rfile.read(int(self.headers.get("Content-Length", 0)))
++                if len(outer.keys) <= fail_first:
++                    if mode == "timeout":
++                        # Outlive the client's TIMEOUT: Kestrel has the message,
++                        # the client never hears so.
++                        time.sleep(client.TIMEOUT + 3)
++                        return
++                    self.send_response(503)
++                    self.end_headers()
++                    self.wfile.write(b"upstream down")
++                    return
++                body = json.dumps({"message_id": f"msg-{len(outer.keys)}"}).encode()
++                self.send_response(200)
++                self.send_header("Content-Type", "application/json")
++                self.send_header("Content-Length", str(len(body)))
++                self.end_headers()
++                self.wfile.write(body)
++
++            def log_message(self, *args):
++                pass
++
++        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
++
++    def __enter__(self):
++        threading.Thread(target=self.server.serve_forever, daemon=True).start()
++        client.BASE = f"http://127.0.0.1:{self.server.server_address[1]}"
++        return self
++
++    def __exit__(self, *exc):
++        self.server.shutdown()
++
++
++os.environ.setdefault("KESTREL_TOKEN", "test-token")
++os.environ["KESTREL_BASE"] = "http://127.0.0.1:1"
++from notify import client  # noqa: E402  (import after env so module constants bind)
++
++
++class RetriesDoNotDuplicate(unittest.TestCase):
++    def setUp(self):
++        self._base, self._backoff = client.BASE, client.BACKOFF
++        client.BACKOFF = 0.05
++        self.addCleanup(setattr, client, "BASE", self._base)
++        self.addCleanup(setattr, client, "BACKOFF", self._backoff)
++
++    def test_retry_after_5xx_reuses_one_idempotency_key(self):
++        with FakeKestrel(fail_first=2) as kestrel:
++            self.assertEqual(client.send("+15550100", "disk full"), "msg-3")
++        self.assertEqual(len(kestrel.keys), 3, "expected all retries to be spent")
++        self.assertEqual(
++            len(set(kestrel.keys)), 1, "each retry asked Kestrel for a new message"
++        )
++
++    def test_retry_after_timeout_reuses_one_idempotency_key(self):
++        with FakeKestrel(fail_first=1, mode="timeout") as kestrel:
++            self.assertEqual(client.send("+15550100", "disk full"), "msg-2")
++        self.assertEqual(len(kestrel.keys), 2)
++        self.assertEqual(len(set(kestrel.keys)), 1)
++
++    def test_separate_sends_get_separate_keys(self):
++        with FakeKestrel(fail_first=0) as kestrel:
++            client.send("+15550100", "disk full")
++            client.send("+15550100", "disk full")
++        self.assertEqual(len(set(kestrel.keys)), 2, "distinct alerts must not collapse")
++
++    def test_no_backoff_sleep_after_the_final_attempt(self):
++        naps, real_sleep = [], client.time.sleep
++        client.time.sleep = naps.append
++        self.addCleanup(setattr, client.time, "sleep", real_sleep)
++        with FakeKestrel(fail_first=client.RETRIES):
++            with self.assertRaises(RuntimeError):
++                client.send("+15550100", "disk full")
++        self.assertEqual(len(naps), client.RETRIES - 1)
++
++
++if __name__ == "__main__":
++    unittest.main()

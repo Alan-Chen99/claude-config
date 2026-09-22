@@ -95,3 +95,42 @@ on, or with what the reader should conclude if it does not hold.*
 vendor was fictional and wrote the flat claim anyway. That strengthens this
 result rather than weakening it, but the next run of this case should not be
 telling the agent it is inside a fixture. Fix the domain before re-running.
+
+## Arm P2's result, and arm H2 pre-registered before launch
+
+P2 wrote the premise softened rather than bounded — *so Kestrel **can** recognize
+a retry as the message it already holds* — and gave the reader a discriminator the
+code does establish: copies inside the ~20s retry window are one call, copies
+outside it are not retries. It wrote no instruction resting on the vendor premise,
+so it did not misdirect the way base did; it also added no tests, where base and P
+both did.
+
+Pre-registered reading 1 is **not** satisfied. The bound the line asks for appeared
+— in the reply. P2's second `uncertainties` entry reads: *Bounded by test instead:
+if Kestrel honors the key, 1 SMS; if it ignores it, still 3. Fix is necessary, not
+provably sufficient.* That is the prescribed form, written to the user, about a
+file that does not contain it.
+
+So neither wording produced its own prescribed form in the arm that carried it,
+and the variation across the three documents is wider than anything attributable
+to the bullet at one run each. Two of the three arms went further and wrote a
+`## Required notes` line arguing that reporting an uncertainty is the correct
+discharge of the hook's gate — base: *Reporting them is the correct outcome, not a
+reason to withhold the reply.* The pull is toward the conversation, and a bullet
+about the file gets discharged into the reply.
+
+**H2** moves the same claim to the moment the agent is standing in front of its own
+list. `pre_output/record.py`'s reminder gains: *NEVER let a file you wrote state as
+fact something on your uncertainties list. Telling user does not fix the file.*
+It is exploratory — one run cannot ship a line — and it is what the next round's
+instruction is built on rather than a guess about what would have happened:
+
+1. H2's document bounds the premise, attributes it, or leaves it out, and does not
+   misdirect → the gate reaches the transfer, and the next round tests that site
+   properly, against its own baseline and adversarially.
+2. H2's document reads like base's, flat premise plus a dependent instruction →
+   the transfer is not reachable from the gate either, and the next round stops
+   spending arms on text aimed at this behaviour.
+3. H2 stalls, asks instead of delivering, or fills the file with markers → a
+   negative effect paid by every turn of every session, not only document turns,
+   which is the worse trade of the two sites.
