@@ -317,10 +317,8 @@ Three lines in it carry a failure that is silent when you get them wrong:
 - **`"plugin": []`.** Superpowers injects a `brainstorming` skill whose HARD-GATE
   blocks implementation tasks pending design approval, so the agent never reaches
   the artifact-delivery step a case grades and the run measures the plugin. A run
-  blocked that way is misconfigured, not `fail`. Opt in only for
-  `general/superpowers-startup-components`, which grades plugin-origin
-  identification:
-  `"plugin": ["superpowers@git+https://github.com/obra/superpowers.git"]`.
+  blocked that way is misconfigured, not `fail`. No case here wants plugins
+  loaded.
 
 Two log caveats for this runner. The `--format json` stream is written
 incrementally, so a log read mid-run can be missing the final text part —
