@@ -103,7 +103,13 @@ of evidence.
 
 ## What deletes this record
 
-The round that retires or rewrites `Omit by default` again, or any edit to
-`prompt-tests/general/halve-the-runbook/` — fixture, task text or reference.
-Whichever comes first: this run is comparable only to the case and the prompt it
-was taken against.
+The round that retires or rewrites `Omit by default` again, or any change to
+the case's **instrument** — its fixture or its task text. Whichever comes first:
+this run is comparable only to the case and the prompt it was taken against.
+
+*Corrected after launch, before any result was read.* The clause first named a
+reference edit as a deleting change too, which contradicts the skill: a reference
+is guidance handed to a grader, so editing it invalidates judgements taken under
+it and leaves the artifacts standing. This run dispatches no grader, so a
+reference edit reaches nothing in it. The corrected clause is about how long the
+record lives and touches no reading and no outcome.
