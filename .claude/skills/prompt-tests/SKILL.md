@@ -38,6 +38,13 @@ a system-reminder, enlarging its instructions without its knowledge. Stage
 `task.md`, the arm's system prompt, the fixture, the delivered artifact, and the
 session log. Withhold the reference.
 
+**Copy content, not paths.** Anything generated from repository files carries
+their paths inside it, and the case directory is named for what is being
+measured: a `diff -u` writes the fixture's absolute path into its own header, so
+a staged diff hands a blind reader the case name in the first two lines. Pass
+`--label before/<f> --label after/<f>`, and grep the staged tree for the case
+name and for `prompt-test` before dispatching.
+
 **Phase 1, reference withheld.** Two arguments, in this order, to
 `judgement-<arm>.md`:
 
