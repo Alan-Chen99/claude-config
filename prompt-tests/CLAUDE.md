@@ -28,9 +28,8 @@ explicitly reads `reference-solution.md`.
 Run tested agents with **no plugins loaded** by default. Superpowers' injected
 `brainstorming` skill HARD-GATEs implementation tasks pending design approval,
 producing pre-disclosure failures that measure the plugin rather than the
-agent prompt. See `.claude/skills/prompt-tests` SKILL.md ("Plugin policy") for
-the recipe and `docs/opencode-system-prompt/baselines/coverage-disclosure.md`
-Configuration 1 for the verbatim failure mode.
+agent prompt. The runner scripts pass `"plugin": []`; `.claude/skills/prompt-tests`
+carries the recipe for a hand-rolled run.
 
 Exception: `general/superpowers-startup-components` specifically tests whether
 the agent can identify plugin-origin prompt components, so it requires
@@ -109,7 +108,7 @@ run's artifacts against the stored ones under the same foci, and `pass` does
 not survive that comparison — two runs can both pass and differ in every step
 that got them there. Whoever reads the artifacts later has a specific question;
 what counts as passing depends on it. See `.claude/skills/prompt-tests`,
-"What a run produces".
+"What a run's recorded output is".
 
 `docs/opencode-system-prompt/trials/` holds the opencode-era records, which do
 carry verdicts. Leave them as they are.
