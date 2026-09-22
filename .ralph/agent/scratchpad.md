@@ -117,19 +117,17 @@ Round 13 measured reach on two destinations, found no arm sorted by it, and cut
 it; it also deleted `platform-portability` and repaired three colliding case
 justifications.
 
-## Iteration 14 — `f2737a34` → `bac7b4ef` (+ this commit)
+## Iteration 14 — `f2737a34` → `5d8c94b4` (+ this commit)
 
 ### Critique of iteration 13
 
 **C1 (workflow, instrument).** Its probe had to plant a directory in the
-permanent case corpus, because all four runners resolved `<case>` only under
+permanent case corpus — all four runners resolved `<case>` only under
 `prompt-tests/general/`, so the skill's own rule that a probe leaves one README
-under `prompt-tests/runs/<probe>/` was unsatisfiable. What shipped instead was
-an `(instruction)` asking the *next* round to remember the second half — a thing
-that took no approval to add and a human to remove, which is the objective's
-sharpest clause, inside the instrument built to police it. Fixed at the cause: a
-`<case>` containing a slash is used as given, so a probe is one directory and one
-`rm -r`.
+under `prompt-tests/runs/<probe>/` was unsatisfiable. What shipped instead was an
+`(instruction)` asking the *next* round to remember the other half: the
+objective's sharpest clause, inside the instrument built to police it. Fixed at
+the cause — a `<case>` with a slash is used as given.
 
 **C2 (quality, admissibility).** It excluded R4 (lines added) as inside an
 unmeasured spread, then read R6 (code files edited: 3 / 0 / 1) as a ground for
@@ -149,8 +147,8 @@ and handed it forward rather than running it.
 
 Runner change (C1), then probe `ingest-notes`: an undocumented CSV-into-SQLite
 loader, `NOTES.md` for the next agent, six claim opportunities differing in
-character, two of them checkable defects verified before launch. Two arms, with
-and without the bullet. Record in `prompt-tests/runs/ingest-notes/README.md`.
+character, two checkable defects verified before launch. Two arms.
+Record in `prompt-tests/runs/ingest-notes/README.md`.
 
 **Null on the marking criterion, and the one asymmetry ran against the bullet.**
 Both arms sourced rather than bare-stated the expiring values, neither hedged or
@@ -160,12 +158,12 @@ own draft hedge once it had the answer; the arm *with* it settled the same claim
 by arithmetic and shipped it flat. A blind grader, told only that one line
 differed: *"These two documents do not differ on the decisive criterion."*
 
-**Shipped:** the bullet deleted. Prompt 6461 → 6438 `--api` tokens;
+**Shipped:** the bullet deleted. Prompt 6461 → 6438 `--api`;
 `sys_prompt/CLAUDE.md` 7412 → 7372.
 
 **Pre-registration defect, recorded against itself.** Its four outcomes did not
 partition the space and its Mixed clause was directionless — read literally it
-would have kept the bullet on evidence against it. Withdrawn, not honoured.
+keeps the bullet on evidence against it. Withdrawn, not honoured.
 
 **Beware the tokenizer.** Rounds 3–13 sized the prompt with the *local*
 tokenizer, this one with `--api` (the repo prefers it for a prompt budget). Same
@@ -174,13 +172,14 @@ two revisions: 4237 → 4220 local, 6461 → 6438 api. Earlier figures do not co
 ### `(instruction)` for iteration 15
 
 1. Delete `prompt-tests/runs/ingest-notes/` unless you re-run that fixture.
-   Unconditional, and now one `rm -r`.
+   Unconditional, one `rm -r` — not `git rm -r`, which leaves the fixture's
+   gitignored `__pycache__` behind and the directory standing while `git status`
+   reads clean. That is how iteration 13's probe survived its own deletion here.
 2. **Round 15 is a cleanup round** (every fifth). The standing item is iteration
    13's: fifteen cases under `prompt-tests/general/`, zero stored runs under the
    current skill, and the loop spends its runs on probes. The skill now says a
    case earns its status by being re-run — apply that to the corpus, or write
    down why the inventory is worth its permanence.
-3. `Omit by default` and `Say what ends it` are the whole block now. Neither has
-   been run against an arm lacking it since `Say what ends it` shipped at round
-   9. Both carry retirement conditions; both are now the oldest unexercised
-   lines here, and the block is small enough to test whole.
+3. `Omit by default` and `Say what ends it` are the whole block now, both with
+   retirement conditions, neither run against an arm lacking it since round 9.
+   The block is small enough to test whole.
