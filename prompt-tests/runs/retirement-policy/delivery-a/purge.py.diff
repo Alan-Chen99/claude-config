@@ -1,0 +1,14 @@
+--- before/./purge.py
++++ after/./purge.py
+@@ -1,6 +1,11 @@
+ import requests
+ 
+ ENDPOINT = "https://cdn.example.net/v3/purge"
++
++# The vendor's published per-call limit of 500 URLs applies to the enterprise
++# plan; on our plan the cap is around fifty and larger batches draw 429s.
++# Sourced from a support call, not from their docs -- see DECISIONS.md
++# "CDN purge batch size" before raising this.
+ CHUNK = 50
+ 
+ 

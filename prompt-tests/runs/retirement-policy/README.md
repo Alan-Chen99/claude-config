@@ -74,3 +74,64 @@ withdrawn and said to be withdrawn, not reinterpreted.
 
 The round that wrote it, in the commit that puts its claim into
 `sys_prompt/CLAUDE.md`. `git checkout <sha> -- <path>` restores it.
+
+---
+
+## What happened
+
+Both arms ran to completion, exit 0, one run each. Neither transcript touched a
+`prompt-tests/` path, a reference, or anything naming the harness; the two
+mentions of `prompt-test` in each are the `session-analysis` skill's own
+description, identical in both. `a` 6395 api tokens, `b` 6337 — the bullet is 58.
+
+The blind reader ran on stock Claude Code with a fresh empty
+`CLAUDE_CONFIG_DIR` and no system prompt of this repo's, so the reader did not
+itself carry the line under test. It received `x` and `y` with the arm→label
+assignment randomized, `blind-brief.md` as its whole instruction, and no
+statement of what differed. `x` = `b`, `y` = `a`. Its answers are
+`blind-judgement.md`; the deliveries are `delivery-a/` and `delivery-b/`.
+
+| row | `a` (bullet) | `b` (no bullet) |
+| --- | --- | --- |
+| R1 Pillow pin | exit named, specific act | exit named, specific act |
+| R2 `CHUNK = 50` | exit named, specific act | exit named, specific act |
+| **R3 `jobs/<id>.json`** | **exit named** — *a durable record of accepted uploads somewhere other than this directory … that `worker.py` marks complete* | **no exit** — a permission rule instead: *`worker.py` after a successful purge is the only permitted deleter* |
+| R4 `print()` | exit named, thin — *the owner saying so* | no exit |
+
+**Outcome 1.** R3 parts in the direction `sys_prompt/CLAUDE.md` predicts, with
+the preamble held constant, so round 15's difference is the bullet's and not the
+preamble's. The two rows whose ends are observations went to both arms unaided,
+which is the same claim's other half and is what makes one run per arm readable:
+the arms agree on R1 and R2 and part on R3, rather than differing at random.
+
+**Outcome 4's antecedent also fired, and its harm did not.** `a` did apply one
+`Rule / Why / Evidence / What would retire it` template to all four rows, R4
+included — the uniformity this case's reference calls *the failure that reads as
+care*. The blind reader, asked about register with no idea what was under test,
+preferred `a` on that row in both directions: `a` files R4's warrant as
+*owner's preference, stated directly* while `b` states it flat under *House
+rules* with no why at all. So the predicted harm was looked for at the row it
+was predicted at, and the arm carrying the line marked the register better, not
+worse. The outcome table was defective in letting 1 and 4 fire together; the
+defect is recorded rather than resolved by re-reading, and what settles the
+disposition is that 4's *harm* half was an assertion of the case's reference and
+the blind reading contradicts it.
+
+**How the effect travels, and what that bounds.** `a`'s exits arrive as one
+field of a document template, not as four separate sentences: all four were
+present in the first write of `DECISIONS.md` (tool call 22). So what the bullet
+produced here is a *document shape*. `a` then dispatched a `quality-reviewer`
+subagent (call 26) that `b` never dispatched — on a brief about durability of
+repo guidance, which is the bullet's own subject, so it sits on the causal path
+rather than beside it; and it is bounded, because the exits predate it. Its later
+edits (calls 27, 34, 35) changed wording only.
+
+Neither arm repeated the task's account of the Pillow pin's cause: both
+reproduced it and both wrote that the mechanism is disproven and the softening
+unexplained. That reading is saturated and this run says nothing about it.
+
+## What deletes this record
+
+The commit after this one, which puts the claim into `sys_prompt/CLAUDE.md`.
+`git checkout <this sha> -- prompt-tests/runs/retirement-policy` restores the
+pre-registration, both deliveries and the blind judgement.

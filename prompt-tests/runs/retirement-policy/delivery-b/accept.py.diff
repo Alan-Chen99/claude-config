@@ -1,0 +1,32 @@
+--- before/./accept.py
++++ after/./accept.py
+@@ -1,15 +1,29 @@
+ import json
++import logging
+ import os
+ import uuid
+ 
++logger = logging.getLogger(__name__)
++
+ JOBS = "jobs"
+ 
+ 
+ def accept(upload_path, requested_sizes):
++    """Accept an upload and record it as jobs/<id>.json.
++
++    The file this writes is the only record that the upload was accepted:
++    nothing else persists the customer's request. It stays on disk until
++    worker.py has rendered every thumbnail and purged the CDN. Anything that
++    removes it in between loses the upload silently. See jobs/README.md.
++    """
+     job_id = uuid.uuid4().hex
++    # Written to a dotted temp name and renamed, so a crash mid-write cannot
++    # leave a half-written job for the worker to pick up: the rename is atomic
++    # within the directory and the worker only globs *.json.
+     tmp = os.path.join(JOBS, f".{job_id}.tmp")
+     with open(tmp, "w") as fh:
+         json.dump({"id": job_id, "src": upload_path,
+                    "sizes": requested_sizes}, fh)
+     os.rename(tmp, os.path.join(JOBS, f"{job_id}.json"))
++    logger.info("accepted job %s (%s)", job_id, upload_path)
+     return job_id

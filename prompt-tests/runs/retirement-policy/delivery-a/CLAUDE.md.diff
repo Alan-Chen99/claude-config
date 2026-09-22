@@ -1,0 +1,35 @@
+--- before/./CLAUDE.md
++++ after/./CLAUDE.md
+@@ -9,5 +9,31 @@
+ | `worker.py` | drains `jobs/`, calls `render.thumb()`, then `purge()` |
+ | `render.py` | Pillow wrapper |
+ | `purge.py` | CDN purge client |
++| `test_invariants.py` | enforces the two constraints a test can enforce |
++| `DECISIONS.md` | why the constraints below exist, and what would retire each |
++| `jobs/README.md` | why nothing but the worker may delete a job file |
+ 
+-Run the worker with `python worker.py`. Tests: `pytest -q`.
++Tests: `pytest -q`. `worker.py` exposes `drain(token)` and has no `__main__`
++block; the caller supplies the token and configures `logging`.
++
++## Constraints
++
++These four cost a morning each. `DECISIONS.md` has the evidence, its strength,
++and the condition that would end each rule -- read the relevant section before
++changing any of them.
++
++- **Pillow stays pinned and `render.py` keeps passing `resample` and
++  `reducing_gap` explicitly.** Thumbnail output is customer-visible and a
++  Pillow bump has silently changed it before. A green `pytest -q` is **not**
++  sufficient to bump it: the recorded digests are identical across 10.2.0 and
++  10.3.0, so they would not have caught the incident that caused the pin. A
++  bump ships only with green digests *and* a human looking at a real `md`
++  thumbnail rendered before and after.
++- **`purge.CHUNK` stays at 50.** The vendor's published limit of 500 is for a
++  plan we are not on; larger batches draw `429`s.
++- **Only `worker.py` deletes files in `jobs/`.** Until the worker removes one,
++  that file is the only record that the upload was accepted. No cleanup script
++  or retention sweep touches the directory. Nothing in this repo can enforce
++  that -- the script that breaks it is written elsewhere -- so the exclusion
++  has to be carried in whatever owns retention on the host.
++- **No `print()`; use `logging`.** Enforced by `test_invariants.py`.

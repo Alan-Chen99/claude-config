@@ -1,0 +1,96 @@
+--- before/./CLAUDE.md
++++ after/./CLAUDE.md
+@@ -11,3 +11,93 @@
+ | `purge.py` | CDN purge client |
+ 
+ Run the worker with `python worker.py`. Tests: `pytest -q`.
++
++## House rules
++
++- No `print()` anywhere. Each module takes `logger =
++  logging.getLogger(__name__)` and logs through it. Nothing here calls
++  `basicConfig`; configuring handlers is the entrypoint's job.
++  `tests/test_invariants.py` fails the build if a `print()` reappears.
++
++## Load-bearing facts
++
++Small constants and ordinary-looking lines in this repo carry reasons that are
++not visible where they are written. Each one below has cost a morning. They are
++repeated as a comment at the site, and the testable parts are pinned by
++`tests/test_invariants.py` — if you are about to change one of these, the
++comment and the test are trying to reach you, not to slow you down.
++
++### `jobs/<id>.json` is the only record that an upload was accepted
++
++Full version in `jobs/README.md`, which is where someone about to write a
++cleanup script will be looking. In short: the file is written at acceptance and
++removed by `worker.py` only after render and purge both succeed; nothing else
++persists the request; deleting one loses a customer's upload with no error
++anywhere. A cron job that swept `jobs/*.json` older than an hour cost eleven
++customers a re-upload, because age measures how stuck a job is, not how
++finished it is.
++
++`worker.py` after a successful purge is the only permitted deleter.
++
++### Pillow is pinned at 10.2.0
++
++**The pin is real; the recorded reason for it is wrong.** Both halves matter.
++
++The recorded reason: a bump to `Pillow==10.3.0` made `md` thumbnails visibly
++softer, a customer reported it a week later, and the cause was taken to be that
++`render.thumb()` called `Image.thumbnail()` without `resample=` and that 10.3
++changed the default.
++
++That mechanism does not survive testing:
++
++- `Image.thumbnail`'s signature is `(self, size, resample=Resampling.BICUBIC,
++  reducing_gap=2.0)` in **both** 10.2.0 and 10.3.0. The default did not change.
++- `render.thumb()` produces **byte-identical** output files under the two
++  versions across every combination tried, on CPython 3.11 and 3.12, manylinux
++  x86_64 wheels: sizes `sm`/`md`/`lg`; sources from 4000x3000 down to 900x600,
++  including ratios either side of the point where `reducing_gap` brings the
++  `reduce()` pre-pass into play; PNG, JPEG and WebP sources; RGB, greyscale and
++  CMYK modes; and JPEGs carrying an ICC profile, an EXIF orientation tag,
++  progressive encoding or 4:2:0 subsampling. Both wheels bundle the same
++  libjpeg 6.2, zlib 1.3 and libwebp 1.3.2.
++
++So the softening was real — a customer saw it — but its cause is unknown and
++is **not** the resample default. What has not been ruled out: the actual
++production source images, a different platform or wheel build than the one
++tested above, and anything else that shipped in the same week as the bump.
++
++What this means for you:
++
++- Do not unpin on the strength of "the resample thing was a myth". The myth is
++  busted; the regression that prompted the pin is not explained. Unpinning
++  needs a render of real production images diffed against 10.2.0 output, not a
++  reading of this section.
++- `render.py` now passes `resample=RESAMPLE` explicitly. This is verified
++  byte-for-byte identical to the old implicit behaviour on both versions, and
++  it means no future Pillow default can move thumbnail sharpness underneath us
++  again. The pin no longer has to carry that job alone.
++
++### The purge endpoint caps a call at ~50 URLs
++
++`purge.CHUNK = 50`. Sending every URL in one call worked until batches passed a
++couple of hundred, then returned `429`. Setting `CHUNK = 50` stopped them.
++
++Be clear about how firm this is:
++
++- **Where 50 comes from:** a vendor support engineer said on a call, in March,
++  that our plan caps a purge call at "around fifty" and that the published
++  limit of 500 applies to the enterprise plan. Spoken, not written.
++- **What is confirmed:** the `429`s were happening, and they stopped when the
++  chunk size dropped to 50. That is correlation over one change.
++- **What is not:** the limit has never been deliberately reproduced, and
++  "fifty" appears nowhere in the vendor's documentation. The exact number could
++  be anything nearby.
++
++The trap: the vendor's docs say 500, so `CHUNK = 50` reads like an unexplained
++tenth-of-the-limit timidity and invites a tidy-up. The documented 500 is for a
++plan we are not on. Raising `CHUNK` towards it brings the `429`s back and the
++purges fail on live customer thumbnails.
++
++Changing this number needs a deliberate reproduction against the real endpoint
++on our own plan, or something in writing from the vendor. Not a docs reading,
++and not a guess that a round number looks better.

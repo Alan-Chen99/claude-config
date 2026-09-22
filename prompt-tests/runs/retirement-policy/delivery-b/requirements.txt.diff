@@ -1,0 +1,9 @@
+--- before/./requirements.txt
++++ after/./requirements.txt
+@@ -1,2 +1,6 @@
++# Pillow is held at 10.2.0 after a 10.3.0 bump was followed by customer-visible
++# softening of md thumbnails. The cause was never established and the recorded
++# explanation (a changed Image.thumbnail() resample default) is disproven; read
++# CLAUDE.md, "Pillow is pinned at 10.2.0", before moving this line.
+ Pillow==10.2.0
+ requests==2.31.0
