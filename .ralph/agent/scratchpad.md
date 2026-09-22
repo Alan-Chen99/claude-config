@@ -131,7 +131,7 @@ Ran `# Writing for other agents` whole against an arm with no block on
 deletion shipped. Both arms transcribed the fixture's bare preference as an
 incident with a cost it never had.
 
-## Iteration 16 — `0b6d8be4` → (end of round)
+## Iteration 16 — `0b6d8be4` → `8f84fa1e` (+ this commit)
 
 ### Critique of iteration 15
 
