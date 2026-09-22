@@ -255,7 +255,12 @@ bite probe work:
   without `--check` it writes `<spec>-clean.md`.
 - `agent-tools run --desc` leaves the description and the wrapped argv in
   `/proc/*/cmdline`, where a peer test-agent can read them. Pass `--hide-cmdline`
-  for probe wraps.
+  for probe wraps — but it hides the **wrapper's** argv only. The wrapped command
+  is its own process and its `/proc/<pid>/cmdline` still spells out the case name
+  and the arm, so a run whose argv carries either is still readable there.
+  Measured 2026-09-22: wrapper `agent-tools: scripts/prompt-test-cc.sh`, child
+  `bash scripts/prompt-test-cc.sh <case> <arm> <prompt>`. Keep the identifying
+  words out of the command line, not only out of `--desc`.
 
 ## Runners
 
