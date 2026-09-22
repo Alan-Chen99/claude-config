@@ -71,10 +71,17 @@ OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 # what it leaves on disk. A failing setup fails the run.
 [ -f "$CASE_DIR/setup.sh" ] && ( cd "$SCRATCH" && bash "$CASE_DIR/setup.sh" )
 
-# Plugin defaults for prompt tests are "none loaded" (prompt-tests/CLAUDE.md).
+# Plugin defaults for prompt tests are "none loaded".
 # A --settings file carrying only enabledPlugins adds no hook of its own, so the
 # checkout's hooks stay registered exactly once.
-SETTINGS="$SCRATCH/.prompt-test-settings.json"
+#
+# It lives outside the scratch cwd. A tested agent lists its own working
+# directory, and a file there whose name contains "prompt-test" tells it what it
+# is inside -- observed 2026-09-22, a run reporting the file by name as
+# irrelevant harness config. The scratch directory is kept neutral for the same
+# reason its name is.
+SETTINGS="$(mktemp "/tmp/ptcfg.XXXXXXXX.json")"
+trap 'rm -f "$SETTINGS"' EXIT
 python3 - "$REPO/settings.json" "$SETTINGS" <<'PY'
 import json, sys
 src, dst = sys.argv[1], sys.argv[2]

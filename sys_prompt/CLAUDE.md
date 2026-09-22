@@ -218,111 +218,48 @@ size — which would mean the MCP surface has grown into the case #45357 describ
 
 ### `# Writing for other agents`
 
-**`Omit by default` prices by reach, not by existence.** The earlier wording priced a line by having
-been written at all, and maintenance and mis-reading cost the same wherever a line sits —
-per-session cost does not. Measured 2026-09-22 on `prompt-tests/general/what-retires-this-line`:
-with the old wording the whole write-up went into an auto-loaded `CLAUDE.md` and no other file was
-created; with the block deleted the detail went to a separate file and a pointer stayed behind. The
-reach wording takes the pointer placement without pushing out content that genuinely binds every
-session.
+**`Omit by default` prices by reach, not by existence.** Maintenance and mis-reading cost the same
+wherever a line sits; per-session cost does not, so pricing a line by having been written at all
+prices the wrong thing. Still open, and the likeliest thing to retire it: the reach wording moves
+detail out of the loaded file and writes more of it in total, and the objective it was edited under
+asks that documentation not grow unbounded. Relocation is growth. The maintenance half of that
+worry is closed — editing an existing document, this wording, the older one and no block at all all
+shrink the file — so what is left belongs to the creation case. Retire this when an arm carrying it
+writes more in total than one without it and no reader gains from where the bytes went.
 
-Unresolved, and the likeliest thing to retire it: total bytes written went **up**. The objective this
-was edited under asks that documentation not grow unbounded, and relocation is growth.
+**What no bullet in this block reaches: regions no task names.** An agent handed a subject rewrites
+everything about that subject and almost nothing about any other — including deleting twenty lines
+when the task asked only for one to be added. If documentation here accumulates, that is where, and
+nothing in the block is aimed at it.
 
-That question is now narrower than it was. It was open for *both* kinds of writing; 2026-09-22 on
-`prompt-tests/general/doc-succession` closed the maintenance half. Editing an existing document, the
-old wording, the new wording and no block at all all shrank the file, and none of the three annotated
-a dead section as obsolete rather than deleting it. So the growth is not an unwillingness to remove;
-it belongs to the creation case, where the reach wording moves detail out of the loaded file and
-writes more of it.
+**`Claim less` does not endorse a hedge.** It once closed with *Often you are better off with a
+hint, warning or a [record] marker*. A warning is still a claim; being wrong about it produces no
+failure that points back at it, and it costs every later reader a check that returns nothing, with
+no event that retires the line — `notes/workers-bullet-hint-in-fact-position.md` is the argument.
+Carrying the clause changed nothing that a maintainer would care about, and `# Epistemic
+Integrity`'s No Unexplained Residue Rule already forbids unconditionally what the clause licensed
+*often*. Retire the deletion when an arm carrying the clause hedges materially less than one
+without it. An unhedged claim merely appearing is not that comparison — the first condition written
+here named an observation instead, and was wrong for that reason.
 
-What four runs on that case do agree on is a boundary, and it is the **subject**, not the licence.
-Everything about the subject a task named was rewritten — including by the run whose task asked only
-for a line to be added, which deleted twenty and said so. Almost nothing about any other subject was:
-of the fixture's two regions that are actionable defects, one arm of three fixed one and reported it
-as out of scope, and the rest went untouched, two of them by runs that said out loud they had found
-them. Read the weaker claim, not the clean one — the fixture's other two untouched regions were
-correctly left alone, one because it agrees with the script and one because nothing available refutes
-it. If documentation here accumulates, the likeliest place is still regions no task names, and
-neither bullet reaches them.
-
-**`Claim less` no longer endorses a hedge.** It closed with *Often you are better off with a hint,
-warning or a [record] marker*; deleted 2026-09-22.
-`notes/workers-bullet-hint-in-fact-position.md` argues the hedge is not the cheap alternative it
-reads as — a warning is still a claim, being wrong about it produces no failure pointing back at it,
-and it costs every later reader a check that returns nothing, with no event that retires the line.
-Measured on `prompt-tests/general/unconfirmed-cause`: with the clause and without it the agent
-reached the same verdicts on all four items, ran the same verifications, and produced the same
-arithmetic; a blind grader holding both sessions found no difference a maintainer would care about,
-and on *hedging where checking was available*, "neither". `# Epistemic Integrity`'s No Unexplained
-Residue Rule already forbids what the clause would license, and unconditionally where the clause
-said *often*. A third arm that priced the hedge explicitly wrote 30% more text and rewrote
-`render.py` mid-investigation where both other arms left the code alone, so stating the price
-measured worse than saying nothing.
-
-That retirement condition was tested on 2026-09-22 and it was the wrong condition. It said: retire
-the deletion if an agent is found writing an unverifiable thing as a flat fact where
-`# Epistemic Integrity` does not reach. On `prompt-tests/general/doc-succession`, where the writer
-edits a document for a reader about a vendor client it cannot reach, that happened in all three arms
-— each wrote some form of "the client negotiates TLS 1.3 by default", which nothing in the task or
-the repository establishes. But the arm carrying the deleted clause restored wrote one too, and none
-of the three hedged the one thing it genuinely could not check: an unscheduled, explicitly uncertain
-guess, which every arm kept out of the document and reported to the user instead.
-
-So the condition named an observation where it needed a comparison. An unverifiable flat fact
-appearing does not speak for the clause; the clause preventing one does, and here it prevented
-nothing. Restated: retire the deletion when an arm carrying the clause writes materially less of this
-than an arm without it.
-
-**Nothing was added here about asserting what you cannot check, and three wordings have now failed
-to change that.** The behaviour is specific and it is not a shortage of care. On
-`prompt-tests/general/snapshot-truncation` (2026-09-22), a fixture carrying five claims at
-increasing distance from reachable evidence, every arm *verified* the claims it formed in the
-session — each wrote a fake endpoint and drove the real code through it rather than reasoning
-about what it would do — and every arm then rested load-bearing reasoning on what an unreachable
-object store does with an incomplete multipart upload, unmarked, in the artifact and in the report
-alike. What escapes audit is the premise the agent **brought with it**: background knowledge about
-an external system does not arrive feeling like a claim, so nothing fires on it, while what the
-agent derived in-session does. An earlier one-premise fixture, since deleted as superseded, showed
-the same class across four arms.
-
-The three wordings: *attributed, verified, or not at all*; *with what it rests on, or with what the
-reader should conclude if it does not hold*; and, aimed at the node above rather than at a form,
-*the ones you will not notice making are the ones you brought with you*. None produced an effect
-separable from what the shipped prompt already does. The third arm's report named the vendor premise
-as unverifiable and shipped a file saying none of it — the failure the line was written to defeat,
-in the arm carrying the line. `grep -in "unverif\|cannot check\|not establish"` returns nothing in
-either runbook artifact and three hits in an untreated arm writing for a different reader.
-
-So the open question is no longer *what should the rule say*. Retire this paragraph when something
-other than a sentence in this block is shown to reach the behaviour — and note what a rule here
-would have to survive: all three arms discharged the premise well, by giving the reader a test to
-run instead of a caveat to read, which is better than the marking the third wording asked for. A
-line that buys markings at the cost of that trade is a regression even where the artifact looks
-more careful.
+**Nothing here addresses asserting what you cannot check, and three wordings failed to change
+that.** What escapes audit is the premise the agent *brought with it*: background knowledge about an
+external system does not arrive feeling like a claim, so nothing fires on it, while what the agent
+derived in-session does. A premise that arrives with its source narrated is audited; one the agent
+supplies from its own background is not. The node is therefore provenance, not wording, which is why
+wordings aimed at the form kept missing. Retire this paragraph when something other than a sentence
+in this block is shown to reach the behaviour — and note the trade a new line must not break: an
+agent that hands the reader a test to run instead of a caveat to read has discharged the premise
+better than any marking, so a line buying markings at that cost is a regression.
 
 **`Say what ends it` buys an exit for rules that would otherwise be permanent.** A rule an agent
 writes is followed by later readers without being re-decided, and deleting it takes a human — the
-objective's sharpest clause. Measured 2026-09-22 on `prompt-tests/general/retirement-policy`, a
-fixture carrying four items that differ in whether they can end at all: a pin whose stated cause is
-checkable here, a vendor number governed by the account's plan, a design invariant, and a bare
-preference. Baseline artifact: one end-condition of four. Treated: three, in three different forms
-matched to the three characters, including *this constraint ends when an accepted upload is recorded
-somewhere durable outside `jobs/`* for the invariant, where the baseline wrote only *never delete
-these by age*. The treated arm wrote 1202 bytes fewer, so this is not the reach bullet's open
-question repeating.
-
-Two things it did not buy, both recorded in the run: neither arm kept the bare preference out of the
-register it used for the three incidents, so the line does not reach the *should this be a rule at
-all* half; and the treated arm alone turned that preference into a passing test. That second one is not the
-line's doing: both arms wrote three guards, the treated arm's are source-text assertions in which a
-`print()` scan is trivial and a byte-exact render comparison is not, and neither transcript reasons
-about the fourth item's register at all. The register defect belongs to both arms.
-
-Retire this bullet when an arm carrying it states no more end-conditions in its artifact than an arm
-without it, on a fixture whose items differ in whether they can end — or, sooner, when an arm
-carrying it attaches an end-condition to a rule that has none, which is the boilerplate the run was
-built to catch and did not find.
+objective's sharpest clause. It does not reach the other half, *should this be a rule at all*: a
+bare preference still lands in the same register as a real constraint, with the same end-condition
+machinery attached. Retire it when an arm carrying it states no more end-conditions than an arm
+without it, on a fixture whose items differ in whether they can end at all — or, sooner, when an arm
+carrying it attaches an end-condition to a rule that has none, which is the boilerplate failure it
+is most likely to cause.
 
 ### `# Git`
 
@@ -393,19 +330,18 @@ rewrote the parameter to `false` on every call, and the bullet stated the foregr
 about the session. The user asked for a prompt rule instead, so the model now decides per call
 and nothing checks it.
 
-`CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the precondition, not a second enforcement.
-With the fork gate on, `run_in_background` is omitted from the Agent tool's input schema outright
-(`rc() || Z8()`, `src/chunk-dbb93264.js:171779`) and the rule would be unfollowable.
+`CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the precondition, not a second enforcement:
+with the fork gate on, `run_in_background` is omitted from the Agent tool's input schema outright
+and the rule would be unfollowable. The gate's source reading, the alternative settings and the
+trial counts are in the repository's own `CLAUDE.md`; this entry justifies the bullet's clauses.
 
 Each clause was measured or read out of the source, not assumed:
 
 - **`false`, not omission.** Claude Code backgrounds unless the parameter is literally `false`
   (`q4o`'s last term `!s && r !== !1`, `src/chunk-dbb93264.js:103955`). The clause exists because
   omission is the failure mode and it is invisible — a call without the parameter reads like any
-  other call. Measured 2026-09-16 with the hook removed and the old bullet still in place: 3 of 3
-  Agent calls omitted the parameter and all three backgrounded. That run's own agent noticed —
-  "All three ran in the background and returned via task notifications instead. The guidance does
-  not match this session's behavior."
+  other call — which is why the old bullet, stating the foreground as a fact, produced omission in
+  every trial while the session read as normal.
 - **Concurrency is not a reason to background.** Several Agent calls in one assistant message run
   concurrently in the foreground, so the strongest legitimate pull toward backgrounding does not
   hold. Without the clause the model has a good reason to background in exactly the case that
@@ -423,10 +359,7 @@ nothing could background. A backgrounded agent now genuinely is still running an
 genuinely follows.
 
 `prompt-tests/general/subagent-foreground-default` is the check, and the only thing standing
-between this rule and silent decay. Measured the same day, same task, hook gone in both arms: with the old bullet, 3 of 3 Agent
-calls omitted the parameter and all three backgrounded; with this bullet, 9 of 9 across three
-trials passed `false`, none backgrounded, and every report returned as the launching call's own
-tool result. The trajectories were deleted on 2026-09-19; these counts are the surviving record.
+between this rule and silent decay.
 
 **Unverified, decide at the next edit to this bullet:** no green trial's reasoning weighed the
 Agent tool's description against the prompt, and one of the three named neither the parameter nor

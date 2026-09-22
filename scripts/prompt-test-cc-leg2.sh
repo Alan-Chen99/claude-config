@@ -40,10 +40,18 @@ test -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" || { echo "CLAUDE_CODE_OAUTH_TOKEN unset 
 AT="$REPO/agent-tools/target/release/agent-tools"
 test -x "$AT" || { echo "build the worktree binary first: (cd $REPO/agent-tools && cargo build --release)" >&2; exit 1; }
 
-# The settings file prompt-test-cc.sh wrote is still in the scratch dir; reuse it
-# so plugin state matches leg 1 exactly.
-SETTINGS="$SCRATCH/.prompt-test-settings.json"
-test -f "$SETTINGS" || { echo "no $SETTINGS — was this scratch dir written by prompt-test-cc.sh?" >&2; exit 1; }
+# Rebuilt rather than reused: leg 1's settings file is written outside the
+# scratch cwd and removed when that run exits, because a file named for the
+# harness inside the agent's own working directory tells it what it is inside.
+# Both legs derive it from the same source, so plugin state still matches.
+SETTINGS="$(mktemp "/tmp/ptcfg.XXXXXXXX.json")"
+trap 'rm -f "$SETTINGS"' EXIT
+python3 - "$REPO/settings.json" "$SETTINGS" <<'PY_SETTINGS'
+import json, sys
+src, dst = sys.argv[1], sys.argv[2]
+plugins = json.load(open(src)).get("enabledPlugins", {})
+json.dump({"enabledPlugins": {k: False for k in plugins}}, open(dst, "w"))
+PY_SETTINGS
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
@@ -57,7 +65,7 @@ if [ -d "$SNAP" ]; then
   exit 1
 fi
 mkdir -p "$SNAP"
-find "$SCRATCH" -maxdepth 1 -type f ! -name '.prompt-test-settings.json' -exec cp -a {} "$SNAP/" \;
+find "$SCRATCH" -maxdepth 1 -type f -exec cp -a {} "$SNAP/" \;
 echo "leg-1 snapshot: $SNAP"
 
 # Since cc 2.1.267 a resume replays the system prompt recorded on the first

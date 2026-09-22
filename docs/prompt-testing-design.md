@@ -1,10 +1,16 @@
 # Why prompt testing here works the way it does
 
-The operational text is `.claude/skills/prompt-tests/SKILL.md`. This file carries
-the reasoning behind it, so that a later session can disagree with the design on
-its merits instead of rediscovering it or quietly reverting it. Every claim below
-is marked as **measured** or **reasoned**; the ledger at the end lists what is
-neither.
+The operational text is `.claude/skills/prompt-tests/SKILL.md`: the runners, the
+grader dispatch, what a run's record is. This file carries only the reasoning
+behind it, so that a later session can disagree with the design on its merits
+instead of rediscovering it or quietly reverting it. Nothing here restates an
+instruction from there — where both would apply, the skill governs.
+
+Measured results are not kept here. Prompt-test evidence does not survive the run
+that produced it: a reference edit, a foci change or a prompt edit each make an
+old run a different measurement, and none of them announces itself in a document
+that quotes the old numbers. What survives a round is a semantic claim with its
+reasoning attached, which is what each section below is.
 
 ## A run's result is the trajectory
 
@@ -17,21 +23,13 @@ only the delivered text cannot attribute either one to the prompt.
 
 Not because writing is hard — because a rubric is written by someone who has read
 the source and not the output. What an output *costs* is only visible once it
-exists.
+exists. The corollary is a working method rather than a prohibition: criticise
+the reference from the run, after the run is recorded, and keep the pre-edit
+judgement.
 
-**Measured, twice in this suite's own record:**
-
-- `general/trivial-task`'s pass bands classified a compliant run one notch below
-  `pass` on two separate trials, each of which recorded that the band was
-  probably narrower than the invariant. The bands outlived both trials and were
-  deleted on 2026-09-22 with every other band in the suite.
-- The suite's best rubric, the fragment catalogue behind the pre-2026-09-18
-  `general/halve-the-runbook`, reached its form by post-hoc criticism from real
-  outputs — "The case has been conflating two senses of recoverable" — which is
-  the mechanism this design makes routine.
-
-Neither record is in the tree any more; both are in git history, deleted with
-the practice they document.
+A criterion written from the shape of an anticipated failure has a second defect:
+it cannot score a good outcome, only the absence of that failure. Write what the
+good artifact looks like before writing what the bad one is missing.
 
 ## The projection problem
 
@@ -44,49 +42,27 @@ output paid for its score. This is one defect wearing three costumes:
 | a list of graded axes | a cost on no axis |
 | a pass/fail band | everything the band does not name |
 
-**Measured, 2026-09-18**, on `halve-the-runbook` arm `l3r7-presence`. The stored
-grading was a D1–D7 count and
-`Verdict: fail`, produced blind from the source and the output alone. A grader
-given the same output plus the whole session found, outside that frame: a report
-telling the user the remaining length gap "can only come from deleting content
-units" while ~90 words the agent had itself marked as free fat stayed in; seven
-full-file rewrites re-emitting ~120k tokens after the deciding arithmetic was
-already available; and path-prefix stripping that saved ~0 words while leaving
-three of the delivered runbook's steps unrunnable. A fidelity key is satisfiable
-while the report to the user is false — which is the general form of the problem:
-**you can pay off-rubric to score on-rubric.**
-
-**Measured the same day**, handing that grader the key it had been blind to: the
-key caught 1 of its 6 items cleanly, missed 4, inverted 1 — and contributed 3
-findings the blind read had filed only as costs, which is the reference earning
-its keep as guidance. Its decisive defect was verdict-flipping: one `D1` row
-reads as a high-severity failure down its Source column and as clean under the
-key's own "losing a fact is not a defect" clause, and the stored grading had read
-it the second way without registering that the row decides the headline either
-way. Full record: `notes/prompt-test-grading-projection.md`.
-
-The session and grading artifacts behind both paragraphs were deleted on
-2026-09-19 with the rest of `prompt-tests/runs/`. The note is the record; the
-finding is not re-checkable from the tree, so it grounds this design and is not
-admissible as evidence in any case.
+The general form: **you can pay off-rubric to score on-rubric** — a fidelity key
+is satisfiable while the report to the user is false. The worked instance, with
+the session it came from, is `notes/prompt-test-grading-projection.md`; its
+artifacts have been deleted, so it grounds this design and is not admissible as
+evidence in any case.
 
 ## Two instruments, two jobs
 
-**Reasoned.** Grading needs the whole picture; comparison needs a fixed narrow
-one. A whole-picture grader is not comparable across runs, because its attention
-moves with what it notices. A focus extract is comparable precisely because it is
+Grading needs the whole picture; comparison needs a fixed narrow one. A
+whole-picture grader is not comparable across runs, because its attention moves
+with what it notices. A focus extract is comparable precisely because it is
 narrow and stable.
 
-So foci survive as the **cross-run diff instrument** — did run N+1 differ in a
-stated respect — and are not the grading instrument. They were never satisfiable
-as grading. Do not add foci to a case where nothing is being compared: 3 of 14
-cases have them, and the workflow that dispatched one subagent per focus was
-describing a pipeline that did not exist for the other 11.
+So foci are the **cross-run diff instrument** — did run N+1 differ in a stated
+respect — and are not the grading instrument. They were never satisfiable as
+grading, and most cases compare nothing and want none.
 
-Cost note, **measured**: `session-analysis`'s reading protocol requires every
-reasoning, text and tool-input block in all modes, so each per-focus extractor
-already reads the whole session. One grader reading once is fewer whole-session
-reads than the pipeline it replaces, not more.
+This costs less than it looks: `session-analysis`'s reading protocol requires
+every reasoning, text and tool-input block in all modes, so each per-focus
+extractor already reads the whole session. One grader reading once is fewer
+whole-session reads than a per-focus pipeline, not more.
 
 ## Grade from the runtime agent's position
 
@@ -100,63 +76,40 @@ One consequence does the most work: **the reference is inadmissible as a
 requirement.** The agent never saw it, so nothing in it is something the agent
 "should have done". It can only tell the grader what the caller cares about. A
 rubric's authority is not policy here; it is a consequence of who the grader is
-arguing as.
+arguing as — which also makes one rubric defect decidable, an element satisfiable
+only by an agent that had read the reference.
 
-That makes one rubric defect decidable: **an element satisfiable only by an agent
-that had read the reference.** `general/coverage-disclosure`'s "passes the case
-overall if it passes the test for every plausible use case listed above" fails
-it, and also shows the repair: its six reader stakes are exactly right, and only
-the verdict clause bolted on top is inadmissible.
+## Why the second argument kills the first
 
-## Two arguments, and why the second kills the first
-
-1. **Constraint argument** — the strongest case that this output was the right
-   move given what the agent had. Its conclusion is always *no alternative*.
-2. **Alternative argument** — the concrete better action available within the
-   requirements argument 1 quoted.
-
-**Reasoned.** These are one instrument, not two opinions: argument 2 is the
-falsification test for argument 1. An alternative that survives argument 1's
-quotes refutes the forcing claim, and the defect is the agent's; an alternative
-that cannot be produced leaves the forcing claim standing, and the defect is the
-prompt's. Both surviving means both defects exist. The product is that boundary.
+The constraint and alternative arguments are one instrument, not two opinions:
+argument 2 is the falsification test for argument 1. An alternative that survives
+argument 1's quotes refutes the forcing claim, and the defect is the agent's; an
+alternative that cannot be produced leaves the forcing claim standing, and the
+defect is the prompt's. Both surviving means both defects exist. The product is
+that boundary, which is why forcing a winner destroys the result.
 
 Order is mandatory. Written second-first, the constraint argument degenerates
 into rationalising whatever the criticism left over.
 
-## The two guards are symmetric
+Each argument has a cheap dishonest form, and the guards are symmetric: each
+demands evidence the *agent* had rather than evidence the *grader* has. The tell
+for both is the word *just*. A defect with no trigger the agent could have had is
+**undiscoverable from the agent's position** — a third outcome, and a finding
+about the task rather than a pass for the agent. Inventing a trigger to avoid
+writing it is this design's characteristic failure.
 
-Each argument has a cheap dishonest form, and each is blocked by requiring
-evidence the *agent* had rather than evidence the *grader* has.
+## Reading one run rather than counting many
 
-| | dishonest form | guard |
-| --- | --- | --- |
-| 1 | "the requirements forced it" — prompts are long, something always reads as pressure | **quote** the requiring text; or, for a predictable misreading, quote it *and* cite the agent's own reasoning forming that reading. No quote is a concession, written as one. |
-| 2 | "it could have just noticed X" — where what makes X worth noticing is knowing the answer | **trigger**: something the agent had already seen, cited by ref, that should have prompted it. |
+A single opportunity for the behaviour under test is a coin flip whatever the
+prompt says, and two runs of one unedited prompt can differ on it as widely as a
+treated arm differs from either. The cheap resolution is inside the run, not
+across runs: build the fixture so one session offers **several opportunities
+differing in character**, and read the line the agent drew between them. That is
+a policy rather than a rate, and a policy is legible at n=1.
 
-A defect with no trigger the agent could have had is **undiscoverable from the
-agent's position** — a third outcome, and a finding about the task rather than a
-pass for the agent. Inventing a trigger to avoid writing it is this design's
-characteristic failure. The tell for both dishonest forms is the word *just*.
-
-## What a prompt edit's evidence becomes
-
-A prompt edit is justified when **a forcing claim that held under the old prompt
-dies under the new one**. The inverse is the regression signal: an edit that
-creates a new forcing claim is a regression even where the output looks better.
-This replaces pass/fail arm comparison, which cannot distinguish two runs that
-failed differently.
-
-## The override ledger
-
-The grader may override anything in a reference. The cost is a written claim
-naming the reference text, the evidence, and the repair; the owner then applies
-it or records the rejection. **Never before the run is recorded**, and the
-pre-edit judgement is kept — because a rubric edited to fit the run it is
-grading manufactures its own agreement, a hazard already on record in this repo
-(`notes/compliance-check-failure-mode/round-31.md`). A reference edit breaks
-comparability with stored runs exactly as a foci change does, so it cites the run
-that forced it.
+The same asymmetry applies to a null. A single question's silence is not
+evidence, because the question pre-selects what it can find; a null needs a
+second phrasing before it means anything.
 
 ## What this does not measure, and what it costs
 

@@ -35,8 +35,11 @@ head -1 "$PROMPT_FILE" | grep -qx -- '---' && {
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-# Neutral name: see prompt-test-cc.sh for why the cwd carries no case name.
-SCRATCH="$(mktemp -d "/tmp/prompt-test.XXXXXXXX")"
+# Neutral name: see prompt-test-cc.sh for why the cwd carries no case name. It
+# carries no category name either -- an agent whose environment block reads
+# /tmp/prompt-test.ab12cd34 knows it is being measured without any case name
+# being involved.
+SCRATCH="$(mktemp -d "/tmp/ptoc.XXXXXXXX")"
 OUT="$OUT_DIR/${CASE}-${TAG}.jsonl"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"
@@ -49,7 +52,7 @@ OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "plugin": [],
   "agent": {
-    "prompt-test": {
+    "dev": {
       "mode": "primary",
       "model": "'"${PROMPT_TEST_MODEL:-openrouter/anthropic/claude-opus-5}"'",
       "prompt": "{file:'"$PROMPT_FILE"'}",
@@ -57,7 +60,7 @@ OPENCODE_CONFIG_CONTENT='{
     }
   }
 }' \
-  opencode run --agent prompt-test --format json --dir "$SCRATCH" \
+  opencode run --agent dev --format json --dir "$SCRATCH" \
     < "$CASE_DIR/task.md" > "$OUT"
 
 echo "log:     $OUT"

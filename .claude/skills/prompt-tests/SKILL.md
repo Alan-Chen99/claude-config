@@ -26,9 +26,9 @@ included.
 
 `reference-solution.md` tells the grader what the caller cares about and why. It
 is guidance: it does not bind and it does not score. **It is inadmissible as a
-requirement** — the tested agent never saw it, so nothing in it is something that
-agent should have done. An element satisfiable only by an agent that had read it
-is defective as written: delete it, or rewrite it as the stake it came from.
+requirement** — the tested agent never saw it. An element satisfiable only by an
+agent that had read it is defective as written: delete it, or rewrite it as the
+stake it came from.
 
 ## Grader dispatch
 
@@ -66,6 +66,8 @@ surviving means a defect in the requirements and a defect in the behaviour; do
 not force a winner. Add what the output bought and what it paid, including
 anything no reader looking for defects in the delivered text would notice.
 
+Why this shape, rather than a score: `docs/prompt-testing-design.md`.
+
 **Phase 2, reference handed over** (`SendMessage` to the same agent, so it keeps
 the session in context): which items the reference would have caught and which it
 would have missed; the reference's defects — inadmissible elements, anything it
@@ -97,17 +99,12 @@ arms, and the difference you are measuring is then somewhere else.
 
 Two more ways an attribution fails silently, both of which have happened here:
 
-- **The baseline may already span the outcome range.** Two runs of one unedited
-  prompt can differ on the thing under test as widely as the treated arm differs
-  from either. A difference inside that spread is a sample, not an effect, and a
-  null where the arms agreed is equally underdetermined until agreement is shown
-  to be the baseline's normal state. Where an arm comparison is going to decide
-  something, say what the baseline's spread is, or say that it is unknown. The
-  cheaper move is to stop needing it: build the fixture so a single run offers
-  **several opportunities for the behaviour under test, differing in character**,
-  and read the line the agent drew between them. One opportunity is a coin flip
-  whatever the prompt says; several are a policy, and a policy is legible at n=1
-  and is semantic rather than a rate.
+- **The baseline may already span the outcome range.** Where an arm comparison is
+  going to decide something, say what the baseline's spread is or say that it is
+  unknown — a difference inside that spread is a sample, and a null is equally
+  underdetermined. Cheaper than measuring the spread: give one run **several
+  opportunities for the behaviour under test, differing in character**, and read
+  the line the agent drew between them (`docs/prompt-testing-design.md`).
 - **A rule that reaches the agent in a tool result explains nothing written
   before the first call to that tool.** The `pre_output.record` reminder is the
   case in point: its text arrives in the tool response, so behaviour at earlier
@@ -130,6 +127,8 @@ against: a directory nobody re-runs, that only a human will ever remove.
 
 A probe still runs under the contamination rules below — the fixture is copied
 into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
+Its record is a `README.md` under `prompt-tests/runs/<probe>/` naming what was
+asked and what came back, and nothing else.
 
 ## Test case shape
 
@@ -160,11 +159,11 @@ Under `prompt-tests/general/<case>/`:
    while runs are in flight splits one arm across two prompts.
 3. **Dispatch the grader**, one per arm.
 4. **Where the case has foci, dispatch one `session-analysis` subagent per
-   focus**, `mode: evidence`. These are the cross-run **diff** instrument, not
-   the grading instrument. Skip them when nothing is being compared, and do not
-   add foci to a case that has none. Where an arm ran several times, give one
-   subagent all its runs and one focus. Cap each at ~500 words for a single-turn
-   session, 600 for an arm of three; the parent reads every artifact.
+   focus**, `mode: evidence` — the cross-run diff instrument, so skip them when
+   nothing is being compared and do not add foci to a case that has none. Where
+   an arm ran several times, give one subagent all its runs and one focus. Cap
+   each at ~500 words for a single-turn session, 600 for an arm of three; the
+   parent reads every artifact.
 5. **Read the judgement and the artifacts.** Store both.
 
 Run once first; add runs when the artifacts of one arm disagree with each other.
@@ -180,10 +179,8 @@ differ in every step that got them there. Nothing here produces a rate, and any
 aggregate built from these documents is a misuse of them.
 
 A prompt edit is justified when a forcing claim that held under the old prompt
-dies under the new one. An edit that creates a new forcing claim is a regression
-even where the output looks better.
-
-`invalid` survives as a verdict, because it is a fact about the harness rather
+dies under the new one; an edit that creates a new forcing claim is a regression
+even where the output looks better. `invalid` survives as a verdict, because it is a fact about the harness rather
 than about the agent — see "Contamination".
 
 ### `downstream.md`
@@ -220,6 +217,12 @@ hand-rolled run must:
 - For opencode, `OPENCODE_DISABLE_PROJECT_CONFIG=1` and
   `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1`.
 
+**No plugins, either runner.** Superpowers injects a `brainstorming` skill whose
+HARD-GATE blocks implementation tasks pending design approval, so the agent never
+reaches the artifact-delivery step a case grades and the run measures the plugin.
+A transcript showing that, or any other plugin enforcement before the
+artifact-delivery step, is **misconfigured** — rerun it, do not grade it.
+
 Detection is grader-only; `task.md` never carries an anti-cheating note. Mark a
 run **`invalid`** and rerun — not `fail`, since it did not measure the task — if
 the tested-agent transcript shows any of:
@@ -233,6 +236,10 @@ the tested-agent transcript shows any of:
 - the case's own name, or any word from it, in the agent's cwd, its scratchpad
   path, or anything else it can read. The runner scripts name the scratch
   directory neutrally; a hand-rolled run must too.
+- **anything naming the harness inside the cwd**, which is the same leak without
+  a case name in it: a settings file, a log, a marker. An agent lists its working
+  directory before it starts and reports what it found. Keep harness plumbing
+  outside the cwd and give it a path that does not say *prompt test*.
 
 **Harness-side channels (opencode).** Full inventory in
 `skills/opencode-subcommand/SKILL.md`, "System-prompt contamination". Two that
@@ -255,20 +262,13 @@ scripts/prompt-test-cc.sh <case> <tag> [prompt-file]   # default: sys_prompt/ala
 
 `sys_prompt/alan-default-next.md` is written for Claude Code, and this runs it
 there: `agent-tools claude -p`, so the session gets this checkout's hooks,
-settings, and output style alongside the prompt.
+settings, and output style alongside the prompt. Read the script for what it
+sets and why; each of its guards exits non-zero naming what to fix.
 
-The script creates the scratch cwd, copies `fixture/`, runs `setup.sh`, disables
-plugins, captures reasoning, bounds the call, and prints the result path, the
-transcript path and the session id. A missing env file, an unset
-`CLAUDE_CODE_OAUTH_TOKEN` or a run past the bound each exit non-zero naming the
-variable to set, rather than leaving a degraded run to be discovered later; its
-header comments carry the why for each.
-
-The one mechanic worth knowing outside the script is `--thinking-display
-summarized`: without it every thinking block in the transcript is an empty string
-while the run still reports a thinking-token count, so a hand-rolled invocation
-that drops the flag yields a log indistinguishable from an agent that did not
-reason.
+The one mechanic worth knowing outside it is `--thinking-display summarized`:
+without it every thinking block in the transcript is an empty string while the
+run still reports a thinking-token count, so a hand-rolled invocation that drops
+the flag yields a log indistinguishable from an agent that did not reason.
 
 Two things the script cannot do for you:
 
@@ -306,7 +306,9 @@ The script refuses a prompt file starting with frontmatter, which `{file:...}`
 would inject verbatim.
 
 An agent file that *has* frontmatter — `opencode/agents/alan-default-ids.md` —
-therefore has to be driven directly. Full recipe: `skills/opencode-subcommand`.
+therefore has to be driven directly, with `model` and `variant` set in the config
+block (`openai/gpt-5.5/xhigh` for `alan-default`). Full recipe:
+`skills/opencode-subcommand`.
 
 Three of its lines carry a failure that is silent when you get them wrong, and
 one of the three is specific to this repo:
@@ -315,20 +317,13 @@ one of the three is specific to this repo:
   apply the agent file's frontmatter. Verify the rendered header with
   `agent-tools opencode-pretty <session-id> --agent`.
 - **`PATH` and `CLAUDE_CONFIG_ROOT`.** `alan-default-ids` calls `agent-tools
-  opencode.gate`, whose text is baked into the binary at build time.
-  `~/.local/bin/agent-tools` resolves to `/repos/claude-config`, so a worktree
-  edit never reaches it and the prompt change appears tested when it is not.
-  Rebuild with `cd "$REPO/agent-tools" && cargo build --release`, then check the
-  gate text you expect comes out of
-  `"$REPO/agent-tools/target/release/agent-tools" opencode.gate < /dev/null`.
-  `CLAUDE_CONFIG_ROOT` is an assertion, not an override: the worktree binary
-  refuses to run unless it names the root that binary was built from, which turns
-  a wrong-worktree run into a setup failure instead of false confidence.
-- **`"plugin": []`.** Superpowers injects a `brainstorming` skill whose HARD-GATE
-  blocks implementation tasks pending design approval, so the agent never reaches
-  the artifact-delivery step a case grades and the run measures the plugin. A run
-  blocked that way is misconfigured, not `fail`. No case here wants plugins
-  loaded.
+  opencode.gate`, whose text is baked into the binary at build time, and
+  `~/.local/bin/agent-tools` is the installed checkout's — so a worktree edit to
+  the gate never reaches it and the change appears tested when it is not.
+  Rebuild, put the worktree binary first on `PATH`, and read the gate text back
+  out of it before trusting the run.
+- **`"plugin": []`.** Both runner scripts pass it; a hand-rolled run must. No
+  case here wants plugins loaded.
 
 Two log caveats for this runner. The `--format json` stream is written
 incrementally, so a log read mid-run can be missing the final text part —
