@@ -219,12 +219,12 @@ size — which would mean the MCP surface has grown into the case #45357 describ
 ### `# Writing for other agents`
 
 **`Omit by default` prices by reach, not by existence.** The earlier wording priced a line by having
-been written at all, and maintenance and mis-reading cost the same wherever a line sits — per-session
-cost does not. Measured 2026-09-22 on `prompt-tests/general/what-retires-this-line`
-(`prompt-tests/runs/` carries the numbers): with the old wording the whole write-up went into an
-auto-loaded `CLAUDE.md` and no other file was created; with the block deleted the detail went to a
-separate file and a pointer stayed behind. The reach wording takes the pointer placement without
-pushing out content that genuinely binds every session.
+been written at all, and maintenance and mis-reading cost the same wherever a line sits —
+per-session cost does not. Measured 2026-09-22 on `prompt-tests/general/what-retires-this-line`:
+with the old wording the whole write-up went into an auto-loaded `CLAUDE.md` and no other file was
+created; with the block deleted the detail went to a separate file and a pointer stayed behind. The
+reach wording takes the pointer placement without pushing out content that genuinely binds every
+session.
 
 Unresolved, and the likeliest thing to retire it: total bytes written went **up**. The objective this
 was edited under asks that documentation not grow unbounded, and relocation is growth.
