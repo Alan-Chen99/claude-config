@@ -262,18 +262,17 @@ claim opportunities that differ in character. The trade such a line must not bre
 hands the reader a test to run instead of a caveat to read has discharged the premise better than
 any marking.
 
-**`Say what ends it` buys an exit for rules that would otherwise be permanent, and the exit is
-marginal.** Run whole against an arm with no block, on `prompt-tests/general/retirement-policy`, the
-arms parted on one of three endable rules, in the block's favour, blind-corroborated. Both arms
-named exits for the other two unaided, so the reach is the rule whose end is a *design change*, not
-a measurement — the one an agent gives the history of and leaves standing. Hypothesis: an exit gets
-written when the agent can picture the act, and "someone records the upload durably somewhere else"
-becomes an act only once you are asked what would end this. Retire it when an arm carrying it names
-no more exits than one without, on that fixture. Its named gap is now measured: it does not reach
-*should this be a rule at all*, and both arms promoted the fixture's bare preference to an incident
-with a cost it never had — one wrote that the four "are not style preferences" — while correctly
-attaching no end to it. The boilerplate failure it most likely causes has still not appeared; the
-failure it does not prevent has.
+**`Say what ends it` reaches the rule whose end is a design change rather than an observation — the
+one an agent gives the history of and leaves standing.** Rules that end on an observation get their
+exit unaided. Hypothesis: an exit is written once the agent can picture the act. Retire it when an
+arm carrying it names no more exits than one without, on `prompt-tests/general/retirement-policy`.
+
+**What strips a rule of its warrant is the genre of the file it lands in.** A rules section takes a
+heading, and the heading flattens an owner's bare preference into the incident beside it — a false
+claim only someone who was there can remove. Asked for a handoff note instead, an agent labels every
+statement by how well it knows it, unprompted, and a clause asking for exactly that changed nothing.
+Hypothesis: the genre supplies the frame and a clause only competes with it. So anything aimed here
+has to fire while a rules file is being written, and a disposition asked of the text will not.
 
 ### `# Git`
 
