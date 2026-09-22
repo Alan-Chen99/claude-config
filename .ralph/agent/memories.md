@@ -2,13 +2,13 @@
 
 ## Patterns
 
+### mem-1790071899-5e6c
+> Where a doubt lands in a document is decided by the sentence's job, not by whether the agent holds the doubt. Measured on a release-guide task: the session's own pre_output.record uncertainties named three facts about systems the working directory could not settle; two became pre-flight checks in the file (both gate an act the reader performs) and the third was asserted flat inside a sentence explaining how a step works -- and the session then reported all three as documented. So the earlier 'no wording can make a passing sentence salient' is withdrawn: the doubt was present, written down, and believed delivered. Hypothesis: a doubt is routed to where the reader acts; a descriptive sentence offers nowhere to put it, so it is dropped rather than declined.
+<!-- tags: sys-prompt, writing-for-agents, docs | created: 2026-09-22 -->
+
 ### mem-1790070627-b0f9
 > A saturated baseline has two very different causes and they license different conclusions. Cause one: the fixture made the answer the stated one. Cause two -- observed here -- the agent GOES AND SETTLES the premise: it started a database to find out whether ON CONFLICT DO NOTHING needs a unique index, tested a library default rather than asserting it, and wrote the reader's own check into the delivered page. Under cause two a marking line has nothing to buy even in principle, because running the test discharges the premise better than any marking does. Check which cause you have by reading the transcript, not the artifact: the artifact looks the same either way.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
-
-### mem-1790070620-905c
-> A premise gets treated as a claim when the TASK makes it load-bearing, not when the handover flags it. Measured in a second genre (on-call page for a worker whose restart safety rests on a vendor's dedupe behaviour, nothing in the cwd able to settle it): all three arms -- untreated, plus a channel wording and a recognition wording -- recorded that premise as unconfirmed and named what would settle it, and the untreated arm started a Postgres container to determine empirically what the local half did. What every arm asserted flat was the premise reached for while writing a supporting sentence: systemd restart-limit defaults, httpx's redirect default, an invented 15-minute wait. Hypothesis: a premise becomes a claim when the document is ABOUT it, so no wording can carry the difference -- a prompt line cannot make a passing sentence salient. This supersedes the earlier 'a stated gap makes unknown the stated answer' reading: that fixture's gap was stated AND salient.
-<!-- tags: sys-prompt, writing-for-agents, docs | created: 2026-09-22 -->
 
 ### mem-1790069038-81d9
 > A round-15 claim that a prompt line asking for end-conditions does not reach REGISTER is withdrawn. Re-measured with the line isolated, the arm carrying it filed the fixture's one bare preference AS a preference ('owner's preference, stated directly') while the arm without it stated the same rule flat under House rules with no warrant at all -- the opposite direction. Hypothesis: a line that makes the agent ask what would end each item also makes it ask what each item rests on, so register marking rides along with the template rather than being untouched by it. Note for whoever reads a uniformity finding: applying one clause shape to every item is not by itself the failure a reference may call it -- check the WHY field before scoring the shape.
@@ -28,8 +28,8 @@
 
 ## Decisions
 
-### mem-1790057525-9dcd
-> A shipped prompt line with a named, unmeasured negative effect outranks any new candidate line as a round's milestone: it is already charging every session and only a human can remove it, and testing the incumbent is the only move that can shrink the prompt. Omit by default's relocation harm sat named-but-unmeasured for eight rounds while five rounds probed lines that did not exist.
+### mem-1790071899-7413
+> A shipped prompt line with a named, unmeasured negative effect outranks any new candidate line as a round's milestone -- but only inside the objective's scope. Applied outside it, the heuristic sends a round at lines the objective does not reach, and removing an existing unmeasured clause is cleaning, which this objective explicitly excludes ('your job is not to clean this, but to ensure there are less new things of this form').
 <!-- tags: sys-prompt, workflow | created: 2026-09-22 -->
 
 ## Fixes

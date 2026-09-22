@@ -6,34 +6,26 @@ that ratchet. Carry **what retires this line** into every decision.
 
 ## Durable method, reusable across rounds
 
-**The compression rule.** Sort every line by what it is; cut in this order,
-stopping at the first class that is load-bearing: (1) a **claim** — only claims
-can be wrong. (2) a **restatement** — with two wordings nothing says which
-governs. (3) a **duplicate of executable code** — replace with its name. (4) a
-**trap** — what the reader gets wrong by default, silently; keep. Deletion is
-the default; each *keep* needs the argument.
+**The compression rule.** Cut in this order, stopping at the first class that is
+load-bearing: a **claim** (only claims can be wrong), a **restatement** (two
+wordings, nothing saying which governs), a **duplicate of executable code**
+(replace with its name), a **trap** (what the reader gets wrong silently; keep).
+Deletion is the default; each *keep* needs the argument.
 
 **A line that names a consideration does not deliver the conclusion it argues
-for.** It makes the consideration salient, and the agent then argues it in
-whichever direction the task favours. Measured twice on `Omit by default`'s reach
-wording: more readership reasoning, none of it reaching the clause's own
-conclusion. *(iter 13)*
+for.** It makes the consideration salient, and the agent argues it in whichever
+direction the task favours. Measured twice on `Omit by default`'s reach wording.
 
 **A retirement condition names a comparison, not an observation** — *retire this
 when an arm carrying the line does no better than one without* is the only form
 a later round can act on.
 
-**Buy resolution inside the run.** At n=1 one opportunity for the behaviour under
-test yields a coin flip; several that *differ in character* yield the policy the
-agent applied, and their agreement is what makes the parting readable.
+**Buy resolution inside the run.** At n=1 one opportunity yields a coin flip;
+several that *differ in character* yield the policy the agent applied.
 
-**Categorical or it is not evidence, and the test applies per reading, not per
-table.** *Wrote a second file or not*, *stated bare or sourced* are readable at
-n=1; a count is a sample of an unmeasured spread. Hardest to hold where the
-excluded number is the one you want. *(13, 14)*
-
-**A criterion written from the shape of the failure cannot score a good
-outcome.** Write what the good artifact looks like first.
+**Categorical or it is not evidence, per reading rather than per table.** *Stated
+bare or sourced* is readable at n=1; a count is a sample of an unmeasured spread.
+Hardest to hold where the excluded number is the one you want.
 
 **Test the lines already shipped.** A shipped line with a named, unmeasured harm
 outranks any new candidate.
@@ -41,9 +33,6 @@ outranks any new candidate.
 **When an instruction exists to compensate for a harness, fix the harness.** An
 `(instruction)` telling a later round to remember something is a rule nothing
 approves and only a human retires.
-
-**A clause no fixture can exercise is a deletion candidate with an outstanding
-test, not an open question.** *(13)*
 
 **Before writing a clause for a failure, re-run the failure in a second genre.**
 If it disappears there, the target is the genre and not the wording, and a clause
@@ -78,20 +67,13 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > `sys_prompt/CLAUDE.md`; it may replace one, and the replacement is shorter than
 > what it replaced.**
 
-> **A probe's own directory is deleted by the round that wrote it**, in the
-> commit that puts the claim into `sys_prompt/CLAUDE.md`. Reasoning and the two
-> records that forced it: the prompt-tests skill. *(19)*
-
 > **No claim in `sys_prompt/CLAUDE.md` may be a run narrative.** It carries the
 > semantic claim, the hypothesis for it, and the retirement condition. Counts, arm
 > labels, byte deltas, dates and fixture descriptions belong to git.
 
-> **A round's decisive reading is made by a reader that is not the round.** One
-> reader, holding the artifacts relabelled and the criterion, told neither what is
-> being tested nor which arm is which — and its answer is the result, not a check
-> on one already written. Iteration 17's own read found one of three unsourced
-> claims and missed the one in the arm it would have kept; the blind read reversed
-> the outcome. *(17)*
+> **A round's decisive reading is made by a reader that is not the round**, told
+> neither what is being tested nor which arm is which. Its answer is the result,
+> not a check on one already written.
 
 > **A null is reported as saturated, not as a finding, when the untreated arm
 > already does the thing** — and where the line under test is a shipped one, a
@@ -100,13 +82,11 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > honoured. *(18, 19)*
 
 > **An `(instruction)` asserting that work is undone states the command that
-> shows it.** Iteration 12 handed forward "no round has done this" about a user
-> ask that one grep refutes. *(13)*
+> shows it.**
 
 > **The round ends under the user's `.ralph/agent/*` ceiling, with the number in
 > its last commit message** — not in a file here, where writing it changes it.
-> `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` < 6000. It sat
-> over for two rounds because no line named a command. *(19)*
+> `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` < 6000.
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
@@ -115,15 +95,12 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — the durable
 home, and the file to read before touching the block. Everything else is in the
-commit messages. Shipped: `Say what ends it` (9, isolated 19). The case corpus is
-bound to the prompt by one grep; eleven of fifteen cases deleted (15). Deleted:
-`Omit by default` (13, 17), `Claim less` (4, 14). Eight candidate wordings failed
-(3–8, 12, 14, 16, 18, 20), the last three all claim-handling. Round 10 fixed a
-nine-round harness contamination and voided every arm stored before 2026-09-22.
-Every sentence still in the block has now been measured alone: the preamble (18)
-and `Say what ends it` (19). 20 built the fixture the claim-handling condition
-named and found the baseline saturated on it; what no arm marks is the premise
-reached for *while writing a supporting sentence*, asserted flat everywhere.
+commit messages. Shipped: `Say what ends it` (9). Deleted: `Omit by default`
+(13, 17), `Claim less` (4, 14). Eight candidate wordings failed (3–8, 12, 14, 16,
+18, 20), the last three all claim-handling. The corpus is bound to the prompt by
+one grep; eleven of fifteen cases deleted (15). Round 10 fixed a nine-round
+harness contamination and voided every arm stored before 2026-09-22. Every
+sentence still in the block has been measured alone (18, 19).
 
 ## Iteration 21 — `a9fc0fc6` → end of round
 
@@ -169,3 +146,54 @@ put it in the file competes with an IMPORTANT/NO EXCEPTIONS gate and loses.
 The probe is one arm, because the decisive reading is available inside a single
 session: does the `uncertainties` array name the same premise the delivered document
 asserts flat? Only if it does is the two-arm removal test worth running.
+
+### The round's work and result
+
+Cleanup half, `5dff4c0f`: every case-owning sentence in `sys_prompt/CLAUDE.md`
+now carries the path, so the grep no longer rests on narrative another rule
+forbids; a citation to a directory not in this worktree goes with it.
+Measurement half: pre-registration `19a6af3f`, result and claim `15d439ee`.
+
+**Outcome 1, with its interpretation withdrawn.** The session's own
+`uncertainties` named three facts the working directory cannot settle. Two
+reached the document as pre-flight checks; the third was asserted flat inside a
+sentence explaining how a step works, and the session reported all three as
+documented. So the sink is not diverting doubts wholesale — the removal test the
+outcome proposed does not follow — and *no wording can reach a passing sentence*
+is withdrawn, since the doubt was present, written down and believed delivered.
+What separates the three is the sentence's job: two gate an act the reader
+performs, the third describes. The blind reader, told nothing, independently
+named that flat sentence as the thing that would stop a successor.
+
+The probe is promoted rather than deleted, which is the first time the deletion
+rule has been overridden: the condition needs a document with both an
+instructing and an explaining part leaning on unsettleable facts, and rebuilding
+that costs more than the directory does. Its `reference-solution.md` states what
+the fixture settles and what it does not, and no verdict on either.
+
+### `(contract)` amendment
+
+> **A condition written into `sys_prompt/CLAUDE.md` names, in its own sentence,
+> either a case that exists in the tree or an observation any run would show.**
+> Replaces 19's ownership rule in the condition→case direction. 20 wrote a
+> condition whose fixture nobody had built; 20 also left three conditions
+> pointing at their case as *on that case*, which its own no-narrative rule
+> would have silently unowned. Both are the same defect.
+
+### `(instruction)` for iteration 22
+
+1. The measured target is now *a premise inside an explanatory sentence*, not
+   *a premise nobody flagged*. Eight wordings failed against the older target;
+   none has been written against this one. A ninth is admissible, and
+   `prompt-tests/general/maintainer-briefing` is the fixture that reads it —
+   both arms, categorical, per premise, decided blind.
+2. Before writing that wording, note what the successful half did unaided: the
+   two doubts that reached the file did so as *things the reader must confirm
+   before acting*. A wording that asks the explaining half to borrow that
+   shape is closer to the measured mechanism than one asking for a hedge.
+3. `uncertainties` is not closed as a subject, only as this round's explanation.
+   It carries content that belongs to the reader of the file and reaches only
+   the user; what no round has measured is whether the agent would have found
+   the third premise at all without the field asking for it.
+4. 20's instruction 2 (the subagent override clause) is overridden; see C1. Do
+   not reinstate it without arguing that the bullet is inside the objective.

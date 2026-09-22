@@ -46,3 +46,40 @@ not-started.
 - **Reversibility**: nothing shipped to the prompt. Probe at `67665578`, replaced
   paragraph at `609b90fc^`.
 - 2026-09-22T10:05:00Z
+
+## DEC-016 — the ninth claim-handling wording is not written this round
+
+- **Decision**: what to do about the claim-handling paragraph after its new
+  condition fired.
+- **Chosen option**: ship no prompt line. Replace the paragraph with a shorter
+  one carrying the measured mechanism, and promote the probe to a case so the
+  condition it states has a fixture.
+- **Confidence**: 78.
+- **Alternatives**: run the two-arm `uncertainties`-removal test this round
+  (rejected: the same session routed two of three named doubts *into* the file,
+  so the field is not diverting them wholesale and the removal test no longer
+  follows from the result); write a wording aimed at explanatory sentences and
+  ship it on this one reading (rejected: the user's rule is that a line is added
+  only after it is shown to work in a prompt test, and this round measured the
+  failure, not a remedy); delete the paragraph and close claim-handling
+  (rejected: its own condition fired and produced a mechanism, which is the
+  opposite of a dead question).
+- **Reasoning**: the round's result refines its pre-registered outcome rather
+  than matching it, and the contract says an outcome asserting more than the
+  observation is withdrawn. What survives is the observation — doubt held,
+  written down, asserted flat in the explaining half of the document — which is
+  a better-specified target than any of the eight failed wordings had.
+- **When to re-evaluate**: when an arm carrying such a line qualifies a premise
+  inside an explanatory sentence where an arm without it asserts it flat, on
+  `prompt-tests/general/maintainer-briefing`.
+- **Framing bias**: the fixture was built to make an unsettleable premise
+  unavoidable, so it guarantees the opportunity and says nothing about how often
+  one arises unprompted. I also expected the sink to divert everything and it
+  diverted nothing; the pre-registration's outcome 1 is honoured only for what
+  it observed.
+- **Independent evaluation**: one blind reader, given the document, the fixture
+  and the criteria, told nothing about what was under test or that anything was;
+  not-started for the decision.
+- **Reversibility**: nothing shipped to the prompt. Replaced paragraph at
+  `15d439ee^`; pre-registration at `19a6af3f`.
+- 2026-09-22T10:25:00Z
