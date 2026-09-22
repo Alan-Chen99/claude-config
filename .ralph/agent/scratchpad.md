@@ -14,7 +14,7 @@ count and verdict left behind by the pre-loop sweep, deleted two cases, wrote a
 justification into each kept case. No prompt test ran; nothing was added to the
 system prompt. Durable lessons are in memories; the rest is in git.
 
-## Iteration 2 — `3f73a56c` → (this commit's parent)
+## Iteration 2 — `3f73a56c` → `843b812f`
 
 ### Critique of iteration 1
 
