@@ -2,6 +2,14 @@
 
 ## Patterns
 
+### mem-1790046994-befd
+> Before stating what a prior iteration did, check the artifact, not .ralph/agent/decisions.md - the journal is the compressed copy and is a round or more behind. Iteration 4 asserted 'no case has been through the justify-or-remove pass' and git blame showed three, written in iteration 1; that premise set a whole round's instruction list. One grep or git blame closes it.
+<!-- tags: workflow, verification | created: 2026-09-22 -->
+
+### mem-1790046994-a624
+> prompt-tests/CLAUDE.md auto-attaches to any session that opens a file under prompt-tests/ with the Read tool, and phase 1 of the grader dispatch withholds the case reference on purpose. So the rule for that file is 'nothing case-specific', not 'no run results': a description of what a case probes is most of what phase 1 withholds. Iteration 1 removed the results and left the probe descriptions and the invariant statements; three rounds read past it. Mechanical test: grep every case name against the file.
+<!-- tags: prompt-tests, contamination | created: 2026-09-22 -->
+
 ### mem-1790045604-dc10
 > To discriminate hedging from verifying in a prompt test, put a FALSE AND CHECKABLE belief in the handover: the reporter states something about the repo that the fixture refutes in one read. Repeating it as a warning is hedging where checking was available; refuting it is verification. Pair it with an unexplained-but-load-bearing item as the control in the other direction, so an arm that drops everything unretirable also fails. Both directions live in one fixture, no second adversarial case needed.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
