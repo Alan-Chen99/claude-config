@@ -106,7 +106,7 @@ contamination (the runner named itself in the tested agent's cwd) and voided
 every arm stored before 2026-09-22. Round 11 found that restatement grows by
 accretion, not addition.
 
-## Iteration 12 — `0f32e2ef` → (see end)
+## Iteration 12 — `0f32e2ef` → `da9f03c9` (+ this commit)
 
 ### Critique of iteration 11 (and of the loop's shape)
 
