@@ -88,9 +88,11 @@ candidate with an outstanding test.** *(iter 13)*
 > `sys_prompt/CLAUDE.md`; it may replace one, and the replacement is shorter than
 > what it replaced.**
 
-> **A stored run is retired by the condition its own README states**, and the
-> round that notices deletes the directory. The condition may not depend on a
-> later round choosing particular work.
+> **Any directory this loop creates names the check that deletes it** — a grep or
+> a command, in the file that owns it — and the round that runs the check deletes
+> whatever it prints. An argument for why the directory deserves to exist is not
+> that check: fifteen cases were defended by uniqueness claims no round could
+> falsify, and the corpus stood for fourteen rounds with zero runs in it. *(15)*
 
 > **No claim in `sys_prompt/CLAUDE.md` may be a run narrative.** It carries the
 > semantic claim, the hypothesis for it, and the retirement condition. Counts, arm
@@ -102,84 +104,75 @@ candidate with an outstanding test.** *(iter 13)*
 > ask that one grep refutes, and acting on it would have spent a round re-doing
 > finished work. *(iter 13)*
 
-## Rounds 1–13 — `9f6c03a0` → `f2737a34`
+## Rounds 1–14 — `9f6c03a0` → `0a1f1b6a`
 
 Detail is in commit messages; anything justifying a prompt line is in
-`sys_prompt/CLAUDE.md`, which is the durable home and the one to read before
-touching the block. Shipped: the `Claim less` hedge endorsement deleted (4),
-`Say what ends it` added (9), `Omit by default` repriced to reach (3) and back
-to existence (13). Rounds 6–8: three wordings aimed at claim-handling all failed
-because the node is premise **provenance**, not wording. Round 10 fixed a
-nine-round harness contamination and voided every arm stored before 2026-09-22.
-Round 11: restatement grows by accretion, not addition. Round 12: the task's
-subject bounds the edit, so relocation-as-growth cannot occur on a writing task.
-Round 13 measured reach on two destinations, found no arm sorted by it, and cut
-it; it also deleted `platform-portability` and repaired three colliding case
-justifications.
+`sys_prompt/CLAUDE.md`, the durable home and the one to read before touching the
+block. Shipped: `Say what ends it` added (9); `Omit by default` repriced to reach
+(3) and back to existence (13); the `Claim less` hedge clause cut (4) and the
+whole bullet with it (14). Rounds 6–8 and 14: five wordings aimed at
+claim-handling all failed, because the node is premise **provenance**, not
+wording, and what discharges a premise is an action rather than a disposition.
+Round 10 fixed a nine-round harness contamination and voided every arm stored
+before 2026-09-22. Round 11: restatement grows by accretion, not addition. Round
+12: the task's subject bounds the edit, so relocation-as-growth cannot occur on a
+writing task.
 
-## Iteration 14 — `f2737a34` → `5d8c94b4` (+ this commit)
+## Iteration 15 — `0a1f1b6a` → `<end>`
 
-### Critique of iteration 13
+### Critique of the rounds that built the case corpus
 
-**C1 (workflow, instrument).** Its probe had to plant a directory in the
-permanent case corpus — all four runners resolved `<case>` only under
-`prompt-tests/general/`, so the skill's own rule that a probe leaves one README
-under `prompt-tests/runs/<probe>/` was unsatisfiable. What shipped instead was an
-`(instruction)` asking the *next* round to remember the other half: the
-objective's sharpest clause, inside the instrument built to police it. Fixed at
-the cause — a `<case>` with a slash is used as given.
+**C1 (fact).** `retirement-policy`'s keep-note said `sys_prompt/CLAUDE.md`'s
+condition for `Say what ends it` "names a re-run here". Grep: that file named two
+cases and not this one. The condition names a *fixture shape*, which any fixture
+satisfies. A keep argument resting on a citation that does not exist is the
+ratchet's strongest form — it reads as load-bearing and nothing can check it.
 
-**C2 (quality, admissibility).** It excluded R4 (lines added) as inside an
-unmeasured spread, then read R6 (code files edited: 3 / 0 / 1) as a ground for
-its cut. R6's B-vs-rest contrast is categorical and survives; its 3-vs-1 is the
-number R4 was excluded for. The verdict rested on a categorical null, so it
-stands; the method note above is amended.
+**C2 (workflow).** All fifteen cases were defended by a **uniqueness claim** —
+*the only case that X*. That is a claim about the corpus, not the case: deleting
+its neighbours makes it more true and no observation falsifies it. So the round
+that wrote "a case earns its status by being re-run" wrote fifteen arguments
+making being-re-run irrelevant, and after fourteen rounds the corpus held zero
+stored runs. This loop added the largest human-removal-only accretion in the repo.
 
-**C3 (fact, and this round's milestone).** `sys_prompt/CLAUDE.md` carried two
-retirement conditions beside `Claim less` and neither retired the bullet: one
-retired the *hedge-clause deletion*, the other the *line of inquiry*, and the
-latter named no comparison an arm can produce. The block's author applied `Say
-what ends it` to two of its three bullets and not to the third, leaving a line
-every session loads that nothing could end. Iteration 13 saw it was unexercised
-and handed it forward rather than running it.
+**C3 (workflow, instrument).** The only evidence a case was re-run is its stored
+run, and `prompt-tests/runs/README.md` deleted stored runs "whenever its reference
+or its fixture changes". Improving a reference's wording destroyed the record that
+the case had earned its place, so no case could ever satisfy the condition.
+
+**C4 (quality).** `trivial-task`, `network-resilience` and `coverage-disclosure`
+still carried the pre-rewind rubric vocabulary the user ordered marked unusable in
+round 1. Iteration 13 added a keep-argument to `trivial-task` on top of a body
+nobody re-read.
 
 ### The round's work
 
-Runner change (C1), then probe `ingest-notes`: an undocumented CSV-into-SQLite
-loader, `NOTES.md` for the next agent, six claim opportunities differing in
-character, two checkable defects verified before launch. Two arms.
-Record in `prompt-tests/runs/ingest-notes/README.md`.
+**Corpus bound to the prompt.** A case is kept only while `sys_prompt/CLAUDE.md`
+names it; one grep decides, and the corpus can then never outgrow the prompt —
+which is the user's *no unbounded growth without a human size limit*, achieved
+structurally. Eleven cases deleted, recoverable by `git checkout 2acdbd06 --`.
+Four kept, each named by the condition it serves. Fifteen keep-arguments deleted.
 
-**Null on the marking criterion, and the one asymmetry ran against the bullet.**
-Both arms sourced rather than bare-stated the expiring values, neither hedged or
-dated one, both led with the checkable defects. The arm *without* the bullet ran
-a lock experiment to settle the one library claim that mattered and rewrote its
-own draft hedge once it had the answer; the arm *with* it settled the same claim
-by arithmetic and shipped it flat. A blind grader, told only that one line
-differed: *"These two documents do not differ on the decisive criterion."*
+**The block tested whole** (contract's arm requirement, and iteration 14's third
+instruction). `retirement-policy` re-run under the prompt at HEAD and under the
+same file with the whole block removed. Outcome 1: of three endable rules both
+arms named exits for two unaided and parted on one, in the block's favour; a
+blind grader with reversed labels returned the same single row. No deletion
+ships. Record: `prompt-tests/runs/retirement-policy/README.md`.
 
-**Shipped:** the bullet deleted. Prompt 6461 → 6438 `--api`;
-`sys_prompt/CLAUDE.md` 7412 → 7372.
+**The finding that runs against the block.** Both arms promoted the fixture's one
+bare preference to an incident with a cost it never had. That is the gap
+`sys_prompt/CLAUDE.md` already named beside the bullet, measured for the first
+time and present in both arms — so it is a hole in the prompt, not a
+block-vs-no-block difference.
 
-**Pre-registration defect, recorded against itself.** Its four outcomes did not
-partition the space and its Mixed clause was directionless — read literally it
-keeps the bullet on evidence against it. Withdrawn, not honoured.
+### `(instruction)` for iteration 16
 
-**Beware the tokenizer.** Rounds 3–13 sized the prompt with the *local*
-tokenizer, this one with `--api` (the repo prefers it for a prompt budget). Same
-two revisions: 4237 → 4220 local, 6461 → 6438 api. Earlier figures do not compare.
-
-### `(instruction)` for iteration 15
-
-1. Delete `prompt-tests/runs/ingest-notes/` unless you re-run that fixture.
-   Unconditional, one `rm -r` — not `git rm -r`, which leaves the fixture's
-   gitignored `__pycache__` behind and the directory standing while `git status`
-   reads clean. That is how iteration 13's probe survived its own deletion here.
-2. **Round 15 is a cleanup round** (every fifth). The standing item is iteration
-   13's: fifteen cases under `prompt-tests/general/`, zero stored runs under the
-   current skill, and the loop spends its runs on probes. The skill now says a
-   case earns its status by being re-run — apply that to the corpus, or write
-   down why the inventory is worth its permanence.
-3. `Omit by default` and `Say what ends it` are the whole block now, both with
-   retirement conditions, neither run against an arm lacking it since round 9.
-   The block is small enough to test whole.
+1. Isolate the block's two bullets: run `retirement-policy` under a prompt
+   carrying only `Say what ends it` and one carrying only `Omit by default`.
+   Outcome 1 named this as the next step and one row at n=1 is what it rests on.
+2. Run the corpus grep before anything else; it is three lines in the skill under
+   "Probes, and when a run is a case instead".
+3. Do **not** ship a register line ("should this be a rule at all") on the
+   strength of this round. The failure is measured; that an agent would act on a
+   line addressing it is not, and this node has swallowed five wordings already.

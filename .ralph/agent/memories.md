@@ -2,17 +2,17 @@
 
 ## Patterns
 
-### mem-1790060184-3e6c
-> A prompt line asking for a DISPOSITION ('think before claiming') does not produce one. Four wordings in Writing for other agents aimed at claim-handling; the last was run against an arm without it on a task that is nothing but claims, and neither document marked what it asserted differently. The arm WITHOUT it ran an experiment to settle the one library claim that mattered and rewrote its own draft hedge; the arm with it settled the same claim by arithmetic and shipped it flat. Why: what discharges an unverifiable premise is an action (run the code), which the prompt asks for elsewhere operationally; a disposition-line adds a thing to argue about instead of a thing to do.
-<!-- tags: sys-prompt, writing-for-agents, prompt-design | created: 2026-09-22 -->
-
-### mem-1790057525-b4a8
-> A pre-registered READING can be wrong, not just the candidate. Iteration 12 pre-registered 'A approx B means the reach clause is inert' and withdrew it in the record: the fixture offered one plausible home for the new fact, so the reach clause never had two destinations to choose between. Withdraw the reading in the run's own README rather than honour it - a pre-registration binds you to report the outcome, not to accept an inference its fixture cannot support.
-<!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
-
-### mem-1790052470-b93e
-> An artifact's uncertainty structure tracks the READER the task names, not the artifact's cold-read-ness. Same fixture, same prompt: asked for an on-call runbook the agent re-asserted an inherited vendor guarantee and added no confidence structure; asked for a brief for 'another agent in a fresh session with no access to this conversation' it labelled every section by distance from evidence and attacked the same inherited claim. Untested which half of the prompt does this - the '# Writing for other agents' block opens on readers who cannot ask what you meant, which is the brief task's literal wording. A deletion arm on that block would settle it.
+### mem-1790061552-775e
+> A prompt line asking for end-conditions does not reach REGISTER. Both arms promoted a fixture's one bare preference ('Also, unrelated to any of that: I'd rather we not use print()') to an incident heading with a cost it never had -- one writing outright that the four items 'are not style preferences' -- while correctly attaching no end-condition to it. Both did split the four, on detectability rather than provenance, so an agent reaches for a split and picks the axis visible in the code. Why this matters: a preference filed as a finding is a doc error only a human notices, and it is produced by the same care that produces good end-conditions.
 <!-- tags: sys-prompt, docs | created: 2026-09-22 -->
+
+### mem-1790061552-635c
+> Where 'Say what ends it' reaches, measured whole against an arm with no block: the rule whose exit is a DESIGN CHANGE rather than a measurement. Both arms named exits unaided for the two rules a person could settle by asking a vendor or running a comparison; they parted only on 'jobs/<id>.json is the only record of an accepted upload', where the arm with the block wrote 'Stops applying once an accepted upload is durably recorded somewhere else' and the arm without wrote the history and no exit. Hypothesis: an exit gets written when the agent can picture the act, and a design change becomes an act only once you are asked what would end this.
+<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-22 -->
+
+### mem-1790061545-2f77
+> A per-artifact 'why this is kept' argument crowds out the 'what would end this' condition and is the cheaper of the two to write, so a repo that asks for the first gets permanence for free. Fifteen prompt-test cases were each defended as 'the only case that X' -- a claim about the corpus, not the case: deleting a neighbour makes it MORE true and no observation falsifies it. Fix: bind the artifact to something that already has a retirement condition (here, a case is kept only while sys_prompt/CLAUDE.md names it) so one grep decides and the collection cannot outgrow what owns it. That is 'documentation does not grow unbounded' without a human-set size limit.
+<!-- tags: docs, ratchet, prompt-tests | created: 2026-09-22 -->
 
 ### mem-1790052470-9c1e
 > A downstream reader does NOT stabilise an unstable baseline. It is a second stochastic session run against the first session's artifact, and the tested agent never sees it, so nothing about the tested agent becomes more determinate - it converts a spread in wording into a spread in reader behaviour. Use it for what it actually buys: turning 'does this sentence mislead' from the grader's opinion into an observation. To make a run readable at n=1, instrument the FIXTURE with several opportunities for the behaviour that differ in character, and read the line the agent drew between them.
@@ -38,12 +38,12 @@
 
 ## Fixes
 
+### mem-1790061592-858f
+> A session-analysis subagent dispatch can die instantly with 'safeguards flagged this message ... Details: [reasoning_extraction]' - twice on one transcript while an identical brief on a sibling transcript succeeded, so it is content-dependent and retrying the same dispatch does not help. Substitute: python over the .jsonl emitting only assistant 'thinking' and 'text' blocks. A 74-line, 330KB transcript yields 9KB, which is cheaper than the artifact and uniform across arms.
+<!-- tags: prompt-tests, session-analysis, tooling | created: 2026-09-22 -->
+
 ### mem-1790058735-2e30
 > agent-tools run --hide-cmdline hides the wrapper's argv only. The wrapped command is a separate process and its /proc/<pid>/cmdline is untouched, so a prompt-test arm's case name and arm letter stay readable there. Keep identifying words out of the command line, not only out of --desc.
 <!-- tags: tooling, contamination | created: 2026-09-22 -->
-
-### mem-1790048869-2e87
-> A session-analysis subagent dispatch can die instantly with 'safeguards flagged this message ... Details: [reasoning_extraction]' - twice on one transcript while an identical brief on a sibling transcript succeeded, so it is content-dependent and retrying the same dispatch does not help. Substitute: python over the .jsonl emitting only assistant 'thinking' and 'text' blocks. A 74-line, 330KB transcript yields 9KB, which is cheaper than the artifact and uniform across arms.
-<!-- tags: prompt-tests, session-analysis, tooling | created: 2026-09-22 -->
 
 ## Context

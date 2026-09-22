@@ -12,70 +12,13 @@ no line. **DEC-011/012** the uncertainty-transfer line — the node is premise p
 not wording; neither shipped. **DEC-013** ship `Say what ends it` (iter 9). **DEC-014/015**
 spent. **DEC-016** kill the copy-pricing line on its mechanism: new facts ride into a
 rewrite, so "before adding a copy" names an act that never occurs. **DEC-017** delete
-stored runs stating no retirement condition. Framing bias on all: each fixture was written
+stored runs stating no retirement condition. **DEC-018** keep `Omit by default` after adversarial
+testing (iter 12), its reach half superseded by **DEC-020**, which cut the reach wording on a
+categorical null against the line counts (iter 13). **DEC-019** paragraph-local no-growth for
+`sys_prompt/CLAUDE.md` — a no-edit round replaces a paragraph, shorter, rather than adding one;
+live, and honoured at iteration 15. **DEC-021** delete a case rather than repair its justification
+(iter 13) — superseded by DEC-023, which deletes on ownership rather than on argument quality. Framing bias on all: each fixture was written
 from the shape of the line its round meant to test. Independent evaluation: not-started.
-
-## DEC-018 — keep `Omit by default` after adversarial testing (iter 12, conf 84) — **half superseded by DEC-020**
-- Kept on measurement that the relocation harm it shipped with cannot occur on a
-  writing task. Its re-evaluate condition — a fixture with two live destinations
-  of different reach — fired at iteration 13 and the reach half went. The
-  existence pricing it endorsed stands.
-
-## DEC-019 — paragraph-local no-growth, replacing the whole-file token cap (iter 12, conf 78)
-- **Chosen**: a no-edit round may not *add* a paragraph to
-  `sys_prompt/CLAUDE.md`; it may replace one, shorter.
-- **Alternatives**: keep iteration 9's whole-file count (rejected — observed this
-  round to be paid in word-shaving and finally in deleting a live methodological
-  guard from an unrelated paragraph); drop the constraint (rejected — it is what
-  forced four paragraphs to be compressed).
-- **Reasoning**: a global cap makes each round's finding compete with every other
-  round's justification, so the marginal cut lands wherever the current round
-  cares least, not where the file is weakest.
-- **Re-evaluate**: if the file grows across three rounds that each "replaced,
-  shorter", the paragraph count is the quantity nothing is weighing and the cap
-  should return as a count of paragraphs.
-- **Framing bias**: I am the round that hit the cap and the round that rewrote it.
-- **Independent evaluation**: not-started.
-- 2026-09-22T06:30:00Z
-
-## DEC-020 — cut the reach wording on a categorical null, against the line counts (iter 13, conf 76)
-- **Chosen**: `Omit by default` returns to pricing by existence.
-- **Alternatives**: keep it and rewrite the retirement condition (rejected — the
-  condition named exactly the fixture this round built, and it fired null);
-  keep it on the line counts, where the reach arm wrote least overall and least
-  into the loaded file (rejected — the pre-registration fixed in advance that a
-  line-count difference at n=1 with unmeasured spread is not a finding, and the
-  numbers were only consulted after the arms were in).
-- **Reasoning**: three arms, a fixture built so topic decides neither placement,
-  and none sorted by reach; a blind comparison of the two priced arms found no
-  difference on that criterion. What the wording measurably buys is more
-  readership reasoning that argues toward the reader wherever they are, which
-  reached three code files the task never named.
-- **Re-evaluate**: if a later round sees an agent sorting content by who needs it
-  and the sorting traces to a line rather than to the task, reach returns. If
-  unrequested additions rise now that the wording is gone, the cut was wrong and
-  the line counts were the signal.
-- **Framing bias**: I built the fixture, wrote the pre-registration that excluded
-  the counter-evidence, and read the result. The blind grader is the only reader
-  here who did not know what was being tested.
-- **Independent evaluation**: not-started.
-- 2026-09-22T06:45:00Z
-
-## DEC-021 — delete a case rather than repair its justification (iter 13, conf 70)
-- **Chosen**: `platform-portability` deleted; `coverage-disclosure`,
-  `network-resilience`, `snapshot-truncation` repaired.
-- **Alternatives**: repair all four (rejected — its own paragraph says it is kept
-  for speed and not for coverage, and no case in this corpus has a stored run
-  under the current skill, so the speed has never been cashed); delete all three
-  on the user-facing axis (rejected — `coverage-disclosure` has ground of its own).
-- **Reasoning**: the user asked that each kept case justify positive value. A
-  justification that concedes redundancy and rests on a benefit never taken is
-  the deletion the ask was for.
-- **Re-evaluate**: if a round wants a cheap single-axis user-facing check and has
-  to rebuild one, the deletion cost more than it saved.
-- **Framing bias**: deleting is cheap for me and the cost lands on a later round.
-- **Independent evaluation**: not-started.
-- 2026-09-22T06:45:00Z
 
 ## DEC-022 — test the incumbent `Claim less`, then delete it on a null (iter 14, conf 86)
 - **Chosen**: probe the bullet against an arm without it, and delete it; the
@@ -103,3 +46,49 @@ from the shape of the line its round meant to test. Independent evaluation: not-
   what was tested; it found the I3 asymmetry independently.
 - **Independent evaluation**: not-started.
 - 2026-09-22T07:15:00Z
+
+## DEC-023 — bind the case corpus to the prompt, delete eleven of fifteen (iter 15, conf 82)
+- **Chosen**: a case is kept only while `sys_prompt/CLAUDE.md` names it; one grep
+  decides and the round that runs it deletes what it prints.
+- **Alternatives**: keep the per-case "why this is kept" arguments and repair the
+  weak ones (rejected — every one was a uniqueness claim, which is a statement
+  about the corpus that deleting a neighbour makes more true, so no round could
+  ever act on one); delete all fifteen including the four owned (rejected — four
+  are named by live retirement conditions, and deleting them would silently
+  retire the conditions with them); set a cap on case count (rejected — that is
+  the human-set size limit the objective asks to avoid).
+- **Reasoning**: the corpus was ~12,400 words of rubric, added entirely by this
+  loop, never approved, never re-run in fourteen rounds, and removable only by a
+  human. Ownership makes the bound a consequence of the prompt's own size rather
+  than a number someone chose, and `git checkout <sha> --` makes the deletion
+  reversible by a round rather than by a person.
+- **Re-evaluate**: if a round wants a fixture it has to rebuild from scratch, the
+  deletion cost more than it saved — the recovery SHA is in the commit message,
+  so the test is whether anyone uses it. If `sys_prompt/CLAUDE.md` starts naming
+  cases in order to keep them, the rule has been inverted and should go.
+- **Framing bias**: deleting is cheap for me and the cost lands on a later round;
+  I also wrote the rule that made the deletion follow.
+- **Independent evaluation**: not-started.
+- 2026-09-22T07:40:00Z
+
+## DEC-024 — keep the whole `# Writing for other agents` block on one row of three (iter 15, conf 66)
+- **Chosen**: ship no deletion; hand the bullet-level isolation to iteration 16.
+- **Alternatives**: delete the block anyway, reading one row at n=1 as inside an
+  unmeasured spread (rejected — the pre-registration fixed outcome 1 in advance
+  and a round may not discard its own pre-registered direction because it
+  preferred the other result); keep and also ship a register line for the failure
+  both arms showed (rejected — adding on the strength of a failure neither arm's
+  prompt caused is the ratchet, and the same node has swallowed five wordings).
+- **Reasoning**: the parted row is the rule whose exit is a design change rather
+  than a measurement, which is a mechanism and not just a count; a blind grader
+  with reversed labels found the same row unprompted. Against it: 198 api tokens
+  on every request, two of three rows a wash, and the register failure the block
+  does not prevent appearing in both arms.
+- **Re-evaluate**: iteration 16's single-bullet arms. If `Omit by default` shows
+  nothing there either, it is the deletion candidate and this round's null on R4
+  is the first half of that case.
+- **Framing bias**: I pre-registered an outcome set whose null would have
+  shortened the prompt, and reported the outcome that lengthens nothing but keeps
+  a line. The blind grader is the only reader who did not know what was tested.
+- **Independent evaluation**: not-started.
+- 2026-09-22T07:45:00Z
