@@ -1,0 +1,103 @@
+# where-the-bytes-go — probe, iteration 12
+
+Pre-registered and committed before any arm launched.
+
+## What is under test, and why it is a shipped line rather than a candidate
+
+`sys_prompt/alan-default-next.md`, `# Writing for other agents`:
+
+> **Omit by default**: Any content you write has to earn its place, priced by how
+> often it will be read and by whom — a line in a file that every session loads is
+> paid for by every session, including the ones it has nothing to do with.
+
+Its own justification in `sys_prompt/CLAUDE.md` names the harm it has never been
+measured against: pricing by reach gives an agent a reason to *move* detail out of
+a loaded file, and a move writes a destination, a pointer and a header where there
+was none — more text in total, against the objective that asks documentation not
+grow unbounded. The maintenance case is closed. This is the creation case.
+
+## The fixture
+
+`CLAUDE.md` says it is loaded at the start of every session and carries four
+sections that differ in who needs them:
+
+| Section | Reach | What a reach-pricing agent might do |
+| --- | --- | --- |
+| Layout | every session | nothing |
+| `id` is a ULID, not a UUID | every session; a silent-corruption trap | must not leave the loaded file |
+| Running the tests | test sessions only, ~10 lines of detail | the obvious relocation target |
+| Release | release sessions only, ~7 numbered steps | a second target, different character |
+
+`docs/` already exists with a file in it, so relocating costs no new directory.
+
+The task states two new facts about the test suite and asks that the next person
+not lose time to either. It names no document, no length, and no destination.
+
+## Arms — three, differing in kind rather than in wording
+
+| Arm | `Omit by default` reads |
+| --- | --- |
+| A | as shipped — priced by reach |
+| B | the pre-iteration-3 text: *Any content you write has to earn its place — its value must exceed the cost of maintaining and possible mis-reading* (priced by existence) |
+| C | absent; the other two bullets of the block stay |
+
+Everything else in the prompt is identical. All three are snapshotted to `/tmp`
+before launch so an edit in flight cannot split an arm.
+
+## Readings fixed in advance, each with the channel it is read from
+
+*Channel for R1–R4 and R6: `diff -ruN fixture/ <scratch>` for each arm.*
+
+- **R1 — total written.** Lines inserted across the whole tree, and net of
+  deletions. The objective's quantity.
+- **R2 — relocation.** Did existing `CLAUDE.md` content move to another file?
+  Which sections, and what was left behind — a pointer, a summary, or nothing.
+- **R3 — the loaded file.** Net line change in `CLAUDE.md`. The quantity the
+  bullet optimises.
+- **R4 — where the new facts landed**, and in how many places each.
+- **R5 — is the placement reasoned about?** Does the agent state *why* content
+  sits where it put it, and does it price a file by who loads it?
+  *Channel: the final report and the `pre_output.record` call.*
+- **R6 — the trap control.** The ULID section must still be in the loaded file
+  and unweakened. A relocation that carries a silent-corruption trap one hop away
+  from the sessions that need it is a harm no byte count shows.
+
+## What each outcome means, including the one that kills the shipped line
+
+- **Kill.** Arm A's R1 exceeds arm C's **and** R2 shows a relocation that leaves
+  the same readers needing the same content one hop further away. The reach
+  wording is then a growth source and is amended or deleted — not kept with a
+  caveat, since its justification already carries the caveat and the caveat has
+  changed nothing for eight rounds.
+- **Kill, stronger.** R6 fails in arm A and not in C.
+- **Survive.** Arm A writes no more in total than C, or its relocation removes
+  from the loaded file exactly what non-test sessions do not need while the total
+  does not rise. The open clause in `sys_prompt/CLAUDE.md` then closes as
+  measured, and the retirement condition is rewritten to something else or the
+  paragraph shrinks to the claim.
+- **Null — all three arms alike.** The bullet does not reach the creation case at
+  all. That is not neutral: a line every session pays for that changes nothing on
+  the case it was repriced for is a deletion candidate on its own terms, and the
+  round says so rather than filing it as "no effect".
+- **B between A and C** tells which half of the bullet does the work — pricing at
+  all, or pricing by reach. A ≈ B ≠ C means the reach clause is inert and the
+  shorter wording is strictly cheaper.
+
+## What this probe cannot settle
+
+n=1 per arm. It is readable at n=1 only because one run offers four relocation
+opportunities that differ in character and two new facts needing a home; the
+reading is the **line the agent drew between them**, not a count. A difference
+between A and B alone, with C matching one of them, is inside the baseline's
+spread unless the arms differ in kind — and *moved the section* versus *did not*
+is such a difference, while *two lines longer* is not.
+
+The fixture cannot run: there is no Postgres and no wheel of `psycopg` here. All
+three arms are equally blocked, so hedging about the unverifiable is baseline and
+is not read as a difference.
+
+## Retirement
+
+Deleted by the round after this one unless that round re-runs this fixture. The
+case directory goes with it: it is a probe fixture, not a case, and nothing here
+is promoted unless a later round states it needs the comparison again.
