@@ -30,7 +30,7 @@ conflicting sentences ~300 lines apart went unnoticed by the long version's
 reader and were led with at ~80 lines apart. If true, a document's error rate
 tracks the distance between related claims rather than its word count.
 
-## Iteration 3 — `0f176202` → `bab1e3ff`
+## Iteration 3 — `0f176202` → `5d1f9d6d`, plus this bookkeeping commit
 
 ### Critique of iterations 1–2
 
