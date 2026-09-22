@@ -181,3 +181,37 @@ carry a line.
 3. Do not re-run `retirement-policy` to confirm its bullet; its condition is a
    comparison, not a repetition.
 4. Cleanup is done for this cycle. Do not spend iteration 11 on documents.
+
+## Iteration 11 — `391c35d0` → (see end)
+
+### Critique of iteration 10
+
+**C1 (fact).** The round's headline — R3, "4 statements in, 4 out, and nothing
+weighed the count" — came from the one arm the same README declares *not a usable
+baseline*, because the agent listed its cwd, found `.prompt-test-settings.json`
+and named it as harness config. A session that knows it is in a harness is
+exactly the session that greps exhaustively. The finding was still written into
+`sys_prompt/CLAUDE.md` as a durable claim. Re-running the baseline post-fix is
+not only about comparability; it is about whether the finding survives at all.
+
+**C2 (workflow).** Iter 10's `(instruction)` 2 pre-registers a death condition —
+"makes any single file worse to read alone" — and names no channel it is read
+from, which iter 9's own `(contract)` requires. A death condition nobody can read
+off a named artifact cannot fire.
+
+**C3 (workflow, the substantive one).** The probe's five readings all concern the
+*pre-existing* four statements. But "the count only ever goes up" needs an
+**addition** event, and R3 can only observe subtraction. The run's own R5 records
+that the agent **wrote new documentation** — a note that timings are now random —
+and no reading asked how many files that new fact landed in. The growth event was
+in the artifact and went unread. The fix is a reading, not a new fixture: the
+task creates a genuinely new fact (jitter), so the unchanged fixture already
+carries the occasion. Iter 10's instruction 1 (fixture and task unchanged) is
+kept.
+
+**C4 (workflow).** The round declared every stored arm incomparable to any
+post-fix arm, and deleted no run directory. Three of the four stored READMEs
+state no retirement condition at all, so iter 9's `(contract)` — retired by the
+condition its own README states — can never fire on them. That is the objective's
+ratchet, manufactured inside the instrument. Overriding iter 10's instruction 4
+only far enough to delete them: it is a `rm`, not a milestone.
