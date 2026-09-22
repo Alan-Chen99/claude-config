@@ -125,6 +125,11 @@ later round needs to re-run is promoted to one; otherwise it is deleted with the
 round that wrote it. Keeping an un-promoted probe is the ratchet this repo is
 against: a directory nobody re-runs, that only a human will ever remove.
 
+Delete it with `rm -r`, not `git rm -r`: running a fixture leaves gitignored
+artifacts (`__pycache__`) inside it, which `git rm -r` does not touch and
+`git status` does not show, so the directory survives a deletion that looks
+committed.
+
 **A stored run's `README.md` states the condition that deletes it**, in terms a
 later round can check without re-deriving why the run happened. A record with no
 such condition is removable only by a human who reads it, which is the thing this
