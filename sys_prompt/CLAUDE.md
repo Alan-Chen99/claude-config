@@ -239,14 +239,12 @@ subject, not of writing tasks. The count is never decided, so it only rises; not
 which is why nothing fires. Whatever reaches this fires while a sentence is being corrected and asks
 for a deletion. Retire it when an agent acts on documentation the task did not name.
 
-**The preamble is kept, on its first isolation in eighteen rounds.** Against an arm with the
-sentence deleted, on `prompt-tests/general/inherited-project`, the arms parted on one row and
-matched on every other: the arm carrying it sourced a true, checkable number — `poll.py:12` —
-where the arm without it stated the same number bare. Hypothesis: naming the reader who *will
-act on it as a premise* separates a value that reader can check from one it cannot tell from
-the hearsay beside it. Confounded — both sourcing arms invoked the `prompt-engineer-v2` skill
-and the bare one did not, which one run per arm cannot separate. Retire it when an arm without
-it sources as much as one with it, on that case.
+**The preamble is kept, on its first isolation.** An arm carrying it sourced a checkable number
+where an arm without it stated the same number bare, and they matched on every other reading.
+Hypothesis: naming the reader who *will act on it as a premise* separates a value that reader
+can check from one it cannot tell from the hearsay beside it. Confounded — the sourcing arms
+invoked `prompt-engineer-v2` and the bare one did not. Retire it when an arm without it sources
+as much as one with it on `prompt-tests/general/inherited-project`.
 
 **No bullet here asks for claim-handling, and the node is salience rather than marking.** In two
 genres, the premise the *task* makes load-bearing is recorded as open with no line asking for it
@@ -261,13 +259,12 @@ premise as open where an arm without it asserts it flat.
 **`Say what ends it` reaches the rule whose end is a design change rather than an observation — the
 one an agent gives the history of and leaves standing.** Rules that end on an observation get their
 exit unaided, in both arms. Hypothesis: an exit is written once the agent can picture the act.
-Isolated against a preamble-only arm on `prompt-tests/general/retirement-policy`: the effect is the
-bullet's, not the block's. What it produces is a *document template* carrying an exit as one field,
+Isolated against a preamble-only arm, so the effect is the bullet's and not the block's. What it produces is a *document template* carrying an exit as one field,
 not four sentences — so it reaches a row where no act is picturable and writes a thin exit anyway.
-That looked like this case's predicted harm; a blind reader contradicted it. The arm applying the
-template uniformly was the one that filed the bare preference *as* a preference, where the arm
-without it stated it flat with no warrant. Retire it when an arm carrying it names no more exits than one without, on that
-case.
+That looked like the predicted harm; a blind reader contradicted it, finding that the arm applying
+the template uniformly was also the one that filed a bare preference *as* a preference where the
+arm without it stated it flat with no warrant. Retire it when an arm carrying it names no more
+exits than one without, on `prompt-tests/general/retirement-policy`.
 
 
 ### `# Git`
@@ -302,11 +299,10 @@ name cc prints is not who the commits are by — and the main-branch line, a PR 
 The clone sentence is the old `# Coding` line with `/tmp` replaced by the scratchpad, which did
 not exist when that line was written. No run exercises it.
 
-**What the probes cut.** `prompt-tests/general/commit-own-changes`: a one-file task in a
-repository on `main` with an unrelated file already modified, nothing about git in the task.
-Baseline, no section and the tool block present: no commit — "you didn't ask for a commit". The
-first draft of the section was longer; it ran once whole and once per clause removed, one run
-each on `claude-opus-5`:
+**What the probes cut.** With no section and the tool block present the agent does not commit —
+"you didn't ask for a commit" — so the section is what produces the commit at all. Each clause of a
+longer first draft was then removed in turn; none of the four changed the behaviour, so none of
+them is in the shipped section:
 
 | Draft clause | With it removed | Kept |
 | --- | --- | --- |
@@ -316,8 +312,7 @@ each on `claude-opus-5`:
 | `, the id from the environment block` | trailer carried the right id | no |
 
 What that rests on: one run per variant, a toy repository with one commit and no remote. A
-repository with an `origin/main` may pull toward a branch. Artifacts under
-`docs/prompt-trials/commit-own-changes/`.
+repository with an `origin/main` may pull toward a branch.
 
 Measured: 7679 → 7693 API tokens (`claude-opus-4-7`), the clone line's rewrite included.
 
@@ -325,7 +320,8 @@ Retire or re-test when: a release renames `includeGitInstructions` or stops gati
 by it — the tool note returns beside this section and contradicts it. No capture will show that:
 `capture.py` passes `--setting-sources project,local` and `settings.json` installs as user
 settings, so `tools/Bash.md` carries the block either way. Read a live session's own Bash
-description instead; the case shows whether the agent still commits. The hook was trimmed on 2026-09-13 and the
+description instead; `prompt-tests/general/commit-own-changes` shows whether the agent still
+commits. The hook was trimmed on 2026-09-13 and the
 `Session ID:` line the trailer rule reads survived it — being unique to the hook is what kept it,
 since cc's own block never states the id, only embedding it in the scratchpad path
 (`…/<cwd-slug>/<session id>/scratchpad`). Retire this clause if that line ever goes; Bash

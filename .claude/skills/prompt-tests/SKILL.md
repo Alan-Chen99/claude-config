@@ -165,6 +165,12 @@ falsify it, and one such line pins a directory for as long as the paragraph
 stands. Where a case's only match is provenance, either the paragraph stops
 naming it or the case is unowned.
 
+**The owning sentence carries the path itself**, not *on that case* pointing back
+at a narrative sentence that has it. Otherwise the grep is held up by the
+narrative, deleting the narrative silently unowns the case, and the two rules —
+own by observation, and keep run narrative out of `sys_prompt/CLAUDE.md` — pull
+against each other. Three of five entries here were in that state.
+
 Run it in the other direction too. A condition naming no case, or naming a
 fixture property no case has, cannot be observed either; it is a deletion
 candidate with an outstanding test, and the test is cheaper than the paragraph

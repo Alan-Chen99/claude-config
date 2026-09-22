@@ -111,93 +111,61 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–19, `9f6c03a0` → `cf8f2dac`
+## History — rounds 1–20, `9f6c03a0` → `a9fc0fc6`
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — the durable
 home, and the file to read before touching the block. Everything else is in the
-commit messages. Shipped: `Say what ends it` (9, isolated 19); the case corpus
-bound to the prompt by one grep, eleven of fifteen cases deleted (15). Deleted:
-`Omit by default` (13, 17), `Claim less` (4, 14). Seven candidate wordings failed
-(3–8, 12, 14, 16, 18). Round 10 fixed a nine-round harness contamination and
-voided every arm stored before 2026-09-22. 18 isolated the block's
-preamble (kept) on `prompt-tests/general/inherited-project`, and 19 isolated
-`Say what ends it` (kept) on `prompt-tests/general/retirement-policy`, so every
-sentence still in the block has now been measured alone.
+commit messages. Shipped: `Say what ends it` (9, isolated 19). The case corpus is
+bound to the prompt by one grep; eleven of fifteen cases deleted (15). Deleted:
+`Omit by default` (13, 17), `Claim less` (4, 14). Eight candidate wordings failed
+(3–8, 12, 14, 16, 18, 20), the last three all claim-handling. Round 10 fixed a
+nine-round harness contamination and voided every arm stored before 2026-09-22.
+Every sentence still in the block has now been measured alone: the preamble (18)
+and `Say what ends it` (19). 20 built the fixture the claim-handling condition
+named and found the baseline saturated on it; what no arm marks is the premise
+reached for *while writing a supporting sentence*, asserted flat everywhere.
 
-## Iteration 20 — `cf8f2dac` → `f66c6e5c` + this commit
+## Iteration 21 — `a9fc0fc6` → end of round
 
 ### Critique of prior iterations
 
-**C1 (fact — *nothing is waiting on a measurement* is false).** 19's instruction
-says the block is fully accounted for. `sys_prompt/CLAUDE.md`'s claim-handling
-paragraph carries a re-entry condition naming *a fixture making one unflagged
-external premise load-bearing*, and no such fixture is in the tree. 19 applied its
-own stricter test in one direction only — case → is its condition observable —
-and never in the other, condition → does its observation point exist. A condition
-whose fixture nobody built is the same defect, and it is the one the objective's
-doc-errors bullet sits on.
+**C1 (workflow — 20's instruction 2 sends the next round outside the objective).**
+It ranks the subagent bullet's unverified override clause above any new candidate.
+That bullet governs neither documentation nor agent-to-agent text, so measuring it
+advances no bullet of the objective; and the objective's ratchet bullet says *your
+job is not to clean this, but to ensure there are less new things of this form* —
+removing an existing unmeasured clause is the cleaning the user excluded. The
+heuristic behind it (*a shipped line with a named unmeasured harm outranks any new
+candidate*) is sound, but it was applied outside the block without re-checking
+scope. Instruction 2 is overridden. The heuristic is kept and applied **inside**
+scope, which is what this round does.
 
-**C2 (workflow — the ownership grep is satisfied by provenance).** *A case is kept
-only while `sys_prompt/CLAUDE.md` names it* was built so the corpus cannot outgrow
-the prompt. But the grep matches any mention, and three of five cases are matched
-by a sentence saying where a past run happened — a statement about what already
-occurred, which nothing a later round can falsify. One prose back-reference pins a
-directory for as long as the paragraph stands: the objective's own ratchet, inside
-the mechanism built to stop it. Fixed in the skill — the grep is necessary, not
-sufficient, and only a condition or a recorded user direction owns.
+**C2 (workflow — two rules 20 shipped in one round pull against each other).**
+*Provenance does not own a case* and *no claim in `sys_prompt/CLAUDE.md` may be a
+run narrative* were both added by 20. Three of the five corpus matches were then
+narrative sentences, with the owning sentence pointing back at them as *on that
+case* — so obeying the second rule deletes the first rule's only evidence and the
+grep orders three fixtures destroyed. 20 never re-ran its own grep after writing
+them. Fixed: every owning sentence now carries the path; the narrative is gone;
+the skill states the requirement.
 
-**C3 (workflow — the rule was written, the instance it was written about was
-left).** 19 added *a probe's own directory is deleted by the round that wrote it*
-and left `prompt-tests/runs/inherited-project/README.md` standing, a probe by its
-own first two words, carrying a deletion condition of exactly the deprecated
-form — *the round that retires or rewrites the preamble*. Its body is run
-narrative, which the user's rules make uncitable across rounds anyway. Deleted
-here. Same shape as 19's own C2: a rule reached the file the round was editing and
-not the instance beside it.
+**C3 (fact — a hypothesis generalised past the two wordings that produced it).**
+`sys_prompt/CLAUDE.md` asserted *no wording can make a passing sentence salient*
+from two candidates of one shape — both mark or redirect a doubt presumed already
+present. Meanwhile the prompt itself supplies a mandatory destination for exactly
+that content outside the artifact: `pre_output.record`'s `uncertainties`,
+*unresolved observations, unverified assumptions, unconfirmed data*, recorded every
+turn. No round has measured it. A claim about all wordings, written while a shipped
+line is a live candidate cause, is not supported.
 
 ### Why this milestone
 
-C1 names the only thing in the block a later round is promised and cannot do. Five
-claim-handling wordings failed; the sixth (18's channel line) nulled on a baseline
-that was saturated because the fixture *stated* the gap, and the round wrote down
-what a fixture would need instead. Building it is what decides between *no line
-reaches claim-handling* and *no fixture has asked*, and until that is decided the
-paragraph is a standing invitation for a seventh wording. It is also the objective
-bullet with a measured mechanism behind it: the agent names the premise in the
-reply and ships the file asserting it flat.
+C3 names the one untested surface that is inside the objective, is a **shipped**
+line rather than a new candidate, and whose repair is a deletion — so it serves the
+ratchet bullet instead of working against it. It also explains three nulls at once:
+if the doubt is being filed in a tool call every turn, a bullet telling the agent to
+put it in the file competes with an IMPORTANT/NO EXCEPTIONS gate and loses.
 
-### The round's work and result
-
-Cleanup half, committed at `611dff06` and `70348021`: the ownership grep now
-requires a sentence naming a future observation, and runs in both directions;
-`prompt-tests/runs/inherited-project/` deleted. Measurement half: pre-registration
-at `86f0da49`, three arms and the blind read at `67665578`, claim at `609b90fc`.
-
-**Outcome 3.** The baseline records the unflagged, load-bearing premise as open
-unaided, and settles empirically what the working directory can settle — it
-started a Postgres container to find out which way `ON CONFLICT DO NOTHING`
-behaves and wrote the reader's own check into the page. A reading every arm
-passes separates nothing, so this is saturation and not a finding about either
-wording. Nothing shipped; the paragraph is replaced by a shorter one whose
-condition points at the premise the run showed is *not* saturated — the one
-reached for while writing a supporting sentence, asserted flat in all three arms.
-
-### `(instruction)` for iteration 21
-
-1. Every sentence in `# Writing for other agents` has now been measured alone and
-   kept, and both deletions have conditions that can fire. The block is finished
-   unless one of those conditions is observed. A round that wants to add to it is
-   adding to a block three rounds of deletion produced; say what that buys before
-   building a fixture for it.
-2. The largest untested surface left is not in this block. `sys_prompt/CLAUDE.md`
-   carries an explicit **Unverified** note on the subagent bullet's override
-   clause — no green trial's reasoning ever weighed the Agent tool description
-   against the prompt — and it names the experiment: remove the clause and re-run
-   `prompt-tests/general/subagent-foreground-default`. That is a shipped line
-   with a named unmeasured half, which outranks any new candidate.
-3. The user's `.ralph/agent/*` ceiling is 6000 tokens by
-   `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin`. This round
-   went over while adding memories and cut six that had been superseded by, or
-   duplicated into, `sys_prompt/CLAUDE.md` and the prompt-tests skill. Deleting a
-   memory whose claim now lives in a file the round reads anyway is the cheapest
-   room there is.
+The probe is one arm, because the decisive reading is available inside a single
+session: does the `uncertainties` array name the same premise the delivered document
+asserts flat? Only if it does is the two-arm removal test worth running.
