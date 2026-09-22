@@ -102,7 +102,7 @@ one grep; eleven of fifteen cases deleted (15). Round 10 fixed a nine-round
 harness contamination and voided every arm stored before 2026-09-22. Every
 sentence still in the block has been measured alone (18, 19).
 
-## Iteration 21 — `a9fc0fc6` → end of round
+## Iteration 21 — `a9fc0fc6` → `0a2ade7e` + this commit
 
 ### Critique of prior iterations
 
