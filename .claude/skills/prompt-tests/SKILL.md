@@ -175,9 +175,14 @@ into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
 back, and what deletes it. The runner takes that directory as its first argument
 — any `<case>` with a slash in it is used as given — so nothing is left in
 `prompt-tests/general/`, and deleting the probe is one `rm -r` with no second
-place to remember. Name the directory after the *task* and not after the
-behaviour under test: it reaches the child's `/proc/<pid>/cmdline`, which a peer
-agent on this machine can read.
+place to remember. Name the directory after the *task*, and after neither the
+behaviour under test nor anything inside the fixture: the name reaches the
+child's `/proc/<pid>/cmdline`, which a peer agent on this machine can read, and a
+directory sharing a word with its own fixture is found by the ordinary search the
+task sends the agent on. Observed 2026-09-22 — an arm looking for the git history
+of a pin ran a bounded `find` for the fixture's project name, listed the probe
+directory, and reported it in its own notes. Check with
+`grep -rwiF "<dir-name-words>" <probe>/task.md <probe>/fixture/`.
 
 ## Test case shape
 

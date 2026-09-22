@@ -1,4 +1,4 @@
-# feedwatch-onboarding — the caveat's channel, and the block's preamble
+# inherited-project — the caveat's channel, and the block's preamble
 
 A probe. Pre-registered and committed before any arm launched; everything below
 the horizontal rule was written after.
@@ -129,6 +129,6 @@ it is stated here rather than discovered later.
 ## What deletes this record
 
 Outcome 2, 3 or 5 on the candidate deletes the whole directory with the round
-that ran it: `rm -r prompt-tests/runs/feedwatch-onboarding`. Outcome 1 promotes it
+that ran it: `rm -r prompt-tests/runs/inherited-project`. Outcome 1 promotes it
 to `prompt-tests/general/` and the corpus grep owns it from there. Either way
 nothing is left for a later round to remember.
