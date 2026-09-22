@@ -246,21 +246,21 @@ can check from one it cannot tell from the hearsay beside it. Confounded — the
 invoked `prompt-engineer-v2` and the bare one did not. Retire it when an arm without it sources
 as much as one with it on `prompt-tests/general/inherited-project`.
 
-**No bullet here asks for claim-handling, and the node is salience rather than marking.** In two
-genres, the premise the *task* makes load-bearing is recorded as open with no line asking for it
-— and better than marking: one baseline started a database to find out which way the fixture's
-code behaves, then wrote the reader's own check into the page. What no arm treats as a claim is
-the premise reached for while writing a supporting sentence — systemd's restart defaults, a
-library's redirect default — asserted flat in treated and untreated arms alike. Hypothesis: a
-premise becomes a claim when the document is *about* it, and no wording can make a passing
-sentence salient. Retire this deletion when an arm carrying such a line records a passing
-premise as open where an arm without it asserts it flat.
+**No bullet here asks for claim-handling, and what sorts a premise is the sentence's job rather
+than the agent's attention.** A premise gating an act the reader performs is recorded as a check
+with no line asking for it. One inside a sentence explaining how a step works is asserted flat —
+by a session that had named that same doubt in its own `uncertainties` and reported it as
+documented, so *no wording can reach a passing sentence* is withdrawn. Hypothesis: a doubt is
+routed to where the reader acts, and a descriptive sentence offers nowhere to put it, so it is
+dropped rather than declined. Retire this deletion when an arm carrying such a line qualifies a
+premise inside an explanatory sentence where an arm without it asserts it flat, on
+`prompt-tests/general/maintainer-briefing`.
 
 **`Say what ends it` reaches the rule whose end is a design change rather than an observation — the
 one an agent gives the history of and leaves standing.** Rules that end on an observation get their
 exit unaided, in both arms. Hypothesis: an exit is written once the agent can picture the act.
-Isolated against a preamble-only arm, so the effect is the bullet's and not the block's. What it produces is a *document template* carrying an exit as one field,
-not four sentences — so it reaches a row where no act is picturable and writes a thin exit anyway.
+Isolated against a preamble-only arm, so the effect is the bullet's and not the block's. What it
+produces is a *document template* carrying an exit as one field, not four sentences — so it reaches a row where no act is picturable and writes a thin exit anyway.
 That looked like the predicted harm; a blind reader contradicted it, finding that the arm applying
 the template uniformly was also the one that filed a bare preference *as* a preference where the
 arm without it stated it flat with no warrant. Retire it when an arm carrying it names no more
