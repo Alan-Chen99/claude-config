@@ -1,12 +1,13 @@
 # runs
 
-The recorded output of prompt-test runs. Empty as of 2026-09-19: every stored
-run was deleted when the grading design changed to the whole-session,
-two-argument dispatch in `.claude/skills/prompt-tests/SKILL.md`. Runs taken
-under the old rubric-first practice are not comparable to anything produced
-under the new one, and nothing in the tree cites them any more.
+The recorded output of prompt-test runs. Everything taken before 2026-09-19 was
+deleted when the grading design changed to the whole-session, two-argument
+dispatch in `.claude/skills/prompt-tests/SKILL.md`: runs taken under the old
+rubric-first practice are not comparable to anything produced under the new one.
 
 ## What goes here
+
+A **graded** run, per the skill's "Grader dispatch":
 
 - `judgement-<arm>.md` — the grader's judgement, one per arm, per the skill's
   "Grader dispatch". This is a run's primary record.
@@ -16,7 +17,16 @@ under the new one, and nothing in the tree cites them any more.
 - `artifact-<arm>.md` — what the tested agent wrote, where the case's reference
   makes claims about the delivered text.
 
-Arm names match the baseline headings in the case's `reference-solution.md`.
+A **probe** — arms compared on what they delivered, with no grader dispatched
+per arm — records the delivered artifacts and one `README.md` saying what the
+arms were, what differed, and what the comparison does not establish. Reach for
+it when the question is answerable from the delivered text alone; dispatch
+graders when it turns on how the agent got there. A probe that moves a prompt
+still gets the blind comparison the skill requires of a prompt edit, and the
+README reports it.
+
+Arm names match the baseline headings in the case's `reference-solution.md`,
+where it has them.
 
 **The JSONL paths cited inside these artifacts do not survive.** Transcripts
 live under `.claude/worktree-config/projects/`, which is gitignored and lost

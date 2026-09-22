@@ -1,0 +1,125 @@
+diff -ruN prompt-tests/general/unconfirmed-cause/fixture/CLAUDE.md /tmp/ptcc.jXyJUBHG/CLAUDE.md
+--- prompt-tests/general/unconfirmed-cause/fixture/CLAUDE.md	2026-09-22 02:24:19.569367523 +0000
++++ /tmp/ptcc.jXyJUBHG/CLAUDE.md	2026-09-22 02:42:08.294373538 +0000
+@@ -14,3 +14,10 @@
+ 
+ `CDN_TOKEN` comes from the ops vault. Rendering is idempotent — the same upload
+ id overwrites the same object.
++
++## Known issues
++
++Staging emits zero-byte thumbnails at ~1 in 40, currently masked by a
++`time.sleep(2)` in `render.py` whose mechanism is unknown. Read
++`docs/zero-byte-thumbnails.md` before touching that sleep, the cache locking, or
++the upload path — it records which theories are already disconfirmed.
+diff -ruN prompt-tests/general/unconfirmed-cause/fixture/docs/zero-byte-thumbnails.md /tmp/ptcc.jXyJUBHG/docs/zero-byte-thumbnails.md
+--- prompt-tests/general/unconfirmed-cause/fixture/docs/zero-byte-thumbnails.md	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.jXyJUBHG/docs/zero-byte-thumbnails.md	2026-09-22 02:42:55.517122019 +0000
+@@ -0,0 +1,94 @@
++# Zero-byte thumbnails in staging
++
++**Status: not fixed. Masked by a `time.sleep(2)` in `render.py`. Cause unknown.**
++
++Observed: roughly 1 upload in 40 lands in the bucket as a zero-byte object.
++Staging only. Adding `time.sleep(2)` to `render.py:main` between the render and
++the upload stopped the symptom. Nobody knows why, and nothing below explains it.
++
++Read this before touching `render.py`, the cache locking, or the sleep.
++
++## Established
++
++**A bad cache file cannot produce a zero-byte thumbnail.** It raises. Both the
++empty-file and partial-write cases were checked directly:
++
++```
++uv run --with pillow python -c '
++import io
++from PIL import Image
++src = io.BytesIO(); Image.new("RGB",(800,600)).save(src, format="JPEG")
++for name, blob in [("empty", b""), ("truncated", src.getvalue()[:4000])]:
++    try:
++        img = Image.open(io.BytesIO(blob)); img.thumbnail((256,256))
++        out = io.BytesIO(); img.save(out, format="WEBP")
++        print(name, "->", len(out.getvalue()), "bytes")
++    except Exception as e:
++        print(name, "->", type(e).__name__)
++'
++# empty     -> UnidentifiedImageError
++# truncated -> OSError   (image file is truncated)
++```
++
++`Image.open` is lazy, so a truncated source survives `open()` and dies in
++`thumbnail()`. Either way `render.py` exits non-zero, and `worker.py` runs it
++with `check=True`, so the failure is loud. It is not this bug.
++
++**The sleep sits after the cache read.** `main()` is `render -> sleep -> upload`
++(`render.py:44-49`). By the time it sleeps, the file is closed and decoded. The
++sleep cannot widen or narrow any window on the cache read. Whatever it fixes is
++downstream of `thumbnail()` returning bytes.
++
++**`worker.py` does lock; `render.py` does not.** `worker.source_is_complete`
++takes `LOCK_SH` (`worker.py:18`), which blocks until the upload handler drops
++its exclusive lock. `render.source_bytes` is a bare `read_bytes()`
++(`render.py:15`). The two are not symmetric. Verified against a writer process
++holding `LOCK_EX` over a 1s write: the unlocked read returns 0 bytes instantly,
++the `LOCK_SH` read blocks 0.95s and returns the whole file. "worker never
++failed" is explained by the lock, and carries no information about `render.py`.
++
++**Thirty clean runs is not evidence of absence.** At 1-in-40, `(39/40)^30 =
++0.47` — a coin flip. 119 runs are needed before a clean sweep means anything at
++95%. Local runs so far neither implicate nor clear the laptop environment.
++
++## Disconfirmed
++
++The cache-race theory — unlocked read in `render.py` catching a partial write —
++does not survive either check above: it produces exceptions rather than empty
++output, and the sleep that suppresses the symptom happens after the read.
++Do not re-derive it.
++
++## Untested
++
++The runner image ships a different DNS resolver (per Priya; it has caused
++trouble on another team). Nobody has checked whether it touches `thumbd`.
++This is the only hypothesis consistent with both facts that are known: the
++fault lies downstream of the render, and a 2s delay before the first and only
++network call suppresses it. It is a hypothesis, not a finding. It has never
++been tested.
++
++`render.py` PUTs a non-empty body — PIL raises rather than returning empty
++bytes — so an empty object in the bucket was created somewhere between
++`urlopen` and the CDN storing it. `upload()` never reads back what landed, and
++`urlopen` only raises at >=400, so a 2xx that stored nothing is silent.
++
++## Next test
++
++Do this before changing any code. Staging, sleep removed, one upload id
++(re-rendering the same id is safe — it overwrites the same object):
++
++1. Run the render under `resolvectl query cdn.example` / `strace -e trace=network`,
++   or set `CDN_TOKEN` against a local listener that logs `Content-Length` per
++   request. Establish whether the bytes leave the process.
++2. If they do, the fault is CDN-side and the sleep is a coincidence — the
++   staging bucket's access logs settle it.
++3. If they do not, compare resolver behavior on the old and new runner images.
++
++Budget at least 119 renders per condition, or the result means nothing.
++
++## Separate defect
++
++`render.py` reading the cache without the lock `worker.py` holds is a real bug
++independent of this one: a re-upload that truncates the file mid-read crashes
++the render. Fixing it is worthwhile and will **not** fix the zero-byte
++thumbnails. Do not close this file on the strength of that fix.
+diff -ruN prompt-tests/general/unconfirmed-cause/fixture/render.py /tmp/ptcc.jXyJUBHG/render.py
+--- prompt-tests/general/unconfirmed-cause/fixture/render.py	2026-09-22 02:24:19.571367526 +0000
++++ /tmp/ptcc.jXyJUBHG/render.py	2026-09-22 02:42:08.287373424 +0000
+@@ -42,6 +42,9 @@
+ def main() -> None:
+     upload_id = sys.argv[1]
+     blob = thumbnail(source_bytes(upload_id))
++    # Suppresses zero-byte objects in the staging bucket by an unknown
++    # mechanism. Undiagnosed, not a fix, and load-bearing until it is:
++    # see docs/zero-byte-thumbnails.md before removing.
+     time.sleep(2)
+     upload(upload_id, blob)
+ 

@@ -188,6 +188,40 @@ since 2.1.251 made it a default that an explicit `model` beats.
 Retire this if the built-in default returns to `haiku`, or if Explore spawns start failing on prompt
 size — which would mean the MCP surface has grown into the case #45357 describes.
 
+### `# Writing for other agents`
+
+**`Omit by default` prices by reach, not by existence.** The earlier wording priced a line by having
+been written at all, and maintenance and mis-reading cost the same wherever a line sits — per-session
+cost does not. Measured 2026-09-22 on `prompt-tests/general/what-retires-this-line`
+(`prompt-tests/runs/` carries the numbers): with the old wording the whole write-up went into an
+auto-loaded `CLAUDE.md` and no other file was created; with the block deleted the detail went to a
+separate file and a pointer stayed behind. The reach wording takes the pointer placement without
+pushing out content that genuinely binds every session.
+
+Unresolved, and the likeliest thing to retire it: total bytes written went **up**. The objective this
+was edited under asks that documentation not grow unbounded, and relocation is growth. A case that
+measures a document growing across sessions would settle whether the trade holds.
+
+**`Claim less` no longer endorses a hedge.** It closed with *Often you are better off with a hint,
+warning or a [record] marker*; deleted 2026-09-22.
+`notes/workers-bullet-hint-in-fact-position.md` argues the hedge is not the cheap alternative it
+reads as — a warning is still a claim, being wrong about it produces no failure pointing back at it,
+and it costs every later reader a check that returns nothing, with no event that retires the line.
+Measured on `prompt-tests/general/unconfirmed-cause`: with the clause and without it the agent
+reached the same verdicts on all four items, ran the same verifications, and produced the same
+arithmetic; a blind grader holding both sessions found no difference a maintainer would care about,
+and on *hedging where checking was available*, "neither". `# Epistemic Integrity`'s No Unexplained
+Residue Rule already forbids what the clause would license, and unconditionally where the clause
+said *often*. A third arm that priced the hedge explicitly wrote 30% more text and rewrote
+`render.py` mid-investigation where both other arms left the code alone, so stating the price
+measured worse than saying nothing.
+
+Retire the deletion if an agent is found writing an unverifiable thing as a flat fact where
+`# Epistemic Integrity` does not reach. That is the untested territory: everything in the probe was
+checkable from the fixture, and the agent was writing up its own work, which is what No Unexplained
+Residue governs. Writing for a reader about something the writer cannot check is the case no arm
+covered.
+
 ### `# Git`
 
 The section is the only git policy a `claude.sh` session receives, because `settings.json` turns
