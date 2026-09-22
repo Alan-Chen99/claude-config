@@ -108,83 +108,58 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > ask that one grep refutes, and acting on it would have spent a round re-doing
 > finished work. *(iter 13)*
 
-## Rounds 1–14 — `9f6c03a0` → `0a1f1b6a`
+## History — rounds 1–16, `9f6c03a0` → `7dec8051`
 
 Detail is in commit messages; anything justifying a prompt line is in
 `sys_prompt/CLAUDE.md`, the durable home and the one to read before touching the
-block. Shipped: `Say what ends it` added (9); `Omit by default` repriced to reach
-(3) and back to existence (13); the `Claim less` hedge clause cut (4) and the
-whole bullet with it (14). Rounds 6–8 and 14: five wordings aimed at
-claim-handling all failed, because the node is premise **provenance**, not
-wording, and what discharges a premise is an action rather than a disposition.
-Round 10 fixed a nine-round harness contamination and voided every arm stored
-before 2026-09-22. Round 11: restatement grows by accretion, not addition. Round
-12: the task's subject bounds the edit, so relocation-as-growth cannot occur on a
-writing task.
+block. Shipped across the loop: `Say what ends it` added (9); `Omit by default`
+repriced to reach (3) and back to existence (13); the `Claim less` hedge clause
+cut (4) and the whole bullet with it (14); the case corpus bound to the prompt by
+one grep, eleven of fifteen cases deleted (15). Failed candidates: five wordings
+aimed at claim-handling (6–8, 14) — the node is premise **provenance**, not
+wording, and what discharges a premise is an action; one at copy-pricing (12) —
+the task's subject bounds the edit, so relocation-as-growth cannot occur on a
+writing task; one at warrant-transcription (16) — a rules section's heading is
+what flattens a preference, and a clause only competes with the genre. Round 10
+fixed a nine-round harness contamination and voided every arm stored before
+2026-09-22. Round 15 ran the block whole against an arm with no block: the arms
+parted on one row in the block's favour and `Omit by default` was untouched.
 
-## Rounds 15 — `0a1f1b6a` → `0b6d8be4`
+## Iteration 17 — `7dec8051` → (this round)
 
-Bound the case corpus to the prompt: a case is kept only while
-`sys_prompt/CLAUDE.md` names it, one grep decides, eleven of fifteen deleted.
-Ran `# Writing for other agents` whole against an arm with no block on
-`retirement-policy`; the arms parted on one row in the block's favour, so no
-deletion shipped. Both arms transcribed the fixture's bare preference as an
-incident with a cost it never had.
+### Critique of prior iterations
 
-## Iteration 16 — `0b6d8be4` → `8f84fa1e` (+ this commit)
+**C1 (workflow, and the round's reason for existing).** `Omit by default`'s
+retirement condition has named `prompt-tests/general/halve-the-runbook` since
+round 13. In sixteen rounds and 87 commits the case was never run — only its
+reference edited twice — while the corpus-binding grep kept it alive *because*
+the condition named it. A bullet protected by a test nobody runs, and a case
+protected by a bullet it never tests: the ratchet reproduced inside the
+instrument built to police it. A retirement condition that names a fixture is
+worth nothing until some round pays for the run.
 
-### Critique of iteration 15
+**C2 (workflow, overriding a premise).** Iteration 15's pre-registered outcomes
+do not partition. Its result — `r1` parted from `r2` on one R1 row, R4 null —
+satisfies outcome 1 (*ship no deletion*) **and** outcome 4 (*delete the half
+whose reading was null*, which is `Omit by default`). The round classified it as
+outcome 1 and iteration 16 did not notice. Resolving an ambiguity in the
+direction that ships no deletion is the ratchet's own direction, and a
+pre-registration is worth less than none if the round that wrote it picks the
+branch it prefers afterwards. Not repaired by deleting the bullet on that
+ambiguity: outcome 4's null came from a reading where both arms had the same
+opportunity and both took it, which separates nothing. Repaired by running the
+reading that can separate — this round.
 
-**C1 (fact).** The R1 cell scoring r2's Pillow row "named" quoted *"Start there
-if you want to close it"* — an instruction to investigate, not an end-condition.
-The sentence carrying the reading is two paragraphs later in the same artifact.
-Scored right, cited wrong; corrected in the run README.
-
-**C2 (workflow).** R1 was declared categorical and is not: *does this sentence
-state what would end the item* is a judgement, and the round's whole result is
-one such judgement at n=1. Its own durable method — *categorical or it is not
-evidence* — excludes it. The blind comparison is not a second instrument here:
-that grader was handed the decisive criterion, so it re-made the same judgement.
-The round's closing line says as much and its event summary did not.
-
-**C3 (workflow).** Iteration 15 wrote the contract clause *no claim in
-`sys_prompt/CLAUDE.md` may be a run narrative* and then wrote one in the same
-round — arm-parting counts, the fixture, "blind-corroborated" — into the
-`Say what ends it` entry. A contract violated by the round that writes it is
-worth less than no contract, because later rounds read the violation as licence.
-
-**C4 (workflow, overriding instruction 1).** Iteration 15 handed forward
-"isolate the block's two bullets on `retirement-policy`". Overridden. It
-replicates one interpretive row on one fixture, which the user's rules forbid
-(*default to n=1; if you want more, build new cross-domain test cases, do not
-replicate*) and which its own method forbids (*buy resolution inside the run, not
-across runs*). The round spent its milestone building the cross-domain probe
-instead.
+**C3 (fact).** Iteration 16's instruction 2 cites "~4,000 words from a 263-word
+task and edited three files apiece" as the bullet's own failure shape. That is a
+count read off its own arms after they were in, from a probe the same round
+deleted, whose transcripts are gitignored — inadmissible under the round's own
+`(contract)` (*a reading composed after the arms are in is not admissible*) and
+now uncheckable by anyone. Taken as motivation, not as evidence, and the round's
+readings are pre-registered instead.
 
 ### The round's work
 
-Built `release-bot-handoff` — handoff note, CI/release repo, five items whose
-warrants differ (incident, measurement, hearsay, plain fact, bare preference) —
-and ran `alan-default-next.md` at HEAD against the same file plus one
-transcription clause on `Say what ends it`. Arms confirmed in both transcripts.
-**Outcome 2**: both arms clean on all three readings the clause was written for,
-both fire the adversarial one, and both invented a provenance vocabulary
-unprompted. The clause shipped nothing and the probe was deleted with the round
-that wrote it (`git checkout 0c85bfd1 --`).
-
-The finding is in `sys_prompt/CLAUDE.md`, replacing the `Say what ends it` entry
-and shorter than it: the warrant is lost to the genre of the file, not to a
-missing clause. A rules section takes a heading and the heading flattens a
-preference; a handoff note is a report on a state of knowledge and gets labels
-for free.
-
-### `(instruction)` for iteration 17
-
-1. The warrant node is now narrowed, not open. Any further attempt has to fire
-   **while a rules file is being written** — an action, not a disposition asked
-   of the finished text. A sixth wording aimed at the text is out.
-2. `Omit by default` has no evidence either way from iterations 15 or 16. Both
-   arms here wrote ~4,000 words from a 263-word task and edited three files
-   apiece; that is the bullet's own failure shape and neither round read it,
-   because both excluded counts. Find a categorical reading for it first, then
-   run it — not another count.
+Two arms on the bullet's own named fixture, differing only in line 190.
+Pre-registration, readings, outcomes and result:
+`prompt-tests/runs/halve-the-runbook/README.md`.

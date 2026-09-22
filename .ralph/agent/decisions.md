@@ -23,27 +23,7 @@ live, and honoured at iteration 15. **DEC-021** delete a case rather than repair
 now lives in the prompt-tests skill). Framing bias on all: each fixture was written
 from the shape of the line its round meant to test. Independent evaluation: not-started.
 
-## DEC-024 — keep the whole `# Writing for other agents` block on one row of three (iter 15, conf 66)
-- **Chosen**: ship no deletion; hand the bullet-level isolation to iteration 16.
-- **Alternatives**: delete the block anyway, reading one row at n=1 as inside an
-  unmeasured spread (rejected — the pre-registration fixed outcome 1 in advance
-  and a round may not discard its own pre-registered direction because it
-  preferred the other result); keep and also ship a register line for the failure
-  both arms showed (rejected — adding on the strength of a failure neither arm's
-  prompt caused is the ratchet, and the same node has swallowed five wordings).
-- **Reasoning**: the parted row is the rule whose exit is a design change rather
-  than a measurement, which is a mechanism and not just a count; a blind grader
-  with reversed labels found the same row unprompted. Against it: 198 api tokens
-  on every request, two of three rows a wash, and the register failure the block
-  does not prevent appearing in both arms.
-- **Re-evaluate**: iteration 16's single-bullet arms. If `Omit by default` shows
-  nothing there either, it is the deletion candidate and this round's null on R4
-  is the first half of that case.
-- **Framing bias**: I pre-registered an outcome set whose null would have
-  shortened the prompt, and reported the outcome that lengthens nothing but keeps
-  a line. The blind grader is the only reader who did not know what was tested.
-- **Independent evaluation**: not-started.
-- 2026-09-22T07:45:00Z
+**DEC-024** keep the whole block on one row of three (iter 15) — discharged: iteration 16 ran the warrant half and iteration 17 the `Omit by default` half. Its pre-registration did not partition (see scratchpad C2).
 
 ## DEC-025 — override iteration 15's instruction; probe the warrant node in a second genre (iter 16, conf 84)
 - **Chosen**: build a cross-domain probe (handoff note, CI/release repo, five
