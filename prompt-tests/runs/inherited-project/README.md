@@ -44,7 +44,7 @@ and the runner's argv.
 
 ## The fixture's five statements, and what each one is
 
-The handover in `task.md` gives five, chosen to differ in where the writer's
+The handover in the case's `task.md` gives five, chosen to differ in where the writer's
 confidence could come from:
 
 | statement | character | checkable from the fixture |
@@ -132,3 +132,107 @@ Outcome 2, 3 or 5 on the candidate deletes the whole directory with the round
 that ran it: `rm -r prompt-tests/runs/inherited-project`. Outcome 1 promotes it
 to `prompt-tests/general/` and the corpus grep owns it from there. Either way
 nothing is left for a later round to remember.
+
+---
+
+# Result — outcome 2 on the candidate, outcome 4 on the preamble
+
+Four sessions, `claude-opus-5`, one per arm plus one rerun. Arms confirmed from
+each transcript's `prompt_snapshot`. All three valid arms read the fixture and
+executed code (13, 8 and 12 tool calls).
+
+**One arm was invalidated and rerun.** The first `c` searched the filesystem for
+other copies of the fixture's project while looking for the pin's git history,
+found the probe directory — then named `prompt-tests/runs/feedwatch-onboarding`
+— listed it, and reported it in its own notes. Listing a `prompt-tests/` path is
+contamination whatever the agent then declined to read. The directory was renamed
+to share no word with its own `task.md` or `fixture/`, the skill's naming rule now
+says so, and `c` was rerun as `c2` with the leak closed. The invalid arm's
+readings are quoted below only where they bear on a confound, and decide nothing.
+
+## Readings
+
+Both blind reads were single readers holding the three delivered files relabelled,
+the handover and the source, told neither what was under test nor which file was
+which. The second read is the one that counts: the first one's R3 wording
+collapsed the interval's *value* with the *rationale* for it, and the second
+scoped the question to the value and offered an explicit `ATTRIBUTED` option
+covering a document's own marking scheme.
+
+| | `a` HEAD | `b` no preamble | `c2` HEAD + candidate |
+| --- | --- | --- | --- |
+| R1 the pin | RECORDS-UNKNOWN | RECORDS-UNKNOWN | RECORDS-UNKNOWN |
+| R2 the false interval | STATES-CODE | STATES-CODE | STATES-CODE |
+| R3 the poll value | ATTRIBUTED | **FLAT** | ATTRIBUTED |
+| R4 the bare preference | AS-PREFERENCE | AS-PREFERENCE | AS-PREFERENCE |
+| R5 read and ran the code | yes | yes | yes |
+
+## The candidate: outcome 2, and what outcome 2 does not license
+
+`a` and `c2` take the same value on every reading. The candidate is not shipped.
+
+Outcome 2's text goes further — *the condition fired and failed, which closes
+claim-handling here* — and that half is **withdrawn**. R1's baseline is saturated:
+every arm, the invalid one included, recorded the pin's reason as unknown rather
+than supplying one. A reading every arm passes separates nothing, and a null from
+a saturated baseline bounds the fixture, not the clause. Honouring the
+interpretation would repeat the error this round opened by criticising — iteration
+16 converting a saturated-baseline null into a general conclusion. Withdrawing
+beats honouring; the reason is a property of the fixture, visible without the
+result.
+
+Why the baseline saturated, as a hypothesis for the next round: the handover
+*states* the gap — *I don't know why* — so declining to fill it is the stated
+answer rather than an act of restraint. The premises that did escape were the ones
+nobody flagged: httpx's behaviour across versions, what feedparser does with a
+missing element, what an Atom feed re-serves on the next fetch, whether a live
+database exists. The blind reader was asked for those without being told they
+mattered, and found them in every arm. So the node is background knowledge about
+external systems, and a fixture that can fire a claim-handling line has to make one
+of those load-bearing without naming it as a gap.
+
+## The preamble: outcome 4, kept
+
+`a` and `b` differ on R3, and on nothing else. The arm carrying the preamble gives
+the poll interval's value with a source — `poll.py:12`, or a verified tag under the
+document's own scheme — and the arm without it states the same true number bare.
+Both blind readers reached this independently under different question wordings.
+
+This is the preamble's first isolation in eighteen rounds. It parts on the
+mechanism its own last clause names: a reader who *will act on it as a premise*
+can check a cited value and cannot tell an uncited one from the hearsay beside it.
+
+**Confounded, and not fully separated.** `a` and `c2` both invoked the
+`prompt-engineer-v2` skill — whose description fires on writing a `CLAUDE.md` —
+and `b` did not. Skill invocation is the agent's choice and downstream of the
+prompt, but at one run per arm it is an alternative explanation for the only
+parting in the run. What argues against it: the invalidated first `c` carried the
+preamble, did **not** invoke that skill, and still attributed the value. That is
+one run, and an invalid one, so it weakens the confound rather than removing it.
+
+## Excluded
+
+Word counts, section counts, byte deltas, and the number of unsupported claims per
+arm — four in `a`, five in `c2` by the blind reader's own list. Each is a sample of
+a spread this round has not measured, and the exclusion was written to hold however
+the round turned out.
+
+## What this cannot establish
+
+One fixture, one run per arm, one model. The preamble's scope half — that it
+extends the block to genres the heading does not suggest — is untested and stays
+untested; this fixture is a rules file, which the heading reaches on its own. The
+skill-invocation confound above. And R4 matched at `AS-PREFERENCE` in all three
+arms, which is the opposite of what an earlier fixture produced with a
+near-identical preference sentence; the difference is in the material, not the
+prompt, and is recorded in `sys_prompt/CLAUDE.md` as a hypothesis rather than a
+finding.
+
+## What deletes this record
+
+The round that retires or rewrites the `# Writing for other agents` preamble — it
+now has a retirement condition in `sys_prompt/CLAUDE.md` naming this case, so that
+round is one a later round can actually be — or any change to the case's
+instrument, its `fixture/` or its `task.md`. No delivered artifact is stored: the
+categorical readings above are what a later run is compared against, and an
+artifact kept for a question nobody has asked is a record only a human can remove.

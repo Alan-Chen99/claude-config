@@ -244,34 +244,32 @@ subject, not of writing tasks. The count is never decided, so it only rises; not
 which is why nothing fires. Whatever reaches this fires while a sentence is being corrected and asks
 for a deletion. Retire it when an agent acts on documentation the task did not name.
 
-**No bullet here asks for claim-handling; four wordings failed.** `Claim less` — *think before
-making claims, especially those that may go stale* — was the last, and is gone. Run against an arm
-without it, on a task that is nothing but claims about someone else's code, it produced no
-difference in how either document marked what it asserted. The one asymmetry ran the other way: the
-arm without it ran an experiment to settle the library claim that mattered, where the arm carrying
-it settled the same claim by arithmetic and shipped it flat.
+**The preamble is kept, on its first isolation in eighteen rounds.** Against an arm with the
+sentence deleted, on `prompt-tests/general/inherited-project`, the arms parted on one row and
+matched on every other: the arm carrying it sourced a true, checkable number — `poll.py:12` —
+where the arm without it stated the same number bare. Hypothesis: naming the reader who *will
+act on it as a premise* separates a value that reader can check from one it cannot tell from
+the hearsay beside it. Confounded — both sourcing arms invoked the `prompt-engineer-v2` skill
+and the bare one did not, which one run per arm cannot separate. Retire it when an arm without
+it sources as much as one with it, on that case.
 
-Hypothesis: asking for a disposition does not produce one, and the premise that escapes is the one
-the agent *brought with it* — background knowledge about an external system does not arrive feeling
-like a claim, so nothing fires on it. What did the work in both arms was running the code, which
-this prompt asks for as an action elsewhere; a disposition-line adds something to argue about
-instead of something to do. Retire this deletion when an arm carrying a claim-handling line sources
-or marks materially more of what it asserts than an arm without it, on a fixture offering several
-claim opportunities that differ in character. The trade such a line must not break: an agent that
-hands the reader a test to run instead of a caveat to read has discharged the premise better than
-any marking.
+**No bullet here asks for claim-handling; five wordings failed, and marking is not the node.**
+On the same case every arm invented a provenance scheme unprompted, recorded the one stated gap
+as unknown, and left the bare preference in the register it arrived in — with a claim-handling
+line, without one, and with the preamble gone alike. What escaped into all of them was
+background knowledge about external systems: a library's behaviour across versions, what an
+upstream feed re-serves. Hypothesis: a premise the agent brought with it does not arrive feeling
+like a claim, so nothing fires on it, and a line asked of the finished text reaches only what
+the writer already treats as uncertain. Retire this deletion when an arm carrying such a line
+sources materially more than one without, on a fixture making one unflagged external premise
+load-bearing. The trade it must not break: handing the reader a test to run discharges a premise
+better than any marking.
 
 **`Say what ends it` reaches the rule whose end is a design change rather than an observation — the
 one an agent gives the history of and leaves standing.** Rules that end on an observation get their
 exit unaided. Hypothesis: an exit is written once the agent can picture the act. Retire it when an
 arm carrying it names no more exits than one without, on `prompt-tests/general/retirement-policy`.
 
-**What strips a rule of its warrant is the genre of the file it lands in.** A rules section takes a
-heading, and the heading flattens an owner's bare preference into the incident beside it — a false
-claim only someone who was there can remove. Asked for a handoff note instead, an agent labels every
-statement by how well it knows it, unprompted, and a clause asking for exactly that changed nothing.
-Hypothesis: the genre supplies the frame and a clause only competes with it. So anything aimed here
-has to fire while a rules file is being written, and a disposition asked of the text will not.
 
 ### `# Git`
 
