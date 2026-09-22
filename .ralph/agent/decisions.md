@@ -17,59 +17,11 @@ testing (iter 12), its reach half superseded by **DEC-020**, which cut the reach
 categorical null against the line counts (iter 13). **DEC-019** paragraph-local no-growth for
 `sys_prompt/CLAUDE.md` — a no-edit round replaces a paragraph, shorter, rather than adding one;
 live, and honoured at iteration 15. **DEC-021** delete a case rather than repair its justification
-(iter 13) — superseded by DEC-023, which deletes on ownership rather than on argument quality. Framing bias on all: each fixture was written
+(iter 13) — superseded by DEC-023, which deletes on ownership rather than on argument quality. **DEC-022** delete `Claim less` on a null against an arm without it (iter 14, shipped).
+**DEC-023** bind the case corpus to the prompt — a case is kept only while
+`sys_prompt/CLAUDE.md` names it, eleven of fifteen deleted (iter 15, shipped; the rule
+now lives in the prompt-tests skill). Framing bias on all: each fixture was written
 from the shape of the line its round meant to test. Independent evaluation: not-started.
-
-## DEC-022 — test the incumbent `Claim less`, then delete it on a null (iter 14, conf 86)
-- **Chosen**: probe the bullet against an arm without it, and delete it; the
-  pre-registration's Mixed clause withdrawn in the run README as directionless.
-- **Alternatives (milestone)**: cut the fifteen never-run cases — rejected, it
-  advances the instrument not the prompt, and the contract forbids a whole
-  milestone on the instrument with no arm against the prompt; add a line reaching
-  deletion-during-edit — rejected, adding before subtracting is the ratchet.
-- **Alternatives (verdict)**: honour Mixed literally and keep the bullet —
-  rejected, the clause assumed a parting at I3 would favour the bullet and it
-  favoured the arm without it, so honouring it keeps a line on evidence against
-  it; re-run at n=2 — rejected, the user's rule is n=1 with cross-domain cases
-  rather than replication, and no reading favoured the bullet.
-- **Reasoning**: it was the one line in the block with neither measured behaviour
-  nor any retirement condition — the two conditions beside it retire the
-  hedge-clause deletion and the line of inquiry, not the bullet. Keep needed a
-  policy across more than one of I1–I3 and got none; cut-on-harm needed weaker
-  controls in the bullet arm and they were equal and strong; a blind grader found
-  no difference on the decisive criterion.
-- **Re-evaluate**: if doc errors from unverified background claims rise in this
-  repo's own output, the redundancy reading was wrong and the prompt's other
-  epistemic rules are not carrying it.
-- **Framing bias**: I wrote a pre-registration whose null shortens the prompt and
-  then found a null. The blind grader is the only reader here who did not know
-  what was tested; it found the I3 asymmetry independently.
-- **Independent evaluation**: not-started.
-- 2026-09-22T07:15:00Z
-
-## DEC-023 — bind the case corpus to the prompt, delete eleven of fifteen (iter 15, conf 82)
-- **Chosen**: a case is kept only while `sys_prompt/CLAUDE.md` names it; one grep
-  decides and the round that runs it deletes what it prints.
-- **Alternatives**: keep the per-case "why this is kept" arguments and repair the
-  weak ones (rejected — every one was a uniqueness claim, which is a statement
-  about the corpus that deleting a neighbour makes more true, so no round could
-  ever act on one); delete all fifteen including the four owned (rejected — four
-  are named by live retirement conditions, and deleting them would silently
-  retire the conditions with them); set a cap on case count (rejected — that is
-  the human-set size limit the objective asks to avoid).
-- **Reasoning**: the corpus was ~12,400 words of rubric, added entirely by this
-  loop, never approved, never re-run in fourteen rounds, and removable only by a
-  human. Ownership makes the bound a consequence of the prompt's own size rather
-  than a number someone chose, and `git checkout <sha> --` makes the deletion
-  reversible by a round rather than by a person.
-- **Re-evaluate**: if a round wants a fixture it has to rebuild from scratch, the
-  deletion cost more than it saved — the recovery SHA is in the commit message,
-  so the test is whether anyone uses it. If `sys_prompt/CLAUDE.md` starts naming
-  cases in order to keep them, the rule has been inverted and should go.
-- **Framing bias**: deleting is cheap for me and the cost lands on a later round;
-  I also wrote the rule that made the deletion follow.
-- **Independent evaluation**: not-started.
-- 2026-09-22T07:40:00Z
 
 ## DEC-024 — keep the whole `# Writing for other agents` block on one row of three (iter 15, conf 66)
 - **Chosen**: ship no deletion; hand the bullet-level isolation to iteration 16.
@@ -92,3 +44,23 @@ from the shape of the line its round meant to test. Independent evaluation: not-
   a line. The blind grader is the only reader who did not know what was tested.
 - **Independent evaluation**: not-started.
 - 2026-09-22T07:45:00Z
+
+## DEC-025 — override iteration 15's instruction; probe the warrant node in a second genre (iter 16, conf 84)
+- **Chosen**: build a cross-domain probe (handoff note, CI/release repo, five
+  items of differing warrant), run HEAD against HEAD + one transcription clause,
+  ship nothing on outcome 2, delete the probe.
+- **Alternatives**: isolate the two bullets on `retirement-policy` as instructed
+  (rejected — replication of one interpretive row at n=1, which the user's rules
+  and iteration 15's own method both forbid); ship the clause anyway because the
+  failure it targets is measured (rejected — the failure is measured, an agent
+  acting on a line addressing it is not, and adding on that basis is the ratchet).
+- **Reasoning**: the measured doc error — a preference written up as an incident
+  — is the objective's own failure shape, so it outranks bullet bookkeeping. A
+  second genre buys resolution inside the run rather than across runs.
+- **Re-evaluate**: when a round has a candidate that fires while a rules file is
+  being written, rather than a property asked of the finished text.
+- **Framing bias**: I designed the fixture, the readings and the candidate, and
+  a fixture built to show a failure is built by someone who expects it. The
+  saturated baseline is the result I did not design for and is the whole finding.
+- **Independent evaluation**: not-started.
+- 2026-09-22T07:55:00Z

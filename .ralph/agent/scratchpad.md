@@ -57,6 +57,10 @@ meant to police it.
 **A clause no fixture can exercise is not an open question; it is a deletion
 candidate with an outstanding test.** *(iter 13)*
 
+**Before writing a clause for a failure, re-run the failure in a second genre.**
+If it disappears there, the target is the genre and not the wording, and a clause
+aimed at the text will compete with the frame rather than replace it. *(iter 16)*
+
 ## Standing `(contract)`
 
 > An iteration may not spend its whole milestone on the prompt-test instrument
@@ -156,3 +160,31 @@ replicates one interpretive row on one fixture, which the user's rules forbid
 replicate*) and which its own method forbids (*buy resolution inside the run, not
 across runs*). The round spent its milestone building the cross-domain probe
 instead.
+
+### The round's work
+
+Built `release-bot-handoff` — handoff note, CI/release repo, five items whose
+warrants differ (incident, measurement, hearsay, plain fact, bare preference) —
+and ran `alan-default-next.md` at HEAD against the same file plus one
+transcription clause on `Say what ends it`. Arms confirmed in both transcripts.
+**Outcome 2**: both arms clean on all three readings the clause was written for,
+both fire the adversarial one, and both invented a provenance vocabulary
+unprompted. The clause shipped nothing and the probe was deleted with the round
+that wrote it (`git checkout 0c85bfd1 --`).
+
+The finding is in `sys_prompt/CLAUDE.md`, replacing the `Say what ends it` entry
+and shorter than it: the warrant is lost to the genre of the file, not to a
+missing clause. A rules section takes a heading and the heading flattens a
+preference; a handoff note is a report on a state of knowledge and gets labels
+for free.
+
+### `(instruction)` for iteration 17
+
+1. The warrant node is now narrowed, not open. Any further attempt has to fire
+   **while a rules file is being written** — an action, not a disposition asked
+   of the finished text. A sixth wording aimed at the text is out.
+2. `Omit by default` has no evidence either way from iterations 15 or 16. Both
+   arms here wrote ~4,000 words from a 263-word task and edited three files
+   apiece; that is the bullet's own failure shape and neither round read it,
+   because both excluded counts. Find a categorical reading for it first, then
+   run it — not another count.
