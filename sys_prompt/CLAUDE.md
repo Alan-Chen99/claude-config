@@ -227,8 +227,16 @@ separate file and a pointer stayed behind. The reach wording takes the pointer p
 pushing out content that genuinely binds every session.
 
 Unresolved, and the likeliest thing to retire it: total bytes written went **up**. The objective this
-was edited under asks that documentation not grow unbounded, and relocation is growth. A case that
-measures a document growing across sessions would settle whether the trade holds.
+was edited under asks that documentation not grow unbounded, and relocation is growth.
+
+That question is now narrower than it was. It was open for *both* kinds of writing; 2026-09-22 on
+`prompt-tests/general/doc-succession` closed the maintenance half. Editing an existing document, the
+old wording, the new wording and no block at all all shrank the file, and none of the three annotated
+a dead section as obsolete rather than deleting it. So the growth is not an unwillingness to remove;
+it belongs to the creation case, where the reach wording moves detail out of the loaded file and
+writes more of it. What survived every arm was the content the task did not name — an unsourced claim
+and a step list duplicating a script, each noticed by at least one arm and left. If documents here
+accumulate, that is the mechanism to measure, and neither bullet addresses it.
 
 **`Claim less` no longer endorses a hedge.** It closed with *Often you are better off with a hint,
 warning or a [record] marker*; deleted 2026-09-22.
@@ -244,11 +252,27 @@ said *often*. A third arm that priced the hedge explicitly wrote 30% more text a
 `render.py` mid-investigation where both other arms left the code alone, so stating the price
 measured worse than saying nothing.
 
-Retire the deletion if an agent is found writing an unverifiable thing as a flat fact where
-`# Epistemic Integrity` does not reach. That is the untested territory: everything in the probe was
-checkable from the fixture, and the agent was writing up its own work, which is what No Unexplained
-Residue governs. Writing for a reader about something the writer cannot check is the case no arm
-covered.
+That retirement condition was tested on 2026-09-22 and it was the wrong condition. It said: retire
+the deletion if an agent is found writing an unverifiable thing as a flat fact where
+`# Epistemic Integrity` does not reach. On `prompt-tests/general/doc-succession`, where the writer
+edits a document for a reader about a vendor client it cannot reach, that happened in all three arms
+— each wrote some form of "the client negotiates TLS 1.3 by default", which nothing in the task or
+the repository establishes. But the arm carrying the deleted clause restored wrote one too, and none
+of the three hedged the one thing it genuinely could not check: an unscheduled, explicitly uncertain
+guess, which every arm kept out of the document and reported to the user instead.
+
+So the condition named an observation where it needed a comparison. An unverifiable flat fact
+appearing does not speak for the clause; the clause preventing one does, and here it prevented
+nothing. Restated: retire the deletion when an arm carrying the clause writes materially less of this
+than an arm without it.
+
+The one thing that did produce a retraction was not in this block. One arm committed a mechanism it
+had inferred, then removed the sentence and amended the commit; the trigger in its log is
+`## Before response` — the `uncertainties` list it had just written named that sentence, and the
+hook's reply reminder came back over it. Two arms ran the same gate and kept theirs, so this is a
+mechanism that fires sometimes and not a guarantee. It is worth knowing before anything is added
+here about asserting what you cannot check: that ground is already partly held, by a section written
+for a different purpose.
 
 ### `# Git`
 
