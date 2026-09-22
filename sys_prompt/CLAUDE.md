@@ -301,6 +301,28 @@ run instead of a caveat to read, which is better than the marking the third word
 line that buys markings at the cost of that trade is a regression even where the artifact looks
 more careful.
 
+**`Say what ends it` buys an exit for rules that would otherwise be permanent.** A rule an agent
+writes is followed by later readers without being re-decided, and deleting it takes a human — the
+objective's sharpest clause. Measured 2026-09-22 on `prompt-tests/general/retirement-policy`, a
+fixture carrying four items that differ in whether they can end at all: a pin whose stated cause is
+checkable here, a vendor number governed by the account's plan, a design invariant, and a bare
+preference. Baseline artifact: one end-condition of four. Treated: three, in three different forms
+matched to the three characters, including *this constraint ends when an accepted upload is recorded
+somewhere durable outside `jobs/`* for the invariant, where the baseline wrote only *never delete
+these by age*. The treated arm wrote 1202 bytes fewer, so this is not the reach bullet's open
+question repeating.
+
+Two things it did not buy, both recorded in the run: neither arm kept the bare preference out of the
+register it used for the three incidents, so the line does not reach the *should this be a rule at
+all* half; and the treated arm alone turned that preference into a passing test, which is the ratchet
+argued against, appearing in the arm carrying the argument. At n=1, with the line saying nothing
+about tests, that is a cost to watch rather than an attribution.
+
+Retire this bullet when an arm carrying it states no more end-conditions in its artifact than an arm
+without it, on a fixture whose items differ in whether they can end — or, sooner, when an arm
+carrying it attaches an end-condition to a rule that has none, which is the boilerplate the run was
+built to catch and did not find.
+
 ### `# Git`
 
 The section is the only git policy a `claude.sh` session receives, because `settings.json` turns

@@ -189,6 +189,7 @@ Compaction summaries, subagent prompts, plans and specs, reports back to a paren
 
 - Omit by default: Any content you write has to earn its place, priced by how often it will be read and by whom — a line in a file that every session loads is paid for by every session, including the ones it has nothing to do with.
 - Claim less: Think before making claims, especially those that may go stale.
+- Say what ends it: a rule you write gets followed without being re-decided, and only a human removes it. Price it by what would end it — an observation someone here will actually make, or nothing.
 
 # Session-specific guidance
 
