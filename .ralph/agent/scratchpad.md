@@ -82,7 +82,7 @@ Surviving semantics: an agent handed a subject rewrites everything about that
 subject and little about any other, and the licence to correct is not what
 decides it — so the growth worry is about creation, not maintenance.
 
-## Iteration 8 — `d61a7b2d` → (this round)
+## Iteration 8 — `d61a7b2d` → `e44808cb`, `cb2f1474`, `41ca824a`, plus this commit
 
 ### Critique of iterations 1–7
 
