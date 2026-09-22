@@ -16,21 +16,29 @@ of executable code** — replace with the script's name. (4) a **trap** — what
 reader gets wrong by default, silently. Keep. Deletion is the default; each
 *keep* is what needs an argument.
 
-**Price a document by reach before size.** A file that attaches itself to a
-session that did not ask for it is cut before a file someone must choose to open.
+**A line that names a consideration does not deliver the conclusion it argues
+for.** It makes the consideration salient, and the agent then argues it in
+whichever direction the task favours. Measured twice on `Omit by default`'s reach
+wording: more readership reasoning, none of it reaching the clause's own
+conclusion. *(iter 13)*
 
 **A retirement condition names a comparison, not an observation.** "Retire this
 when an arm carrying the line does no better than one without it" is the only
-form a later round can act on. An unhedged claim merely *appearing* is not that
-comparison.
+form a later round can act on.
 
 **Buy resolution inside the run, not across runs.** At n=1 a fixture with one
 opportunity for the behaviour under test yields a coin flip; several
 opportunities that *differ in character* yield the policy the agent applied.
 
-**Arms must differ in kind, not in degree.** A line count separating two arms is
-a sample of the baseline's spread. *Wrote a second file or not*, *issued an
-imperative or not* are categorical and readable at n=1. *(iter 12)*
+**Arms must differ in kind, not in degree.** *Wrote a second file or not*,
+*issued an imperative or not*, *fact present in the loaded file or not* are
+categorical and readable at n=1. A line count is a sample of the spread.
+
+**A pre-registered exclusion binds hardest when the excluded number turns out to
+be the only one favouring your prior.** Iteration 13 excluded line counts in
+advance, then found they were the sole evidence for the wording it was cutting.
+Recorded, not acted on. Reaching for it would have been a reading composed after
+the arms were in. *(iter 13)*
 
 **A criterion written from the shape of the failure cannot score a good
 outcome.** Write what the good artifact looks like before what the bad one lacks.
@@ -38,18 +46,14 @@ outcome.** Write what the good artifact looks like before what the bad one lacks
 **A prose warning inside the thing it warns about does not stop a reader who has
 read it.** Convert to a refusal with an escape hatch; the refusal is checkable.
 
-**A pre-registered outcome names the channel it is read from** — delivered
-artifact, report, or the `pre_output` fields. And a pre-registered *reading* can
-be wrong: iteration 12 withdrew one in its own record rather than take the
-reading its fixture could not support. Withdrawing beats honouring.
-
-**A defect that costs nothing this time is the one that accumulates.** Where
-maintenance succeeds every round, nothing in the session ever weighs the quantity
-that is growing.
+**A pre-registered outcome names the channel it is read from**, and a
+pre-registered *reading* can be wrong. Withdrawing beats honouring.
 
 **Test the lines already shipped, not only the candidates.** A shipped line with
-a named, unmeasured harm outranks any new candidate: it is already costing every
-session and only a human can remove it. *(iter 12)*
+a named, unmeasured harm outranks any new candidate.
+
+**A clause no fixture can exercise is not an open question; it is a deletion
+candidate with an outstanding test.** *(iter 13)*
 
 ## Standing `(contract)`
 
@@ -80,100 +84,89 @@ session and only a human can remove it. *(iter 12)*
 
 > **A round that ships no prompt edit may not add a paragraph to
 > `sys_prompt/CLAUDE.md`; it may replace one, and the replacement is shorter than
-> what it replaced.** Supersedes iteration 9's whole-file token count. Observed in
-> iteration 12: the last 70 tokens of a whole-file target bought nothing — paid in
-> word-shaving, and finally in deleting a live methodological guard from an
-> unrelated paragraph to fund a measured finding. Paragraph-local is the same
-> discipline without the cross-subsidy. *(iter 12)*
+> what it replaced.**
 
 > **A stored run is retired by the condition its own README states**, and the
 > round that notices deletes the directory. The condition may not depend on a
-> later round choosing particular work. *(iter 12 amendment)*
+> later round choosing particular work.
 
 > **No claim in `sys_prompt/CLAUDE.md` may be a run narrative.** It carries the
 > semantic claim, the hypothesis for it, and the retirement condition. Counts, arm
 > labels, byte deltas, dates and fixture descriptions belong to the run's own
 > README and to git.
 
-## Iterations 1–11 — `9f6c03a0` → `0f32e2ef`
+> **An `(instruction)` asserting that work is undone states the command that
+> shows it.** Iteration 12 handed forward "no round has done this" about a user
+> ask that one grep refutes, and acting on it would have spent a round re-doing
+> finished work. *(iter 13)*
+
+## Iterations 1–12 — `9f6c03a0` → `d3607d7f`
 
 Detail is in commit messages; anything justifying a prompt line is in
-`sys_prompt/CLAUDE.md`. Shipped: `Omit by default` repriced by reach (3), the
-`Claim less` hedge endorsement deleted (4), `Say what ends it` (9). Rounds 6–8
-established that three wordings aimed at claim-handling all failed because the
-node is premise **provenance**, not wording. Round 10 fixed a nine-round harness
-contamination (the runner named itself in the tested agent's cwd) and voided
-every arm stored before 2026-09-22. Round 11 found that restatement grows by
-accretion, not addition.
+`sys_prompt/CLAUDE.md`. Shipped: the `Claim less` hedge endorsement deleted (4),
+`Say what ends it` (9). Rounds 6–8: three wordings aimed at claim-handling all
+failed because the node is premise **provenance**, not wording. Round 10 fixed a
+nine-round harness contamination and voided every arm stored before 2026-09-22.
+Round 11: restatement grows by accretion, not addition. Round 12 measured the
+reach wording's named harm (relocation) and found it cannot occur on a writing
+task — the task's subject bounds the edit.
 
-## Iteration 12 — `0f32e2ef` → `da9f03c9` (+ this commit)
+## Iteration 13 — `d3607d7f` → this commit
 
-### Critique of iteration 11 (and of the loop's shape)
+### Critique of iteration 12
 
-**C1 (workflow, the substantive one). A shipped line carried a named, unmeasured
-harm for eight rounds while every round built new candidates.**
-`sys_prompt/CLAUDE.md` had said since iteration 3 that `Omit by default`'s reach
-wording *"moves detail out of the loaded file and writes more of it in total …
-relocation is growth"*, and iteration 6 narrowed it to the creation case. Five
-rounds since then probed lines that do not exist. The user's rule is explicit: a
-prompt is added only when negative effects are understood via adversarial
-testing. The one bullet aimed at the growth objective might have been a growth
-source, and nothing tried to find out.
+**C1 (fact).** Its `(instruction)` 2(b) said sixteen cases lacked the per-case
+justification the user asked for and "no round has done this". Every one already
+carried a `Why this case is kept` paragraph. One grep refutes it; acting on it
+would have burned the round. Contract amended.
 
-**C2 (workflow). Iteration 11's `(instruction)` 1 bought nothing at either
-outcome** — a positive reopens a family the same round showed nulls for
-mechanical reasons, a negative returns to a question already open. Continuity is
-not value. **Overridden.**
+**C2 (quality).** Those paragraphs were never checked against each other. Three
+made "the only case that…" claims that cannot all hold, and none named what would
+retire the case — the standard this repo applies to every rule it writes and not
+to its own instrument. Fixed: `platform-portability` deleted (its own paragraph
+conceded it added no coverage, and the speed it was kept for has never been
+cashed — no case has a stored run under the current skill); three paragraphs
+repaired, each now naming its retirement.
 
-**C3 (quality). Iteration 11 added a ~200-word paragraph to
-`sys_prompt/CLAUDE.md` justifying no prompt line and stating no retirement
-condition**, against iteration 10's own contract. Fixed by merging it into the
-`Omit by default` paragraph, which is the same mechanism, and giving it one.
+**C3 (workflow).** Round 12 left the reach half "unexercised" and handed it
+forward as one of two options to pick on value. A clause ten rounds old that no
+fixture had ever exercised is not an option to weigh; it is a line every session
+pays for with nothing behind it. Fixed by building the fixture and running it.
 
-**C4 (workflow). A deletion was made conditional on a probe that may never run**
-(*"delete the case once (1) has its own fixture"*). Under the override it would
-never fire. Deleted unconditionally; the contract now forbids that coupling.
+**C4 (fact, instrument).** `agent-tools run --hide-cmdline` hides the wrapper's
+argv only; the wrapped command's own `/proc/<pid>/cmdline` still spells the case
+name and arm. Two docs said otherwise. No arm read `/proc` this round, so the
+runs stand. Corrected in both.
 
 ### The round's work
 
-Probe `where-the-bytes-go`, three arms — `Omit by default` priced by reach
-(shipped), priced by existence (pre-iteration-3), and absent. Record and full
-reading in `prompt-tests/runs/where-the-bytes-go/README.md`.
+Probe `two-homes`: one fact every session needs and one a monthly session needs,
+each with an always-loaded home and an opened-on-purpose home, topic deciding
+neither. Three arms — reach wording, existence wording, no bullet. Record and
+full reading in `prompt-tests/runs/two-homes/README.md`.
 
-**The harm does not occur. No arm relocated anything**, and the reason
-generalises: the task's subject bounds the edit, so moving a section the task
-never named is outside what any wording in this block can reach.
-Relocation-as-growth is a *cleanup*-task hazard only. **What the pricing does
-reach** is how many places a fact lands in and whether the agent issues
-instructions nobody asked for — the unpriced arm wrote the fact into a second
-file and added two unrequested imperatives to files that load themselves; both
-priced arms did neither. That is the objective's own clause, and it is the first
-measured evidence any bullet in this block reaches it.
+**No arm sorted by reach.** All three put both facts in the file that loads every
+session, which the bullet's own sentence argues against. A blind comparison of
+the two priced arms, told only that one clause differed, found no difference on
+that criterion. What the reach wording buys is attention to readership, and that
+attention argues *toward* the reader wherever they are — it reached three code
+files a documentation task never named, where the existence arm edited no code
+and said why.
 
-The reach clause **specifically** stays unexercised: the fixture had one
-plausible home, so reach never had two destinations to choose between. The
-pre-registration's offer to read A≈B as inertness is withdrawn in the record.
+**Shipped:** `Omit by default` returns to pricing by existence. Prompt 4261 →
+4237 tokens; `sys_prompt/CLAUDE.md` 7413 → 7412.
 
-No prompt edit. `sys_prompt/CLAUDE.md` 7417 → 7413 tokens with two paragraph
-pairs merged, four paragraphs compressed and two findings added.
+Unplanned replication: the fixture accidentally falsified a sentence in
+`docs/releasing.md`, and all three arms rewrote it — iteration 12's
+subject-bounds mechanism on an independent fixture.
 
-Instrument: the scratch-cwd prefix `ptcc`/`ptoc`/`ptcfg` abbreviated the runner.
-Iteration 10 applied the no-harness-in-the-cwd rule to the settings file and left
-the prefix that named the script. Renamed; no arm had been observed reacting.
+### `(instruction)` for iteration 14
 
-### `(instruction)` for iteration 13
-
-1. Delete `prompt-tests/runs/where-the-bytes-go/` and the case with it unless you
-   re-run that fixture. This is unconditional — not contingent on which work you
-   pick.
-2. Two things are open and specified; pick on value, not on continuity.
-   (a) **The reach clause.** Needs a fixture with two live destinations of
-   different reach, both defensible, for the same fact. Until then the clause has
-   no measured behaviour and the prompt is carrying words that might be free.
-   (b) **Undischarged user ask.** *"Remove or replace other test cases on the
-   'Writing for other agents' block; each one kept you must justify that the test
-   case is providing positive value."* Sixteen cases remain under
-   `prompt-tests/general/` and no round has done this. A case nobody re-runs is
-   the ratchet inside the instrument.
-3. If you read a rule-overruling fixture at one arm, state which side of `Say
-   what ends it`'s two-answer spread you sampled.
+1. Delete `prompt-tests/runs/two-homes/` and the case with it unless you re-run
+   that fixture. Unconditional.
+2. The corpus is fifteen cases with zero stored runs under the current skill, and
+   the loop spends its runs on probes. Either argue that inventory is worth
+   keeping or cut it to what gets re-run. This is the user's ask and the ratchet
+   inside the instrument.
+3. `Claim less` is the only bullet in the block with no measured behaviour and
+   three failed wordings behind it. It is now the oldest unexercised line here.

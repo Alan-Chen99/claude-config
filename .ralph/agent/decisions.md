@@ -5,10 +5,8 @@ commit messages, `sys_prompt/CLAUDE.md` for anything justifying a prompt line,
 and each case's `prompt-tests/runs/<case>/README.md`.
 
 **Closed, discharged, no longer re-argued.** DEC-001–006 (superseded or folded
-into the scratchpad's durable method). **DEC-007** — price written content by
-reach, not by existence (iter 3, shipped); its reasoning and both retirement
-conditions are in `sys_prompt/CLAUDE.md`, and DEC-018 closes the half it left
-open. **DEC-008** — delete the `Claim less` hedge endorsement rather than price
+into the scratchpad's durable method). **DEC-007** — price by reach (iter 3),
+**reversed by DEC-020**. **DEC-008** — delete the `Claim less` hedge endorsement rather than price
 it (iter 4, shipped). **DEC-009/010** (one description per case; measure
 maintenance then ship no line), **DEC-011/012** (the uncertainty-transfer line:
 the node is premise provenance, not wording — neither shipped), **DEC-013** (ship
@@ -19,28 +17,11 @@ that state no retirement condition). Framing bias recorded on all: each fixture
 was written from the shape of the line its round intended to test. Independent
 evaluation: not-started on all.
 
-## DEC-018 — keep `Omit by default` after adversarial testing, and close the open half (iter 12, conf 84)
-- **Chosen**: no prompt edit. The harm the line shipped with — reach pricing
-  relocates detail and grows the total — was looked for on the creation case and
-  does not occur; the line's measured effect is to suppress a second copy and to
-  suppress unrequested imperatives, which is the objective's own clause.
-- **Alternatives**: delete the reach clause on A≈B (rejected — the fixture had one
-  plausible home, so reach was never exercised; shipping a shortening off an
-  unexercised comparison is the error rounds 6–8 made); keep the paragraph's
-  "still open" language (rejected — it had gone eight rounds unmeasured, which is
-  what made testing it this round's milestone).
-- **Reasoning**: a shipped line with a named unmeasured harm outranks any
-  candidate, because it is already charging every session and only a human can
-  remove it. Testing the incumbent is the only move that can *shrink* the prompt.
-- **Re-evaluate**: when a fixture offers two live destinations of different reach
-  for the same fact. If the reach clause changes nothing there, it is words every
-  session pays for and it goes.
-- **Framing bias**: I chose both the critique that made this the milestone and the
-  fixture that answered it, and the fixture's single plausible home is what left
-  the reach clause unexercised — a fixture built by someone else might have put
-  the choice in front of the agent.
-- **Independent evaluation**: not-started.
-- 2026-09-22T06:30:00Z
+## DEC-018 — keep `Omit by default` after adversarial testing (iter 12, conf 84) — **half superseded by DEC-020**
+- Kept on measurement that the relocation harm it shipped with cannot occur on a
+  writing task. Its re-evaluate condition — a fixture with two live destinations
+  of different reach — fired at iteration 13 and the reach half went. The
+  existence pricing it endorsed stands.
 
 ## DEC-019 — paragraph-local no-growth, replacing the whole-file token cap (iter 12, conf 78)
 - **Chosen**: a no-edit round may not *add* a paragraph to
@@ -58,3 +39,42 @@ evaluation: not-started on all.
 - **Framing bias**: I am the round that hit the cap and the round that rewrote it.
 - **Independent evaluation**: not-started.
 - 2026-09-22T06:30:00Z
+
+## DEC-020 — cut the reach wording on a categorical null, against the line counts (iter 13, conf 76)
+- **Chosen**: `Omit by default` returns to pricing by existence.
+- **Alternatives**: keep it and rewrite the retirement condition (rejected — the
+  condition named exactly the fixture this round built, and it fired null);
+  keep it on the line counts, where the reach arm wrote least overall and least
+  into the loaded file (rejected — the pre-registration fixed in advance that a
+  line-count difference at n=1 with unmeasured spread is not a finding, and the
+  numbers were only consulted after the arms were in).
+- **Reasoning**: three arms, a fixture built so topic decides neither placement,
+  and none sorted by reach; a blind comparison of the two priced arms found no
+  difference on that criterion. What the wording measurably buys is more
+  readership reasoning that argues toward the reader wherever they are, which
+  reached three code files the task never named.
+- **Re-evaluate**: if a later round sees an agent sorting content by who needs it
+  and the sorting traces to a line rather than to the task, reach returns. If
+  unrequested additions rise now that the wording is gone, the cut was wrong and
+  the line counts were the signal.
+- **Framing bias**: I built the fixture, wrote the pre-registration that excluded
+  the counter-evidence, and read the result. The blind grader is the only reader
+  here who did not know what was being tested.
+- **Independent evaluation**: not-started.
+- 2026-09-22T06:45:00Z
+
+## DEC-021 — delete a case rather than repair its justification (iter 13, conf 70)
+- **Chosen**: `platform-portability` deleted; `coverage-disclosure`,
+  `network-resilience`, `snapshot-truncation` repaired.
+- **Alternatives**: repair all four (rejected — its own paragraph says it is kept
+  for speed and not for coverage, and no case in this corpus has a stored run
+  under the current skill, so the speed has never been cashed); delete all three
+  on the user-facing axis (rejected — `coverage-disclosure` has ground of its own).
+- **Reasoning**: the user asked that each kept case justify positive value. A
+  justification that concedes redundancy and rests on a benefit never taken is
+  the deletion the ask was for.
+- **Re-evaluate**: if a round wants a cheap single-axis user-facing check and has
+  to rebuild one, the deletion cost more than it saved.
+- **Framing bias**: deleting is cheap for me and the cost lands on a later round.
+- **Independent evaluation**: not-started.
+- 2026-09-22T06:45:00Z

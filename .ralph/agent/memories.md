@@ -2,6 +2,14 @@
 
 ## Patterns
 
+### mem-1790058772-3394
+> Pricing what an agent writes suppresses unrequested additions, but only the EXISTENCE wording does so cleanly. Two fixtures: existence-priced arm edited no code and said why; unpriced arm added one or two imperatives to auto-loaded files; the REACH-priced arm was worst, editing three code files a documentation task never named, because reach reasoning argues 'put it where the reader will be'. No arm ever relocated anything -- the task's subject bounds the edit.
+<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-22 -->
+
+### mem-1790058735-0ef5
+> A prompt line that names a consideration does not deliver the conclusion it argues for: it makes the consideration salient and the agent argues it whichever way the task favours. Measured on Omit by default's reach wording -- the arm carrying it reasoned about readership more often and concluded 'write it where the reader will be', the opposite of the clause's own cost argument.
+<!-- tags: prompt-design, measured | created: 2026-09-22 -->
+
 ### mem-1790057567-6358
 > Documentation restatement grows by ACCRETION, not addition: an agent handed a change that falsifies a sentence rewrites that sentence, and any new fact rides into the rewrite. Every document already carrying the subject acquires the new fact; no moment exists at which a copy is 'added'. Measured two arms on a fixture stating one fact in four documents of differing character. Consequence: any prompt rule phrased around 'before adding a copy' names an act that never happens and nulls.
 <!-- tags: prompt-tests, writing-for-agents | created: 2026-09-22 -->
@@ -9,10 +17,6 @@
 ### mem-1790057525-b4a8
 > A pre-registered READING can be wrong, not just the candidate. Iteration 12 pre-registered 'A approx B means the reach clause is inert' and withdrew it in the record: the fixture offered one plausible home for the new fact, so the reach clause never had two destinations to choose between. Withdraw the reading in the run's own README rather than honour it - a pre-registration binds you to report the outcome, not to accept an inference its fixture cannot support.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
-
-### mem-1790057525-82a3
-> Pricing what an agent writes (Omit by default, either wording) suppresses a second copy and suppresses unrequested imperatives; it does NOT cause relocation. Three arms on one documentation task: reach-priced and existence-priced arms each wrote one file and issued no prescription; the unpriced arm wrote the fact into a second file and added two imperatives nobody asked for, both into auto-loaded files. Hypothesis: a priced line makes an addition something the agent must justify to itself, and an unrequested prescription is the first thing that fails. No arm relocated anything - the task's subject bounds the edit, so relocation-as-growth is a cleanup-task hazard only.
-<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-22 -->
 
 ### mem-1790056288-d79b
 > alan-default-next.md at 391c35d0 spans two answers when a task contradicts a written rule whose cause the task retires: rewrite the rule at the new figure recording what the new number rests on, OR decline the change and hand the unverifiable half back. Two arms differing only in an unrelated bullet took one each, both reporting the open question. Read any single-arm run of a rule-overruling fixture as a sample of that spread.
@@ -49,6 +53,10 @@
 <!-- tags: prompt-tests, documentation | created: 2026-09-22 -->
 
 ## Fixes
+
+### mem-1790058735-2e30
+> agent-tools run --hide-cmdline hides the wrapper's argv only. The wrapped command is a separate process and its /proc/<pid>/cmdline is untouched, so a prompt-test arm's case name and arm letter stay readable there. Keep identifying words out of the command line, not only out of --desc.
+<!-- tags: tooling, contamination | created: 2026-09-22 -->
 
 ### mem-1790055493-087f
 > prompt-test harness leaked its own identity into the tested agent's cwd for nine rounds: scripts/prompt-test-cc.sh wrote .prompt-test-settings.json into the scratch cwd and scripts/prompt-test-run.sh named the scratch dir /tmp/prompt-test.XXXXXXXX. The contamination rule banned the CASE name and nobody checked the CATEGORY name. Fixed iter 10; any arm stored before it is not comparable to one after.
