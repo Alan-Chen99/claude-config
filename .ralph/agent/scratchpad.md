@@ -151,8 +151,10 @@ O3 held, O4 and O5 did not fire, **O1 was wrong** — the baseline is not satura
 it reaches the vendor number and misses the invariant. The bullet shipped.
 
 What it did not buy: neither arm kept the bare preference out of the register it
-used for the three incidents, and the treated arm alone made that preference a
-passing test. Recorded as a cost, not attributed at n=1.
+used for the three incidents. The treated arm also made that preference a passing
+test — followed up and **not** the line's doing: both arms wrote three guards,
+the treated arm's are source-text assertions in which a `print()` scan is trivial,
+and neither transcript reasons about the register at all.
 
 **O2's antecedent was ambiguous** and a round cannot pick between readings after
 the arms are in; the call and both readings are in the run's README, so a later
@@ -166,7 +168,7 @@ own condition. Promoted: `retirement-policy` to a case. Unplanned: ran
 `install.sh` from this worktree, repointed all nine symlinks and the canonical
 venv's editable path back to `/repos/claude-config`, and made the script refuse.
 `tests/test_install.py` was red before that (a `basename` missing from its PATH
-allowlist) and is green now; 808 pass.
+allowlist) and is green now; 808 pass. Range ends at this commit.
 
 ### `(instruction)` for iteration 10
 
