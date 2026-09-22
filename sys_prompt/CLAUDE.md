@@ -248,17 +248,15 @@ the hearsay beside it. Confounded — both sourcing arms invoked the `prompt-eng
 and the bare one did not, which one run per arm cannot separate. Retire it when an arm without
 it sources as much as one with it, on that case.
 
-**No bullet here asks for claim-handling; five wordings failed, and marking is not the node.**
-On the same case every arm invented a provenance scheme unprompted, recorded the one stated gap
-as unknown, and left the bare preference in the register it arrived in — with a claim-handling
-line, without one, and with the preamble gone alike. What escaped into all of them was
-background knowledge about external systems: a library's behaviour across versions, what an
-upstream feed re-serves. Hypothesis: a premise the agent brought with it does not arrive feeling
-like a claim, so nothing fires on it, and a line asked of the finished text reaches only what
-the writer already treats as uncertain. Retire this deletion when an arm carrying such a line
-sources materially more than one without, on a fixture making one unflagged external premise
-load-bearing. The trade it must not break: handing the reader a test to run discharges a premise
-better than any marking.
+**No bullet here asks for claim-handling, and the node is salience rather than marking.** In two
+genres, the premise the *task* makes load-bearing is recorded as open with no line asking for it
+— and better than marking: one baseline started a database to find out which way the fixture's
+code behaves, then wrote the reader's own check into the page. What no arm treats as a claim is
+the premise reached for while writing a supporting sentence — systemd's restart defaults, a
+library's redirect default — asserted flat in treated and untreated arms alike. Hypothesis: a
+premise becomes a claim when the document is *about* it, and no wording can make a passing
+sentence salient. Retire this deletion when an arm carrying such a line records a passing
+premise as open where an arm without it asserts it flat.
 
 **`Say what ends it` reaches the rule whose end is a design change rather than an observation — the
 one an agent gives the history of and leaves standing.** Rules that end on an observation get their
