@@ -112,7 +112,7 @@ before 2026-09-22 is comparable to one run after it.
 
 Probe `restated-cap`, one arm — void, see iteration 11's C1. No prompt edit.
 
-## Iteration 11 — `391c35d0` → (see end)
+## Iteration 11 — `391c35d0` → `ed088ad3` (+ this commit)
 
 ### Critique of iteration 10
 
