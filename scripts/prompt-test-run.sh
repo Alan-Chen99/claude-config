@@ -35,7 +35,8 @@ head -1 "$PROMPT_FILE" | grep -qx -- '---' && {
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-SCRATCH="$(mktemp -d "/tmp/prompt-test-${CASE}.XXXXXX")"
+# Neutral name: see prompt-test-cc.sh for why the cwd carries no case name.
+SCRATCH="$(mktemp -d "/tmp/prompt-test.XXXXXXXX")"
 OUT="$OUT_DIR/${CASE}-${TAG}.jsonl"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"

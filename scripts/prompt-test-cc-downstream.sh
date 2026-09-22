@@ -33,7 +33,8 @@ test -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" || { echo "CLAUDE_CODE_OAUTH_TOKEN unset 
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-SCRATCH="$(mktemp -d "/tmp/ptcc-down-${CASE}-${TAG}.XXXXXX")"
+# Neutral name: see prompt-test-cc.sh for why the cwd carries no case name.
+SCRATCH="$(mktemp -d "/tmp/ptcc-down.XXXXXXXX")"
 CFG="$SCRATCH/.cfg"
 mkdir -p "$CFG"
 OUT="$OUT_DIR/${CASE}-downstream-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"

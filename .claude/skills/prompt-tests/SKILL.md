@@ -91,11 +91,9 @@ holding both sessions labelled A and B, told only that they differ in the system
 prompt and what the decisive criterion is. A grader told which arm is the
 treatment has a visible pull toward finding a difference.
 
-**One confound is inside the prompt under test.** `sys_prompt/alan-default-next.md`'s
-`## Before response` gate requires a `pre_output.record` call whose `uncertainties`
-and `possible-verification` fields ask for roughly what a disclosure-shaped case
-grades — in both arms. Read that gate before attributing a disclosure to an edit
-elsewhere in the prompt.
+**Before attributing a behaviour to an edit, grep the arm's own prompt for it.**
+A prompt that already instructs the behaviour a case grades produces it in both
+arms, and the difference you are measuring is then somewhere else.
 
 ## Test case shape
 
@@ -174,8 +172,11 @@ Every tested-agent trial runs with its cwd outside this repository, in a fresh
 from the cwd and from files the agent reads. The runner scripts do this; a
 hand-rolled run must:
 
-- `SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"`, and run
-  the harness process from there (for opencode, also `--dir "$SCRATCH"`).
+- `SCRATCH="$(mktemp -d /tmp/prompt-test.XXXXXXXX)"`, and run the harness
+  process from there (for opencode, also `--dir "$SCRATCH"`). **No case or tag
+  name in that path.** The agent reads its own cwd — environment block,
+  scratchpad path, every shell prompt — and case names here describe the
+  behaviour under test, so a cwd built from one announces the measurement.
 - Copy only the case's `fixture/` in — never `reference-solution.md`,
   `prompt-tests/CLAUDE.md`, or any other grader-only doc.
 - Use absolute `$REPO/...` paths for plumbing such as the prompt file and
@@ -192,7 +193,10 @@ the tested-agent transcript shows any of:
 - any access to `reference-solution.md`, `prompt-tests/CLAUDE.md`, grader
   prompts, baselines, or prior results for the case;
 - auto-loaded instruction content from a `CLAUDE.md`/`AGENTS.md` under a
-  prompt-test directory.
+  prompt-test directory;
+- the case's own name, or any word from it, in the agent's cwd, its scratchpad
+  path, or anything else it can read. The runner scripts name the scratch
+  directory neutrally; a hand-rolled run must too.
 
 **Harness-side channels (opencode).** Full inventory in
 `skills/opencode-subcommand/SKILL.md`, "System-prompt contamination". Two that
@@ -271,7 +275,7 @@ therefore has to be driven directly. Full recipe: `skills/opencode-subcommand`.
 ```bash
 REPO="$(git rev-parse --show-toplevel)"
 CASE="prompt-tests/general/network-resilience"
-SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
+SCRATCH="$(mktemp -d /tmp/prompt-test.XXXXXXXX)"
 export PATH="$REPO/agent-tools/target/release:$PATH"
 export CLAUDE_CONFIG_ROOT="$REPO"
 OPENCODE_DISABLE_PROJECT_CONFIG=1 \

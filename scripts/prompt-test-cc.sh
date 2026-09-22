@@ -52,7 +52,15 @@ test -x "$AT" || { echo "build the worktree binary first: (cd $REPO/agent-tools 
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-SCRATCH="$(mktemp -d "/tmp/ptcc-${CASE}-${TAG}.XXXXXX")"
+# The scratch cwd carries no case or tag name. The tested agent sees its own
+# cwd -- in Claude Code's environment block, in its scratchpad path, and in
+# every shell prompt -- so a directory named for what the case measures tells
+# the agent what is being measured. Case names here describe the behaviour
+# under test (halve-the-runbook, found-set-closure), which is the right name
+# for a reader and the wrong one for the subject. Measured 2026-09-22: a case
+# directory named for its question had the phrase back in both arms' delivered
+# artifacts. The mapping from this directory to the case is printed below.
+SCRATCH="$(mktemp -d "/tmp/ptcc.XXXXXXXX")"
 OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"
