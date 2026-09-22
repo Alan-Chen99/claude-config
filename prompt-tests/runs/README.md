@@ -17,13 +17,12 @@ A **graded** run, per the skill's "Grader dispatch":
 - `artifact-<arm>.md` — what the tested agent wrote, where the case's reference
   makes claims about the delivered text.
 
-A **probe** — arms compared on what they delivered, with no grader dispatched
-per arm — records the delivered artifacts and one `README.md` saying what the
-arms were, what differed, and what the comparison does not establish. Reach for
-it when the question is answerable from the delivered text alone; dispatch
-graders when it turns on how the agent got there. A probe that moves a prompt
-still gets the blind comparison the skill requires of a prompt edit, and the
-README reports it.
+A **probe** — defined in the skill's "Probes", and the default — records the
+delivered artifacts and one `README.md` saying what the arms were, what
+differed, and what the comparison does not establish. Dispatch graders instead
+when the question turns on how the agent got there rather than on what it
+delivered. A probe that moves a prompt still gets the blind comparison the skill
+requires of a prompt edit, and the README reports it.
 
 Arm names match the baseline headings in the case's `reference-solution.md`,
 where it has them.

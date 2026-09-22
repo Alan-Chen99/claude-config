@@ -274,34 +274,32 @@ appearing does not speak for the clause; the clause preventing one does, and her
 nothing. Restated: retire the deletion when an arm carrying the clause writes materially less of this
 than an arm without it.
 
-**Nothing was added here about asserting what you cannot check, and the reason is the measurement.**
-The rules that fire on an unverified claim all discharge it into the **conversation** — `## Before
-response`'s `uncertainties` field, the hook's *do more verification*, `# Epistemic Integrity`'s
-escalate-and-say-so — and the conversation is gone by the time the file is read. On
-`prompt-tests/general/uncertainty-channel` (2026-09-22), where a runbook's recommended fix rests on a
-premise about a vendor the repository cannot reach, four of four arms named that premise to the user
-as unverified in the same turn they shipped the file, and two of them argued in their own
-`## Required notes` that reporting it is the correct discharge of the gate. Detection is not the
-missing step and neither is a licence; the transfer to the artifact is.
+**Nothing was added here about asserting what you cannot check, and three wordings have now failed
+to change that.** The behaviour is specific and it is not a shortage of care. On
+`prompt-tests/general/snapshot-truncation` (2026-09-22), a fixture carrying five claims at
+increasing distance from reachable evidence, every arm *verified* the claims it formed in the
+session — each wrote a fake endpoint and drove the real code through it rather than reasoning
+about what it would do — and every arm then rested load-bearing reasoning on what an unreachable
+object store does with an incomplete multipart upload, unmarked, in the artifact and in the report
+alike. What escapes audit is the premise the agent **brought with it**: background knowledge about
+an external system does not arrive feeling like a claim, so nothing fires on it, while what the
+agent derived in-session does. An earlier one-premise fixture, since deleted as superseded, showed
+the same class across four arms.
 
-Two wordings aimed at the transfer were tested and neither shipped, because the **baseline spans the
-whole outcome range**. Of two runs under the shipped prompt, one wrote *Retries are not the source …
-investigate what called `send()`* — an instruction to a 3am reader resting on the premise — and the
-other wrote *whether the Kestrel account honors that header is unverified against production; if
-duplicates continue, check that first*, unprompted. Neither treated arm produced the form its own
-line prescribed: the arm told *attributed, verified, or not at all* did none of the three, and the
-arm told to write *what it rests on, or what the reader should conclude if it does not hold* produced
-exactly that bound in its `uncertainties` list, about a document that does not contain it. At one run
-per arm a difference inside the baseline's own spread is not evidence for a line.
+The three wordings: *attributed, verified, or not at all*; *with what it rests on, or with what the
+reader should conclude if it does not hold*; and, aimed at the node above rather than at a form,
+*the ones you will not notice making are the ones you brought with you*. None produced an effect
+separable from what the shipped prompt already does. The third arm's report named the vendor premise
+as unverifiable and shipped a file saying none of it — the failure the line was written to defeat,
+in the arm carrying the line. `grep -in "unverif\|cannot check\|not establish"` returns nothing in
+either runbook artifact and three hits in an untreated arm writing for a different reader.
 
-So the question this section cannot answer yet is not *what should the rule say* but *what would
-separate an arm carrying it from an arm without it*. Retire this paragraph when a case exists where
-the baseline's handling of an uncheckable premise is stable enough that an arm can differ from it —
-which needs the premise's failure to have a visible consequence in the fixture, not a second sample
-of one where it does not. The one post-gate retraction on record (`doc-succession`, an arm that
-committed an inferred mechanism, then removed the sentence and amended the commit after its own
-`uncertainties` list named it) is the only evidence that any of this is reachable from the gate, and
-one instance is what it is.
+So the open question is no longer *what should the rule say*. Retire this paragraph when something
+other than a sentence in this block is shown to reach the behaviour — and note what a rule here
+would have to survive: all three arms discharged the premise well, by giving the reader a test to
+run instead of a caveat to read, which is better than the marking the third wording asked for. A
+line that buys markings at the cost of that trade is a regression even where the artifact looks
+more careful.
 
 ### `# Git`
 

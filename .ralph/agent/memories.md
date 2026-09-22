@@ -2,13 +2,21 @@
 
 ## Patterns
 
+### mem-1790052470-b93e
+> An artifact's uncertainty structure tracks the READER the task names, not the artifact's cold-read-ness. Same fixture, same prompt: asked for an on-call runbook the agent re-asserted an inherited vendor guarantee and added no confidence structure; asked for a brief for 'another agent in a fresh session with no access to this conversation' it labelled every section by distance from evidence and attacked the same inherited claim. Untested which half of the prompt does this - the '# Writing for other agents' block opens on readers who cannot ask what you meant, which is the brief task's literal wording. A deletion arm on that block would settle it.
+<!-- tags: sys-prompt, docs | created: 2026-09-22 -->
+
+### mem-1790052470-9c1e
+> A downstream reader does NOT stabilise an unstable baseline. It is a second stochastic session run against the first session's artifact, and the tested agent never sees it, so nothing about the tested agent becomes more determinate - it converts a spread in wording into a spread in reader behaviour. Use it for what it actually buys: turning 'does this sentence mislead' from the grader's opinion into an observation. To make a run readable at n=1, instrument the FIXTURE with several opportunities for the behaviour that differ in character, and read the line the agent drew between them.
+<!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
+
+### mem-1790052463-38e1
+> An agent audits the claims it DERIVED in the session and not the ones it BROUGHT WITH IT. Measured on a fixture whose remote half is unreachable: both arms wrote a socket server and drove the real read loop through it to verify the local half, and both then rested load-bearing reasoning on what an object store does with an incomplete multipart upload - unmarked, in the artifact and in the report to the user alike. Why: background knowledge about an external system does not arrive feeling like a claim, so the uncertainty machinery never fires on it; what the agent formed in-session does feel like one. The asymmetry is visible INSIDE one run, which is why a fixture needs several claims at different distances from reachable evidence rather than one.
+<!-- tags: sys-prompt, docs, prompt-tests | created: 2026-09-22 -->
+
 ### mem-1790051243-3cef
 > Agents discharge an unverified claim into the CONVERSATION and leave it standing in the FILE. Four of four arms named a vendor premise as unverified in the same turn they shipped a document asserting it, and two wrote a required-notes line arguing that reporting it is the correct discharge of the hook's never-reply-with-uncertainties gate. Why: every rule that fires on an unverified claim (uncertainties field, the hook's do-more-verification, Epistemic Integrity's escalate) names the reply as the place it goes; none names the artifact, which is the channel that outlives the session. This is the mechanism behind doc errors that need human intervention to remove.
 <!-- tags: sys-prompt, docs | created: 2026-09-22 -->
-
-### mem-1790049715-735a
-> An agent handed a subject rewrites everything about THAT subject and little about any other; a task that only licensed an ADDITION swept the named subject the same way, so the correction licence is not what decides it. Measured on doc-succession, 4 runs. Do not overstate the other half: of the fixture's regions outside the subject only two were actionable defects, and one arm fixed one of them, so 'nothing outside the subject moves' is a tendency with n=4, not a law - and two regions an earlier note counted as missed were correctly left alone (one agrees with the script, one is unverifiable but unrefuted, so deleting it would be deleting on no evidence).
-<!-- tags: docs, sys-prompt, prompt-tests | created: 2026-09-22 -->
 
 ### mem-1790046994-befd
 > Before stating what a prior iteration did, check the artifact, not .ralph/agent/decisions.md - the journal is the compressed copy and is a round or more behind. Iteration 4 asserted 'no case has been through the justify-or-remove pass' and git blame showed three, written in iteration 1; that premise set a whole round's instruction list. One grep or git blame closes it.
@@ -21,10 +29,6 @@
 ### mem-1790045604-c0d5
 > Before attributing a behaviour to a prompt clause, look for a STRONGER NEIGHBOUR in the same prompt. sys_prompt's 'Claim less: often you are better off with a hint/warning' measured inert on a fixture built to elicit hedging, because '# Epistemic Integrity' (No Unexplained Residue: investigate or escalate, FORBIDDEN 'probably just X') forbids the same behaviour unconditionally where the clause said 'often'. A clause dominated by a neighbour is inert where the neighbour reaches and harmful where it does not - which argues deletion under both readings, so it is stronger than a bare null.
 <!-- tags: sys-prompt, prompt-testing | created: 2026-09-22 -->
-
-### mem-1790042873-a2c2
-> An adversarial prompt-test case meant to test WHERE text goes must not admit a non-text solution. Built one where a repo-wide hazard belongs in the always-loaded file; both arms wrote a .claude/hooks/ guard instead and the placement question never arose. Design the fixture so the only available lever is the one under test.
-<!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
 
 ### mem-1790041345-2f2f
 > Verify a doc compression with a differential probe, not a review: two fresh readers, one per version, same question ('what must you get right, what goes wrong if you miss it, would you notice'), no repo access. A reviewer who has read both versions knows the answer and cannot see a silently-removed trap. Cost: two single-turn subagents. It found one real loss and one contradiction.
