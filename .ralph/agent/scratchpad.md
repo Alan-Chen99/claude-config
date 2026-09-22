@@ -114,75 +114,69 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 
 ## History — rounds 1–16, `9f6c03a0` → `7dec8051`
 
-Detail is in commit messages; anything justifying a prompt line is in
-`sys_prompt/CLAUDE.md`, the durable home and the one to read before touching the
-block. Shipped across the loop: `Say what ends it` added (9); `Omit by default`
-repriced to reach (3) and back to existence (13); the `Claim less` hedge clause
-cut (4) and the whole bullet with it (14); the case corpus bound to the prompt by
-one grep, eleven of fifteen cases deleted (15). Failed candidates: five wordings
-aimed at claim-handling (6–8, 14) — the node is premise **provenance**, not
-wording, and what discharges a premise is an action; one at copy-pricing (12) —
-the task's subject bounds the edit, so relocation-as-growth cannot occur on a
-writing task; one at warrant-transcription (16) — a rules section's heading is
-what flattens a preference, and a clause only competes with the genre. Round 10
-fixed a nine-round harness contamination and voided every arm stored before
-2026-09-22. Round 15 ran the block whole against an arm with no block: the arms
-parted on one row in the block's favour and `Omit by default` was untouched.
+Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — the durable
+home, and the file to read before touching the block. Everything else is in the
+commit messages. Shipped across the loop: `Say what ends it` (9); the case corpus
+bound to the prompt by one grep, eleven of fifteen cases deleted (15). Deleted:
+`Omit by default` (13, 17), `Claim less` (4, 14). Seven candidate wordings failed
+(3–8, 12, 14, 16). Round 10 fixed a nine-round harness contamination and voided
+every arm stored before 2026-09-22.
 
-## Iteration 17 — `7dec8051` → `b0304c40` (+ this commit)
+## Iteration 17 — `7dec8051` → `e13d1097`
+
+Ran `Omit by default` at its own named retirement fixture, never paid for in
+sixteen rounds; pre-registered null reached; bullet deleted. Detail in the commit
+messages and in `sys_prompt/CLAUDE.md`. Its critique of 15 and 16 stands except
+where iteration 18 overrides below.
+
+## Iteration 18 — `e13d1097` → (this round)
 
 ### Critique of prior iterations
 
-**C1 (workflow, and the round's reason for existing).** `Omit by default`'s
-retirement condition has named `prompt-tests/general/halve-the-runbook` since
-round 13. In sixteen rounds and 87 commits the case was never run — only its
-reference edited twice — while the corpus-binding grep kept it alive *because*
-the condition named it. A bullet protected by a test nobody runs, and a case
-protected by a bullet it never tests: the ratchet reproduced inside the
-instrument built to police it. A retirement condition that names a fixture is
-worth nothing until some round pays for the run.
+**C1 (workflow — instruction 1 overridden).** Iteration 17 handed forward "run the
+preamble against an arm without it — it is the largest untested thing in the
+block." *Largest untested* is a size argument. The contract forbids picking work
+because it is available, and the instruction names no fixture and no reading —
+the same defect iteration 17 diagnosed in round 13's retirement condition. Kept
+as one arm of this round's design rather than as its milestone: the preamble is
+read on the behaviour its own last clause names.
 
-**C2 (workflow, overriding a premise).** Iteration 15's pre-registered outcomes
-do not partition. Its result — `r1` parted from `r2` on one R1 row, R4 null —
-satisfies outcome 1 (*ship no deletion*) **and** outcome 4 (*delete the half
-whose reading was null*, which is `Omit by default`). The round classified it as
-outcome 1 and iteration 16 did not notice. Resolving an ambiguity in the
-direction that ships no deletion is the ratchet's own direction, and a
-pre-registration is worth less than none if the round that wrote it picks the
-branch it prefers afterwards. Not repaired by deleting the bullet on that
-ambiguity: outcome 4's null came from a reading where both arms had the same
-opportunity and both took it, which separates nothing. Repaired by running the
-reading that can separate — this round.
+**C2 (fact — a null from a saturated baseline became a general conclusion).**
+Iteration 16 ran a warrant-transcription clause on a **handoff note** and got a
+null, then wrote into `sys_prompt/CLAUDE.md` that "anything aimed here has to fire
+while a rules file is being written, and a disposition asked of the text will
+not." Its own memory records why the null is uninformative: in that genre the
+agent invents a provenance vocabulary *unprompted*, in both arms. A clause cannot
+beat a saturated baseline, so the run bounds nothing about the clause — only
+about the genre. The general half of that paragraph is not supported by the run
+it was written from, and iteration 17 did not notice.
 
-**C3 (fact).** Iteration 16's instruction 2 cites "~4,000 words from a 263-word
-task and edited three files apiece" as the bullet's own failure shape. That is a
-count read off its own arms after they were in, from a probe the same round
-deleted, whose transcripts are gitignored — inadmissible under the round's own
-`(contract)` (*a reading composed after the arms are in is not admissible*) and
-now uncheckable by anyone. Taken as motivation, not as evidence, and the round's
-readings are pre-registered instead.
+**C3 (workflow — a stored record with an unreachable deletion condition).**
+`prompt-tests/runs/halve-the-runbook/` (41.5 KB, two artifacts) states it is
+deleted by "the round that retires or rewrites `Omit by default` again". The
+bullet is gone, so that fires only if a round re-adds it. What keeps the
+artifacts is a utility argument — *a later round wanting the case's own question
+can grade them without re-running* — which is the form the skill names as not a
+retirement condition. It was a probe, never promoted; by the skill's own rule it
+died with its round. Deleted here; `git checkout f2bfe695 -- <path>` restores it.
+
+### Why this milestone
+
+The one measured, reproduced mechanism behind doc errors is `mem-…-3cef`: an
+agent names a premise unverified **in the conversation** and ships the document
+asserting it flatly, because every rule in this prompt that fires on uncertainty
+names the *reply* as where it goes (grepped, arm-internal: `escalate to the
+user`, `Report`, `propagated to the user`, the `uncertainties` record field,
+`Required notes`) and none names the artifact — the channel that outlives the
+session. That is the objective's "doc errors needing human intervention to
+remove", and it is an **act** rather than a disposition, which is what four
+failed claim-handling wordings were not. `sys_prompt/CLAUDE.md` already carries
+the re-entry condition for a claim-handling line and names the fixture shape it
+needs; C2 says the genre that condition requires has never been run. This round
+runs it.
 
 ### The round's work
 
-Two arms on the bullet's own named fixture, differing only in line 190.
-Pre-registration, readings, outcomes and result:
-`prompt-tests/runs/halve-the-runbook/README.md`.
-
-### The round's result
-
-**Outcome 2: `Omit by default` is deleted.** Readings, the blind instrument and the
-excluded numbers that argue against the deletion:
-`prompt-tests/runs/halve-the-runbook/README.md`. The semantic claim and the
-re-entry condition are in `sys_prompt/CLAUDE.md`.
-`prompt-tests/runs/retirement-policy/` went with it, by its own stated condition.
-
-The block is now one bullet and its preamble.
-
-### `(instruction)` for iteration 18
-
-1. `# Writing for other agents` has one bullet left and an untested preamble. Before
-   any new candidate, run the preamble sentence against an arm without it — it is
-   the largest untested thing in the block and nothing has ever isolated it.
-2. Do not re-add a line aimed at what an agent *adds*. Six wordings across rounds
-   3-17 aimed at claim-handling and at adding; all six are gone. The next candidate
-   here fires while a rules file is being written, or it is not written.
+One probe, three arms, one fixture: A = HEAD, B = HEAD minus the block preamble,
+C = HEAD plus the candidate. Pre-registration, readings and outcomes:
+`prompt-tests/runs/handover-notes/README.md`.
