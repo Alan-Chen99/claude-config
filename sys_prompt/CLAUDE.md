@@ -234,9 +234,14 @@ That question is now narrower than it was. It was open for *both* kinds of writi
 old wording, the new wording and no block at all all shrank the file, and none of the three annotated
 a dead section as obsolete rather than deleting it. So the growth is not an unwillingness to remove;
 it belongs to the creation case, where the reach wording moves detail out of the loaded file and
-writes more of it. What survived every arm was the content the task did not name — an unsourced claim
-and a step list duplicating a script, each noticed by at least one arm and left. If documents here
-accumulate, that is the mechanism to measure, and neither bullet addresses it.
+writes more of it.
+
+What four runs on that case do agree on is a boundary, and it is the **subject**, not the licence.
+Everything about the subject a task named was rewritten — including by the run whose task asked only
+for a line to be added, which deleted twenty and said so. Nothing about any other subject was
+touched, including the defects two runs said out loud they had found. If documentation here
+accumulates, that is where: regions no task ever names. Neither bullet reaches them, and no
+instruction to write less can, because the writing is not the step where they survive.
 
 **`Claim less` no longer endorses a hedge.** It closed with *Often you are better off with a hint,
 warning or a [record] marker*; deleted 2026-09-22.

@@ -2,6 +2,10 @@
 
 ## Patterns
 
+### mem-1790048869-1482
+> An agent editing an existing document rewrites everything about the SUBJECT its task named and touches nothing about any other subject - even a defect it says out loud it found. Measured on doc-succession, 4 runs: all deleted a 22-line dead section (one had only been asked to add a line, and said 'a line would have made the document contradict itself'), none touched an unsourced claim, a rule stated twice, or a step list duplicating the script. Why: the task fixes scope, and scope discipline outranks any instruction about what to write. Implication: doc rot lives in regions no task names, so no 'write less' or 'delete more' prompt line reaches it.
+<!-- tags: docs, sys-prompt, prompt-tests | created: 2026-09-22 -->
+
 ### mem-1790046994-befd
 > Before stating what a prior iteration did, check the artifact, not .ralph/agent/decisions.md - the journal is the compressed copy and is a round or more behind. Iteration 4 asserted 'no case has been through the justify-or-remove pass' and git blame showed three, written in iteration 1; that premise set a whole round's instruction list. One grep or git blame closes it.
 <!-- tags: workflow, verification | created: 2026-09-22 -->
@@ -50,16 +54,16 @@
 
 ## Fixes
 
+### mem-1790049019-ea46
+> uv run pytest has one pre-existing failure unrelated to this loop: tests/test_install.py::test_install_links_opencode_config, install.sh exit 127, stderr 'install.sh: line 68: basename: command not found'. The test runs install.sh with a PATH that has no coreutils; the basename call arrived in 2361c036 (2026-09-13), before this loop. 807 pass, 3 skip, ~57s. Do not re-diagnose it, and do not read it as caused by a round's changes - no test under tests/ references prompt-tests/, sys_prompt/ or .ralph/.
+<!-- tags: testing, tooling | created: 2026-09-22 -->
+
+### mem-1790048869-2e87
+> A session-analysis subagent dispatch can die instantly with 'safeguards flagged this message ... Details: [reasoning_extraction]' - twice on one transcript while an identical brief on a sibling transcript succeeded, so it is content-dependent and retrying the same dispatch does not help. Substitute: python over the .jsonl emitting only assistant 'thinking' and 'text' blocks. A 74-line, 330KB transcript yields 9KB, which is cheaper than the artifact and uniform across arms.
+<!-- tags: prompt-tests, session-analysis, tooling | created: 2026-09-22 -->
+
 ### mem-1790042866-d56c
 > The tested agent reads its own cwd (Claude Code environment block, scratchpad path, every shell prompt), so a prompt-test scratch directory built from the case name tells the agent what is being measured. Measured 2026-09-22: slug 45x and 64x in two transcripts, and both arms wrote a heading from the phrase the case was named for; zero and no heading after the runners moved to /tmp/ptcc.XXXXXXXX. Check with: grep -c '<case-slug>' on the transcript.
-<!-- tags: prompt-tests, contamination | created: 2026-09-22 -->
-
-### mem-1790041345-5b39
-> docs/opencode-system-prompt/baselines/ was deleted at 42c9b9f2. Two live instruction files still cited into it as of iteration 2. When deleting a directory, grep the whole tree for its path before committing - a cleanup sweep that removes content without its citers leaves dead pointers in the files a grader is handed.
-<!-- tags: docs, cleanup | created: 2026-09-22 -->
-
-### mem-1790038068-084e
-> Claude Code injects prompt-tests/CLAUDE.md as a system-reminder when a file under prompt-tests/ is opened with the Read tool; cat/sed via Bash do not trigger it. Checked 2026-09-22. Implication: grader-facing files under prompt-tests/ must carry no run results, because staging/instructions cannot stop a channel the grader cannot see.
 <!-- tags: prompt-tests, contamination | created: 2026-09-22 -->
 
 ## Context

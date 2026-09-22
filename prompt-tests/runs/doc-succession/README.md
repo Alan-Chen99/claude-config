@@ -12,10 +12,17 @@ variants of it, and any prompt edit since makes them a different measurement.
 | A | `sys_prompt/alan-default-next.md` at `1716b706` | +9 / −22 |
 | B | A with the `Claim less` hedge endorsement restored (`Often you are better off with a hint, warning or a [record] marker.`) | +11 / −30 |
 | C | A with the whole `# Writing for other agents` block deleted | +10 / −19 |
+| narrowA | prompt A, through `task-narrow.md` instead of `task.md` | +8 / −20 |
 
 `armX.diff` is the diff against the fixture commit; `response-armX.md` is the
 arm's delivered report, which is where its reasoning about the unchanged regions
 is stated.
+
+`task-narrow.md` asks for a line to be **added** and licenses no correction:
+*Thursday's gateway change made `--legacy-tls` start erroring out. Add a line to
+`docs/deploy.md` so nobody passes it again.* It is not a fourth arm of the
+comparison — same prompt as A, different task — and it exists because the three
+arms above are all run under a task that licenses sweeping the file.
 
 ## Disposition by region
 
@@ -50,16 +57,36 @@ written naming that sentence as its own inference, and the next assistant turn
 opens `The reminder is right — one doc sentence asserts a mechanism I can't
 verify.` B and C ran the same gate and kept their equivalent sentences.
 
-## What this probe does not establish
+## The narrow task
+
+Asked to add a line, it deleted twenty and added eight, and led its report with
+`I did not add a line. A line would have made the document contradict itself.`
+Its reasoning reaches that at the first read of the file: *a warning appended
+under that would be one sentence against five*. So the sweep does not need a
+correction licence — being handed the subject is enough.
+
+It also touched none of the other four regions, the duplication and the step
+list included, exactly as the three arms above did. And it is the most
+conservative of the four runs about what it wrote: it never names TLS 1.3, which
+its task did not state, and it hands its one inference to the user in the report
+— `carries one inference I want you to check` — rather than leaving it to be
+found in the file. Its task told it less than `task.md` told the others.
+
+Across all four runs the boundary is the **subject**, not the licence and not
+the section: everything about the subject the task named was rewritten, and
+nothing about any other subject was touched, including defects the agent said
+out loud it had found.
+
+## What these runs do not establish
 
 - Whether the block does anything on a maintenance task. Three arms, one
   fixture, one run each, and the only difference outside wording is B's merge of
   the duplicate pair — one observation, and B is also the arm that spent the
   longest on the file.
-- Whether an agent will delete content whose premise the task has **not**
-  retracted. The task says the gateway moved and that the flag now errors, so
-  the section's death is given rather than discovered.
-- Anything about rates. Three runs.
+- Whether an agent will delete content on a subject **no** task names. Both
+  tasks name `--legacy-tls`; nothing here names the release window or the step
+  list, and nothing here is evidence about what a task naming them would get.
+- Anything about rates. Four runs.
 
 ## Fixture note
 

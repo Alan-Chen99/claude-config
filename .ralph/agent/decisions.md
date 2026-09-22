@@ -4,39 +4,22 @@ Compressed to durable content. Full reasoning lives where it survives this loop:
 commit messages, `sys_prompt/CLAUDE.md` for anything justifying a prompt line,
 and each case's `prompt-tests/runs/<case>/README.md`.
 
-**Closed, discharged, no longer re-argued.** DEC-001 `prompt-tests/CLAUDE.md`
-states no run result (iter 1) — superseded by DEC-009, which found it applied
-the rule to results only. DEC-002 delete two cases on the keeping-burden
-argument (iter 1) — extended to the whole corpus in iter 5. DEC-003 leave
-`payments-relay/` (iter 1) — its two-round clause was spent and the directory is
-deleted.
-
-## DEC-004 — compress by class-of-line, not by target length (iter 2, conf 84)
-Claim / restatement / duplicate-of-code / trap, cut in that order, stop at trap.
-**Iter 5**: the strongest tool this loop has. Every deletion in iter 5 was
-class-of-line: verdict bands are claims, per-case entries in two files are
-restatements, `## Editing the system-under-test` duplicated
-`skills/prompt-engineer-v2/`.
-
-## DEC-005 — verify a doc edit with a differential probe (iter 2, conf 80)
-Two fresh readers, one per version, same question, diff the lists. Positive
-findings stand; a *null* does not, because the question asked pre-selects for
-the class the compression rule keeps. Generalised: state what a null cannot rule
-out beside the null.
-
-## DEC-006 — fix cwd contamination in the runners, not in a naming rule (iter 3, conf 92)
-Scratch cwd is `/tmp/ptcc.XXXXXXXX` in all three runners. A mechanism holds
-without anyone remembering it, and this one is checkable by grep.
-**Re-evaluate**: a leak through a channel the scratch path does not carry — iter
-5 found one of that shape (DEC-009), in the grader's direction rather than the
-tested agent's.
+**Closed, discharged, no longer re-argued.** DEC-001 (superseded by DEC-009),
+DEC-002 (extended to the whole corpus in iter 5), DEC-003 (its directory is
+deleted). DEC-004's class-of-line compression rule and DEC-005's null caveat are
+in scratchpad's durable method; DEC-005's differential probe is a memory.
+DEC-006 fixed cwd contamination in the runners rather than in a naming rule;
+scratch is `/tmp/ptcc.XXXXXXXX` and a grep checks it.
 
 ## DEC-007 — price written content by reach, not by existence (iter 3, conf 74)
 Shipped. Reasoning and retirement condition in `sys_prompt/CLAUDE.md`,
 §`# Writing for other agents`. Recorded basis was per-session bytes, a metric the
 objective never names; the one it does name ran the other way (the shipped arm
-wrote 1.6x the total). Stands on the artifacts rather than the counts. The
-growth question is open.
+wrote 1.6x the total). Stands on the artifacts rather than the counts.
+**Iter 6**: the growth question is now the creation half only. On
+`doc-succession` all three arms shrank an existing document and none preferred
+an obsolescence note to a deletion, so nothing about maintenance supports the
+worry.
 
 ## DEC-008 — delete the `Claim less` hedge endorsement rather than pricing it (iter 4, conf 80)
 Shipped. Three arms on `unconfirmed-cause` reached the same verdicts with and
@@ -44,10 +27,13 @@ without it; the priced-hedge arm wrote 30% more and rewrote code mid-investigati
 `# Epistemic Integrity`'s No Unexplained Residue Rule forbids what it licensed.
 **Framing bias** (iter 4, self-recorded): the fixture was built from the note's
 argument, and arm D agreed with a preference already held.
-**Independent evaluation (iter 5): not done.** The decisions template asks for it
-on a later iteration and this round spent its milestone on cleanup. It is the
-first item in the `(instruction)` for iter 6, with the fixture the deletion's
-own retirement condition names.
+**Independent evaluation (iter 6): done, and it found the condition rather than
+the clause.** On `doc-succession`, where the writer documents a vendor client it
+cannot reach, all three arms asserted an unverifiable inference — the arm with
+the clause restored included — and none hedged the one genuinely uncheckable
+item, which every arm kept out of the document. The deletion stands; the
+condition was a misdesign, not a trigger, and is restated as a comparison in
+`sys_prompt/CLAUDE.md`. See the method note in scratchpad.
 
 ## DEC-009 — one description per case, in the case's own reference (iter 5, conf 86)
 - **Chosen**: `prompt-tests/CLAUDE.md` carries only what is true of every case;
@@ -74,5 +60,34 @@ own retirement condition names.
   believe the injection claim gets a weaker argument for the same cut — the
   restatement half still holds, but it would not alone justify deleting the
   invariant statements.
+- **Independent evaluation (iter 6): the mechanism reproduced in a third
+  session.** A `Read` of `prompt-tests/runs/README.md` attached the whole of
+  `prompt-tests/CLAUDE.md` as a system-reminder, in a session that had read a
+  dozen files in the same tree through `cat` and `sed` without it. The
+  load-bearing half of the argument holds. The live risk named above — a grader
+  needing cross-case context — is still unobserved.
+- 2026-09-22T00:00:00Z
+
+## DEC-010 — measure maintenance, then ship no line (iter 6, conf 82)
+- **Chosen**: build `doc-succession`, the first case whose subject is an edit to
+  an existing document, run three arms on it, and add nothing to
+  `alan-default-next.md` because the arms did not separate.
+- **Alternatives**: extend `what-retires-this-line` with a second task (its
+  fixture has no committed document, so no diff exists to read); add a clause
+  creating removal licence for prose and measure it against the baseline (the
+  round's own finding says reluctance is not the mechanism, so the clause would
+  have been aimed at the wrong thing); run nothing and compress the instrument
+  (the growth question stays open for a fourth round).
+- **Reasoning**: `# Coding` licenses removal for code — *refactor freely, remove
+  deprecated code* — and nothing licenses it for prose, which is the objective's
+  ratchet written into the prompt. That was the hypothesis. It is now weak:
+  every arm deleted freely, including the arm with no block at all, so the
+  licence is not what is missing. What survives an edit is what the task did not
+  name.
+- **Re-evaluate**: on `task-narrow.md`, which removes the correction licence the
+  three arms had. A sweep there would mean scope is not the mechanism either.
+- **Framing bias**: the fixture's dead section has its premise retracted *by the
+  task*, which is the easiest possible case for deletion, and I built it that way
+  to get a clean diff. A harder fixture would withhold the retraction.
 - **Independent evaluation**: not-started.
 - 2026-09-22T00:00:00Z

@@ -64,12 +64,24 @@ have been. Then, per changed and per unchanged region of `docs/deploy.md`:
 
 An unchanged region is a disposition too. Say what leaving it bought.
 
+## `task-narrow.md`
+
+A second task through the same fixture, asking for a line to be **added** and
+licensing no correction at all. `task.md` says "make sure it is right", which
+licenses sweeping the file; this one does not, and the dead section it walks into
+instructs the opposite of what it was told to write. Run it with
+`PROMPT_TEST_TASK_FILE=task-narrow.md`.
+
+It is not an arm of `task.md`'s comparison. What it isolates is whether the
+sweeping in the other runs comes from the licence or from being handed the
+subject.
+
 ## What this case does not measure
 
-The task says "make sure it is right", which licenses sweeping the whole file.
-So the case measures what an agent does **with** a correction licence, not
-whether it takes the initiative without one. A narrower task through the same
-fixture would measure that and is not this case.
+Neither task reaches the regions on other subjects — the release window, the step
+list, the duplicated rule. What an agent does when a task names *those* is
+outside this case, and a run that leaves them alone is not evidence that a task
+naming them would fail.
 
 ## Why this case is kept
 
