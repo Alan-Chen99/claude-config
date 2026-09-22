@@ -90,6 +90,16 @@ the shell expands `$REPO` while the rest of the JSON literal stays intact.
 The plugin field is a top-level config key, peer to `agent`. Plugins install
 into opencode's package cache on first run.
 
+**A globally-registered plugin loads whether or not your inline config mentions
+it.** `~/.config/opencode/opencode.jsonc` on this machine registers superpowers,
+and `OPENCODE_DISABLE_PROJECT_CONFIG=1` disables the *project* config only.
+`opencode run --pure` is documented as "run without external plugins" and is the
+one switch that certainly applies. Whether `"plugin": []` in
+`OPENCODE_CONFIG_CONTENT` overrides the global array or merges with it is
+untested here — check a probe run's transcript for injected skill content rather
+than assuming, because a loaded `brainstorming` skill blocks implementation
+tasks and the run then measures the plugin.
+
 ## Model overrides
 
 ```bash
