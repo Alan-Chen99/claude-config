@@ -111,7 +111,7 @@ Round 11: restatement grows by accretion, not addition. Round 12 measured the
 reach wording's named harm (relocation) and found it cannot occur on a writing
 task — the task's subject bounds the edit.
 
-## Iteration 13 — `d3607d7f` → this commit
+## Iteration 13 — `d3607d7f` → `3ecc2668` (+ this commit)
 
 ### Critique of iteration 12
 
