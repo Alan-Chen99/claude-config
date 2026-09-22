@@ -238,10 +238,13 @@ writes more of it.
 
 What four runs on that case do agree on is a boundary, and it is the **subject**, not the licence.
 Everything about the subject a task named was rewritten — including by the run whose task asked only
-for a line to be added, which deleted twenty and said so. Nothing about any other subject was
-touched, including the defects two runs said out loud they had found. If documentation here
-accumulates, that is where: regions no task ever names. Neither bullet reaches them, and no
-instruction to write less can, because the writing is not the step where they survive.
+for a line to be added, which deleted twenty and said so. Almost nothing about any other subject was:
+of the fixture's two regions that are actionable defects, one arm of three fixed one and reported it
+as out of scope, and the rest went untouched, two of them by runs that said out loud they had found
+them. Read the weaker claim, not the clean one — the fixture's other two untouched regions were
+correctly left alone, one because it agrees with the script and one because nothing available refutes
+it. If documentation here accumulates, the likeliest place is still regions no task names, and
+neither bullet reaches them.
 
 **`Claim less` no longer endorses a hedge.** It closed with *Often you are better off with a hint,
 warning or a [record] marker*; deleted 2026-09-22.

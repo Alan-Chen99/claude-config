@@ -6,7 +6,7 @@ import uuid
 
 import requests
 
-BASE = os.environ.get("KESTREL_BASE", "https://api.kestrel.example/v1")
+BASE = os.environ.get("KESTREL_BASE", "https://api.kestrelsms.com/v1")
 TIMEOUT = 5
 RETRIES = 3
 BACKOFF = 2.0
