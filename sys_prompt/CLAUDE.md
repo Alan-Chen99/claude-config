@@ -243,22 +243,22 @@ subject, not of writing tasks. The count is never decided, so it only rises; not
 which is why nothing fires. Whatever reaches this fires while a sentence is being corrected and asks
 for a deletion. Retire it when an agent acts on documentation the task did not name.
 
-**`Claim less` does not endorse a hedge, and the claims that escape are not the ones it names.** It
-once closed with *Often you are better off with a hint, warning or a [record] marker*. A warning is
-still a claim; being wrong about it produces no failure that points back at it, it costs every later
-reader a check that returns nothing, and no event retires it
-(`notes/workers-bullet-hint-in-fact-position.md`) — and `# Epistemic Integrity`'s No Unexplained
-Residue Rule already forbids unconditionally what the clause licensed *often*. Retire the deletion
-when an arm carrying the clause hedges materially less than one without it. What no wording here has
-reached — three tried — is asserting what you cannot check, because the premise that escapes is the
-one the agent *brought with it*: background knowledge about an external system does not arrive
-feeling like a claim, so nothing fires on it. A premise the task narrates is audited: a task whose
-stated error message the fixture refuted was run down and reported as a suspected user mistake by
-every arm, not written down unmarked. The node is provenance, not wording. Retire this when
-something other than a sentence in this block reaches the behaviour — and note the trade a new line
-must not break: an agent that hands the reader a test to run instead of a caveat to read has
-discharged the premise better than any marking, so a line buying markings at that cost is a
-regression.
+**No bullet here asks for claim-handling; four wordings failed.** `Claim less` — *think before
+making claims, especially those that may go stale* — was the last, and is gone. Run against an arm
+without it, on a task that is nothing but claims about someone else's code, it produced no
+difference in how either document marked what it asserted. The one asymmetry ran the other way: the
+arm without it ran an experiment to settle the library claim that mattered, where the arm carrying
+it settled the same claim by arithmetic and shipped it flat.
+
+Hypothesis: asking for a disposition does not produce one, and the premise that escapes is the one
+the agent *brought with it* — background knowledge about an external system does not arrive feeling
+like a claim, so nothing fires on it. What did the work in both arms was running the code, which
+this prompt asks for as an action elsewhere; a disposition-line adds something to argue about
+instead of something to do. Retire this deletion when an arm carrying a claim-handling line sources
+or marks materially more of what it asserts than an arm without it, on a fixture offering several
+claim opportunities that differ in character. The trade such a line must not break: an agent that
+hands the reader a test to run instead of a caveat to read has discharged the premise better than
+any marking.
 
 **`Say what ends it` buys an exit for rules that would otherwise be permanent.** A rule an agent
 writes is followed by later readers without being re-decided, and deleting it takes a human — the

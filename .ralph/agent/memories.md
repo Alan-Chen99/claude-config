@@ -2,25 +2,9 @@
 
 ## Patterns
 
-### mem-1790058772-3394
-> Pricing what an agent writes suppresses unrequested additions, but only the EXISTENCE wording does so cleanly. Two fixtures: existence-priced arm edited no code and said why; unpriced arm added one or two imperatives to auto-loaded files; the REACH-priced arm was worst, editing three code files a documentation task never named, because reach reasoning argues 'put it where the reader will be'. No arm ever relocated anything -- the task's subject bounds the edit.
-<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-22 -->
-
-### mem-1790058735-0ef5
-> A prompt line that names a consideration does not deliver the conclusion it argues for: it makes the consideration salient and the agent argues it whichever way the task favours. Measured on Omit by default's reach wording -- the arm carrying it reasoned about readership more often and concluded 'write it where the reader will be', the opposite of the clause's own cost argument.
-<!-- tags: prompt-design, measured | created: 2026-09-22 -->
-
-### mem-1790057567-6358
-> Documentation restatement grows by ACCRETION, not addition: an agent handed a change that falsifies a sentence rewrites that sentence, and any new fact rides into the rewrite. Every document already carrying the subject acquires the new fact; no moment exists at which a copy is 'added'. Measured two arms on a fixture stating one fact in four documents of differing character. Consequence: any prompt rule phrased around 'before adding a copy' names an act that never happens and nulls.
-<!-- tags: prompt-tests, writing-for-agents | created: 2026-09-22 -->
-
 ### mem-1790057525-b4a8
 > A pre-registered READING can be wrong, not just the candidate. Iteration 12 pre-registered 'A approx B means the reach clause is inert' and withdrew it in the record: the fixture offered one plausible home for the new fact, so the reach clause never had two destinations to choose between. Withdraw the reading in the run's own README rather than honour it - a pre-registration binds you to report the outcome, not to accept an inference its fixture cannot support.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
-
-### mem-1790056288-d79b
-> alan-default-next.md at 391c35d0 spans two answers when a task contradicts a written rule whose cause the task retires: rewrite the rule at the new figure recording what the new number rests on, OR decline the change and hand the unverifiable half back. Two arms differing only in an unrelated bullet took one each, both reporting the open question. Read any single-arm run of a rule-overruling fixture as a sample of that spread.
-<!-- tags: prompt-tests, sys-prompt | created: 2026-09-22 -->
 
 ### mem-1790052470-b93e
 > An artifact's uncertainty structure tracks the READER the task names, not the artifact's cold-read-ness. Same fixture, same prompt: asked for an on-call runbook the agent re-asserted an inherited vendor guarantee and added no confidence structure; asked for a brief for 'another agent in a fresh session with no access to this conversation' it labelled every section by distance from evidence and attacked the same inherited claim. Untested which half of the prompt does this - the '# Writing for other agents' block opens on readers who cannot ask what you meant, which is the brief task's literal wording. A deletion arm on that block would settle it.

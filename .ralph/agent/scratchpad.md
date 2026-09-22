@@ -100,73 +100,18 @@ candidate with an outstanding test.** *(iter 13)*
 > ask that one grep refutes, and acting on it would have spent a round re-doing
 > finished work. *(iter 13)*
 
-## Iterations 1–12 — `9f6c03a0` → `d3607d7f`
+## Rounds 1–13 — `9f6c03a0` → `f2737a34`
 
 Detail is in commit messages; anything justifying a prompt line is in
-`sys_prompt/CLAUDE.md`. Shipped: the `Claim less` hedge endorsement deleted (4),
-`Say what ends it` (9). Rounds 6–8: three wordings aimed at claim-handling all
-failed because the node is premise **provenance**, not wording. Round 10 fixed a
+`sys_prompt/CLAUDE.md`, which is the durable home and the one to read before
+touching the block. Shipped: the `Claim less` hedge endorsement deleted (4),
+`Say what ends it` added (9), `Omit by default` repriced to reach (3) and back
+to existence (13). Rounds 6–8: three wordings aimed at claim-handling all failed
+because the node is premise **provenance**, not wording. Round 10 fixed a
 nine-round harness contamination and voided every arm stored before 2026-09-22.
-Round 11: restatement grows by accretion, not addition. Round 12 measured the
-reach wording's named harm (relocation) and found it cannot occur on a writing
-task — the task's subject bounds the edit.
+Round 11: restatement grows by accretion, not addition. Round 12: the task's
+subject bounds the edit, so relocation-as-growth cannot occur on a writing task.
+Round 13 measured reach on two destinations, found no arm sorted by it, and cut
+it; it also deleted `platform-portability` and repaired three colliding case
+justifications.
 
-## Iteration 13 — `d3607d7f` → `3ecc2668` (+ this commit)
-
-### Critique of iteration 12
-
-**C1 (fact).** Its `(instruction)` 2(b) said sixteen cases lacked the per-case
-justification the user asked for and "no round has done this". Every one already
-carried a `Why this case is kept` paragraph. One grep refutes it; acting on it
-would have burned the round. Contract amended.
-
-**C2 (quality).** Those paragraphs were never checked against each other. Three
-made "the only case that…" claims that cannot all hold, and none named what would
-retire the case — the standard this repo applies to every rule it writes and not
-to its own instrument. Fixed: `platform-portability` deleted (its own paragraph
-conceded it added no coverage, and the speed it was kept for has never been
-cashed — no case has a stored run under the current skill); three paragraphs
-repaired, each now naming its retirement.
-
-**C3 (workflow).** Round 12 left the reach half "unexercised" and handed it
-forward as one of two options to pick on value. A clause ten rounds old that no
-fixture had ever exercised is not an option to weigh; it is a line every session
-pays for with nothing behind it. Fixed by building the fixture and running it.
-
-**C4 (fact, instrument).** `agent-tools run --hide-cmdline` hides the wrapper's
-argv only; the wrapped command's own `/proc/<pid>/cmdline` still spells the case
-name and arm. Two docs said otherwise. No arm read `/proc` this round, so the
-runs stand. Corrected in both.
-
-### The round's work
-
-Probe `two-homes`: one fact every session needs and one a monthly session needs,
-each with an always-loaded home and an opened-on-purpose home, topic deciding
-neither. Three arms — reach wording, existence wording, no bullet. Record and
-full reading in `prompt-tests/runs/two-homes/README.md`.
-
-**No arm sorted by reach.** All three put both facts in the file that loads every
-session, which the bullet's own sentence argues against. A blind comparison of
-the two priced arms, told only that one clause differed, found no difference on
-that criterion. What the reach wording buys is attention to readership, and that
-attention argues *toward* the reader wherever they are — it reached three code
-files a documentation task never named, where the existence arm edited no code
-and said why.
-
-**Shipped:** `Omit by default` returns to pricing by existence. Prompt 4261 →
-4237 tokens; `sys_prompt/CLAUDE.md` 7413 → 7412.
-
-Unplanned replication: the fixture accidentally falsified a sentence in
-`docs/releasing.md`, and all three arms rewrote it — iteration 12's
-subject-bounds mechanism on an independent fixture.
-
-### `(instruction)` for iteration 14
-
-1. Delete `prompt-tests/runs/two-homes/` and the case with it unless you re-run
-   that fixture. Unconditional.
-2. The corpus is fifteen cases with zero stored runs under the current skill, and
-   the loop spends its runs on probes. Either argue that inventory is worth
-   keeping or cut it to what gets re-run. This is the user's ask and the ratchet
-   inside the instrument.
-3. `Claim less` is the only bullet in the block with no measured behaviour and
-   three failed wordings behind it. It is now the oldest unexercised line here.

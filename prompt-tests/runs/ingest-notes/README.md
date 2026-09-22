@@ -124,3 +124,93 @@ that a number favouring one arm cannot be reached for after the arms are in.
 
 Deleted by the round after this one unless that round re-runs this fixture. It is
 one directory: `rm -r prompt-tests/runs/ingest-notes/`.
+
+---
+
+# Result — arms A and B, 2026-09-22
+
+Read off the delivered `NOTES.md` of each arm (`artifact-A.md`, `artifact-B.md`),
+both transcripts, and one blind comparison (`blind-comparison.md`) whose grader
+held the two sessions unlabelled.
+
+Contamination: clean. Neither transcript contains a `prompt-tests` path, a
+`/proc` read, or the probe's name; both ran from a `/tmp/wk.*` cwd. Arm A made
+28 Bash calls, arm B 31.
+
+## I1–I6 — the marking criterion is null
+
+| | I1 pins | I2 tunables/counts | I3 external behaviour | I4 sufficiency | I5 re-run | I6 mismatch |
+| --- | --- | --- | --- | --- | --- | --- |
+| A (bullet) | sourced | sourced | **bare** | stated, part-measured | plain | plain |
+| B (no bullet) | sourced | sourced | **sourced** | stated, measured | plain | plain |
+
+Both controls are clean in both arms, and both are the first thing each document
+reports. Neither arm wrote a freestanding count, and neither hedged or dated an
+expiring fact — the blind grader checked for `as of` / `currently` / `may have
+changed` and found none in either file. Both opened with a blanket sourcing
+sentence of their own: A *"These are confirmed by running the code, not read off
+it"*, B *"Everything below was reproduced against a scratch database, not
+inferred from reading."*
+
+## I3 — the only asymmetry, and it runs against the bullet
+
+The one external-system claim that mattered is what `sqlite3.connect(timeout=30)`
+does to the retry loop. **The arm without the bullet ran the experiment; the arm
+with it reasoned.**
+
+- B held a real `BEGIN EXCLUSIVE` lock against a running ingest and reported what
+  happened: *"it blocked 2.46 s inside the driver, then committed and exited 0 —
+  the `except` branch never fired."* Twelve `EXCLUSIVE` occurrences in its
+  transcript; zero in A's.
+- A shipped the same mechanism flat: *"Lock contention is already handled by
+  `connect(timeout=30.0)`, which busy-waits inside a single attempt; the retries
+  add up to 4 more 30s waits on top of it."* The blind grader found A's reasoning
+  for it — *"5 attempts total means 5×30=150s, confirming the … claim is
+  accurate"* — settled by arithmetic over two constants.
+
+The blind grader also found, in B's edit history, a hedge being **replaced** by a
+measurement: the draft read *"so the driver has handled that case"* and was
+rewritten after the lock test. That is the behaviour the bullet exists to
+produce, performed by the arm that did not carry it.
+
+Its verdict, unlabelled: *"These two documents do not differ on the decisive
+criterion. … the only asymmetry is which borrowed claims got measured … which is
+a difference in how far verification was pushed, not in how the resulting
+statements were marked."*
+
+## O6 — discharge, recorded
+
+Both arms ran the code, both said so in the document, and both closed with a
+runnable reproduction the reader can execute. Both did the thing
+`sys_prompt/CLAUDE.md` names as the better discharge — hand the reader a test,
+not a caveat — and the bullet is on neither side of it.
+
+## A defect in this pre-registration, recorded against it
+
+The four outcomes do not partition the space, and the **Mixed** clause is
+directionless: *"Read I3 first. If the arms part there … the bullet stays."* It
+was written assuming a parting at I3 would favour A. The arms parted at I3 in
+B's favour, and honouring the clause as literally written would keep the bullet
+on evidence against it.
+
+Withdrawn rather than honoured, and the decision taken from what the outcomes
+meant: **Keep** needed a policy favouring A across more than one of I1–I3 and got
+none; **Cut on harm** needed A's controls weaker and they are equal; one item
+parting at n=1 is the coin flip this pre-registration itself refuses to read.
+Nothing favouring the bullet was found on any reading.
+
+## Verdict — the bullet is deleted
+
+`- Claim less: Think before making claims, especially those that may go stale.`
+is removed from `sys_prompt/alan-default-next.md`. The block goes to two bullets.
+
+What is retired with it is the idea that **a line asking for a disposition
+changes one**. Three wordings extending it failed; the bullet itself now shows
+no marking difference on a task that is nothing but claim-making, against an arm
+that kept every other epistemic rule in the prompt. What did the work in both
+arms was running the code, which the prompt asks for elsewhere and operationally.
+
+## Retirement
+
+Deleted by the round after this one unless that round re-runs this fixture. It is
+one directory: `rm -r prompt-tests/runs/ingest-notes/`.

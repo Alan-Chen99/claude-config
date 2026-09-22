@@ -78,3 +78,25 @@ evaluation: not-started on all.
 - **Framing bias**: deleting is cheap for me and the cost lands on a later round.
 - **Independent evaluation**: not-started.
 - 2026-09-22T06:45:00Z
+
+## DEC-022 — the round's milestone is the incumbent `Claim less`, not the corpus (iter 14, conf 85)
+- **Chosen**: probe `Claim less` with an arm that lacks it, and act on the result.
+- **Alternatives**: cut the fifteen never-run cases (iter 13's instruction 2) —
+  rejected: it advances the instrument and not the prompt, and the contract
+  forbids spending a whole milestone on the instrument without an arm against
+  the prompt; add a line reaching deletion-during-edit — rejected: adding needs
+  the test the incumbent has never had, and adding before subtracting is the
+  ratchet itself.
+- **Reasoning**: it is the one line in the block with no measured behaviour AND
+  no retirement condition — the two conditions beside it in sys_prompt/CLAUDE.md
+  retire the hedge-clause deletion and the line of inquiry, neither the bullet.
+  A line every session loads that nothing can end is the objective's sharpest
+  clause instantiated in the file this loop owns.
+- **Re-evaluate**: if the probe is a null and a later round finds claim
+  discipline degraded in the wild, the redundancy reading was wrong and the
+  other epistemic rules were not carrying it.
+- **Framing bias**: I chose a milestone whose pre-registered null shortens the
+  prompt, which is the direction I am rewarded for. The keep and cut-on-harm
+  outcomes were written before the arms launched to bound that.
+- **Independent evaluation**: not-started.
+- 2026-09-22T07:00:00Z
