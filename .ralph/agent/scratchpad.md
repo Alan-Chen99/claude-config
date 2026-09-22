@@ -113,7 +113,8 @@ cleanup items plus the user's justify-or-remove instruction.
 
 - 13 pending banners deleted, none renewed; 3 cases deleted whose reference was
   the whole case; 2 stamped-record stores and 1 stale note deleted.
-- References 37,105 → 15,231 tokens. `prompt-tests/CLAUDE.md` 7,499 → 1,603.
+- The 13 surviving references 33,360 → 15,231 tokens; the 3 deleted ones were a
+  further 3,745. `prompt-tests/CLAUDE.md` 7,499 → 1,603.
 - Every surviving case carries **Why this case is kept**.
 - `after-the-false-page` is runnable again, on four defect shapes derived from
   its own fixture rather than from a deleted catalogue.
