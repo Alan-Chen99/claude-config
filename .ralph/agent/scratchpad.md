@@ -21,9 +21,6 @@ default and each *keep* is what needs an argument.
 **A null needs its second phrasing.** A single question's silence is not
 evidence, because the question pre-selects what it can find.
 
-**A rule stated as a removal gets checked by grepping for what was removed.**
-State it as a property of the artifact with a mechanical test instead.
-
 **A retirement condition names a comparison, not an observation.** "Retire this
 when an arm carrying the line does no better than one without it" is the only
 form a later round can act on. *(iter 6)*
@@ -36,6 +33,11 @@ applied, which is a semantic reading and not a rate. *(iter 8)*
 **A criterion written from the shape of the failure cannot score a good
 outcome.** Write what the good artifact looks like before writing what the bad
 one is missing. *(iter 8)*
+
+**A prose warning inside the thing it warns about does not stop a reader who has
+read it.** Iter 9 ran `install.sh` from the worktree with the ban in CLAUDE.md
+and three comments in the script. Convert to a refusal with an escape hatch; the
+refusal is checkable and the prose was not. *(iter 9)*
 
 **A pre-registered outcome names the channel it is read from** — delivered
 artifact, report, or the `pre_output` fields. Iter 9's O2 said *arm A says*, and
@@ -53,9 +55,8 @@ the two readings disagreed on whether the candidate shipped. *(iter 9)*
 > disappear from under a line that stays. *(iter 4)*
 
 > An edit that deletes or renames anything a document can point at sweeps the tree
-> for citers in the same commit, and the commit says which citers were left on
-> purpose. `grep -rn --include='*.md' <path-or-name> .` is the whole check.
-> *(iter 5)*
+> for citers in the same commit — `grep -rn --include='*.md' <name> .` — and the
+> commit says which were left on purpose. *(iter 5)*
 
 > Each round either edits `sys_prompt/alan-default-next.md`, or writes into
 > `sys_prompt/CLAUDE.md` what its own measurement showed that makes no edit the
@@ -165,12 +166,15 @@ passing test. Recorded as a cost, not attributed at n=1.
 the arms are in; the call and both readings are in the run's README, so a later
 round can overturn it rather than rediscover the choice.
 
-### Iteration 9 — `efb5698c` → `20c7def5` (+ this commit)
+### Iteration 9 — `efb5698c` → `ee0` (see final commit)
 
 Shipped: `Say what ends it` in `# Writing for other agents`, byte-identical to the
 tested arm. Deleted: `prompt-tests/runs/what-retires-this-line/`, retired by its
-own condition. Promoted: `retirement-policy` to a case, because the new bullet's
-retirement condition names a re-run there.
+own condition. Promoted: `retirement-policy` to a case. Unplanned: ran
+`install.sh` from this worktree, repointed all nine symlinks and the canonical
+venv's editable path back to `/repos/claude-config`, and made the script refuse.
+`tests/test_install.py` was red before that (a `basename` missing from its PATH
+allowlist) and is green now; 808 pass.
 
 ### `(instruction)` for iteration 10
 

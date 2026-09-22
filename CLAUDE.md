@@ -72,7 +72,7 @@ Venv location: each project root resolves to `~/.claude/venvs/<basename>/` (set 
 
 Build: `cd agent-tools && cargo build --release`. Installed as a symlink at `~/.local/bin/agent-tools` → `<repo>/agent-tools/target/release/agent-tools` by `install.sh`.
 
-**Worktrees must NEVER run `install.sh`** — the symlinks must always point to the canonical repo. Worktrees that install their own build will break all other sessions when the worktree is deleted.
+**Worktrees must NEVER run `install.sh`** — every link it writes is absolute and lives outside the repo, so a worktree's install redirects every session on this machine to that worktree and leaves dangling links when it is deleted. The script refuses to run from one; `ALLOW_WORKTREE_INSTALL=1` with a scratch `HOME` is how `tests/test_install.py` exercises it anyway. The refusal goes when `install.sh` stops writing outside the repo.
 
 Testing from a worktree without installing:
 ```bash

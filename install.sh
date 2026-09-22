@@ -2,6 +2,28 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Every symlink below is absolute and lives outside the repo, so installing from
+# a worktree redirects every session on this machine to that worktree and leaves
+# dangling links when it is deleted. Three comments further down say so and are
+# not enough -- an agent that has read them still runs the script, because the
+# script is what a reader reaches for and the warning is in the section it does
+# not read first. A worktree's --git-dir is inside the checkout's --git-common-dir
+# rather than equal to it.
+if [ "${ALLOW_WORKTREE_INSTALL:-}" != "1" ] \
+   && command -v git >/dev/null 2>&1 \
+   && git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    gd="$(git -C "$REPO_DIR" rev-parse --absolute-git-dir)"
+    gcd="$(cd "$(git -C "$REPO_DIR" rev-parse --git-common-dir)" && pwd)"
+    if [ "$gd" != "$gcd" ]; then
+        echo "refusing to install from a worktree: $REPO_DIR" >&2
+        echo "its links would point here and break when it is removed; run this" >&2
+        echo "from $(dirname "$gcd") instead." >&2
+        echo "to test the script itself: ALLOW_WORKTREE_INSTALL=1 HOME=<scratch> $0" >&2
+        exit 1
+    fi
+fi
+
 CLAUDE_DIR="${HOME}/.claude"
 OPENCODE_DIR="${HOME}/.config/opencode"
 
