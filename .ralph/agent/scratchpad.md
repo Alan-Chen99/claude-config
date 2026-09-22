@@ -18,6 +18,10 @@ fails loudly, a wrong claim about a recipe fails silently, and prescribing less
 than the source costs efficiency rather than correctness. So deletion is the
 default and each *keep* is what needs an argument.
 
+**Price a document by reach before size.** A file that attaches itself to a
+session that did not ask for it is cut before a file someone must choose to open.
+*(iter 10)*
+
 **A null needs its second phrasing.** A single question's silence is not
 evidence, because the question pre-selects what it can find.
 
@@ -35,13 +39,15 @@ outcome.** Write what the good artifact looks like before writing what the bad
 one is missing. *(iter 8)*
 
 **A prose warning inside the thing it warns about does not stop a reader who has
-read it.** Iter 9 ran `install.sh` from the worktree with the ban in CLAUDE.md
-and three comments in the script. Convert to a refusal with an escape hatch; the
-refusal is checkable and the prose was not. *(iter 9)*
+read it.** Convert to a refusal with an escape hatch; the refusal is checkable.
+*(iter 9)*
 
 **A pre-registered outcome names the channel it is read from** — delivered
-artifact, report, or the `pre_output` fields. Iter 9's O2 said *arm A says*, and
-the two readings disagreed on whether the candidate shipped. *(iter 9)*
+artifact, report, or the `pre_output` fields. *(iter 9)*
+
+**A defect that costs nothing this time is the one that accumulates.** Where
+maintenance succeeds every round, nothing in the session ever weighs the quantity
+that is growing. *(iter 10)*
 
 ## Standing `(contract)`
 
@@ -50,9 +56,7 @@ the two readings disagreed on whether the candidate shipped. *(iter 9)*
 > `sys_prompt/alan-default-next.md`. *(iter 3)*
 
 > A prompt edit's justification lands in `sys_prompt/CLAUDE.md`, naming what would
-> retire the line, in the same commit as the edit. `.ralph/agent/*` is capped and
-> compressed every round, so an argument left only there is scheduled to
-> disappear from under a line that stays. *(iter 4)*
+> retire the line, in the same commit as the edit. *(iter 4)*
 
 > An edit that deletes or renames anything a document can point at sweeps the tree
 > for citers in the same commit — `grep -rn --include='*.md' <name> .` — and the
@@ -60,124 +64,120 @@ the two readings disagreed on whether the candidate shipped. *(iter 9)*
 
 > Each round either edits `sys_prompt/alan-default-next.md`, or writes into
 > `sys_prompt/CLAUDE.md` what its own measurement showed that makes no edit the
-> right call. A round that measures and concludes "no line is warranted here"
-> satisfies it. *(iter 6)*
+> right call. *(iter 6)*
 
 > Before launching the arms, the round writes down what each arm's outcome would
 > mean, including the outcome that kills the candidate, and commits it. A reading
-> composed after the arms are in is not admissible as the round's finding. Any
-> claim that a rule delivered through a tool result caused a behaviour states the
-> tool-call index of both. *(iter 7)*
+> composed after the arms are in is not admissible. Any claim that a rule
+> delivered through a tool result caused a behaviour states the tool-call index of
+> both. *(iter 7)*
 
-> A round's runs are **probes** unless it argues otherwise in this file: small
-> fixture, one targeted question, read off the artifact by the round itself, no
-> grader dispatch and no foci. A probe earns promotion to `prompt-tests/general/`
-> only when a later round needs to re-run it; otherwise it is deleted with the
-> round. *(iter 8)*
+> A round's runs are **probes** unless it argues otherwise: small fixture, one
+> targeted question, read off the artifact by the round itself, no grader and no
+> foci. A probe earns keeping only when a later round needs to re-run it.
+> *(iter 8)*
 
-> **A round that ships no prompt edit may not grow `sys_prompt/CLAUDE.md`.** It
-> writes by replacing an existing paragraph, and the file's
-> `agent-tools count-tokens` after the round does not exceed the count before.
-> A round that does ship an edit is exempt for that edit's paragraph. Reason in
-> iter 9's C2: the file is 1.9x the prompt it justifies and grew across three
-> consecutive rounds that changed the prompt by zero bytes — the objective's
-> sharpest clause, manufactured by this loop's own contract. *(iter 9)*
+> **A round that ships no prompt edit may not grow `sys_prompt/CLAUDE.md`.** Its
+> `agent-tools count-tokens` after the round does not exceed the count before. A
+> round that does ship an edit is exempt for that edit's paragraph. *(iter 9)*
 
-> **A stored run is retired by the condition its own README states.** Every runs
-> README says a prompt edit since makes it a different measurement; when that has
-> happened, the round that notices deletes the directory. Checking is one command:
-> `git merge-base --is-ancestor <last prompt commit> <the README's commit>`.
-> *(iter 9)*
+> **A stored run is retired by the condition its own README states**, and the
+> round that notices deletes the directory. *(iter 9)*
 
-## Iterations 1–8 — `9f6c03a0` → `efb5698c`
+> **No claim in `sys_prompt/CLAUDE.md` may be a run narrative.** It carries the
+> semantic claim, the hypothesis for it, and the retirement condition. Counts, arm
+> labels, byte deltas, dates and fixture descriptions belong to the run's own
+> README and to git. Reason in iter 10's C3: the file had grown to 16x the prompt
+> text it justifies, nearly all of it per-round narrative that the objective's own
+> rules make non-citable. *(iter 10)*
+
+## Iterations 1–9 — `9f6c03a0` → `01caa239`
 
 Detail is in commit messages; anything justifying a prompt line is in
-`sys_prompt/CLAUDE.md`. 3 repriced `Omit by default` by reach; 4 deleted the
-`Claim less` hedge endorsement; 6–8 shipped no prompt edit, and 8 established
-that three wordings aimed at claim-handling failed.
+`sys_prompt/CLAUDE.md`. Shipped: `Omit by default` repriced by reach (3), the
+`Claim less` hedge endorsement deleted (4), `Say what ends it` (9). Rounds 6–8
+shipped no edit and established that three wordings aimed at claim-handling all
+failed, because the node is premise **provenance**, not wording.
 
-Surviving semantics: an agent handed a subject rewrites everything about that
-subject and little about any other, so the growth worry is about creation, not
-maintenance.
+## Iteration 10 — `01caa239` → (see end)
 
-## Iteration 9 — `efb5698c` → (see end)
+### Critique of iterations 1–9
 
-### Critique of iterations 1–8
+**C1 (workflow).** Iter 9's `(instruction)` ordered this cleanup by line count,
+and omitted `prompt-tests/CLAUDE.md` entirely — the only file in the set that
+attaches itself to sessions that did not ask for it, including every grader, and
+the most duplicated. Ordering by size is how a cleanup misses the file that costs
+most. The prompt already ships the rule that fixes this (`Omit by default`,
+priced by reach); no round had applied it to this repo's own documents.
 
-**C1 (fact).** Iter 8's `(instruction)` 2 says the ratchet "has not been probed".
-`what-retires-this-line` is named for it and its reference asks the grader
-exactly this; iter 3 ran five arms through it and read only where bytes landed.
-The lesson is that **a "not probed" claim is checkable by grepping the corpus**,
-and no round did.
+**C2 (fact).** Three files stated the prompt-testing design and had drifted:
+`prompt-tests/CLAUDE.md` told a grader to read a session with `--agent`, the
+skill told it `--skeleton` under the `session-analysis` protocol. Two wordings,
+nothing saying which governs — the loop's own compression-rule class 2, sitting
+in the loop's own instrument for nine rounds.
 
-**C2 (workflow).** `sys_prompt/CLAUDE.md` was 7994 tokens against a 4215-token
-prompt and grew across rounds 6–8, none of which changed the prompt. The iter-4
-and iter-6 clauses require that. Iter 8 named it and deferred to iter 10, costing
-another round of growth. Fixed by contract above, this round.
+**C3 (fact).** `sys_prompt/CLAUDE.md`'s `# Writing for other agents` ran 1921
+tokens to justify three bullets totalling ~120, and about half documented lines
+that are **not in the prompt**. Its stated job is "reasoning cut from the prompt";
+what it had accumulated was each round's run narrative, which the user's rules
+make non-citable across rounds. The loop was manufacturing the objective's ratchet
+in the file it writes most.
 
-**C3 (workflow).** `runs/what-retires-this-line/` stated its own retirement
-condition — *any prompt edit since makes this a different measurement* — and two
-edits had landed. Nothing retired it, because the condition was written for a
-human to notice. Deleted; the contract clause above makes the check mechanical.
+**C4 (fact, instrument).** Every Claude Code trial for nine rounds wrote
+`.prompt-test-settings.json` into the tested agent's working directory, and the
+opencode runner's scratch cwd was literally `/tmp/prompt-test.XXXXXXXX`. The
+contamination rule bans the *case* name in the cwd; nobody checked the *category*
+name. Found because this round's probe listed its cwd and named the file back.
+**Every arm stored before this round is not comparable to one run after it.**
+
+Checked and **not** a concern, against my own assumption: the user's
+`halve-the-runbook` instructions were done (fixture is the real
+`update-claude-code/SKILL.md` verbatim, no bands or axes, no factual-question
+grading), and all 16 cases already carry a `## Why this case is kept`.
 
 ### The round's work
 
-Target chosen before the fixture: the ratchet itself (objective bullets *reduce
-things only a human can remove* and *documentation does not grow unbounded*),
-because a rule that states what ends it is the only mechanism that bounds growth
-without a human setting a size limit. Different node from the three failed
-wordings — the agent knows it is writing a rule, so the premise is visible.
+Cleanup, priced by reach: `prompt-tests/CLAUDE.md` 137 lines → 31 (it keeps only
+the rule about itself — the Read-path attachment channel — and points at the
+skill); `docs/prompt-testing-design.md` reasoning only, no instructions;
+`.claude/skills/prompt-tests/SKILL.md` instructions only, no reasoning, plus the
+three rules that were stranded in `prompt-tests/CLAUDE.md`. `sys_prompt/CLAUDE.md`
+8401 → 7419 tokens with the narrative gone and the semantics kept. Harness fixed
+in all three runner scripts.
 
-Pre-registration, committed before the arms: `prompt-tests/runs/retirement-policy/README.md`.
-Fixture carries four items of different truth condition (a pin whose reason is
-local and checkable, a vendor number governed by the account plan, a design
-invariant nothing routine ends, a bare preference), so one run reads as a policy.
-O4 boilerplate and O5 growth each kill the candidate on their own.
+### The probe — `restated-cap`, one arm, pre-registered
 
-### What the two arms showed
+One fact written in a README, a runbook, a contributing guide and a docstring;
+a change that falsifies all four; nothing in the task mentions documentation.
+Five opportunities differing in character, so one run reads as a policy.
 
-Both arms **falsified the premise the task handed them** — the task's account of
-the Pillow regression is wrong and the fixture is enough to show it, and both
-found that out by running it. Both also marked the vendor claim unverified
-without being asked. The difference from the premise that escaped audit in
-earlier rounds is that **the task narrated its provenance**. A premise arriving
-with its source attached keeps the source in the artifact; one the agent supplies
-from its own background knowledge arrives as a fact and is never audited. That
-narrows iter 8's node and no wording was involved either way.
+Result and its limits are in `prompt-tests/runs/restated-cap/README.md`. The
+finding: **4 statements in, 4 statements out.** All four were found by grep and
+corrected, derived arithmetic included and empirically checked. The restatement
+count is never weighed, mentioned or noticed — the maintenance succeeds, so
+nothing registers that the next change costs four edits and will silently become
+three. That is growth with no failure event attached to it, and no bullet in the
+block reaches it.
 
-On the pre-registered question: baseline one end-condition of four, treated arm
-three, in three forms matched to three characters, while writing 1202 bytes less.
-O3 held, O4 and O5 did not fire, **O1 was wrong** — the baseline is not saturated,
-it reaches the vendor number and misses the invariant. The bullet shipped.
+Also, not attributable at one arm: the rule whose stated cause had expired was
+rewritten with the old cause retired and the new number's basis named, and the
+prohibition it replaced was deleted rather than reissued — `Say what ends it`'s
+predicted behaviour on a fixture other than the one it was measured on, and its
+feared boilerplate failure absent.
 
-What it did not buy: neither arm kept the bare preference out of the register it
-used for the three incidents. The treated arm also made that preference a passing
-test — followed up and **not** the line's doing: both arms wrote three guards,
-the treated arm's are source-text assertions in which a `print()` scan is trivial,
-and neither transcript reasons about the register at all.
+No prompt edit shipped. The iter-6 contract is satisfied by the paragraph in
+`sys_prompt/CLAUDE.md` saying what the measurement showed and why one arm cannot
+carry a line.
 
-**O2's antecedent was ambiguous** and a round cannot pick between readings after
-the arms are in; the call and both readings are in the run's README, so a later
-round can overturn it rather than rediscover the choice.
+### `(instruction)` for iteration 11
 
-### Iteration 9 — `efb5698c` → `60ce1e57` (+ this commit)
-
-Shipped: `Say what ends it` in `# Writing for other agents`, byte-identical to the
-tested arm. Deleted: `prompt-tests/runs/what-retires-this-line/`, retired by its
-own condition. Promoted: `retirement-policy` to a case. Unplanned: ran
-`install.sh` from this worktree, repointed all nine symlinks and the canonical
-venv's editable path back to `/repos/claude-config`, and made the script refuse.
-`tests/test_install.py` was red before that (a `basename` missing from its PATH
-allowlist) and is green now; 808 pass. Range ends at this commit.
-
-### `(instruction)` for iteration 10
-
-1. **Cleanup round.** In order: `.claude/skills/prompt-tests/SKILL.md` (347
-   lines), `docs/prompt-testing-design.md` (172), then `sys_prompt/CLAUDE.md`
-   (8377) — its narrative, not its conclusions. The iter-3 clause still binds, so
-   the round runs at least one arm.
-2. **Do not re-run `retirement-policy` to confirm the bullet.** Its condition is a
-   comparison; re-running the fixture to agree with itself is not that comparison.
-3. **The un-bought half is the live target after cleanup**: an agent handed a bare
-   preference alongside three incidents files all four alike, then enforces the
-   preference. Reachable by a wording or not is unknown — unaimed-at this round.
+1. **The target is the restatement count.** `restated-cap` is the fixture and the
+   task is unchanged. **Re-run the baseline** — arm A predates the C4 harness fix
+   and is not comparable to anything run after it.
+2. **Pre-register the death condition.** The likeliest bad outcome of any line
+   here is an agent writing pointers where a sentence served the reader better.
+   A treated arm that collapses statements while making any single file worse to
+   read alone kills the candidate.
+3. Do not re-run `retirement-policy` to confirm its bullet; its condition is a
+   comparison, not a repetition.
+4. Cleanup is done for this cycle. Do not spend iteration 11 on documents.

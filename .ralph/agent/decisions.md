@@ -14,25 +14,11 @@ hedge endorsement rather than price it (iter 4, shipped): same section; iter 6's
 independent evaluation found the retirement *condition* was the misdesign, not
 the clause, and restated it as a comparison.
 
-## DEC-009 — one description per case, in the case's own reference (iter 5, conf 86)
-`prompt-tests/CLAUDE.md` carries only what is true of every case; each case's
-`reference-solution.md` is the single place its situation is described, and a
-reference states no result, prediction or expected answer. Reasoning: that file
-auto-attaches to any session that **Read**s under `prompt-tests/`, and phase 1 of
-the grader dispatch withholds the reference on purpose, so per-case entries
-defeated the withholding through a channel the grader cannot see or decline —
-reproduced in a third session in iter 6. **Framing bias**: the injection
-mechanism happened to license the largest deletion available. **Re-evaluate** if
-a grader ever needs cross-case context and cannot get it; still unobserved.
-
-## DEC-010 — measure maintenance, then ship no line (iter 6, conf 82)
-Shipped: `doc-succession` built, three arms plus a narrowed task, no prompt edit.
-Its reasoning — that `# Coding` licenses removal for code and nothing does for
-prose — is dead: every arm deleted freely, including the arm with no block.
-**Independent evaluation (iter 7): holds, weakened.** Of the fixture's regions
-outside the named subject only two are actionable defects, one arm fixed one, and
-the other two were correctly left alone. `task-narrow.md` swept the same way, so
-licence is not the mechanism.
+## DEC-009, DEC-010 — discharged (iter 5-6)
+One description per case, in the case's own reference (the contamination reason
+is in `prompt-tests/CLAUDE.md`, and the rule now enforces itself there). Measure
+maintenance, then ship no line — the finding is in `sys_prompt/CLAUDE.md`.
+Neither is re-argued.
 
 ## DEC-011, DEC-012 — the uncertainty-transfer line, and how it was measured (iter 7-8)
 Both closed. Neither shipped a line. DEC-011's reading — the gap is a *channel*,
@@ -63,3 +49,44 @@ run before it. Independent evaluation: not-started.
   these four differently.
 - **Independent evaluation**: not-started.
 - 2026-09-22T05:30:00Z
+
+## DEC-014 — cut by reach, not by the instructed order (iter 10, conf 84)
+- **Chosen**: reorder the cleanup around which file reaches a reader unasked, and
+  add `prompt-tests/CLAUDE.md` — absent from iteration 9's list — as the first
+  target, because it attaches itself to every session that Reads a path under
+  `prompt-tests/`, graders included.
+- **Alternatives**: follow the instructed line-count order (rejected — size is not
+  what the objective prices, and the largest file in the set was the one nobody
+  is forced to open); cut nothing and spend the round measuring (rejected — every
+  fifth round is a cleanup round and three documents had drifted apart).
+- **Reasoning**: the prompt already ships this exact rule (`Omit by default`,
+  priced by reach). Nine rounds shipped it without applying it here.
+- **Re-evaluate**: if a session is observed needing a contamination or grading rule
+  that now lives only in the skill and failing to load the skill, the split is
+  wrong and the rules go back into the auto-attached file.
+- **Framing bias**: I chose reach as the price because the prompt line I was
+  measuring says to. A round optimising for a reader who greps would order these
+  differently.
+- **Independent evaluation**: not-started.
+- 2026-09-22T05:40:00Z
+
+## DEC-015 — ship no prompt line off a one-arm probe (iter 10, conf 88)
+- **Chosen**: record the restatement-count finding as a semantic claim with its
+  hypothesis and hand iteration 11 a pre-registerable target, rather than write a
+  bullet now.
+- **Alternatives**: ship a line telling agents to make one statement govern
+  (rejected — the user's rule requires a prompt test showing it functions as
+  intended plus adversarial understanding of negative effects, and one arm with
+  no comparison is neither); drop the finding (rejected — it is the first
+  observation of the growth mechanism with no failure event attached).
+- **Reasoning**: the observed behaviour was *correct* on every axis the run could
+  score. A line aimed at it trades a real reader cost (a pointer is worse than a
+  sentence for someone who opens one file) against a cost that never materialises
+  in a single session. That trade needs two arms.
+- **Re-evaluate**: iteration 11, on a re-run baseline. If a treated arm collapses
+  statements and any single file gets worse to read alone, the line dies.
+- **Framing bias**: the fixture's four statements were written by me to be
+  obviously redundant. A real repository's restatements usually differ in
+  audience, and collapsing those is a worse idea than collapsing these.
+- **Independent evaluation**: not-started.
+- 2026-09-22T05:40:00Z
