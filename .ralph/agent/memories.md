@@ -14,10 +14,6 @@
 > A round's own read of its deciding criterion is not reliable enough to decide it. Iteration 17 read two compressed runbooks for claims their source does not make, found one and missed two -- including the one in the arm it would otherwise have kept, which reversed the outcome. A single reader given the artifacts relabelled and the criterion, told neither what is under test nor which arm is which, found all three. Hypothesis: the round holds a prior about which arm should look better and reads the arm it expects to be clean less adversarially; a reader with no prior has nothing to protect. Make the blind read the result, not a check on a result already written.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
 
-### mem-1790062999-53ee
-> Prompt-test genre effect: an agent asked for a handoff note invents a provenance vocabulary ([verified]/[inferred]/[unverified]) unprompted, under sys_prompt/alan-default-next.md at 0b6d8be4 and under that file plus a transcription clause alike; the same model asked for a CLAUDE.md constraints section flattens an owner's bare preference into the incidents beside it under a shared heading. Hypothesis: the destination's genre supplies the frame and a prompt clause competes with it rather than replacing it. So check whether the artifact type already produces a behaviour before writing a clause for it.
-<!-- tags: prompt-tests, writing-for-agents | created: 2026-09-22 -->
-
 ### mem-1790061552-775e
 > A prompt line asking for end-conditions does not reach REGISTER. Both arms promoted a fixture's one bare preference ('Also, unrelated to any of that: I'd rather we not use print()') to an incident heading with a cost it never had -- one writing outright that the four items 'are not style preferences' -- while correctly attaching no end-condition to it. Both did split the four, on detectability rather than provenance, so an agent reaches for a split and picks the axis visible in the code. Why this matters: a preference filed as a finding is a doc error only a human notices, and it is produced by the same care that produces good end-conditions.
 <!-- tags: sys-prompt, docs | created: 2026-09-22 -->

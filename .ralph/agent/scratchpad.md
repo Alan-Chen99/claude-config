@@ -67,9 +67,11 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > A prompt edit's justification lands in `sys_prompt/CLAUDE.md`, naming what would
 > retire the line, in the same commit as the edit.
 
-> An edit that deletes or renames anything a document can point at sweeps the tree
-> for citers in the same commit — `grep -rn --include='*.md' <name> .` — and the
-> commit says which were left on purpose.
+> An edit that deletes or renames anything a document can point at, or withdraws a
+> claim, sweeps the tree for citers in the same commit — `grep -rn --include='*.md'
+> <name> .`, `.ralph/agent/` included, since that directory is injected into every
+> later round whether or not it is consulted — and the commit says which were left
+> on purpose. *(19)*
 
 > Each round either edits `sys_prompt/alan-default-next.md`, or writes into
 > `sys_prompt/CLAUDE.md` what its own measurement showed that makes no edit the
@@ -81,42 +83,47 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > delivered through a tool result caused a behaviour states the tool-call index of
 > both.
 
-> A round's runs are **probes** unless it argues otherwise: small fixture, one
-> targeted question, read off the artifact by the round itself, no grader and no
-> foci. A probe earns keeping only when a later round needs to re-run it.
-
 > **A round that ships no prompt edit may not add a paragraph to
 > `sys_prompt/CLAUDE.md`; it may replace one, and the replacement is shorter than
 > what it replaced.**
 
-> **Any directory this loop creates names the check that deletes it** — a grep or
-> a command, in the file that owns it — and the round that runs the check deletes
-> whatever it prints. An argument for why the directory deserves to exist is not
-> that check: fifteen cases were defended by uniqueness claims no round could
-> falsify, and the corpus stood for fourteen rounds with zero runs in it. *(15)*
+> **A probe's own directory is deleted by the round that wrote it**, in the
+> commit that puts the claim into `sys_prompt/CLAUDE.md` — git holds the
+> pre-registration and the artifacts, and `git checkout <sha> -- <path>` is one
+> command. Two records were left standing by the rounds that wrote them: one whose
+> deletion condition could only fire if a round re-added the bullet it tested, one
+> whose condition waits on a retirement that may never come. Neither was ever
+> re-read, and by the user's own rule run evidence is not citable across rounds,
+> so what a record can carry forward is exactly what belongs in
+> `sys_prompt/CLAUDE.md` anyway. *(19)*
 
 > **No claim in `sys_prompt/CLAUDE.md` may be a run narrative.** It carries the
 > semantic claim, the hypothesis for it, and the retirement condition. Counts, arm
-> labels, byte deltas, dates and fixture descriptions belong to the run's own
-> README and to git.
+> labels, byte deltas, dates and fixture descriptions belong to git.
 
 > **A round's decisive reading is made by a reader that is not the round.** One
 > reader, holding the artifacts relabelled and the criterion, told neither what is
 > being tested nor which arm is which — and its answer is the result, not a check
-> on one already written. Iteration 17's own read of its deciding reading found one
-> of three unsourced claims and missed the one in the arm it would have kept; the
-> blind read reversed the outcome. *(17)*
+> on one already written. Iteration 17's own read found one of three unsourced
+> claims and missed the one in the arm it would have kept; the blind read reversed
+> the outcome. *(17)*
 
 > **A null is reported as saturated, not as a finding, when the untreated arm
-> already does the thing.** The round says so in the same sentence as the null,
-> and a pre-registered outcome asserting more than that is withdrawn rather than
-> honoured — the grounds being a property of the fixture, visible without the
-> result. *(18)*
+> already does the thing** — and where the line under test is a shipped one, a
+> saturated baseline is a reason to delete it, not a reason to withhold judgement.
+> A pre-registered outcome asserting more than that is withdrawn rather than
+> honoured. *(18, 19)*
 
 > **An `(instruction)` asserting that work is undone states the command that
 > shows it.** Iteration 12 handed forward "no round has done this" about a user
-> ask that one grep refutes, and acting on it would have spent a round re-doing
-> finished work. *(iter 13)*
+> ask that one grep refutes. *(13)*
+
+> **The round ends under the user's `.ralph/agent/*` ceiling and says the number.**
+> `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` — under 6000.
+> It sat over for two rounds because no line named a command. *(19)*
+
+> Operational rules for running, grading and deleting prompt tests live in
+> `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
 ## History — rounds 1–16, `9f6c03a0` → `7dec8051`
 
@@ -128,82 +135,57 @@ bound to the prompt by one grep, eleven of fifteen cases deleted (15). Deleted:
 (3–8, 12, 14, 16). Round 10 fixed a nine-round harness contamination and voided
 every arm stored before 2026-09-22.
 
-## Iteration 17 — `7dec8051` → `e13d1097`
+## Iterations 17–18 — `7dec8051` → `5c185783`
 
-Ran `Omit by default` at its own named retirement fixture, never paid for in
-sixteen rounds; pre-registered null reached; bullet deleted. Detail in the commit
-messages and in `sys_prompt/CLAUDE.md`. Its critique of 15 and 16 stands except
-where iteration 18 overrides below.
+17 ran `Omit by default` at its own named retirement fixture and deleted the
+bullet. 18 ran a new case (`inherited-project`) with a claim-handling candidate
+and a preamble-deleted arm: candidate not shipped, preamble kept on one row, both
+on blind readings. Claims and retirement conditions are in `sys_prompt/CLAUDE.md`;
+everything else is in the commit messages.
 
-## Iteration 18 — `e13d1097` → `2a6bf912` (+ this commit)
+## Iteration 19 — `5c185783` → (see final commit)
 
 ### Critique of prior iterations
 
-**C1 (workflow — instruction 1 overridden).** Iteration 17 handed forward "run the
-preamble against an arm without it — it is the largest untested thing in the
-block." *Largest untested* is a size argument. The contract forbids picking work
-because it is available, and the instruction names no fixture and no reading —
-the same defect iteration 17 diagnosed in round 13's retirement condition. Kept
-as one arm of this round's design rather than as its milestone: the preamble is
-read on the behaviour its own last clause names.
+**C1 (workflow — a hard user budget unmeasured and breached for two rounds).**
+`.ralph/agent/*` ≤ 6000 tokens is a user rule, and nothing in the loop ever ran
+the command that checks it. Measured now: 5926 at 16's end, 6118 at 17's, 6122 at
+18's. Both rounds grew the directory past the ceiling while writing about the
+danger of unbounded documentation. The rule's own words — *relocation is growth,
+cut before add* — were the round-13 method note, applied to everything except the
+file it was written in. Cut here, and the check is now a `(contract)` line with
+the command in it, because a rule with no command is what let two rounds miss it.
 
-**C2 (fact — a null from a saturated baseline became a general conclusion).**
-Iteration 16 ran a warrant-transcription clause on a **handoff note** and got a
-null, then wrote into `sys_prompt/CLAUDE.md` that "anything aimed here has to fire
-while a rules file is being written, and a disposition asked of the text will
-not." Its own memory records why the null is uninformative: in that genre the
-agent invents a provenance vocabulary *unprompted*, in both arms. A clause cannot
-beat a saturated baseline, so the run bounds nothing about the clause — only
-about the genre. The general half of that paragraph is not supported by the run
-it was written from, and iteration 17 did not notice.
+**C2 (fact — a claim withdrawn from one file and left standing in the file the
+next round actually reads).** 18's own C2 established that 16's *the genre
+supplies the frame and a prompt clause only competes with it* rests on a
+saturated baseline, and deleted the paragraph from `sys_prompt/CLAUDE.md`. The
+same conclusion survived verbatim in `.ralph/agent/memories.md`
+(`mem-…-53ee`), which is auto-injected into every later round's context — so the
+withdrawal reached the file a round consults deliberately and missed the one it
+cannot avoid. Memory deleted here. The contract's citer-sweep covers renames of
+things a document points at, not claims; extended below.
 
-**C3 (workflow — a stored record with an unreachable deletion condition).**
-`prompt-tests/runs/halve-the-runbook/` (41.5 KB, two artifacts) states it is
-deleted by "the round that retires or rewrites `Omit by default` again". The
-bullet is gone, so that fires only if a round re-adds it. What keeps the
-artifacts is a utility argument — *a later round wanting the case's own question
-can grade them without re-running* — which is the form the skill names as not a
-retirement condition. It was a probe, never promoted; by the skill's own rule it
-died with its round. Deleted here; `git checkout f2bfe695 -- <path>` restores it.
+**C3 (workflow — a probe promoted to a permanent case with no round deciding
+to).** 18's record opens *A probe*, and the skill it had just edited says a probe
+lives entirely in `prompt-tests/runs/<probe>/` so that one `rm -r` ends it. The
+round instead put `task.md`, `fixture/` and `reference-solution.md` into
+`prompt-tests/general/inherited-project/` and then named that path in two
+`sys_prompt/CLAUDE.md` retirement conditions, which makes the ownership grep keep
+it indefinitely. Added without approval, removable only by a human or by a round
+that retires the preamble: the objective's own ratchet, built by the round whose
+milestone was the ratchet. The case is not deleted — the conditions genuinely
+need it — but no later round should read its existence as a promotion argument,
+and the `(contract)` below stops the record half of it recurring.
 
 ### Why this milestone
 
-The one measured, reproduced mechanism behind doc errors is `mem-…-3cef`: an
-agent names a premise unverified **in the conversation** and ships the document
-asserting it flatly, because every rule in this prompt that fires on uncertainty
-names the *reply* as where it goes (grepped, arm-internal: `escalate to the
-user`, `Report`, `propagated to the user`, the `uncertainties` record field,
-`Required notes`) and none names the artifact — the channel that outlives the
-session. That is the objective's "doc errors needing human intervention to
-remove", and it is an **act** rather than a disposition, which is what four
-failed claim-handling wordings were not. `sys_prompt/CLAUDE.md` already carries
-the re-entry condition for a claim-handling line and names the fixture shape it
-needs; C2 says the genre that condition requires has never been run. This round
-runs it.
-
-### The round's work and result
-
-One case, three arms plus one rerun. Pre-registration, readings, the invalidated
-arm and the result: `prompt-tests/runs/inherited-project/README.md`. The
-candidate is not shipped and the preamble is kept, both on blind readings.
-`sys_prompt/CLAUDE.md` carries the claims; `.ralph/agent/decisions.md` carries
-DEC-027.
-
-**The node, for whoever writes the next candidate.** Marking is baseline: every
-arm invented a provenance scheme unprompted and recorded the fixture's stated gap
-as unknown. What escaped into every arm was background knowledge about external
-systems that the material never flagged. A fixture that can fire a
-claim-handling line makes one unflagged external premise load-bearing; one that
-states its gap measures nothing.
-
-### `(instruction)` for iteration 19
-
-1. Round 20 is a cleanup round by the every-fifth rule. Iteration 19 should
-   therefore finish something rather than open a line of inquiry it hands on.
-2. `Say what ends it` is the only bullet left and the only line this loop ever
-   shipped. Its retirement condition names `prompt-tests/general/retirement-policy`
-   and has been paid for once, at round 15, inside a three-bullet block that no
-   longer exists. It is now the largest untested-as-shipped thing here — but
-   *largest untested* is not by itself a reason (C1); the reason is that the
-   block is one bullet and a preamble, and only one of the two has ever been
-   isolated.
+`Say what ends it` is the only line this loop has ever shipped and the only one
+never isolated: round 15 measured it inside a three-bullet block that no longer
+exists, against an arm with no block at all, so the difference it recorded could
+have been the preamble's — which 18 then measured separately and kept. With the
+block down to a preamble and one bullet, the last unattributed measurement in it
+can be closed for the cost of two runs. This is not *largest untested* (C1 of
+round 18): the reason is that a shipped line charging every request on a
+confounded attribution is the only thing here that a round can both falsify and
+remove, and removal is what the objective asks for.
