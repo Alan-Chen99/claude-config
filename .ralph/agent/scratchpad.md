@@ -7,13 +7,7 @@ but require human intervention to remove*. Every other goal (unbounded growth, d
 errors, low-supervision writing) follows from that ratchet. The question to carry
 into every decision is **what retires this line**, not whether it is true.
 
-## Iterations 1–2 — `9f6c03a0` → `0f176202`
-
-Both touched only the instrument. Iteration 1 stripped run results from the
-grader-injected `prompt-tests/CLAUDE.md` and deleted two cases. Iteration 2 cut
-`.claude/skills/prompt-tests/SKILL.md` 7239 → 4405 tokens and removed the Iron
-Law / RED-GREEN mandate that contradicted the no-verdict design. Detail is in the
-commit messages; what survives here is the reusable part:
+## Durable method, reusable across rounds
 
 **The compression rule.** Sort every line by what it is; cut in this order,
 stopping at the first class that is load-bearing: (1) a **claim** — only claims
@@ -30,154 +24,146 @@ conflicting sentences ~300 lines apart went unnoticed by the long version's
 reader and were led with at ~80 lines apart. If true, a document's error rate
 tracks the distance between related claims rather than its word count.
 
-## Iteration 3 — `0f176202` → `5d1f9d6d`, plus this bookkeeping commit
+**A null needs its second phrasing.** DEC-005's instrument is sound and its
+positive findings stand; a single question's silence is not evidence, because the
+question pre-selects what it can find. Say what a null cannot rule out, next to
+the null.
 
-### Critique of iterations 1–2
+## Iterations 1–3 — `9f6c03a0` → `59511d7c`
 
-**C1 (workflow, the important one) — two iterations, zero measurement of the
-target.** The objective's first line is *improve current system prompt*. Both
-iterations worked exclusively on the measuring instrument. Iteration 2's reason —
-the skill prescribed a method the redesign had rejected, so any probe run first
-would run under a contradicted method — is sound once and does not extend. The
-instrument is unboundedly improvable and the target is one file, so a loop that
-always finds the instrument more defective will never reach the target. See the
-`(contract)` amendment below.
+1–2 touched only the instrument: `prompt-tests/CLAUDE.md` stripped of run
+results, two cases deleted, `.claude/skills/prompt-tests/SKILL.md` 7239 → 4405
+tokens with the Iron Law removed for contradicting the no-verdict design.
+3 measured the `# Writing for other agents` block for the first time, repriced
+`Omit by default` by reach, and closed a cwd leak (case slug in the tested
+agent's cwd) live in every run these scripts had ever made. Detail is in the
+commit messages and in `prompt-tests/runs/what-retires-this-line/README.md`.
 
-**C2 (verification) — the compression's null was accepted against its own
-re-evaluation clause.** DEC-005 says: if a probe reader's list is shaped more by
-the question than by the document, try a second phrasing before trusting a null.
-One phrasing ran. "List every precondition you must get right" pre-selects for
-enumerable preconditions — exactly the class the rule *keeps* — so it cannot
-detect the loss of a habit, a default posture, or an altitude. The probe's
-positive finding stands; its silence on everything else is not evidence.
-
-**C3 (ratchet) — an addition whose retirement condition no routine act performs.**
-`SKILL.md`'s `pre_output.record` confound paragraph was added with the condition
-"if iteration 3 or 4 finds no use for it, delete it". Nobody goes looking, so "no
-use found" is indistinguishable from "nobody looked" — the condition cannot fire.
-It was added in the same commit that deleted other lines for being unretirable.
-
-**C4 (fact) — "re-derivable from the prompt so it cannot rot" is false.**
-Re-derivability says a reader *could* check, not that anyone will, and the
-paragraph names a section of the very file this loop exists to edit. Repaired by
-removing the content it asserts: it now tells the grader to read the arm's own
-prompt, and names nothing that can go stale.
-
-### `(contract)` amendment — added by iteration 3, from C1
+### `(contract)` from iteration 3
 
 > An iteration may not spend its whole milestone on the prompt-test instrument
 > unless that iteration also runs at least one arm against
 > `sys_prompt/alan-default-next.md`. Instrument repairs ride along with
 > measurement of the target; they do not substitute for it.
 
-Grounded in observation, not speculation: two consecutive iterations produced
-zero measurements of the file the objective names.
+Grounded: two consecutive iterations had produced zero measurements of the file
+the objective names.
 
-### The probe: `what-retires-this-line`
+## Iteration 4 — `59511d7c` → `8b122ac7`, plus this bookkeeping commit
 
-Fixture: a small repo (`sync.sh`, `pack.py`, `CLAUDE.md`). Task hands the agent
-the output of a debugging session — a local measurement, a refetchable vendor
-fact, a symptom, undated hearsay from a support call, and a non-reproduction —
-and asks it to put what a future agent needs into the repo. Arm A is the current
-prompt; arm B is the same file with the whole `# Writing for other agents` block
-deleted. Question first: does the block do anything at all? A block that changes
-nothing is pure ratchet.
+### Critique of iteration 3
 
-### Contamination found and fixed
+**C1 (fact/workflow) — DEC-007 was decided on the one metric the objective does
+not name, and the metric it does name ran the other way.** The objective asks
+that documentation not grow unbounded. On the motivating case the pre-edit arm
+wrote 2561 bytes in total; the shipped arm wrote 793 + 3212 = 4005. Iteration 3
+put that in a parenthetical and chose per-session read cost as the quantity that
+matters, without arguing it against the objective's own criterion — and the
+user's framing in this same objective says *relocation is growth*. I checked
+whether the edit survives on a different ground and it does: the shipped arm's
+`CLAUDE.md` addition names the trap (the vendor's documented 1000-record limit is
+not the binding constraint) and points at the detail, where the pre-edit arm
+inlined all of it. So the decision stands on a **semantic** reading that was
+never written down, and its recorded basis is a number the objective never asked
+for. Both halves now sit in `sys_prompt/CLAUDE.md`, growth question included, as
+unresolved rather than parenthetical.
 
-The first pair of runs is **`invalid`**. Both arms wrote a heading using the
-phrase this case is named for. The runners built the scratch cwd as
-`/tmp/ptcc-${CASE}-${TAG}.XXXXXX`, and the agent reads its own cwd — Claude
-Code's environment block, the scratchpad path, every shell prompt. The slug
-appeared 45 and 64 times in the two transcripts. Case names here describe the
-behaviour under test (`halve-the-runbook`, `found-set-closure`,
-`coverage-disclosure`), which is right for a reader and wrong for the subject, so
-this was live for every case ever run from these scripts, not just mine.
+**C2 (workflow, the structural one) — the justification for a shipped prompt line
+went into loop-local state.** `sys_prompt/CLAUDE.md` is where this repo's own
+doctrine puts the reasoning, dates and measurements behind a prompt line; that
+file carried nothing at all about `# Writing for other agents`. Iteration 3's
+edit shipped with its argument only in `.ralph/agent/decisions.md` and a run
+README — and `.ralph/agent/*` is capped at 6000 tokens and compressed every
+round, so the line was set to outlive the argument for it. A line nobody can
+evaluate is a line nobody can remove: the loop was manufacturing the exact thing
+the objective is against. See the `(contract)` below.
 
-Fixed in the three runner scripts rather than as a naming rule: the scratch
-directory is now `/tmp/ptcc.XXXXXXXX` and the runner prints the mapping. A
-mechanism beats a rule someone has to remember, and this one is checkable — the
-rerun transcripts contain the slug zero times.
+**C3 (user instruction unexecuted, three rounds running) — "remove or replace
+other test cases on the Writing block; each one kept you must justify that the
+test case is providing positive value."** Iteration 1 deleted two cases on a
+different argument (DEC-002's ratchet reasoning) and no case has been through the
+justify-or-remove pass. Meanwhile 13 `reference-solution.md` files still carry
+*Not to be used until checked against the current grading design*, added
+pre-loop; nothing has checked one, and iteration 1's own memory records that
+bannering is the ratchet the objective is against. Handed to the cleanup round
+below, concretely enough that it cannot be deferred a fourth time.
 
-### What the probe showed
+**C4 — iteration 3 shipped a prompt edit with no grader**, where
+`.claude/skills/prompt-tests/SKILL.md` requires a blind comparison for a prompt
+edit specifically. It recorded the gap instead of closing it or amending the
+skill. Closed this round by running one.
 
-Bytes written, `CLAUDE.md` starting at 483 and auto-loaded into every session:
+### `(contract)` amendment — added by iteration 4, from C2
 
-| | `CLAUDE.md` | elsewhere |
-| --- | --- | --- |
-| task 1, block as-is (2 runs) | 2561, 3144 | none, none |
-| task 1, block deleted (2 runs) | 925, 836 | 4768, 4168 |
-| task 1, reach-priced (1 run) | 793 | 3212 |
-| task 2, block as-is | 2334 | hook |
-| task 2, reach-priced | 2251 | hook |
+> A prompt edit's justification lands in `sys_prompt/CLAUDE.md`, naming what
+> would retire the line, in the same commit as the edit. `.ralph/agent/*` is
+> capped and compressed every round, so an argument left only there is scheduled
+> to disappear from under a line that stays.
 
-**The block reduces total bytes written and roughly quintuples what lands in the
-file every session loads.** With it, both runs put everything in `CLAUDE.md` and
-made no new file; with it deleted, both made a separate file and left a pointer.
-Total volume ran the other way — 2.4–2.9 kB with the block against 4.8–5.5 kB
-without — so the bullet does reduce *something*, just not the quantity that is
-paid per session.
+### The milestone: the `Claim less` hedge clause
 
-Hypothesis for the mechanism, untested: creating a new file is a more
-conspicuous act of adding than appending to a file already open, so pressure to
-omit suppresses the cheaper placement. If that is right, any omit-style rule
-that does not name a unit of cost will do the same thing.
+Chosen because it is the one clause in the prompt that *manufactures* the thing
+the objective's hardest bullet is against, and because the objective names the
+note that analyses it while nothing had measured it.
 
-**The edit.** `Omit by default` now prices by *how often it will be read and by
-whom*, naming the always-loaded file as the expensive case. Arm C: 793 bytes
-into `CLAUDE.md`, the lowest of the five runs, with the detail in `docs/`.
+New case `unconfirmed-cause` (thumbd, a different domain from the sync.sh
+fixture): a handover carrying an unexplained workaround that works, a belief of
+the reporter's that is **false and checkable in one read**, an unverifiable
+second-hand rumour, and a non-reproduction. The false-and-checkable item is the
+discriminator — repeating it as a warning is hedging where checking was
+available. The unexplained workaround is the control in the other direction: it
+is load-bearing and nothing will ever retire it, so an arm that drops everything
+unretirable fails there.
 
-**Adversarial pair** (`task-repo-wide.md`): a hazard that binds every session,
-whose two incidents came from agents working elsewhere in the repo. Arm C wrote
-it into `CLAUDE.md` — 2251 bytes against arm A's 2334 — so the edit does not
-push always-relevant content out of the always-loaded file. It discriminates by
-reach rather than shrinking `CLAUDE.md` unconditionally, which is what it was
-meant to do. Shipped to `sys_prompt/alan-default-next.md`, byte-identical to the
-tested arm.
+Three arms, one sentence apart. **Result: the clause is inert here.** With it and
+without it the agent reached the same four verdicts, measured the lock against a
+live `LOCK_EX` writer rather than reading the source, computed the same
+`(39/40)^30`, and changed no behaviour. The blind grader found "the same work"
+and, on hedging where checking was available, "neither". Arm D, which *priced*
+the hedge rather than deleting it, wrote 30% more and rewrote `source_bytes`
+mid-investigation where both others declined in writing.
 
-That task turned out to admit a non-text answer: both arms wrote a `PreToolUse`
-guard as well as prose. Better than either placement, and it means the task does
-not isolate placement on its own. Recorded in the case's reference.
+**Why inert rather than merely unmeasured.** `# Epistemic Integrity`'s No
+Unexplained Residue Rule forbids what the clause would license, and
+unconditionally where the clause said *often*. So the clause is inert where that
+section reaches and harmful where it does not — deletion is right under either
+reading, which is what makes this more than a null. Shipped as deletion.
 
 ### What this does not establish
 
-One case, one fixture, one model, n=1 on the treatment arm. The measurement is a
-byte count and a placement read off the diffs — no grader subagent ran, so
-nothing here is a graded result. The hint clause of the second bullet is
-untouched and unmeasured; neither arm produced a bare hint, so this round says
-nothing about the argument in `notes/workers-bullet-hint-in-fact-position.md`.
+n=1 per arm, one fixture, one model. Every item was checkable from the fixture or
+by arithmetic, and the agent was writing up **its own** investigation, which is
+exactly No Unexplained Residue's territory — so the two sections overlap by
+construction here. The over-claims and stale line refs the grader found in the
+clause-carrying arm are single instances and are **not** attributed to the
+sentence. The untested case: an agent writing for a reader about something the
+writer cannot check.
 
-### For iteration 4
+### `(instruction)` for iteration 5 — the cleanup round
 
-`(instruction)` The stored runs under `prompt-tests/runs/what-retires-this-line/`
-were taken against the prompt at `ca326247`. The prompt has changed since. Re-run
-the arm you need rather than citing them.
+Fifth round is cleanup. These are the items, and each has been deferred at least
+once:
 
-Open, in the order I would take them: the hint clause (the objective names the
-note and nothing has measured it); `payments-relay/`, whose two-round clause is
-now spent (DEC-003); `after-the-false-page`, still not runnable and the only case
-that measures a document *growing*; `prompt-tests/CLAUDE.md` at ~7.5k tokens,
-never put through the compression rule.
+1. Delete `prompt-tests/payments-relay/` with its citers. DEC-003's two-round
+   clause is **spent** as of this iteration; it has said what it was going to say
+   and is not evidence for keeping anything a third time.
+2. The justify-or-remove pass on the cases bearing on `# Writing for other
+   agents`, per the user's instruction. The 13 *Not to be used until checked*
+   banners are the same sweep: check, repair, or delete the case — do not
+   re-banner.
+3. `docs/opencode-system-prompt/trials/`, 22.8k tokens of pass/fail-stamped
+   records under a design that rejects pass/fail, several for cases iteration 1
+   deleted. `prompt-tests/CLAUDE.md:113` says "Leave them as they are", which is
+   the permanence this objective is against. Sweeping the citers in
+   `notes/compliance-check-failure-mode/` is part of the work.
+4. `prompt-tests/CLAUDE.md` at ~7.5k tokens has never been through the
+   compression rule.
 
-Found and not touched: `docs/opencode-system-prompt/trials/`, 22.8k tokens of
-pass/fail-stamped records under a design that rejects pass/fail, several for
-cases iteration 1 deleted. `prompt-tests/CLAUDE.md:113` says "Leave them as they
-are", which is the permanence this objective is against. Deleting them means
-sweeping citers across `notes/compliance-check-failure-mode/`, which quotes the
-paths as observations of what agents read — that is a milestone, not a tail. Good
-candidate for the fifth-round cleanup.
+Not cleanup, and the strongest remaining measurement: a case where the writer
+**cannot** check what it is writing about, which is the only territory where the
+deleted clause could still have been doing work — and the same fixture would test
+the `Omit by default` growth question in C1.
 
-### A near-miss worth keeping
-
-The cwd leak was live for every run these scripts ever made, including the
-2026-09-13 `commit-own-changes` trials that `sys_prompt/CLAUDE.md`'s `# Git`
-section rests on — a case whose slug reads as an instruction to do the thing
-being measured. I was about to withdraw that evidence. It holds: the slug is
-constant across arms so it cannot produce a difference between them, and the
-baseline arm carrying the same cwd did not commit. Only the green arm's absolute
-behaviour is unattributable. The general rule is in memories; the specific note
-sits with the artifacts so it dies when they do.
-
-The move that caught it was reading the claim the evidence supports before
-deciding the evidence was bad. "Contaminated" is not a verdict on a run; it is a
-question about which claims that run can still carry.
+`(instruction)` The stored runs under `prompt-tests/runs/` were taken against
+particular prompt commits named in each README. Re-run the arm you need rather
+than citing them across a prompt change.

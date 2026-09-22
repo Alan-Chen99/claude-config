@@ -1,86 +1,83 @@
 # Decision journal — writing-for-agents loop3
 
-Entries 001–005 are compressed to their durable content; the full reasoning is in
-the commit messages of `e5f53f92` and `843b812f`.
+Entries are compressed to their durable content. Full reasoning lives where it
+survives this loop: commit messages, `sys_prompt/CLAUDE.md` for anything that
+justifies a prompt line, and each case's `prompt-tests/runs/<case>/README.md`.
 
 ## DEC-001 — `prompt-tests/CLAUDE.md` states no run result (iter 1, conf 88)
 Strip every arm-level count, prediction and verdict; the rule has a mechanical
 test. Why: the file reaches a grader by a channel the grader cannot decline, so
 removing the payload is a property of the file where staging is a procedure
-someone must remember. **Iter 2 evaluation**: sound; incompletely executed.
-**Iter 3 evaluation**: still holds; no counterexample found this round.
+someone must remember. **Iter 2–4**: holds, no counterexample.
 
 ## DEC-002 — delete `handoff-confidence` and `review-the-compression` (iter 1, conf 70)
 Burden placed on *keeping*, per the objective's bias against things only a human
-removes. **Iter 2**: reasoning holds. **Iter 3**: no change.
+removes. **Iter 4**: reasoning holds, but it was never extended to the remaining
+cases as the user's instruction asked. See scratchpad C3.
 
 ## DEC-003 — leave `payments-relay/` in place (iter 1, conf 62)
 Its own clause: two rounds without action is evidence the deletion is not
-actually wanted. **This is round two of that count.** Iteration 4 either deletes
-it with its citers or the clause has said what it was going to say.
+actually wanted. **Iter 4: the clause is spent.** Two rounds elapsed, no action
+came, and the clause has said what it was going to say — it is not an argument
+for a third round of keeping. Deletion with its citers is item 1 of the cleanup
+round.
 
 ## DEC-004 — compress by class-of-line, not by target length (iter 2, conf 84)
 Claim / restatement / duplicate-of-code / trap, cut in that order, stop at trap.
-**Iter 3 evaluation**: the rule is sound and I reused it, but its *verification*
-was over-trusted — see DEC-005 below and scratchpad C2. The decision was right;
-the evidence offered for it was thinner than recorded.
+**Iter 3**: sound and reused; its verification was over-trusted, see DEC-005.
 
 ## DEC-005 — verify a doc edit with a differential probe (iter 2, conf 80)
-Two fresh readers, one per version, same question, diff the lists.
-**Iter 3 evaluation — partially wrong as executed.** The instrument is good and
-its positive findings stand. Its *null* does not: the question asked pre-selects
-for enumerable preconditions, which is the class the compression rule keeps, so
-it structurally cannot detect a lost habit or posture. DEC-005's own re-evaluate
-clause said to try a second phrasing before trusting a null, and one phrasing
-ran. Confidence in the null: low. Confidence in the instrument: unchanged.
+Two fresh readers, one per version, same question, diff the lists. **Iter 3**:
+the instrument is good and its positive findings stand; its *null* does not,
+because the question asked pre-selects for the class the compression rule keeps.
+**Iter 4**: generalised into method — state what a null cannot rule out beside
+the null.
 
-## DEC-006 — fix cwd contamination in the runners, not in a naming rule
-- **Chosen**: scratch cwd becomes `/tmp/ptcc.XXXXXXXX` in all three runner
-  scripts; the skill gets a detection entry and the neutral `mktemp` in its
-  hand-rolled recipe. Case names stay descriptive.
-- **Confidence**: 92.
-- **Alternatives**: rename cases to opaque ids; add a rule that case names must
-  not describe the behaviour; hash the case name into the path.
-- **Reasoning**: the leak is real and was measured (slug 45× and 64× in two
-  transcripts; both arms wrote a heading from the phrase the case is named for;
-  zero occurrences and no heading after the fix). Opaque case names would move
-  the cost onto every human reader to protect the subject. A mechanism holds
-  without anyone remembering it and this one is checkable by grep, which is the
-  property a rule does not have.
-- **Re-evaluate**: if a future leak is found through a channel the scratch path
-  does not carry — the settings file, an env var, a fixture filename.
-- **Framing bias**: I found this bug by writing a case whose name was unusually
-  on-the-nose. A leak through a blander name would have been invisible to me, so
-  "fixed" here means "this channel is closed", not "the agent cannot tell".
-- **Independent evaluation**: not-started.
-- 2026-09-22T02:05:00Z
+## DEC-006 — fix cwd contamination in the runners, not in a naming rule (iter 3, conf 92)
+Scratch cwd is `/tmp/ptcc.XXXXXXXX` in all three runners; case names stay
+descriptive. A mechanism holds without anyone remembering it, and this one is
+checkable by grep, which a rule is not. **Framing bias** (iter 3): found via a
+case whose name was unusually on-the-nose, so "fixed" means this channel is
+closed, not that the agent cannot tell. **Iter 4 evaluation**: exercised on three
+fresh runs of a new case; slug count zero in all three. Holds.
+**Re-evaluate**: a leak through a channel the scratch path does not carry.
 
-## DEC-007 — price written content by reach, not by existence
-- **Chosen**: replace the `# Writing for other agents` "Omit by default" bullet's
-  cost clause (`its value must exceed the cost of maintaining and possible
-  mis-reading`) with a price that has a unit: *how often it will be read and by
-  whom*, naming the always-loaded file as the expensive case.
-- **Confidence**: 74. Shipped. It did what it was meant to on the case that
-  motivated it (793 bytes into the always-loaded file, the lowest of five runs,
-  detail in `docs/`) and did not misfire on the adversarial pair (2251 bytes
-  into the always-loaded file where the content binds every session, against the
-  old wording's 2334). Held below 80 because the treatment arm is n=1 on one
-  fixture, and because the adversarial task admitted a non-text answer that both
-  arms took, so it tests the edit less sharply than it was built to.
-- **Alternatives**: delete the bullet; add a third bullet about placement; leave
-  it and write the finding up for iteration 4.
-- **Reasoning**: the current wording measurably reduces total volume and
-  measurably *increases* what lands in the file every session loads — 2.1–2.7 kB
-  into an auto-loaded `CLAUDE.md` in both of its runs, against 0.35–0.44 kB in
-  both runs with the block deleted. Maintenance and mis-reading cost are the same
-  wherever a line sits; per-session cost is not, and the bullet does not
-  distinguish them. Hypothesis for the mechanism: creating a new file is a more
-  conspicuous act of adding than appending to a file already there, so pressure
-  to omit suppresses the cheaper placement.
-- **Re-evaluate**: the effect is one case. A second case in a different domain
-  is the next thing that could overturn it.
-- **Framing bias**: I designed the probe after forming the hypothesis, and the
-  fixture's `CLAUDE.md` is small enough that appending to it is the obvious move.
-  A repo whose `CLAUDE.md` was already large might show no arm difference at all.
+## DEC-007 — price written content by reach, not by existence (iter 3, conf 74)
+Reasoning, measurements and retirement condition now in `sys_prompt/CLAUDE.md`,
+§`# Writing for other agents`, which is where they survive.
+**Iter 4 evaluation — the decision stands, the recorded basis was wrong.** It was
+justified on per-session bytes, a metric the objective never names, while the one
+it does name (documentation not growing unbounded) ran the other way: the shipped
+arm wrote 1.6x the total of the pre-edit arm. Reading the artifacts instead of
+counting them supports the edit on a different ground — the shipped arm's
+always-loaded text names the trap and points at the detail, where the pre-edit
+arm inlined everything. Confidence unchanged at 74; the growth question is
+recorded as open, not settled.
+
+## DEC-008 — delete the `Claim less` hedge endorsement rather than pricing it
+- **Chosen**: drop *Often you are better off with a hint, warning or a [record]
+  marker* from `sys_prompt/alan-default-next.md`. Keep the first sentence.
+- **Confidence**: 80. Shipped.
+- **Alternatives**: leave it; replace it with a clause pricing the hedge (built
+  and run as arm D); add a retirement-condition rule to the block instead.
+- **Reasoning**: on `unconfirmed-cause`, with the clause and without it the agent
+  reached the same four verdicts, ran the same verifications, produced the same
+  arithmetic and changed no behaviour; a blind grader holding both sessions
+  unlabelled found "the same work" and, on hedging where checking was available,
+  "neither". The clause is not merely unmeasured-inert: `# Epistemic Integrity`'s
+  No Unexplained Residue Rule already forbids what it would license, and
+  unconditionally where the clause said *often*, so it is inert where that
+  section reaches and harmful where it does not. Arm D, the priced version,
+  measured worse than both — 30% more text and a code rewrite mid-investigation
+  that both other arms declined in writing. Deletion also costs nothing to
+  maintain, which pricing does.
+- **Re-evaluate**: an agent writing an unverifiable thing as a flat fact where
+  `# Epistemic Integrity` does not reach. The probe made everything checkable
+  from the fixture and had the agent writing up its own work, so the two
+  sections overlap by construction there.
+- **Framing bias**: I designed the fixture from the note's argument, so its four
+  items are the ones that argument predicts matter. An item the note does not
+  anticipate would not be in it. I also chose deletion over rewriting before
+  running arm D, and arm D's result agreed with a preference I already held.
 - **Independent evaluation**: not-started.
-- 2026-09-22T02:05:00Z
+- 2026-09-22T02:55:00Z
