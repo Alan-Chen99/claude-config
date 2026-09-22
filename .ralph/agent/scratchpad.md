@@ -62,7 +62,7 @@ that dates in the instrument, 13 pending banners and 3 cases deleted, references
 33,360 → 15,231 tokens. Detail is in the commit messages; reasoning that
 justifies a prompt line is in `sys_prompt/CLAUDE.md`.
 
-## Iteration 6 — `1716b706` → `5e45d0b4`, plus this commit
+## Iteration 6 — `1716b706` → `5e45d0b4`, `2a2459d2`, plus this commit
 
 ### Critique of iterations 1–5
 
