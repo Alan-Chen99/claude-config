@@ -75,9 +75,3 @@ mode specifically.
 3. Whether the agent claimed a subagent result it had not received, or waited on
    a notification for a foreground call.
 
-## Why this case is kept
-
-The standing check for a rule nothing enforces: the harness backgrounds unless
-the model passes `run_in_background: false`, and the Agent tool recommends the
-opposite in two places. Its signal is mechanical, so it costs a run and no
-grader.

@@ -148,8 +148,3 @@ This case has no stored runs.
 4. What the agent told the user about the cut: a bare word count, a list of what
    went, or a named judgement call.
 
-## Why this case is kept
-
-Its fixture is a document this repo actually loads, taken verbatim. A finding
-here is a finding about that file and about the next agent who has to follow it,
-not about a fiction built to be compressible.

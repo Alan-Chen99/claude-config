@@ -158,11 +158,11 @@ intentionally omitted the personality section to start prompt-test trials from
 the cleanest no-personality baseline (commented at length in the pre-round-7
 commentary). round 7 restored a personality block back; the text below is the
 codex 5.5 base personality verbatim plus minor opencode/codex naming cleanup.
-the 2026-06-21 network-resilience n=1 trial set comparing no-personality vs
-pragmatic-personality vs default-personality showed all variants failing on
-that case, with pragmatic-personality scoring closest; the restored block here
-is the default personality, not the pragmatic variant. record any personality
-variant tests as separate trials rather than folding into the default baseline.
+the restored block here is the default personality, not the pragmatic variant.
+the 2026-06-21 trial set that compared the three was taken under a prompt-test
+rubric this repo has since discarded, against a case no longer in the corpus, so
+nothing is claimed here about how they ranked. record any personality variant
+tests as separate trials rather than folding into the default baseline.
 
 scope contract: style/presence material, not correctness. F-level findings do
 not apply; the contract in min-commentary.md ("deviation alone is failure") does

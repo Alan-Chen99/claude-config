@@ -44,10 +44,3 @@ have been. Then, for each of the four:
   has no end and one should not be a rule. Uniformity is the failure that reads
   as care.
 
-## Why this case is kept
-
-Four items of differing character in one fixture, which is what makes a single
-run readable as a policy rather than a draw — and the only case where the
-material contains both a premise the agent can falsify on the spot and one it
-cannot check at all. `sys_prompt/CLAUDE.md`'s retirement condition for the
-`Say what ends it` bullet names a re-run here, so a later round needs it.

@@ -32,5 +32,8 @@ when the container is rebuilt. The artifact is the record; its `@L` references
 are provenance for whoever wrote it, not a pointer a later reader can follow.
 
 A judgement is not comparable across runs and never aggregates into a pass rate.
-Delete the stored runs of a case whenever its reference or its fixture changes,
-rather than keeping artifacts that measure something the case no longer is.
+Delete a case's stored runs when its **instrument** changes — fixture, task text,
+or foci — rather than keeping artifacts that measure something the case no longer
+is. A reference edit is not that: it invalidates the judgements taken under it and
+leaves the artifacts standing, which is what keeps the record that the case was
+re-run from being destroyed by the round that improved its wording.

@@ -82,8 +82,14 @@ it; no critique in the abstract.
 **Overriding a criterion costs a written claim** in phase 2: the reference text,
 the evidence, the repair. The owner then applies it to `reference-solution.md` or
 records the rejection — never before the run is recorded, and the pre-edit
-judgement stays. A reference edit breaks comparability with stored runs exactly
-as a foci change does, so it cites the run that forced it.
+judgement stays.
+
+What breaks comparability is a change to the **instrument** — the fixture, the
+task text, or the foci. A reference is guidance handed to a grader, so editing it
+invalidates the judgements taken under it and leaves the run's artifacts intact;
+the new judgement cites the run that forced the edit. Treating every reference
+edit as a fixture change would delete the only record that a case was ever
+re-run, on the round that improved its wording.
 
 Store at `prompt-tests/runs/<case>/judgement-<arm>.md`.
 
@@ -120,10 +126,36 @@ actually needs, and it costs a fraction of a case, so a round can afford to
 re-read its own result and to run a second probe when the first one surprises it.
 
 A **case** — `reference-solution.md`, a grader per arm, foci, stored runs — is
-the exception, and it earns that by being re-run across rounds. A probe that a
-later round needs to re-run is promoted to one; otherwise it is deleted with the
-round that wrote it. Keeping an un-promoted probe is the ratchet this repo is
-against: a directory nobody re-runs, that only a human will ever remove.
+the exception. A probe that a later round needs to re-run is promoted to one;
+otherwise it is deleted with the round that wrote it. Keeping an un-promoted
+probe is the ratchet this repo is against: a directory nobody re-runs, that only
+a human will ever remove.
+
+**A case is kept only while `sys_prompt/CLAUDE.md` names it.** A retirement
+condition there says what observation would end a prompt line; the case is where
+that observation gets made, so the condition names the case and the case needs no
+argument of its own. One grep decides:
+
+```bash
+for c in prompt-tests/general/*/; do
+  grep -qF "prompt-tests/general/$(basename "$c")" sys_prompt/CLAUDE.md || echo "unowned: $c"
+done
+```
+
+Anything it prints is deleted by the round that runs it, and the corpus can then
+never outgrow the prompt — the property a size limit would otherwise have to be
+set by hand to get. Deletion is not loss: `git checkout <sha> -- <path>` brings a
+case back, so a later round that finds it needs the fixture restores it in one
+command and no human is involved in either direction. Say so in the commit.
+
+A case the **user** asked for is approved content and this rule does not reach
+it; record the direction beside the condition it sits nearest, so the grep still
+finds it.
+
+A per-case argument for permanence — *the only case that does X* — is not one of
+these. It is a claim about the corpus rather than about the case, nothing a later
+round observes can falsify it, and deleting its neighbours makes it more true.
+Fifteen of them were written here and none survived contact with this grep.
 
 Delete it with `rm -r`, not `git rm -r`: running a fixture leaves gitignored
 artifacts (`__pycache__`) inside it, which `git rm -r` does not touch and

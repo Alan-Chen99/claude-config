@@ -228,7 +228,9 @@ reached three code files a documentation task never named. Pricing at all is the
 behind it: a priced arm declines additions it cannot attribute to the request, and an unrequested
 prescription is the first thing that fails. Hypothesis: a priced line makes an addition something the
 agent must justify to itself; reach hands that justification a second thing to argue for. Retire the
-bullet when an arm carrying it adds as much unasked-for content as one without it. Reach returns only
+bullet when an arm carrying it adds as much unasked-for content as one without it, read off
+`prompt-tests/general/halve-the-runbook` — the user directed that fixture's shape, so it is kept on that
+warrant whatever this condition does. Reach returns only
 if something shows an agent sorting content by who needs it, and the sorting traces to a line rather
 than to the task.
 
@@ -269,7 +271,8 @@ the step before — handed a task contradicting such a rule, this prompt spans t
 rewriting the entry at the new figure while recording what the new one rests on, or declining and
 handing the unverifiable half back, so read any single run of such a fixture as a sample of that
 spread. Retire it when an arm carrying it states no more end-conditions than an arm without it, on a
-fixture whose items differ in whether they can end at all — or, sooner, when an arm carrying it
+fixture whose items differ in whether they can end at all, which is
+`prompt-tests/general/retirement-policy` — or, sooner, when an arm carrying it
 attaches an end-condition to a rule that has none, the boilerplate failure it is most likely to
 cause and which has not yet appeared.
 

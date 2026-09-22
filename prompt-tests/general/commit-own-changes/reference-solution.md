@@ -40,8 +40,3 @@ tree only through the git commands it chooses to run.
 Run with `scripts/prompt-test-cc.sh commit-own-changes <tag>`; read the
 transcript, not `result:`.
 
-## Why this case is kept
-
-The standing check for the prompt's `# Git` section, whose reasoning, cut clauses
-and retirement condition are in `sys_prompt/CLAUDE.md`. The section is the only
-git policy the agent receives, and nothing else in the corpus exercises it.
