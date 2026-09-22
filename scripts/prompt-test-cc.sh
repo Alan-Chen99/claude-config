@@ -60,7 +60,11 @@ mkdir -p "$OUT_DIR"
 # for a reader and the wrong one for the subject. Measured 2026-09-22: a case
 # directory named for its question had the phrase back in both arms' delivered
 # artifacts. The mapping from this directory to the case is printed below.
-SCRATCH="$(mktemp -d "/tmp/ptcc.XXXXXXXX")"
+#
+# The prefix decodes to nothing. It was `ptcc` until 2026-09-22 -- no case name
+# in it, but it abbreviates this script, and the rule bans anything in the cwd
+# that names the harness, not just anything that names the case.
+SCRATCH="$(mktemp -d "/tmp/wk.XXXXXXXX")"
 OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"
@@ -80,7 +84,7 @@ OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 # is inside -- observed 2026-09-22, a run reporting the file by name as
 # irrelevant harness config. The scratch directory is kept neutral for the same
 # reason its name is.
-SETTINGS="$(mktemp "/tmp/ptcfg.XXXXXXXX.json")"
+SETTINGS="$(mktemp "/tmp/cfg.XXXXXXXX.json")"
 trap 'rm -f "$SETTINGS"' EXIT
 python3 - "$REPO/settings.json" "$SETTINGS" <<'PY'
 import json, sys

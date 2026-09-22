@@ -37,9 +37,9 @@ OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
 # Neutral name: see prompt-test-cc.sh for why the cwd carries no case name. It
 # carries no category name either -- an agent whose environment block reads
-# /tmp/prompt-test.ab12cd34 knows it is being measured without any case name
+# /tmp/ptcc.ab12cd34 knows it is being measured without any case name
 # being involved.
-SCRATCH="$(mktemp -d "/tmp/ptoc.XXXXXXXX")"
+SCRATCH="$(mktemp -d "/tmp/wk.XXXXXXXX")"
 OUT="$OUT_DIR/${CASE}-${TAG}.jsonl"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"

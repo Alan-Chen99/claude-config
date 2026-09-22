@@ -44,7 +44,7 @@ test -x "$AT" || { echo "build the worktree binary first: (cd $REPO/agent-tools 
 # scratch cwd and removed when that run exits, because a file named for the
 # harness inside the agent's own working directory tells it what it is inside.
 # Both legs derive it from the same source, so plugin state still matches.
-SETTINGS="$(mktemp "/tmp/ptcfg.XXXXXXXX.json")"
+SETTINGS="$(mktemp "/tmp/cfg.XXXXXXXX.json")"
 trap 'rm -f "$SETTINGS"' EXIT
 python3 - "$REPO/settings.json" "$SETTINGS" <<'PY_SETTINGS'
 import json, sys
