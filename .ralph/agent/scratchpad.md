@@ -30,15 +30,12 @@ form a later round can act on.
 opportunity for the behaviour under test yields a coin flip; several
 opportunities that *differ in character* yield the policy the agent applied.
 
-**Arms must differ in kind, not in degree.** *Wrote a second file or not*,
-*issued an imperative or not*, *fact present in the loaded file or not* are
-categorical and readable at n=1. A line count is a sample of the spread.
-
-**A pre-registered exclusion binds hardest when the excluded number turns out to
-be the only one favouring your prior.** Iteration 13 excluded line counts in
-advance, then found they were the sole evidence for the wording it was cutting.
-Recorded, not acted on. Reaching for it would have been a reading composed after
-the arms were in. *(iter 13)*
+**Categorical or it is not evidence, and the test applies per reading, not per
+table.** *Wrote a second file or not*, *issued an imperative or not*, *stated
+bare or sourced* are readable at n=1; a count is a sample of an unmeasured
+spread. Iteration 13 excluded line counts in advance, then read a file count in
+the same run — and the excluded number was the only one favouring its prior.
+Hardest where the excluded number is the one you want. *(iter 13, 14)*
 
 **A criterion written from the shape of the failure cannot score a good
 outcome.** Write what the good artifact looks like before what the bad one lacks.
@@ -51,6 +48,11 @@ pre-registered *reading* can be wrong. Withdrawing beats honouring.
 
 **Test the lines already shipped, not only the candidates.** A shipped line with
 a named, unmeasured harm outranks any new candidate.
+
+**When an instruction exists to compensate for a harness, fix the harness.** An
+`(instruction)` telling a later round to remember something is a rule nothing
+approves and only a human retires — the ratchet, reproduced inside the tool
+meant to police it.
 
 **A clause no fixture can exercise is not an open question; it is a deletion
 candidate with an outstanding test.** *(iter 13)*
@@ -115,3 +117,70 @@ Round 13 measured reach on two destinations, found no arm sorted by it, and cut
 it; it also deleted `platform-portability` and repaired three colliding case
 justifications.
 
+## Iteration 14 — `f2737a34` → `bac7b4ef` (+ this commit)
+
+### Critique of iteration 13
+
+**C1 (workflow, instrument).** Its probe had to plant a directory in the
+permanent case corpus, because all four runners resolved `<case>` only under
+`prompt-tests/general/`, so the skill's own rule that a probe leaves one README
+under `prompt-tests/runs/<probe>/` was unsatisfiable. What shipped instead was
+an `(instruction)` asking the *next* round to remember the second half — a thing
+that took no approval to add and a human to remove, which is the objective's
+sharpest clause, inside the instrument built to police it. Fixed at the cause: a
+`<case>` containing a slash is used as given, so a probe is one directory and one
+`rm -r`.
+
+**C2 (quality, admissibility).** It excluded R4 (lines added) as inside an
+unmeasured spread, then read R6 (code files edited: 3 / 0 / 1) as a ground for
+its cut. R6's B-vs-rest contrast is categorical and survives; its 3-vs-1 is the
+number R4 was excluded for. The verdict rested on a categorical null, so it
+stands; the method note above is amended.
+
+**C3 (fact, and this round's milestone).** `sys_prompt/CLAUDE.md` carried two
+retirement conditions beside `Claim less` and neither retired the bullet: one
+retired the *hedge-clause deletion*, the other the *line of inquiry*, and the
+latter named no comparison an arm can produce. The block's author applied `Say
+what ends it` to two of its three bullets and not to the third, leaving a line
+every session loads that nothing could end. Iteration 13 saw it was unexercised
+and handed it forward rather than running it.
+
+### The round's work
+
+Runner change (C1), then probe `ingest-notes`: an undocumented CSV-into-SQLite
+loader, `NOTES.md` for the next agent, six claim opportunities differing in
+character, two of them checkable defects verified before launch. Two arms, with
+and without the bullet. Record in `prompt-tests/runs/ingest-notes/README.md`.
+
+**Null on the marking criterion, and the one asymmetry ran against the bullet.**
+Both arms sourced rather than bare-stated the expiring values, neither hedged or
+dated one, both led with the checkable defects. The arm *without* the bullet ran
+a lock experiment to settle the one library claim that mattered and rewrote its
+own draft hedge once it had the answer; the arm *with* it settled the same claim
+by arithmetic and shipped it flat. A blind grader, told only that one line
+differed: *"These two documents do not differ on the decisive criterion."*
+
+**Shipped:** the bullet deleted. Prompt 6461 → 6438 `--api` tokens;
+`sys_prompt/CLAUDE.md` 7412 → 7372.
+
+**Pre-registration defect, recorded against itself.** Its four outcomes did not
+partition the space and its Mixed clause was directionless — read literally it
+would have kept the bullet on evidence against it. Withdrawn, not honoured.
+
+**Beware the tokenizer.** Rounds 3–13 sized the prompt with the *local*
+tokenizer, this one with `--api` (the repo prefers it for a prompt budget). Same
+two revisions: 4237 → 4220 local, 6461 → 6438 api. Earlier figures do not compare.
+
+### `(instruction)` for iteration 15
+
+1. Delete `prompt-tests/runs/ingest-notes/` unless you re-run that fixture.
+   Unconditional, and now one `rm -r`.
+2. **Round 15 is a cleanup round** (every fifth). The standing item is iteration
+   13's: fifteen cases under `prompt-tests/general/`, zero stored runs under the
+   current skill, and the loop spends its runs on probes. The skill now says a
+   case earns its status by being re-run — apply that to the corpus, or write
+   down why the inventory is worth its permanence.
+3. `Omit by default` and `Say what ends it` are the whole block now. Neither has
+   been run against an arm lacking it since `Say what ends it` shipped at round
+   9. Both carry retirement conditions; both are now the oldest unexercised
+   lines here, and the block is small enough to test whole.

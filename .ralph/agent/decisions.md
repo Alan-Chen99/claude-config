@@ -4,18 +4,16 @@ Compressed to durable content. Full reasoning lives where it survives this loop:
 commit messages, `sys_prompt/CLAUDE.md` for anything justifying a prompt line,
 and each case's `prompt-tests/runs/<case>/README.md`.
 
-**Closed, discharged, no longer re-argued.** DEC-001–006 (superseded or folded
-into the scratchpad's durable method). **DEC-007** — price by reach (iter 3),
-**reversed by DEC-020**. **DEC-008** — delete the `Claim less` hedge endorsement rather than price
-it (iter 4, shipped). **DEC-009/010** (one description per case; measure
-maintenance then ship no line), **DEC-011/012** (the uncertainty-transfer line:
-the node is premise provenance, not wording — neither shipped), **DEC-013** (ship
-`Say what ends it`, iter 9), **DEC-014/015** (spent), **DEC-016** (kill the
-copy-pricing line on its mechanism: new facts ride into a rewrite, so "before
-adding a copy" names an act that never occurs), **DEC-017** (delete stored runs
-that state no retirement condition). Framing bias recorded on all: each fixture
-was written from the shape of the line its round intended to test. Independent
-evaluation: not-started on all.
+**Closed, discharged, no longer re-argued.** DEC-001–006 (superseded or folded into the
+scratchpad's durable method). **DEC-007** price by reach (iter 3), reversed by DEC-020.
+**DEC-008** delete the `Claim less` hedge endorsement (iter 4, shipped; the whole bullet
+went at iter 14). **DEC-009/010** one description per case; measure maintenance then ship
+no line. **DEC-011/012** the uncertainty-transfer line — the node is premise provenance,
+not wording; neither shipped. **DEC-013** ship `Say what ends it` (iter 9). **DEC-014/015**
+spent. **DEC-016** kill the copy-pricing line on its mechanism: new facts ride into a
+rewrite, so "before adding a copy" names an act that never occurs. **DEC-017** delete
+stored runs stating no retirement condition. Framing bias on all: each fixture was written
+from the shape of the line its round meant to test. Independent evaluation: not-started.
 
 ## DEC-018 — keep `Omit by default` after adversarial testing (iter 12, conf 84) — **half superseded by DEC-020**
 - Kept on measurement that the relocation harm it shipped with cannot occur on a
@@ -79,24 +77,29 @@ evaluation: not-started on all.
 - **Independent evaluation**: not-started.
 - 2026-09-22T06:45:00Z
 
-## DEC-022 — the round's milestone is the incumbent `Claim less`, not the corpus (iter 14, conf 85)
-- **Chosen**: probe `Claim less` with an arm that lacks it, and act on the result.
-- **Alternatives**: cut the fifteen never-run cases (iter 13's instruction 2) —
-  rejected: it advances the instrument and not the prompt, and the contract
-  forbids spending a whole milestone on the instrument without an arm against
-  the prompt; add a line reaching deletion-during-edit — rejected: adding needs
-  the test the incumbent has never had, and adding before subtracting is the
-  ratchet itself.
-- **Reasoning**: it is the one line in the block with no measured behaviour AND
-  no retirement condition — the two conditions beside it in sys_prompt/CLAUDE.md
-  retire the hedge-clause deletion and the line of inquiry, neither the bullet.
-  A line every session loads that nothing can end is the objective's sharpest
-  clause instantiated in the file this loop owns.
-- **Re-evaluate**: if the probe is a null and a later round finds claim
-  discipline degraded in the wild, the redundancy reading was wrong and the
-  other epistemic rules were not carrying it.
-- **Framing bias**: I chose a milestone whose pre-registered null shortens the
-  prompt, which is the direction I am rewarded for. The keep and cut-on-harm
-  outcomes were written before the arms launched to bound that.
+## DEC-022 — test the incumbent `Claim less`, then delete it on a null (iter 14, conf 86)
+- **Chosen**: probe the bullet against an arm without it, and delete it; the
+  pre-registration's Mixed clause withdrawn in the run README as directionless.
+- **Alternatives (milestone)**: cut the fifteen never-run cases — rejected, it
+  advances the instrument not the prompt, and the contract forbids a whole
+  milestone on the instrument with no arm against the prompt; add a line reaching
+  deletion-during-edit — rejected, adding before subtracting is the ratchet.
+- **Alternatives (verdict)**: honour Mixed literally and keep the bullet —
+  rejected, the clause assumed a parting at I3 would favour the bullet and it
+  favoured the arm without it, so honouring it keeps a line on evidence against
+  it; re-run at n=2 — rejected, the user's rule is n=1 with cross-domain cases
+  rather than replication, and no reading favoured the bullet.
+- **Reasoning**: it was the one line in the block with neither measured behaviour
+  nor any retirement condition — the two conditions beside it retire the
+  hedge-clause deletion and the line of inquiry, not the bullet. Keep needed a
+  policy across more than one of I1–I3 and got none; cut-on-harm needed weaker
+  controls in the bullet arm and they were equal and strong; a blind grader found
+  no difference on the decisive criterion.
+- **Re-evaluate**: if doc errors from unverified background claims rise in this
+  repo's own output, the redundancy reading was wrong and the prompt's other
+  epistemic rules are not carrying it.
+- **Framing bias**: I wrote a pre-registration whose null shortens the prompt and
+  then found a null. The blind grader is the only reader here who did not know
+  what was tested; it found the I3 asymmetry independently.
 - **Independent evaluation**: not-started.
-- 2026-09-22T07:00:00Z
+- 2026-09-22T07:15:00Z

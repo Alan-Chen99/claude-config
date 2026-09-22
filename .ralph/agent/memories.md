@@ -2,6 +2,10 @@
 
 ## Patterns
 
+### mem-1790060184-3e6c
+> A prompt line asking for a DISPOSITION ('think before claiming') does not produce one. Four wordings in Writing for other agents aimed at claim-handling; the last was run against an arm without it on a task that is nothing but claims, and neither document marked what it asserted differently. The arm WITHOUT it ran an experiment to settle the one library claim that mattered and rewrote its own draft hedge; the arm with it settled the same claim by arithmetic and shipped it flat. Why: what discharges an unverifiable premise is an action (run the code), which the prompt asks for elsewhere operationally; a disposition-line adds a thing to argue about instead of a thing to do.
+<!-- tags: sys-prompt, writing-for-agents, prompt-design | created: 2026-09-22 -->
+
 ### mem-1790057525-b4a8
 > A pre-registered READING can be wrong, not just the candidate. Iteration 12 pre-registered 'A approx B means the reach clause is inert' and withdrew it in the record: the fixture offered one plausible home for the new fact, so the reach clause never had two destinations to choose between. Withdraw the reading in the run's own README rather than honour it - a pre-registration binds you to report the outcome, not to accept an inference its fixture cannot support.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
@@ -32,23 +36,11 @@
 > A shipped prompt line with a named, unmeasured negative effect outranks any new candidate line as a round's milestone: it is already charging every session and only a human can remove it, and testing the incumbent is the only move that can shrink the prompt. Omit by default's relocation harm sat named-but-unmeasured for eight rounds while five rounds probed lines that did not exist.
 <!-- tags: sys-prompt, workflow | created: 2026-09-22 -->
 
-### mem-1790055493-2a80
-> Three files stated the prompt-testing design (prompt-tests/CLAUDE.md, .claude/skills/prompt-tests/SKILL.md, docs/prompt-testing-design.md) and had drifted to contradictory reading commands. Split applied iter 10: the skill carries instructions, the design doc carries reasoning, and prompt-tests/CLAUDE.md carries only the rule about itself, because it auto-attaches on the Read path.
-<!-- tags: prompt-tests, documentation | created: 2026-09-22 -->
-
 ## Fixes
 
 ### mem-1790058735-2e30
 > agent-tools run --hide-cmdline hides the wrapper's argv only. The wrapped command is a separate process and its /proc/<pid>/cmdline is untouched, so a prompt-test arm's case name and arm letter stay readable there. Keep identifying words out of the command line, not only out of --desc.
 <!-- tags: tooling, contamination | created: 2026-09-22 -->
-
-### mem-1790055493-087f
-> prompt-test harness leaked its own identity into the tested agent's cwd for nine rounds: scripts/prompt-test-cc.sh wrote .prompt-test-settings.json into the scratch cwd and scripts/prompt-test-run.sh named the scratch dir /tmp/prompt-test.XXXXXXXX. The contamination rule banned the CASE name and nobody checked the CATEGORY name. Fixed iter 10; any arm stored before it is not comparable to one after.
-<!-- tags: prompt-tests, contamination | created: 2026-09-22 -->
-
-### mem-1790054436-b281
-> install.sh writes only absolute links outside the repo, so running it from a worktree redirects ~/.claude, ~/.local/bin and the canonical venv's editable .pth to that worktree. It now refuses (ALLOW_WORKTREE_INSTALL=1 escapes). Repair if it happens again: repoint every symlink under ~/.claude, ~/.local/bin and ~/.config/systemd/user, plus _editable_impl_claude_config.pth and direct_url.json in ~/.claude/venvs/claude-config.
-<!-- tags: tooling, worktree, install | created: 2026-09-22 -->
 
 ### mem-1790048869-2e87
 > A session-analysis subagent dispatch can die instantly with 'safeguards flagged this message ... Details: [reasoning_extraction]' - twice on one transcript while an identical brief on a sibling transcript succeeded, so it is content-dependent and retrying the same dispatch does not help. Substitute: python over the .jsonl emitting only assistant 'thinking' and 'text' blocks. A 74-line, 330KB transcript yields 9KB, which is cheaper than the artifact and uniform across arms.
