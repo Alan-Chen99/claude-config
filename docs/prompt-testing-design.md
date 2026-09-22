@@ -21,13 +21,17 @@ exists.
 
 **Measured, twice in this suite's own record:**
 
-- `general/trivial-task`'s bands classified a compliant run one notch below
-  `pass` on 2026-08-23 and again on 2026-09-04. Both trials recorded that the
-  band was probably narrower than the invariant. The bands are unchanged.
-- `payments-relay/key.md` (until 2026-09-18 `general/halve-the-runbook/reference-solution.md`) reached its present form by
-  post-hoc criticism from real outputs ("The case has been conflating two senses
-  of recoverable"). It is the suite's best rubric and it got there by the
-  mechanism this design makes routine.
+- `general/trivial-task`'s pass bands classified a compliant run one notch below
+  `pass` on two separate trials, each of which recorded that the band was
+  probably narrower than the invariant. The bands outlived both trials and were
+  deleted on 2026-09-22 with every other band in the suite.
+- The suite's best rubric, the fragment catalogue behind the pre-2026-09-18
+  `general/halve-the-runbook`, reached its form by post-hoc criticism from real
+  outputs — "The case has been conflating two senses of recoverable" — which is
+  the mechanism this design makes routine.
+
+Neither record is in the tree any more; both are in git history, deleted with
+the practice they document.
 
 ## The projection problem
 
