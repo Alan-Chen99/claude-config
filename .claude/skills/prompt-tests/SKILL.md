@@ -155,14 +155,20 @@ set by hand to get. Deletion is not loss: `git checkout <sha> -- <path>` brings 
 case back, so a later round that finds it needs the fixture restores it in one
 command and no human is involved in either direction. Say so in the commit.
 
-**The grep is necessary, not sufficient: read what the match says.** Only two
-kinds of sentence own a case — a retirement condition, and a user direction
-recorded beside the condition it sits nearest. A sentence naming the case as the
-place a past run happened is neither: provenance is a statement about what
-already occurred, so nothing a later round observes can falsify it, and one such
-line pins a directory for as long as the paragraph stands. Where a case's only
-match is provenance, either the paragraph stops naming it or the case is
-unowned.
+**The grep is necessary, not sufficient: read what the match says.** Three kinds
+of sentence own a case, and each says what a later round would *observe*: a
+retirement condition; a standing check, which says what re-running the case
+would catch going quietly wrong; and a user direction. A sentence naming the
+case as the place a past run happened is none of them — provenance is a
+statement about what already occurred, so nothing a later round observes can
+falsify it, and one such line pins a directory for as long as the paragraph
+stands. Where a case's only match is provenance, either the paragraph stops
+naming it or the case is unowned.
+
+Run it in the other direction too. A condition naming no case, or naming a
+fixture property no case has, cannot be observed either; it is a deletion
+candidate with an outstanding test, and the test is cheaper than the paragraph
+is long.
 
 A per-case argument for permanence — *the only case that does X* — is not one of
 these. It is a claim about the corpus rather than about the case, nothing a later
