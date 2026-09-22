@@ -71,7 +71,7 @@ silently. And prescribing less than the source costs efficiency, not correctness
 the floor is a reader with no document rediscovering the same things, slower. Which
 is why the cut is safe by default and each *keep* is what needs an argument.
 
-Applied: 7,239 → 4,390 tokens, 531 → 331 lines, no `# Pitfalls`-class content lost.
+Applied: 7,239 → 4,405 tokens, 531 → 335 lines.
 
 ### What the probe showed
 
@@ -111,5 +111,5 @@ no use for it, delete it rather than leaving it to be inherited.
 - `after-the-false-page` is still not runnable; it is the only case that measures a
   document *growing*.
 - `payments-relay/` is 12.9k words held alive by three citations.
-- `prompt-tests/CLAUDE.md` is 7,496 tokens and reaches every grader. The same
+- `prompt-tests/CLAUDE.md` is ~7,500 tokens and reaches every grader. The same
   compression rule applies to it and has not been run.
