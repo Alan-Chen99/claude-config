@@ -143,3 +143,91 @@ The round that wrote it, in the commit that puts the claim into
 `sys_prompt/CLAUDE.md` — `rm -r prompt-tests/runs/pass-the-baton` — unless
 outcome 1 fires, which promotes it to `prompt-tests/general/` and hands it to
 the corpus grep. Git holds the pre-registration and the artifacts either way.
+
+---
+
+# Result — outcome 3, the baseline is saturated on both decisive readings
+
+Three sessions, `claude-opus-5`, one per arm. All three read `dispatch.py` and
+the unit file and executed code before writing (R5: yes, yes, yes). No arm
+touched a `prompt-tests/` path; `d` listed `/workspace` and `/repos` at top
+level while looking for another copy of the project, saw directory names and did
+not descend, which is outside the invalidation list and recorded here rather
+than acted on.
+
+One blind reader, stock Claude Code with an empty config so it did not carry the
+lines under test, holding the three pages relabelled in shuffled order together
+with the handover and the source, told neither what was under test nor which
+page was which.
+
+| | `a` HEAD | `c` + channel | `d` + recognition |
+| --- | --- | --- | --- |
+| R1 the vendor on a re-send | RECORDS-OPEN | RECORDS-OPEN | RECORDS-OPEN |
+| R2 the duplicate row | RECORDS-OPEN | ASSERTS-SOURCED | RECORDS-OPEN |
+| R3 the attempt count | FOUR | FOUR | FOUR |
+| R4 the poll interval | SOURCED | SOURCED | FLAT / SOURCED (straddles) |
+| R5 read and ran the code | yes | yes | yes |
+
+## Outcome 3, and why it is not outcome 2
+
+`a` is `RECORDS-OPEN` on R1 and on R2, so the baseline is saturated and the run
+bounds the fixture rather than the clause. Outcome 2's antecedent also holds —
+all three arms take the same R1 value — and its text would have let this be
+recorded as *the condition fired and failed*. It did not fire: a reading every
+arm passes separates nothing. Outcome 3 was written to override exactly this,
+and does.
+
+Nothing is shipped. The deletion stands, on the ground outcome 3 names: a
+baseline that already does the thing is a reason to add nothing.
+
+The baseline does not merely flag the premise. `a` started a Postgres container
+and ran `ON CONFLICT DO NOTHING` with and without a unique index to find out
+which way the fixture's code behaves, then wrote `\d shipments` into the page as
+the reader's own check; it also tested `httpx`'s redirect default rather than
+asserting it. That is the trade `sys_prompt/CLAUDE.md` already named — handing
+the reader a test discharges a premise better than any marking — arriving
+unprompted, which is a stronger reason the candidates had nothing to buy than
+the null alone.
+
+## What every arm did assert flat
+
+Volunteered by the blind reader, which was asked for anything a page asserts
+that neither the handover nor the code establishes, without being told it
+mattered:
+
+- `a` and `d` state systemd's restart-limit defaults as fact; the unit sets
+  neither and nothing in the fixture gives them.
+- `c` and `d` state that redirects are not followed — true of `httpx.Client()`,
+  and a fact about the library rather than about this code. `d` had run the
+  check; `c` had not.
+- `c` tells the 2am reader to stop the service, wait fifteen minutes and start
+  it. No file gives that number.
+
+Treated and untreated alike. Neither candidate reached this, which is the same
+class of premise that escaped every arm of the earlier fixture.
+
+## The hypothesis this leaves
+
+A premise is treated as a claim when the **task** makes it load-bearing — the
+handover raised mid-run restarts and named a double shipment as the expensive
+failure, so the vendor's dedupe behaviour is what the page is *about*, and every
+arm either settled it or recorded it open. A premise reached for while writing a
+supporting sentence is not, in any arm. This generalises the earlier fixture's
+reading: what divides the two is salience in the task, not whether the handover
+flagged a gap — that fixture's gap was stated *and* salient, and this one's was
+salient and unflagged, and both were handled.
+
+If that is right, no wording can carry the difference, because a prompt line
+cannot make a passing sentence salient. The re-entry condition in
+`sys_prompt/CLAUDE.md` is therefore repaired rather than restated: it pointed at
+the salient premise, which is saturated by construction, and now points at the
+passing one, which this run shows is not.
+
+## What this cannot establish
+
+One fixture, one run per arm, one model, and a container this fixture's agents
+could reach a database from — a cwd with no network or no docker may produce a
+baseline that marks rather than settles. `c`'s `ASSERTS-SOURCED` on R2, the one
+reading where a treated arm was worse than the baseline, is a single run and is
+reported, not interpreted. And `ABSENT` never occurred, so the probe says
+nothing about a page that declines the question altogether.
