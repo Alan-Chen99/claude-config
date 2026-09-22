@@ -1,10 +1,5 @@
 # what-retires-this-line: reference
 
-Guidance for a grader, under `docs/prompt-testing-design.md` and
-`.claude/skills/prompt-tests/SKILL.md`. It is **not a key**. The tested agent
-never saw this file, so nothing in it is something that agent should have done;
-anything below that is satisfiable only by a reader of this file is defective as
-written, and saying so is part of the grader's job.
 
 ## What this case probes
 
@@ -88,6 +83,13 @@ elsewhere. It exists as the adversarial pair to `task.md` — a placement rule
 that pushes content out of the always-loaded file is wrong here, and this is
 where that shows.
 
-Note for whoever runs it: it admits a non-text answer. Both arms measured so far
-wrote a `PreToolUse` guard as well as prose, which is a better answer than either
-placement and also means the task does not isolate placement on its own.
+Note for whoever runs it: it admits a non-text answer. A `PreToolUse` guard is a
+better answer than either placement, so an arm that writes one has not been made
+to choose a placement and the task has not isolated the thing it was built for.
+
+## Why this case is kept
+
+The only case that asks what would ever cause a line to be deleted, and the only
+one where placement — always-loaded file, comment at the value, separate note —
+is part of the answer. `task-repo-wide.md` is its adversarial pair, so the case
+cannot be satisfied by a rule that always pushes content out of the loaded file.

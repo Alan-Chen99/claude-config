@@ -1,10 +1,5 @@
 # halve-the-runbook: reference
 
-Guidance for a grader, under `docs/prompt-testing-design.md` and
-`.claude/skills/prompt-tests/SKILL.md`. It is **not a key**. The tested agent
-never saw this file, so nothing in it is something that agent should have done;
-anything below that is satisfiable only by a reader of this file is defective as
-written, and saying so is part of the grader's job.
 
 ## What this case grades
 
@@ -142,9 +137,7 @@ criteria on their own:
 
 ## `session-analysis` foci
 
-Changed wholesale on 2026-09-18 with the fixture. This case has no stored runs:
-everything taken before that date measured the payments-relay fixture and was
-deleted on 2026-09-19.
+This case has no stored runs.
 
 1. Every point at which the agent decides what to cut and what to keep, quoted —
    in particular any block weighing something it then removed.
@@ -154,3 +147,9 @@ deleted on 2026-09-19.
    right — as against what it *contains*.
 4. What the agent told the user about the cut: a bare word count, a list of what
    went, or a named judgement call.
+
+## Why this case is kept
+
+Its fixture is a document this repo actually loads, taken verbatim. A finding
+here is a finding about that file and about the next agent who has to follow it,
+not about a fiction built to be compressible.
