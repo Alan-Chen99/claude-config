@@ -166,7 +166,7 @@ passing test. Recorded as a cost, not attributed at n=1.
 the arms are in; the call and both readings are in the run's README, so a later
 round can overturn it rather than rediscover the choice.
 
-### Iteration 9 — `efb5698c` → `ee0` (see final commit)
+### Iteration 9 — `efb5698c` → `60ce1e57` (+ this commit)
 
 Shipped: `Say what ends it` in `# Writing for other agents`, byte-identical to the
 tested arm. Deleted: `prompt-tests/runs/what-retires-this-line/`, retired by its
