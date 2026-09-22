@@ -6,10 +6,6 @@
 > Agents discharge an unverified claim into the CONVERSATION and leave it standing in the FILE. Four of four arms named a vendor premise as unverified in the same turn they shipped a document asserting it, and two wrote a required-notes line arguing that reporting it is the correct discharge of the hook's never-reply-with-uncertainties gate. Why: every rule that fires on an unverified claim (uncertainties field, the hook's do-more-verification, Epistemic Integrity's escalate) names the reply as the place it goes; none names the artifact, which is the channel that outlives the session. This is the mechanism behind doc errors that need human intervention to remove.
 <!-- tags: sys-prompt, docs | created: 2026-09-22 -->
 
-### mem-1790051243-1fbe
-> Before reading ANY between-arm difference at n=1, establish the BASELINE'S SPREAD. On uncertainty-channel two samples of the shipped prompt handled the same uncheckable premise oppositely - one wrote an instruction resting on it that misdirects the reader, one marked it unverified and said what to do if it failed. A difference inside that spread is sampling. Corollary for earlier rounds: a null from 1 run per arm where the arms AGREED is weak evidence of inertness too, because agreement was never shown to be the baseline's normal state. A null needs the baseline's spread stated next to it, not just a second phrasing of the question.
-<!-- tags: prompt-tests, verification | created: 2026-09-22 -->
-
 ### mem-1790049715-735a
 > An agent handed a subject rewrites everything about THAT subject and little about any other; a task that only licensed an ADDITION swept the named subject the same way, so the correction licence is not what decides it. Measured on doc-succession, 4 runs. Do not overstate the other half: of the fixture's regions outside the subject only two were actionable defects, and one arm fixed one of them, so 'nothing outside the subject moves' is a tendency with n=4, not a law - and two regions an earlier note counted as missed were correctly left alone (one agrees with the script, one is unverifiable but unrefuted, so deleting it would be deleting on no evidence).
 <!-- tags: docs, sys-prompt, prompt-tests | created: 2026-09-22 -->
@@ -49,10 +45,6 @@
 <!-- tags: docs, ratchet | created: 2026-09-22 -->
 
 ## Fixes
-
-### mem-1790051243-01c9
-> A rule delivered through a TOOL RESULT (the pre_output.record hook's system-reminder) cannot explain anything the agent wrote before its first call to that tool. Measured: an arm run to test a new hook line wrote the exact prescribed sentence at tool call 11, four calls before the gate at 15, and never revisited it - so that arm was a second sample of the baseline, not a treated arm. Any claim that a gate-delivered rule caused a behaviour must state the tool-call index of the behaviour and of the first gate call.
-<!-- tags: prompt-tests, verification | created: 2026-09-22 -->
 
 ### mem-1790049019-ea46
 > uv run pytest has one pre-existing failure unrelated to this loop: tests/test_install.py::test_install_links_opencode_config, install.sh exit 127, stderr 'install.sh: line 68: basename: command not found'. The test runs install.sh with a PATH that has no coreutils; the basename call arrived in 2361c036 (2026-09-13), before this loop. 807 pass, 3 skip, ~57s. Do not re-diagnose it, and do not read it as caused by a round's changes - no test under tests/ references prompt-tests/, sys_prompt/ or .ralph/.
