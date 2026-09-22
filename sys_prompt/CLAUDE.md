@@ -218,14 +218,15 @@ size — which would mean the MCP surface has grown into the case #45357 describ
 
 ### `# Writing for other agents`
 
-**`Omit by default` is deleted: on `prompt-tests/general/halve-the-runbook` an arm carrying it and
+**`Omit by default` is deleted: on the compression case an arm carrying it and
 one without it were indistinguishable, each making an unrequested false claim.** Its
 reach half went earlier for the same reason: what the wording bought was attention to readership,
 and attention argues in whichever direction the task favours. Hypothesis: the failure it names is
 not an act the agent performs — a document acquires a claim while a sentence is being written, not
 at a moment where adding could be declined. Bring it back when a transcript shows an agent
 declining a specific addition as costing more than it is worth, the reasoning tracing to a line
-rather than the task. The fixture stays whatever this says: the user directed its shape.
+rather than the task. `prompt-tests/general/halve-the-runbook` stays whatever this
+says, on the user's direction: the user set that fixture's shape.
 
 **The task's subject bounds the edit. That is where growth hides, and why no bullet here reaches
 it.** Within the subject an agent is exhaustive — a fact is grepped out of every place it appears

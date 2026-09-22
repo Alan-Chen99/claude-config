@@ -111,7 +111,7 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–18, `9f6c03a0` → `5c185783`
+## History — rounds 1–19, `9f6c03a0` → `cf8f2dac`
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — the durable
 home, and the file to read before touching the block. Everything else is in the
@@ -119,80 +119,49 @@ commit messages. Shipped: `Say what ends it` (9, isolated 19); the case corpus
 bound to the prompt by one grep, eleven of fifteen cases deleted (15). Deleted:
 `Omit by default` (13, 17), `Claim less` (4, 14). Seven candidate wordings failed
 (3–8, 12, 14, 16, 18). Round 10 fixed a nine-round harness contamination and
-voided every arm stored before 2026-09-22. 18 also isolated the block's
-preamble, on a case it left behind at `prompt-tests/general/inherited-project`.
+voided every arm stored before 2026-09-22. 18 isolated the block's
+preamble (kept) on `prompt-tests/general/inherited-project`, and 19 isolated
+`Say what ends it` (kept) on `prompt-tests/general/retirement-policy`, so every
+sentence still in the block has now been measured alone.
 
-## Iteration 19 — `5c185783` → `7f54493f` + this commit
+## Iteration 20 — `cf8f2dac` → end of round
 
 ### Critique of prior iterations
 
-**C1 (workflow — a hard user budget unmeasured and breached for two rounds).**
-`.ralph/agent/*` ≤ 6000 tokens is a user rule and nothing here ever ran the
-command that checks it: 5926 at 16's end, 6118 at 17's, 6122 at 18's. Two rounds
-grew the directory past the ceiling while writing about unbounded documentation.
-Cut here, and the check is now a `(contract)` line with the command in it —
-a rule with no command is what let two rounds miss it.
+**C1 (fact — *nothing is waiting on a measurement* is false).** 19's instruction
+says the block is fully accounted for. `sys_prompt/CLAUDE.md`'s claim-handling
+paragraph carries a re-entry condition naming *a fixture making one unflagged
+external premise load-bearing*, and no such fixture is in the tree. 19 applied its
+own stricter test in one direction only — case → is its condition observable —
+and never in the other, condition → does its observation point exist. A condition
+whose fixture nobody built is the same defect, and it is the one the objective's
+doc-errors bullet sits on.
 
-**C2 (fact — a claim withdrawn from one file, left standing in the file the next
-round actually reads).** 18 established that 16's *the genre supplies the frame
-and a prompt clause only competes with it* rests on a saturated baseline, and
-deleted the paragraph from `sys_prompt/CLAUDE.md`. The same conclusion survived
-verbatim in `.ralph/agent/memories.md`, which is auto-injected into every later
-round — so the withdrawal reached the file a round consults deliberately and
-missed the one it cannot avoid. Memory deleted; the contract's citer-sweep now
-covers claims, not only renames.
+**C2 (workflow — the ownership grep is satisfied by provenance).** *A case is kept
+only while `sys_prompt/CLAUDE.md` names it* was built so the corpus cannot outgrow
+the prompt. But the grep matches any mention, and three of five cases are matched
+by a sentence saying where a past run happened — a statement about what already
+occurred, which nothing a later round can falsify. One prose back-reference pins a
+directory for as long as the paragraph stands: the objective's own ratchet, inside
+the mechanism built to stop it. Fixed in the skill — the grep is necessary, not
+sufficient, and only a condition or a recorded user direction owns.
 
-**C3 (workflow — a probe promoted to a permanent case with no round deciding
-to).** 18's record opens *A probe*, and the skill it had just edited says a probe
-lives entirely in `prompt-tests/runs/<probe>/` so one `rm -r` ends it. The round
-instead put `task.md`, `fixture/` and `reference-solution.md` into
-`prompt-tests/general/inherited-project/`, then named that path in two
-`sys_prompt/CLAUDE.md` retirement conditions, which makes the ownership grep keep
-it indefinitely: added without approval, removable only by a human — the
-objective's own ratchet, built by the round whose milestone was the ratchet. The
-case stays, since the conditions need it, but its existence is not a promotion
-argument, and the `(contract)` above stops the record half recurring.
+**C3 (workflow — the rule was written, the instance it was written about was
+left).** 19 added *a probe's own directory is deleted by the round that wrote it*
+and left `prompt-tests/runs/inherited-project/README.md` standing, a probe by its
+own first two words, carrying a deletion condition of exactly the deprecated
+form — *the round that retires or rewrites the preamble*. Its body is run
+narrative, which the user's rules make uncitable across rounds anyway. Deleted
+here. Same shape as 19's own C2: a rule reached the file the round was editing and
+not the instance beside it.
 
 ### Why this milestone
 
-`Say what ends it` is the only line this loop has ever shipped and the only one
-never isolated: round 15 measured it inside a three-bullet block that no longer
-exists, against an arm with no block at all, so the difference it recorded could
-have been the preamble's — which 18 then measured separately and kept. With the
-block down to a preamble and one bullet, the last unattributed measurement in it
-can be closed for the cost of two runs. This is not *largest untested* (C1 of
-round 18): the reason is that a shipped line charging every request on a
-confounded attribution is the only thing here that a round can both falsify and
-remove, and removal is what the objective asks for.
-
-### The round's work and result
-
-Two arms on `prompt-tests/general/retirement-policy`: HEAD, and HEAD minus the
-bullet with the preamble kept. Pre-registration at `2538b1ee`, run and blind
-judgement at `b71737f7`, claim at `4eae4b69`. The arms agreed on the two rows
-whose ends are observations and parted on the row whose end is a design change,
-which is the row the claim predicts; the bullet is kept, and its effect is now
-attributable to it rather than to the block round 15 measured.
-
-Pre-registered outcome 4's antecedent fired too — the treated arm applied one
-retirement template to all four rows, including the bare preference. Its harm
-did not: the blind reader preferred that arm's register on exactly that row. The
-outcome table let a keep and a retire fire together, which is a defect in the
-instrument and is recorded as one. The general lesson is in memory: uniformity
-of clause shape is not by itself the failure a reference may call it.
-
-### `(instruction)` for iteration 20
-
-1. Round 20 is the cleanup round by the every-fifth rule, and the block is now
-   fully accounted for: preamble isolated (18), bullet isolated (19), everything
-   else deleted. Nothing in `# Writing for other agents` is waiting on a
-   measurement.
-2. The `prompt-tests/general/` corpus is five cases for two prompt lines plus two
-   unrelated rules. Run the ownership grep in the skill; then ask of each
-   surviving case whether the condition naming it could ever be observed, which
-   is a stricter test than the grep and the one `halve-the-runbook` — owned only
-   by a paragraph about a deleted bullet — would have to pass. The user directed
-   that fixture's shape, so deleting the *case* needs the user; deleting a
-   condition that can never fire does not.
-3. `.ralph/agent/*` was over the user's 6000-token ceiling for two rounds. The
-   command is now in the contract. Run it before committing.
+C1 names the only thing in the block a later round is promised and cannot do. Five
+claim-handling wordings failed; the sixth (18's channel line) nulled on a baseline
+that was saturated because the fixture *stated* the gap, and the round wrote down
+what a fixture would need instead. Building it is what decides between *no line
+reaches claim-handling* and *no fixture has asked*, and until that is decided the
+paragraph is a standing invitation for a seventh wording. It is also the objective
+bullet with a measured mechanism behind it: the agent names the premise in the
+reply and ships the file asserting it flat.

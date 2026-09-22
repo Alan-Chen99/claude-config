@@ -155,9 +155,14 @@ set by hand to get. Deletion is not loss: `git checkout <sha> -- <path>` brings 
 case back, so a later round that finds it needs the fixture restores it in one
 command and no human is involved in either direction. Say so in the commit.
 
-A case the **user** asked for is approved content and this rule does not reach
-it; record the direction beside the condition it sits nearest, so the grep still
-finds it.
+**The grep is necessary, not sufficient: read what the match says.** Only two
+kinds of sentence own a case — a retirement condition, and a user direction
+recorded beside the condition it sits nearest. A sentence naming the case as the
+place a past run happened is neither: provenance is a statement about what
+already occurred, so nothing a later round observes can falsify it, and one such
+line pins a directory for as long as the paragraph stands. Where a case's only
+match is provenance, either the paragraph stops naming it or the case is
+unowned.
 
 A per-case argument for permanence — *the only case that does X* — is not one of
 these. It is a claim about the corpus rather than about the case, nothing a later
