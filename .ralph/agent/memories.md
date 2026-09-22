@@ -2,6 +2,10 @@
 
 ## Patterns
 
+### mem-1790065267-fe47
+> A round's own read of its deciding criterion is not reliable enough to decide it. Iteration 17 read two compressed runbooks for claims their source does not make, found one and missed two -- including the one in the arm it would otherwise have kept, which reversed the outcome. A single reader given the artifacts relabelled and the criterion, told neither what is under test nor which arm is which, found all three. Hypothesis: the round holds a prior about which arm should look better and reads the arm it expects to be clean less adversarially; a reader with no prior has nothing to protect. Make the blind read the result, not a check on a result already written.
+<!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
+
 ### mem-1790062999-53ee
 > Prompt-test genre effect: an agent asked for a handoff note invents a provenance vocabulary ([verified]/[inferred]/[unverified]) unprompted, under sys_prompt/alan-default-next.md at 0b6d8be4 and under that file plus a transcription clause alike; the same model asked for a CLAUDE.md constraints section flattens an owner's bare preference into the incidents beside it under a shared heading. Hypothesis: the destination's genre supplies the frame and a prompt clause competes with it rather than replacing it. So check whether the artifact type already produces a behaviour before writing a clause for it.
 <!-- tags: prompt-tests, writing-for-agents | created: 2026-09-22 -->
@@ -26,15 +30,11 @@
 > Agents discharge an unverified claim into the CONVERSATION and leave it standing in the FILE. Four of four arms named a vendor premise as unverified in the same turn they shipped a document asserting it, and two wrote a required-notes line arguing that reporting it is the correct discharge of the hook's never-reply-with-uncertainties gate. Why: every rule that fires on an unverified claim (uncertainties field, the hook's do-more-verification, Epistemic Integrity's escalate) names the reply as the place it goes; none names the artifact, which is the channel that outlives the session. This is the mechanism behind doc errors that need human intervention to remove.
 <!-- tags: sys-prompt, docs | created: 2026-09-22 -->
 
-### mem-1790045604-dc10
-> To discriminate hedging from verifying in a prompt test, put a FALSE AND CHECKABLE belief in the handover: the reporter states something about the repo that the fixture refutes in one read. Repeating it as a warning is hedging where checking was available; refuting it is verification. Pair it with an unexplained-but-load-bearing item as the control in the other direction, so an arm that drops everything unretirable also fails. Both directions live in one fixture, no second adversarial case needed.
-<!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
-
-### mem-1790041345-2f2f
-> Verify a doc compression with a differential probe, not a review: two fresh readers, one per version, same question ('what must you get right, what goes wrong if you miss it, would you notice'), no repo access. A reviewer who has read both versions knows the answer and cannot see a silently-removed trap. Cost: two single-turn subagents. It found one real loss and one contradiction.
-<!-- tags: docs, verification | created: 2026-09-22 -->
-
 ## Decisions
+
+### mem-1790065267-1153
+> Omit by default (any content you write has to earn its place) is deleted from sys_prompt/alan-default-next.md: run on a compression task against an arm without it, the arm carrying it made an unrequested claim of its own and the claim was false, exactly as the arm without it did, and the two were indistinguishable on wrote-a-second-file, annotated-its-own-compression and kept-the-load-bearing-qualifier. Hypothesis for why five rounds of wordings here produced nothing: the failure it names is not an act the agent performs -- a document acquires a claim while a sentence is being written, not at a moment where adding could be declined -- so a line asking for a disposition has no act to attach to.
+<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-22 -->
 
 ### mem-1790057525-9dcd
 > A shipped prompt line with a named, unmeasured negative effect outranks any new candidate line as a round's milestone: it is already charging every session and only a human can remove it, and testing the incumbent is the only move that can shrink the prompt. Omit by default's relocation harm sat named-but-unmeasured for eight rounds while five rounds probed lines that did not exist.

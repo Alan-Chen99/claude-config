@@ -40,9 +40,6 @@ Hardest where the excluded number is the one you want. *(iter 13, 14)*
 **A criterion written from the shape of the failure cannot score a good
 outcome.** Write what the good artifact looks like before what the bad one lacks.
 
-**A prose warning inside the thing it warns about does not stop a reader who has
-read it.** Convert to a refusal with an escape hatch; the refusal is checkable.
-
 **A pre-registered outcome names the channel it is read from**, and a
 pre-registered *reading* can be wrong. Withdrawing beats honouring.
 
@@ -102,6 +99,13 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > semantic claim, the hypothesis for it, and the retirement condition. Counts, arm
 > labels, byte deltas, dates and fixture descriptions belong to the run's own
 > README and to git.
+
+> **A round's decisive reading is made by a reader that is not the round.** One
+> reader, holding the artifacts relabelled and the criterion, told neither what is
+> being tested nor which arm is which — and its answer is the result, not a check
+> on one already written. Iteration 17's own read of its deciding reading found one
+> of three unsourced claims and missed the one in the arm it would have kept; the
+> blind read reversed the outcome. *(17)*
 
 > **An `(instruction)` asserting that work is undone states the command that
 > shows it.** Iteration 12 handed forward "no round has done this" about a user
@@ -163,3 +167,22 @@ readings are pre-registered instead.
 Two arms on the bullet's own named fixture, differing only in line 190.
 Pre-registration, readings, outcomes and result:
 `prompt-tests/runs/halve-the-runbook/README.md`.
+
+### The round's result
+
+**Outcome 2: `Omit by default` is deleted.** Readings, the blind instrument and the
+excluded numbers that argue against the deletion:
+`prompt-tests/runs/halve-the-runbook/README.md`. The semantic claim and the
+re-entry condition are in `sys_prompt/CLAUDE.md`.
+`prompt-tests/runs/retirement-policy/` went with it, by its own stated condition.
+
+The block is now one bullet and its preamble.
+
+### `(instruction)` for iteration 18
+
+1. `# Writing for other agents` has one bullet left and an untested preamble. Before
+   any new candidate, run the preamble sentence against an arm without it — it is
+   the largest untested thing in the block and nothing has ever isolated it.
+2. Do not re-add a line aimed at what an agent *adds*. Six wordings across rounds
+   3-17 aimed at claim-handling and at adding; all six are gone. The next candidate
+   here fires while a rules file is being written, or it is not written.

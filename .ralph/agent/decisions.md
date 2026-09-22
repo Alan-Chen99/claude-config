@@ -44,3 +44,30 @@ from the shape of the line its round meant to test. Independent evaluation: not-
   saturated baseline is the result I did not design for and is the whole finding.
 - **Independent evaluation**: not-started.
 - 2026-09-22T07:55:00Z
+
+## DEC-026 — delete `Omit by default` on a null at its own named fixture (iter 17, conf 78)
+- **Chosen**: run the bullet's pre-registered retirement fixture, read four
+  categorical readings, and ship the deletion the pre-registration named.
+- **Alternatives**: keep it on the excluded numbers — 2,455 words against 3,104
+  and one false claim against two, both favouring the bullet (rejected: counts
+  were excluded before launch and the exclusion was written to hold in exactly
+  this case; a round that reads an excluded number when it is the one favouring
+  its prior has no instrument left); keep it on my own read, which found the
+  unsourced claim in the arm without the bullet and missed the one in the arm
+  with it (rejected: the blind reader found all three, and that reader is the
+  instrument).
+- **Reasoning**: the bullet claims a priced agent declines an addition it cannot
+  attribute to the request. The arm carrying it added an unrequested claim and
+  the claim was false. On the three readings written for it the arms were
+  indistinguishable, and it charged 43 api tokens on every request for sixteen
+  rounds.
+- **Re-evaluate**: on a transcript showing an agent decline a specific addition
+  on cost grounds, traceable to a line rather than to the task. Restore with
+  `git checkout 7dec8051 -- sys_prompt/alan-default-next.md`.
+- **Framing bias**: I wrote the readings, and I wrote them knowing the bullet's
+  own claim — so they test what it says it does and not what it might do
+  instead. A compression task is also the genre where the pull to add is
+  weakest, which makes the null cheaper to reach than it would be elsewhere.
+- **Independent evaluation**: the blind claim-provenance read; not-started for
+  the deletion itself.
+- 2026-09-22T08:20:00Z
