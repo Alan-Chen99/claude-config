@@ -1,10 +1,8 @@
 # writing-for-agents loop3 — scratchpad
 
-## Where the objective bites
-
-The sharpest clause is *things that do not require explicit human approval to add,
-but require human intervention to remove*. Every other goal follows from that
-ratchet. The question to carry into every decision is **what retires this line**.
+The objective's sharpest clause is *things that do not require explicit human
+approval to add, but require human intervention to remove*; the rest follows from
+that ratchet. Carry **what retires this line** into every decision.
 
 ## Durable method, reusable across rounds
 
@@ -21,13 +19,13 @@ whichever direction the task favours. Measured twice on `Omit by default`'s reac
 wording: more readership reasoning, none of it reaching the clause's own
 conclusion. *(iter 13)*
 
-**A retirement condition names a comparison, not an observation.** "Retire this
-when an arm carrying the line does no better than one without it" is the only
-form a later round can act on.
+**A retirement condition names a comparison, not an observation** — *retire this
+when an arm carrying the line does no better than one without* is the only form
+a later round can act on.
 
-**Buy resolution inside the run, not across runs.** At n=1 a fixture with one
-opportunity for the behaviour under test yields a coin flip; several
-opportunities that *differ in character* yield the policy the agent applied.
+**Buy resolution inside the run.** At n=1 one opportunity for the behaviour under
+test yields a coin flip; several that *differ in character* yield the policy the
+agent applied, and their agreement is what makes the parting readable.
 
 **Categorical or it is not evidence, and the test applies per reading, not per
 table.** *Wrote a second file or not*, *stated bare or sourced* are readable at
@@ -35,17 +33,17 @@ n=1; a count is a sample of an unmeasured spread. Hardest to hold where the
 excluded number is the one you want. *(13, 14)*
 
 **A criterion written from the shape of the failure cannot score a good
-outcome.** Write what the good artifact looks like before what the bad one lacks.
+outcome.** Write what the good artifact looks like first.
 
-**Test the lines already shipped, not only the candidates.** A shipped line with
-a named, unmeasured harm outranks any new candidate.
+**Test the lines already shipped.** A shipped line with a named, unmeasured harm
+outranks any new candidate.
 
 **When an instruction exists to compensate for a harness, fix the harness.** An
 `(instruction)` telling a later round to remember something is a rule nothing
 approves and only a human retires.
 
-**A clause no fixture can exercise is not an open question; it is a deletion
-candidate with an outstanding test.** *(iter 13)*
+**A clause no fixture can exercise is a deletion candidate with an outstanding
+test, not an open question.** *(13)*
 
 **Before writing a clause for a failure, re-run the failure in a second genre.**
 If it disappears there, the target is the genre and not the wording, and a clause
@@ -105,9 +103,10 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > shows it.** Iteration 12 handed forward "no round has done this" about a user
 > ask that one grep refutes. *(13)*
 
-> **The round ends under the user's `.ralph/agent/*` ceiling and says the number.**
-> `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` — under 6000.
-> It sat over for two rounds because no line named a command. *(19)*
+> **The round ends under the user's `.ralph/agent/*` ceiling, with the number in
+> its last commit message** — not in a file here, where writing it changes it.
+> `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` < 6000. It sat
+> over for two rounds because no line named a command. *(19)*
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
@@ -123,7 +122,7 @@ bound to the prompt by one grep, eleven of fifteen cases deleted (15). Deleted:
 voided every arm stored before 2026-09-22. 18 also isolated the block's
 preamble, on a case it left behind at `prompt-tests/general/inherited-project`.
 
-## Iteration 19 — `5c185783` → `90b87539` + this commit; `.ralph/agent/*` 5988 tokens
+## Iteration 19 — `5c185783` → `7f54493f` + this commit
 
 ### Critique of prior iterations
 
