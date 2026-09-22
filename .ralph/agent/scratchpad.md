@@ -135,7 +135,7 @@ sixteen rounds; pre-registered null reached; bullet deleted. Detail in the commi
 messages and in `sys_prompt/CLAUDE.md`. Its critique of 15 and 16 stands except
 where iteration 18 overrides below.
 
-## Iteration 18 — `e13d1097` → (this round)
+## Iteration 18 — `e13d1097` → `2a6bf912` (+ this commit)
 
 ### Critique of prior iterations
 
