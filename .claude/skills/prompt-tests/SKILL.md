@@ -141,7 +141,7 @@ Historical baselines from the opencode era are at
    are the cross-run **diff** instrument, not the grading instrument: two
    artifacts are comparable line by line only if taken under the same foci. Skip
    them when nothing is being compared, and do not add foci to a case that has
-   none — 4 of 16 cases do. Where an arm ran several times, give one subagent all
+   none — 3 of 14 cases do. Where an arm ran several times, give one subagent all
    its runs and one focus. Cap each at ~500 words for a single-turn session, 600
    for an arm of three; the parent reads every artifact.
 

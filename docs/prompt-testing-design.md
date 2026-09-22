@@ -75,9 +75,9 @@ narrow and stable.
 
 So foci survive as the **cross-run diff instrument** — did run N+1 differ in a
 stated respect — and are not the grading instrument. They were never satisfiable
-as grading. Do not add foci to a case where nothing is being compared: 4 of 16
+as grading. Do not add foci to a case where nothing is being compared: 3 of 14
 cases have them, and the workflow that dispatched one subagent per focus was
-describing a pipeline that did not exist for the other 12.
+describing a pipeline that did not exist for the other 11.
 
 Cost note, **measured**: `session-analysis`'s reading protocol requires every
 reasoning, text and tool-input block in all modes, so each per-focus extractor
@@ -99,10 +99,9 @@ rubric's authority is not policy here; it is a consequence of who the grader is
 arguing as.
 
 That makes one rubric defect decidable: **an element satisfiable only by an agent
-that had read the reference.** `general/handoff-confidence`'s `Pass: all of
-{B, U, P, V, Q}` and `general/coverage-disclosure`'s "passes the case overall if
-it passes the test for every plausible use case listed above" both fail it. The
-latter also shows the repair: its six reader stakes are exactly right, and only
+that had read the reference.** `general/coverage-disclosure`'s "passes the case
+overall if it passes the test for every plausible use case listed above" fails
+it, and also shows the repair: its six reader stakes are exactly right, and only
 the verdict clause bolted on top is inadmissible.
 
 ## Two arguments, and why the second kills the first

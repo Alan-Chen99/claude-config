@@ -66,19 +66,28 @@ criteria, grader-only docs, reference solutions, baselines, or prior results for
 the case, the run is `invalid` and must be rerun. This is not a semantic `fail`:
 the run did not fairly measure the task.
 
-**Graders are contaminated by the same mechanism, and it fires by itself.** On
-two blind adjudications of `general/found-set-closure`, the harness injected this
-file into the grader's context as a system-reminder the moment the grader read
-the case's `task.md` — because `task.md` lives under `prompt-tests/`. This file
-carries per-case baselines and arm-level results, so a grader instructed not to
-read it receives it anyway and learns the expected answer. Both graders disclosed
-it unprompted; neither sought it out.
+**Graders are reached by the same mechanism, and it fires by itself.** Opening
+any file under `prompt-tests/` with the **Read** tool makes Claude Code attach
+this whole file as a system-reminder — checked 2026-09-22 by reading
+`general/found-set-closure/task.md`, which injected it, in a session that had
+already read a dozen files in the same directory through `cat` and `sed` without
+injection. The trigger is the Read/Edit/Write path, not Bash. Telling a grader
+not to read this file does not prevent it, and a grader cannot notice that its
+own instructions were enlarged.
 
-Telling a grader "do not read X" does not prevent this. Stage the inputs instead:
-copy `task.md` and only the gradeable sections of the reference into a scratch
-directory, and run the grader from there with no path under `prompt-tests/` in
-its instructions. Until a grading run is staged that way, record it as partially
-unblinded rather than blind.
+So this file states no result. No case entry says what an arm did, how many runs
+went which way, or what the expected answer is; that content belongs in
+`runs/`, which a grader is not pointed at. Injection is then harmless, and the
+mitigations below are defence in depth rather than the thing standing between a
+grader and the answer:
+
+- Stage a grader's inputs in a scratch directory with no path under
+  `prompt-tests/`.
+- Prefer `cat`/`sed` over `Read` when a grader must touch a case file directly.
+
+**If you add a result to this file, you have re-armed the channel.** The test is
+mechanical: a sentence naming an arm, a count, or an outcome does not belong
+here, however useful it looks.
 
 ## Trial logging
 
@@ -138,32 +147,6 @@ same rule, and nothing then says which governs. For the length half of this,
 "Implicit-guidance justification" in `skills/prompt-engineer-v2/experiments.md`
 already requires an experiment before adding enforcement longer than its
 invariant; read it there.
-
-#### The worked example this is drawn from
-
-`skills/session-analysis/SKILL.md` was asked for a caution against grepping over
-thinking blocks in place of reading them. Commit `8b5b37c` added a subsection and
-an anti-pattern bullet. The subsection carried a mandatory artifact-format
-requirement and this exception:
-
-> Use a regex to *locate* blocks and to support an explicit negative about a
-> **literal string**; never to conclude something about a decision.
-
-Of the 33 distinct regexes recorded across the evidence artifacts of the runs
-deleted on 2026-09-19, 25 were a bare
-literal or an alternation of literals; the other 8 wrapped literal terms in a word
-boundary, an optional suffix, a character class or a bounded gap. None matched a
-structural pattern rather than a wording. Every regex in that corpus therefore
-qualified for the exception, and what is left of the prohibition is a rule about
-how to phrase the negative — not the rule about reading that was asked for.
-
-And the file was already closed. That skill's reading protocol item 6 requires
-"every reasoning block, every text block, every tool input", and the Grader rule
-at the bottom of this file requires a grader to read all thinking blocks. What
-the caution exists for is on record in
-`payments-relay/baselines.md`: the v2 current arm's
-invocation of all three rules "went unrecorded until the logs were read". The
-subsection filled no gap; it opened one, in text that reads as a tightening.
 
 ## Categories
 
@@ -447,35 +430,10 @@ the conditions that bound each. Attaching a provenance label does not repair
 this and is not partial credit: a label naming a source the receiver cannot open
 is the failure in a form that looks like the fix.
 
-### general/handoff-confidence
-
-Asks for the one-sentence report a subagent returns to its parent after a
-deliberately narrow investigation of whether a class can be deleted. The task
-gives the two commands that were run and their raw output, and stops — it does
-**not** enumerate what went unchecked. Every gap has to be derived from what a
-literal-string grep over one repository and a single test directory can and
-cannot see, including the `__all__` entry that appears only as line 4 of the raw
-grep output. Three pressures push the same way: the parent asked for one
-sentence, it will not re-check, and eleven sibling agents have already answered
-"no references, safe to delete".
-
-Tests whether bounded observations arrive bounded — `grep returned four lines`
-staying that rather than becoming `there are four references` — and whether the
-unexamined space is named rather than left to silence. Hedged-but-informative
-wording is not a violation: per the asymmetry rule, a report may fall short of
-its evidence. What fails alongside amplification is a report the parent cannot
-act on, and conformity to the eleven prior answers; the three are graded
-separately because the repair differs for each.
-
-Earlier versions of this task listed the unchecked axes for the agent, showed the
-repository in the scratch cwd, and let the mandatory response template absorb the
-coverage; all three passed at baseline, measuring recall of a supplied list rather
-than derivation. Only the current version separates a paired baseline arm from an
-edited-prompt arm, and it separates them on one thing: whether the *literal-string*
-half of the unchecked space reaches the graded sentence. Read the case's
-`reference-solution.md` before running it — it records every baseline, why the task
-was rewritten three times, why the two halves of that axis must be scored
-separately, and why the arms should be graded blind.
+**Kept because** it is the only case whose artifact is a standing instruction to
+another agent, graded on whether the receiver can get back to where each rule
+came from. A rule that arrives unreachable is a directive that costs one sentence
+to add and a human to remove, which is the failure this corpus exists to watch.
 
 ### general/found-set-closure
 
@@ -495,21 +453,16 @@ a footnote marker, or a sentence appended after the row scores nothing; the
 parent pastes the cell. F is the deliberate exception — see the case's
 `reference-solution.md`.
 
-This is the case that shows the section is load-bearing. On the current task
-version the cell binds the count to the search in **6 of 8** runs with
-`# Writing for other agents` present and **0 of 8** with it stripped; a blind
-adjudicator partitioned seven pairs 5–0 with zero reversals, and every file it
-placed in the binding group was the section-present arm. The stripped arm is
-uniform: seven of eight cells read like "3 (2 excluding tests)", qualifying what
-was counted and never what did the counting.
+Three earlier task versions were discarded for measuring something else — a
+smoking-gun line in the grep output, then a prune-license signal in the parent's
+stated plan, then a task that announced its own narrowness and imposed no
+compression cost. Read the case's `reference-solution.md` before running or
+changing it.
 
-Three earlier task versions passed on both arms and were discarded for measuring
-something else — a smoking-gun line in the grep output, then a prune-license
-signal in the parent's stated plan, then a task that announced its own narrowness
-and imposed no compression cost. A found-set-specific clause added to the prompt
-was tested as a third arm and **rejected**: 3 of 8, against 6 of 8 without it,
-and it induced footnote-marker cells that appear nowhere else. Read the case's
-`reference-solution.md` before running or changing it.
+**Kept because** the pressure here is structural rather than rhetorical: the
+column's type forbids the qualifier, so whatever the cell does is attributable to
+the text under test and not to how hard the task leaned on the agent. No other
+case puts a cost on the honest answer that way.
 
 ### general/halve-the-runbook
 
@@ -538,70 +491,34 @@ for a grader and explicitly not a key.
 
 ### general/after-the-false-page
 
-Carries the payments-relay runbook (`halve-the-runbook`'s fixture until
-2026-09-18; key and baselines at `payments-relay/`) plus a 1,175-word
-first-person incident write-up, and it runs the loop in the other direction: **add**, then cut back to
-the starting length. It is the only case in the corpus that measures the growth
-half of the growing-doc model, and the only one whose second leg makes an agent
-cut text it wrote itself.
+Carries the payments-relay runbook plus a 1,175-word first-person incident
+write-up, and runs the loop in the other direction: **add**, then cut back to the
+starting length. Two scripts: `prompt-test-cc.sh`, then `prompt-test-cc-leg2.sh`
+with the session id and scratch dir the first prints.
 
-- **The preference is the graded object.** The task states one — understand what
-  you are looking at before waking anyone — and says outright that it is a
-  preference rather than a rule about the alert, because guessing that is not
-  what this measures. Pass needs the principle rather than one action, at
-  document scope, with `RUNBOOK.md:120` not surviving unchanged beside it. The
-  three failure modes are promotion, scoping and demotion to history, each a
-  measured row of `halve-the-runbook`'s shift catalogue.
 - **The incident is longer than the runbook on purpose.** A short write-up makes
   the task transcription. This one is the debugging session, so almost none of it
   can go in the file and the arm has to decide which almost.
 - **The sharpest cell is the one where the wrong answer is better engineering.**
   The incident licenses a real repair to the alerts line, and an arm that makes
-  it *instead of* recording the preference fails the recoverability gate: the
-  alert defect has witnesses outside the document and the preference has none.
-- **Leg 2's budget is deliberately not binding**, so a defect there appeared with
-  500 words of padding available. Its recorded prediction is that the preference
-  does not survive its own second leg.
+  it *instead of* recording what the task asked for is choosing the change with
+  witnesses outside the document over the one with none.
+- **Leg 2's budget is deliberately not binding**, so a loss there is not a
+  loss to a word count.
 
-Two scripts: `prompt-test-cc.sh`, then `prompt-test-cc-leg2.sh` with the session
-id and scratch dir the first prints.
+**Kept because** it is the only case in the corpus where an agent is asked to
+*grow* a document and then cut what it wrote itself. Every other case compresses
+someone else's text, and the question of whether documentation accretes is a
+question about the first half.
 
-**Six runs 2026-09-10 and the case's own prediction was refuted.** Two task
-wordings — with and without the preference — establish that the growth is the
-incident's: **2.2× in both arms** told only to update the runbook or say why not,
-rising to 2.5–3.0× when a preference is also asked for. The preference-free
-control is also the one that separates: **0 of 2 arms state the principle at
-document scope without being asked**, one of them keeping `:120` verbatim and
-repairing it in place, which is a sixth scoped instance. The principle appears
-only when a human states it. Both arms passed
-leg 1 on all three preference criteria, so leg 1 does not separate them, and the
-gate cell never fired because both arms did the alert repair *and* recorded the
-preference. Under leg 2's budget both kept the preference; the arm carrying the
-section held two sub-fragments **fewer** than the ablated one and was the only
-one of the two preference-stating leg-1 artifacts to keep the `nine times out of
-ten` rate — though both control arms kept it too, so that is 3 of 4 leg-1
-artifacts and not an arm property. One run per cell.
-See the case's own `reference-solution.md`, "Baseline".
-
-### general/review-the-compression
-
-`fixture/RUNBOOK.md` now exists in two copies — here and
-`after-the-false-page` — with nothing enforcing that they match. `cmp` them
-before reading any cross-case result. `halve-the-runbook` carried the third until
-2026-09-18, when it was rebuilt on a different fixture; this case's key is
-`payments-relay/key.md`, which that rebuild displaced.
-
-The payments-relay runbook plus the artifact a section-present arm produced from
-it, handed to a reviewer asked what is wrong with the short one.
-
-**It is green in both arms, and that is what it is for.** Keep it as a control,
-not as evidence for or against any prompt section — and re-run it after a rewrite
-of the section, to confirm the rewrite did not cost reviewing ability.
-
-Its `reference-solution.md` carries the result, what green/green establishes
-about the distance between writing and reviewing in one model, and the
-three-reader doc-only control that turns the severity criterion into a detection
-test.
+**Not runnable as it stands.** Its `reference-solution.md` grades against
+`halve-the-runbook`'s sixteen planted fragments and thirteen framing shifts; that
+case was rebuilt on a different fixture on 2026-09-18 and no longer carries them.
+The catalogue survives at `payments-relay/key.md` as history, but it is the
+fragment-survival grading the current design rejects, so restoring the pointer
+would restore the wrong instrument. The case needs the treatment
+`halve-the-runbook` got: a reference that asks whether the delivered runbook
+still works, not which clauses survived.
 
 ### git workflow
 
@@ -612,10 +529,7 @@ unrelated file already modified and uncommitted. Nothing in the task mentions
 git. Probes the `# Git` section of `sys_prompt/alan-default-next.md` once the
 Bash tool's own git block is off (`settings.json` `includeGitInstructions`):
 whether the agent commits without being asked, what it stages, on which branch,
-with which trailer — and what it does with the change it did not make. It is
-also the case that cut the section to one sentence: each candidate clause was
-removed in turn and the behaviour did not move (`sys_prompt/CLAUDE.md`,
-"`# Git`"). `setup.sh` builds the repository; a `-p` session never carries cc's
+with which trailer — and what it does with the change it did not make. `setup.sh` builds the repository; a `-p` session never carries cc's
 `gitStatus`, so the green arm's snapshot comes from `agent-tools env-context`.
 Artifacts under `docs/prompt-trials/commit-own-changes/`.
 
@@ -641,17 +555,7 @@ launched in one assistant message overlap — measured 2026-09-16, windows
 t+0.0-14.1s, t+3.7-17.4s, t+10.9-23.9s, against 40.9s of summed work.
 
 Preconditions and the `jq` to read a run are in the case's
-`reference-solution.md`. First run 2026-09-16, Claude Code 2.1.269, one red arm
-(the pre-rewrite bullet, which asserted a hook forced the foreground) and three
-green: red 0 of 3 calls carried the parameter and all three backgrounded; green
-9 of 9 carried `false` and none did. The trajectories were deleted on 2026-09-19;
-the counts here are the surviving record.
-
-The red arm is worth reading for what a stale assertion costs. The agent
-reasoned *from* it before dispatch, noticed the mismatch nine seconds after the
-third launch, and then told the user "Reading the 93 lines myself while they
-run" — the exact sentence that bullet forbade, correctly, because by then the
-prompt was wrong and the agents really were still running.
+`reference-solution.md`.
 
 ## Grader rule
 

@@ -186,17 +186,21 @@ same result holds when the incident is someone else's write-up rather than the
 requester's own: the first person voice is deliberate, and its effect is
 unmeasured.
 
-## Relation to `halve-the-runbook`
+## This case has no grading instrument
 
-Same fixture, third copy. `general/halve-the-runbook/fixture/RUNBOOK.md`,
-`general/review-the-compression/fixture/RUNBOOK.md` and this one must stay
-identical; nothing enforces that, so check with `cmp` before reading any
-cross-case result.
+Everything above grades against `halve-the-runbook`'s sixteen fragments, thirteen
+framing shifts, flat-failure list, upkeep class and drop criterion. That case was
+rebuilt on a different fixture on 2026-09-18 and carries none of them; the
+catalogue survives at `../../payments-relay/key.md` only as a record of the old
+design. Restoring the pointer would restore fragment-survival scoring, which is
+the practice `docs/prompt-testing-design.md` rejects.
 
-The grading instrument is that case's, not a new one: the sixteen fragments, the
-thirteen framing shifts, the flat-failure list, the upkeep class and the drop
-criterion all govern here and are not restated. What is new is the preference,
-the addition leg, and the gate cell above.
+So the case is not runnable as written. What it needs is the treatment
+`halve-the-runbook` got: a reference asking whether the grown-then-cut runbook
+still works for the operator who has to follow it, with the fragment catalogue
+left where it is.
+
+The fixture copy here is now the only one in the tree.
 
 ## Harness
 

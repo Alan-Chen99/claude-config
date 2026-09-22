@@ -472,12 +472,12 @@ something.
   the no-context frame, so it grades how well a compressor guesses about a
   line it would have resolved by lookup. The best-case split artifact's
   maintainer file carries a hunt list, the fixture-frame stand-in — the
-  questions written down because nothing here can answer them. Of the four
-  fixtures under `prompt-tests/general/`, two ship a second file
-  (`after-the-false-page`: an incident write-up that comments on some runbook
-  lines and is to be merged in; `review-the-compression`: a short version to
-  be reviewed); neither records *why* an existing line says what it says, and
-  no `task.md` points the compressor at the repository's history. A fixture
+  questions written down because nothing here can answer them. Of the document
+  fixtures under `prompt-tests/general/`, the one that ships a second file is
+  `after-the-false-page` — an incident write-up that comments on some runbook
+  lines and is to be merged in; it does not record *why* an existing line says
+  what it says, and no `task.md` points the compressor at the repository's
+  history. A fixture
   with such a record would let a probe measure whether compressors go and
   look.
 - **The runtime-measure-over-docs frame.** Where reality is checkable, the

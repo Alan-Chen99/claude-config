@@ -235,9 +235,8 @@ did the counting*.
   blind-graded, no arm difference. Two defects the adjudicator found: the task
   stated its own narrowness twice ("Your investigation was one command";
   "Nothing else was run, and nothing else can be"), supplying the scope element C
-  asks the agent to derive — the same defect `handoff-confidence` was rewritten
-  three times to escape — and "one line" imposes no compression cost, so a caveat
-  was free.
+  asks the agent to derive, and "one line" imposes no compression cost, so a
+  caveat was free.
 - **v4** fixes both: provenance without editorialising about narrowness, and a
   bare-integer column that makes the caveat cost something.
 
