@@ -36,6 +36,34 @@ Measure before and after:
 agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
 ```
 
+## What travels with an edit
+
+When editing the prompt in response to a failing case, the goal is to repair the invariant the
+case probes, not to make the case pass. A test case is one sample of the invariant's input
+space; treating it as the spec narrows the prompt to that sample. `skills/prompt-engineer-v2/`
+carries the general hints, "No overfitting to the case at hand" and "Overfitting review by a
+fresh subagent" in `SKILL.md`, "Implicit-guidance justification" and "Recognition before
+enforcement" in `experiments.md`, and "Every change is a regression risk" for the behavioural
+half. Two further things travel with an edit that no case exercises and that review tends to
+read as wording: the force it is written at, and whatever it permits.
+
+**Force.** How widely an imperative binds is itself a claim — that the failure is frequent
+enough, and costly enough, to be worth the compliance cost everywhere the imperative now
+reaches. Two observed incidents support a caution: this happens, watch for it. Reading them as
+support for a requirement needs something two incidents do not contain, a rate and a cost. For
+an evidential claim the quantity that outruns the evidence is its confidence; for an
+instruction it is its scope.
+
+**Exceptions.** Before writing one, answer how much of the forbidden space it readmits —
+breadth is a property of the exception's extension, not of how narrow its wording sounds. The
+costs are asymmetric: over-applying a prohibition yields a duller artifact, while
+over-applying a permission skips the work and ships a wrong answer. The exception is the half
+that repays the closer reading.
+
+**Why step 2 above is a deletion and not a merge.** An addition restating a rule the file
+already carries is not a second caution; it is a second, differently worded statement of the
+same rule, and nothing then says which governs.
+
 ## Rebasing on an upstream release
 
 These files replace Claude Code's own system prompt rather than adding to it.

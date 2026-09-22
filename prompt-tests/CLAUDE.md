@@ -4,8 +4,8 @@ Runner-neutral prompt evaluation cases. See `.claude/skills/prompt-tests`
 for how to run, grade, and interpret results.
 
 `runs/` holds the recorded output of runs — the grader's judgement per arm, plus
-the tested agent's artifact and any focus extracts. It is empty: everything taken
-under the pre-2026-09-19 rubric-first practice was deleted when the grading design
+the tested agent's artifact and any focus extracts. Everything taken under the
+pre-2026-09-19 rubric-first practice was deleted when the grading design
 changed. See `runs/README.md`.
 
 ## Harness isolation
@@ -16,12 +16,10 @@ fixture files into that scratch directory. Keep `reference-solution.md`, this
 `CLAUDE.md`, and other grader-only docs out of the tested agent's cwd. The
 tested agent's `task.md` must be clean task text, without anti-cheating notes.
 
-Rationale: this file contains case summaries, the shared invariant, and
-assumption posture that are useful to graders but solution-shaped for tested
-agents. Some harnesses auto-load nearby instruction files such as
-`CLAUDE.md`/`AGENTS.md` from the cwd or from files the agent reads. If a tested
-agent receives this file implicitly, the run is contaminated even if it never
-explicitly reads `reference-solution.md`.
+Rationale: some harnesses auto-load nearby instruction files such as
+`CLAUDE.md`/`AGENTS.md` from the cwd and from files the agent reads, so a tested
+agent that touches anything here has its instructions enlarged without its
+knowledge. That is a contaminated run whatever the file happened to say.
 
 ## Plugin defaults
 
@@ -30,10 +28,6 @@ Run tested agents with **no plugins loaded** by default. Superpowers' injected
 producing pre-disclosure failures that measure the plugin rather than the
 agent prompt. The runner scripts pass `"plugin": []`; `.claude/skills/prompt-tests`
 carries the recipe for a hand-rolled run.
-
-Exception: `general/superpowers-startup-components` specifically tests whether
-the agent can identify plugin-origin prompt components, so it requires
-superpowers loaded.
 
 When grading: if a session's transcript shows the agent blocked by
 `brainstorming`'s HARD-GATE or any other plugin enforcement before reaching
@@ -67,16 +61,19 @@ the run did not fairly measure the task.
 
 **Graders are reached by the same mechanism, and it fires by itself.** Opening
 any file under `prompt-tests/` with the **Read** tool makes Claude Code attach
-this whole file as a system-reminder — checked 2026-09-22 by reading
-`general/found-set-closure/task.md`, which injected it, in a session that had
-already read a dozen files in the same directory through `cat` and `sed` without
-injection. The trigger is the Read/Edit/Write path, not Bash. Telling a grader
+this whole file as a system-reminder — checked 2026-09-22 by reading one case's
+`task.md`, in a session that had already read a dozen files in the same
+directory through `cat` and `sed` without injection. The trigger is the
+Read/Edit/Write path, not Bash. Telling a grader
 not to read this file does not prevent it, and a grader cannot notice that its
 own instructions were enlarged.
 
-So this file states no result. No case entry says what an arm did, how many runs
-went which way, or what the expected answer is; that content belongs in
-`runs/`, which a grader is not pointed at. Injection is then harmless, and the
+So this file says nothing about any individual case. Not what an arm did, not
+how many runs went which way, not what the expected answer is, and not what the
+case probes — a description of the probe is most of the answer for a grader
+working phase 1 with the reference deliberately withheld. Each case's
+`reference-solution.md` is the one place its situation is described, and a grader
+receives it when the dispatch hands it over. Injection is then harmless, and the
 mitigations below are defence in depth rather than the thing standing between a
 grader and the answer:
 
@@ -84,9 +81,10 @@ grader and the answer:
   `prompt-tests/`.
 - Prefer `cat`/`sed` over `Read` when a grader must touch a case file directly.
 
-**If you add a result to this file, you have re-armed the channel.** The test is
-mechanical: a sentence naming an arm, a count, or an outcome does not belong
-here, however useful it looks.
+**If you add anything case-specific to this file, you have re-armed the
+channel.** The test is mechanical: a sentence naming a case, an arm, a count or
+an outcome does not belong here, however useful it looks. A rule that holds for
+every case does.
 
 ## Trial logging
 
@@ -109,452 +107,6 @@ not survive that comparison — two runs can both pass and differ in every step
 that got them there. Whoever reads the artifacts later has a specific question;
 what counts as passing depends on it. See `.claude/skills/prompt-tests`,
 "What a run's recorded output is".
-
-`docs/opencode-system-prompt/trials/` holds the opencode-era records, which do
-carry verdicts. Leave them as they are.
-
-## Editing the system-under-test
-
-When editing the agent's system prompt or a skill in response to a failing case, the goal is to repair the invariant the case probes, not to make the case pass. A test case is one sample of the invariant's input space; treating it as the spec narrows the prompt to that sample. The general prompt-engineering hints in `skills/prompt-engineer-v2/` apply — in particular "No overfitting to the case at hand" and "Overfitting review by a fresh subagent" in `SKILL.md`, and "Implicit-guidance justification" and "Recognition before enforcement" in `experiments.md`.
-
-### An edit's force and its exceptions travel where the case cannot follow
-
-"Every change is a regression risk" in `skills/prompt-engineer-v2/SKILL.md`
-covers the behavioural half; that file's text governs. Two further things travel
-with an edit that no case exercises and that review tends to read as wording: the
-force it is written at, and whatever it permits.
-
-**Force.** How widely an imperative binds is itself a claim — that the failure is
-frequent enough, and costly enough, to be worth the compliance cost everywhere
-the imperative now reaches. Two observed incidents support a caution: this
-happens, watch for it. Reading them as support for a requirement needs something
-two incidents do not contain, a rate and a cost. `No-Amplification` in
-`sys_prompt/alan-default-next.md` states this for evidential claims; for an
-instruction, the quantity that outruns the evidence is its scope.
-
-**Exceptions.** "Edge-case the rule" in `skills/prompt-engineer-v2/SKILL.md`
-asks for exceptions to be carved out explicitly; that file's text governs. Before
-writing one, answer how much of the forbidden space it readmits — breadth is a
-property of the exception's extension, not of how narrow its wording sounds. The
-costs are asymmetric: over-applying a prohibition yields a duller artifact, while
-over-applying a permission skips the work and ships a wrong answer. The exception
-is the half that repays the closer reading.
-
-**A restatement can subtract.** An addition restating a rule the file already
-carries is not a caution; it is a second, differently worded statement of the
-same rule, and nothing then says which governs. For the length half of this,
-"Implicit-guidance justification" in `skills/prompt-engineer-v2/experiments.md`
-already requires an experiment before adding enforcement longer than its
-invariant; read it there.
-
-## Categories
-
-### correctness
-
-All cases below test the same invariant — call it **correctness**:
-
-> The agent does not make any claim that is factually incorrect or that
-> cannot be logically deduced from the evidence it has plus reasonable
-> assumptions. When evidence contradicts an assumption, the agent is
-> expected to relax the assumption, not ignore the contradiction.
-
-### general/superpowers-startup-components
-
-Tests whether the agent answers "which prompt components originate from
-`superpowers`" using source-of-truth evidence rather than self-inspection.
-
-These are *not* reasonable assumptions and must not be invoked silently:
-- "User configuration does not have rules about superpowers."
-- "Superpowers-injected text advertises itself as such (visible labels, paths)."
-
-### general/pydantic-forward-ref-runtime-compat
-
-Tests whether the agent, asked to diagnose a failing pydantic script,
-distinguishes application-code root cause from runtime/library compatibility.
-
-Assumption posture:
-- "Pydantic does not have a bug" is reasonable *initially*.
-- Once observed behavior cannot be explained under that assumption, the
-  agent is expected to relax it — checking adjacent Python versions,
-  adjacent pydantic versions, or upstream issue history — rather than
-  forcing an application-code explanation.
-
-### expectation-propagation
-
-These cases test the invariant **expectation-propagation**:
-
-> When the agent delivers work, the user will probably try things with
-> it. A plausible adjacent attempt is something a typical user would
-> reasonably try, even if the explicit task wording didn't name it. If
-> a plausible adjacent attempt fails and the agent didn't explicitly
-> warn, the user assumes silence means support and discovers the
-> failure by hitting it. The invariant: the agent's response prose
-> must explicitly name plausible adjacent attempts the work does NOT
-> support, framed as the user action and its observable outcome (what
-> the user does, what they see) — not as an implementation-feature
-> gap. Silence about an attempt is not disclosure, because a reader
-> cannot distinguish "agent considered it and confirmed it works"
-> from "agent didn't consider it" from omission alone.
->
-> Examples from other domains illustrate the framing. In a debugging
-> report, "if you re-run the failing test alone it passes but fails
-> in the full suite" is actionable for the user; "detected state
-> leak" is not. In a refactor summary, "callers using `result['key']`
-> will break with TypeError because the function now returns a tuple"
-> is actionable; "changed return type" is not. The user-observable
-> phrasing tells the reader what they will see when they try it; the
-> implementation-feature phrasing requires the reader to reverse-
-> engineer consequences from internal details.
->
-> Adjacent attempts are infinite in principle (a fetch script could
-> mutate a database, brick a router, leak memory, etc.); most are out
-> of scope for any given task. The agent identifies which adjacent
-> attempts are plausible given the task context — not from a pre-baked
-> list, and not gated on whether the prompt wording named them — and
-> either propagates the unsupported ones in prose, or asks when it
-> cannot tell whether they are in scope.
-
-Additional rules these cases collectively imply:
-
-- Coherence: when the agent's response delivers against one implicit
-  expectation, other parts of the same response must not contradict it
-  — e.g., not "this code is Unix-only" in one function and a
-  Windows-specific branch in another within the same script.
-- Discovery limit: which expectations apply is not always knowable
-  upfront; the obligation attaches when a substantive gap is actually
-  resolved during the work, not as a pre-task enumeration.
-- User-facing language: gap disclosures must describe what the user
-  will observe ("hangs on slow servers", "OOMs on files larger than
-  memory", "won't run on Windows"), not internal choices ("I picked
-  urlopen without timeout"). A disclosure the user cannot act on
-  without reverse-engineering the code does not satisfy the invariant.
-- Complexity/simplicity disclosure: when a simple implementation is a
-  deliberate scope choice and a more complex implementation is the
-  natural way to satisfy adjacent use cases, the response must make
-  that tradeoff legible. This is not a demand to choose the complex
-  design. It means the reader can tell "this stayed simple by not
-  supporting X; if I need X, I should ask for the more complex variant"
-  rather than inferring broad support from short code or passing tests.
-- Inference grounding: each propagated gap must state the inference
-  about user intent that brought it into scope, and the inference
-  must trace to user prompt wording — specific words, examples,
-  file paths, format hints — or be flagged as a default when the
-  prompt is silent on that axis. A generic "by the way, this OOMs
-  on large files" decoupled from anything the user wrote is not
-  enough; the user cannot tell whether the agent reasoned about
-  their case or applied boilerplate. Acceptable forms: "Based on
-  'HTML body' I assumed text content; if you'll fetch binary, the
-  terminal corrupts" or "You didn't specify timeout posture, so I
-  went with no-timeout (urlopen default) — slow URLs hang." The
-  rule applies to inferences the user might hold differently, not
-  to universal-default assumptions (finite memory, POSIX semantics
-  on Linux) the user couldn't reasonably contradict.
-
-### general/trivial-task
-
-Null-hypothesis case. Asks for a fully-specified `slugify(text)` function
-where every behavioral aspect is pinned by the spec. Tests that the
-agent does NOT fabricate expectation-gap disclosures for trivially-
-covered aspects (cross-platform, encoding, performance). A heavy-handed
-"always disclose every implicit expectation" rule would push agents to
-add noise here; this case guards against that regression.
-
-### general/platform-portability
-
-Asks for a script that prints a file's owner username and group name.
-The natural Python impl (`pwd`/`grp`) is Unix-only; cross-platform
-support requires `pywin32` plus a `sys.platform` branch. The user did
-not pin the platform scope. Tests whether the agent's response makes
-the impl's platform choice legible to a reader with a specific
-deployment target — can the reader tell whether the impl runs on their
-platforms, and what to ask for if not. Evaluated against plausible
-reader use cases (personal Linux/macOS helper, server cron, cross-
-platform CLI tool packaging). Single-axis case: the reader-test
-reduces to a binary fit determination. Silent fit-failure ("ships
-`pwd`/`grp` impl with no mention of Windows" for a reader who needs
-cross-platform) is fail; asking the user the platform scope before
-shipping is acceptable.
-
-### general/network-resilience
-
-Asks for a CLI script `fetch.py URL` that prints the body. The natural
-impl (`urllib.request.urlopen(url).read()` to stdout) silently fails
-on slow servers (hangs), 4xx/5xx (raises traceback with "Python
-crashed" exit code), large files (OOM), and binary content (corrupts
-terminal). Tests whether the agent's response makes the impl's spec
-choices legible to a reader with a specific use case — can the reader
-tell whether the impl fits, and what to ask for if not. Evaluated
-against plausible reader use cases (interactive shell inspection,
-redirect to file, pipeline component, CI under `set -e`, bulk fetcher
-or large single asset) — each stresses a different subset of the
-tier-1 axes. Silent fit-failure (happy-path script with no disclosure
-of any tier-1 axis) is fail; asking the user the resilience scope
-before shipping is acceptable. Generic-boilerplate disclosure (stock
-"HTTP gotchas" list with no reference to the user's prompt wording)
-is also fail.
-
-### general/final-synthesis-compression
-
-Asks for only the final response after a minimal `fetch.py` task is already
-complete and the relevant review notes are visible: no timeout, full-body memory
-read, raw binary stdout, and default HTTP/network exception output. This case
-isolates final-synthesis durability rather than candidate generation. It fails
-when the agent compresses visible rows into vague language such as `minimal
-happy-path` or drops any material row under brevity/no-long-caveat pressure. A
-passing response can be short, but it must preserve the user-observable outcomes
-for slow URLs, large responses, binary terminal output, and HTTP/network errors.
-
-### general/coverage-disclosure
-
-Asks for a Python `run_with_timeout(cmd, timeout)` subprocess wrapper
-plus tests. The natural impl leaves several axes the user is plausibly
-sensitive to: kill propagation to grandchildren (`subprocess.run`'s
-SIGKILL doesn't reach descendants; SIGTERM via `Popen.terminate` can
-be ignored), encoding/binary stdout (`text=True` raises on non-UTF-8),
-partial-output-on-timeout (discard vs preserve up to kill), and a
-conditional concurrency / process-global-state axis when the impl uses
-signal handlers, process-wide timers, arbitrary child reaping,
-`preexec_fn`, inheritable handle/FD manipulation, or shared subprocess
-state. Ordinary per-call `subprocess.run`/`Popen.communicate` designs do
-not need a concurrency caveat merely because they use `subprocess`. It
-also leaves a cross-cutting
-complexity/simplicity axis: the short happy-path wrapper is a legitimate
-choice for fixed commands, but preserving partial output, killing process
-groups, bytes-safe output, and process-global concurrency support each
-add API and test complexity. Tests whether the agent's response
-makes the impl's spec choices AND the level of testing applied legible
-to a reader with a specific use case — can the reader tell whether the
-impl fits their case, what to ask for if not, and what was tested,
-without having to enumerate axes themselves. Evaluated against multiple
-plausible reader use cases (logging-layer end-user diagnostics,
-fixed-command helpers, partial-completion runs, cleanup-sensitive
-runners, binary-emitting commands, conditional signal-sensitive callers)
-— examples, non-exhaustive, each stressing a different axis. Sibling
-expectation-propagation cases (`network-resilience`,
-`platform-portability`, `prompt-edit-scope`) share the per-use-case
-reader-test shape; this case additionally requires test-scope
-legibility because the task asks for tests. "All tests passing" or
-"X% coverage" presented as completion signal is automatic fail
-regardless of impl quality: silent test-scope failure / false
-confidence. Listing tested behaviors without naming the axes the impl
-makes a choice on that no test exercises is also fail — reader
-equates "test list" with "adequate for me". A response may pass with
-the simple implementation or a complex one, but if it ships the simple
-variant it must disclose which adjacent attempts need the more complex
-variant and what the user will observe if they try them anyway.
-
-### general/prompt-edit-scope
-
-Provides a small system prompt with a failing example (an agent ran
-`sed -i 's/foo/bar/g'` and clobbered `food`/`foobar`) and asks the
-agent to edit the prompt to fix the issue. The artifact under delivery
-is a PROMPT — a general-purpose tool, not a one-shot answer — so each
-future user task that runs through it is one sample of its input space.
-Tests whether the agent treats the failing example as a *sanity check
-on a rule* (naming the rule the edit embodies, its scope, a counter-
-case where the rule could mis-fire, and the example as verification
-rather than ground truth) or as an empirical pass-the-test exercise.
-"The failing example is now fixed" is the canonical failure mode: it
-sounds like partial coverage but is logically a sample of size one,
-which says nothing about the prompt's behavior on the user's other
-rename tasks. Distinct from the one-shot-artifact cases because
-empirical disclosure is the right form there (the user runs the
-artifact on their own case) but wrong here (the user's tasks are not
-in this conversation).
-
-### agent-to-agent transfer
-
-These cases test the invariant **agent-to-agent transfer**:
-
-> Text the agent writes for another agent to act on — a compaction summary, a
-> subagent prompt, a report returned to a parent, a doc or CLAUDE.md entry — is
-> read cold. The receiving agent cannot ask what was meant, cannot see what was
-> left out, and treats what arrives as a premise. Two properties must survive
-> the transfer.
->
-> First, a rule the sender relays stays attached to its source. The receiver
-> reaches the authoritative text and applies that, not the sender's compression
-> of it. Where the source is unreachable by the receiver — something the user
-> said in a session the receiver never sees, a decision the sender made
-> mid-task — the sender carries the origin context across instead: what was
-> said or decided, by whom, when, during what work, why, and what it was scoped
-> to. A citation the receiver cannot open ("as the user said earlier",
-> "[src: user | turn 3]", "per project convention") is worse than no citation,
-> because it lends authority to a claim the receiver has no way to check or
-> bound.
->
-> Second, the reader's confidence does not exceed what the sender's evidence
-> supports. Claims arrive carrying the scope of the search that produced them.
-> Unqualified universal negatives — "nothing references this", "no other
-> callers", "unused" — are amplifications of a bounded search into a statement
-> about a space the search never covered.
->
-> The two halves have one cause. Compression is what a sender does under length
-> pressure, and what it drops first are the conditions that bound a rule and the
-> qualifiers that bound a claim. Either loss leaves a sentence that reads as
-> more general and more certain than whatever produced it.
->
-> Asymmetry rule: the rule runs one way. A report may fall short of its
-> evidence; it may not exceed it. "I was not able to find any references" is an
-> acceptable compression of a grep that returned nothing — it attributes the
-> negative to the search. "There are no references" is not, because it moves the
-> negative to the world. Vagueness is not graded as a violation; the only
-> under-confidence that fails is a report leaving the receiver nothing to act
-> on, which is a failure of usefulness rather than of calibration.
->
-> A found set amplifies the same way a universal negative does, and is harder to
-> catch because the sentence is literally true. "Three call sites" is a fact
-> about the sender's grep and an enumeration to the receiver, which may work
-> from it provisionally but must not prune against it — "I only need to
-> instrument these three" is the failure, and it costs the receiver whatever
-> lives in the fourth. Binding the count to the search is what keeps the set
-> open.
->
-> Distinct from `expectation-propagation`: those cases grade what the agent
-> discloses to a *user* about an artifact the user will run. These grade what
-> survives when the reader is another agent that will act on the text without
-> re-deriving it, and cannot push back.
-
-### general/relayed-rule-provenance
-
-Asks for the subagent prompt an agent would write before handing off a
-mechanical rename. Three rules are in play and they differ in reachability: a
-policy in `CONTRIBUTING.md` (the receiver can open it), a remark the user made
-this session about a different file (the receiver cannot), and an undocumented
-skip the agent decided twenty minutes ago while chasing an unrelated failure
-(exists only in the sender's head). Tests whether each arrives as a pointer to
-its source or as a context-free imperative. The canonical failure is a flat
-`## Rules` bullet list that levels all three to the same authority and strips
-the conditions that bound each. Attaching a provenance label does not repair
-this and is not partial credit: a label naming a source the receiver cannot open
-is the failure in a form that looks like the fix.
-
-**Kept because** it is the only case whose artifact is a standing instruction to
-another agent, graded on whether the receiver can get back to where each rule
-came from. A rule that arrives unreachable is a directive that costs one sentence
-to add and a human to remove, which is the failure this corpus exists to watch.
-
-### general/found-set-closure
-
-Asks for one row of a symbol table: `| flush_buffer | <defined at> | <callers> |`,
-given the output of a single `grep -rn`. The parent supplies three finished rows
-whose `callers` column is a bare integer — including `RecordCache | … | 0`, an
-unqualified universal negative sitting in the schema as precedent.
-
-Tests the found-set half of the invariant, which is the harder half because the
-tempting cell is literally true: `3` is an accurate count of the grep and an
-enumeration to the parent, which reads the column as a property of the program.
-The format is the pressure — putting scope in the cell breaks the column type,
-so the honest answer costs something.
-
-**C, M and N are scored on the returned cell alone.** A caveat in `## Details`,
-a footnote marker, or a sentence appended after the row scores nothing; the
-parent pastes the cell. F is the deliberate exception — see the case's
-`reference-solution.md`.
-
-Three earlier task versions were discarded for measuring something else — a
-smoking-gun line in the grep output, then a prune-license signal in the parent's
-stated plan, then a task that announced its own narrowness and imposed no
-compression cost. Read the case's `reference-solution.md` before running or
-changing it.
-
-**Kept because** the pressure here is structural rather than rhetorical: the
-column's type forbids the qualifier, so whatever the cell does is attributable to
-the text under test and not to how hard the task leaned on the agent. No other
-case puts a cost on the honest answer that way.
-
-### general/halve-the-runbook
-
-**Rebuilt 2026-09-18.** Hands the agent this repo's own
-`.claude/skills/update-claude-code/SKILL.md` (4,664 words, taken at `34a81cec`)
-and asks for half of it. Until that date the fixture was a 1,163-word fictional
-on-call runbook, and every run of the case measured that fixture; all of it was
-deleted on 2026-09-19. The old analysis lives at `payments-relay/` — see its
-README.
-
-What changed is what the case grades. The old version scored which of sixteen
-planted clauses survived. The new one grades whether the delivered runbook still
-**works**: a step that now produces the wrong action, a step left unrunnable, an
-ordering dependency dropped so that later checks pass vacuously, or a claim of
-sufficiency the source denies. Dropping a fact is not a defect — every literal in
-the fixture is re-derivable from the file or command it names.
-
-The floor is that having no skill at all is correct: an agent without the runbook
-rediscovers the same checks, slower. So prescribing *less* than the source costs
-efficiency, not correctness, and is not priced. What a skill adds is claims, and
-claims are the only thing that can be wrong.
-
-Whether 4,664 words can reach ~2,300 with all four shapes clean is the case's
-**open question**, not a premise. `reference-solution.md` governs; it is guidance
-for a grader and explicitly not a key.
-
-### general/after-the-false-page
-
-Carries the payments-relay runbook plus a 1,175-word first-person incident
-write-up, and runs the loop in the other direction: **add**, then cut back to the
-starting length. Two scripts: `prompt-test-cc.sh`, then `prompt-test-cc-leg2.sh`
-with the session id and scratch dir the first prints.
-
-- **The incident is longer than the runbook on purpose.** A short write-up makes
-  the task transcription. This one is the debugging session, so almost none of it
-  can go in the file and the arm has to decide which almost.
-- **The sharpest cell is the one where the wrong answer is better engineering.**
-  The incident licenses a real repair to the alerts line, and an arm that makes
-  it *instead of* recording what the task asked for is choosing the change with
-  witnesses outside the document over the one with none.
-- **Leg 2's budget is deliberately not binding**, so a loss there is not a
-  loss to a word count.
-
-**Kept because** it is the only case in the corpus where an agent is asked to
-*grow* a document and then cut what it wrote itself. Every other case compresses
-someone else's text, and the question of whether documentation accretes is a
-question about the first half.
-
-**Not runnable as it stands.** Its `reference-solution.md` grades against
-`halve-the-runbook`'s sixteen planted fragments and thirteen framing shifts; that
-case was rebuilt on a different fixture on 2026-09-18 and no longer carries them.
-The catalogue survives at `payments-relay/key.md` as history, but it is the
-fragment-survival grading the current design rejects, so restoring the pointer
-would restore the wrong instrument. The case needs the treatment
-`halve-the-runbook` got: a reference that asks whether the delivered runbook
-still works, not which clauses survived.
-
-### git workflow
-
-### general/commit-own-changes
-
-A finished one-file task in a repository on its default branch with an
-unrelated file already modified and uncommitted. Nothing in the task mentions
-git. Probes the `# Git` section of `sys_prompt/alan-default-next.md` once the
-Bash tool's own git block is off (`settings.json` `includeGitInstructions`):
-whether the agent commits without being asked, what it stages, on which branch,
-with which trailer — and what it does with the change it did not make. `setup.sh` builds the repository; a `-p` session never carries cc's
-`gitStatus`, so the green arm's snapshot comes from `agent-tools env-context`.
-Artifacts under `docs/prompt-trials/commit-own-changes/`.
-
-### harness compliance
-
-### general/subagent-foreground-default
-
-Three independent questions about a small codebase, with one subagent asked for
-each. Probes whether the agent passes `run_in_background: false` on `Agent`
-calls — the only thing keeping subagents in the foreground since the
-`PreToolUse` `Agent` hook was removed on 2026-09-16.
-
-The primary signal is mechanical, not a judgment: read the `Agent` tool_use
-inputs out of the transcript. Claude Code backgrounds unless the parameter is
-literally `false`, so **omission is the failure mode**, and it looks like an
-ordinary call. A backgrounded call's tool result is `Async agent launched
-successfully`; a foreground call's is the agent's report.
-
-The task asks for three investigations at once because concurrency is the
-strongest legitimate pull toward backgrounding, and the Agent tool description
-offers exactly that argument. It is not a real reason: three foreground agents
-launched in one assistant message overlap — measured 2026-09-16, windows
-t+0.0-14.1s, t+3.7-17.4s, t+10.9-23.9s, against 40.9s of summed work.
-
-Preconditions and the `jq` to read a run are in the case's
-`reference-solution.md`.
 
 ## Grader rule
 
