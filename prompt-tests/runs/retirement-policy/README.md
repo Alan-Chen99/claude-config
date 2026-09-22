@@ -97,7 +97,7 @@ markdown file.
 
 | item | r1 (block) | r2 (no block) |
 | --- | --- | --- |
-| Pillow pin | named — "the pin stays until someone knows what it was. Before bumping, render a real customer image at `md` under both versions and compare" | named — "What has not been checked is the February environment itself … Start there" |
+| Pillow pin | named — "the pin stays until someone knows what it was. Before bumping, render a real customer image at `md` under both versions and compare" | named — "Bump only alongside a before/after comparison of real `md` thumbnails from real uploads, and expect to look at them" |
 | `CHUNK = 50` | named — "Raise it only on a written statement of our plan's cap from the vendor, or on a deliberate reproduction" | named — "Raising it needs written confirmation of our plan's limit, or a deliberate reproduction" |
 | `jobs/<id>.json` | named — "Stops applying once an accepted upload is durably recorded somewhere else" | **not named** — the rule, its history and a false end to rule out ("age is not staleness"), and no observation that releases it |
 
@@ -156,3 +156,22 @@ way; `Say what ends it` is the one with a mechanism for the row that parted.
 **The parting is one sentence in one artifact at n=1.** It is the direction the
 pre-registration named, and it is reported because the pre-registration binds the
 round to report it — not because one row settles the question.
+
+## Correction, iteration 16
+
+Two repairs to the record above; neither changes the result.
+
+The r2 Pillow cell originally quoted "What has not been checked is the February
+environment itself … Start there", which is an instruction to investigate and
+not an end-condition. The sentence that carries the reading is two paragraphs
+later in the same artifact and is now the one quoted. The row was scored
+correctly and cited wrongly.
+
+**R1 is not a categorical reading, and this round's own rule excludes it.**
+"Does the delivered text state what would end this item?" requires judging
+whether a given sentence is an end-condition — the Pillow cell above is exactly
+that judgement, made twice and differently. The result rests on one such call
+at n=1. The blind comparison is the mitigation but not a second instrument: that
+grader was told the decisive criterion, so it re-made the same judgement rather
+than an independent one. Read outcome 1 as "the direction the pre-registration
+named", which is what its own closing line says, and not as a measurement.
