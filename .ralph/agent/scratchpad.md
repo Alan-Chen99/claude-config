@@ -118,7 +118,7 @@ before 2026-09-22. Round 11: restatement grows by accretion, not addition. Round
 12: the task's subject bounds the edit, so relocation-as-growth cannot occur on a
 writing task.
 
-## Iteration 15 — `0a1f1b6a` → `<end>`
+## Iteration 15 — `0a1f1b6a` → `73a57146` (+ this commit)
 
 ### Critique of the rounds that built the case corpus
 
