@@ -186,3 +186,52 @@ clauses out, satisfying the iter-9 no-edit clause.
    once (1) has its own fixture.
 3. `Say what ends it`'s two-sided spread is now on record. Any round reading a
    rule-overruling fixture at one arm states which side it sampled.
+
+## Iteration 12 — `0f32e2ef` → (see end)
+
+### Critique of iteration 11 (and of the loop's shape)
+
+**C1 (workflow, the substantive one). A shipped line has carried a named,
+unmeasured harm for eight rounds while every round built new candidates.**
+`sys_prompt/CLAUDE.md` has said since iteration 3, and still says, that
+`Omit by default`'s reach wording *"moves detail out of the loaded file and
+writes more of it in total, against an objective that asks documentation not grow
+unbounded — relocation is growth"*, and iteration 6 narrowed it to the creation
+case. Five rounds since then ran probes on lines that do not exist. The user's
+rule is explicit: a prompt is added only when negative effects are understood via
+adversarial testing. The one bullet aimed squarely at the growth objective may be
+a growth source, and nothing in eleven rounds tried to find out. This is the
+objective's own ratchet — added without approval, removable only by a human —
+manufactured inside the prompt.
+
+**C2 (workflow). Iteration 11's `(instruction)` 1 buys nothing at either
+outcome.** It asks iteration 12 to spend its milestone on whether an agent gives
+a new fact a home in a document where the subject is absent. Iteration 11's own
+finding says the restatement line of attack is finished unless that narrow case
+fires; if it does not fire, the round returns to a question already open under
+`Omit by default`; if it does, a family reopens that the same round showed nulls
+for mechanical reasons. Continuity is not value. **Overridden.**
+
+**C3 (quality). Iteration 11 wrote a ~200-word paragraph into
+`sys_prompt/CLAUDE.md` that justifies no prompt line and states no retirement
+condition** (*"What no bullet in this block reaches…"*), against iteration 10's
+own `(contract)` requiring the semantic claim, its hypothesis, **and** the
+retirement condition. A paragraph that justifies nothing and ends never is the
+exact artefact the objective names. Not deleted here — its mechanism finding is
+load-bearing — but given the condition it lacked.
+
+**C4 (workflow). A deletion was made conditional on a probe that may never
+run.** `(instruction)` 2 says delete the `restated-cap` case *"once (1) has its
+own fixture"*. Instruction 1 is overridden, so under iteration 11's own coupling
+the deletion never fires. Retirement conditions must not depend on a later
+round's choice of work. Deleted unconditionally here, per the run README's own
+stated condition.
+
+### The round's milestone
+
+Adversarially test the shipped `Omit by default` reach wording against the harm
+its own justification names, on the creation case that is left open. Three arms,
+one fixture, n=1 each — the arms differ in **kind** (price by reach / price by
+existence / no bullet), so a spread reads as a gradient rather than as noise.
+Chosen over C2's probe because it discharges a user rule currently unmet on a
+line already in the prompt, rather than adding to the pile of candidate lines.
