@@ -218,61 +218,60 @@ size — which would mean the MCP surface has grown into the case #45357 describ
 
 ### `# Writing for other agents`
 
-**`Omit by default` prices by reach, not by existence.** Maintenance and mis-reading cost the same
-wherever a line sits; per-session cost does not, so pricing a line by having been written at all
-prices the wrong thing. Still open: the reach wording moves detail out of the loaded file and writes
-more of it in total, against an objective that asks documentation not grow unbounded — relocation is
-growth. The maintenance half is closed; editing an existing document, this wording and no block at
-all all shrink the file, so what is left is the creation case. Retire this when an arm carrying it
-writes more in total than one without it and no reader gains from where the bytes went.
+**`Omit by default` prices by reach, not by existence — and the pricing, not the reach, is the half
+with measured behaviour behind it.** The argument for reach: maintenance and mis-reading cost the
+same wherever a line sits, per-session cost does not. The harm this paragraph held open since the
+reprice is that reach pricing then moves detail out of the loaded file and writes more in total.
+Looked for on a task asking that something be documented, that harm does not occur: nothing was
+relocated under any arm. What the pricing reaches is how many places a fact is written into and
+whether the agent issues instructions nobody asked for — an unpriced arm did both, priced arms
+neither. Hypothesis: a priced line makes an addition something the agent must justify to itself, and
+an unrequested prescription is the first thing that fails. Retire the bullet when an arm carrying it
+issues as many unrequested instructions as one without it. The *reach* half retires separately and
+is still unexercised — it bites only where two live destinations of different reach are both
+available — and then: when an arm carrying it writes more in total than one without it and no reader
+gains from where the bytes went.
 
-**What no bullet in this block reaches: the subject bounds the edit, so growth hides where the
-subject already is.** An agent handed a subject rewrites everything about that subject and almost
-nothing about any other — it deletes twenty lines where the task asked for one to be added. Within
-the subject it is exhaustive: a fact stated in several places is grepped out of all of them and
-corrected in all of them, arithmetic included, and the count is never decided, so it only rises and
-the next change silently costs one edit fewer. Nothing goes wrong, which is why nothing fires:
-maintenance is succeeding. Nor is the growth event an agent choosing to write a fact down twice: a
-change that falsifies an existing sentence forces that sentence to be rewritten and the *new* fact
-rides into the rewrite, so every document already carrying the subject acquires it with no moment at
-which a copy is added. A bullet phrased around adding one names an act the agent never performs,
-which is why one aimed there changed nothing. Whatever reaches this fires while a sentence is being
-corrected and asks for a deletion — which is where the cost sits: the number an on-call operator
-needs is in the runbook because it was restated there.
+**The task's subject bounds the edit. That is where growth hides, and why no bullet here reaches
+it.** Within the subject an agent is exhaustive — a fact is grepped out of every place it appears
+and corrected in all of them — and outside it almost nothing moves. Two consequences. A change that
+falsifies an existing sentence forces a rewrite and the *new* fact rides into it, so every document
+already carrying the subject acquires the fact with no moment at which a copy is added; a bullet
+phrased around adding one names an act that never happens, which is why one aimed there changed
+nothing. And relocation-as-growth is a hazard of *cleanup* tasks, where documentation is itself the
+subject, not of writing tasks. The count is never decided, so it only rises; nothing goes wrong,
+which is why nothing fires. Whatever reaches this fires while a sentence is being corrected and asks
+for a deletion. Retire it when an agent acts on documentation the task did not name.
 
-**`Claim less` does not endorse a hedge.** It once closed with *Often you are better off with a
-hint, warning or a [record] marker*. A warning is still a claim; being wrong about it produces no
-failure that points back at it, and it costs every later reader a check that returns nothing, with
-no event that retires the line (`notes/workers-bullet-hint-in-fact-position.md`). Carrying the
-clause changed nothing that a maintainer would care about, and `# Epistemic Integrity`'s No
-Unexplained Residue Rule already forbids unconditionally what the clause licensed *often*. Retire
-the deletion when an arm carrying the clause hedges materially less than one without it; an unhedged
-claim merely appearing is not that comparison.
-
-**Nothing here addresses asserting what you cannot check, and three wordings failed to change
-that.** What escapes audit is the premise the agent *brought with it*: background knowledge about an
-external system does not arrive feeling like a claim, so nothing fires on it, while what the agent
-derived in-session does. A premise that arrives with its source narrated is audited; one the agent
-supplies from its own background is not. The node is provenance, not wording, which is why wordings
-aimed at the form kept missing. Retire this paragraph when something other than a sentence in this
-block is shown to reach the behaviour — and note the trade a new line must not break: an agent that
-hands the reader a test to run instead of a caveat to read has discharged the premise better than
-any marking, so a line buying markings at that cost is a regression.
+**`Claim less` does not endorse a hedge, and the claims that escape are not the ones it names.** It
+once closed with *Often you are better off with a hint, warning or a [record] marker*. A warning is
+still a claim; being wrong about it produces no failure that points back at it, it costs every later
+reader a check that returns nothing, and no event retires it
+(`notes/workers-bullet-hint-in-fact-position.md`) — and `# Epistemic Integrity`'s No Unexplained
+Residue Rule already forbids unconditionally what the clause licensed *often*. Retire the deletion
+when an arm carrying the clause hedges materially less than one without it. What no wording here has
+reached — three tried — is asserting what you cannot check, because the premise that escapes is the
+one the agent *brought with it*: background knowledge about an external system does not arrive
+feeling like a claim, so nothing fires on it. A premise the task narrates is audited: a task whose
+stated error message the fixture refuted was run down and reported as a suspected user mistake by
+every arm, not written down unmarked. The node is provenance, not wording. Retire this when
+something other than a sentence in this block reaches the behaviour — and note the trade a new line
+must not break: an agent that hands the reader a test to run instead of a caveat to read has
+discharged the premise better than any marking, so a line buying markings at that cost is a
+regression.
 
 **`Say what ends it` buys an exit for rules that would otherwise be permanent.** A rule an agent
 writes is followed by later readers without being re-decided, and deleting it takes a human — the
 objective's sharpest clause. It does not reach the other half, *should this be a rule at all*: a
 bare preference lands in the same register as a real constraint, with the same end-condition
-machinery attached. Where it bites is a rule whose stated cause has expired — and it does not settle
-the step before. Handed a task contradicting such a rule, this prompt spans two defensible answers:
-rewrite the entry at the new figure, recording what ended the old cause and what the new one rests
-on; or decline and hand the unverifiable half back. Two arms differing in an unrelated bullet took
-one each, both naming the open question, so a single run of such a fixture samples that spread
-rather than showing what the prompt does. The boilerplate risk — an end-condition bolted onto every
-rule including those that have none — has not appeared. Retire it when an arm carrying it states no
-more end-conditions than an arm without it, on a fixture whose items differ in whether they can end
-at all — or, sooner, when an arm carrying it attaches an end-condition to a rule that has none,
-which is the boilerplate failure it is most likely to cause.
+machinery attached. Where it bites is a rule whose stated cause has expired, and it does not settle
+the step before — handed a task contradicting such a rule, this prompt spans two defensible answers,
+rewriting the entry at the new figure while recording what the new one rests on, or declining and
+handing the unverifiable half back, so read any single run of such a fixture as a sample of that
+spread. Retire it when an arm carrying it states no more end-conditions than an arm without it, on a
+fixture whose items differ in whether they can end at all — or, sooner, when an arm carrying it
+attaches an end-condition to a rule that has none, the boilerplate failure it is most likely to
+cause and which has not yet appeared.
 
 ### `# Git`
 
