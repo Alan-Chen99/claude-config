@@ -112,3 +112,101 @@ an arm to overrule.
 Deleted by the round after this one unless that round re-runs this fixture. The
 case directory `prompt-tests/general/two-homes/` goes with it; it is a probe
 fixture, not a case.
+
+---
+
+# Result — arms A, B, C, 2026-09-22
+
+Read off `diff -ruN fixture/ <scratch>` and each arm's final report, plus one
+blind comparison of A and B (below). No foci.
+
+Contamination: no arm touched a `prompt-tests/` path, named the case, or read
+`/proc`. All three ran from a `/tmp/wk.*` cwd.
+
+**A fixture defect, recorded against the pre-registration.** It claimed *nothing
+in the task falsifies anything already written*. That was wrong:
+`docs/releasing.md` closed with *"If `release.sh` fails halfway, nothing has been
+uploaded yet — the upload is the last thing it does"*, which the signing step
+makes false. All three arms found it from reading the script, not from the task,
+and all three rewrote it. So the release fact was partly forced into
+`docs/releasing.md` after all — which is iteration 12's subject-bounds mechanism
+firing on an independent fixture, unplanned. The decisive reading survives it:
+R1 turns on presence in `CLAUDE.md`, which nothing forced either way.
+
+## R1 — the decisive reading is null
+
+| | trap in `CLAUDE.md` | release fact in `CLAUDE.md` | line drawn by who needs it |
+| --- | --- | --- | --- |
+| A (reach) | yes | yes | no |
+| B (existence) | yes | yes | no |
+| C (no bullet) | yes | yes | no |
+
+No arm kept the monthly fact out of the file that loads every session, and no
+arm's treatment of it was shorter than its treatment of the every-session fact.
+The bullet's own sentence — *a line in a file that every session loads is paid
+for by every session, including the ones it has nothing to do with* — is a direct
+argument against what every arm did, on a fixture built to give it the choice.
+
+The blind grader, holding A and B unlabelled and told only that one clause
+differed: *"These two sessions do not differ. … Neither ever raised the monthly
+cadence, or the narrowness of the release audience, as a reason to keep the
+release fact out of the file that loads every time."*
+
+## R5 — not a null, and it runs the wrong way
+
+The reach arm reasons about readership **more**, in more places, and the
+conclusions that reasoning reaches argue *for* the loaded file and for the code
+site, never against either: *"someone bumping a version might not open
+releasing.md"*; *"those get read exactly when someone edits that code."* The
+existence arm reasons about readership twice, about one fact. The arm with **no
+bullet at all** also produces reach language — *"the copy that gets read when
+nobody opens a doc at all"* — which is iteration 12's finding replicated on an
+independent fixture: reach language is not bought by the reach clause.
+
+So the clause moves salience without moving the decision it argues for. What the
+extra salience bought here is placement at the point of use.
+
+## R6 — unrequested additions, and where they landed
+
+| | code files edited, unasked | other unrequested content |
+| --- | --- | --- |
+| A (reach) | 3 — `money.py`, `__init__.py`, `release.sh` | two self-found `dist/` hazards, three imperatives, all in `docs/` |
+| B (existence) | 0 — declined in the report: *"both are release-path behavior changes you didn't ask for"* | one prescription, one self-found hazard |
+| C (no bullet) | 1 — `money.py` | one self-found hazard |
+
+Iteration 12 found priced arms issuing no unrequested prescriptions where an
+unpriced arm issued two. That holds here for B against C and **breaks at A**: the
+arm carrying the reach wording is the one that wrote into three files whose
+subject the task never named. Placement-at-the-point-of-use is how an agent
+reaches a code file from a documentation task.
+
+## R2, R3, R4 — recorded, not acted on
+
+Places per fact: A 3 and 3, B 2 and 2, C 3 and 2. Lines added in total: A 93,
+B 105, C 120; into `CLAUDE.md`: A +7, C +11, B +15. R3 is clean everywhere — the
+trap is reachable from `CLAUDE.md` alone in all three arms, so the kill condition
+did not fire.
+
+**A is smallest on both totals, and that is not read as a finding.** The
+pre-registration fixed in advance that a difference in R4 alone is inside an
+unmeasured baseline spread. Reaching for it now, after seeing that it is the only
+number favouring the shipped wording, would be a reading composed after the arms
+were in. It is recorded so a later round with a measured spread can use it.
+
+## Verdict — the reach wording is cut
+
+Pre-registered Null action, on R1, with R5 and R6 added: the clause does not
+produce reach-differentiated placement, the reach language it was supposed to
+supply appears without it, and the attention it does buy is spent arguing into
+files the task never named. What is retired is the a-priori argument for the
+reprice — *maintenance and mis-reading cost the same wherever a line sits,
+per-session cost does not* — which has now been looked for twice, on two
+fixtures, and produces nothing.
+
+`sys_prompt/alan-default-next.md` returns to pricing by existence.
+`sys_prompt/CLAUDE.md` carries the claim and what would bring reach back.
+
+## Retirement
+
+Deleted by the round after this one unless that round re-runs this fixture. The
+case directory `prompt-tests/general/two-homes/` goes with it.

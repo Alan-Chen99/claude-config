@@ -218,19 +218,19 @@ size — which would mean the MCP surface has grown into the case #45357 describ
 
 ### `# Writing for other agents`
 
-**`Omit by default` prices by reach, not by existence — and the pricing, not the reach, is the half
-with measured behaviour behind it.** The argument for reach: maintenance and mis-reading cost the
-same wherever a line sits, per-session cost does not. The harm this paragraph held open since the
-reprice is that reach pricing then moves detail out of the loaded file and writes more in total.
-Looked for on a task asking that something be documented, that harm does not occur: nothing was
-relocated under any arm. What the pricing reaches is how many places a fact is written into and
-whether the agent issues instructions nobody asked for — an unpriced arm did both, priced arms
-neither. Hypothesis: a priced line makes an addition something the agent must justify to itself, and
-an unrequested prescription is the first thing that fails. Retire the bullet when an arm carrying it
-issues as many unrequested instructions as one without it. The *reach* half retires separately and
-is still unexercised — it bites only where two live destinations of different reach are both
-available — and then: when an arm carrying it writes more in total than one without it and no reader
-gains from where the bytes went.
+**`Omit by default` prices by existence. Reach was priced for three rounds, measured, and cut.**
+Its argument was a priori — maintenance and mis-reading cost the same wherever a line sits,
+per-session cost does not. Given one fact every session needs and one a monthly session needs, each
+with an always-loaded home and an opened-on-purpose home, the reach wording sorted neither, and the
+reach language it was meant to supply appears in an arm carrying no bullet at all. What it did buy
+was attention to readership, and that attention argues *toward* the reader wherever they are — which
+reached three code files a documentation task never named. Pricing at all is the half with behaviour
+behind it: a priced arm declines additions it cannot attribute to the request, and an unrequested
+prescription is the first thing that fails. Hypothesis: a priced line makes an addition something the
+agent must justify to itself; reach hands that justification a second thing to argue for. Retire the
+bullet when an arm carrying it adds as much unasked-for content as one without it. Reach returns only
+if something shows an agent sorting content by who needs it, and the sorting traces to a line rather
+than to the task.
 
 **The task's subject bounds the edit. That is where growth hides, and why no bullet here reaches
 it.** Within the subject an agent is exhaustive — a fact is grepped out of every place it appears
