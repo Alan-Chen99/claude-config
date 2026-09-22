@@ -88,11 +88,16 @@ every case does.
 
 ## Trial logging
 
-Every trial keeps the grader's judgement at
+A **case** trial keeps the grader's judgement at
 `prompt-tests/runs/<case>/judgement-<arm>.md` and, where the case already has
 foci, its `session-analysis` evidence artifacts one per focus alongside it, with
 the run's provenance in the artifact header per the `session-analysis` skill.
 Together they are the trial record.
+
+A **probe** — small fixture, one question, artifact read by whoever launched it,
+no grader and no foci — keeps a `README.md` under `runs/<probe>/` naming what was
+asked and what came back, and nothing else. Probes are the default and cases are
+the exception; see `.claude/skills/prompt-tests/SKILL.md`, "Probes".
 
 **A reference edited in response to a run cites that run.** The judgement that
 forced the edit is kept, and the edit lands after the run is recorded, never

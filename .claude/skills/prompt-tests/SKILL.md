@@ -102,12 +102,34 @@ Two more ways an attribution fails silently, both of which have happened here:
   from either. A difference inside that spread is a sample, not an effect, and a
   null where the arms agreed is equally underdetermined until agreement is shown
   to be the baseline's normal state. Where an arm comparison is going to decide
-  something, say what the baseline's spread is, or say that it is unknown.
+  something, say what the baseline's spread is, or say that it is unknown. The
+  cheaper move is to stop needing it: build the fixture so a single run offers
+  **several opportunities for the behaviour under test, differing in character**,
+  and read the line the agent drew between them. One opportunity is a coin flip
+  whatever the prompt says; several are a policy, and a policy is legible at n=1
+  and is semantic rather than a rate.
 - **A rule that reaches the agent in a tool result explains nothing written
   before the first call to that tool.** The `pre_output.record` reminder is the
   case in point: its text arrives in the tool response, so behaviour at earlier
   tool calls is baseline behaviour whatever the arm was meant to test. State the
   tool-call index of the behaviour and of the first call.
+
+## Probes, and when a run is a case instead
+
+Most runs should be **probes**: a small fixture, one targeted question, the
+artifact read by whoever launched it. No grader dispatch, no foci, no arm sweep.
+A probe answers *what does the prompt do here*, which is what almost every round
+actually needs, and it costs a fraction of a case, so a round can afford to
+re-read its own result and to run a second probe when the first one surprises it.
+
+A **case** — `reference-solution.md`, a grader per arm, foci, stored runs — is
+the exception, and it earns that by being re-run across rounds. A probe that a
+later round needs to re-run is promoted to one; otherwise it is deleted with the
+round that wrote it. Keeping an un-promoted probe is the ratchet this repo is
+against: a directory nobody re-runs, that only a human will ever remove.
+
+A probe still runs under the contamination rules below — the fixture is copied
+into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
 
 ## Test case shape
 
@@ -286,38 +308,12 @@ would inject verbatim.
 An agent file that *has* frontmatter — `opencode/agents/alan-default-ids.md` —
 therefore has to be driven directly. Full recipe: `skills/opencode-subcommand`.
 
-```bash
-REPO="$(git rev-parse --show-toplevel)"
-CASE="prompt-tests/general/network-resilience"
-SCRATCH="$(mktemp -d /tmp/prompt-test.XXXXXXXX)"
-export PATH="$REPO/agent-tools/target/release:$PATH"
-export CLAUDE_CONFIG_ROOT="$REPO"
-OPENCODE_DISABLE_PROJECT_CONFIG=1 \
-OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
-OPENCODE_CONFIG_CONTENT='{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": [],
-  "agent": {
-    "prompt-test": {
-      "mode": "primary",
-      "model": "openai/gpt-5.5",
-      "variant": "xhigh",
-      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default-ids.md}",
-      "permission": {"read":"allow","glob":"allow","grep":"allow","list":"allow","bash":"allow","edit":"allow","write":"allow"}
-    }
-  }
-}' \
-opencode run --agent prompt-test --format json --dir "$SCRATCH" \
-  < "$REPO/$CASE/task.md" | tee "/tmp/$(basename $CASE)-$(date +%s).jsonl"
-```
+Three of its lines carry a failure that is silent when you get them wrong, and
+one of the three is specific to this repo:
 
-Three lines in it carry a failure that is silent when you get them wrong:
-
-- **`model` and `variant` in the config block.** `{file:...}` does not apply the
-  agent file's frontmatter, so the frontmatter's model is not the model that runs.
-  Verify the rendered header with
-  `agent-tools opencode-pretty <session-id> --agent`; a run showing
-  `openai/gpt-5.5/default` is misconfigured for any xhigh claim.
+- **`model` and `variant` in the config block**, because `{file:...}` does not
+  apply the agent file's frontmatter. Verify the rendered header with
+  `agent-tools opencode-pretty <session-id> --agent`.
 - **`PATH` and `CLAUDE_CONFIG_ROOT`.** `alan-default-ids` calls `agent-tools
   opencode.gate`, whose text is baked into the binary at build time.
   `~/.local/bin/agent-tools` resolves to `/repos/claude-config`, so a worktree
