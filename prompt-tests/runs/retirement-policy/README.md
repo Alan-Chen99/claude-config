@@ -136,10 +136,18 @@ does not reach this**, and the good-artifact note above said it should.
 
 B additionally enforced the preference with `test_no_print_calls`, where A wrote
 no such test: a rule with no incident behind it, now removable only by someone
-willing to delete a passing test. That is the ratchet the bullet argues against,
-in the arm carrying the bullet. At n=1 and with the bullet saying nothing about
-tests, it is a cost to watch, not an attribution — A spent its own surplus on a
-byte-exact Pillow output test and a duplicated README.
+willing to delete a passing test.
+
+That reads as the ratchet the bullet argues against appearing in the arm carrying
+the bullet, and it is not. Each arm wrote three guards. B's are source-text
+assertions — its own docstring says they "read source text instead of importing,
+so they run without Pillow or requests installed" — and a `print()` scan is
+trivial in that mechanism while a byte-exact render comparison is not. A chose
+behavioural tests and got the opposite three. Neither transcript contains any
+reasoning about the fourth item's register: `preference` appears in both only
+inside the system prompt and the skill listing, and `no incident` in neither. So
+the test follows from B's choice of test mechanism, and the register defect is a
+thing **both** arms have and neither noticed.
 
 ## Unpredicted, and it refines what iteration 8 concluded
 

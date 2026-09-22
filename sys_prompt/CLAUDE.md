@@ -314,9 +314,10 @@ question repeating.
 
 Two things it did not buy, both recorded in the run: neither arm kept the bare preference out of the
 register it used for the three incidents, so the line does not reach the *should this be a rule at
-all* half; and the treated arm alone turned that preference into a passing test, which is the ratchet
-argued against, appearing in the arm carrying the argument. At n=1, with the line saying nothing
-about tests, that is a cost to watch rather than an attribution.
+all* half; and the treated arm alone turned that preference into a passing test. That second one is not the
+line's doing: both arms wrote three guards, the treated arm's are source-text assertions in which a
+`print()` scan is trivial and a byte-exact render comparison is not, and neither transcript reasons
+about the fourth item's register at all. The register defect belongs to both arms.
 
 Retire this bullet when an arm carrying it states no more end-conditions in its artifact than an arm
 without it, on a fixture whose items differ in whether they can end — or, sooner, when an arm
