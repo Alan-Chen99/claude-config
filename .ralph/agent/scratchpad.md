@@ -124,7 +124,7 @@ preamble (kept) on `prompt-tests/general/inherited-project`, and 19 isolated
 `Say what ends it` (kept) on `prompt-tests/general/retirement-policy`, so every
 sentence still in the block has now been measured alone.
 
-## Iteration 20 — `cf8f2dac` → end of round
+## Iteration 20 — `cf8f2dac` → `f66c6e5c` + this commit
 
 ### Critique of prior iterations
 
