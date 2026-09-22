@@ -2,13 +2,21 @@
 
 ## Patterns
 
+### mem-1790057567-6358
+> Documentation restatement grows by ACCRETION, not addition: an agent handed a change that falsifies a sentence rewrites that sentence, and any new fact rides into the rewrite. Every document already carrying the subject acquires the new fact; no moment exists at which a copy is 'added'. Measured two arms on a fixture stating one fact in four documents of differing character. Consequence: any prompt rule phrased around 'before adding a copy' names an act that never happens and nulls.
+<!-- tags: prompt-tests, writing-for-agents | created: 2026-09-22 -->
+
+### mem-1790057525-b4a8
+> A pre-registered READING can be wrong, not just the candidate. Iteration 12 pre-registered 'A approx B means the reach clause is inert' and withdrew it in the record: the fixture offered one plausible home for the new fact, so the reach clause never had two destinations to choose between. Withdraw the reading in the run's own README rather than honour it - a pre-registration binds you to report the outcome, not to accept an inference its fixture cannot support.
+<!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
+
+### mem-1790057525-82a3
+> Pricing what an agent writes (Omit by default, either wording) suppresses a second copy and suppresses unrequested imperatives; it does NOT cause relocation. Three arms on one documentation task: reach-priced and existence-priced arms each wrote one file and issued no prescription; the unpriced arm wrote the fact into a second file and added two imperatives nobody asked for, both into auto-loaded files. Hypothesis: a priced line makes an addition something the agent must justify to itself, and an unrequested prescription is the first thing that fails. No arm relocated anything - the task's subject bounds the edit, so relocation-as-growth is a cleanup-task hazard only.
+<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-22 -->
+
 ### mem-1790056288-d79b
 > alan-default-next.md at 391c35d0 spans two answers when a task contradicts a written rule whose cause the task retires: rewrite the rule at the new figure recording what the new number rests on, OR decline the change and hand the unverifiable half back. Two arms differing only in an unrelated bullet took one each, both reporting the open question. Read any single-arm run of a rule-overruling fixture as a sample of that spread.
 <!-- tags: prompt-tests, sys-prompt | created: 2026-09-22 -->
-
-### mem-1790056284-4f2f
-> Documentation restatement grows by ACCRETION, not addition: an agent handed a change that falsifies a sentence rewrites that sentence, and any new fact rides into the rewrite. Every document already carrying the subject acquires the new fact; no moment exists at which a copy is 'added'. Measured on restated-cap, two arms, 2026-09-22. Consequence: any prompt rule phrased around 'before adding a copy' names an act that never happens and nulls.
-<!-- tags: prompt-tests, writing-for-agents | created: 2026-09-22 -->
 
 ### mem-1790052470-b93e
 > An artifact's uncertainty structure tracks the READER the task names, not the artifact's cold-read-ness. Same fixture, same prompt: asked for an on-call runbook the agent re-asserted an inherited vendor guarantee and added no confidence structure; asked for a brief for 'another agent in a fresh session with no access to this conversation' it labelled every section by distance from evidence and attacked the same inherited claim. Untested which half of the prompt does this - the '# Writing for other agents' block opens on readers who cannot ask what you meant, which is the brief task's literal wording. A deletion arm on that block would settle it.
@@ -30,11 +38,11 @@
 > Verify a doc compression with a differential probe, not a review: two fresh readers, one per version, same question ('what must you get right, what goes wrong if you miss it, would you notice'), no repo access. A reviewer who has read both versions knows the answer and cannot see a silently-removed trap. Cost: two single-turn subagents. It found one real loss and one contradiction.
 <!-- tags: docs, verification | created: 2026-09-22 -->
 
-### mem-1790038068-1b54
-> Cleanup sweeps that search for citation PATHS leave the NUMBERS behind. 6349fed6 removed ~53 run citations and left '6 of 8', '9 of 9', '2.2x in both arms' unsourced in the grader-injected file. A number is not a path; grep for digits-plus-'of', not for directory names.
-<!-- tags: prompt-tests, cleanup | created: 2026-09-22 -->
-
 ## Decisions
+
+### mem-1790057525-9dcd
+> A shipped prompt line with a named, unmeasured negative effect outranks any new candidate line as a round's milestone: it is already charging every session and only a human can remove it, and testing the incumbent is the only move that can shrink the prompt. Omit by default's relocation harm sat named-but-unmeasured for eight rounds while five rounds probed lines that did not exist.
+<!-- tags: sys-prompt, workflow | created: 2026-09-22 -->
 
 ### mem-1790055493-2a80
 > Three files stated the prompt-testing design (prompt-tests/CLAUDE.md, .claude/skills/prompt-tests/SKILL.md, docs/prompt-testing-design.md) and had drifted to contradictory reading commands. Split applied iter 10: the skill carries instructions, the design doc carries reasoning, and prompt-tests/CLAUDE.md carries only the rule about itself, because it auto-attaches on the Read path.
