@@ -34,40 +34,32 @@ outside the named subject only two are actionable defects, one arm fixed one, an
 the other two were correctly left alone. `task-narrow.md` swept the same way, so
 licence is not the mechanism.
 
-## DEC-011 — no line for the uncertainty transfer (iter 7, conf 84)
-Four arms, ship nothing. Its reading — that the gap is a **channel**, the claim
-named to the user and absent from the file — is **superseded by iter 8**: on a
-five-point fixture the premise was absent from both channels, so the node is that
-background knowledge about an unreachable system is never audited as a claim,
-while what the agent derived in-session is. Its case was deleted as superseded.
-Framing bias it recorded stands: its second wording was fitted to one run.
+## DEC-011, DEC-012 — the uncertainty-transfer line, and how it was measured (iter 7-8)
+Both closed. Neither shipped a line. DEC-011's reading — the gap is a *channel*,
+the claim named to the user and absent from the file — is superseded by DEC-012's
+measurement, which found it absent from both. DEC-012's contribution survives as
+durable method in scratchpad (*buy resolution inside the run*) and its finding in
+`sys_prompt/CLAUDE.md`. Framing bias both recorded: each fitted a wording to the
+run before it. Independent evaluation: not-started.
 
-## DEC-012 — fix the resolution problem by instrumenting the fixture, not by sampling (iter 8, conf 78)
-- **Chosen**: override iter 7's instruction 1. Build one temporary probe fixture
-  carrying five claims at increasing distance from reachable evidence, and read
-  the **policy** a single run applies across them, rather than re-sampling a
-  single-premise case.
-- **Alternatives**: add `downstream.md` and re-run (measures the consequence, adds
-  a second stochastic stage, does not make the tested agent more determinate);
-  take more baseline samples (replication — forbidden by the user's rules, and
-  yields a rate where the open question is semantic); abandon the target (premature
-  — iter 7 established the gap's shape, only its measurement failed).
-- **Reasoning**: at n=1 a one-opportunity fixture is a coin flip whatever the
-  prompt says. Several opportunities that differ in *character* turn one run into
-  a readable line between asserting and marking, and the two failure directions
-  — asserting across the boundary, and hedging what was readable — are then
-  visible in the same run, which is the adversarial half the user requires.
-- **Re-evaluate**: if the gradient is flat (every point handled the same way), the
-  characters chosen are not the ones that vary and the design, not the target, is
-  what failed.
-- **Framing bias**: I chose the five characters from iter 7's closing note (*a
-  verified fact about the local half licensed the unverified claim about the
-  remote half*), so the gradient is built around a boundary I already believed was
-  the one that matters.
-- **Outcome**: the design worked and the candidate it enabled did not. The
-  gradient read cleanly at n=1 — verified at the near points, unmarked at the
-  boundary, in all three arms — and the treated arm hit the pre-registered R2/R4,
-  so no line shipped. Three wordings have now failed on this behaviour;
-  `sys_prompt/CLAUDE.md` carries what would retire that conclusion.
+## DEC-013 — ship `Say what ends it` (iter 9, conf 76)
+- **Chosen**: add the bullet, measured against a two-arm probe on a four-item
+  fixture. Baseline stated one end-condition, treated three, in three forms
+  matched to three characters, writing 1202 bytes less.
+- **Alternatives**: ship nothing, on the ground that O2's antecedent is borderline
+  (rejected — the borderline reading counts the report channel, and the
+  pre-registration's read section names the artifact); aim at the register defect
+  instead, which neither arm handled (rejected — not measured this round, and
+  the contract forbids composing a target after the arms land).
+- **Reasoning**: the invariant is where the ratchet is sharpest, and it is exactly
+  where the baseline wrote a permanent rule and the treated arm wrote an exit.
+  That is the objective's sharpest clause, bought for 45 tokens and negative
+  bytes.
+- **Re-evaluate**: the condition is in `sys_prompt/CLAUDE.md` and is a comparison.
+  Do not re-run the same fixture to confirm it.
+- **Framing bias**: I wrote the fixture's four characters from the shape of the
+  line I intended to test, so the gradient is built around the distinction the
+  bullet makes. A fixture built by someone testing a different line would sort
+  these four differently.
 - **Independent evaluation**: not-started.
-- 2026-09-22T00:00:00Z
+- 2026-09-22T05:30:00Z

@@ -37,6 +37,10 @@ applied, which is a semantic reading and not a rate. *(iter 8)*
 outcome.** Write what the good artifact looks like before writing what the bad
 one is missing. *(iter 8)*
 
+**A pre-registered outcome names the channel it is read from** — delivered
+artifact, report, or the `pre_output` fields. Iter 9's O2 said *arm A says*, and
+the two readings disagreed on whether the candidate shipped. *(iter 9)*
+
 ## Standing `(contract)`
 
 > An iteration may not spend its whole milestone on the prompt-test instrument
@@ -87,11 +91,9 @@ one is missing. *(iter 8)*
 ## Iterations 1–8 — `9f6c03a0` → `efb5698c`
 
 Detail is in commit messages; anything justifying a prompt line is in
-`sys_prompt/CLAUDE.md`. 1–2 instrument only. 3 repriced `Omit by default` by
-reach. 4 deleted the `Claim less` hedge endorsement. 5 cleanup. 6, 7, 8 built a
-case each and shipped no prompt edit; 8 established that three wordings aimed at
-claim-handling have failed and that what escapes an agent's audit is the premise
-it **brought with it**, not the one it derived.
+`sys_prompt/CLAUDE.md`. 3 repriced `Omit by default` by reach; 4 deleted the
+`Claim less` hedge endorsement; 6–8 shipped no prompt edit, and 8 established
+that three wordings aimed at claim-handling failed.
 
 Surviving semantics: an agent handed a subject rewrites everything about that
 subject and little about any other, so the growth worry is about creation, not
@@ -138,3 +140,46 @@ Fixture carries four items of different truth condition (a pin whose reason is
 local and checkable, a vendor number governed by the account plan, a design
 invariant nothing routine ends, a bare preference), so one run reads as a policy.
 O4 boilerplate and O5 growth each kill the candidate on their own.
+
+### What the two arms showed
+
+Both arms **falsified the premise the task handed them** — the task's account of
+the Pillow regression is wrong and the fixture is enough to show it, and both
+found that out by running it. Both also marked the vendor claim unverified
+without being asked. The difference from the premise that escaped audit in
+earlier rounds is that **the task narrated its provenance**. A premise arriving
+with its source attached keeps the source in the artifact; one the agent supplies
+from its own background knowledge arrives as a fact and is never audited. That
+narrows iter 8's node and no wording was involved either way.
+
+On the pre-registered question: baseline one end-condition of four, treated arm
+three, in three forms matched to three characters, while writing 1202 bytes less.
+O3 held, O4 and O5 did not fire, **O1 was wrong** — the baseline is not saturated,
+it reaches the vendor number and misses the invariant. The bullet shipped.
+
+What it did not buy: neither arm kept the bare preference out of the register it
+used for the three incidents, and the treated arm alone made that preference a
+passing test. Recorded as a cost, not attributed at n=1.
+
+**O2's antecedent was ambiguous** and a round cannot pick between readings after
+the arms are in; the call and both readings are in the run's README, so a later
+round can overturn it rather than rediscover the choice.
+
+### Iteration 9 — `efb5698c` → `20c7def5` (+ this commit)
+
+Shipped: `Say what ends it` in `# Writing for other agents`, byte-identical to the
+tested arm. Deleted: `prompt-tests/runs/what-retires-this-line/`, retired by its
+own condition. Promoted: `retirement-policy` to a case, because the new bullet's
+retirement condition names a re-run there.
+
+### `(instruction)` for iteration 10
+
+1. **Cleanup round.** In order: `.claude/skills/prompt-tests/SKILL.md` (347
+   lines), `docs/prompt-testing-design.md` (172), then `sys_prompt/CLAUDE.md`
+   (8377) — its narrative, not its conclusions. The iter-3 clause still binds, so
+   the round runs at least one arm.
+2. **Do not re-run `retirement-policy` to confirm the bullet.** Its condition is a
+   comparison; re-running the fixture to agree with itself is not that comparison.
+3. **The un-bought half is the live target after cleanup**: an agent handed a bare
+   preference alongside three incidents files all four alike, then enforces the
+   preference. Reachable by a wording or not is unknown — unaimed-at this round.

@@ -2,6 +2,14 @@
 
 ## Patterns
 
+### mem-1790054078-7c80
+> A pre-registered outcome must name the CHANNEL it is read from (delivered artifact vs report vs pre_output next-steps). iter9's O2 said 'arm A says' and the two readings disagreed on whether the candidate ships; a round cannot pick between them after the arms land.
+<!-- tags: prompt-tests, method | created: 2026-09-22 -->
+
+### mem-1790054078-5ebb
+> A premise that arrives WITH its provenance narrated ("their support engineer said on a call") keeps that provenance in the artifact and often gets falsified outright; a premise the agent supplies from its own background knowledge arrives as a fact and is never audited. Why: the audit fires on things that feel like claims, and attribution is what makes something feel like one. Narrows iter8's node.
+<!-- tags: prompt, claims, evidence | created: 2026-09-22 -->
+
 ### mem-1790052470-b93e
 > An artifact's uncertainty structure tracks the READER the task names, not the artifact's cold-read-ness. Same fixture, same prompt: asked for an on-call runbook the agent re-asserted an inherited vendor guarantee and added no confidence structure; asked for a brief for 'another agent in a fresh session with no access to this conversation' it labelled every section by distance from evidence and attacked the same inherited claim. Untested which half of the prompt does this - the '# Writing for other agents' block opens on readers who cannot ask what you meant, which is the brief task's literal wording. A deletion arm on that block would settle it.
 <!-- tags: sys-prompt, docs | created: 2026-09-22 -->
