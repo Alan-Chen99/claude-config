@@ -179,4 +179,4 @@ runs it.
 
 One probe, three arms, one fixture: A = HEAD, B = HEAD minus the block preamble,
 C = HEAD plus the candidate. Pre-registration, readings and outcomes:
-`prompt-tests/runs/handover-notes/README.md`.
+`prompt-tests/runs/feedwatch-onboarding/README.md`.
