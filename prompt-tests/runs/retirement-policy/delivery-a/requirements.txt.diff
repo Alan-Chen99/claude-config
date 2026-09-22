@@ -1,7 +1,0 @@
---- before/./requirements.txt
-+++ after/./requirements.txt
-@@ -1,2 +1,4 @@
-+# Pillow is pinned: thumbnail output is customer-visible and unversioned.
-+# Read DECISIONS.md "Thumbnail sharpness" before changing this line.
- Pillow==10.2.0
- requests==2.31.0

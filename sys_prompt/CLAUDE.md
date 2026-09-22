@@ -218,20 +218,14 @@ size — which would mean the MCP surface has grown into the case #45357 describ
 
 ### `# Writing for other agents`
 
-**`Omit by default` is deleted. It claimed a priced agent declines additions it cannot attribute
-to the request; run against an arm without it on `prompt-tests/general/halve-the-runbook`, the arm
-carrying it made an unrequested claim of its own — and a false one — exactly as the arm without it
-did.** Read blind by a reader holding both rewrites and the source, told only to name claims the
-source does not make and not which arm was which, so the reading is not the round's own. Neither
-arm wrote a second file, annotated the file about its own compression, or dropped the
-canonical-checkout-only qualifier; on every reading the two matched. Its reach half had already
-been priced and cut for the same reason (rounds 3, 13): what the wording bought was attention to
-readership, and attention argues in whichever direction the task favours. Hypothesis for why five
-rounds of it produced nothing: the failure it names is not an act the agent performs — a document
-acquires a claim while a sentence is being written, not at a moment where adding could be
-declined. Bring it back when a transcript shows an agent declining a specific addition on the
-ground that it would cost more than it is worth, and the reasoning traces to a line rather than to
-the task. The fixture stays whatever this says: the user directed its shape.
+**`Omit by default` is deleted: on `prompt-tests/general/halve-the-runbook` an arm carrying it and
+one without it were indistinguishable, each making an unrequested false claim.** Its
+reach half went earlier for the same reason: what the wording bought was attention to readership,
+and attention argues in whichever direction the task favours. Hypothesis: the failure it names is
+not an act the agent performs — a document acquires a claim while a sentence is being written, not
+at a moment where adding could be declined. Bring it back when a transcript shows an agent
+declining a specific addition as costing more than it is worth, the reasoning tracing to a line
+rather than the task. The fixture stays whatever this says: the user directed its shape.
 
 **The task's subject bounds the edit. That is where growth hides, and why no bullet here reaches
 it.** Within the subject an agent is exhaustive — a fact is grepped out of every place it appears
@@ -267,8 +261,14 @@ better than any marking.
 
 **`Say what ends it` reaches the rule whose end is a design change rather than an observation — the
 one an agent gives the history of and leaves standing.** Rules that end on an observation get their
-exit unaided. Hypothesis: an exit is written once the agent can picture the act. Retire it when an
-arm carrying it names no more exits than one without, on `prompt-tests/general/retirement-policy`.
+exit unaided, in both arms. Hypothesis: an exit is written once the agent can picture the act.
+Isolated against a preamble-only arm on `prompt-tests/general/retirement-policy`: the effect is the
+bullet's, not the block's. What it produces is a *document template* carrying an exit as one field,
+not four sentences — so it reaches a row where no act is picturable and writes a thin exit anyway.
+That looked like this case's predicted harm; a blind reader contradicted it. The arm applying the
+template uniformly was the one that filed the bare preference *as* a preference, where the arm
+without it stated it flat with no warrant. Retire it when an arm carrying it names no more exits than one without, on that
+case.
 
 
 ### `# Git`
