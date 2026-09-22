@@ -129,7 +129,7 @@ fixed a nine-round harness contamination and voided every arm stored before
 2026-09-22. Round 15 ran the block whole against an arm with no block: the arms
 parted on one row in the block's favour and `Omit by default` was untouched.
 
-## Iteration 17 — `7dec8051` → (this round)
+## Iteration 17 — `7dec8051` → `b0304c40` (+ this commit)
 
 ### Critique of prior iterations
 
