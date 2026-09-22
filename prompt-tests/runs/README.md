@@ -21,7 +21,9 @@ delivered artifacts and one `README.md` saying what the arms were, what
 differed, and what the comparison does not establish. Dispatch graders instead
 when the question turns on how the agent got there rather than on what it
 delivered. A probe that moves a prompt still gets the blind comparison the skill
-requires of a prompt edit, and the README reports it.
+requires of a prompt edit, and the README reports it. **The round that wrote a
+probe deletes its directory in the commit that records what it concluded** — git
+holds the pre-registration and the artifacts; the skill says why.
 
 Arm names match the baseline headings in the case's `reference-solution.md`,
 where it has them.

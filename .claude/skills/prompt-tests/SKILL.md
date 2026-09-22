@@ -162,10 +162,19 @@ artifacts (`__pycache__`) inside it, which `git rm -r` does not touch and
 `git status` does not show, so the directory survives a deletion that looks
 committed.
 
-**A stored run's `README.md` states the condition that deletes it**, in terms a
-later round can check without re-deriving why the run happened. A record with no
-such condition is removable only by a human who reads it, which is the thing this
-repo is against; the round that finds one deletes it rather than repairing it.
+**A probe's directory is deleted by the round that wrote it**, in the commit
+that records what the probe concluded. Not by a condition it states for someone
+else to check: two probes here wrote one, and both conditions turned out to
+depend on a future nobody controls — one could fire only if a later round
+re-added the very line the probe had just retired. Git holds the
+pre-registration and the artifacts, and `git checkout <sha> -- <path>` is one
+command, so a round that needs the probe back pays a line for it. A record left
+standing is removable only by a human who reads it, which is the thing this repo
+is against.
+
+A **graded case** run is the exception and keeps its `README.md`, which states
+the condition that deletes it — its artifacts are the thing a later run of the
+same case is compared against, line by line.
 
 A probe still runs under the contamination rules below — the fixture is copied
 into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
