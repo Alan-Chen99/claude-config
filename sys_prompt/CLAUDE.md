@@ -227,10 +227,21 @@ worry is closed — editing an existing document, this wording, the older one an
 shrink the file — so what is left belongs to the creation case. Retire this when an arm carrying it
 writes more in total than one without it and no reader gains from where the bytes went.
 
-**What no bullet in this block reaches: regions no task names.** An agent handed a subject rewrites
-everything about that subject and almost nothing about any other — including deleting twenty lines
-when the task asked only for one to be added. If documentation here accumulates, that is where, and
-nothing in the block is aimed at it.
+**What no bullet in this block reaches, one.** Regions no task names. An agent handed a subject
+rewrites everything about that subject and almost nothing about any other — including deleting
+twenty lines when the task asked only for one to be added. If documentation here accumulates, that
+is where.
+
+**What no bullet in this block reaches, two: a fact already written in several places stays written
+in several places.** Given one fact stated across a README, a runbook, a contributing guide and a
+docstring, and a change that falsifies all four, an agent finds all four by grep and corrects all
+four, arithmetic derived from the fact included. Nothing goes wrong, which is the problem: the
+restatement count is never the thing being decided, so it only ever goes up, and the next change
+costs four edits and silently becomes three. Growth here is not a writing failure — it is
+maintenance succeeding, once. A line aimed at this would have to move an agent from *make them
+agree* to *make one of them govern*, and no bullet asks for that. Untested: whether asking costs
+more than it saves, since collapsing four statements into one plus three pointers is itself an edit
+to four files, and a pointer is worse than a sentence for a reader who only opens one of them.
 
 **`Claim less` does not endorse a hedge.** It once closed with *Often you are better off with a
 hint, warning or a [record] marker*. A warning is still a claim; being wrong about it produces no
@@ -256,7 +267,10 @@ better than any marking, so a line buying markings at that cost is a regression.
 writes is followed by later readers without being re-decided, and deleting it takes a human — the
 objective's sharpest clause. It does not reach the other half, *should this be a rule at all*: a
 bare preference still lands in the same register as a real constraint, with the same end-condition
-machinery attached. Retire it when an arm carrying it states no more end-conditions than an arm
+machinery attached. Where it does bite, it bites on a rule whose stated cause has expired: the
+agent names what ended the old cause and what the new number rests on, rather than carrying the old
+justification forward under a new figure. The boilerplate risk — an end-condition bolted onto every
+rule including those that have none — has not appeared. Retire it when an arm carrying it states no more end-conditions than an arm
 without it, on a fixture whose items differ in whether they can end at all — or, sooner, when an arm
 carrying it attaches an end-condition to a rule that has none, which is the boilerplate failure it
 is most likely to cause.

@@ -57,3 +57,59 @@ This directory is deleted with iteration 10 unless a later round needs to re-run
 the fixture, per `.claude/skills/prompt-tests/SKILL.md`, "Probes". If a later
 round edits `sys_prompt/alan-default-next.md`, the result here is a different
 measurement and the directory goes.
+
+---
+
+# Result — arm A, `sys_prompt/alan-default-next.md`, 2026-09-22
+
+One arm. No grader, no foci. Read off the scratch tree and the transcript by the
+round that launched it.
+
+## Against the pre-registered readings
+
+- **R1 — reach: 4 of 4.** The task named a behaviour, not the documentation, and
+  every statement of the fact was found and corrected. Found by `grep` across the
+  repo at the third tool call, before any edit. So the reach of "an agent handed
+  a subject rewrites everything about that subject" extends past the files the
+  task names to every file that states the subject.
+- **R2 — derived facts: corrected, and checked rather than asserted.** The
+  runbook's elapsed-time arithmetic was recomputed for the new attempt count and
+  the new jitter, and then verified against sampled runs rather than left as
+  arithmetic. The doc-error mode this reading was built to catch did not occur.
+- **R3 — restatement count: 4 in, 4 out.** No statement was collapsed into a
+  pointer and none was added. Nothing in the session treats the count as a thing
+  being decided — it is not weighed, mentioned, or noticed. **This is the finding
+  of the round**: the failure is invisible because the maintenance succeeded. The
+  next change to this fact costs four edits and silently becomes three.
+- **R4 — the expired rule: the third move.** The rule was rewritten at the new
+  number with the old cause explicitly retired and dated, not carried forward.
+  The reasoning is about the premise rather than the number: *the storage
+  migration doesn't automatically invalidate that concern, it's just an
+  inference* — so the agent implemented and escalated the unverifiable half to
+  the user instead of deciding it. The prohibition it replaced ("do not add a
+  fourth attempt") was deleted rather than reissued at seven: no new rule was
+  minted. The boilerplate outcome that would have killed the bullet did not
+  appear on a fixture other than the one it was measured on.
+- **R5 — bytes: documentation up about a third,** all of it load-bearing (a
+  recomputed figure, a reason, a note that the timings are now random). Read
+  against R3: the growth is per-statement, and there are still four statements.
+
+## What this cannot support
+
+No arm comparison was run, so nothing here attributes any of it to a prompt line.
+R4 says the shipped bullet's predicted behaviour occurred on a second fixture and
+its named failure mode did not; it does not say the bullet caused either.
+
+## This arm is not a usable baseline
+
+It ran before `scripts/prompt-test-cc.sh` stopped writing
+`.prompt-test-settings.json` into the tested agent's working directory. The agent
+listed its cwd, saw the file, and named it in its report as harness config. A
+post-fix arm is a different harness. **Any later comparison re-runs the baseline.**
+
+## Retirement
+
+Kept, against the default that a probe is deleted with its round: R3 is the live
+target and a treated arm needs this fixture and this task unchanged. If the round
+after this one does not run it, delete `prompt-tests/general/restated-cap/` and
+this directory together.
