@@ -123,7 +123,7 @@ bound to the prompt by one grep, eleven of fifteen cases deleted (15). Deleted:
 voided every arm stored before 2026-09-22. 18 also isolated the block's
 preamble, on a case it left behind at `prompt-tests/general/inherited-project`.
 
-## Iteration 19 — `5c185783` → `HEAD` (this commit); `.ralph/agent/*` 5988 tokens
+## Iteration 19 — `5c185783` → `90b87539` + this commit; `.ralph/agent/*` 5988 tokens
 
 ### Critique of prior iterations
 
