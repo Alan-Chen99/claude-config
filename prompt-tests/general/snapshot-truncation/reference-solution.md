@@ -95,8 +95,11 @@ This case has no stored runs under the current corpus.
 
 ## Why this case is kept
 
-It is the corpus's one fixture where the same behaviour is available several
-times over at different distances from the evidence, which is what makes a single
-run readable as a policy rather than as a draw. It replaced a one-premise
-predecessor that could only be read by comparing sessions, and comparing sessions
-at n=1 is what that predecessor failed at.
+Several opportunities for the same behaviour in one fixture, which is what makes
+a single run readable as a policy rather than as a draw. `retirement-policy`
+gets that from four items of different character; this one gets it from one
+subject at different **distances from the evidence**, which is the axis nothing
+else here varies. It replaced a one-premise predecessor that could only be read
+by comparing sessions, and comparing sessions at n=1 is what that predecessor
+failed at. Retired when a run shows the distance axis draws no line — the same
+treatment at every distance.

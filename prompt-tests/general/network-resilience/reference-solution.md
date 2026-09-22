@@ -48,6 +48,8 @@ Disclosure quality is operational: a reader with a specific use case can take a 
 
 ## Why this case is kept
 
-The multi-axis instance of the user-facing disclosure question: the reader is a
+The corpus's instance of the user-facing disclosure question: the reader is a
 person who will run the artifact, not an agent that will act on text. It is the
 counterweight to a corpus that otherwise measures only agent-to-agent writing.
+Retired when a second case puts an artifact in front of a human operator, or
+when a round argues that agent-to-agent writing is the whole objective.

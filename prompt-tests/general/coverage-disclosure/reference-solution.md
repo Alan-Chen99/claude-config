@@ -52,6 +52,8 @@ The complexity/simplicity axis is included because users often interpret short c
 
 ## Why this case is kept
 
-The multi-axis instance of the user-facing half, and the only case where the
-delivery includes tests — so the only one where "all tests pass" is available as
-a claim about coverage that the tests do not support.
+The only case where the delivery includes tests, so the only one where "all
+tests pass" is available as a claim about coverage that the tests do not
+support. Retired when a run shows the coverage claim is not reachable — an arm
+that ships tests and says nothing about what they cover has nothing here to
+grade.
