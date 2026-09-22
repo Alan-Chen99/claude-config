@@ -107,6 +107,12 @@ aimed at the text will compete with the frame rather than replace it. *(iter 16)
 > of three unsourced claims and missed the one in the arm it would have kept; the
 > blind read reversed the outcome. *(17)*
 
+> **A null is reported as saturated, not as a finding, when the untreated arm
+> already does the thing.** The round says so in the same sentence as the null,
+> and a pre-registered outcome asserting more than that is withdrawn rather than
+> honoured — the grounds being a property of the fixture, visible without the
+> result. *(18)*
+
 > **An `(instruction)` asserting that work is undone states the command that
 > shows it.** Iteration 12 handed forward "no round has done this" about a user
 > ask that one grep refutes, and acting on it would have spent a round re-doing
@@ -175,8 +181,29 @@ the re-entry condition for a claim-handling line and names the fixture shape it
 needs; C2 says the genre that condition requires has never been run. This round
 runs it.
 
-### The round's work
+### The round's work and result
 
-One probe, three arms, one fixture: A = HEAD, B = HEAD minus the block preamble,
-C = HEAD plus the candidate. Pre-registration, readings and outcomes:
-`prompt-tests/runs/inherited-project/README.md`.
+One case, three arms plus one rerun. Pre-registration, readings, the invalidated
+arm and the result: `prompt-tests/runs/inherited-project/README.md`. The
+candidate is not shipped and the preamble is kept, both on blind readings.
+`sys_prompt/CLAUDE.md` carries the claims; `.ralph/agent/decisions.md` carries
+DEC-027.
+
+**The node, for whoever writes the next candidate.** Marking is baseline: every
+arm invented a provenance scheme unprompted and recorded the fixture's stated gap
+as unknown. What escaped into every arm was background knowledge about external
+systems that the material never flagged. A fixture that can fire a
+claim-handling line makes one unflagged external premise load-bearing; one that
+states its gap measures nothing.
+
+### `(instruction)` for iteration 19
+
+1. Round 20 is a cleanup round by the every-fifth rule. Iteration 19 should
+   therefore finish something rather than open a line of inquiry it hands on.
+2. `Say what ends it` is the only bullet left and the only line this loop ever
+   shipped. Its retirement condition names `prompt-tests/general/retirement-policy`
+   and has been paid for once, at round 15, inside a three-bullet block that no
+   longer exists. It is now the largest untested-as-shipped thing here — but
+   *largest untested* is not by itself a reason (C1); the reason is that the
+   block is one bullet and a preamble, and only one of the two has ever been
+   isolated.

@@ -1,73 +1,45 @@
 # Decision journal — writing-for-agents loop3
 
-Compressed to durable content. Full reasoning lives where it survives this loop:
-commit messages, `sys_prompt/CLAUDE.md` for anything justifying a prompt line,
-and each case's `prompt-tests/runs/<case>/README.md`.
+Only decisions still open to re-argument live here. Everything discharged is in
+the commit messages, and anything justifying a prompt line is in
+`sys_prompt/CLAUDE.md` — the durable home, which carries the claim, the
+hypothesis and the retirement condition for each.
 
-**Closed, discharged, no longer re-argued.** DEC-001–006 (superseded or folded into the
-scratchpad's durable method). **DEC-007** price by reach (iter 3), reversed by DEC-020.
-**DEC-008** delete the `Claim less` hedge endorsement (iter 4, shipped; the whole bullet
-went at iter 14). **DEC-009/010** one description per case; measure maintenance then ship
-no line. **DEC-011/012** the uncertainty-transfer line — the node is premise provenance,
-not wording; neither shipped. **DEC-013** ship `Say what ends it` (iter 9). **DEC-014/015**
-spent. **DEC-016** kill the copy-pricing line on its mechanism: new facts ride into a
-rewrite, so "before adding a copy" names an act that never occurs. **DEC-017** delete
-stored runs stating no retirement condition. **DEC-018** keep `Omit by default` after adversarial
-testing (iter 12), its reach half superseded by **DEC-020**, which cut the reach wording on a
-categorical null against the line counts (iter 13). **DEC-019** paragraph-local no-growth for
-`sys_prompt/CLAUDE.md` — a no-edit round replaces a paragraph, shorter, rather than adding one;
-live, and honoured at iteration 15. **DEC-021** delete a case rather than repair its justification
-(iter 13) — superseded by DEC-023, which deletes on ownership rather than on argument quality. **DEC-022** delete `Claim less` on a null against an arm without it (iter 14, shipped).
-**DEC-023** bind the case corpus to the prompt — a case is kept only while
-`sys_prompt/CLAUDE.md` names it, eleven of fifteen deleted (iter 15, shipped; the rule
-now lives in the prompt-tests skill). Framing bias on all: each fixture was written
-from the shape of the line its round meant to test. Independent evaluation: not-started.
+**Closed.** DEC-001–026, rounds 1–17. Six candidate wordings rejected and two
+lines deleted on measurement (`Claim less`, `Omit by default`); one shipped
+(`Say what ends it`); the case corpus bound to the prompt by one grep (DEC-023,
+now a rule in the prompt-tests skill); paragraph-local no-growth for
+`sys_prompt/CLAUDE.md` (DEC-019, live and honoured every round since 15).
+Framing bias on all of them: each fixture was written from the shape of the line
+its round meant to test. Independent evaluation: not-started.
 
-**DEC-024** keep the whole block on one row of three (iter 15) — discharged: iteration 16 ran the warrant half and iteration 17 the `Omit by default` half. Its pre-registration did not partition (see scratchpad C2).
-
-## DEC-025 — override iteration 15's instruction; probe the warrant node in a second genre (iter 16, conf 84)
-- **Chosen**: build a cross-domain probe (handoff note, CI/release repo, five
-  items of differing warrant), run HEAD against HEAD + one transcription clause,
-  ship nothing on outcome 2, delete the probe.
-- **Alternatives**: isolate the two bullets on `retirement-policy` as instructed
-  (rejected — replication of one interpretive row at n=1, which the user's rules
-  and iteration 15's own method both forbid); ship the clause anyway because the
-  failure it targets is measured (rejected — the failure is measured, an agent
-  acting on a line addressing it is not, and adding on that basis is the ratchet).
-- **Reasoning**: the measured doc error — a preference written up as an incident
-  — is the objective's own failure shape, so it outranks bullet bookkeeping. A
-  second genre buys resolution inside the run rather than across runs.
-- **Re-evaluate**: when a round has a candidate that fires while a rules file is
-  being written, rather than a property asked of the finished text.
-- **Framing bias**: I designed the fixture, the readings and the candidate, and
-  a fixture built to show a failure is built by someone who expects it. The
-  saturated baseline is the result I did not design for and is the whole finding.
-- **Independent evaluation**: not-started.
-- 2026-09-22T07:55:00Z
-
-## DEC-026 — delete `Omit by default` on a null at its own named fixture (iter 17, conf 78)
-- **Chosen**: run the bullet's pre-registered retirement fixture, read four
-  categorical readings, and ship the deletion the pre-registration named.
-- **Alternatives**: keep it on the excluded numbers — 2,455 words against 3,104
-  and one false claim against two, both favouring the bullet (rejected: counts
-  were excluded before launch and the exclusion was written to hold in exactly
-  this case; a round that reads an excluded number when it is the one favouring
-  its prior has no instrument left); keep it on my own read, which found the
-  unsourced claim in the arm without the bullet and missed the one in the arm
-  with it (rejected: the blind reader found all three, and that reader is the
-  instrument).
-- **Reasoning**: the bullet claims a priced agent declines an addition it cannot
-  attribute to the request. The arm carrying it added an unrequested claim and
-  the claim was false. On the three readings written for it the arms were
-  indistinguishable, and it charged 43 api tokens on every request for sixteen
-  rounds.
-- **Re-evaluate**: on a transcript showing an agent decline a specific addition
-  on cost grounds, traceable to a line rather than to the task. Restore with
-  `git checkout 7dec8051 -- sys_prompt/alan-default-next.md`.
-- **Framing bias**: I wrote the readings, and I wrote them knowing the bullet's
-  own claim — so they test what it says it does and not what it might do
-  instead. A compression task is also the genre where the pull to add is
-  weakest, which makes the null cheaper to reach than it would be elsewhere.
-- **Independent evaluation**: the blind claim-provenance read; not-started for
-  the deletion itself.
-- 2026-09-22T08:20:00Z
+## DEC-027 — ship no prompt edit; keep the preamble and withdraw outcome 2's second half (iter 18, conf 72)
+- **Chosen**: run one case, three arms — HEAD, HEAD minus the block preamble,
+  HEAD plus a candidate routing a doubt into the file rather than the reply.
+  Ship neither the candidate nor a deletion; replace two `sys_prompt/CLAUDE.md`
+  paragraphs with one shorter one; promote the probe to a case because the
+  preamble's new retirement condition names it.
+- **Alternatives**: ship the candidate on the blind reader's unsupported-claims
+  list, where the candidate arm had four items and the baseline five (rejected:
+  counts were excluded before launch, and the categorical reading — *did this
+  arm ship an unsourced external claim* — was yes in every arm); honour outcome
+  2 in full and close claim-handling (rejected: R1's baseline was saturated, and
+  a null every arm passes bounds the fixture, not the clause); delete the
+  preamble as iteration 17 instructed (rejected: it parted, twice, under two
+  readers and two wordings, and deleting on a parting because deletion is this
+  loop's habit is the same error as keeping on an ambiguity).
+- **Reasoning**: the round's value is the measurement, and the measurement says
+  the node this loop has chased for seven wordings is not marking — every arm
+  marks — but the premises the agent brought with it and nobody flagged. That is
+  a fixture instruction for the next round, not a prompt line.
+- **Re-evaluate**: on a fixture making one unflagged external premise
+  load-bearing; for the preamble, on an arm without it sourcing as much as one
+  with it, on `prompt-tests/general/inherited-project`.
+- **Framing bias**: I wrote the fixture, the candidate and the readings, and I
+  came into the round expecting to delete something — the preamble result runs
+  against that, which is the only reason I trust it more than the rest.
+- **Independent evaluation**: two blind readers on the decisive readings;
+  not-started for the decision itself.
+- **Reversibility**: nothing shipped to the prompt; the replaced paragraphs are
+  at `6a89229c^`.
+- 2026-09-22T09:00:00Z
