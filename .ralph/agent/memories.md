@@ -62,10 +62,6 @@
 > install.sh writes only absolute links outside the repo, so running it from a worktree redirects ~/.claude, ~/.local/bin and the canonical venv's editable .pth to that worktree. It now refuses (ALLOW_WORKTREE_INSTALL=1 escapes). Repair if it happens again: repoint every symlink under ~/.claude, ~/.local/bin and ~/.config/systemd/user, plus _editable_impl_claude_config.pth and direct_url.json in ~/.claude/venvs/claude-config.
 <!-- tags: tooling, worktree, install | created: 2026-09-22 -->
 
-### mem-1790049019-ea46
-> uv run pytest has one pre-existing failure unrelated to this loop: tests/test_install.py::test_install_links_opencode_config, install.sh exit 127, stderr 'install.sh: line 68: basename: command not found'. The test runs install.sh with a PATH that has no coreutils; the basename call arrived in 2361c036 (2026-09-13), before this loop. 807 pass, 3 skip, ~57s. Do not re-diagnose it, and do not read it as caused by a round's changes - no test under tests/ references prompt-tests/, sys_prompt/ or .ralph/.
-<!-- tags: testing, tooling | created: 2026-09-22 -->
-
 ### mem-1790048869-2e87
 > A session-analysis subagent dispatch can die instantly with 'safeguards flagged this message ... Details: [reasoning_extraction]' - twice on one transcript while an identical brief on a sibling transcript succeeded, so it is content-dependent and retrying the same dispatch does not help. Substitute: python over the .jsonl emitting only assistant 'thinking' and 'text' blocks. A 74-line, 330KB transcript yields 9KB, which is cheaper than the artifact and uniform across arms.
 <!-- tags: prompt-tests, session-analysis, tooling | created: 2026-09-22 -->

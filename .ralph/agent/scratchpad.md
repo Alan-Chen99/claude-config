@@ -105,28 +105,20 @@ maintenance.
 ### Critique of iterations 1–8
 
 **C1 (fact).** Iter 8's `(instruction)` 2 says the ratchet "has not been probed".
-`prompt-tests/general/what-retires-this-line` is named for it and its reference
-asks the grader exactly this — *what observation would cause someone to delete
-it, and does any routine act in this repository produce that observation*. Iter 3
-ran five arms through that case and read only where bytes landed. So the corpus
-asked the question and the round that ran it dropped the answer. The lesson is
-not that iter 9 should reuse it (one task yields one rule, and one rule is a
-draw) but that **a "has not been probed" claim is checkable by grepping the
-corpus and no round did**.
+`what-retires-this-line` is named for it and its reference asks the grader
+exactly this; iter 3 ran five arms through it and read only where bytes landed.
+The lesson is that **a "not probed" claim is checkable by grepping the corpus**,
+and no round did.
 
-**C2 (workflow).** `sys_prompt/CLAUDE.md` is 7994 tokens against the 4215-token
-prompt it justifies, and it grew across rounds 6, 7 and 8, none of which changed
-the prompt. The iter-4 and iter-6 contract clauses are what require that. Iter 8
-named this and deferred the fix to iter 10, which costs another round of growth
-for nothing. Fixed by contract above, this round rather than the next.
+**C2 (workflow).** `sys_prompt/CLAUDE.md` was 7994 tokens against a 4215-token
+prompt and grew across rounds 6–8, none of which changed the prompt. The iter-4
+and iter-6 clauses require that. Iter 8 named it and deferred to iter 10, costing
+another round of growth. Fixed by contract above, this round.
 
-**C3 (workflow).** `prompt-tests/runs/what-retires-this-line/` (60K, five diffs)
-states its own retirement condition — *any prompt edit since makes them a
-different measurement* — and two prompt edits have landed since the commit it
-names. Nothing retired it, because the condition was written for a human to
-notice. Deleted this round, and the contract clause above makes the check
-mechanical. This is the objective's clause in miniature inside this loop's own
-output: added with no approval, removable only by someone going to look.
+**C3 (workflow).** `runs/what-retires-this-line/` stated its own retirement
+condition — *any prompt edit since makes this a different measurement* — and two
+edits had landed. Nothing retired it, because the condition was written for a
+human to notice. Deleted; the contract clause above makes the check mechanical.
 
 ### The round's work
 
