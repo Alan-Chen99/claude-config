@@ -274,13 +274,34 @@ appearing does not speak for the clause; the clause preventing one does, and her
 nothing. Restated: retire the deletion when an arm carrying the clause writes materially less of this
 than an arm without it.
 
-The one thing that did produce a retraction was not in this block. One arm committed a mechanism it
-had inferred, then removed the sentence and amended the commit; the trigger in its log is
-`## Before response` — the `uncertainties` list it had just written named that sentence, and the
-hook's reply reminder came back over it. Two arms ran the same gate and kept theirs, so this is a
-mechanism that fires sometimes and not a guarantee. It is worth knowing before anything is added
-here about asserting what you cannot check: that ground is already partly held, by a section written
-for a different purpose.
+**Nothing was added here about asserting what you cannot check, and the reason is the measurement.**
+The rules that fire on an unverified claim all discharge it into the **conversation** — `## Before
+response`'s `uncertainties` field, the hook's *do more verification*, `# Epistemic Integrity`'s
+escalate-and-say-so — and the conversation is gone by the time the file is read. On
+`prompt-tests/general/uncertainty-channel` (2026-09-22), where a runbook's recommended fix rests on a
+premise about a vendor the repository cannot reach, four of four arms named that premise to the user
+as unverified in the same turn they shipped the file, and two of them argued in their own
+`## Required notes` that reporting it is the correct discharge of the gate. Detection is not the
+missing step and neither is a licence; the transfer to the artifact is.
+
+Two wordings aimed at the transfer were tested and neither shipped, because the **baseline spans the
+whole outcome range**. Of two runs under the shipped prompt, one wrote *Retries are not the source …
+investigate what called `send()`* — an instruction to a 3am reader resting on the premise — and the
+other wrote *whether the Kestrel account honors that header is unverified against production; if
+duplicates continue, check that first*, unprompted. Neither treated arm produced the form its own
+line prescribed: the arm told *attributed, verified, or not at all* did none of the three, and the
+arm told to write *what it rests on, or what the reader should conclude if it does not hold* produced
+exactly that bound in its `uncertainties` list, about a document that does not contain it. At one run
+per arm a difference inside the baseline's own spread is not evidence for a line.
+
+So the question this section cannot answer yet is not *what should the rule say* but *what would
+separate an arm carrying it from an arm without it*. Retire this paragraph when a case exists where
+the baseline's handling of an uncheckable premise is stable enough that an arm can differ from it —
+which needs the premise's failure to have a visible consequence in the fixture, not a second sample
+of one where it does not. The one post-gate retraction on record (`doc-succession`, an arm that
+committed an inferred mechanism, then removed the sentence and amended the commit after its own
+`uncertainties` list named it) is the only evidence that any of this is reachable from the gate, and
+one instance is what it is.
 
 ### `# Git`
 

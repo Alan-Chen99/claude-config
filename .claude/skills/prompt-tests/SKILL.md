@@ -95,6 +95,20 @@ treatment has a visible pull toward finding a difference.
 A prompt that already instructs the behaviour a case grades produces it in both
 arms, and the difference you are measuring is then somewhere else.
 
+Two more ways an attribution fails silently, both of which have happened here:
+
+- **The baseline may already span the outcome range.** Two runs of one unedited
+  prompt can differ on the thing under test as widely as the treated arm differs
+  from either. A difference inside that spread is a sample, not an effect, and a
+  null where the arms agreed is equally underdetermined until agreement is shown
+  to be the baseline's normal state. Where an arm comparison is going to decide
+  something, say what the baseline's spread is, or say that it is unknown.
+- **A rule that reaches the agent in a tool result explains nothing written
+  before the first call to that tool.** The `pre_output.record` reminder is the
+  case in point: its text arrives in the tool response, so behaviour at earlier
+  tool calls is baseline behaviour whatever the arm was meant to test. State the
+  tool-call index of the behaviour and of the first call.
+
 ## Test case shape
 
 Under `prompt-tests/general/<case>/`:

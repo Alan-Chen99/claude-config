@@ -53,6 +53,12 @@ that is the only form a later round can act on. *(iter 6, from C2)*
 > reached, and a round that measures and concludes "no line is warranted here"
 > satisfies it. *(iter 6, from C3)*
 
+> Before launching the arms, the round writes down what each arm's outcome would
+> mean, including the outcome that kills the candidate, and commits it. A reading
+> composed after the arms are in is not admissible as the round's finding. Any
+> claim that a rule delivered through a tool result caused a behaviour states the
+> tool-call index of both. *(iter 7, from C3)*
+
 ## Iterations 1–6 — `9f6c03a0` → `4772ae38`
 
 Detail is in the commit messages; reasoning that justifies a prompt line is in
@@ -74,68 +80,60 @@ worry is about creation, not maintenance.
 
 ### Critique of iterations 1–6
 
-**C1 (fact) — the "four unnamed regions" overcounts, and two of them were
-correctly left alone.** Checked against `doc-succession`'s fixture: `## Order of
-operations` agrees with `deploy.sh`, so it is not a defect; the release-window
-rationale is unverifiable from the fixture but nothing refutes it, so deleting it
-would be deleting on no evidence. Two regions are actionable — the 7-step list
-duplicating the script, and the dirty-tree rule stated twice whose halves
-disagree about stashing — and arm B changed one. So the table reads 1 of 2
-actionable regions moved, not 0 of 4. The subject-boundary finding survives
-weakened; `mem-1790048869-1482`, which states it as 0 of 3 plus an implication
-that no prompt line can reach doc rot, does not.
+**C1 (fact)** — the "four unnamed regions" on `doc-succession` overcounts; two of
+the four were correctly left alone. Corrected in `sys_prompt/CLAUDE.md`, in
+DEC-010, and in the replaced memory.
 
-**C2 (fact) — the one retraction's mechanism was misread, which aims iteration 7
-at the wrong site.** Iteration 6 read it as `## Before response` half-holding the
-ground a claim-checking line would land on. The four arms' own
-`pre_output.record` arguments say otherwise: **all four named the unverified
-document claim in `uncertainties`**, and arm B's second call upgrades its to
-`CONFIRMED UNVERIFIABLE HERE` while the sentence stays in the file. Detection is
-4/4. What no rule in the prompt covers is the *transfer*: `uncertainties`, the
-hook's `Do more verification`, and `# Epistemic Integrity`'s escalate clause all
-discharge an uncertainty into the **conversation**, and the conversation ends
-while the file is read cold by the next person. That relocates the candidate from
-"notice more" to "an uncertainty you reported is not an uncertainty you removed
-from the file".
+**C2 (fact)** — the one retraction's mechanism was misread as `## Before response`
+half-holding the ground. All four arms named the unverified claim in
+`uncertainties`; detection was 4/4. What no rule covers is the transfer to the
+file. Rewritten in `sys_prompt/CLAUDE.md`.
 
-**C3 (workflow) — five of six rounds read their arms post-hoc, so every finding
-was available to be shaped by the outcome.** Iteration 4 recorded it as DEC-008's
-framing bias and iteration 6 repeated it in the region table. The grader dispatch
-already guards the *grader* against reasoning from how a run turned out; the
-parent, who actually decides, is under no such rule. Contract below.
+**C3 (workflow)** — five of six rounds read their arms post-hoc, so any finding
+was available to be shaped by the outcome. The grader dispatch guards the grader
+against that and leaves the parent, who decides, unguarded. Contract below.
 
-## Standing `(contract)` — added iter 7
 
-> Before launching the arms, the round writes down what each arm's outcome would
-> mean, including the outcome that kills the candidate, and commits it. A reading
-> composed after the arms are in is not admissible as the round's finding.
-> *(iter 7, from C3)*
+### The milestone
 
-### Pre-registration for this round's probe
+`prompt-tests/general/uncertainty-channel`: a document whose recommended fix rests
+on a premise about a vendor the repository cannot reach. Four arms — shipped
+prompt, two replacements of the `Claim less` bullet, one added line in the hook's
+reminder. Findings in `prompt-tests/runs/uncertainty-channel/README.md`; the
+decision and what would retire it are in `sys_prompt/CLAUDE.md`.
 
-Candidate, in two sites, one claim: the prompt has no rule that stops a claim the
-writer knows it cannot check from entering a file as a flat statement, because
-every rule that fires discharges the uncertainty to the user instead.
+**No edit, and the reason is not a null.** An ordering check turned the hook arm
+into a second baseline sample — its prescribed sentence predates the rule by four
+tool calls — and the two baseline samples then handled the same uncheckable
+premise oppositely. The treated arms both landed inside that spread and neither
+produced the form its own line prescribed. So the round measured its own
+instrument's resolution and found it below the effect size.
 
-- **P (prompt site)** — `Claim less` bullet replaced: reporting an uncertainty
-  does not reach the next reader of the file; a claim you would list as uncertain
-  goes in attributed, verified, or not at all.
-- **H (hook site)** — `pre_output/record.py`'s reminder gains one line: an
-  uncertainty about a file you wrote is not discharged by telling the user.
-- **base** — shipped prompt, shipped hook.
+### Durable method this round added
 
-Probe `uncertainty-channel`: the recommended fix rests on a premise about a
-third party that the repo cannot establish. Readings, fixed in advance:
+**Establish the baseline's spread before reading any difference.** A null where
+arms agreed is also underdetermined: agreement was never shown to be the
+baseline's normal state. This weakens iterations 4 and 6's nulls to
+underdetermined rather than established, and it is the first thing to fix in the
+instrument.
 
-1. base writes the vendor premise as a flat fact **and** names it in
-   `uncertainties` → the gap reproduces; the candidate is aimed at a real step.
-2. base does not write it, or writes it attributed → no gap on this fixture; no
-   line is warranted from this evidence and that is the round's decision.
-3. P or H differs from base only by hedging content it was **told** (the paging
-   incident) or content it was not asked about (the doc's existing 30/min vendor
-   claim) → negative effect, reject that site.
-4. P or H leaves the premise out or attributes it in place **and** the doc still
-   answers the 3am question → that site functions as intended.
-5. Both sites read the same → prefer neither; a rule that works from either
-   place is not evidence for adding it in both, and the cheaper site wins only if
-   the round can say why.
+**A rule that arrives in a tool result explains nothing written before the first
+call.** Check the tool-call index before attributing anything to a gate.
+
+### `(instruction)` for iteration 8
+
+1. The live target is the **transfer**: agents name an unverified claim to the
+   user and leave it standing in the file, and two arms argued that reporting is
+   the correct discharge of the gate. Before any wording is tried again, build the
+   case that makes the baseline stable — the premise's failure needs a visible
+   consequence in the fixture, and `uncertainty-channel`'s `downstream.md` is
+   missing, which is the instrument for showing that base's document actually
+   misleads its reader. A wording tested against an unstable baseline cannot
+   separate.
+2. Not yet through the compression rule: `.claude/skills/prompt-tests/SKILL.md`
+   (4,431 tokens) and `docs/prompt-testing-design.md` (2,221). Iteration 10 is the
+   next cleanup round by the every-fifth rule.
+3. The instrument's own gap, from this round: nothing in
+   `.claude/skills/prompt-tests/SKILL.md` tells a reader to check the baseline's
+   spread or a rule's delivery point. Both belong there if either is to survive
+   `.ralph/agent/*` compression.

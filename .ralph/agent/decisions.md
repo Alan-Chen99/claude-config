@@ -69,25 +69,39 @@ condition was a misdesign, not a trigger, and is restated as a comparison in
 - 2026-09-22T00:00:00Z
 
 ## DEC-010 — measure maintenance, then ship no line (iter 6, conf 82)
-- **Chosen**: build `doc-succession`, the first case whose subject is an edit to
-  an existing document, run three arms on it, and add nothing to
-  `alan-default-next.md` because the arms did not separate.
-- **Alternatives**: extend `what-retires-this-line` with a second task (its
-  fixture has no committed document, so no diff exists to read); add a clause
-  creating removal licence for prose and measure it against the baseline (the
-  round's own finding says reluctance is not the mechanism, so the clause would
-  have been aimed at the wrong thing); run nothing and compress the instrument
-  (the growth question stays open for a fourth round).
-- **Reasoning**: `# Coding` licenses removal for code — *refactor freely, remove
-  deprecated code* — and nothing licenses it for prose, which is the objective's
-  ratchet written into the prompt. That was the hypothesis. It is now weak:
-  every arm deleted freely, including the arm with no block at all, so the
-  licence is not what is missing. What survives an edit is what the task did not
-  name.
-- **Re-evaluate**: on `task-narrow.md`, which removes the correction licence the
-  three arms had. A sweep there would mean scope is not the mechanism either.
-- **Framing bias**: the fixture's dead section has its premise retracted *by the
-  task*, which is the easiest possible case for deletion, and I built it that way
-  to get a clean diff. A harder fixture would withhold the retraction.
+Shipped: `doc-succession` built, three arms plus a narrowed task, no prompt edit.
+Its reasoning — that `# Coding` licenses removal for code and nothing does for
+prose — is dead: every arm deleted freely, including the arm with no block.
+**Independent evaluation (iter 7): the finding holds weakened, the count was
+wrong.** Of the fixture's regions outside the named subject only two are
+actionable defects, one arm fixed one of them, and the other two were correctly
+left alone (one agrees with the script; nothing refutes the other). The
+re-evaluation it named — `task-narrow.md` — was run in iter 6 and swept the same
+way, so licence is not the mechanism. Framing bias it recorded stands: the dead
+section's premise is retracted by the task, the easiest case for deletion.
+
+## DEC-011 — no line for the uncertainty transfer, because the baseline spans the range (iter 7, conf 84)
+- **Chosen**: build `uncertainty-channel`, run four arms, ship nothing — not to
+  `alan-default-next.md`, not to the hook — and write the account in
+  `sys_prompt/CLAUDE.md`.
+- **Alternatives**: ship the second bullet wording (its prescribed form appeared
+  in the arm's *reply*, about a document that did not contain it — unproven by
+  the user's bar); ship the hook line (the behaviour that looked like its effect
+  predates it by four tool calls); take a second baseline sample (replication,
+  and it answers a rate question where the open one is semantic).
+- **Reasoning**: two runs under the shipped prompt produced opposite handling of
+  the same uncheckable premise — one misdirected the 3am reader, one marked the
+  premise and said what to do if it failed. A between-arm difference inside the
+  baseline's own spread is not evidence for a line. What is established is the
+  gap's shape: every rule that fires on an unverified claim discharges it into
+  the conversation, and two arms argued in their own required-notes that
+  reporting is the correct discharge.
+- **Re-evaluate**: when a case exists whose baseline handling is stable — which
+  needs the premise's failure to have a visible consequence in the fixture, not
+  another sample of one where it does not.
+- **Framing bias**: the second wording was written after reading the baseline's
+  failure, so it is fitted to one run; and I built the fixture to make the
+  uncheckable premise load-bearing, which is the class I already believed
+  mattered. A fixture where it is decorative would test something else.
 - **Independent evaluation**: not-started.
 - 2026-09-22T00:00:00Z
