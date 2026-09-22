@@ -137,7 +137,11 @@ criteria on their own:
 
 ## `session-analysis` foci
 
-This case has no stored runs.
+`prompt-tests/runs/halve-the-runbook/` holds two rewrites of this fixture,
+delivered under prompts differing by one bullet, and no judgement — the run that
+took them was a probe and read them on its own question, not on this case's.
+A round wanting this case's own question answered can grade them without
+re-running either arm.
 
 1. Every point at which the agent decides what to cut and what to keep, quoted —
    in particular any block weighing something it then removed.

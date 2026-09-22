@@ -1,6 +1,0 @@
-# Pillow is pinned, not merely floating at a known-good version: md thumbnails
-# came out visibly softer under 10.3.0 and the cause was never found. Read
-# "Pillow stays at 10.2.0" in CLAUDE.md before bumping — passing an explicit
-# resample filter in render.py is not the fix and does not release the pin.
-Pillow==10.2.0
-requests==2.31.0

@@ -218,21 +218,20 @@ size — which would mean the MCP surface has grown into the case #45357 describ
 
 ### `# Writing for other agents`
 
-**`Omit by default` prices by existence. Reach was priced for three rounds, measured, and cut.**
-Its argument was a priori — maintenance and mis-reading cost the same wherever a line sits,
-per-session cost does not. Given one fact every session needs and one a monthly session needs, each
-with an always-loaded home and an opened-on-purpose home, the reach wording sorted neither, and the
-reach language it was meant to supply appears in an arm carrying no bullet at all. What it did buy
-was attention to readership, and that attention argues *toward* the reader wherever they are — which
-reached three code files a documentation task never named. Pricing at all is the half with behaviour
-behind it: a priced arm declines additions it cannot attribute to the request, and an unrequested
-prescription is the first thing that fails. Hypothesis: a priced line makes an addition something the
-agent must justify to itself; reach hands that justification a second thing to argue for. Retire the
-bullet when an arm carrying it adds as much unasked-for content as one without it, read off
-`prompt-tests/general/halve-the-runbook` — the user directed that fixture's shape, so it is kept on that
-warrant whatever this condition does. Reach returns only
-if something shows an agent sorting content by who needs it, and the sorting traces to a line rather
-than to the task.
+**`Omit by default` is deleted. It claimed a priced agent declines additions it cannot attribute
+to the request; run against an arm without it on `prompt-tests/general/halve-the-runbook`, the arm
+carrying it made an unrequested claim of its own — and a false one — exactly as the arm without it
+did.** Read blind by a reader holding both rewrites and the source, told only to name claims the
+source does not make and not which arm was which, so the reading is not the round's own. Neither
+arm wrote a second file, annotated the file about its own compression, or dropped the
+canonical-checkout-only qualifier; on every reading the two matched. Its reach half had already
+been priced and cut for the same reason (rounds 3, 13): what the wording bought was attention to
+readership, and attention argues in whichever direction the task favours. Hypothesis for why five
+rounds of it produced nothing: the failure it names is not an act the agent performs — a document
+acquires a claim while a sentence is being written, not at a moment where adding could be
+declined. Bring it back when a transcript shows an agent declining a specific addition on the
+ground that it would cost more than it is worth, and the reasoning traces to a line rather than to
+the task. The fixture stays whatever this says: the user directed its shape.
 
 **The task's subject bounds the edit. That is where growth hides, and why no bullet here reaches
 it.** Within the subject an agent is exhaustive — a fact is grepped out of every place it appears
