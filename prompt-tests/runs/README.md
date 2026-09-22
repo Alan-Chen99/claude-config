@@ -1,9 +1,8 @@
 # runs
 
-The recorded output of prompt-test runs. Everything taken before 2026-09-19 was
-deleted when the grading design changed to the whole-session, two-argument
-dispatch in `.claude/skills/prompt-tests/SKILL.md`: runs taken under the old
-rubric-first practice are not comparable to anything produced under the new one.
+The recorded output of prompt-test runs. Nothing taken before 2026-09-22 remains:
+the runner wrote a file naming the harness into the tested agent's working
+directory, so no arm stored before that is comparable to one run after it.
 
 ## What goes here
 

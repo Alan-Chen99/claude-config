@@ -125,6 +125,11 @@ later round needs to re-run is promoted to one; otherwise it is deleted with the
 round that wrote it. Keeping an un-promoted probe is the ratchet this repo is
 against: a directory nobody re-runs, that only a human will ever remove.
 
+**A stored run's `README.md` states the condition that deletes it**, in terms a
+later round can check without re-deriving why the run happened. A record with no
+such condition is removable only by a human who reads it, which is the thing this
+repo is against; the round that finds one deletes it rather than repairing it.
+
 A probe still runs under the contamination rules below — the fixture is copied
 into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
 Its record is a `README.md` under `prompt-tests/runs/<probe>/` naming what was
