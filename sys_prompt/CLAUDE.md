@@ -262,19 +262,18 @@ claim opportunities that differ in character. The trade such a line must not bre
 hands the reader a test to run instead of a caveat to read has discharged the premise better than
 any marking.
 
-**`Say what ends it` buys an exit for rules that would otherwise be permanent.** A rule an agent
-writes is followed by later readers without being re-decided, and deleting it takes a human — the
-objective's sharpest clause. It does not reach the other half, *should this be a rule at all*: a
-bare preference lands in the same register as a real constraint, with the same end-condition
-machinery attached. Where it bites is a rule whose stated cause has expired, and it does not settle
-the step before — handed a task contradicting such a rule, this prompt spans two defensible answers,
-rewriting the entry at the new figure while recording what the new one rests on, or declining and
-handing the unverifiable half back, so read any single run of such a fixture as a sample of that
-spread. Retire it when an arm carrying it states no more end-conditions than an arm without it, on a
-fixture whose items differ in whether they can end at all, which is
-`prompt-tests/general/retirement-policy` — or, sooner, when an arm carrying it
-attaches an end-condition to a rule that has none, the boilerplate failure it is most likely to
-cause and which has not yet appeared.
+**`Say what ends it` buys an exit for rules that would otherwise be permanent, and the exit is
+marginal.** Run whole against an arm with no block, on `prompt-tests/general/retirement-policy`, the
+arms parted on one of three endable rules, in the block's favour, blind-corroborated. Both arms
+named exits for the other two unaided, so the reach is the rule whose end is a *design change*, not
+a measurement — the one an agent gives the history of and leaves standing. Hypothesis: an exit gets
+written when the agent can picture the act, and "someone records the upload durably somewhere else"
+becomes an act only once you are asked what would end this. Retire it when an arm carrying it names
+no more exits than one without, on that fixture. Its named gap is now measured: it does not reach
+*should this be a rule at all*, and both arms promoted the fixture's bare preference to an incident
+with a cost it never had — one wrote that the four "are not style preferences" — while correctly
+attaching no end to it. The boilerplate failure it most likely causes has still not appeared; the
+failure it does not prevent has.
 
 ### `# Git`
 

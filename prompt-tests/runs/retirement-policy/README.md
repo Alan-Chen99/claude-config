@@ -81,3 +81,78 @@ null is read as an unpaid cost rather than as an absence of evidence.
 The round that retires or rewrites either bullet, or any edit to
 `prompt-tests/general/retirement-policy/`. Whichever comes first: this run is
 comparable only to the case and the prompt it was taken against.
+
+---
+
+# Result — outcome 1. The block stays.
+
+Both arms ran to completion, 25 turns each, one session per arm. Delivered
+artifacts are stored beside this file, prefixed `artifact-<arm>-`. Both arms
+split their prose across several files, so every reading below is taken over the
+whole delivered set, not over `CLAUDE.md` alone — `r1` put two of its three
+end-conditions in the comment at the value, `r2` put one of its rules in a second
+markdown file.
+
+## R1 — end-conditions on the three endable items
+
+| item | r1 (block) | r2 (no block) |
+| --- | --- | --- |
+| Pillow pin | named — "the pin stays until someone knows what it was. Before bumping, render a real customer image at `md` under both versions and compare" | named — "What has not been checked is the February environment itself … Start there" |
+| `CHUNK = 50` | named — "Raise it only on a written statement of our plan's cap from the vendor, or on a deliberate reproduction" | named — "Raising it needs written confirmation of our plan's limit, or a deliberate reproduction" |
+| `jobs/<id>.json` | named — "Stops applying once an accepted upload is durably recorded somewhere else" | **not named** — the rule, its history and a false end to rule out ("age is not staleness"), and no observation that releases it |
+
+**The arms part on one row, in the block's favour.** Two of three are a wash.
+
+## R2 — boilerplate on row four
+
+Neither arm attached an end-condition to the `print()` preference. The
+*sooner* trigger `sys_prompt/CLAUDE.md` names for this bullet did not fire.
+
+## R3 — register of row four: both arms failed, and this is the finding
+
+r1 heads its section "Four failures cost a morning each"; r2 heads its
+"Each of the four below has already cost a morning. They are not style
+preferences." Both are false of row four, which the task introduces as
+*Also, unrelated to any of that: I'd rather we not use `print()`*. r2's is the
+worse of the two — it denies the register explicitly.
+
+Both arms *do* split the four, on detectability ("three of them are not
+derivable from the code"), which is a different axis from provenance. So an
+agent reaches for a split and picks the one that is visible in the code.
+
+This is the first measurement of a gap `sys_prompt/CLAUDE.md` already names
+beside this bullet — that it does not reach *should this be a rule at all* — and
+it confirms it in both arms. An owner's stated preference was promoted to an
+incident finding with a cost attached to it that it never had, which is a
+documentation error a human has to notice and remove.
+
+## R4 — content on subjects the task did not name
+
+Both arms accepted the invitation ("put whatever a future agent needs into the
+repo") and both rewrote all four modules. They differ in kind, not in whether:
+r1 added a test file and an inventory of four code defects the task never
+mentioned; r2 added a second markdown file and a note on the state of the tree.
+No reading here separates them, so `Omit by default` is untouched by this run.
+
+## Blind comparison
+
+One grader, both artifact sets, labels reversed (A = r2, B = r1), told only that
+the system prompts differed and what the decisive criterion was. Unprompted, it
+returned the same single parting — *"B does this better than A, on these rows:
+the `jobs/*.json` age-deletion prohibition"* — and found the R3 register failure
+in both sets on its own.
+
+## What this buys and what it costs
+
+The block costs 198 api tokens on every request of every session. What it bought
+here is one rule out of three carrying an exit it would not otherwise have had.
+Both arms produced end-conditions on the other two unaided, so most of the
+behaviour is in the prompt's other sections or in the model.
+
+Per outcome 1, no deletion ships and the next round isolates which bullet by
+running the two singly. `Omit by default` has no evidence from this run either
+way; `Say what ends it` is the one with a mechanism for the row that parted.
+
+**The parting is one sentence in one artifact at n=1.** It is the direction the
+pre-registration named, and it is reported because the pre-registration binds the
+round to report it — not because one row settles the question.
