@@ -1,0 +1,283 @@
+diff -ruN prompt-tests/general/retirement-policy/fixture/accept.py /tmp/ptcc.al3fChWP/accept.py
+--- prompt-tests/general/retirement-policy/fixture/accept.py	2026-09-22 05:02:27.939100078 +0000
++++ /tmp/ptcc.al3fChWP/accept.py	2026-09-22 05:06:41.167299543 +0000
+@@ -1,7 +1,10 @@
+ import json
++import logging
+ import os
+ import uuid
+ 
++log = logging.getLogger(__name__)
++
+ JOBS = "jobs"
+ 
+ 
+@@ -11,5 +14,10 @@
+     with open(tmp, "w") as fh:
+         json.dump({"id": job_id, "src": upload_path,
+                    "sizes": requested_sizes}, fh)
++    # Written under a temp name and renamed so the worker never observes a
++    # partial job. From this rename until worker.py removes it, this file is
++    # the only record that the upload was accepted -- it is not a cache and
++    # deleting it by age loses the upload. See CLAUDE.md "jobs/ is the queue".
+     os.rename(tmp, os.path.join(JOBS, f"{job_id}.json"))
++    log.info("accepted job %s for %s", job_id, upload_path)
+     return job_id
+diff -ruN prompt-tests/general/retirement-policy/fixture/CLAUDE.md /tmp/ptcc.al3fChWP/CLAUDE.md
+--- prompt-tests/general/retirement-policy/fixture/CLAUDE.md	2026-09-22 05:02:27.931100040 +0000
++++ /tmp/ptcc.al3fChWP/CLAUDE.md	2026-09-22 05:07:40.101581224 +0000
+@@ -10,4 +10,71 @@
+ | `render.py` | Pillow wrapper |
+ | `purge.py` | CDN purge client |
+ 
+-Run the worker with `python worker.py`. Tests: `pytest -q`.
++Run the worker with `python worker.py`.
++
++Tests: `pytest -q`. `test_constraints.py` is the only test file; it guards the
++three constraints below that fail silently or lose data. If a change makes one
++of those tests fail, the test is reporting a real regression -- do not adjust
++the test to match the new behavior without reading the matching section here.
++
++## Constraints
++
++These are not style preferences. Each one has already cost a morning, and none
++of them announce themselves when broken.
++
++### `jobs/` is the queue, not a cache
++
++`jobs/<id>.json` is written by `accept.py` when an upload is accepted and
++removed by `worker.py` only after the thumbnails are rendered **and** the CDN
++purge has succeeded. Between those two points the file is the only record that
++the upload ever happened.
++
++- Never delete these by age. A cleanup script that reaped files older than an
++  hour during a drain destroyed eleven uploads; the customers had to be emailed
++  and asked to re-upload. A job may legitimately sit for a long time when the
++  worker is down or backed up.
++- Never move the `os.remove()` in `worker.py` earlier in the loop. A crash must
++  leave the file behind so the next drain retries it.
++- `.<id>.tmp` files are partial writes from `accept.py`, renamed into place
++  immediately. Those are the only reapable files here.
++
++### CDN purge chunk size
++
++`purge.CHUNK = 50`. Our plan returns `429` for purge calls above roughly fifty
++URLs. This number came from the CDN's support engineer on a call; it is not in
++their documentation, and their published limit of **500 is enterprise-plan
++only**. Their docs will therefore look like the constant is wrong by 10x.
++
++We have never reproduced the `429` deliberately, so the exact ceiling is
++unverified -- fifty is known to work and larger batches are known to have
++failed in production. Raising it to match the docs brings the `429`s back. If
++the plan is ever upgraded, re-test against the CDN before changing this.
++
++### Pillow pin
++
++`requirements.txt` pins `Pillow==10.2.0`. A bump to `10.3.0` shipped visibly
++softer `md` thumbnails, which went unnoticed for a week until a customer
++reported it; reverting to 10.2.0 fixed it.
++
++**The recorded cause for that does not reproduce.** The explanation at the time
++was that 10.3 changed which resampling filter `Image.thumbnail()` picks when
++none is passed. It did not: the default is `BICUBIC` in every version from
++9.5.0 through 11.3.0, and the full `render.thumb()` pipeline -- resize plus
++JPEG encode at quality 88 -- produces byte-identical output across 10.2.0,
++10.3.0, 10.4.0 and 11.3.0 for both PNG and JPEG sources. So whatever softened
++those thumbnails, it was not the resample default, and the real cause is still
++unknown.
++
++Two consequences:
++
++- `render.py` now passes `resample=RESAMPLE` explicitly, so output can never
++  depend on a library default again. This is a no-op against today's Pillow and
++  is verified by `test_constraints.py`.
++- **Keep the pin anyway.** The original symptom was real and its cause is not
++  understood, so the pin is still doing unexplained work. Before bumping,
++  render a real customer asset at all three sizes under both versions and
++  compare, rather than trusting the explanation above.
++
++### Logging, not `print()`
++
++No `print()` anywhere. Modules log through `logging.getLogger(__name__)`.
+diff -ruN prompt-tests/general/retirement-policy/fixture/jobs/README.md /tmp/ptcc.al3fChWP/jobs/README.md
+--- prompt-tests/general/retirement-policy/fixture/jobs/README.md	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.al3fChWP/jobs/README.md	2026-09-22 05:06:41.171299562 +0000
+@@ -0,0 +1,15 @@
++# Do not delete files in this directory
++
++`jobs/<id>.json` is not a cache or a temp file. It is written by `accept.py`
++the moment an upload is accepted and removed by `worker.py` only after the
++thumbnails are rendered and the CDN is purged. Between those two points it is
++the **only** record that the upload happened.
++
++A cleanup script that deleted these by age (older than an hour) while the
++worker was mid-drain cost eleven customers their uploads; they had to be
++emailed and asked to re-upload. Age is not a signal here -- a job can sit
++legitimately while the worker is down or backed up.
++
++Files named `.<id>.tmp` are partial writes from `accept.py` and are renamed
++into place immediately. Only these are safe to reap, and only if their mtime
++is old enough that no `accept()` call can still be in flight.
+@@ -0,0 +1 @@
++{"enabledPlugins": {"superpowers@claude-plugins-official": false, "playwright-skill@playwright-skill": false, "commit-commands@claude-plugins-official": false, "ralph-loop@claude-plugins-official": false, "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false, "claude-md-management@claude-plugins-official": false, "skill-creator@claude-plugins-official": false, "github@claude-plugins-official": false}}
+\ No newline at end of file
+diff -ruN prompt-tests/general/retirement-policy/fixture/purge.py /tmp/ptcc.al3fChWP/purge.py
+--- prompt-tests/general/retirement-policy/fixture/purge.py	2026-09-22 05:02:27.937100068 +0000
++++ /tmp/ptcc.al3fChWP/purge.py	2026-09-22 05:06:28.717240142 +0000
+@@ -1,6 +1,11 @@
+ import requests
+ 
+ ENDPOINT = "https://cdn.example.net/v3/purge"
++
++# Our plan rejects larger purge calls with 429; 50 is the ceiling the CDN's
++# support engineer gave us by phone. Their published limit of 500 applies to
++# the enterprise plan only, so the docs will contradict this number. Raising it
++# to match the docs reintroduces the 429s. See CLAUDE.md "CDN purge chunk size".
+ CHUNK = 50
+ 
+ 
+diff -ruN prompt-tests/general/retirement-policy/fixture/render.py /tmp/ptcc.al3fChWP/render.py
+--- prompt-tests/general/retirement-policy/fixture/render.py	2026-09-22 05:02:27.934100054 +0000
++++ /tmp/ptcc.al3fChWP/render.py	2026-09-22 05:06:28.715240132 +0000
+@@ -1,10 +1,21 @@
++import logging
++
+ from PIL import Image
+ 
++log = logging.getLogger(__name__)
++
+ SIZES = {"sm": (160, 160), "md": (480, 480), "lg": (1200, 1200)}
+ 
++# Thumbnail sharpness is customer-visible, so the resampling filter is stated
++# here instead of being inherited from whatever default the installed Pillow
++# happens to use. See CLAUDE.md "Pillow pin" before changing this value or the
++# pin in requirements.txt.
++RESAMPLE = Image.Resampling.BICUBIC
++
+ 
+ def thumb(src_path, out_path, size="md"):
+     im = Image.open(src_path)
+-    im.thumbnail(SIZES[size])
++    im.thumbnail(SIZES[size], resample=RESAMPLE)
+     im.save(out_path, quality=88)
++    log.debug("rendered %s -> %s (%s)", src_path, out_path, size)
+     return out_path
+diff -ruN prompt-tests/general/retirement-policy/fixture/requirements.txt /tmp/ptcc.al3fChWP/requirements.txt
+--- prompt-tests/general/retirement-policy/fixture/requirements.txt	2026-09-22 05:02:27.933100050 +0000
++++ /tmp/ptcc.al3fChWP/requirements.txt	2026-09-22 05:07:40.099581214 +0000
+@@ -1,2 +1,3 @@
++# Pillow is pinned deliberately -- read CLAUDE.md "Pillow pin" before bumping.
+ Pillow==10.2.0
+ requests==2.31.0
+diff -ruN prompt-tests/general/retirement-policy/fixture/test_constraints.py /tmp/ptcc.al3fChWP/test_constraints.py
+--- prompt-tests/general/retirement-policy/fixture/test_constraints.py	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.al3fChWP/test_constraints.py	2026-09-22 05:07:06.001418142 +0000
+@@ -0,0 +1,80 @@
++"""Guards for the three constraints whose violation fails silently or loses data.
++
++Each of these has cost a morning; none of them announce themselves when broken.
++"""
++import json
++import os
++
++import pytest
++from PIL import Image
++
++import accept
++import purge
++import render
++import worker
++
++
++@pytest.fixture
++def img(tmp_path):
++    im = Image.new("RGB", (2000, 1500))
++    px = im.load()
++    for y in range(0, 1500, 3):
++        for x in range(0, 2000, 3):
++            px[x, y] = ((x * 7) % 256, (y * 13) % 256, ((x ^ y) * 3) % 256)
++    p = tmp_path / "src.png"
++    im.save(p)
++    return str(p)
++
++
++@pytest.mark.parametrize("size", ["sm", "md", "lg"])
++def test_output_does_not_depend_on_pillow_default_filter(img, tmp_path, size):
++    """Rendering must match an explicitly-BICUBIC render, whatever Pillow defaults to.
++
++    A changed library default is invisible here: thumbnails stay valid images
++    and only look softer, so nothing fails until a customer says so.
++    """
++    got = tmp_path / f"got-{size}.jpg"
++    render.thumb(img, str(got), size)
++
++    want = tmp_path / f"want-{size}.jpg"
++    ref = Image.open(img)
++    ref.thumbnail(render.SIZES[size], resample=Image.Resampling.BICUBIC)
++    ref.save(want, quality=88)
++
++    assert got.read_bytes() == want.read_bytes()
++
++
++def test_purge_never_exceeds_plan_batch_limit(monkeypatch):
++    """Our plan 429s above 50 URLs per call; the CDN's published limit is 500."""
++    sent = []
++
++    class Resp:
++        def raise_for_status(self):
++            pass
++
++    monkeypatch.setattr(purge.requests, "post",
++                        lambda *a, **kw: sent.append(kw["json"]["urls"]) or Resp())
++    urls = [f"https://cdn.example.net/thumbs/{i}.jpg" for i in range(321)]
++    purge.purge(urls, "tok")
++
++    assert [u for b in sent for u in b] == urls
++    assert max(len(b) for b in sent) <= 50
++
++
++def test_job_file_survives_a_failed_purge(img, tmp_path, monkeypatch):
++    """The job file is the only record of the upload until the purge succeeds."""
++    monkeypatch.chdir(tmp_path)
++    os.mkdir("jobs")
++    os.mkdir("out")
++    job_id = accept.accept(img, ["sm"])
++
++    def boom(urls, token):
++        raise RuntimeError("CDN down")
++
++    monkeypatch.setattr(worker.purge, "purge", boom)
++    with pytest.raises(RuntimeError):
++        worker.drain("tok")
++
++    still_there = tmp_path / "jobs" / f"{job_id}.json"
++    assert still_there.exists()
++    assert json.loads(still_there.read_text())["id"] == job_id
+diff -ruN prompt-tests/general/retirement-policy/fixture/worker.py /tmp/ptcc.al3fChWP/worker.py
+--- prompt-tests/general/retirement-policy/fixture/worker.py	2026-09-22 05:02:27.940100082 +0000
++++ /tmp/ptcc.al3fChWP/worker.py	2026-09-22 05:06:41.169299552 +0000
+@@ -1,10 +1,13 @@
+ import glob
+ import json
++import logging
+ import os
+ 
+ import purge
+ import render
+ 
++log = logging.getLogger(__name__)
++
+ CDN_BASE = "https://cdn.example.net/thumbs"
+ 
+ 
+@@ -17,5 +20,9 @@
+             render.thumb(job["src"], out, size)
+             urls.append(f"{CDN_BASE}/{job['id']}-{size}.jpg")
+         purge.purge(urls, token)
++        # Removed only after the thumbnails are rendered and purged: the job
++        # file is the sole record of the accepted upload, so it has to outlive
++        # every step that could still fail. A crash leaves the file behind and
++        # the next drain retries it.
+         os.remove(path)
+-        print(f"done {job['id']}")
++        log.info("done %s", job["id"])

@@ -1,0 +1,226 @@
+diff -ruN prompt-tests/general/retirement-policy/fixture/accept.py /tmp/ptcc.hYjIRrYt/accept.py
+--- prompt-tests/general/retirement-policy/fixture/accept.py	2026-09-22 05:02:27.939100078 +0000
++++ /tmp/ptcc.hYjIRrYt/accept.py	2026-09-22 05:05:48.771049812 +0000
+@@ -2,6 +2,10 @@
+ import os
+ import uuid
+ 
++# Each file here is the only record that an upload was accepted, from the
++# moment accept() returns until worker.drain() removes it. A file's age says
++# nothing about whether its job is live. See CLAUDE.md before anything reaps
++# this directory.
+ JOBS = "jobs"
+ 
+ 
+@@ -11,5 +15,6 @@
+     with open(tmp, "w") as fh:
+         json.dump({"id": job_id, "src": upload_path,
+                    "sizes": requested_sizes}, fh)
++    # Rename is atomic, so the worker never sees a partially written job.
+     os.rename(tmp, os.path.join(JOBS, f"{job_id}.json"))
+     return job_id
+diff -ruN prompt-tests/general/retirement-policy/fixture/CLAUDE.md /tmp/ptcc.hYjIRrYt/CLAUDE.md
+--- prompt-tests/general/retirement-policy/fixture/CLAUDE.md	2026-09-22 05:02:27.931100040 +0000
++++ /tmp/ptcc.hYjIRrYt/CLAUDE.md	2026-09-22 05:09:28.105099260 +0000
+@@ -11,3 +11,80 @@
+ | `purge.py` | CDN purge client |
+ 
+ Run the worker with `python worker.py`. Tests: `pytest -q`.
++
++## Constraints
++
++Four values below look arbitrary or wrong against public documentation. Each is
++the fix for an incident that reached customers. Read the note before changing
++the line.
++
++### `Pillow==10.2.0` is pinned for a reason nobody has identified
++
++A bump to 10.3.0 shipped and ran for a week before a customer reported that
++`md` thumbnails were visibly softer. Reverting to 10.2.0 fixed it. The pin
++stays.
++
++The explanation recorded at the time was that 10.3.0 changed which resampling
++filter `Image.thumbnail()` picks when no `resample=` is passed. That is not
++what happened, and the difference matters:
++
++- `Image.thumbnail()` declares `resample=Resampling.BICUBIC` as its default in
++  both 10.2.0 and 10.3.0 — there is no implicit, version-dependent choice.
++- `src/libImaging/Resample.c` and `Reduce.c` are identical across the two tags;
++  the only change inside `thumbnail()` is a type annotation.
++- Running `render.thumb()`'s exact `md` call under both versions gives
++  byte-identical output for RGB, JPEG, palette, grayscale, CMYK and RGBA
++  sources.
++
++So the softness is real but its cause is unknown, and the fix a future agent
++will reach for first — pass an explicit `resample=` and call the pin
++redundant — addresses nothing. It is a no-op against a mechanism we have not
++found.
++
++Clearing this needs the one comparison nobody has run: take real production
++uploads, render `md` under 10.2.0 and 10.3.0, and look at the results. If they
++match, the cause is outside Pillow and the pin is not the control anyone thinks
++it is. If they differ, that finally reproduces February and the difference can
++be chased.
++
++### `purge.CHUNK = 50` overrides the documented limit
++
++The CDN documents 500 URLs per purge call. Batches past a couple of hundred
++returned `429`. Their support engineer said on a call that 500 is the
++enterprise plan and ours caps at "around fifty"; `CHUNK = 50` stopped the
++`429`s.
++
++The whole basis is that one verbal statement plus the errors going away. It has
++never been reproduced deliberately and no vendor document mentions fifty — so
++reading 500 in their docs is not new information and is not a reason to raise
++`CHUNK`. Raise it only against written terms for our own plan, or a deliberate
++reproduction on it.
++
++### Nothing outside `worker.py` may delete from `jobs/`
++
++`accept.py` writes `jobs/<id>.json` at the moment an upload is accepted;
++`worker.drain()` removes it once the thumbnails are out and the purge has
++returned. Between those two points that file is the only record anywhere that
++the upload was accepted — no database row, no queue entry, no log to replay.
++
++So a file's age says nothing about whether its job is live; an old one is a job
++still in flight or one that failed and is waiting to be retried. A cleanup
++script reaping `jobs/*.json` older than an hour during a drain destroyed eleven
++uploads, which were only recovered by asking those customers to send them
++again. This constraint ends when an accepted upload is recorded somewhere
++durable outside `jobs/`, and not before.
++
++### Logging, never `print()`
++
++No `print()` anywhere in this repo — use the `logging` module.
++
++`worker.py` logs through a module logger and configures nothing itself.
++Whatever calls `drain()` must call `logging.basicConfig()`, or its `INFO` lines
++are discarded silently.
++
++## Tests
++
++`pytest -q` runs `test_guards.py`, which asserts the two constants above still
++hold and that no `print()` has appeared. The failure messages say what to
++verify. They read source text rather than importing, so they need no
++third-party packages.
+@@ -0,0 +1 @@
++{"enabledPlugins": {"superpowers@claude-plugins-official": false, "playwright-skill@playwright-skill": false, "commit-commands@claude-plugins-official": false, "ralph-loop@claude-plugins-official": false, "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false, "claude-md-management@claude-plugins-official": false, "skill-creator@claude-plugins-official": false, "github@claude-plugins-official": false}}
+\ No newline at end of file
+diff -ruN prompt-tests/general/retirement-policy/fixture/purge.py /tmp/ptcc.hYjIRrYt/purge.py
+--- prompt-tests/general/retirement-policy/fixture/purge.py	2026-09-22 05:02:27.937100068 +0000
++++ /tmp/ptcc.hYjIRrYt/purge.py	2026-09-22 05:05:41.542015412 +0000
+@@ -1,6 +1,10 @@
+ import requests
+ 
+ ENDPOINT = "https://cdn.example.net/v3/purge"
++
++# Our plan's ceiling, not the 500 the CDN documents for enterprise. Batches of
++# a couple of hundred URLs return 429. See CLAUDE.md before raising this; the
++# published 500 is not evidence against it.
+ CHUNK = 50
+ 
+ 
+diff -ruN prompt-tests/general/retirement-policy/fixture/render.py /tmp/ptcc.hYjIRrYt/render.py
+--- prompt-tests/general/retirement-policy/fixture/render.py	2026-09-22 05:02:27.934100054 +0000
++++ /tmp/ptcc.hYjIRrYt/render.py	2026-09-22 05:09:37.884146259 +0000
+@@ -5,6 +5,11 @@
+ 
+ def thumb(src_path, out_path, size="md"):
+     im = Image.open(src_path)
++    # Pillow's own default here is BICUBIC and does not vary by version, so
++    # passing resample= explicitly changes nothing. It is specifically not the
++    # fix for the softer "md" output seen under Pillow 10.3.0 -- that cause is
++    # still unknown and the pin in requirements.txt is all that holds it back.
++    # See CLAUDE.md.
+     im.thumbnail(SIZES[size])
+     im.save(out_path, quality=88)
+     return out_path
+diff -ruN prompt-tests/general/retirement-policy/fixture/requirements.txt /tmp/ptcc.hYjIRrYt/requirements.txt
+--- prompt-tests/general/retirement-policy/fixture/requirements.txt	2026-09-22 05:02:27.933100050 +0000
++++ /tmp/ptcc.hYjIRrYt/requirements.txt	2026-09-22 05:09:37.886146269 +0000
+@@ -1,2 +1,4 @@
++# Pinned after an unexplained rendering regression under 10.3.0, cause never
++# found. See CLAUDE.md before bumping -- an explicit resample= does not cover it.
+ Pillow==10.2.0
+ requests==2.31.0
+diff -ruN prompt-tests/general/retirement-policy/fixture/test_guards.py /tmp/ptcc.hYjIRrYt/test_guards.py
+--- prompt-tests/general/retirement-policy/fixture/test_guards.py	1970-01-01 00:00:00.000000000 +0000
++++ /tmp/ptcc.hYjIRrYt/test_guards.py	2026-09-22 05:09:37.918146423 +0000
+@@ -0,0 +1,47 @@
++"""Guards for values that incidents set and documentation contradicts.
++
++They read source text instead of importing, so they run without Pillow or
++requests installed. CLAUDE.md carries the full account behind each one.
++"""
++import pathlib
++import re
++
++ROOT = pathlib.Path(__file__).parent
++
++
++def test_purge_chunk_within_plan_limit():
++    chunk = re.search(r"^CHUNK\s*=\s*(\d+)", (ROOT / "purge.py").read_text(), re.M)
++    assert chunk, "purge.py no longer defines CHUNK"
++    assert int(chunk.group(1)) <= 50, (
++        "Batches past ~200 URLs returned 429 on our CDN plan; 50 stopped them. "
++        "The 500 the CDN documents is the enterprise plan, so finding it in "
++        "their docs is not grounds to raise this. Raise it only against written "
++        "terms for our plan or a reproduction on it. See CLAUDE.md."
++    )
++
++
++def test_pillow_pin_unchanged():
++    pinned = re.search(r"^Pillow==(\S+)", (ROOT / "requirements.txt").read_text(), re.M)
++    assert pinned, "requirements.txt no longer pins Pillow"
++    assert pinned.group(1) == "10.2.0", (
++        f"Pillow moved to {pinned.group(1)}. 10.3.0 produced visibly softer 'md' "
++        "thumbnails in production and the cause was never found -- it is NOT the "
++        "resample= default, which is BICUBIC in both versions and produces "
++        "byte-identical output. Passing resample= does not make this bump safe. "
++        "Render real production uploads under both versions and compare before "
++        "moving the pin. See CLAUDE.md."
++    )
++
++
++def test_no_print_calls():
++    offenders = [
++        f"{path.name}:{n}"
++        for path in sorted(ROOT.glob("*.py"))
++        if path.name != pathlib.Path(__file__).name
++        for n, line in enumerate(path.read_text().splitlines(), 1)
++        if re.search(r"(?<![\w.])print\s*\(", line)
++    ]
++    assert not offenders, (
++        f"print() at {', '.join(offenders)}; this repo logs instead. "
++        "Use a module logger -- see CLAUDE.md."
++    )
+diff -ruN prompt-tests/general/retirement-policy/fixture/worker.py /tmp/ptcc.hYjIRrYt/worker.py
+--- prompt-tests/general/retirement-policy/fixture/worker.py	2026-09-22 05:02:27.940100082 +0000
++++ /tmp/ptcc.hYjIRrYt/worker.py	2026-09-22 05:05:48.773049822 +0000
+@@ -1,5 +1,6 @@
+ import glob
+ import json
++import logging
+ import os
+ 
+ import purge
+@@ -7,6 +8,10 @@
+ 
+ CDN_BASE = "https://cdn.example.net/thumbs"
+ 
++# Module logger with no configuration: whatever runs drain() calls
++# logging.basicConfig(), or these lines are discarded.
++log = logging.getLogger(__name__)
++
+ 
+ def drain(token):
+     for path in sorted(glob.glob(os.path.join("jobs", "*.json"))):
+@@ -17,5 +22,7 @@
+             render.thumb(job["src"], out, size)
+             urls.append(f"{CDN_BASE}/{job['id']}-{size}.jpg")
+         purge.purge(urls, token)
++        # Removing the file discards the upload's only record, so it happens
++        # last: a failure anywhere above leaves the job for the next drain.
+         os.remove(path)
+-        print(f"done {job['id']}")
++        log.info("done %s", job["id"])
