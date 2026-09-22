@@ -2,8 +2,8 @@
 
 ## Patterns
 
-### mem-1790048869-1482
-> An agent editing an existing document rewrites everything about the SUBJECT its task named and touches nothing about any other subject - even a defect it says out loud it found. Measured on doc-succession, 4 runs: all deleted a 22-line dead section (one had only been asked to add a line, and said 'a line would have made the document contradict itself'), none touched an unsourced claim, a rule stated twice, or a step list duplicating the script. Why: the task fixes scope, and scope discipline outranks any instruction about what to write. Implication: doc rot lives in regions no task names, so no 'write less' or 'delete more' prompt line reaches it.
+### mem-1790049715-735a
+> An agent handed a subject rewrites everything about THAT subject and little about any other; a task that only licensed an ADDITION swept the named subject the same way, so the correction licence is not what decides it. Measured on doc-succession, 4 runs. Do not overstate the other half: of the fixture's regions outside the subject only two were actionable defects, and one arm fixed one of them, so 'nothing outside the subject moves' is a tendency with n=4, not a law - and two regions an earlier note counted as missed were correctly left alone (one agrees with the script, one is unverifiable but unrefuted, so deleting it would be deleting on no evidence).
 <!-- tags: docs, sys-prompt, prompt-tests | created: 2026-09-22 -->
 
 ### mem-1790046994-befd

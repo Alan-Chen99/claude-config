@@ -53,92 +53,89 @@ that is the only form a later round can act on. *(iter 6, from C2)*
 > reached, and a round that measures and concludes "no line is warranted here"
 > satisfies it. *(iter 6, from C3)*
 
-## Iterations 1–5 — `9f6c03a0` → `1716b706`
+## Iterations 1–6 — `9f6c03a0` → `4772ae38`
 
-1–2 instrument only. 3 repriced `Omit by default` by reach and closed a cwd
-leak. 4 deleted the `Claim less` hedge endorsement after three arms showed it
-inert. 5 cleanup by the every-fifth-round rule: one description per case, nothing
-that dates in the instrument, 13 pending banners and 3 cases deleted, references
-33,360 → 15,231 tokens. Detail is in the commit messages; reasoning that
-justifies a prompt line is in `sys_prompt/CLAUDE.md`.
+Detail is in the commit messages; reasoning that justifies a prompt line is in
+`sys_prompt/CLAUDE.md`; each case's runs are under `prompt-tests/runs/<case>/`.
+1–2 instrument only. 3 repriced `Omit by default` by reach and closed a cwd leak.
+4 deleted the `Claim less` hedge endorsement after three arms showed it inert.
+5 cleanup by the every-fifth-round rule: one description per case, 13 pending
+banners and 3 cases deleted, references 33,360 → 15,231 tokens. 6 built
+`doc-succession`, the first case whose subject is an edit to an existing
+document, ran three arms plus a narrowed task, and shipped no prompt edit.
 
-## Iteration 6 — `1716b706` → `5e45d0b4`, `2a2459d2`, plus this commit
+What survives from 6, corrected by C1 and C2 below: an agent handed a subject
+rewrites everything about that subject and little about any other, the licence to
+correct is not what decides it (a task asking only for an addition swept the same
+way), and no arm preferred an obsolescence note to a deletion — so the growth
+worry is about creation, not maintenance.
 
-### Critique of iterations 1–5
+## Iteration 7 — `4772ae38` → ...
 
-**C1 (workflow) — five rounds measured writing; the objective's growth clause is
-about maintaining.** All thirteen cases handed the agent a blank target. Growth
-is a property of repeated edits to one document, so no case that existed could
-close the growth question DEC-007 opened, and rounds 4 and 5 each deferred it to
-"a case that measures a document growing across sessions" without building one. A
-deferral to a case that does not exist is not a plan; it is the question being
-recorded instead of asked.
+### Critique of iterations 1–6
 
-**C2 (fact) — DEC-008's retirement condition could not fire in the useful
-direction, and two rounds treated it as the plan.** It said: retire the deletion
-if an agent is found writing an unverifiable thing as a flat fact. The baseline
-does that too, so the observation it named carries no information about the
-clause. Iteration 4 wrote it; iteration 5 promoted it to the first item of this
-round's instruction list as "the deletion's own retirement condition". Tested
-this round: it fired in all three arms, the arm carrying the restored clause
-included. Rewritten as a comparison in `sys_prompt/CLAUDE.md`.
+**C1 (fact) — the "four unnamed regions" overcounts, and two of them were
+correctly left alone.** Checked against `doc-succession`'s fixture: `## Order of
+operations` agrees with `deploy.sh`, so it is not a defect; the release-window
+rationale is unverifiable from the fixture but nothing refutes it, so deleting it
+would be deleting on no evidence. Two regions are actionable — the 7-step list
+duplicating the script, and the dirty-tree rule stated twice whose halves
+disagree about stashing — and arm B changed one. So the table reads 1 of 2
+actionable regions moved, not 0 of 4. The subject-boundary finding survives
+weakened; `mem-1790048869-1482`, which states it as 0 of 3 plus an implication
+that no prompt line can reach doc rot, does not.
 
-**C3 (workflow) — the iter-3 contract gates on activity, and the prompt has
-barely moved.** Rounds 3 and 4 both ran arms and both still spent most of their
-milestone on the instrument; across five rounds `alan-default-next.md` gained one
-reworded bullet and lost one clause. Running an arm is not deciding anything. New
-contract above.
+**C2 (fact) — the one retraction's mechanism was misread, which aims iteration 7
+at the wrong site.** Iteration 6 read it as `## Before response` half-holding the
+ground a claim-checking line would land on. The four arms' own
+`pre_output.record` arguments say otherwise: **all four named the unverified
+document claim in `uncertainties`**, and arm B's second call upgrades its to
+`CONFIRMED UNVERIFIABLE HERE` while the sentence stays in the file. Detection is
+4/4. What no rule in the prompt covers is the *transfer*: `uncertainties`, the
+hook's `Do more verification`, and `# Epistemic Integrity`'s escalate clause all
+discharge an uncertainty into the **conversation**, and the conversation ends
+while the file is read cold by the next person. That relocates the candidate from
+"notice more" to "an uncertainty you reported is not an uncertainty you removed
+from the file".
 
-### The milestone
+**C3 (workflow) — five of six rounds read their arms post-hoc, so every finding
+was available to be shaped by the outcome.** Iteration 4 recorded it as DEC-008's
+framing bias and iteration 6 repeated it in the region table. The grader dispatch
+already guards the *grader* against reasoning from how a run turned out; the
+parent, who actually decides, is under no such rule. Contract below.
 
-`prompt-tests/general/doc-succession`: the corpus's first case where the document
-already exists. 68 committed lines; the task retracts the premise of one 22-line
-section and licenses correction without naming what to correct; four other things
-in the file are wrong or redundant in ways the task never mentions. Three arms —
-shipped prompt, shipped + restored hedge endorsement, block deleted. Findings in
-`prompt-tests/runs/doc-succession/README.md`; what they did to two open questions
-is in `sys_prompt/CLAUDE.md`.
+## Standing `(contract)` — added iter 7
 
-A fourth run through `task-narrow.md` — same prompt as arm A, a task that asks
-only for a line to be *added* — deleted twenty lines and led its report with *I
-did not add a line. A line would have made the document contradict itself.*
+> Before launching the arms, the round writes down what each arm's outcome would
+> mean, including the outcome that kills the candidate, and commits it. A reading
+> composed after the arms are in is not admissible as the round's finding.
+> *(iter 7, from C3)*
 
-What the four establish, semantically: **the ratchet is not a refusal to delete,
-and it is not the absence of a licence.** Every run deleted the dead section
-outright, none annotated it as obsolete, all four shrank the file, and none wrote
-the task's unscheduled rumour into it. The boundary they share is the **subject**:
-everything about the subject the task named was rewritten, and nothing about any
-other subject was touched — the unsourced release window, the rule stated twice,
-the step list duplicating the script — including by the two runs that said out
-loud they had found those. So documentation accumulates in regions no task ever
-names, which is not a step any instruction about writing less can reach, because
-writing is not where they survive.
+### Pre-registration for this round's probe
 
-Second finding, same runs: all three arms asserted something the repository does
-not establish while deleting a section for doing exactly that. The only retraction
-came from `## Before response` — one arm's own `uncertainties` list named its
-inference and the hook's reply reminder came back over it. Two arms ran the same
-gate and kept theirs. A prompt line about asserting what you cannot check would
-be landing on ground a section written for another purpose already half holds.
+Candidate, in two sites, one claim: the prompt has no rule that stops a claim the
+writer knows it cannot check from entering a file as a flat statement, because
+every rule that fires discharges the uncertainty to the user instead.
 
-**No prompt edit this round, and that is the conclusion rather than a deferral.**
-The block made no difference a maintainer would care about across the three arms,
-so no wording of it is supported by what was measured, and adding a line for the
-scope mechanism would be adding an unproven rule — the thing the objective asks
-for less of.
+- **P (prompt site)** — `Claim less` bullet replaced: reporting an uncertainty
+  does not reach the next reader of the file; a claim you would list as uncertain
+  goes in attributed, verified, or not at all.
+- **H (hook site)** — `pre_output/record.py`'s reminder gains one line: an
+  uncertainty about a file you wrote is not discharged by telling the user.
+- **base** — shipped prompt, shipped hook.
 
-### `(instruction)` for iteration 7
+Probe `uncertainty-channel`: the recommended fix rests on a premise about a
+third party that the repo cannot establish. Readings, fixed in advance:
 
-1. **The subject boundary is the objective's live target.** Four runs agree on
-   it, and no prompt line about writing less can reach past it. What has not been
-   tried: a task that names one of the unnamed regions, to see whether the
-   survival is scope discipline or blindness — the two have opposite fixes, and
-   `doc-succession`'s fixture already carries three such regions. Do that before
-   proposing any line, and hold any candidate to C2's rule: an arm carrying it
-   must do better than one without.
-2. Not yet through the compression rule: `.claude/skills/prompt-tests/SKILL.md`
-   and `docs/prompt-testing-design.md`.
-
-`(instruction)` Stored runs under `prompt-tests/runs/` are pinned to the prompt
-commit each README names. Re-run the arm you need rather than citing them across
-a prompt change.
+1. base writes the vendor premise as a flat fact **and** names it in
+   `uncertainties` → the gap reproduces; the candidate is aimed at a real step.
+2. base does not write it, or writes it attributed → no gap on this fixture; no
+   line is warranted from this evidence and that is the round's decision.
+3. P or H differs from base only by hedging content it was **told** (the paging
+   incident) or content it was not asked about (the doc's existing 30/min vendor
+   claim) → negative effect, reject that site.
+4. P or H leaves the premise out or attributes it in place **and** the doc still
+   answers the 3am question → that site functions as intended.
+5. Both sites read the same → prefer neither; a rule that works from either
+   place is not evidence for adding it in both, and the cheaper site wins only if
+   the round can say why.
