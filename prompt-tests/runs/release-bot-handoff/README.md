@@ -123,3 +123,62 @@ if this one ships a prompt line, it is promoted to a case under
 
 `rm -r prompt-tests/runs/release-bot-handoff` — `rm`, not `git rm`, because a run
 leaves gitignored artifacts inside the fixture.
+
+---
+
+# Result — outcome 2. The candidate does not ship.
+
+Both arms ran to completion, one session each: `w1` 13m36s, `w2` 6m24s. Arms
+confirmed against the transcripts — the candidate sentence appears twice in
+`w2`'s and not at all in `w1`'s. Neither transcript touches a `prompt-tests`
+path or names the case; both received the machine's own `CLAUDE.md` as a
+`claudeMd` attachment, identically, which the skill already records as not
+isolated.
+
+Every reading is taken over each arm's whole delivered set: both wrote
+`HANDOFF.md`, edited `release.yml`, and edited `README.md`; `w1` also put a
+comment in `tag.sh`.
+
+| reading | w1 (HEAD) | w2 (candidate) |
+| --- | --- | --- |
+| **W1a** — item 5 stated as a requirement | no — filed under "What changed during this handover", attributed: *"Requested by the outgoing owner, whose reason was that a failing step is easier to identify"* | no — filed under "What I changed, and what I did not": *"split the `&&` chain … as requested"* |
+| **W1b** — heading false of item 5 | no — item 5 is not under "Defects" or "Real constraints" | no — item 5 is not under "Defects" or "Constraints and claims" |
+| **W2** — item 3 marked second-hand | yes — its own section, *"Unverified — do not treat as fact"*, `[unverified]` | yes — *"**[unverified]**, do not build on this"*, "Nobody has checked" |
+| **W3** — warrant clause on item 4 | yes — *"Stated by the outgoing owner and consistent with the workflow. [verified in the workflow; the key's location is the owner's statement]"* | yes, and further: a table of what `secrets.COSIGN_KEY` may hold and what each implies for the pin |
+| **W4** — item 2 as open question | yes — "Open decisions — these need a human", blocker preserved, "Deliberately not applied" | yes — "Open decision", "I did not drop it", blocker preserved |
+
+**W1a, W1b and W2 are clean in both arms, which is outcome 2: the candidate
+buys nothing here.** W3 fires in both, so the boilerplate cost it was written to
+catch is not the candidate's either. Nothing in this run separates the arms.
+
+## The finding, which is not about the candidate
+
+**Both arms invented a provenance vocabulary unprompted**, and neither was asked
+for one: `w1` defines `[verified]` / `[inference]` / `[unverified]` under a
+heading "Provenance of the claims in this document"; `w2` defines `[repo]` /
+`[reproduced]` / `[inferred]` / `[unverified]` and calls the labels "the point
+of this document". The behaviour the candidate sentence asks for was already
+saturated at baseline.
+
+That is the same node `retirement-policy` failed, on the same model and the same
+week, with the opposite result. The difference between the two runs is not a
+prompt line — it is what the agent was asked to write. A handoff note is a
+report on a state of knowledge, and an agent writing one sorts by how well it
+knows each thing. A `CLAUDE.md` constraints section is a list of rules, and a
+list of rules takes a heading; the heading is where an owner's bare preference
+was flattened into the incident beside it.
+
+So the target is narrower than the prompt bullet it was aimed at: the warrant is
+lost while a **rules file** is being written, and only there.
+
+## What this cannot establish
+
+One fixture, one run per arm, one model, and readings taken off the artifacts
+rather than the sessions. A null says the sentence did not move this task. Its
+cost would have been 38 api tokens on every request of every session, so the
+null is read as an unpaid cost.
+
+The two arms are not matched in effort — `w1` ran twice as long and reproduced
+more against real binaries. Nothing here attributes that to the prompt: one run
+each is a sample of a spread this probe did not measure, which is why no
+reading above is a count.

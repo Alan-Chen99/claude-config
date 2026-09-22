@@ -118,61 +118,41 @@ before 2026-09-22. Round 11: restatement grows by accretion, not addition. Round
 12: the task's subject bounds the edit, so relocation-as-growth cannot occur on a
 writing task.
 
-## Iteration 15 — `0a1f1b6a` → `73a57146` (+ this commit)
+## Rounds 15 — `0a1f1b6a` → `0b6d8be4`
 
-### Critique of the rounds that built the case corpus
+Bound the case corpus to the prompt: a case is kept only while
+`sys_prompt/CLAUDE.md` names it, one grep decides, eleven of fifteen deleted.
+Ran `# Writing for other agents` whole against an arm with no block on
+`retirement-policy`; the arms parted on one row in the block's favour, so no
+deletion shipped. Both arms transcribed the fixture's bare preference as an
+incident with a cost it never had.
 
-**C1 (fact).** `retirement-policy`'s keep-note said `sys_prompt/CLAUDE.md`'s
-condition for `Say what ends it` "names a re-run here". Grep: that file named two
-cases and not this one. The condition names a *fixture shape*, which any fixture
-satisfies. A keep argument resting on a citation that does not exist is the
-ratchet's strongest form — it reads as load-bearing and nothing can check it.
+## Iteration 16 — `0b6d8be4` → (end of round)
 
-**C2 (workflow).** All fifteen cases were defended by a **uniqueness claim** —
-*the only case that X*. That is a claim about the corpus, not the case: deleting
-its neighbours makes it more true and no observation falsifies it. So the round
-that wrote "a case earns its status by being re-run" wrote fifteen arguments
-making being-re-run irrelevant, and after fourteen rounds the corpus held zero
-stored runs. This loop added the largest human-removal-only accretion in the repo.
+### Critique of iteration 15
 
-**C3 (workflow, instrument).** The only evidence a case was re-run is its stored
-run, and `prompt-tests/runs/README.md` deleted stored runs "whenever its reference
-or its fixture changes". Improving a reference's wording destroyed the record that
-the case had earned its place, so no case could ever satisfy the condition.
+**C1 (fact).** The R1 cell scoring r2's Pillow row "named" quoted *"Start there
+if you want to close it"* — an instruction to investigate, not an end-condition.
+The sentence carrying the reading is two paragraphs later in the same artifact.
+Scored right, cited wrong; corrected in the run README.
 
-**C4 (quality).** `trivial-task`, `network-resilience` and `coverage-disclosure`
-still carried the pre-rewind rubric vocabulary the user ordered marked unusable in
-round 1. Iteration 13 added a keep-argument to `trivial-task` on top of a body
-nobody re-read.
+**C2 (workflow).** R1 was declared categorical and is not: *does this sentence
+state what would end the item* is a judgement, and the round's whole result is
+one such judgement at n=1. Its own durable method — *categorical or it is not
+evidence* — excludes it. The blind comparison is not a second instrument here:
+that grader was handed the decisive criterion, so it re-made the same judgement.
+The round's closing line says as much and its event summary did not.
 
-### The round's work
+**C3 (workflow).** Iteration 15 wrote the contract clause *no claim in
+`sys_prompt/CLAUDE.md` may be a run narrative* and then wrote one in the same
+round — arm-parting counts, the fixture, "blind-corroborated" — into the
+`Say what ends it` entry. A contract violated by the round that writes it is
+worth less than no contract, because later rounds read the violation as licence.
 
-**Corpus bound to the prompt.** A case is kept only while `sys_prompt/CLAUDE.md`
-names it; one grep decides, and the corpus can then never outgrow the prompt —
-which is the user's *no unbounded growth without a human size limit*, achieved
-structurally. Eleven cases deleted, recoverable by `git checkout 2acdbd06 --`.
-Four kept, each named by the condition it serves. Fifteen keep-arguments deleted.
-
-**The block tested whole** (contract's arm requirement, and iteration 14's third
-instruction). `retirement-policy` re-run under the prompt at HEAD and under the
-same file with the whole block removed. Outcome 1: of three endable rules both
-arms named exits for two unaided and parted on one, in the block's favour; a
-blind grader with reversed labels returned the same single row. No deletion
-ships. Record: `prompt-tests/runs/retirement-policy/README.md`.
-
-**The finding that runs against the block.** Both arms promoted the fixture's one
-bare preference to an incident with a cost it never had. That is the gap
-`sys_prompt/CLAUDE.md` already named beside the bullet, measured for the first
-time and present in both arms — so it is a hole in the prompt, not a
-block-vs-no-block difference.
-
-### `(instruction)` for iteration 16
-
-1. Isolate the block's two bullets: run `retirement-policy` under a prompt
-   carrying only `Say what ends it` and one carrying only `Omit by default`.
-   Outcome 1 named this as the next step and one row at n=1 is what it rests on.
-2. Run the corpus grep before anything else; it is three lines in the skill under
-   "Probes, and when a run is a case instead".
-3. Do **not** ship a register line ("should this be a rule at all") on the
-   strength of this round. The failure is measured; that an agent would act on a
-   line addressing it is not, and this node has swallowed five wordings already.
+**C4 (workflow, overriding instruction 1).** Iteration 15 handed forward
+"isolate the block's two bullets on `retirement-policy`". Overridden. It
+replicates one interpretive row on one fixture, which the user's rules forbid
+(*default to n=1; if you want more, build new cross-domain test cases, do not
+replicate*) and which its own method forbids (*buy resolution inside the run, not
+across runs*). The round spent its milestone building the cross-domain probe
+instead.
