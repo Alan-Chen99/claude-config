@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # No floating major tag is published for this action; its README pins by
+      # commit. The exact tag is the closest equivalent.
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Sync the locked environment
+        run: uv sync --frozen
+      - name: Run the Python suite
+        run: uv run pytest -q
+
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-tools
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run the Rust suite
+        run: cargo test

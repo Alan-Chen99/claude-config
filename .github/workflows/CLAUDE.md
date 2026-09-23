@@ -6,4 +6,4 @@ GitHub Actions workflow definitions.
 
 | File              | What               | When to read                                   |
 | ----------------- | ------------------ | ---------------------------------------------- |
-| `skills-test.yml` | Skills L0-L2 tests | Debugging CI failures, modifying test pipeline |
+| `ci.yml`          | Two jobs on every push and PR: `uv run pytest` (tests/ and skills/scripts/tests) and `cargo test` in `agent-tools/` | Debugging CI failures, modifying test pipeline |
