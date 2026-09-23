@@ -1,4 +1,4 @@
-Piece 3. A reply message to a friend who sent their training plan for a first half marathon in 10 weeks, starting from a comfortable 5 km. Register: chat (a message typed to a person). No title.
+Piece 3. A reply message to a friend who sent their training plan for a first half marathon in 10 weeks, starting from a comfortable 5 km. A message typed to a person, sent in chat. No title.
 
 Facts about the plan they sent:
 - Week 1 at 20 km per week, then +15% every week, no down weeks, race in week 10.

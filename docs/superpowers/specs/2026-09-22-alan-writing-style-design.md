@@ -16,6 +16,8 @@ Job is inferred from the request: text given -> rewrite; content only -> write; 
 - `chat`: messages I would type (prompts, telegram). Lowercase sentence starts, lowercase `i`, contractions without apostrophes are allowed; nothing else.
 - `prompt`: PROMPT.md and agent instructions. Genre features allowed (MUST/SHOULD, imperatives, `[idea]`, `<request>`); sentence rules still apply.
 
+2026-09-23: `prompt` removed on Alan's word ("why would i ask you to write prompt?"), and `chat` with it for the same reason; the one register left is `doc`. Messages to a person are sampled since (06, 09, 12) and are `doc`: capitalized, one question or sentence. Record: `skills/alan-writing-style/CLAUDE.md`, sample 13.
+
 Out of scope, stated in SKILL.md: detector evasion (no prompting method crosses the human threshold, only fine-tuning does), code, other people's voices (`copy-writing-style` does that), essays for laypeople and messages to humans (no sample yet).
 
 ## Evidence

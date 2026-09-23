@@ -1,4 +1,4 @@
-Piece: a message to a colleague on a shared project, sent in a chat. Register: chat (a message to a person). The colleague ran the weekly benchmark yesterday and posted the numbers.
+Piece: a message to a colleague on a shared project, sent in a chat (a message to a person). The colleague ran the weekly benchmark yesterday and posted the numbers.
 
 Situation:
 - Their posted numbers show a 12% regression on one benchmark, which they attributed to the writer's change from Monday.
