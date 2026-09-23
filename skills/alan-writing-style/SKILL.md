@@ -7,6 +7,8 @@ description: Write, rewrite or check prose as Alan -- docs, notes, specs, status
 
 Same content, Alan's shape and sentences. In practice the agent writes first and Alan edits, so the main job is rewrite. The rules apply to any domain and any content type; the illustrations are his own chat sentences, typos included, and show the rule, not a template to fill.
 
+The reader is assumed competent: what they can infer from the point is not written, and what they already know or wrote themselves is not said back to them. This is behind most of what he cuts.
+
 ## Jobs
 
 - Rewrite. Input is agent-written text. Output is the same content as Alan would write it. Text given -> this job.
@@ -20,7 +22,7 @@ Source material given with the input (a fact sheet, the artifact the text is abo
 ## Registers
 
 - `doc` (default): README, notes, specs, status reports, anything read later by someone else. Capitalized sentences, no contractions, no typos.
-- `chat`: messages Alan would type himself (prompts, telegram, quick replies). Allowed on top of `doc`: lowercase sentence starts, lowercase `i`, contractions without apostrophes (`dont`, `thats`, `its`). Nothing else changes.
+- `chat`: prompts and quick replies typed to an agent. Allowed on top of `doc`: lowercase sentence starts, lowercase `i`, contractions without apostrophes (`dont`, `thats`, `its`). Nothing else changes. A message to a person keeps `doc` capitalization (one sample) and is usually one question or one sentence (shape 7).
 - `prompt`: PROMPT.md, CLAUDE.md rules, agent instructions. Genre features allowed: MUST/SHOULD/NOT in caps, imperatives, `[idea]` and other bracket markers, `<request>` wrappers. Sentence rules still apply.
 
 Out of scope: detector evasion (no prompting method crosses the human threshold, only fine-tuning does), code, other people's voices (`copy-writing-style`).
@@ -29,14 +31,16 @@ Out of scope: detector evasion (no prompting method crosses the human threshold,
 
 Mainly `doc`; a chat critique follows sentence rule 8. Ordered by how reliably Alan does it.
 
-1. The point first. The first sentence is the goal, the decision, or the finding. No scene-setting (the reader knows the system), no summary sentence in front of the content it summarizes, no "this document describes".
-2. Labelled parts. A paragraph opens with a short label and a colon, then the content; the label names whatever the part is (a result, an open question, a tradeoff, a note). A bullet opens with a 1-3 word name for the item, a period, then the gloss. `-` bullets in docs; inline `(1) (2)` is chat.
+1. The goal or the problem first, then the solution or decision, then what it costs. No scene-setting (the reader knows the system), no summary sentence in front of the content it summarizes, no "this document describes".
+2. Labelled parts. A part opens with a short label and a colon, then the content; the label names whatever the part is (the problem, the mechanism, what is open, a note). The part is a paragraph or a `-` bullet; a bullet may instead open with a 1-3 word name and a period, then the gloss. Inline `(1) (2)` is chat.
    > currently: lots of specifics that may not fit particular tasks.
    > tension: proxmiity vs dulpicition. ex: duplicat docs is better for agent but often goes out-of-sync
-3. Quote, do not describe. When the text is about an artifact (a rule, an output, a message, a source), the artifact's own words go in a `>` block; cut with `...` and a parenthetical saying what was cut. Paraphrase of an artifact is the first thing he replaces. Quoting can make the result longer than the draft.
+3. Reuse the source. Material that is already in shape stays as it is: a fact list stays a list, one bullet per item with its label kept; an artifact (a rule, an output, a message) is quoted in a `>` block, cut with `...` and a parenthetical for what was cut. Rewriting is for what is not in shape: narrative, paraphrase of an artifact, a list narrated into paragraphs, one item split into a label line plus a sub-list plus a stranded sentence. `>` blocks hold prose; a list of names (columns, fields, options) stays inline. Quoting can make the result longer than the draft.
 4. How you know, in the sentence. A short clause or parenthetical names the evidence kind: measured, counted, from source, by impression, not sure. A doc states no confidence it does not have, and no number unless the number is the finding.
-5. What survives a cut. Keep: the decision, the tradeoff and the alternative rejected, how you know, the purpose (once, after the thing it explains). Cut: mechanism the reader does not need to act on, restatement, transitions, anything the reader already knows.
+5. What survives a cut. Keep what the reader will act on or look up: in a reference note, every fact; in a rationale, the goal, the decision, what it costs, the alternative rejected and why, the purpose (once, after the thing it explains); in a message, the one point. Cut what the reader can infer or already knows: mechanism they will not act on, restatement, transitions, their own material said back to them.
 6. Headers are 2-4 word noun phrases naming the topic or property. Not a question, not a sentence, not "Why X and not Y". Not one per paragraph.
+7. A message to a person is the one question or sentence that points at the concern. No explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them. His whole reply to a friend's 10-week plan that doubled the long run in week 2:
+   > Are you sure about doubling the long run in one week?
 
 ## Sentences, all registers
 
@@ -56,7 +60,7 @@ Mainly `doc`; a chat critique follows sentence rule 8. Ordered by how reliably A
 6. Verdict fragments beside long clause chains: a 2-6 word sentence next to a 30-word one, not three medium sentences in a row.
    > this misses the point.
    > sometimes is better.
-7. `_word_` on the contrastive word, the one the sentence turns on (`**word**` in chat too). Bold otherwise only on the single load-bearing constraint in the whole text.
+7. `_word_` only on an explicit pair the sentence states (`X, not Y`; `X rather than Y`), on both members (`**word**` in chat too). Never on a word for emphasis. Bold otherwise only on the single load-bearing constraint in the whole text.
    > the tutor operats in _idea space_, not _code space_.
    > agent make judgment runtime on **context** rather than **rules**.
 8. Critique alternates the quoted fragment and the verdict on it; each verdict is one short sentence; the failure it causes follows. No praise first, no softening after.
@@ -69,7 +73,7 @@ Mainly `doc`; a chat critique follows sentence rule 8. Ordered by how reliably A
 
    > all references are either [static, reflection, dynamic]
    ```
-9. `rather than` for contrast. `ex:` for examples in chat, `example:` in docs; never `e.g.`.
+9. `rather than` for contrast. An example goes in parentheses, usually with no label (`(a new fridge)`); `ex:` when labelled, in chat; never `e.g.`.
    > use "the right sdk" rather than "brute force parsing".
    > (ex: all facts verified)
 10. Words he uses when the concept is there: tradeoff, framing, failure mode, invariant, overfit, sanity check, root cause, structural, bigger picture. Keep them where the concept is present; do not add them where it is not, and do not replace them with synonyms. Never: crucial, robust, leverage, comprehensive, delve, nuanced, landscape, seamless, navigate, journey, testament.
@@ -108,8 +112,8 @@ Phrase, weak alone:
 Rewrite and write:
 
 1. Register, and what the text is: a decision and its rationale, a mechanism, a status, a rule, a critique, a message.
-2. Shape: point first, parts labelled, artifacts quoted, evidence kind stated, header a noun phrase.
-3. Content: the keep/cut list (shape 5).
+2. Shape: goal or problem first, parts labelled, source reused, evidence kind stated, header a noun phrase; a message is one question or sentence.
+3. Content: keep what the reader acts on or looks up (shape 5).
 4. Sentences per the rules above.
 5. One pass over the never-lists: sentences 10-11, Errors, the shape list of Claude tells.
 6. Output the text only.
