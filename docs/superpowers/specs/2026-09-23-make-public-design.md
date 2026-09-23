@@ -108,9 +108,10 @@ it is committed. The fact sheets are working material, not repository content.
 
 ## Housekeeping
 
-- `git mv` the two root analysis files into `notes/`. Update the `**Related**:`
-  line in `planner-qr-gate-override-analysis.md`, which names its sibling by
-  bare filename. The mentions under
+- `git mv` the two root analysis files into `notes/`. The `**Related**:` line
+  in `planner-qr-gate-override-analysis.md` names its sibling by bare filename
+  and stays correct, since both files move into the same directory. The
+  mentions under
   `notes/compliance-check-failure-mode/experiments/*__old-worktree-reads.md`
   are recorded directory listings from experiments and stay as written.
 - `LICENSE`: add `Copyright (c) 2026 Xinyang Chen` beneath the existing line.
