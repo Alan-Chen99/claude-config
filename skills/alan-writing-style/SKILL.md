@@ -64,7 +64,7 @@ Mainly `doc`; a chat critique follows sentence rule 8. Ordered by how much of hi
 6. Verdict fragments beside long clause chains: a 2-6 word sentence next to a 30-word one, not three medium sentences in a row.
    > this misses the point.
    > sometimes is better.
-7. `_word_` only on an explicit pair the sentence states (`X, not Y`; `X rather than Y`), on both members (`**word**` in chat too). Never on a word for emphasis. Bold otherwise only on the single load-bearing constraint in the whole text.
+7. `_word_` only on an explicit pair the sentence states (`X, not Y`; `X rather than Y`), on both members (`**word**` in chat too). Never on a word for emphasis. Bold otherwise only on the single load-bearing constraint in the whole text. Bold beyond that on a word or a name (a subject and its state, an `@` mention) is his ad hoc choice, not a rule: a rewrite does not add it, a check does not flag it; bold on a clause stays a tell.
    > the tutor operats in _idea space_, not _code space_.
    > agent make judgment runtime on **context** rather than **rules**.
 8. Critique alternates the quoted fragment and the verdict on it; each verdict is one short sentence; the failure it causes follows. No praise first, no softening after.
