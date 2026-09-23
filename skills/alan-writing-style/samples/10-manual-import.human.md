@@ -1,6 +1,6 @@
 ## Manual import
 
-- Runtime: about 40s to parse and 5-6 minutes to upsert a full catalogue of ~411,000 rows, measured on the 2026-09-21 and 2026-09-22 backfills.
+- Runtime: about 40s to parse (measured once, the 2026-09-21 backfill) and 5-6 minutes to upsert a full catalogue of ~411,000 rows (the 2026-09-21 and 2026-09-22 backfills).
 - Failure alert: a failed run mails `ops-inventory@norvell-group.example` through `inventory-import-failure@.service`.
 
 ---

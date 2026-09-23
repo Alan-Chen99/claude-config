@@ -1,4 +1,4 @@
-The **nightly import** failed Monday and Tuesday nights because Norvell changed their export on 2026-09-21 without telling us. It is **fixed**, deployed on `ops-1`, and both nights are backfilled -- `/stock` serves Tuesday's data (`as_of=2026-09-22T02:07:38Z`, UTC) and `NV-44812` matches the raw CSV row, `as_of` included.
+The **nightly import** failed Monday and Tuesday nights because Norvell changed their export on 2026-09-21. It is **fixed**, deployed on `ops-1`, and both nights are backfilled -- `/stock` serves Tuesday's data (`as_of=2026-09-22T02:07:38Z`, UTC) and `NV-44812` matches the raw CSV row, `as_of` included.
 
 I am off until tomorrow.
 
@@ -25,7 +25,7 @@ Root cause: Two changes from Norvell landed in Monday's file. The column was ren
 ## Additional notes
 
 - Timestamps we stored before today is wrong by the local offset since the start (two hours in summer, one in winter). It stayed invisible because the `as_of` we publish was wrong by the same amount.
-- Postgres: rows stored before today are naive Berlin while new rows are UTC, so the table is internally inconsistent right now. No migration -- tonight's upsert rewrites the whole catalogue, so it has a lifetime of hours.
+- Postgres: the two backfill runs went through the new code and upserted the whole catalogue (410,565 updated and 318 inserted, then 410,872 and 402), so every SKU in the current export is UTC now. The upsert does not delete, so SKUs that have dropped out of the export keep the old naive value. No migration written.
 - Norvell sent a newsletter last week, "API and export improvements". I deleted it unread, so whether it announced this is unknown. Either way, a newsletter is not a changelog.
 - Alerting was dead, which is why nobody heard. The `OnFailure=` unit fired both nights and mailed `lukas.reinhard@`, who left in March. Recipient changed to `ops-inventory@norvell-group.example`, reloaded, and tested by triggering the failure unit directly. That edit is on `ops-1` and not in the branch.
 - Backfill ran by hand on `ops-1` with `IMPORT_FILE_DATE` set for each run and unset again afterwards -- checked, so tonight takes Wednesday's file. 410,883 and 411,274 rows, about 5m50 each, in line with the historical runtime.
