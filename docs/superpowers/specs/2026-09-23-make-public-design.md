@@ -15,8 +15,9 @@ from the same day, on the `make-public` branch at `957e1203`.
 reproduced verbatim under the heading "Original `README.md`". A reader skimming
 it learns upstream's workflow philosophy and nothing about this fork, which is
 where the work is: 906 commits since the fork point `6e72bc29` (2026-02-09),
-1046 files changed, and every directory the root `CLAUDE.md` indexes other than
-`skills/`, `agents/` and `conventions/` added since.
+1046 files changed. At the fork point the tree held `.github/`, `agents/`,
+`conventions/`, `output-styles/` (one style), `skills/`, `LICENSE` and the
+README; every other top-level entry was added since.
 
 Two March investigation write-ups sit at the repository root
 (`planner-qr-gate-override-analysis.md`, `planner-verification-reporting-analysis.md`)
