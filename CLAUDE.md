@@ -10,7 +10,7 @@ Claude Code configuration: skills, agents, and conventions for structured LLM-as
 
 | File                      | What                                                        | When to read                                  |
 | ------------------------- | ----------------------------------------------------------- | --------------------------------------------- |
-| `README.md`               | Workflow philosophy, usage guide                            | Understanding the approach, getting started   |
+| `README.md`               | Public-facing: what the fork is, the ideas in it with links to their evidence, upstream attribution, install and test commands | First orientation; before pointing anyone at the repository |
 | `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After pulling/rebasing upstream changes       |
 | `pyproject.toml`          | Python project config, entry points for cc-pretty etc.      | Adding dependencies, modifying build settings |
 | `.gitignore`              | Git ignore patterns                                         | Adding new generated/temp files to ignore     |
