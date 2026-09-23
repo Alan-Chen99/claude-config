@@ -1,6 +1,6 @@
 ---
 name: alan-writing-style
-description: Write, rewrite or check prose as Alan -- docs, notes, specs, status reports, messages, agent instructions, in any domain. Use only when invoked by the user or a workflow. Not for code, other people's voices, or detector evasion.
+description: Write, rewrite or check prose as Alan -- docs, shared notes, specs, status reports, messages, prompts to agents, in any domain. Use only when invoked by the user or a workflow. Not for code, personal notes, other people's voices, or detector evasion.
 ---
 
 # Alan writing style
@@ -21,11 +21,11 @@ Source material given with the input (a fact sheet, the artifact the text is abo
 
 ## Registers
 
-- `doc` (default): README, notes, specs, status reports, anything read later by someone else. Capitalized sentences, no contractions, no typos.
+- `doc` (default): README, shared notes, specs, status reports: anything read by someone else. Capitalized sentences, no contractions, no typos.
 - `chat`: prompts and quick replies typed to an agent. Allowed on top of `doc`: lowercase sentence starts, lowercase `i`, contractions without apostrophes (`dont`, `thats`, `its`). Nothing else changes. A message to a person keeps `doc` capitalization (one sample) and is usually one question or one sentence (shape 8).
 - `prompt`: PROMPT.md and other instructions he types to an agent. Genre features allowed: MUST/SHOULD/NOT in caps, imperatives, `[idea]` and other bracket markers, `<request>` wrappers. Sentence rules still apply.
 
-Out of scope: detector evasion (no prompting method crosses the human threshold, only fine-tuning does), code, other people's voices (`copy-writing-style`), CLAUDE.md and other agent-facing docs (agents write those; never in his style).
+Out of scope: detector evasion (no prompting method crosses the human threshold, only fine-tuning does), code, other people's voices (`copy-writing-style`), CLAUDE.md and other agent-facing docs (agents write those; never in his style), personal notes read only by him (he does not write those in any style worth matching).
 
 ## Shape
 
@@ -40,7 +40,7 @@ Mainly `doc`; a chat critique follows sentence rule 8. Ordered by how much of hi
 5. How you know, in the sentence. A short clause or parenthetical names the evidence kind: measured, counted, from source, by impression, not sure. A doc states no confidence it does not have, and no number unless the number is the finding.
 6. What survives a cut. Keep what the reader will act on or look up (shape 1). Cut what the reader can infer, already knows, or can open: mechanism they will not act on, restatement, transitions, their own material said back to them, the content of a source they have. The cut is most of the draft: his versions of agent drafts ran a tenth to a half of the draft's length, except where the doc is the reference the reader consults.
 7. Headers are 2-4 word noun phrases naming the topic or property. Not a question, not a sentence, not "Why X and not Y". Not one per paragraph.
-8. A message to a person is the one question or sentence that points at the concern. No explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them. His reply to a friend's ten-week plan was one question naming the one risky step in it.
+8. A message to a person is the one question or sentence that points at the concern. No explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them. His reply to a friend's ten-week plan was one question naming the one risky step in it. When the reader needs evidence to act, one clause of it, then the question. The question is the shortest form that identifies the action, a verb phrase with a question mark, not a request sentence (`can we ...`); it does not name what the reader can infer (which item, what happens otherwise).
 
 ## Sentences, all registers
 
