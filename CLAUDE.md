@@ -10,7 +10,7 @@ the directory you are about to touch.
 
 | File | What | When to read |
 | --- | --- | --- |
-| `README.md` | Workflow philosophy, the CLAUDE.md/README.md hierarchy | Getting started |
+| `README.md` | Public-facing: the fork's ideas with links to their evidence, upstream attribution, install and tests | First orientation; before pointing anyone at the repository |
 | `install.sh` | Symlinks config into `~/.claude/` and units into `~/.config/systemd/user/`, builds `agent-tools`, puts `claude.sh` on PATH | Installing the config |
 | `settings.json` | Claude Code user settings: hooks, statusline, permissions, `env`. Keys documented elsewhere: git policy (`includeGitInstructions`, `attribution`) in `sys_prompt/CLAUDE.md`, `CLAUDE_CODE_FORK_SUBAGENT` in `docs/subagent-backgrounding.md`, `TELEGRAM_HITL_STATE_DIR` in `src/claude_config/CLAUDE.md` | Modifying hooks, statusline, permissions, env |
 | `statusline.sh` | Status line wired up via `settings.json`; its open-tasks row is `agent-tools ps --format statusline` | Customizing the status line |
