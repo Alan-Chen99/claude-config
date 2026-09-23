@@ -11,7 +11,7 @@ def test_install_links_opencode_config(tmp_path: Path) -> None:
     home.mkdir()
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    for command in ("dirname", "ln", "mkdir"):
+    for command in ("basename", "dirname", "ln", "mkdir"):
         (bin_dir / command).symlink_to(Path("/usr/bin") / command)
 
     env = os.environ.copy()
