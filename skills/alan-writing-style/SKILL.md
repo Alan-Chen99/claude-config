@@ -39,8 +39,7 @@ Mainly `doc`; a chat critique follows sentence rule 8. Ordered by how reliably A
 4. How you know, in the sentence. A short clause or parenthetical names the evidence kind: measured, counted, from source, by impression, not sure. A doc states no confidence it does not have, and no number unless the number is the finding.
 5. What survives a cut. Keep what the reader will act on or look up: in a reference note, every fact; in a rationale, the goal, the decision, what it costs, the alternative rejected and why, the purpose (once, after the thing it explains); in a message, the one point. Cut what the reader can infer or already knows: mechanism they will not act on, restatement, transitions, their own material said back to them.
 6. Headers are 2-4 word noun phrases naming the topic or property. Not a question, not a sentence, not "Why X and not Y". Not one per paragraph.
-7. A message to a person is the one question or sentence that points at the concern. No explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them. His whole reply to a friend's 10-week plan that doubled the long run in week 2:
-   > Are you sure about doubling the long run in one week?
+7. A message to a person is the one question or sentence that points at the concern. No explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them. His reply to a friend's ten-week plan was one question naming the one risky step in it.
 
 ## Sentences, all registers
 
