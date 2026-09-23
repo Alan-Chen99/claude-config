@@ -77,3 +77,5 @@ Sections in order. No step script, no `--thoughts`, no marker quotas, no word-co
 ## Acceptance
 
 Not tested in this iteration. Procedure for later: agent writes a fresh piece with the skill, I edit, `git diff --no-index --word-diff` retention >= 80% (pair 3 of this session: ~90%). Each new pair goes into `samples/`; rules in SKILL.md change only from a pair. No prompt-tests case, the skill is user-invoked.
+
+2026-09-23, evening: every rerun up to round 10 had `skills/alan-writing-style/CLAUDE.md` (his lines, his verdicts) attached as nested memory; retention numbers before the clean baseline in that file's round 11 are not evidence of the skill alone.

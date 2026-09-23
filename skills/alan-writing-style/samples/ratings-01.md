@@ -259,75 +259,79 @@ new = the skill after the round 8 rewrite (`8aea07d3`); old = the skill before i
 
 What changed in the skill from your whys: a side fact the point does not need (who reviews, where an address came from) is a parenthetical or nothing (14-C, 15-A); the offer says whose it is, so `mine to write` is not stated again (14-C); every part of a doc ends in what it means for the reader, the state or whose it is, and a part that only explains hangs in midair (11); a status is ordered by who must read it: the takeaway first with whether it is still a problem, then the lines that are someone's, and explanation last under Additional notes, never in the body, work done not listed (11); with material, a claim the draft has and the material does not is cut (11: `Norvell is in Bremen` is in the ai draft only, not in the log, and all four 11 candidates before this carried it). One candidate per context below, all from the same skill text, so no key.
 
+Regenerated 2026-09-23 evening: the first three candidates here, and every candidate in round 1, were written with this directory's `CLAUDE.md` in the writer's context (it quotes your lines and your verdicts; `CLAUDE.md`, round 11). These three were written from copies outside the repo, so they are what the skill does on its own.
+
 ### 11-C
 
 # Supplier import
 
-`/stock` has been serving Sunday's `as_of` since Monday night: the import failed on Monday's and Tuesday's files. Fixed and deployed, and both nights backfilled by hand, so `/stock` now returns `as_of=2026-09-22T02:07:38Z` -- Tuesday's export, in UTC. I am off until tomorrow. Detail is in `fix/supplier-timestamp-formats`, which `ops-1` is running and which is open as a PR against `main`; the two formats are in `docs/operations.md` under "Supplier export".
+Norvell changed their stock export on 2026-09-21 and the nightly import has died on it two nights running. Fixed and deployed. Both missed nights are backfilled, so `/stock` is serving Tuesday now, `as_of=2026-09-22T02:07:38Z`. The loader takes either column name and either value format and stores UTC. I am off until tomorrow. The change is on `fix/supplier-timestamp-formats`, PR open against `main`; both formats are written up in `docs/operations.md` under "Supplier export".
 
 ## Root cause
 
-Norvell changed the export on 2026-09-21, in two places at once. The timestamp column was renamed `updated` -> `updated_at`, which our prefix match absorbed silently, and the values moved from `2026-09-20 03:14:00` to `2026-09-21T02:04:11Z`, which our format string could not parse. The loader now takes either name and either format and stores UTC in both branches. Norvell announced "api and export improvements" in a newsletter last week; I deleted it unread.
-
-The old values carried no zone and we stored them as UTC, so everything published before today was off by the supplier's local offset, two hours in summer and one in winter. It was invisible because the `as_of` we publish was off by the same amount.
+Two changes landed in Monday's file at once: the timestamp column was renamed `updated` -> `updated_at`, and the values moved from `2026-09-20 03:14:00` to `2026-09-21T02:04:11Z`. The rename passed through our prefix match unnoticed, since `"updated_at".startswith("updated")` is true; the format change is what broke us, because `%Y-%m-%d %H:%M:%S` consumes the date and then finds `T02:04:11Z` where it expects a space. Both moving in the same file reads as a deliberate release rather than drift.
 
 ## Assumptions
 
-- Format per file: the loader picks the branch from the first non-null value, so a file mixing both formats would be misparsed. Per-row branching over 410k rows looked like the worse trade. Tomas's call in review.
-- Old values are Europe/Berlin local, and the loader converts them on that basis. Supported only by Sunday's and Monday's rows differing by the offset, not confirmed with Norvell -- Priya's question below would confirm it.
-- Ambiguous hour: `tz_localize` raises on October's repeated hour rather than guessing, and the supplier exports inside that window. Only old-format files reach that branch. Tomas's call in review.
-- No migration written. The backfill rewrote every SKU in Tuesday's file, so those rows are UTC; a SKU that has dropped out of the feed keeps its naive value, since the upsert does not delete. Not counted. I can count them and fix them if they matter.
+All of these are in the PR and all of them are Tomas's to overrule in review.
+
+- Old values: Europe/Berlin local, stored naive as if they were UTC. Inferred from the offset (`03:14:00` Sunday against `02:04:11Z` Monday), not confirmed by the supplier.
+- Format detection: from the first non-null value in the file, not per row, so a file mixing both formats is misparsed. Per-row branching over 410k rows looked like the worse tradeoff.
+- Ambiguous hour: localised with `ZoneInfo("Europe/Berlin")` rather than a fixed `+02:00`, so October's transition needs no second edit. `tz_localize` raises inside the ambiguous hour and the supplier exports around 03:00 local; I left it raising.
+- No migration: the rows already in Postgres stay naive Berlin. Tonight's upsert overwrites the whole catalogue.
 
 ## TODO
 
-- Tomas: review `fix/supplier-timestamp-formats` tomorrow.
-- Tomas: whether `/stock` should refuse to serve stock older than 36h instead of publishing a stale `as_of`. Your call, you wrote the API, and I have not touched `api/app.py`.
-- Tomas: `SFTP_DIR` -> `SUPPLIER_SFTP_DIR` if you want it, both sides in one change. I renamed our four places and reverted, because `/opt/deploy/inventory-sync.sh` passes `SFTP_DIR` in and that one is yours.
-- Priya: ask Norvell whether the `Z` format is permanent or someone flipped a flag, and whether they can send us a changelog for export changes. Two facts for them: the change landed on 2026-09-21, and it hit the column name and the value format at once, which reads as a deliberate release rather than drift.
-- Tonight: 02:30 is the first unattended run on the new code. The timer is unchanged, the `IMPORT_FILE_DATE` override is cleared (checked), and a failure now mails the team list.
+- Tomas: the PR.
+- Tomas: whether `/stock` should refuse to serve stock older than 36h instead of publishing a stale `as_of`. Your call, you wrote the API -- I have not touched `api/app.py`.
+- Tomas: the `SFTP_DIR` -> `SUPPLIER_SFTP_DIR` rename is reverted. `/opt/deploy/inventory-sync.sh` passes `SFTP_DIR` in and sits in the deploy repo rather than ours (`git log` has you as sole author), so renaming on our side alone would leave the loader on the default `/srv/supplier` as a remote path and fail at fetch rather than at startup. I can redo it in one change with the deploy side, or leave it.
+- Priya: ask Norvell whether the `Z` format is permanent or someone flipped a flag? And whether they can send us a changelog for export changes -- we should not be finding this out from the job dying. Worth putting in front of them: the change date, 2026-09-21, and that the column name and the value format moved together. The only notice was a newsletter last week, "api and export improvements", which I deleted unread.
+
+Tonight at 02:30 is the first unattended run through the new code. The timer is unchanged, the override variable is cleared so it takes Wednesday's file, and a failure now mails the team list instead of Lukas.
 
 ## Additional notes
 
-- Alerting: the `OnFailure=` unit fired both nights and mailed `lukas.reinhard@`, who left in March, so nothing reached anyone. Recipient is now `ops-inventory@norvell-group.example`, tested by starting the failure unit directly, and the mail arrived.
-- Backfill: 410,883 and 411,274 rows, 5m45s and 5m52s, in line with the historical runtime. I spot-checked `NV-44812` against the raw CSV and quantities, cost, currency and `as_of` match.
-- `load.py:87` uses `DataFrame.applymap`, which is deprecated and becomes an error in a future pandas major. Not today's failure, and still there.
-- Declined today: a pydantic model at the import boundary, and splitting the 241-line `load.py`. `ruff` flags TRY003 on the new error message and it is left standing, since the long message is the point of it.
+- Alerting: the `OnFailure=` unit did fire, both nights, and mailed `lukas.reinhard@`, who left in March, so alerting on this service has been dead since spring. Recipient is now `ops-inventory@norvell-group.example`, tested by triggering the failure unit directly rather than waiting for an import to fail, and the mail arrived.
+- Pandas bump: the dependabot 2.2.3 -> 2.3.0 that merged Thursday is not the cause. Both versions fail on Monday's file and both succeed on Sunday's, so the variable is the file, not the library. Nothing to revert.
+- Historic timestamps: every row stored before Monday is off by the local offset, two hours in summer and one in winter. It was invisible because the `as_of` we publish was wrong by the same amount, so the data was consistent with itself and inconsistent only with reality. New rows are UTC, so the table is mixed until tonight's upsert.
+- Backfill: Monday and Tuesday were run by hand on `ops-1`, about 5m50 for each upsert, in line with the historical runtime. `IMPORT_FILE_DATE` is unset again (checked), so tonight's run will not re-import Monday. Spot-checked `NV-44812` against the raw CSV: quantities, cost and currency match, and the `as_of` matches the row's own timestamp with no offset applied.
+- Declined: a validation layer at the import boundary, and splitting the 241-line `load.py`. Both buy a better failure message, not a faster repair, and the repair is always reading the new file and teaching the loader about it.
+- `applymap` at `load.py:87` is deprecated and becomes an error in a future pandas major. Not today's failure, the values reach the parse intact. Unfixed.
+- `ruff` flags TRY003 on the new error message. Left standing, the long message is the point of it.
 
 Verdict:
 Why:
 
 ### 14-D
 
-Nothing changed for your report except the zone: every SKU still in the export is UTC now, two hours off what it was.
-
-> SKUs that dropped out of the export keep the old naive value
-
-This was true and is still true atm.
+Fixing the timestamps will not get those SKUs out of your 48h flag -- they really are older than 48 hours, and the naive value makes them look two hours _newer_ than they are, not _older_ (Berlin local is still an assumption; Priya is asking Norvell). Dropping them from the table is what gets them out.
 
 > how many are those
 
-Not counted. I can get you the number, and the list of them if you want to filter on it.
+Not counted yet. I can have the number this morning.
 
-> do they get fixed at some point
+> do they get fixed at some point?
 
-Not on their own, and I have not written anything for it yet. I can shift the old rows by the offset, or delete the ones that are gone from the export. Which is preferred?
+Not on their own. No migration written -- I skipped one yesterday.
+
+I can shift the old rows by the offset, or delete the SKUs Norvell no longer exports (Tomas reviews either). Which do you want?
 
 Verdict:
 Why:
 
 ### 15-C
 
-Subject: Stock export change on 2026-09-21
+Subject: Stock export format change, 2026-09-21
 
 Hi Dana,
 
-We import your nightly stock export from `feeds.norvell-supply.net` (your address is from the export documentation), and have three questions about the change in `stock_2026-09-21.csv.gz`.
+We import your nightly stock export from `feeds.norvell-supply.net`, and I have three questions about the change in `stock_2026-09-21.csv.gz` (address from your export documentation).
 
-The column `updated` became `updated_at`, and the values went from `2026-09-20 03:14:00` to `2026-09-21T02:04:11Z`. That broke our import for two nights. It is fixed on our side and we accept both now.
+Two things changed in that file at once: the column `updated` became `updated_at`, and the values went from `2026-09-20 03:14:00` to `2026-09-21T02:04:11Z`. That broke our import for two nights. It is fixed on our side and accepts both now, so there is nothing to change on yours.
 
-- New format: permanent, or did someone flip a flag?
+- New format: is `updated_at` with `Z` permanent, or a flag someone flipped?
 - Old values: were the `updated` timestamps Berlin local time?
-- Changelog: is there one for the export, or another way to hear before a change lands?
+- Changelog: is there one for the export, or can we get notice before it changes?
 
 Thanks,
 Alan
