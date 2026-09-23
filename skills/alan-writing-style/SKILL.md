@@ -21,7 +21,7 @@ Source material given with the input (a fact sheet, the artifact the text is abo
 
 ## Register
 
-One register: text read by a person (README, shared notes, specs, status reports, a message to someone). Capitalized sentences, no contractions, no typos. A message to a person is usually one question or one sentence (shape 8).
+One register: text read by a person (README, shared notes, specs, status reports, a message to someone). Capitalized sentences, no contractions, no typos. A message to a person asks in one question or answers part by part (shape 8); a chat abbreviation (`atm`) in one to a colleague stays, and is not added.
 
 Out of scope: prompts, PROMPT.md and other instructions to agents (he types those himself and never asks for one; they are the corpus the sentence rules come from, not a thing the skill writes), detector evasion (no prompting method crosses the human threshold, only fine-tuning does), code, other people's voices (`copy-writing-style`), CLAUDE.md and other agent-facing docs, which is most technical documentation: runbooks, procedures, mechanism descriptions, anything written for agents first (agents write those; never in his style), personal notes read only by him (he does not write those in any style worth matching). A doc in his style is read by a person and stays above the technical detail: what runs, what happened, what was decided, what is asked, the numbers, and a pointer to where the detail is.
 
@@ -42,7 +42,9 @@ A critique follows sentence rule 8. Ordered by how much of his editing each one 
 5. How you know, in the sentence. A short clause or parenthetical names the evidence kind: measured, counted, from source, by impression, not sure. A doc states no confidence it does not have, and no number unless the number is the finding.
 6. What survives a cut. Keep what the reader will act on or look up (shape 1). Cut what the reader can infer, already knows, or can open: mechanism they will not act on, the path to a finding (hypotheses tried, dead ends), restatement, transitions, their own material said back to them, the content of a source they have. The cut is most of the draft: his versions of agent drafts ran a tenth to a half of the draft's length, except where the doc is the reference the reader consults: a draft that is already the fact list stays near its length, and a report-shaped draft ran about half, the facts kept and the path and the mechanics gone.
 7. Headers are 2-4 word noun phrases naming the topic or property. Not a question, not a sentence, not "Why X and not Y". Not one per paragraph.
-8. A message to a person is the one question or sentence that points at the concern. No explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them. His reply to a friend's ten-week plan was one question naming the one risky step in it. When the reader needs evidence to act, one clause of it, then the question. The question is the shortest form that identifies the action, a verb phrase with a question mark, not a request sentence (`can we ...`); it does not name what the reader can infer (which item, what happens otherwise).
+8. A message to a person points at the concern and nothing else: no explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them, no correction of what they did not ask.
+   - Asking: the one question or sentence. His reply to a friend's ten-week plan was one question naming the one risky step in it. When the reader needs evidence to act, one clause of it, then the question. The question is the shortest form that identifies the action, a verb phrase with a question mark, not a request sentence (`can we ...`); it does not name what the reader can infer (which item, what happens otherwise).
+   - Answering: one part per question they asked. First what the answer means for them (what changed on their side, which may be nothing); then each question quoted in a `>` block, cut to its clause, with the answer under it in one sentence, a verdict fragment where the answer is a state. No mechanism behind an answer. Where they asked what can be done, the options are what the writer can do (`I can X, or Y.`), then the question which; the writer, not the reader, is named as the one who acts.
 
 ## Sentences
 
@@ -65,7 +67,7 @@ A critique follows sentence rule 8. Ordered by how much of his editing each one 
 7. `_word_` only on an explicit pair the sentence states (`X, not Y`; `X rather than Y`), on both members. Never on a word for emphasis. Bold otherwise only on the single load-bearing constraint in the whole text. Bold beyond that on a word or a name (a subject and its state, an `@` mention) is his ad hoc choice, not a rule: a rewrite does not add it, a check does not flag it; bold on a clause stays a tell.
    > the tutor operats in _idea space_, not _code space_.
    > agent make judgment runtime on **context** rather than **rules**.
-8. Critique alternates the quoted fragment and the verdict on it; each verdict is one short sentence; the failure it causes follows. No praise first, no softening after.
+8. Critique alternates the quoted fragment and the verdict on it; each verdict is one short sentence; the failure it causes follows. No praise first, no softening after. A reply to several questions alternates the same way (shape 8).
    ```md
    this misses the point.
 
@@ -115,7 +117,7 @@ Rewrite and write:
 
 1. The reader and who answers questions about the subject (shape 1); what the text is: a rationale, a mechanism, a status, an operational note, a rule, a critique, a message.
 2. Content: what this reader keeps (shape 1, 6); a claim the material does not carry goes; steps a log shows once are what happened, not instructions; a log's state is its state at the end. Most of the draft goes, except where the doc is the reference.
-3. Shape: first sentence what they came for, labels only for parallel parts, source pointed to or reused, evidence kind stated, header a noun phrase; a message is one question or sentence.
+3. Shape: first sentence what they came for, labels only for parallel parts, source pointed to or reused, evidence kind stated, header a noun phrase; a message asks in one question or answers one part per question.
 4. Sentences per the rules above.
 5. One pass over the never-lists: sentences 10-11, Errors, the shape list of Claude tells.
 6. Output the text only.
