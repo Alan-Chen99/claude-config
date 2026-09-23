@@ -12,15 +12,15 @@ They posted the weekly benchmark numbers: a 12% regression on one benchmark, whi
 
 The run log has the nightly job starting 4 minutes into that benchmark, so it was sharing the machine. Rerun that one on an idle machine before reverting?
 
-Verdict:
+Verdict: 8/10
 Why:
 
 ### 09-B
 
 The run log shows the nightly job starting 4 minutes into that run. Rerun on an idle machine?
 
-Verdict:
-Why:
+Verdict: 9/10
+Why: I am possibly more likely to say "There is a nightly job starting 4 minutes into that run", but if i review myself i may find your form actually better practically.
 
 ## 12: Message to Priya, sent in chat
 
@@ -30,14 +30,14 @@ The one you said at 17:12 in the log you would send: she is to ask Norvell about
 
 Norvell's stock export switched to UTC timestamps with a `Z` on 2026-09-21. Ask them whether that is permanent, and whether they can send us a changelog for export changes?
 
-Verdict:
-Why:
+Verdict: 9/10
+Why: maybe "can send us" -> "can send"
 
 ### 12-B
 
 Norvell's stock export changed the timestamp format on 2026-09-21, from `2026-09-20 03:14:00` to `2026-09-21T02:04:11Z`. Ask them whether that is permanent or someone flipped a flag, and whether they can send us a changelog for export changes?
 
-Verdict:
+Verdict: 8/10
 Why:
 
 ## 14: Reply to Mira, sent in chat, under 150 words
@@ -60,8 +60,8 @@ Not on their own -- the upsert does not delete, so a SKU that drops out of the e
 
 I can shift those rows by the offset, or delete what is no longer in the export. Which do you prefer? Either is mine to write, Tomas reviews.
 
-Verdict:
-Why:
+Verdict: 3/10
+Why: "Nobody has counted them." doesnt answer the question. It does not even answer "could someone have counted it". "the upsert does not delete" I would not use becuase real reason this does not work is _the feature not yet implmented_, and I need to make that very clear, and that means not putting "upsert does not delete" as the primary reason. I can maybe consider explaning if that is made clear.
 
 ### 14-B
 
@@ -83,8 +83,8 @@ Not on their own -- the upsert never deletes.
 
 I can shift the old rows by the offset, or delete what is no longer in the export. Which do you prefer?
 
-Verdict:
-Why:
+Verdict: 3/10
+Why: same as 14a
 
 ## 15: Email to Dana Okafor, integrations at Norvell, under 150 words with a subject line
 
