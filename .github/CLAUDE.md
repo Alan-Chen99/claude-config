@@ -6,4 +6,4 @@ GitHub configuration and CI/CD workflows.
 
 | Directory    | What                  | When to read                                |
 | ------------ | --------------------- | ------------------------------------------- |
-| `workflows/` | GitHub Actions CI/CD  | Adding CI jobs, debugging workflow failures |
+| `workflows/` | GitHub Actions: `ci.yml` runs the Python and Rust suites | Adding CI jobs, debugging workflow failures |
