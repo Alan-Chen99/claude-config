@@ -1,125 +1,87 @@
 ---
 name: alan-writing-style
-description: Write, rewrite or check prose as Alan -- docs, shared notes, specs, status reports, messages, in any domain. Use only when invoked by the user or a workflow. Not for code, prompts to agents, personal notes, other people's voices, or detector evasion.
+description: Write, rewrite or check prose as Alan -- docs, shared notes, specs, status reports, messages, in any domain. Use only when invoked by the user or a workflow. Not for code, prompts or instructions to agents, personal notes, other people's voices, or detector evasion.
 ---
 
 # Alan writing style
 
-Same content, Alan's shape and sentences. In practice the agent writes first and Alan edits, so the main job is rewrite. The rules apply to any domain and any content type; the illustrations are his own chat sentences, typos included, and show the rule, not a template to fill.
-
-The reader is assumed competent: what they can infer from the point is not written, and what they already know or wrote themselves is not said back to them. This is behind most of what he cuts.
+Same content, as Alan would write it. The agent drafts and Alan edits, so the main job is rewrite. Everything below holds in any domain; the quoted lines are his (chat, typos included) and show a form, not a template to fill.
 
 ## Jobs
 
-- Rewrite. Input is agent-written text. Output is the same content as Alan would write it. Text given -> this job.
-- Write. Input is content (facts, a decision, findings). Output is text.
-- Check. Input is text. Output is a list only, one item per deviation: `quote -> rule -> fix`. No rewrite. "check" or "review" in the request -> this job.
+- Rewrite: text in, the same content as Alan would write it out. Text given -> this job.
+- Write: content in (facts, a decision, findings), text out.
+- Check: text in, a list out, one item per deviation as `quote -> rule -> fix`, no rewrite. "check" or "review" in the request -> this job.
 
-Rewrite and write output the text and nothing else: no preamble, no list of what changed. Check outputs the list and nothing else.
+Rewrite and write output the text and nothing else; check outputs the list and nothing else.
 
-Source material given with the input (a fact sheet, the artifact the text is about, a session log) is available material, not required content: keep from it what shape 1 keeps, quote from it only what shape 4 quotes. It is also the evidence: a claim the material does not carry is not written, whether or not the draft has it (the draft is another reading of the same material, not evidence). A log is in time order: a state it describes holds at that point, and a later step that changed it supersedes it; the text states the state at the end of the log. Without material, the input is all there is and its claims stand. The request names the doc and where it goes; the material decides what goes in it. When the material does not carry what was asked for (a mechanism nobody verified, a procedure it shows once), the output is what it does carry, however short.
+Material given with the input (a fact sheet, the artifact the text is about, a session log) is available, not required: it is the evidence, and the draft is only another reading of it. A claim the material does not carry is not written, whether or not the draft has it. A log holds states in time order and the text states the state at the end. Without material, the input's claims stand.
 
-## Register
+## Scope
 
-One register: text read by a person (README, shared notes, specs, status reports, a message to someone). Capitalized sentences, no contractions, no typos. A message to a person asks in one question or answers part by part (shape 8); a chat abbreviation (`atm`) in one to a colleague stays, and is not added.
+One register: text a person reads. A README section, a shared note, a spec, a status report, a message to someone. Capitalized full sentences.
 
-Out of scope: prompts, PROMPT.md and other instructions to agents (he types those himself and never asks for one; they are the corpus the sentence rules come from, not a thing the skill writes), detector evasion (no prompting method crosses the human threshold, only fine-tuning does), code, other people's voices (`copy-writing-style`), CLAUDE.md and other agent-facing docs, which is most technical documentation: runbooks, procedures, mechanism descriptions, anything written for agents first (agents write those; never in his style), personal notes read only by him (he does not write those in any style worth matching). A doc in his style is read by a person and stays above the technical detail: what runs, what happened, what was decided, what is asked, the numbers, and a pointer to where the detail is.
+Out of scope: prompts and instructions to agents (he types those himself); CLAUDE.md and other agent-facing docs, which is most technical documentation (runbooks, procedures, mechanism write-ups: agents write those, never in his style); notes only he reads; code; other people's voices (`copy-writing-style`); detector evasion. A doc in his style stays above the technical detail: what runs, what happened, what was decided, what is asked, the numbers, and where the detail is.
 
-## Shape
+## How he writes
 
-A critique follows sentence rule 8. Ordered by how much of his editing each one explains.
+Five habits, in the order they decide a text. Most of what he cuts from a draft follows from the first two.
 
-1. Content is set by the reader and by who answers questions about the subject, before any style rule.
-   - Writer reachable (a personal repo, a project he runs): the doc holds what a reader needs to operate: what runs, where, when, how a failure shows. Rationale only where a reader would otherwise undo the decision; alternatives and history stay with the writer. After work on the system it gains only what changed for the reader (an address, a measured number), which may be nothing. When the material only shows steps being run once, what goes in is what happened (what was set, what was measured, with the date), not what to do next time: the procedure is an agent-facing doc, and a once-run step written as an instruction is a claim the writer cannot verify.
-   - Doc consulted instead of him (a shared note, a spec, a status for someone who was not there): it holds what they will look up: the state now, numbers, addresses, what was decided or assumed in their absence (each item naming who can overrule it), what they must do (each item with its owner and, where there is one, the deadline). Not how the state was reached: the hypotheses tried on the way are not facts they look up.
-   - A source the reader can open (a file in the same repo, a branch) is pointed to (`see X for details`), not restated and not quoted; a standalone explanation for somewhere the source is not at hand quotes it instead.
-   - How a setting or mechanism works inside is never in the doc, and neither is how a failure happened inside the code: the mismatch is stated, not traced. His README section on a mechanism whose source is in the same repo is two sentences: what goes wrong, and which file addresses it with what; the source has the rest.
-2. The first sentence is what the reader came for: what goes wrong or what we want (a rationale, a status), or what runs (an operational note). No scene-setting (the reader knows the system), no summary sentence in front of the content it summarizes, no "this document describes".
-3. Labelled parts when there are parallel parts. Two or more results, options or items, and the parts of a rationale (what we want, what was done, what it costs, what was rejected): each opens with a short label and a colon, then the content, as a paragraph or a `-` bullet; a bullet may instead open with a 1-3 word name and a period, then the gloss. One or two sentences are plain paragraphs, no labels, no bullets. Inline `(1) (2)` is a chat habit, not used in a doc.
-   > currently: lots of specifics that may not fit particular tasks.
-   > tension: proxmiity vs dulpicition. ex: duplicat docs is better for agent but often goes out-of-sync
-4. Reuse the source. Material that is already in shape stays as it is: a fact list the reader will consult stays a list, one bullet per item with its label kept. Evidence the reader cannot get by opening a source (an output, a message, two lines found in history) is quoted in a `>` block, cut with `...` and a parenthetical for what was cut. Rewriting is for what is not in shape: narrative, a list narrated into paragraphs, one item split into a label line plus a sub-list plus a stranded sentence. `>` blocks hold prose; a list of names (columns, fields, options) stays inline.
-5. How you know, in the sentence. A short clause or parenthetical names the evidence kind: measured, counted, from source, by impression, not sure. A doc states no confidence it does not have, and no number unless the number is the finding.
-6. What survives a cut. Keep what the reader will act on or look up (shape 1). Cut what the reader can infer, already knows, or can open: mechanism they will not act on, the path to a finding (hypotheses tried, dead ends), restatement, transitions, their own material said back to them, the content of a source they have. The cut is most of the draft: his versions of agent drafts ran a tenth to a half of the draft's length, except where the doc is the reference the reader consults: a draft that is already the fact list stays near its length, and a report-shaped draft ran about half, the facts kept and the path and the mechanics gone.
-7. Headers are 2-4 word noun phrases naming the topic or property. Not a question, not a sentence, not "Why X and not Y". Not one per paragraph.
-8. A message to a person points at the concern and nothing else: no explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them, no correction of what they did not ask.
-   - Asking: the one question or sentence. His reply to a friend's ten-week plan was one question naming the one risky step in it. When the reader needs evidence to act, one clause of it, then the question. The question is the shortest form that identifies the action, a verb phrase with a question mark, not a request sentence (`can we ...`); it does not name what the reader can infer (which item, what happens otherwise).
-   - Answering: one part per question they asked. First what the answer means for them (what changed on their side, which may be nothing); then each question quoted in a `>` block, cut to its clause, with the answer under it in one sentence, a verdict fragment where the answer is a state. No mechanism behind an answer. Where they asked what can be done, the options are what the writer can do (`I can X, or Y.`), then the question which; the writer, not the reader, is named as the one who acts.
+1. For the reader's next move. The reader is competent, busy, and by default not stupid. The text holds what they will do, decide or look up, each item with the facts it needs and no more. Not written: what they can infer, what they already know, their own material said back to them, how the writer got there (hypotheses, dead ends, mechanism they will not act on), and the content of anything they can open. The first sentence is their side of it: what changed for them, what goes wrong, or what we want. No scene-setting, no summary in front of the content, no closer.
+2. Nothing past the evidence. Every claim is one he can answer for. The kind of evidence sits at the claim, in a clause or a parenthetical: measured, counted, from source, checked, by impression, not sure, unknown. A number only where the number is the finding, with its date or version where it can go stale. What he does not know is said flat. Never more confident than the source: a search that found nothing is not "none exist"; a step the material shows once is what happened, not what to do next time. A claim he cannot stand behind is left out, and a doc that gains nothing is fine.
+3. Decisions with their owner. What was decided or assumed and who can overrule it, item by item. What is the reader's to decide is handed over as their call, with the deadline and the facts they need for it. Where the writer offers, the options are what he can do, then the question which. His own state and actions are in first person and flat: off until tomorrow, not reachable, deleted it unread. No caveat about his competence, no apology.
+4. Point, do not explain. To a person, a concern is one question about the one thing: a check on their assumption (`Are you sure about X?`) or the next step in its shortest form with a question mark (`Try X?`, `Ask them whether X?`), not a request sentence (`can we ...`, `could you ...`); one clause of evidence before it when they need it to act. No why (they can infer it), no alternative plan unless asked, no correction of what they did not ask. Purpose or consequence gets one trailing clause, only where the reader would otherwise undo or misjudge the decision (`to avoid maintaining a hook`, `which reads as a deliberate release rather than drift`). How a setting or a failure works inside a system is never in the doc: the mismatch is stated, and the source addresses it.
+5. Quote, do not paraphrase. A source the reader can open is pointed to (`see X for details`), not restated. Evidence they cannot get (an output, a message, two lines from history) is quoted in a `>` block, cut with `...` and a parenthetical for what was cut, and judged underneath: the quote, the verdict in one short sentence, the failure it causes. Material already in shape stays as it is: a fact list the reader consults is copied, labels kept, one bullet per item.
 
-## Sentences
+## Kinds
 
-1. ` -- ` (spaced double hyphen), single, rightward: the part after explains or qualifies the part before. Never an em dash. One per sentence; a ` -- ... -- ` pair as parentheses is rare.
-   > i would look at it this way -- such a skill is _built_/_engineered_, not _measured_.
-2. Explanatory colon, lowercase continuation: claim, colon, the thing that makes it concrete.
-   > rare conditional rule: not worth.
-   > this breaks a new invairnt category: decision without reason.
-3. Coined or borrowed terms in "double quotes" the first time, bare after. Quotes name a thing; they do not emphasize.
-   > perhaps it make sense to explain a "growing doc" model/mindset.
-   > there are infintely many "implicit expectations".
-4. Hedges only where the sentence is opinion, and naming their kind (`i think`, `imo`, `not objective, but`, `not sure if`, `potentially?`). None in a factual sentence.
-   > this is not objective, but i really feel that i "ended up doing better" by "reading thinking blocks"
-   > im not sure if thats true or not, but i thienk we should not assume its not true
-5. Causation by `so`, `because`, `which is why`, or plain juxtaposition. Never `however`, `therefore`, `thus`, `moreover`, `additionally`, `furthermore`, `in other words`.
-   > which is why i was purposing shifting the spec, to be prompt-first.
-6. Verdict fragments beside long clause chains: a 2-6 word sentence next to a 30-word one, not three medium sentences in a row.
-   > this misses the point.
-   > sometimes is better.
-7. `_word_` only on an explicit pair the sentence states (`X, not Y`; `X rather than Y`), on both members. Never on a word for emphasis. Bold otherwise only on the single load-bearing constraint in the whole text. Bold beyond that on a word or a name (a subject and its state, an `@` mention) is his ad hoc choice, not a rule: a rewrite does not add it, a check does not flag it; bold on a clause stays a tell.
-   > the tutor operats in _idea space_, not _code space_.
-   > agent make judgment runtime on **context** rather than **rules**.
-8. Critique alternates the quoted fragment and the verdict on it; each verdict is one short sentence; the failure it causes follows. No praise first, no softening after. A reply to several questions alternates the same way (shape 8).
-   ```md
-   this misses the point.
+What each kind holds, in order. One or two samples behind each; where a kind and a habit disagree, the habit wins.
 
-   > no static reference found; reflection and dynamic dispatch not checked
+- Rationale (a README section on a decision a reader would otherwise undo): what we want; the state, with evidence kind and version; what was done and the tradeoff accepted; the rejected alternative and why it is worse; a `Note:` on the current mechanism with its purpose clause. `Label:` paragraphs. Where the writer is reachable and nobody would undo the decision, the rationale and the alternatives stay with him and the operational note is the whole doc.
+- Problem section on a mechanism whose source is in the repo: the recurring problem in one sentence; what addresses it, where, and a pointer. Two sentences.
+- Operational note where the writer is reachable (a personal repo, a project he runs): what runs, when, where, and how a failure shows. Two sentences or two bullets; no goal, no rationale, no history. After work on the system it gains only what changed for the reader, which may be nothing.
+- Status for people who were not there: what happened or what we want, and the state now as they see it; his availability; a pointer to the detail; then the parts, labelled: root cause in two sentences, done, open, assumptions each with who can overrule it, TODO each with its owner, next; the remaining facts under a plain heading.
+- Reference note consulted instead of him: every fact, as `- Label: content` bullets in the order the material has them, decided-without-you and your-call-by items included.
+- Message asking: one clause of evidence if they need it, then the question.
+- Message answering: first what the answer means for them (what changed on their side, which may be nothing); then each question quoted in a `>` block, cut to its clause, answered in one sentence under it; an offer as `I can X, or Y.` and which.
 
-   this is bad becuase it imply a hidden clause
+## Form
 
-   > all references are either [static, reflection, dynamic]
-   ```
-9. `rather than` for contrast. An example goes in parentheses, usually with no label (`(a new fridge)`); `ex:` when labelled; never `e.g.`.
-   > use "the right sdk" rather than "brute force parsing".
-   > (ex: all facts verified)
-10. Words he uses when the concept is there: tradeoff, framing, failure mode, invariant, overfit, sanity check, root cause, structural, bigger picture. Keep them where the concept is present; do not add them where it is not, and do not replace them with synonyms. Never: crucial, robust, leverage, comprehensive, delve, nuanced, landscape, seamless, navigate, journey, testament.
-11. Never: `!`, curly quotes, triads (`adj, adj, and adj`), not-X-but-Y as rhetoric, aphorism, metaphor, chiasmus, closing summary, `In summary`, `Overall`.
+- Labels for parallel parts. Two or more results, options, items, or the parts of a rationale each open with a 1-3 word label and a colon, as paragraphs or `-` bullets; a bullet may instead open with a name, a period, then the gloss. One or two sentences get no label and no bullet. Inline `(1) (2)` is chat, not a doc.
+- Headers are 2-4 word noun phrases naming the topic. Not a question, not "Why X and not Y", not one per paragraph.
+- ` -- ` spaced, single, rightward: the part after explains the part before. Never an em dash.
+  > i would look at it this way -- such a skill is _built_/_engineered_, not _measured_.
+- Explanatory colon, lowercase continuation: the claim, then what makes it concrete.
+  > rare conditional rule: not worth.
+- A parenthetical carries the specific: the number, the date, the evidence kind, the example (`(a new fridge)`, no label; `ex:` when labelled, never `e.g.`).
+- Coined or borrowed terms in "double quotes" the first time, bare after. Quotes name, they do not emphasize.
+  > perhaps it make sense to explain a "growing doc" model/mindset.
+- Consequence by `so`, `because`, `which is why`, a semicolon, or juxtaposition; contrast by `rather than`.
+  > which is why i was purposing shifting the spec, to be prompt-first.
+- A hedge only on opinion, naming its kind (`i think`, `not sure if`, `not objective, but`); none on a fact.
+- `_word_` on both members of a pair the sentence states (`_X_, not _Y_`), never for emphasis. Bold at most on the one load-bearing constraint of the text; bold on names and states beyond that is his ad hoc choice, not added and not flagged.
+- A verdict sentence of 2-6 words beside a long one, not three medium sentences in a row.
+  > this misses the point.
+- Words he reaches for when the concept is there, kept and not replaced: tradeoff, framing, failure mode, invariant, overfit, sanity check, root cause.
+
+Never, zero in his corpus: em or en dash, curly quotes, `!`, `e.g.`, triads (`adj, adj, and adj`), not-X-but-Y as rhetoric, metaphor, aphorism, chiasmus, a closing summary, `In summary`, `Overall`, a front-loaded summary, scene-setting, a trailing `-ing` clause carrying a consequence, `**Label.**` bullets, `rather than merely`, `serves as`, `stands as`, `underscores`, `highlights`, crucial, robust, leverage, comprehensive, nuanced, delve, seamless, landscape, navigate, journey, testament, straightforward.
+
+Rare in his text (a handful in 27k words), so a rewrite does not add them and a check does not flag one: `however`, `therefore`, `thus`, `moreover`; a contraction or a chat abbreviation (`isn't`, `atm`, `2hrs`) in a message to a colleague.
 
 ## Errors
 
-- Never introduce typos or grammar errors. Alan's error rate is a property of the medium (chat), not of the style.
-- Alan's text stays Alan's. When the input was written by him (a rewrite of his draft, a check of his note), do not fix his error classes: letter transpositions with first and last letter intact (`becuase`, `agnet`), dropped apostrophes, missing articles, dropped third-person `-s`, `rewinded`, `purposal`. Fix only when asked to proofread. An agent-fixed text is detectable exactly by the fixes.
-- Never: homophone confusions (their/there, your/you're, to/too), curly quotes, em or en dash, `!`. His corpus has zero of each; one of them marks the text as not his.
-
-## Claude tells
-
-Structure first: removing flagged words from a Claude draft leaves it detectable, changing its shape does not. Act on a shape item on sight. Act on a phrase item only when two or more co-occur (weak alone).
-
-Shape, act on sight:
-
-- Front-loaded summary sentence, then the content it summarized.
-- Scene-setting: explaining what the reader already knows before the point.
-- Paraphrase of a rule, output or source instead of quoting it.
-- One-line closer, aphorism, chiasmus, metaphor.
-- Header as a question or "Why X and not Y"; bold on a clause; `**Label.**` bullet lists; a header for every paragraph.
-- Triads. Not-X-but-Y as rhetoric. Trailing `-ing` clause carrying a consequence (`..., leaving files ahead of the transcript`).
-- Em dash anywhere.
-
-Phrase, weak alone:
-
-- `rather than merely`, `rather than simply`, `less like X and more like Y`, `matters because`, `every single`.
-- Significance formula (`underscores`, `highlights the importance of`); `serves as`, `stands as`, `represents` for `is`.
-- `genuinely`, `honestly`, `straightforward`, `crucial`, `robust`, `nuanced`, `comprehensive`, `leverage`.
-- `however`, `therefore`, `moreover`, `additionally` as sentence glue.
-- Faded, not the test anymore: `delve`, `tapestry`, `it is important to note`, `In conclusion`. Still do not write them.
+- Never introduce a typo or a grammar slip. His docs have some (a doubled word, a dropped article, a plural mismatch); the skill does not imitate them.
+- His text stays his. When the input is his (a rewrite of his draft, a check of his note), his slips stay: transpositions with first and last letter intact (`becuase`), dropped apostrophes, dropped articles, dropped `-s`, `rewinded`, `purposal`. Fix only when asked to proofread; an agent-fixed text is detectable exactly by the fixes.
+- Never: homophone confusions (their/there, your/you're, to/too). Zero in his corpus; one marks the text as not his.
 
 ## Procedure
 
 Rewrite and write:
 
-1. The reader and who answers questions about the subject (shape 1); what the text is: a rationale, a mechanism, a status, an operational note, a rule, a critique, a message.
-2. Content: what this reader keeps (shape 1, 6); a claim the material does not carry goes; steps a log shows once are what happened, not instructions; a log's state is its state at the end. Most of the draft goes, except where the doc is the reference.
-3. Shape: first sentence what they came for, labels only for parallel parts, source pointed to or reused, evidence kind stated, header a noun phrase; a message asks in one question or answers one part per question.
-4. Sentences per the rules above.
-5. One pass over the never-lists: sentences 10-11, Errors, the shape list of Claude tells.
-6. Output the text only.
+1. Who reads it, what they will do with it, and who answers questions about the subject (habit 1); which kind it is.
+2. Content: what this reader acts on or looks up, each claim within the evidence and with its owner (habits 1-3). Most of a draft goes, unless the doc is the reference the reader consults.
+3. Order and shape per the kind; first sentence their side; labels only for parallel parts; point or quote (habits 4-5).
+4. Sentences per Form; one pass over the never-list and Errors.
+5. Output the text only.
 
-Check: the same passes, output the list only, each item `quote -> rule number -> fix`.
+Check: the same passes; output the list only, each item `quote -> section and item -> fix`.

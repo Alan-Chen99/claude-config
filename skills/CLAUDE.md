@@ -45,7 +45,7 @@ Failure to follow these patterns creates technical debt and inconsistency across
 | `auto-memory/`        | Drop-in for Claude Code's built-in auto-memory feature | Before reading/writing memories under `~/.claude/projects/<slug>/memory/` (skip if "# auto memory" section already in prompt) |
 | `leon-writing-style/` | Style-matched content generation          | Writing content matching user's style    |
 | `alan-coding-style/`  | Style-matched code generation and review  | Coding matching user's conventions       |
-| `alan-writing-style/` | Write, rewrite or check text as Alan: single `SKILL.md`; `samples/` holds context/ai/skill/human stages per sample, for maintenance only | Text in Alan's voice, only when invoked by user or workflow |
+| `alan-writing-style/` | Write, rewrite or check text as Alan: single `SKILL.md`; `samples/` holds context/ai/skill/human stages per sample and `ratings-NN.md` rounds, for maintenance only | Text in Alan's voice, only when invoked by user or workflow |
 | `copy-writing-style/` | Generic style-matched content generation   | Writing in any reference style           |
 | `arxiv-to-md/`        | arXiv paper to markdown conversion        | Converting papers for LLM consumption    |
 | `cc-history/`         | Claude Code conversation history analysis | Querying past conversations, token usage |

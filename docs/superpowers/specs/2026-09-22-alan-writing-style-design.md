@@ -32,6 +32,8 @@ Research (two subagent reports, session scratchpad only): AI tells are model spe
 
 Sections in order. No step script, no `--thoughts`, no marker quotas, no word-count sufficiency check.
 
+2026-09-23: rewritten after an overfitting review (`skills/alan-writing-style/CLAUDE.md`, round 8). Sections now: jobs, scope, how he writes (five habits: for the reader's next move; nothing past the evidence; decisions with their owner; point, do not explain; quote, do not paraphrase), kinds, form, errors, procedure. Items 3 and 4 below survive as the kinds and the form checklist, with the never-list restricted to words at zero in the corpus. Acceptance gains a rating procedure beside retention (CLAUDE.md there, Iteration).
+
 1. Frontmatter: `name: alan-writing-style`; description says what it does and "use only when invoked by user or workflow".
 2. Jobs and registers, as above.
 3. Shape rules for `doc`, ordered by strength, one verbatim example each from samples:
