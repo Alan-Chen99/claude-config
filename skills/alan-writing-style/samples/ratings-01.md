@@ -104,8 +104,8 @@ Not on their own, and I have not written anything for it yet.
 
 I can shift the old rows by the offset, or delete the ones that dropped out of the export. Either is mine to write and Tomas reviews. Which is preferred?
 
-Verdict:
-Why:
+Verdict: 8/10
+Why: "Either is mine to write and Tomas reviews." -> "(Tomas will review this)", or remove
 
 ## 15: Email to Dana Okafor, integrations at Norvell, under 150 words with a subject line
 
@@ -130,8 +130,8 @@ Three questions:
 Thanks,
 Alan
 
-Verdict:
-Why:
+Verdict: 8/10
+Why: "your export documentation gives this address for integration questions." -> "(from your export documentation)"
 
 ### 15-B
 
@@ -146,7 +146,7 @@ Is the new format permanent or did someone flip a flag, was the old `updated` co
 Thanks,
 Alan
 
-Verdict:
+Verdict: 9/10
 Why:
 
 ## 11: End-of-day status in the team channel
@@ -195,8 +195,8 @@ Decided today without you. Tomas can overrule any of them on the PR.
 - Backfill: 410883 rows for Monday and 411274 for Tuesday, about 5m50 each, in line with the historical runtime. `IMPORT_FILE_DATE` is unset again (checked), so tonight takes Wednesday's file. Spot-checked `NV-44812` against the raw CSV and it matches, `as_of` included.
 - `load.py:87` uses `DataFrame.applymap`, deprecated and an error in some future pandas major. Not today's failure, but worth fixing sometime.
 
-Verdict:
-Why:
+Verdict: 5/10
+Why: `Timezone offset` section "hangs in midair". What is the focus? explanation, or the "as_of" thing? Fails to address "key" questions like "is this still a problem" clearly. I read it, and am not sure whether I need to do anything bc of that and what is the extent of the issue.
 
 ### 11-B
 
@@ -242,5 +242,5 @@ The backfill rewrote every SKU in Tuesday's file with UTC values. A SKU that has
 - `load.py:87` uses `DataFrame.applymap`, deprecated and an error in some future pandas. Not today's failure (checked); still there.
 - `ruff` TRY003 on the new error message, left standing: the message is the point of it.
 
-Verdict:
-Why:
+Verdict: 5/10
+Why: Also floating, feels "unfocused". And, taking "Priya" as example, how much of this is she supposed to read? They cannot easily tell, and also becuase this is rather long (I suppose the non-additional-notes section is longer so reader is forced to read more). also, both 11-A and 11-B is like, I read all the words but had no idea about my takeaway. I avoid writing like that.
