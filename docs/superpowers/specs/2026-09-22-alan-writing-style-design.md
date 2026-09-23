@@ -34,6 +34,8 @@ Sections in order. No step script, no `--thoughts`, no marker quotas, no word-co
 
 2026-09-23: rewritten after an overfitting review (`skills/alan-writing-style/CLAUDE.md`, round 8). Sections now: jobs, scope, how he writes (five habits: for the reader's next move; nothing past the evidence; decisions with their owner; point, do not explain; quote, do not paraphrase), kinds, form, errors, procedure. Items 3 and 4 below survive as the kinds and the form checklist, with the never-list restricted to words at zero in the corpus. Acceptance gains a rating procedure beside retention (CLAUDE.md there, Iteration).
 
+2026-09-23, later: his ratings round 1 (`samples/ratings-01.md`) went into the skill (`skills/alan-writing-style/CLAUDE.md`, rounds 9 and 10): the mechanism is never the reason for a state on his side, a side fact is a parenthetical or nothing, every part of a doc ends in its state or its owner, the status kind is ordered by who must read it with explanation last and never in the body, and with material a draft's claim the material does not carry is cut. Round 2 candidates (11-C, 14-D, 15-C) wait in the same file.
+
 1. Frontmatter: `name: alan-writing-style`; description says what it does and "use only when invoked by user or workflow".
 2. Jobs and registers, as above.
 3. Shape rules for `doc`, ordered by strength, one verbatim example each from samples:
