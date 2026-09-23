@@ -17,29 +17,30 @@ The reader is assumed competent: what they can infer from the point is not writt
 
 Rewrite and write output the text and nothing else: no preamble, no list of what changed. Check outputs the list and nothing else.
 
-Source material given with the input (a fact sheet, the artifact the text is about) is usable in every job: quote the artifact from it rather than from the draft's paraphrase. Add no fact the input and the material do not carry.
+Source material given with the input (a fact sheet, the artifact the text is about) is available material, not required content: keep from it what shape 1 keeps, quote from it only what shape 4 quotes. Add no fact the input and the material do not carry.
 
 ## Registers
 
 - `doc` (default): README, notes, specs, status reports, anything read later by someone else. Capitalized sentences, no contractions, no typos.
-- `chat`: prompts and quick replies typed to an agent. Allowed on top of `doc`: lowercase sentence starts, lowercase `i`, contractions without apostrophes (`dont`, `thats`, `its`). Nothing else changes. A message to a person keeps `doc` capitalization (one sample) and is usually one question or one sentence (shape 7).
-- `prompt`: PROMPT.md, CLAUDE.md rules, agent instructions. Genre features allowed: MUST/SHOULD/NOT in caps, imperatives, `[idea]` and other bracket markers, `<request>` wrappers. Sentence rules still apply.
+- `chat`: prompts and quick replies typed to an agent. Allowed on top of `doc`: lowercase sentence starts, lowercase `i`, contractions without apostrophes (`dont`, `thats`, `its`). Nothing else changes. A message to a person keeps `doc` capitalization (one sample) and is usually one question or one sentence (shape 8).
+- `prompt`: PROMPT.md and other instructions he types to an agent. Genre features allowed: MUST/SHOULD/NOT in caps, imperatives, `[idea]` and other bracket markers, `<request>` wrappers. Sentence rules still apply.
 
-Out of scope: detector evasion (no prompting method crosses the human threshold, only fine-tuning does), code, other people's voices (`copy-writing-style`).
+Out of scope: detector evasion (no prompting method crosses the human threshold, only fine-tuning does), code, other people's voices (`copy-writing-style`), CLAUDE.md and other agent-facing docs (agents write those; never in his style).
 
 ## Shape
 
-Mainly `doc`; a chat critique follows sentence rule 8. Ordered by how reliably Alan does it.
+Mainly `doc`; a chat critique follows sentence rule 8. Ordered by how much of his editing each one explains.
 
-1. The goal or the problem first, then the solution or decision, then what it costs. No scene-setting (the reader knows the system), no summary sentence in front of the content it summarizes, no "this document describes".
-2. Labelled parts. A part opens with a short label and a colon, then the content; the label names whatever the part is (the problem, the mechanism, what is open, a note). The part is a paragraph or a `-` bullet; a bullet may instead open with a 1-3 word name and a period, then the gloss. Inline `(1) (2)` is chat.
+1. Content is set by the reader and by who answers questions about the subject, before any style rule. If the writer can be asked (a personal repo, a project he runs), the doc holds what a reader needs to operate: what runs, where, when, how a failure shows. Rationale only where a reader would otherwise undo the decision; alternatives and history stay with the writer. If the doc is what the reader will consult instead of him (a shared note, a spec, a status for someone who was not there), it holds every fact they will look up. Details that live in a source the reader can open are pointed to (`see X for details`), not restated and not quoted. His README section on a mechanism whose source is in the same repo is two sentences: what goes wrong, and which file addresses it with what; the source has the rest.
+2. The first sentence is what the reader came for: what goes wrong or what we want (a rationale, a status), or what runs (an operational note). No scene-setting (the reader knows the system), no summary sentence in front of the content it summarizes, no "this document describes".
+3. Labelled parts when there are parallel parts. Two or more results, options or items: each opens with a short label and a colon, then the content, as a paragraph or a `-` bullet; a bullet may instead open with a 1-3 word name and a period, then the gloss. One or two sentences are plain paragraphs, no labels, no bullets. Inline `(1) (2)` is chat.
    > currently: lots of specifics that may not fit particular tasks.
    > tension: proxmiity vs dulpicition. ex: duplicat docs is better for agent but often goes out-of-sync
-3. Reuse the source. Material that is already in shape stays as it is: a fact list stays a list, one bullet per item with its label kept; an artifact (a rule, an output, a message) is quoted in a `>` block, cut with `...` and a parenthetical for what was cut. Rewriting is for what is not in shape: narrative, paraphrase of an artifact, a list narrated into paragraphs, one item split into a label line plus a sub-list plus a stranded sentence. `>` blocks hold prose; a list of names (columns, fields, options) stays inline. Quoting can make the result longer than the draft.
-4. How you know, in the sentence. A short clause or parenthetical names the evidence kind: measured, counted, from source, by impression, not sure. A doc states no confidence it does not have, and no number unless the number is the finding.
-5. What survives a cut. Keep what the reader will act on or look up: in a reference note, every fact; in a rationale, the goal, the decision, what it costs, the alternative rejected and why, the purpose (once, after the thing it explains); in a message, the one point. Cut what the reader can infer or already knows: mechanism they will not act on, restatement, transitions, their own material said back to them.
-6. Headers are 2-4 word noun phrases naming the topic or property. Not a question, not a sentence, not "Why X and not Y". Not one per paragraph.
-7. A message to a person is the one question or sentence that points at the concern. No explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them. His reply to a friend's ten-week plan was one question naming the one risky step in it.
+4. Reuse the source. Material that is already in shape stays as it is: a fact list the reader will consult stays a list, one bullet per item with its label kept. Evidence the reader cannot get by opening a source (an output, a message, two lines found in history) is quoted in a `>` block, cut with `...` and a parenthetical for what was cut. Rewriting is for what is not in shape: narrative, a list narrated into paragraphs, one item split into a label line plus a sub-list plus a stranded sentence. `>` blocks hold prose; a list of names (columns, fields, options) stays inline.
+5. How you know, in the sentence. A short clause or parenthetical names the evidence kind: measured, counted, from source, by impression, not sure. A doc states no confidence it does not have, and no number unless the number is the finding.
+6. What survives a cut. Keep what the reader will act on or look up (shape 1). Cut what the reader can infer, already knows, or can open: mechanism they will not act on, restatement, transitions, their own material said back to them, the content of a source they have. The cut is most of the draft: his versions of agent drafts ran a tenth to a half of the draft's length, except where the doc is the reference the reader consults.
+7. Headers are 2-4 word noun phrases naming the topic or property. Not a question, not a sentence, not "Why X and not Y". Not one per paragraph.
+8. A message to a person is the one question or sentence that points at the concern. No explanation of why (they can infer it), no alternative plan unless asked, no caveat about the writer's competence, no summary of their material back to them. His reply to a friend's ten-week plan was one question naming the one risky step in it.
 
 ## Sentences, all registers
 
@@ -110,9 +111,9 @@ Phrase, weak alone:
 
 Rewrite and write:
 
-1. Register, and what the text is: a decision and its rationale, a mechanism, a status, a rule, a critique, a message.
-2. Shape: goal or problem first, parts labelled, source reused, evidence kind stated, header a noun phrase; a message is one question or sentence.
-3. Content: keep what the reader acts on or looks up (shape 5).
+1. Register; the reader and who answers questions about the subject (shape 1); what the text is: a rationale, a mechanism, a status, an operational note, a rule, a critique, a message.
+2. Content: what this reader keeps (shape 1, 6). Most of the draft goes.
+3. Shape: first sentence what they came for, labels only for parallel parts, source pointed to or reused, evidence kind stated, header a noun phrase; a message is one question or sentence.
 4. Sentences per the rules above.
 5. One pass over the never-lists: sentences 10-11, Errors, the shape list of Claude tells.
 6. Output the text only.
