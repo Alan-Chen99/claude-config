@@ -251,6 +251,17 @@ cost recorded here before is deleted: on the one genre whose program enumerates 
 arms updated it. Retire this when an arm carrying the line records an inherited property under a
 soliciting heading as fully as an arm without it, on `prompt-tests/general/weary-waitlist`.
 
+**The two bullets stated one rationale twice, and the copy is cut.** *Followed without being
+re-decided* and *binds the next reader to a choice nobody reviewed* are one claim in two wordings,
+with nothing saying which governs — step 2 above. It went from the second bullet, whose other leg,
+*outlives the code that made it true*, is the block's only rationale specific to its own subject.
+Both arms then left the soliciting `CLAUDE.md` byte-identical and documented the option where that
+same file requires every option described, so the surviving bullet reaches its placement without the
+copy. Limit: the uncut arm's reasoning raised the heading and declined it in the bullet's words, the
+cut arm never raised it, so the short wording is untested against a session that considers the
+heading. Restore the copy if an arm carrying the cut block extends a soliciting document that an
+arm carrying the uncut one leaves alone, on `prompt-tests/general/hushed-rollcall`.
+
 **The preamble is kept, on its first isolation.** An arm carrying it sourced a checkable number
 where an arm without it stated the same number bare, and they matched on every other reading.
 Hypothesis: naming the reader who *will act on it as a premise* separates a value that reader

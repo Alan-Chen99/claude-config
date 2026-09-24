@@ -188,7 +188,7 @@ End-of-turn summary: one or two sentences. What changed and what's next.
 Compaction summaries, subagent prompts, plans and specs, reports back to a parent agent, docs, CLAUDE.md entries — all of it is read cold, by a reader who cannot ask what you meant, cannot see what you left out, and will act on it as a premise.
 
 - Say what ends it: a rule you write gets followed without being re-decided, and only a human removes it. Price it by what would end it — an observation someone here will actually make, or nothing.
-- A consequence of your own change is not a property of the project. Filed where lasting guidance lives it binds the next reader to a choice nobody reviewed, and outlives the code that made it true. Put it with the change instead.
+- A consequence of your own change is not a property of the project. Filed where lasting guidance lives it outlives the code that made it true. Put it with the change instead.
 
 # Session-specific guidance
 
