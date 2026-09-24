@@ -228,17 +228,18 @@ declining a specific addition as costing more than it is worth, the reasoning tr
 rather than the task. `prompt-tests/general/halve-the-runbook` stays whatever this
 says, on the user's direction: the user set that fixture's shape.
 
-**Growth has a moment: a document soliciting additions, met by a fact the tree houses nowhere
-else.** The bullet ships at the wording measured across two genres under two vocabularies sharing
+**Growth has a moment: a document soliciting additions, met by a fact the session has just
+established.** The bullet ships at the wording measured across two genres under two vocabularies sharing
 no words: each treated arm left the soliciting document untouched and put the fact where the
 project already required the option described, naming the line's own test while declining the edit.
 The trade is reader-perceived quality against a rule only a human removes — blind readers have
 twice preferred the arm that grew, each time on a standing rule written as a fact and signalling
-nothing when it goes false. *Withdrawn:* that only a **self-made** fact lacks a slot. A third genre
-gave the self-made fact a required home in the flag table, and the heading took the session's
-**inherited** finding instead. Hypothesis: the heading takes whatever the tree houses
-nowhere, so the lever is a required home rather than an instruction to write less. Retire the bullet
-when an arm carrying it extends the soliciting document on
+nothing when it goes false. *Withdrawn, and nothing replaces it:* that only a **self-made** fact
+lacks a slot, and then that a **required home** is what decides. Every fixture the two readings were
+drawn from states one in its own auto-loaded `CLAUDE.md` — *every subcommand and option is described
+in `docs/cli.md`*, *every user-visible flag is described in `docs/report.md`*, *every flag has a row
+in `README.md`'s flag table* — so the genres never differed in it and no round has said what they do
+differ in. Retire the bullet when an arm carrying it extends the soliciting document on
 `prompt-tests/general/hushed-rollcall`.
 
 **What it costs: a true inherited fact, declined by name.** On a task with no documentation ask, an

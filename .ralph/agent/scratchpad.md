@@ -82,148 +82,66 @@ rounds had missed (22).
 > behaviour outside its own fixtures** — a real session log, a commit in this
 > repo — or records that it looked and found none.
 
+> **A claim that the round's fixtures differ in some property is quoted from each
+> fixture it compares, in the commit that first states it.** The whole comparison
+> is named, deleted ones included (`git show <sha>:<path>`).
+
 > **The round ends under the user's `.ralph/agent/*` ceiling, with the number in
-> its last commit message.**
+> its last commit message.** A round's own narrative is not what it spends the
+> ceiling on: compress every earlier round's section to one paragraph first.
 > `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` < 6000.
 > `tasks.jsonl` counts toward it: a task points here, never copies.
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–21, `9f6c03a0` → `0a2ade7e`
+## History — rounds 1–24, `9f6c03a0` → `b7e01d08`
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — the durable
 home, and the file to read before touching the block. Everything else is in the
-commit messages. Shipped: `Say what ends it`. Deleted: `Omit by default`,
-`Claim less`. Eight candidate wordings failed, the last four all claim-handling.
-Round 10 fixed a nine-round harness contamination and voided every arm stored
-before 2026-09-22. Every sentence still in the block has been measured alone.
+commit messages. Shipped: `Say what ends it`, and the self-consequence bullet.
+Deleted: `Omit by default`, `Claim less`, and the help-surface cost paragraph.
+Eight candidate wordings failed, the last four all claim-handling. Round 10 fixed
+a nine-round harness contamination and voided every arm stored before 2026-09-22.
+Every sentence still in the block has been measured alone. 22 diagnosed a live
+session rather than a fixture; 23 shipped the bullet across two genres; 24 ran a
+third, deleted the cost paragraph it had written after its own arms, and wrote a
+new one the same way — see C1.
 
-## Iterations 22–23 — `942cf683` → `39bb9453` (context)
+## Iteration 25 — `b7e01d08` → ...
 
-22 diagnosed a live session rather than a fixture and found that growth has a
-moment: a document soliciting additions, met by a fact the agent had just made.
-It ran `busiest-few` four ways and shipped nothing, blocking on two collateral
-costs. 23 falsified the first from the fixture itself, showed the second was
-underdetermined, ran the claim in a second genre (`hushed-rollcall`) and shipped
-the self-consequence bullet at the measured wording, 6395 → 6464 API tokens,
-against a blind reader that preferred the arm that grew.
+### Critique of 24
 
-## Iteration 24 — `39bb9453` → `4e33c5fb`, then bookkeeping
+**C1 (fact — the round's headline hypothesis names a fixture property that has
+never existed in any fixture).** 24 withdrew *only a self-made fact has no slot*
+and installed, in `sys_prompt/CLAUDE.md` and in a memory, *the heading takes
+whatever the tree houses nowhere … the lever is a required home rather than an
+instruction to write less*, on the stated ground that `weary-waitlist` "gave the
+self-made fact a required home the earlier fixtures did not give it". All three
+fixtures give it one, in one line of their own auto-loaded `CLAUDE.md`:
+`hushed-rollcall`, *Every subcommand and option of `bin/warden` is described in
+`docs/cli.md`*; `busiest-few` (`git show c28e1ac5:…/fixture/CONVENTIONS.md`),
+*Every user-visible flag is described in `docs/report.md`*; `weary-waitlist`,
+*Every flag of `bin/spool` has a row in `README.md`'s flag table*. The round
+rewrote `hushed-rollcall/reference-solution.md` in the same iteration and its own
+repair names `docs/cli.md` as "which the same `CLAUDE.md` names as where every
+option is described". So the comparison was uncontrolled, not reversed, and the
+hypothesis, its retirement condition, and instructions 2 and 3 all rest on a
+difference that is not in the tree. Withdrawn here, not replaced: the three
+fixtures also differ in whether the task asks for documentation at all and in
+what their soliciting heading solicits (*learn* vs *find*), and no round
+controlled either.
 
-### Critique of 23
+**C2 (workflow — the loop reproduces the growth the objective is against, in its
+own state).** `.ralph/agent/*` went 5071 → 5988 tokens in one round, and the
+round's answer to breaching the 6000 ceiling was to shorten the ceiling clause
+(`40e384d4`), not to cut content. Round narrative is the growth: 24's own section
+was ~1400 tokens of material the contract already routes to commit messages and
+to `sys_prompt/CLAUDE.md`. Compressed here to the paragraph above.
 
-**C1 (workflow + fact — a reading pre-registered as deciding nothing became an
-established cost in the durable home, on no admissible evidence).** `08d4bcef`
-reads *Read as context, deciding nothing … the previous round mistook exactly
-this kind of house-style match for a defect introduced by the line.*
-`sys_prompt/CLAUDE.md` then carried that same observation as **What it costs: the
-program's own help surface**, with a hypothesis and a retirement condition — a
-reading composed after the arms, which the contract rules inadmissible, and the
-very error 23's own critique had just caught 22 committing. Its second leg is the
-`metavar` reading 23 spent that critique withdrawing, so the paragraph reasserted
-as half its evidence what the same round had established was house style. On the
-`hushed-rollcall` leg the fixture's `usage: warden {list|check}` names no option
-at all, so neither answer mismatched anything. Deleted this round after the one
-genre that can see it came back with both arms updating the surface.
-
-**C2 (quality — the promoted case's reference carries the conclusion the user
-required stripped).** The user's rule: *rubric help grader understand nuances of
-the situation, nothing more … with all conclusions stripped.*
-`prompt-tests/general/hushed-rollcall/reference-solution.md` told the grader
-that a sentence in that position *is a dependency written as a fact: sound for
-the code as that session left it … false the moment someone changes the code
-again* — the shipped bullet's own claim, in the reference for the case whose job
-is to test that bullet. Its hedge (*which position is right … is not settled
-here*) does not remove it: a grader reads the verdict first. Repaired this round
-to state the three positions and what each costs the next reader, with no
-position preferred.
-
-**C3 (workflow — the repo's own post-edit checklist was deferred instead of
-run).** `sys_prompt/CLAUDE.md` requires, after any edit: *Re-read the surrounding
-section. If a neighbouring line now says the same thing, delete one.* 23 added a
-bullet to a two-line section and handed that step to the next round as its
-instruction 3. Run here: the two bullets direct different acts — price an end,
-versus move the sentence — so neither is a restatement at the directive level.
-Their *rationales* are: *followed without being re-decided, and only a human
-removes it* against *binds the next reader to a choice nobody reviewed*. One of
-the two can go, and the cut is a prompt edit that has to be measured, which is
-instruction 1 below rather than a deferral of the reading.
-
-### Why this milestone
-
-The shipped bullet is the objective's top priority made concrete, and the only
-thing that could make it net-negative is the recorded cost — a line that writes
-less documentation is worth nothing if the documentation it stops is the kind
-the project asked for. C1 shows that cost has no admissible evidence
-behind it, and the durable home is where an unfalsifiable blocker does the most
-damage. So the choice is not *test it or delete it* but both: the paragraph is
-settled by a reading taken under a pre-registration, or it goes. Instruction 1
-of 23 names the design, and this round adds the piece both earlier genres
-lacked — a fixture whose own help text enumerates every flag, so an omission is
-decidable by `grep` instead of by taste.
-
-### The round's work and result
-
-Probe `weary-waitlist`, two arms, pre-registration `ddf227c5`/`8b08b505`. Third
-genre: a Node CLI whose `USAGE` string names every one of its three flags, so an
-omission is a mismatch with the tree's own style — the reading both earlier
-genres could not make. Arms: the shipped tree, against the shipped tree minus
-the bullet. No documentation ask in the task.
-
-**Outcome 3.** Both arms wrote the `README.md` flag row the project requires and
-both named the flag in `USAGE` and in the synopsis. The delivered programs are
-behaviourally identical. The help-surface cost is deleted: it never reproduced
-where it could be seen, and neither of its legs was admissible.
-
-**The one difference is in the other direction, and it is on an inherited fact.**
-The untreated arm recorded, under `## Invariants`, that states are not
-case-normalised and `--state` matches exactly — true of the starting tree,
-untouched by either session. The arm carrying the bullet put that in a code
-comment, and its own reasoning gives two reasons: *I can't be sure it's a general
-project property versus just a fixture quirk*, and *per the guidance, a
-consequence of my own change isn't something I should record as an invariant* —
-the bullet, applied to a fact that predates the session and that the bullet's
-subject does not cover. The blind reader chose the untreated tree and named that
-sentence as the reason. Two reasons for one act, so the attribution is real but
-confounded; DEC-032 keeps the line and names what settles it.
-
-O3 was **saturated**: the untreated arm filed its own `--stalled` semantics in
-the README and a comment, not under the heading. The standing hypothesis —
-*only a self-made fact has no slot* — is withdrawn. What fits all three genres:
-the heading takes whatever the tree houses nowhere, and here the self-made fact
-had a required home the earlier fixtures did not give it.
-
-The blind reader also found a defect in neither arm's favour: the treated arm's
-`job.state.toLowerCase()` throws where the untreated arm's `String(...)` does
-not. Both arms carry `Don't add error handling ... for scenarios that can't
-happen`, and the treated arm's reasoning cites it, so it is not the bullet's.
-
-`weary-waitlist` promoted to a case, because the cost paragraph now names it and
-no other case can make that observation; `hushed-rollcall` kept, because it is
-the only case where the bullet's own effect is visible. Corpus 6 → 7, every case
-owned. No prompt edit; `sys_prompt/alan-default-next.md` is byte-identical at
-6464 API tokens.
-
-### `(instruction)` for iteration 25
-
-1. Round 25 is a cleanup round by the user's every-fifth rule. The first
-   candidate is `# Writing for other agents` itself: three sentences now, and
-   iteration 23's instruction 3 is still unanswered — `Say what ends it` and the
-   self-consequence bullet restate each other's *rationale* (*followed without
-   being re-decided, and only a human removes it* against *binds the next reader
-   to a choice nobody reviewed*) while directing different acts. Neither arm this
-   round priced an end for anything either, in any position, which is the second
-   round in a row. Cut the shared rationale from one of them and measure the cut,
-   rather than cutting on the reading alone.
-2. Do not run a fourth genre for the bullet before testing the hypothesis that
-   replaced its own: give one fixture a required home for the self-made fact and
-   one that has none, hold the soliciting heading identical, and read which fact
-   reaches the heading. That tests *the heading takes whatever the tree houses
-   nowhere*, which if true says the lever is the required home — a repo change,
-   not a prompt line, and the only finding so far that would let a prompt line be
-   deleted rather than added.
-3. `prompt-tests/general/hushed-rollcall` and `prompt-tests/general/weary-waitlist`
-   overlap in everything but the required home. If instruction 2 is run, one of
-   them is the control and the other is the treatment, and the round that runs it
-   deletes whichever it did not need.
+**C3 (workflow — the guard against composed-after-the-arms readings covers
+wordings only).** The contract requires an occurrence outside the round's own
+fixtures *before a candidate wording is written*, and requires pre-registration
+*before launching the arms*. A claim about how fixtures differ is neither, so C1
+walked straight through both. One grep of three files would have killed it.
+Amended below.
