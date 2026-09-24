@@ -236,15 +236,15 @@ size — which would mean the MCP surface has grown into the case #45357 describ
 
 ### `# Writing for other agents`
 
-**`Omit by default` is deleted: on the compression case an arm carrying it and
-one without it were indistinguishable, each making an unrequested false claim.** Its
-reach half went earlier for the same reason: what the wording bought was attention to readership,
-and attention argues in whichever direction the task favours. Hypothesis: the failure it names is
-not an act the agent performs — a document acquires a claim while a sentence is being written, not
-at a moment where adding could be declined. Bring it back when a transcript shows an agent
-declining a specific addition as costing more than it is worth, the reasoning tracing to a line
-rather than the task. `prompt-tests/general/halve-the-runbook` stays whatever this
-says, on the user's direction: the user set that fixture's shape.
+**`Omit by default` is deleted, and its reach half before it: on the compression case an arm
+carrying it and one without it were indistinguishable, each making an unrequested false claim.**
+What the wording bought was attention to readership, and attention argues in whichever direction
+the task favours. Hypothesis: the failure it names is not an act the agent performs — a document
+acquires a claim while a sentence is being written, not at a moment where adding could be
+declined. Bring it back when a transcript shows an agent declining a specific addition as costing
+more than it is worth, the reasoning tracing to a line rather than the task.
+`prompt-tests/general/halve-the-runbook` stays whatever this says, on the user's direction: the
+user set that fixture's shape.
 
 **Growth has a moment: a document soliciting additions, met by a fact the session has just
 established.** Measured across two genres: each treated arm left the soliciting document untouched
@@ -252,11 +252,9 @@ and put the fact where the project already required the option described, naming
 while declining the edit. The trade is reader-perceived quality against a rule only a human removes —
 blind readers have twice preferred the arm that grew. Two accounts of why the fact moved were
 withdrawn; every fixture behind them required the option documented, so no round has said what the
-genres differ in. A third genre, repairing documents a change has falsified, shows neither the
-declining nor a soliciting edit in either arm. What separates them there is volume — sixteen
-unfalsified sentences to seven, the only one directing a later reader among the sixteen — and volume
-is confounded with depth: the arm writing more ran half again as many tool calls, met a hazard the
-other never found, and wrote the only new claim that held against its own code. Retire the bullet
+genres differ in. A third genre, repairing documents a change has falsified, shows neither the declining nor a
+soliciting edit in either arm; what separated the arms there was volume, confounded with how much
+each arm found out, and volume has since stopped being the thing worth counting. Retire the bullet
 when an arm carrying it extends the soliciting document on `prompt-tests/general/hushed-rollcall`.
 
 **What it costs: a true inherited fact, declined by name.** On a task with no documentation ask, an
@@ -274,14 +272,13 @@ soliciting heading as fully as an arm without it, on `prompt-tests/general/weary
 
 **The two bullets stated one rationale twice, and the copy is cut.** *Followed without being
 re-decided* and *binds the next reader to a choice nobody reviewed* are one claim in two wordings,
-with nothing saying which governs — step 2 above. It went from the second bullet, whose other leg,
-*outlives the code that made it true*, is the block's only rationale specific to its own subject.
-Both arms then left the soliciting `CLAUDE.md` byte-identical and documented the option where that
-same file requires every option described, so the surviving bullet reaches its placement without the
-copy. Limit: the uncut arm's reasoning raised the heading and declined it in the bullet's words, the
-cut arm never raised it, so the short wording is untested against a session that considers the
-heading. Restore the copy if an arm carrying the cut block extends a soliciting document that an
-arm carrying the uncut one leaves alone, on `prompt-tests/general/hushed-rollcall`.
+with nothing saying which governs — step 2 above; the cut went from the second bullet, whose other
+leg is the block's only rationale specific to its own subject. Both arms then left the soliciting
+`CLAUDE.md` byte-identical, so the surviving bullet reaches its placement without the copy. Limit:
+only the uncut arm's reasoning raised the heading at all, so the short wording is untested against
+a session that considers it. Restore the copy if an arm carrying the cut block extends a soliciting
+document that an arm carrying the uncut one leaves alone, on
+`prompt-tests/general/hushed-rollcall`.
 
 **The preamble is kept, on its first isolation.** An arm carrying it sourced a checkable number
 where an arm without it stated the same number bare, and they matched on every other reading.
@@ -309,26 +306,48 @@ That looked like the predicted harm; a blind reader contradicted it, finding tha
 the template uniformly was also the one that filed a bare preference *as* a preference where the
 arm without it stated it flat with no warrant. Retire it when an arm carrying it names no more
 exits than one without, on `prompt-tests/general/retirement-policy`.
+It is untested against the owner's own specimen rather than refuted, and one probe did not
+change that: on `amber-thicket` neither an arm carrying it nor an arm without it wrote a
+standing rule about the exposure at all, so there was nothing for it to decline. The leg
+running the fork the specimen itself ran was the only one of three to amend a nested
+`CLAUDE.md`, and the only one that never checked the exposure — a blind reader told nothing
+called that sampling noise at one run per leg, and this file takes its word.
 
-**Telling the agent to fix rather than record is saturated, in two genres.** *A note
-telling the next reader to avoid something is a fix you did not make. Make the fix
-instead* was run against a bare arm on two fixtures. On the first, finishing the task
-puts a `%` into a `configparser` file whose default interpolation rejects it, with `%%`
-named in the exception's own message and `ConfigParser(interpolation=None)` one argument
-away: both arms took the argument, with near-identical comments, and neither wrote a
-rule about escaping — the arm carrying the bullet wrote one more standing sentence than
-the bare arm, not fewer. On the second, built so the reachable fix sits inside a vendored
-directory a script replaces wholesale, neither arm touched it and both wrote the same
-guard in the repo's own code, so the harm predicted for the wording did not appear
-either. A blind reader holding both trees and both sessions of the first probe
-attributed nothing to a prompt delta and traced the prose difference to a review
-subagent one arm happened to run. Hypothesis: removing an exposure you have just tripped
-over is a coding decision, and `# Error Propagation` and `# Completeness` already own it;
-a note is reached only where the fix is not available, and neither fixture nor this
-wording reaches that case. Ship a wording here when an arm without it preserves an
-exposure it could have removed and writes a standing rule in place of removing it —
-`git checkout d530b4ed -- prompt-tests/runs/slate-harbor` and
-`git checkout d530b4ed -- prompt-tests/runs/bronze-kettle` restore the two probes.
+**Two wordings that tell the agent to act rather than record are decided, and neither ships.**
+*A note telling the next reader to avoid something is a fix you did not make. Make the fix
+instead* ran against a bare arm on two fixtures: a `%` written into a `configparser` file with
+`%%` named in the exception and `interpolation=None` one argument away, and a fix reachable only
+inside a vendored directory a script replaces wholesale. Both arms took the argument on the
+first and neither touched the vendored directory on the second, and the bullet's arm wrote one
+more standing sentence than the bare arm, not fewer. *Finding out costs less than the rule you
+would write instead* was never written: on a third fixture, where a latent exposure fires only
+under a mode nobody runs yet and one command settles whether it is live, both arms ran that
+command unprompted, named the one-character fix, declined to bundle it into a directory the
+repo puts under review, and handed the choice to the owner in the reply. Hypothesis: checking
+or removing an exposure you have just tripped over is a coding decision, and `# Error
+Propagation`, `# Completeness` and `# Epistemic Integrity` already own it; a note is reached
+only where neither the fix nor the check is available, and no fixture here reaches that. Ship a
+wording here when an arm without it preserves an exposure it could have checked or removed and
+writes a standing rule instead — `git checkout d530b4ed -- prompt-tests/runs/slate-harbor`,
+`... bronze-kettle` and `git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket` restore the
+three probes.
+
+**What grew was the document the task named, and what it grew by was scope.** Asked for one
+report variant *and document it*, three arms each turned that instance into a project-wide
+rule in the document the task sent them to — two to five binding sentences apiece: how *any*
+report gets a second dataset, a naming scheme, a cadence rule. Two of the three generalisations
+were false against their own tree, and false in the added scope rather than in the instance: one
+inferred that a matching cadence guarantees a matching `run_date`, which is a pinned variable,
+and asserted it in a test; the other stated a naming scheme its own config violates. The arm
+that stayed on the instance shipped nothing false and a blind reader holding all three chose it
+to inherit. Hypothesis: a rule is the form an agent writes a fact in, and its scope is the part
+no observation constrained, so generalising raises the error rate while barely moving the
+volume — which is why nine say-less wordings measured volume and found nothing. **Force** above
+says this to whoever edits this file and has never been in the prompt a session reads. The
+wording to run is *An instruction's scope is a claim; one instance does not support a
+project-wide rule*; ship it when an arm carrying it writes the instance where an arm without it
+writes the rule, and does not lose anything true in doing so —
+`git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket`.
 
 
 ### The `pre_output.record` reminder, and why only one rule is left in it
