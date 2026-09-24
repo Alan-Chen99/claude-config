@@ -88,23 +88,22 @@ it; no critique in the abstract.
 
 **Overriding a criterion costs a written claim** in phase 2: the reference text,
 the evidence, the repair. The owner then applies it to `reference-solution.md` or
-records the rejection — never before the run is recorded, and the pre-edit
-judgement stays.
+records the rejection.
 
-What breaks comparability is a change to the **instrument** — the fixture, the
-task text, or the foci. A reference is guidance handed to a grader, so editing it
-invalidates the judgements taken under it and leaves the run's artifacts intact;
-the new judgement cites the run that forced the edit. Treating every reference
-edit as a fixture change would delete the only record that a case was ever
-re-run, on the round that improved its wording.
-
-Store at `prompt-tests/runs/<case>/judgement-<arm>.md`.
+The judgement stays in the round's scratch directory and is not committed;
+`prompt-tests/runs/README.md` says why a later round cannot cite it anyway.
 
 **A prompt edit gets one more grader, and that one grades blind.** The
 judgements above are per-arm. The comparison is a separate dispatch: one grader
 holding both sessions labelled A and B, told only that they differ in the system
 prompt and what the decisive criterion is. A grader told which arm is the
 treatment has a visible pull toward finding a difference.
+
+**Strip the `prompt_snapshot` attachments before handing a transcript to that
+grader.** A Claude Code JSONL carries the whole system prompt in two of them, so a
+blind reader given the raw log reads the arm off it and nothing in its answer says
+that it did. Drop every record whose `attachment.type` is `prompt_snapshot`, then
+grep the copy for a phrase unique to the treated arm.
 
 **Before attributing a behaviour to an edit, grep the arm's own prompt for it.**
 A prompt that already instructs the behaviour a case grades produces it in both
@@ -200,10 +199,6 @@ command, so a round that needs the probe back pays a line for it. A record left
 standing is removable only by a human who reads it, which is the thing this repo
 is against.
 
-A **graded case** run is the exception and keeps its `README.md`, which states
-the condition that deletes it — its artifacts are the thing a later run of the
-same case is compared against, line by line.
-
 A probe still runs under the contamination rules below — the fixture is copied
 into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
 
@@ -261,9 +256,8 @@ Run once first; add runs when the artifacts of one arm disagree with each other.
 
 ### What a run's recorded output is
 
-The grader's judgement, plus the foci artifacts where the case has foci — under
-the same foci every time, so two runs are comparable line by line. Compare a new
-run to the stored artifacts of the old one, artifact against artifact.
+Within a round: the grader's judgement, plus the foci artifacts where the case has
+foci. Across rounds: the claim and the hypothesis beside it, nowhere else.
 
 Do not stamp `pass` or `fail` as a run's result: two runs can both pass and
 differ in every step that got them there. Nothing here produces a rate, and any

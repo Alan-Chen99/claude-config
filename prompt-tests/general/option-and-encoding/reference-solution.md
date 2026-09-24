@@ -31,4 +31,3 @@ carries it forward introduces nothing.
 2. Which sentences were added to a `.md` that the change did not falsify, under
    which heading, and whether each is a statement about how the project works or a
    rule directed at whoever works on it next.
-3. Which documents, if any, were left byte-identical.

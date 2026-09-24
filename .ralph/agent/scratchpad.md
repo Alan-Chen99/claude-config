@@ -59,11 +59,8 @@ cannot.
 > the first justification of a line that had none, naming the instrument defect a
 > later round must fix; otherwise it may only replace a paragraph, shorter.
 
-> **Run the case-ownership grep in both directions before leaving.** A paragraph in
-> `sys_prompt/CLAUDE.md` naming no case, or naming a fixture property no case has,
-> states nothing a later round can observe; it is deleted or given its case by the
-> round that finds it. The skill states the rule; rounds have only ever run the
-> direction that deletes fixtures.
+> **Run the case-ownership grep in both directions before leaving** — the skill
+> states the rule; only one direction was ever run before iteration 29.
 
 > Before launching the arms, the round writes down what each arm's outcome would
 > mean, including the outcome that kills the candidate, and commits it. **Outcomes
@@ -79,10 +76,9 @@ cannot.
 > saturated baseline is a reason to delete it. A pre-registered outcome asserting
 > more than the observation is withdrawn rather than honoured.
 
-> **A condition written into `sys_prompt/CLAUDE.md` names, in its own sentence, a
-> case that exists in the tree and a comparison a later round could run** — *retire
-> this when an arm carrying the line does no better than one without* is the only
-> form that is actionable.
+> **A condition in `sys_prompt/CLAUDE.md` names, in its own sentence, a case that
+> exists and a comparison a later round could run.** *Retire this when an arm
+> carrying the line does no better than one without* is the only actionable form.
 
 > **Before a candidate wording is written, the round names one occurrence of the
 > behaviour outside its own fixtures** — a real session log, a commit in this
@@ -112,53 +108,40 @@ ends it` (11, upheld at 19), the self-consequence bullet (23), one duplicated
 rationale cut out of it (25), the deletion of `pre_output.record`'s `NEVER reply to
 user if uncertainties remain` (26, DEC-034). Deleted: `Omit by default`, `Claim
 less`, the help-surface cost paragraph. Eight candidate wordings failed, the last
-four all claim-handling. Round 10 voided every arm stored before 2026-09-22. Every
-sentence still in the block has been measured alone. 27 spent four runs on
-`alan-default-next.md:15` and decided nothing: a blind reader grouped its trees on
-whether the session's first listing showed the `.md` files, a split cutting across
-the arms.
+four all claim-handling. Every sentence still in the block has been measured alone.
+27 spent four runs on `alan-default-next.md:15` and decided nothing, on a fixture
+defect 28 then fixed.
 
 ## Iteration 28 — `59bb9965` → `adb80213`
 
 Put the whole docs order at `alan-default-next.md:15` on trial against a fixture
 whose auto-loaded `CLAUDE.md` indexes its own documents, so 27's dominant variable
-was gone. Four runs, two arms, pre-registered at `901be8f4`. **Shipped the
-deletion**, saturated: both arms rewrote all three documents, followed a data-file
-rename through them, and three of four added a `CLAUDE.md` row for a file they had
-created — one an arm with no docs instruction at all. DEC-036. Arm-independent and
-on the user's top priority: 4 of 4 trees added prose the change had not falsified,
-after 3 of 3 in 27, in a second genre — and **not one tree wrote a standing rule**,
-including into the `## Conventions` heading the fixture solicits one from. The
-probe was promoted to `prompt-tests/general/option-and-encoding`.
+was gone. **Shipped the deletion**, saturated across four runs; DEC-036. Also
+arm-independent: 4 of 4 trees added prose the change had not falsified, after 3 of 3
+in 27, and not one wrote a standing rule. The probe was promoted to
+`prompt-tests/general/option-and-encoding`.
 
 ## Iteration 29 — `2894f884` → ...
 
 ### Critique of 28
 
-**C1 (workflow — the ratchet, inside the loop's own corpus).** 28 promoted its
-probe into `prompt-tests/general/` with three-quarters of a case: a
-`reference-solution.md`, three foci no run has been read under, and no stored
-artifacts. The skill defines a case as reference, grader per arm, foci and stored
-runs, and the reason it gives for keeping one is artifact-against-artifact
-comparability — which a case holding no artifacts cannot offer. The corpus grew by
-a directory only a human removes, the form the objective names. Its stated reason,
-*the restoration condition has to name a case that exists*, is circular: the
-condition was written in the same commit. This round runs the case whole.
+**C1 (workflow — the ratchet, inside the loop's own corpus).** 28 promoted its probe
+into `prompt-tests/general/` with three-quarters of a case: a `reference-solution.md`,
+three foci no run had been read under, and no artifacts. Its stated reason — *the
+restoration condition has to name a case that exists* — is circular, the condition
+having been written in the same commit. 29 ran the case whole.
 
-**C2 (workflow — priority; the charge 28 laid on 27).** 28's scratchpad states
-*that makes the repair-as-rewrite genre, not any prompt clause, the target for the
-user’s top priority*, from four arms all carrying `# Writing for other agents`
-intact. The clause aimed at what goes into a lasting document was never varied, so
-nothing measured supports *not any prompt clause*, and a later round reading the
-scratchpad alone stops looking in the prompt. 28’s own instruction 1 names the fix.
+**C2 (workflow — priority; the charge 28 laid on 27).** 28's scratchpad stated *that
+makes the repair-as-rewrite genre, not any prompt clause, the target for the user's
+top priority*, from four arms all carrying `# Writing for other agents` intact. The
+clause aimed at the phenomenon was never varied, so nothing measured supported *not
+any prompt clause*.
 
-**C3 (measurement — the instrument was blind to the mechanism).** The decisive
-blind reading was taken on delivered **trees**; the skill’s blind comparison holds
-both **sessions**. A tree cannot show an addition considered and declined, which is
-this block’s characteristic effect in the loop’s own prior readings — DEC-033’s
-limit is exactly that. So *not one tree wrote a standing rule* was measured with an
-instrument that cannot separate suppression from absence. This round’s blind reader
-gets the sessions.
+**C3 (measurement — the instrument was blind to the mechanism).** 28's decisive
+reading was taken on delivered **trees**; the skill's blind comparison holds both
+**sessions**. A tree cannot show an addition considered and declined, which is this
+block's characteristic effect in the loop's prior readings. 29's reader got the
+sessions — and found no declining in either arm.
 
 ### Milestone
 
@@ -168,3 +151,31 @@ what the 7-of-7 growth obeys — the additions were rationale prose inside the
 repaired documents and no standing rules, which is the shape that bullet asks for.
 An arm without the block separates *the block suppresses rules* from *the block
 redirects rules into prose*. Pre-registration and outcomes: this commit.
+
+### Result — no prompt edit; the block is kept and the hypothesis is refuted
+
+Outcome 3 died: the treated arm wrote 7 unfalsified sentences to the untreated
+arm's 16, and the only sentence directing a later reader is the untreated arm's.
+Outcomes 1 and 4 both say keep and both fail their second conjunct — **no arm's
+reasoning declines an addition at all**, so the placement mechanism the shipped
+justification claims is absent here. DEC-037.
+
+**The volume gap is confounded with depth, and that is the transferable finding.**
+The arm that wrote more also ran half again the tool calls, met a hazard the other
+never found, and wrote the only new claim true of its own code; the shorter-doc arm
+shipped the one false new statement. Writing less and checking less were one axis.
+
+**Saturated:** both arms rewrote the default path inside a sentence whose other half
+is a usage error, and neither ran it. Unfalsified prose: 11 of 11 trees, 3 rounds.
+
+**Instrument:** `prompt-tests/runs/` holds nothing durable (DEC-038) — the user's
+rule forbids citing a run across rounds, the only reason to store judgements. Focus
+3 dropped as mechanical; the `prompt_snapshot` leak is now in the skill.
+
+### `(instruction)` for iteration 30 — a cleanup round
+
+1. Build the `tasks.jsonl` prune command; hand-pruned twice now.
+2. Thrice deferred: `# Epistemic Integrity`, `# Error Propagation` and `## Required
+   notes` read as prose. 29 read them and put the reading in its commit message —
+   three duplications and one contradiction with `# Coding`, none measured.
+3. No "say less" candidate until an arm holds investigation depth fixed.

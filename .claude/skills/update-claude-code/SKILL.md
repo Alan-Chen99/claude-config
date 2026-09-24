@@ -150,7 +150,7 @@ intercepted session's turns start aborting at the new one.
 evidence:** everything under `notes/` (each carries a staleness banner), `plans/`,
 `docs/superpowers/plans/` and `specs/`, the synthetic version strings in `tests/test_env_context.py`
 and `tests/test_model_visibility.py`, the captured artifacts under `docs/system-prompt-snapshot/**`
-(regenerated wholesale, never hand-edited), and `prompt-tests/runs/**`.
+(regenerated wholesale, never hand-edited).
 
 ### 3.4 Snapshot-capture mechanics that break on upgrade
 

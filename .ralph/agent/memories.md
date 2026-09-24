@@ -2,13 +2,13 @@
 
 ## Patterns
 
-### mem-1790235782-346f
-> Repairing a doc is a rewrite, not a patch, and it grows. Across four runs whose change falsified one sentence in a README, every run that opened the file replaced the whole paragraph; two of three deleted the inherited rationale (the reason the old value was chosen) while correcting the value, and disclosed the deletion to the user rather than to the tree; all three appended new prose the change had not falsified, under a '## Design Decisions' heading the fixture already had. Arm-independent -- the mechanism is the paragraph being rewritten from the change instead of from the paragraph.
-<!-- tags: writing-for-agents, test-design | created: 2026-09-24 -->
+### mem-1790239111-9bed
+> Editing a sentence is not checking it. Both arms rewrote the same half of 'Every command takes --store <path>, defaulting to ./sample-store.json' -- the default-path half, which their change falsified -- and neither ran the documented form, which is a usage error because --store sits on the top-level parser. Arm-independent, so no prompt line reached it. Why: a repair is scoped to the clause the change falsified, and the rest of the sentence it stands in is invisible even while being retyped.
+<!-- tags: docs-errors, writing-for-agents | created: 2026-09-24 -->
 
-### mem-1790235782-1b19
-> A doc-maintenance prompt line cannot be measured on a fixture whose doc files the agent has to discover. Four runs, two arms, one task: the outcome tracked whether the FIRST listing showed the .md files (ls -R or find -name '*.md') and not which arm it was; the arm lacking a 'check project CLAUDE.md' clause was the one that grepped exactly that file, and the arm carrying it went wider. Control it by naming every doc file in the fixture's auto-loaded root CLAUDE.md before attributing anything to a wording.
-<!-- tags: prompt-tests, test-design, sys-prompt | created: 2026-09-24 -->
+### mem-1790239111-8208
+> Document volume tracks how much the session found out, not what the doc instruction said. Repair genre, two arms differing only in the block aimed at durable writing: the arm WITHOUT it wrote 16 sentences the change had not falsified to the treated arm's 7, and the only sentence directing a later reader -- but it also ran half again the tool calls, met a hazard the other never found, and wrote the only new claim true of its own code. The treated arm's shorter docs held the one newly-written false statement. Why: prose is emitted about what was discovered, so a wording that cuts volume is not separable from one that cuts checking. Do not write a 'say less' candidate without an arm that holds investigation depth fixed.
+<!-- tags: sys-prompt, writing-for-agents, docs-growth | created: 2026-09-24 -->
 
 ### mem-1790231753-e792
 > An agent applying a placement rule generalises the rule's antecedent to the whole decision. An arm carrying 'a consequence of your own change is not a property of the project' declined a standing-rules heading with 'the only thing learned is a property of this change' -- in a session that had also found an inherited parser defect, which is not a property of its change. Second genre showing this. The rule is read as a verdict on the destination, not as a test on the fact.
@@ -31,10 +31,6 @@
 <!-- tags: prompt-tests, test-design, session-analysis | created: 2026-09-24 -->
 
 ## Decisions
-
-### mem-1790237061-0993
-> A standing order to update docs is saturated where the project's auto-loaded CLAUDE.md indexes its own doc files: arms without the order rewrote the same documents and followed a data-file rename through them. What routes a change into the docs is the index, read as part of the task.
-<!-- tags: prompt, docs | created: 2026-09-24 -->
 
 ## Fixes
 
