@@ -257,7 +257,8 @@ rewrote the parameter to `false` on every call, and the bullet stated the foregr
 about the session. The user asked for a prompt rule instead, so the model now decides per call
 and nothing checks it.
 
-`CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the precondition, not a second enforcement.
+`CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the precondition, not a second enforcement
+(`docs/subagent-backgrounding.md` carries that gate, its alternatives, and what each costs).
 With the fork gate on, `run_in_background` is omitted from the Agent tool's input schema outright
 (`rc() || Z8()`, `src/chunk-dbb93264.js:171779`) and the rule would be unfollowable.
 

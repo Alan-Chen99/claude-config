@@ -1,263 +1,61 @@
 # claude-config
 
-This repository is forked from `solatis/claude-config`; most code is from upstream.
+Claude Code configuration: skills, agents, prompts, and conventions for structured
+LLM-assisted development. Forked from `solatis/claude-config`; most code is upstream.
 
----
-
-Claude Code configuration: skills, agents, and conventions for structured LLM-assisted development.
+Detail lives in each directory's own `CLAUDE.md` — not auto-loaded, so open the one for
+the directory you are about to touch.
 
 ## Files
 
-| File                      | What                                                        | When to read                                  |
-| ------------------------- | ----------------------------------------------------------- | --------------------------------------------- |
-| `README.md`               | Workflow philosophy, usage guide                            | Understanding the approach, getting started   |
-| `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After pulling/rebasing upstream changes       |
-| `pyproject.toml`          | Python project config, entry points for cc-pretty etc.      | Adding dependencies, modifying build settings |
-| `.gitignore`              | Git ignore patterns                                         | Adding new generated/temp files to ignore     |
-| `.envrc`                  | direnv environment config                                   | Modifying shell environment for development   |
-| `settings.json`           | Claude Code user settings; `includeGitInstructions` and `attribution` hand git policy to `sys_prompt/` (`sys_prompt/CLAUDE.md`, "`# Git`"); `env.TELEGRAM_HITL_STATE_DIR` names the Telegram channel for every session, host and container alike, because `docker_home/.claude/settings.json` symlinks to this file | Modifying hooks, statusline, permissions, git keys |
-| `statusline.sh`           | Status line script wired up via `settings.json`; its open-tasks row is `agent-tools ps --format statusline` | Customizing the in-session status line        |
-| `install.sh`              | Symlinks dirs/files into `~/.claude/` and `systemd/*.service` into `~/.config/systemd/user/`, builds `agent-tools`, puts `claude.sh` on PATH | Installing or reinstalling the config         |
-| `.env` / `.env.example`   | Unified config (NTFY URL, OpenRouter, Anthropic token-count) | Setting up secrets — see `.env.example`       |
+| File | What | When to read |
+| --- | --- | --- |
+| `README.md` | Workflow philosophy, the CLAUDE.md/README.md hierarchy | Getting started |
+| `install.sh` | Symlinks config into `~/.claude/` and units into `~/.config/systemd/user/`, builds `agent-tools`, puts `claude.sh` on PATH | Installing the config |
+| `settings.json` | Claude Code user settings: hooks, statusline, permissions, `env`. Keys documented elsewhere: git policy (`includeGitInstructions`, `attribution`) in `sys_prompt/CLAUDE.md`, `CLAUDE_CODE_FORK_SUBAGENT` in `docs/subagent-backgrounding.md`, `TELEGRAM_HITL_STATE_DIR` in `src/claude_config/CLAUDE.md` | Modifying hooks, statusline, permissions, env |
+| `statusline.sh` | Status line wired up via `settings.json`; its open-tasks row is `agent-tools ps --format statusline` | Customizing the status line |
+| `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After an upstream sync |
+| `pyproject.toml` | Python project config, entry points | Adding dependencies, modifying build settings |
+| `.env` / `.env.example` | Unified config (NTFY URL, OpenRouter, Anthropic token-count) | Setting up secrets — see `.env.example` |
 
 ## Subdirectories
 
-| Directory          | What                                                    | When to read                                      |
-| ------------------ | ------------------------------------------------------- | ------------------------------------------------- |
-| `.claude/`         | Repo-local Claude Code config. Project-local skills: `prompt-tests` (running/grading prompt evaluations) and `update-claude-code` (the post-Claude-Code-upgrade runbook, the inventory of what a release can break here, and the open items) | Adding repo-local skills, settings, hooks; after a Claude Code upgrade; before writing anything coupled to a Claude Code data shape |
-| `agent-tools/`     | Rust binary (`agent-tools`) wrapping skill/tool calls   | Modifying CLI wrappers, adding new commands       |
-| `src/claude_config/` | Python package: cc-pretty, cc-workflow, custom tools  | Modifying Python tooling, adding new tools        |
-| `skills/`          | Invocable skills (planner, deepthink, etc.)             | Using or modifying skills, adding new skills      |
-| `agents/`          | Sub-agent definitions (developer, architect)            | Customizing agent behavior, understanding roles   |
-| `conventions/`     | Documentation and code quality standards                | Writing documentation, understanding coding rules |
-| `plans/`           | Plan storage directory                                  | Reviewing or executing existing plans             |
-| `notes/`           | Long-form investigation write-ups — measured evidence and root cause for one behaviour each | Before re-investigating a known failure mode; after finishing an investigation worth keeping |
-| `prompt-tests/`    | Runner-neutral prompt evaluation cases                  | Running or grading prompt evaluations             |
-| `output-styles/`   | Output formatting styles — the only prompt customization that survives a background handoff | Customizing Claude's output format, writing rules that must hold in every session |
-| `sys_prompt/`      | Full replacement prompts loaded via `--system-prompt-file` (not inherited by background sessions) | Editing the launcher's system prompt — read `sys_prompt/CLAUDE.md` (conciseness rule, the reasoning behind individual lines, and the upstream rebase) and `docs/background-sessions.md` first; after a Claude Code upgrade |
-| `scripts/`         | Standalone scripts — `claude.sh` launcher, MITM proxy, `reasoning-probe.py`, `check-env-context.sh`, `check-prompt-upstream.py` (pins the passages `sys_prompt/` and the env-context hook borrowed from Claude Code's own prompt), `prune-scratch.sh` (frees scratch disk space), and the prompt-test runners: `prompt-test-cc.sh` (Claude Code, the standard one for `sys_prompt/`), `prompt-test-cc-downstream.sh` (feeds a run's artifact to the reader it was written for), `prompt-test-cc-leg2.sh` (sends a case's second-leg instruction into the session leg 1 left behind), `prompt-test-run.sh` (opencode) | Running or modifying utility scripts              |
-| `systemd/`         | systemd **user** units, symlinked into `~/.config/systemd/user/` by `install.sh` and enabled by hand — `telegram-hitl.service` runs the Telegram proxy | Adding a long-running service, or diagnosing one that is `failed` |
-| `.github/`         | GitHub workflows and config                             | Modifying CI/CD, GitHub-specific settings         |
+| Directory | What | When to read |
+| --- | --- | --- |
+| `agent-tools/` | Rust binary `agent-tools`: every subcommand, the wrapped-run status channel, the hooks, root resolution, build | Running or modifying a subcommand; building it; reading a run status line |
+| `src/claude_config/` | Python package: session-log renderers, `count-tokens`, the hooks, the Telegram proxy | Modifying Python tooling; the Telegram channel on this machine |
+| `skills/` | Invocable skills (planner, deepthink, …) and the shared script framework | Using, modifying or adding a skill |
+| `agents/` | Sub-agent definitions (developer, architect, …) | Customizing agent behavior |
+| `sys_prompt/` | Full replacement prompts loaded via `--system-prompt-file`, not inherited by background sessions | Editing the launcher's system prompt — read `sys_prompt/CLAUDE.md` first |
+| `output-styles/` | Output formatting styles — the only prompt customization that survives a background handoff | Customizing output format; a rule that must hold in every session |
+| `scripts/` | `claude.sh` launcher, MITM proxy, drift and coupling guards, prompt-test runners | Running or modifying utility scripts |
+| `prompt-tests/` | Runner-neutral prompt evaluation cases | Running or grading prompt evaluations |
+| `conventions/` | Documentation and code-quality standards; `documentation.md` governs every CLAUDE.md here | Writing docs, understanding coding rules |
+| `docs/` | Reference material on Claude Code's own behaviour, captured prompts, design records | Investigating cc behavior; after an upgrade |
+| `notes/` | Long-form investigation write-ups — measured evidence and root cause, one behaviour each. Dated records: never rewritten to match later changes | Before re-investigating a known failure mode; after one worth keeping |
+| `plans/` | Plan storage | Reviewing or executing a plan |
+| `systemd/` | systemd **user** units, symlinked by `install.sh` and enabled by hand — `telegram-hitl.service` runs the Telegram proxy | Adding a long-running service; diagnosing one that is `failed` |
+| `.claude/` | Repo-local config; project skills `prompt-tests` and `update-claude-code` (post-upgrade runbook and what a release can break here) | Adding repo-local skills or hooks; after a Claude Code upgrade |
+| `.github/` | GitHub workflows and config | Modifying CI/CD |
 
-### `agent-tools/`
+## Build and test
 
-Rust binary wrapping skill script and Python tool invocations. Subcommands:
-
-- `agent-tools skill <mod> [args]` — run a skill script via `uv run python3 -m skills.<mod>`
-- `agent-tools cc-pretty [args]` — pretty-print Claude Code JSONL session logs. Its target is a path to a `.jsonl` log, or an id to look one up by: a session id or a subagent id, whole or as any unique prefix. An existing file always wins, so a file named like an id opens as itself; anything else is searched for by stem prefix under `<config dir>/projects` (`$CLAUDE_CONFIG_DIR`, else `~/.claude`) across both transcript families — `<slug>/<uuid>.jsonl` and `<slug>/<uuid>/subagents/**/agent-<hex>.jsonl`. The `**` matters: Workflow-tool subagents sit a level deeper under `subagents/workflows/wf_<id>/`, and the `agent-` stem is what keeps that directory's `journal.jsonl` — a record file, not a transcript — out of the search. Both subagent id spellings resolve, bare hex as the `agentId` field holds it and `agent-`-prefixed as the filename spells it. An id that matches nothing, or more than one thing, exits 2 naming the directory searched or the candidates; no match is ever picked for you. The path in the legend's `# recover:` recipe is absolute, so the recipe runs from anywhere, and an id resolution adds a `# source: <id> → <path>` line so the reader can see which file answered. Color is auto-detected (on for TTYs, off when piped or when `NO_COLOR` is set); `--color` forces it on, `--no-color` forces it off.
-- `agent-tools cc-pretty-intercept [args]` — pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`)
-- `agent-tools cc-render-coverage [--quiet] [--max-findings N] [PATH..]` — report content `cc-pretty` / `cc-pretty-intercept` fails to show. Renders each log at `--tool-max 1000000000` and emits one of three findings per defect: `load_error` (the file did not load at all), `renderer_truncation` (a `[N more chars]` marker the renderer produced at that unbounded limit, i.e. a hardcoded character cap ignoring the flag — markers already in the source are subtracted, because sessions here capture cc-pretty's own output as tool results), and `missing_content` (a content string in the source that is absent from the render). Paths ending `.jsonl` go through cc-pretty, anything else through the intercept renderer; with no paths it reads them from stdin. Exits non-zero when anything is found. Needles come from conversation content only — request messages plus the response for a capture, assistant/user message blocks for a session — so a clean run does not speak for JSONL attachment, progress or system records, several of which render as deliberate one-line summaries; `renderer_truncation` still covers them because it reads the whole render. Findings and pins live in `tests/test_render_coverage.py`.
-- `agent-tools cc-workflow [args]` — extract sub-agent workflow summary
-- `agent-tools ntfy-hook [args]` — Claude Code notification hook (wraps `python3 -m claude_config.ntfy_hook`)
-- `agent-tools count-tokens [--api] [--model MODEL] [--file PATH] [TEXT]` — count tokens in text (wraps `python3 -m claude_config.count_tokens`). Two backends that do not measure the same thing, so a count is only comparable to others taken the same way. The default is local and offline: the Qwen3.8 tokenizer vendored at `src/claude_config/tokenizer_data/`, counting the text and nothing else. `--api` instead returns the Anthropic `count_tokens` `input_tokens` for a request carrying the text as one user message, which adds a per-message envelope of ~11 tokens — `"hello world"` is 2 locally and 14 over the API. The tokenizers then diverge on top of the envelope, from −19% on deeply indented code to −61% on Chinese, because the Opus 4.7-and-later tokenizer is far coarser than current open-source ones — on `sys_prompt/alan-default-next.md`, Opus 5 and Sonnet 5 both report 10,002 and Opus 4.7 reports 10,007, while Haiku 4.5's older tokenizer reports 7,113, next door to Qwen3.8's 6,654. No scale factor reconciles them. Prefer `--api` whenever the number stands for Claude context consumed, such as a prompt-size budget; prefer the default for everything else, and note that it is the only backend that works in a worktree, whose gitignored `.env` is absent so no credential resolves. `--model` selects the Claude model for `--api` and defaults to `claude-opus-4-7` — where the recorded measurements in `docs/` and `notes/` were taken, kept there so they stay reproducible; passing it without `--api` is an error rather than a silently-ignored flag. The vendored tokenizer is checked against the sha256 in its `PROVENANCE.json` on every run, so a swapped or truncated file raises instead of quietly reporting different numbers. Unlike the other pass-through subcommands, `--help` is forwarded to the Python parser (`disable_help_flag`), because that help carries the backend warning.
-
-  Re-vendoring the tokenizer: download `tokenizer.json` from the `source`/`revision` in `PROVENANCE.json`, replace the file, then regenerate `PROVENANCE.json` (`sha256`, `bytes`, `vocab_size`, `revision`, `retrieved`). `tests/test_count_tokens.py` pins exact counts for known strings, so a swap that changes tokenization fails there rather than silently re-basing every future measurement.
-- `agent-tools env-context` — SessionStart hook rendering a `# Environment (supplement)` block, a `# Scratchpad Directory` section and a `# Git status at session start` section. Reads the hook payload on stdin (`cwd`, `session_id`). Since 2.1.269 Claude Code sends its own `# Environment` block to `--system-prompt-file` sessions too, as a `messages[]` attachment, so this hook carries only what that block does not: the checkout a worktree belongs to, where cc's line names no path; the stash caution; the shell the Bash tool actually runs, where cc's `Shell:` line reports a different quantity — measured 2026-09-13 in a live session, cc said `unknown` where this said `/bin/bash`; the session id, which cc's block never states; the drift note; and the git-status section standing in for cc's `gitStatus` reminder, gone since `settings.json` set `includeGitInstructions: false` — and unlike cc's it refreshes on resume, `/clear` and compact. The working directory, git-repo flag, platform, OS version and model line were dropped on 2026-09-13 as duplicates, and the payload's `model` field with them. The `# Scratchpad Directory` section is the one deliberate duplicate: cc's own scratchpad bullet and cc's own `mkdir` of that directory both sit behind `NA()` (`src/chunk-tnzzwz8r.js:13367`) — `tengu_scratch` or `isArtifactToolEligible()` — a server-resolved gate that can turn off with no change to the binary `check-env-context.sh` reads, so a flip would otherwise leave the session with no scratchpad instruction at all. It emits the `hookSpecificOutput` envelope itself — plain stdout would be injected as `SessionStart hook success: <text>` instead of verbatim. 2.1.268 stopped `--continue`/`--resume` waiting for SessionStart hooks before rendering, but the block still arrives: measured 2026-09-13 by resuming a `-p` session through `agent-tools claude`, whose transcript carries the attachment again immediately before the resumed leg's own user message. Claude Code falls back to the literal `unknown` when it cannot name a shell; this hook never does — when none resolves it says so explicitly (`"none found — no bash or zsh on this system, so Bash tool calls will fail"`). Warns when Claude Code's own env block drifts from the pinned field set in `docs/env-context-manifest.json`; `scripts/check-env-context.sh` shows the difference.
-- `agent-tools opencode [args]` — launch `opencode` with repo `.env` loaded for the opencode Langfuse plugin: maps `OPENCODE_LANGFUSE_SECRET_KEY`, `OPENCODE_LANGFUSE_PUBLIC_KEY`, and `OPENCODE_LANGFUSE_BASE_URL` to the unprefixed vars expected by the plugin (`LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_BASEURL`), sets git author/committer env to `opencode`, then forwards args to `opencode`. Where both the `.env` and the shell define one of these keys, the `.env` value is the one passed on — matching `src/claude_config/config.py`, which loads the same file with `override=True`; the shell is the fallback for a checkout whose gitignored `.env` is absent, such as a worktree. `opencode-plugin-langfuse` is disabled by default: the `plugin` array in `opencode/opencode.jsonc` is empty, so the mapping stays inert until the plugin is listed there.
-- `agent-tools opencode-pretty <session-id> [args]` — pretty-print an opencode session. Mirrors `cc-pretty`'s CLI surface (`--tool-max`, `--truncate-input`, `--no-thinking`, `--show-usage`, `--show-rewound`, `--show-all`, `--chat-only`, `--skeleton`, `--compact-all`, `--compact-leg`, `--agent`, `--validate-only`) and reuses cc-pretty's rendering pipeline. Color is auto-detected (on for TTYs, off when piped or when `NO_COLOR` is set); `--color` forces it on, `--no-color` forces it off. Compaction boundaries (user message with a `compaction` part) become Claude-Code-style `compact_boundary` system records. An uncleaned `session.info.revert` is surfaced via the rewind marker — opencode normally deletes the abandoned tail on the next prompt, so only revert states caught before that prompt show up here.
-- `agent-tools opencode.gate` — prompt gate used by opencode agent instructions; accepts stdin/heredoc input, prints gate instructions to stdout, and exits successfully.
-- `agent-tools claude [args]` — launch Claude Code against this checkout's binary, hooks, system prompt, and output style without installing them, forwarding `args` to `claude`. Refuses to run from the installed checkout, which `claude.sh` already serves. See `agent-tools/CLAUDE.md`, "Launching an uninstalled checkout".
-- `agent-tools run [--desc "<text>"] [--background] [--hide-cmdline] [--drain-cap-bytes N] <cmd> [args..]` — run a command inside this session's scope, capturing both streams to disk and reporting the child's fate to the agent out-of-band through the `hook-post` / `hook-prompt` status channel. The wrapper forwards the child's bytes unchanged and exits with the child's own code, so it stands in for the bare command. `--background` returns as soon as the child has started, prints one line — `<capture_dir>  wrapper pid <n>  child pid <n>` — and detaches the wrapper: it forks, the child calls `setsid`, and the original process exits, so the wrapper is reparented to init and out of the caller's descendant tree — which is the tree the kill at a Bash call's timeout walks. Its exit code means started, not succeeded; the child's own code arrives later on the status channel. A backgrounded run merges both streams into one `output` file and forwards neither, and a start that never happened exits non-zero with the reason on stderr. `--drain-cap-bytes` bounds the capture: from a downstream's refusal for a forwarded run, from the first byte for a backgrounded one, which has no downstream that could refuse. `--desc` names the run in reports, `ps` and the wrapper's `comm`; `--hide-cmdline` keeps `--desc` and the command out of `/proc/*/cmdline` for contamination-sensitive work (see `agent-tools/CLAUDE.md`).
-- `agent-tools ps [--format <json|text|statusline>] [--all] [--events] [--task <tool_use_id>] [--session-id <id>]` — report what this session's wrapped runs are doing. JSON by default: an envelope of `now`, `session`, `live` and `withheld`, with `settled` present only under `--all`. Live captures only, because a long session is mostly settled captures and their detail displaces what is still running from a size-limited tool result — 30 terminal captures with nothing live render 193 bytes by default against 15,516 with `--all`, and the withheld ones stay counted by key so none of them vanishes. `--events` adds the chronological event log to `--format text`, off by default because it was more than half the output while answering a different question; at any other format there is no event log to add and the flag says so on stderr rather than parsing into silence. `--format text` is the human-readable rendering; `--format statusline` is the one-line form `statusline.sh` consumes. No format commits the ledger, so reading `ps` never retires a change the push report still owes the agent.
-- `agent-tools run-core --capture-dir <dir> [--drain-cap-bytes N] -- <cmd>` — the same run as `run`, without the scope, the ledger, the hooks or `AGENT_TOOLS_PARENT_DIR`. Every passthrough property is a property of processes, so testing one means driving a real binary; this is that binary, and it agrees with `run` byte for byte on both forwarded streams and on the exit code. A disagreement is a defect in whichever is wrong. The system prompt deliberately does not teach it — agents should reach for `run`, which is the one that reports.
-
-Root resolution:
-1. The binary's compile-time root is authoritative: parent of `CARGO_MANIFEST_DIR` when `agent-tools` was built.
-2. `CLAUDE_CONFIG_ROOT` is an assertion, not an override. If set, it must name the same directory as the compile-time root or `agent-tools` exits non-zero. The comparison is on directory identity (device + inode), not path spelling, so a bind mount serving one checkout under two names is one root rather than two.
-3. If the compile-time root differs from the default root derived from `<config dir>/skills`, `CLAUDE_CONFIG_ROOT` must be set to the compile-time root or `agent-tools` exits non-zero. The config dir is `$CLAUDE_CONFIG_DIR` when set, else `~/.claude` — the directory Claude Code itself is reading. A session launched against one checkout's config therefore refuses any binary that is not that checkout's, instead of letting the installed build answer its hooks unremarked.
-
-There is no `--root` override. This applies to all subcommands, including `run`, `hook-pre`, `hook-post`, `ps`, and `opencode.gate`, so wrong-worktree prompt tests fail loudly instead of silently exercising another checkout's binary or gate text.
-
-Venv location: each project root resolves to `~/.claude/venvs/<basename>/` (set via `UV_PROJECT_ENVIRONMENT`), keeping venvs out of the source tree so host and container sessions don't fight over the same `.venv`.
-
-Build: `cd agent-tools && cargo build --release`. Installed as a symlink at `~/.local/bin/agent-tools` → `<repo>/agent-tools/target/release/agent-tools` by `install.sh`.
-
-**Worktrees must NEVER run `install.sh`** — the symlinks must always point to the canonical repo. Worktrees that install their own build will break all other sessions when the worktree is deleted.
-
-Testing from a worktree without installing:
 ```bash
-cd agent-tools && cargo build --release
-CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools skill <module> [args...]
+cd agent-tools && cargo build --release   # then: cargo test
+UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/$(basename $PWD) uv run pytest
+scripts/check-prompt-coupling.sh         # emitted strings vs the prompt
 ```
 
-### `settings.json` — `CLAUDE_CODE_FORK_SUBAGENT`, and how subagents stay in the foreground
+## Agent Policy
 
-`env` sets `CLAUDE_CODE_FORK_SUBAGENT=0`. That is the whole harness-side configuration:
-keeping subagents in the foreground is the system prompt's job, and the model's.
-
-The gate does not foreground anything by itself — it decides whether the model gets a say.
-The Agent tool backgrounds on a disjunction (`q4o`, `src/chunk-dbb93264.js:103955-103969`),
-and with the gate on, two of its terms are out of reach: `forceAsync` is `Z8() && !callerIsInProcessTeammate`
-(`:172000`), and the input schema drops `run_in_background` outright (`rc() || Z8()`, `:171779`),
-so there is no parameter to pass. Turning the gate off clears `forceAsync` and puts the parameter
-back. What remains is the last term, `!s && r !== !1`: **the call backgrounds unless
-`run_in_background` is literally `false`**. Omitting it backgrounds exactly as `true` would.
-The price of the gate is the `fork` subagent type, which disappears outright — `Agent type
-'fork' not found. Available agents: …`.
-
-So `sys_prompt/alan-default-next.md` tells the agent to pass `run_in_background: false` on
-every Agent call, and nothing enforces it. A call that leaves the parameter out is backgrounded
-and reads in the transcript like any other call.
-`prompt-tests/general/subagent-foreground-default` is the standing check; run it after any
-change to that bullet, to the Agent tool description, or to this gate.
-
-Until 2026-09-16 a `PreToolUse` hook on `Agent` rewrote `run_in_background` to `false` on
-every call, which made the foreground a harness guarantee rather than a model behaviour. It
-was removed so the model decides per call. Measured the same day on 2.1.269, hook removed and
-the prompt still describing it: 3 of 3 Agent calls omitted the parameter and all three returned
-`Async agent launched successfully`. With the bullet rewritten as an instruction, 9 of 9 calls
-across three trials passed `false` and none backgrounded.
-
-Two terms of the disjunction neither the gate nor the prompt reaches: an agent definition
-declaring `background: true` of its own, and `isolation: "remote"`, which sits outside the
-background-tasks guard entirely. No agent in `agents/` declares either, so neither is
-reachable here today; both would be, the moment one did.
-
-`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is the alternative, and the only setting that makes
-the foreground a guarantee again: it forces every subagent foreground — bar a remote-isolation
-launch, which runs async regardless — with no help from the model, and keeps `fork`. What it
-costs instead is the whole background-task facility, a far larger loss than `fork`. Reach for
-it if the prompt rule turns out not to hold. Measured in one interactive session each:
-
-| | `DISABLE_BACKGROUND_TASKS=1` | `FORK_SUBAGENT=0` |
-| --- | --- | --- |
-| Bash `run_in_background` | absent from the schema | present; returns a task id and re-invokes the agent when the command exits |
-| A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id. Upstream exempts a command whose first statement is `sleep`, but `hook_pre.rs` prepends two statements to every command, so that exemption is unreachable here — measured 2026-09-21, see `docs/agent-tools-status-reference.md` |
-| `BACKGROUNDED:` from `hook_post.rs` | cannot fire, since no tool response carries `backgroundTaskId` | fires, naming the cause, the task id, and the `long-bash` skill |
-| `subagent_type: "fork"` | available | `Agent type 'fork' not found` |
-| Foreground `sleep` | permitted | blocked at 25 s or more, and only as the command's first statement — `echo hi; sleep 25` runs. The Bash description states the block unconditionally and points at Monitor with an until-loop. Measured 2026-09-21 |
-
-Source only, not exercised under either setting: MCP auto-background
-(`src/chunk-jtrs4f58.js:255`), the Ctrl+B backgrounding affordance
-(`src/chunk-qxhez8yz.js:99`, with the keybinding itself at `:32`), observer agents (`Zfe`,
-`src/chunk-dbb93264.js:74088`), and forked skills (`y9t`,
-`src/chunk-dbb93264.js:173976`). All four still ship in 2.1.269, and each opens on the same
-`rc()` background-tasks check, so each returns under the current setting — re-read against
-this version rather than carried over from the 2.1.235 reading in
-`notes/subagent-backgrounding-overrides-run-in-background.md`.
-
-The skill half is not opt-in as that note has it: `background` defaults to true for any
-skill declaring `context: fork`, and `background: false` is the opt-out that keeps the
-caller waiting (`src/chunk-dbb93264.js:54434`).
-
-`CLAUDE_AUTO_BACKGROUND_TASKS` is a third knob neither setting covers: set, it moves a
-foreground subagent to the background after its interval (`iTs`,
-`src/chunk-dbb93264.js:171747`, wired at `:172571`). Unset here, so inert — but it bounds
-`DISABLE_BACKGROUND_TASKS=1` too: even that setting guarantees a synchronous subagent only
-in an environment that leaves this one unset.
-
-The Agent tool's own description, and the `run_in_background` property's description beside it,
-both recommend backgrounding by default. That is now accurate rather than false, so
-`sys_prompt/alan-default-next.md` overrides the recommendation instead of contradicting a fact
-— and the conflict is decided per call, by the model.
-
-Measured evidence and the source reading are in
-`notes/subagent-backgrounding-overrides-run-in-background.md`.
-
-### `scripts/claude.sh`
-
-The launcher. Exports the `Claude` git identity, sets `IS_SANDBOX=1` and
-`CLAUDE_CODE_DISABLE_AGENT_VIEW=1`, optionally points Node at the MITM proxy on
-`127.0.0.1:9160`, then execs
-`claude --dangerously-skip-permissions --system-prompt-file <repo>/sys_prompt/alan-default-next.md`.
-
-`CLAUDE_CODE_DISABLE_AGENT_VIEW=1` is load-bearing: background/agent-view forks drop
-`--system-prompt-file`, so without it a forked session silently runs the stock prompt
-(`docs/background-sessions.md`).
-
-The prompt path is resolved from the script's own real location via `readlink -f`, so
-the installed `~/.local/bin/claude.sh` symlink loads the canonical repo's prompt, while
-invoking a worktree's copy by path (`/root/claude-config-work/scripts/claude.sh`) loads
-that worktree's prompt — which is how a prompt edit gets exercised before it merges.
-
-The proxy env (`HTTPS_PROXY`, `NODE_EXTRA_CA_CERTS`, `NODE_OPTIONS=--use-env-proxy`) is
-bound only when a TCP connect to `127.0.0.1:9160` succeeds. With no listener the launcher
-prints a warning to stderr and runs unintercepted, instead of exporting a proxy that would
-fail every request with ECONNREFUSED. The listener itself comes from the canonical venv
-provisioned by `install.sh`; see the HIDDEN PATH DEPENDENCY note there.
-
-It also exports `CLAUDE_CODE_TMPDIR="$HOME/.claude/tmp"`. Claude Code roots its
-per-session scratchpad there (`AS()`, `src/chunk-tht8x923.js:19`), for the main
-agent and for subagents alike, so redirecting the root is the only way both
-agree on one directory —
-under `$HOME` rather than `/tmp` because `/tmp` is container overlay and is lost
-on a rebuild, while this container's home is a host bind mount. The same
-variable also roots plugin session directories, skill and plugin zip staging,
-the IPC socket directory, and entries in the sandbox write allowlist. The
-socket actually roots at `XDG_RUNTIME_DIR` when that is set, falling back to
-this variable only when it is not (`jxr()`, `src/chunk-g92e0w45.js:567`), and either
-way falls back further to `/tmp` when the resulting path exceeds the `sun_path`
-limit.
-
-Scratch is persistent, so nothing reclaims it automatically.
-`scripts/prune-scratch.sh` reports and, with `--apply`, deletes empty session
-scratchpads.
-
-### `src/claude_config/`
-
-Python package installed editable in `~/.claude/venvs/<basename>/` (see "Venv location" above) as `claude_config`. Contains custom (non-upstream) Python tools:
-
-| Module                          | What                                            | CLI entry point                 |
-| ------------------------------- | ----------------------------------------------- | ------------------------------- |
-| `claude_config.cc_pretty`       | Parse and render Claude Code JSONL session logs | `cc-pretty`                     |
-| `claude_config.cc_pretty_intercept` | Pretty-print one MITM intercept log file (`~/.claude/requests-log/<session>/NNNN.json`) | `cc-pretty-intercept` |
-| `claude_config.cc_workflow`     | Sub-agent workflow extraction and analysis      | `cc-workflow-extract`           |
-| `claude_config.opencode_pretty` | Pretty-print an `opencode export` session — reuses cc-pretty's renderer and CLI flags via the shared pipeline; the local `convert.py` flattens opencode's part-based messages into cc-pretty records | `opencode-pretty`               |
-| `claude_config.cc_pretty.coverage` | Coverage check: content the renderers fail to show at unbounded `--tool-max` | `cc-render-coverage` |
-| `claude_config.config`          | Load `/repos/claude-config/.env` into `os.environ` | (library — `from claude_config.config import load`) |
-| `claude_config.ntfy_hook`       | ntfy notification hook for Claude Code          | `agent-tools ntfy-hook`         |
-| `claude_config.env_context`     | SessionStart hook: `# Environment (supplement)`, `# Scratchpad Directory` and `# Git status at session start` — only what cc's own env block does not carry | `agent-tools env-context` |
-| `claude_config.telegram_hitl`   | Local Bot API proxy for human-in-the-loop over Telegram: one flock-guarded process owns the single `getUpdates` drain, forwards sends from any number of sessions, and appends both directions plus its own faults to one JSONL log. Lock, socket, log and offset all live in `TELEGRAM_HITL_STATE_DIR`, which is required and has no default — the directory is shared across containers whose homes differ, and a home-derived path would give each its own lock and its own drain. Sends go over `proxy.sock` in that directory rather than a port, because a port number names a different socket in every network namespace that reads it. Design: `docs/superpowers/specs/2026-09-12-telegram-hitl-design.md` | `python -m claude_config.telegram_hitl` |
-
-### The telegram-hitl channel on this machine
-
-One proxy serves the host and every container, run by the systemd user service
-`systemd/telegram-hitl.service`. Nothing else should start one; a session that
-does is refused by the lock.
-
-| | |
-| --- | --- |
-| State directory | `/home/alan/personal/telegram-hitl` — socket, log, `chat_id`, offset, lock |
-| Bot token | `/home/alan/.claude/channels/telegram/.env`, mode 600 (`config.DEFAULT_TOKEN_FILE` for the service's user) |
-| Who is told the path | `settings.json` `env` for Claude sessions; `environment:` in `personal/telegram-test/docker-compose.yml` for everything else in that container |
-
-The state directory sits under `/home/alan/personal` because every `personal-env`
-compose file bind-mounts that tree at its own path, so the same absolute path
-reaches the same socket from the host and from inside any of those containers
-with no volume of its own. A path under either home would not: the host's is
-`/home/alan`, each container's is `/root`.
-
-Docker here is rootless, so a container's root is the host's `alan` and the
-0600 socket and log are readable from inside without widening either.
-
-`telegram-bot@telegram-bot-skill` must stay off: it polls `getUpdates` on the
-same bot token, and a second consumer is not refused by Telegram — it evicts the
-first, and the channel then goes silent rather than erroring. An installed
-marketplace plugin that no `enabledPlugins` entry names is never a load
-candidate, so leaving it out of `settings.json` disables it exactly as `false`
-does (`claude plugin list` reports both as `disabled`).
-
-### `skills/copy-writing-style/`
-
-Style-matched content generation from any style reference file. 3-phase iterative workflow: (1) extract ranked distinguishing features, (2) draft targeting top features, (3) iterate with self-critique loop (max 3 rounds). Uses `steps.md` with `<!-- step N -->` markers, minimal Python in `scripts/skills/copy_writing_style/do.py`.
-
-### `skills/playwright-cli/`
-
-Vendored from the `@playwright/cli` npm package, not hand-written. Generated from upstream tag `v0.1.18` by `playwright-cli install --skills --global`, which writes through the `~/.claude/skills` symlink into this repo.
-
-`git diff` is the only drift signal: the CLI's own staleness check (`skillCheck.js`) inspects cwd-relative `.claude/skills` only, so a `--global` install is never warned about. After `npm update -g @playwright/cli`, re-run the install and review the diff.
-
-The binary itself is installed by the container image (`/workspace/docker/Dockerfile`), not by this repo.
-
-### `docs/`
-
-| Path                                       | What                                          | When to read                                            |
-| ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------- |
-| `opencode-system-prompt/`                  | opencode prompt notes: `alan-default-ids.md` per-delta annotation (`alan-default-commentary.md`), `min-commentary.md` (scope and design rationale for the diagnostic minimum baseline at `opencode/agents/min.md`), `build-self-reported.md` outlining the session prompt assembly | Investigating opencode prompt behavior, `alan-default-ids.md` deltas vs upstream codex gpt-5.5 `base_instructions` (from `/repos/codex/codex-rs/models-manager/models.json`), or why a specific clause is present |
-| `system-prompt-anatomy.md`                 | Simplified overview of system prompt assembly — pinned to cc 2.1.88 source | Quick orientation, understanding prompt structure       |
-| `system-prompt-anatomy-source-verified.md` | Detailed anatomy with function references — pinned to cc 2.1.88 source     | Debugging context loading, source-level understanding   |
-| `system-prompt-snapshot/`                  | Captured system prompts, messages and tool definitions, and the full API requests they come from — live capture, cc 2.1.269. Each capture is `request.json` (the artifact of record) plus a rendering of it that a `git diff` can be read in: `prompt.md` for everything that is not a tool, one file per tool under `tools/`. Directories are keyed by the model id the request carried (`opus-5/`, `opus-4-8/`, `opus-4-7/`, `sonnet-5/`, `fable-5/`), because cc serves two different default prompts and picks per model, not per version: the compressed `# Harness` one goes to models whose registry entry declares the `lean_prompt` capability (opus-5, opus-4-8, fable-5, fable-5-1, mythos-5-1), the older multi-section one to everything else including every sonnet and opus-4-7. Which models answer at all is an account entitlement, not a version fact — fable returned HTTP 429 "requires usage credits" until the subscription was upgraded, and mythos-5 still returns 404. Two things a default capture withholds are captured separately: the 18 deferred tools' descriptions and schemas in `<model>/tool-search-loaded/tools/` (one `ToolSearch` call grows the roster from 15 tools to 33, because the server expands the `tool_reference` entries it returns — not the `<functions>` block its own description advertises, which no code emits; captured for opus-5 and sonnet-5, which is enough because only `WebFetch` and `WebSearch` differ between them), and the 17 built-in skills' bodies in `builtin-skills/` (512,397 chars, model-independent so stored once; read `builtin-skills/README.md` before re-capturing — interactive mode, `--setting-sources project,local` and a resolvable `origin/HEAD` each silently degrade a body to a stub rather than erroring) | Comparing prompt versions, understanding API parameters, spawning a `claude` child that must authenticate |
-| `background-sessions.md`                   | How a session moves to the agent view (FleetView), what the fork inherits, disable knobs — cc 2.1.269 | Diagnosing a session that backgrounded itself, or a custom system prompt that stopped applying |
-| `tool-token-limits.md`                     | Token counting, truncation, and size limits per tool | Understanding tool output constraints, debugging limits |
-| `agent-tools-status-reference.md`          | Full `agent-tools run` status grammar, passthrough differences from bare, and the kill boundary — the exhaustive half of what `sys_prompt/alan-default-next.md` states in brief; pinned to source by `scripts/check-prompt-coupling.sh` | Reading a status line in detail, diagnosing a wrapped run, or editing either side of the prompt/source coupling |
-| `env-context-manifest.json`                | Pinned cc version and env-block literal set `agent-tools env-context`'s drift check is pinned to; re-pin with `scripts/check-env-context.sh --update` after a Claude Code upgrade. Byte-offset derivation for the two literal lists: `notes/env-context-manifest.md` | Reviewing or re-pinning after a drift warning |
+- **Worktrees must NEVER run `install.sh`.** The `~/.claude` symlinks must always point at
+  the canonical checkout; a worktree that installs its own build breaks every other session
+  when it is deleted. Build in place — `agent-tools/CLAUDE.md`, "Testing from a worktree".
+- `agent-tools` takes its root from compile time and has no `--root` override.
+  `CLAUDE_CONFIG_ROOT` only asserts that root; disagree with it, or leave it unset for a
+  non-default build, and every subcommand exits non-zero instead of answering with another
+  checkout's config.
+- Python venvs live at `~/.claude/venvs/<repo-basename>/` (`UV_PROJECT_ENVIRONMENT`), never
+  in the source tree, so host and container sessions don't fight over one `.venv`.
+- After a Claude Code upgrade, work through `.claude/skills/update-claude-code`: many files
+  here are pinned to a cc version and go stale with no signal.
