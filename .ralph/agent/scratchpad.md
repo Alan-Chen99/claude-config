@@ -3,8 +3,7 @@
 The objective's sharpest clause is *things that do not require explicit human
 approval to add, but require human intervention to remove*; the rest follows from
 that ratchet. The user's 2026-09-24 followup makes *less documentation gets
-written* the top priority and hands a live case for it. Carry **what retires this
-line** into every decision.
+written* the top priority. Carry **what retires this line** into every decision.
 
 ## Durable method, reusable across rounds
 
@@ -26,9 +25,6 @@ outranks any new candidate — inside the objective's scope only.
 
 **When an instruction exists to compensate for a harness, fix the harness.**
 
-**Attribution runs on the decision's index, not the read's**, and a live case's
-growth is charged to the prompt only after reading the request that started it.
-
 **The prompt is the whole stack, not one file.** `sys_prompt/alan-default-next.md`,
 `output-styles/`, `conventions/documentation.md` (reached only via `doc-sync`,
 `technical-writer`, `quality-reviewer`, `planner`) and
@@ -40,8 +36,7 @@ If it disappears there, the target is the genre and not the wording.
 
 **A fixture written from the shape of the line tests the wording, not the world.**
 Real session logs under `~/.claude/projects/` carry the base rate a fixture
-cannot. One extraction of one live session found the mechanism three fixture
-rounds had missed (22).
+cannot.
 
 ## Standing `(contract)`
 
@@ -62,13 +57,19 @@ rounds had missed (22).
 > `sys_prompt/CLAUDE.md` what its own measurement showed that makes no edit the
 > right call. A round that ships no prompt edit may add a paragraph there only as
 > the first justification of a line that had none, naming the instrument defect a
-> later round must fix; otherwise it may only replace a paragraph, shorter. 27 hit
-> the contradiction: that file exists to justify prompt lines, and the old wording
-> made a kept line's first measurement unrecordable.
+> later round must fix; otherwise it may only replace a paragraph, shorter.
+
+> **Run the case-ownership grep in both directions before leaving.** A paragraph in
+> `sys_prompt/CLAUDE.md` naming no case, or naming a fixture property no case has,
+> states nothing a later round can observe; it is deleted or given its case by the
+> round that finds it. The skill states the rule; rounds have only ever run the
+> direction that deletes fixtures.
 
 > Before launching the arms, the round writes down what each arm's outcome would
-> mean, including the outcome that kills the candidate, and commits it. A reading
-> composed after the arms are in is not admissible.
+> mean, including the outcome that kills the candidate, and commits it. **Outcomes
+> are keyed to the blind reader's own questions**, and where the trees of one arm
+> disagree on an axis that axis is spread, not effect. A reading composed after the
+> arms are in is not admissible.
 
 > **A round's decisive reading is made by a reader that is not the round**, told
 > neither what is being tested nor which arm is which.
@@ -88,8 +89,7 @@ rounds had missed (22).
 > repo — or records that it looked and found none.
 
 > **A claim that the round's fixtures differ in some property is quoted from each
-> fixture it compares, in the commit that first states it.** The whole comparison
-> is named, deleted ones included (`git show <sha>:<path>`).
+> fixture it compares** — the whole comparison, deleted ones included.
 
 > **The round ends under the user's `.ralph/agent/*` ceiling, with the number in
 > its last commit message.** A round's own narrative is not what it spends the
@@ -117,61 +117,62 @@ still in the block has been measured alone.
 ## Iteration 26 — `00396475` → `d8b2ba5c`
 
 Withdrew 25's instruction 1: git showed iteration 19 had already run the case it
-said no round had run. Opened the live case the user handed, `e828eab7`. Fixed
-`agent-tools claude` to assert the venv's `claude_config` comes from this
-checkout — without it arm b was a silent null. Shipped the deletion of
-`pre_output.record`'s `NEVER reply to user if uncertainties remain` on three runs
-of `retirement-policy`; DEC-034 carries the reading and its limits. Transferable
-result: a rule arriving in a tool result acts only on what follows the call, and
-every arm replied with residual doubt still listed anyway.
+said no round had run. Shipped the deletion of `pre_output.record`'s `NEVER reply to user if
+uncertainties remain` on three runs of `retirement-policy`; DEC-034 carries the
+reading and its limits. Transferable: a rule arriving in a tool result acts only
+on what follows the call, and every arm replied with residual doubt listed anyway.
 
-## Iteration 27 — `d8b2ba5c` → `fb8b260d`
+## Iteration 27 — `d8b2ba5c` → `59bb9965`
 
-### Critique of 26
+Withdrew 26's live-case attribution — record 107 named both doc homes before 108
+read `conventions/documentation.md`, which nothing auto-loads. Milestone:
+`alan-default-next.md:15`'s third clause, shipped and never justified. Four runs,
+two arms, no prompt edit: a blind reader grouped all four trees on whether the
+*first* listing showed the `.md` files, a split cutting across the arms, and the
+arm *without* the clause is the one that grepped exactly the root `CLAUDE.md` the
+clause names. DEC-035 records the line untested and names the instrument fix.
+Arm-independent, on the top priority: a doc repair is a paragraph **rewrite** that
+drops inherited rationale, and it **appends** prose the change had not falsified.
 
-**C1 (fact).** 26 attributed the live case's two-homes decision to
-`conventions/documentation.md`'s *Duplication is acceptable*, "read at
-record-index 108 and followed at 112". Record 107 names both homes before 108
-reads the file, 108's stated purpose is table formatting, and 112 justifies the
-second home by audience. Withdrawn, and with it instruction 2.
+## Iteration 28 — `59bb9965` → (pending)
 
-**C2 (fact).** That file is not "auto-pulled by any doc-writing task": only
-`skills/doc-sync`, `agents/technical-writer`, `agents/quality-reviewer` and
-`skills/planner` reference it, none auto-loaded.
+### Critique of 27
 
-**C3 (workflow).** The live case's user prompt ends "and docuemnt it". 26 framed
-the growth as unrequested; what the stack can be charged with is spread.
+**C1 (workflow — the loop's own ratchet).** A round that shipped no prompt edit
+added 36 lines to `sys_prompt/CLAUDE.md`, concluding in its own text that the line
+is untested and that its two real findings do not belong in that file. The probe
+those lines rest on was deleted in the same commit, so the paragraph names no case
+and its stated condition — *a fixture whose doc files are named in the auto-loaded
+root `CLAUDE.md`* — names a fixture property no case has. The skill already calls
+that a deletion candidate; no round had ever run the grep in that direction.
+Contract amended above. The amendment permitting the addition was written by 27
+in the commit that used it.
 
-**C4 (fact — the milestone).** `sys_prompt/alan-default-next.md:15`'s third
-clause, *After making a new file or making edits, check if project CLAUDE.md
-needs an update*, is wider than the fork it came from
-(`output-styles/alan-default-next.md:70`) and `sys_prompt/CLAUDE.md` had no
-section on `# Doing tasks`, so the widening was never justified.
+**C2 (workflow — priority).** 27's only reproducible, arm-independent observation
+was the growth mechanism the user's followup calls the top priority, and it
+disposed of it in four words — *neither mechanism lives in `sys_prompt/`* — with
+no test and no argument, then pointed 28 at search breadth, which serves doc
+correctness instead. `# Writing for other agents` ships two bullets aimed at what goes
+into a lasting document; neither was varied in those runs, so nothing measured
+supports the claim that the prompt cannot reach the mechanism.
 
+**C3 (measurement).** Both of 27's pre-registered outcomes "partly fired", so
+neither was honoured and four runs decided nothing. The defect is the pre-registration: outcomes were
+written about the trees while the decisive reading turned out to be a blind
+reader's grouping nobody had named. 28 pre-registers the reader's questions and
+derives the outcomes from the answers.
 
-### The round's work and result
+### Milestone
 
-No prompt edit. Four runs, two arms, one task. **The clause bought nothing
-attributable, and the decisive variable was not the arm:** a blind reader holding
-all four trees grouped them on whether the *first* listing showed the doc files
-(`ls -R`, `find -name '*.md'`) or not (`ls -la` + a `.py` sweep), a split cutting
-across the arms. The one tree that left docs false was an arm without the clause
-whose stratum-mate recovered on one `grep --include`; and the arm *without* the
-clause is the one that grepped the root `CLAUDE.md` the clause names, while the
-arm with it went wider. Both pre-registered outcomes partly fired; neither is honoured. `sys_prompt/CLAUDE.md` records the line as untested and names the
-instrument fix: doc files listed in the auto-loaded root `CLAUDE.md`.
+The whole of `alan-default-next.md:15` on trial for deletion — not the third
+clause alone, which subsumes 27's instruction 1, since the breadth sentence it
+names is the second. The instrument defect C1 names is fixed first: the fixture's
+auto-loaded `CLAUDE.md` indexes every doc file, so no arm can miss them.
+Pre-registration and fixture: `prompt-tests/runs/option-and-encoding/README.md`.
 
-Two arm-independent findings the same runs support are in `sys_prompt/CLAUDE.md`
-in full: a repair is a **rewrite** that drops inherited rationale, and a repair
-**grows**. Neither's home is `sys_prompt/`.
+### `(instruction)` for iteration 29
 
-### `(instruction)` for iteration 28
-
-1. Search breadth, not the named artifact, decided every doc outcome here.
-   `# Doing tasks` already carries *Search for references across the entire
-   codebase*, and two of four runs scoped their search to `.py` or to one file.
-   That is the measurable line in this block, and it is shipped and unjustified.
-2. 26's instruction 1 is unspent: read `# Epistemic Integrity`, `# Error
+1. Unspent from 26, twice deferred: read `# Epistemic Integrity`, `# Error
    Propagation` and `## Required notes` as prose before measuring any of them.
-3. `tasks.jsonl` grows ~190 tokens a round against the ceiling, with no prune
+2. `tasks.jsonl` grows ~190 tokens a round against the ceiling, with no prune
    command. Round 30's cleanup solves that or the ceiling eats the scratchpad.
