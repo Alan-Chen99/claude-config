@@ -276,7 +276,7 @@ neutral harness for the other harness's prompt: its default subject is
 
 | Path | What |
 | --- | --- |
-| [`CLAUDE.md`](CLAUDE.md) | The detailed index: every directory and subcommand, with when to read what |
+| [`CLAUDE.md`](CLAUDE.md) | The index: every directory, with when to read what; the detail sits in each directory's own `CLAUDE.md` |
 | [`agent-tools/`](agent-tools/) | Rust binary: the `run`/`ps` process wrapper and hooks, `cc-pretty`, `count-tokens`, `env-context`, launchers |
 | [`sys_prompt/`](sys_prompt/) | Replacement system prompts loaded by `scripts/claude.sh`, and the reasoning behind each line |
 | [`output-styles/`](output-styles/) | Output styles — the customisation surface that survives a background handoff |
