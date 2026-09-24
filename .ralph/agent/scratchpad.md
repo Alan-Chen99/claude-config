@@ -99,112 +99,67 @@ commit messages. Shipped: `Say what ends it` (9). Deleted: `Omit by default`
 harness contamination and voided every arm stored before 2026-09-22. Every
 sentence still in the block has been measured alone.
 
-## Iteration 22 — `942cf683` → `fa5128ea` + this commit
+## Iteration 22 — `942cf683` → `06679ac6` (context)
 
-### Critique of prior iterations
+Diagnosed a live session rather than a fixture, and falsified the block's
+standing explanation of documentation growth: growth has a moment, and a
+document soliciting additions supplies it. Ran the `busiest-few` probe four
+ways (`6b52d254` … `fa5128ea`; restore with `git checkout 307ccfa6 --
+prompt-tests/runs/busiest-few`). Candidate 1, aimed at inherited defects,
+bought nothing — those go to the reply, which the response template already
+slots. Candidates 2 and 3 are one claim under two vocabularies; each met its
+pre-registered ship criterion and neither shipped, because 22 read two
+collateral costs as outranking it.
 
-**C1 (fact — the block's standing explanation of documentation growth is false
-where it is widest).** `sys_prompt/CLAUDE.md` asserts *the task's subject bounds
-the edit … outside it almost nothing moves*, and that relocation-as-growth is a
-hazard of cleanup tasks *not of writing tasks*. The live session the user named
-(`e828eab7`, commits `0d3c560b`/`b394ebbf`) is a writing task — add one symlink,
-"document it" — that moved well outside its subject: a long row into
-`.claude/skills/update-claude-code/SKILL.md`'s coupling inventory and a new
-seven-line Agent Policy into `skills/session-analysis/CLAUDE.md`, neither about
-the symlink. Its own Required notes call the first an `unexpected change`. Two
-mechanisms are visible in its reasoning and neither is the one the paragraph
-names. **(A) Repair was weighed and the rule was chosen**: having found that
-Skill-tool `args` corrupt literal `$N` in a skill body, the session considered
-"just fixing the SKILL.md helpers directly (e.g. switching to named locals) to
-eliminate the coupling entirely", declined because the file was under active
-user edit, and wrote two standing rules instead. **(B) An existing document's
-trigger recruited the extension**: the `update-claude-code` description ends
-*…belongs in this skill's inventory*, and the session's reasoning tracks
-straight from that to adding the row. So growth here is an act with a moment,
-reasoned about explicitly — which is what the paragraph denies. The deletions of
-`Omit by default` and `Claim less` may still stand; their stated *explanation*
-is generalised past the fixtures that produced it, and later rounds steer by the
-explanation.
+## Iteration 23 — `06679ac6` → this commit
 
-**C2 (workflow — twenty-one rounds of evidence, all of it from fixtures the round
-wrote).** `decisions.md` admits the standing bias: *each fixture was written from
-the shape of the line its round meant to test*. Meanwhile every real session on
-this machine is logged under `~/.claude/projects/`, this repo ships
-`session-analysis` and `agent-tools cc-pretty` to read them, and no round used
-one. The cost is measurable: mechanisms (A) and (B) sat in a live log and came
-out in one extraction, after three fixture rounds returned nulls on the same
-subject. Fixed by the contract clause above.
+### Critique of 22
 
-**C3 (workflow — the loop's own artifacts are the ratchet the objective is
-against).** `.ralph/agent/*` stood at 5943 of the user's 6000-token ceiling with
-no round having cut, nine `(contract)` clauses and eight method notes, each added
-by an iteration and removable only by an override or by the human who set the
-ceiling. Round 21 further duplicated four of its own claims into `memories.md`
-while `sys_prompt/CLAUDE.md` already carried them as the durable home. Cut this
-round: the run narratives in `decisions.md`, the memories that restate
-`sys_prompt/CLAUDE.md`, and 21's iteration narrative.
+**C1 (fact — the cost that stopped the ship is the fixture's own house style,
+checkable with no run).** 22 blocked the ship on: the treated arms omit
+argparse's `metavar`, so their `docs/report.md` says `[--top N]` while `--help`
+prints `[--top TOP]`. The fixture's only other option is
+`rep.add_argument("--since")` — no `metavar`, no `help` — and its
+`docs/report.md` documents it as `--since YYYY-MM-DD`. **The delivered
+documentation contradicted the delivered program before any arm ran.** The arms
+that omitted `metavar` matched the one neighbour they had; the arms that set it
+improved on house style. 22 priced this as "a correctness defect in the one file
+the line steers content toward". Its accompanying claim — *no arm on either side
+reasons about that surface* — is also false: the candidate-1 arm's thinking says
+"I'll wire this into the argument parser with metavar N".
 
-**Override of 21's `(instruction)` 1–2** (write a ninth claim-handling wording
-against `maintainer-briefing`). The user's followup, which 21 did not see, makes
-documentation growth the priority; claim-handling has produced four consecutive
-nulls; and C1 supplies a growth mechanism with a moment, which is exactly what
-the earlier growth wordings lacked. The `maintainer-briefing` condition stays in
-`sys_prompt/CLAUDE.md` and the case with it — it is unrun, not refuted.
+**C2 (fact — the second cost has an alternative reading 22 never excluded).**
+22 recorded that both treated arms "dropped the `--since` interaction" and
+called that under-documentation. Displacement fits the same observation: the
+untreated arm filed the tie-break fact in `CONVENTIONS.md` and the composition
+sentence in `docs/report.md`; the treated arms filed the tie-break in
+`docs/report.md` and left the composition out, at about equal bullet length. If
+that is what happened the line wrote no less — it routed a self-made fact into
+the slot another fact held. The pre-registration could not separate the two, so
+the cost is underdetermined rather than established, and it decided the round.
+
+**C3 (workflow — an unexplained observation became a standing blocker in the
+durable home).** `sys_prompt/CLAUDE.md` now reads "…the split is observed and
+unexplained, which is why none is shipped". The user's rule is that a claim is
+valid only with a hypothesis of why beside it; this one states it has none, and
+it is the reason a measured effect does not ship. A sentence that blocks an
+action and names no observation that would lift it is the ratchet the objective
+targets: nothing a later round can see retires it.
+
+**C4 (workflow — 22's instruction 1 prescribes what the user's guidance rules
+out).** *Default to `n=1`. If you want more, build new cross-domain test cases;
+do not replicate.* Instruction 1 is a re-run of one arm of the same fixture, and
+a third draw on a 2-vs-2 split settles nothing either way. **Override of
+instruction 1.** Instruction 3 — build the second genre rather than re-running
+this one — is taken instead, and C1 removes the question instruction 1 existed
+to answer.
 
 ### Why this milestone
 
-C1's mechanism (A) is the first documentation-growth failure this loop has that
-is *an act at a decidable moment*: the agent holds a defect, has a repair and a
-doc slot, and picks the doc slot. Every prior growth wording aimed at volume or
-at readership, and the standing explanation for why they failed is that no such
-moment exists. It does. A line aimed at the moment is the candidate no round has
-written.
-
-### The round's work and result
-
-Cleanup, `62c5bf6a`. Probe `busiest-few`, four runs: pre-registration `6b52d254`,
-candidate 1 `0fb7dd36`, candidate 2 `307ccfa6`, candidate 3 and the paragraph it
-replaced in this round's last commit. Probe deleted with the round that wrote it;
-the sha is in that commit, and `git checkout <sha> -- prompt-tests/runs/busiest-few`
-restores it in one command.
-
-**Candidate 1, `Repairing beats recording`, not shipped.** Four inherited defects
-differing in who may fix them; both arms put every one of them in the reply and
-none in a file. The response template is already their destination, so a line
-aimed at inherited findings had nothing to buy.
-
-**What grew instead, in both arms:** a standing entry in a conventions file the
-task never named, under a heading reading *add to the list when you find
-another*, about the flag the session had just written. Dependency-shaped claims
-in fact position, in the sense of `notes/workers-bullet-hint-in-fact-position.md`
-— false the moment the sort changes — and neither arm priced an end for its
-entry though both carried `Say what ends it`.
-
-**Candidates 2 and 3 both reached the pre-registered ship criterion and neither
-is shipped.** Each leaves the conventions file untouched and lands the same fact
-in the file the conventions require, and each arm's own reasoning names the
-line's test while declining the edit. The two wordings share no vocabulary, so
-the claim carries the effect rather than the phrasing. Both also dropped the
-`--since` interaction and both omitted argparse's `metavar`, shipping
-documentation that contradicts their own `--help` where both untreated arms
-matched — 2/2 against 0/2. The pre-registration says either recurrence outranks
-the ship criterion, and both recurred. **The `metavar` split is unexplained**: no
-arm on either side reasons about that surface, including the untreated arm that
-set it, so nothing traces it to the line. That is why nothing ships — not a
-demonstrated cost, an undemonstrated one that the criterion named in advance.
-
-### `(instruction)` for iteration 23
-
-1. First settle whether the `metavar` split is the line's. Restore the probe and
-   re-run one treated arm; two arms differing on a surface no arm reasons about
-   is as likely to be noise as an effect, and the round that ships this claim
-   has to know which. If it is noise, candidate 3's wording is shippable as it
-   stands. If it recurs, write a wording that keeps *a consequence of your own
-   change is not a property of the project* without reaching the program's own
-   user-facing surface. Either way the decisive criterion stays the conventions
-   file and `docs/report.md`, and the probe is restored, not rebuilt.
-2. Do not widen the claim to inherited defects. Measured twice: they go to the
-   reply unaided, and a line aimed there is the ninth failed wording.
-3. The fixture's `## Gotchas` heading is the soliciting document. If a wording
-   has to be tested against a *different* solicitation to be trusted, build the
-   second genre rather than re-running this one.
+After C1 and C2 the only live doubt about candidate 3 is the one DEC-030 named
+as its framing bias: the claim was found and measured on a single fixture, whose
+soliciting document is a `## Gotchas` list with an explicit invitation. The live
+session that motivated the claim solicits differently — an `Agent Policy` under
+a `CLAUDE.md`, auto-loaded, with no invitation at all. A second genre answers
+whether the effect is the claim's or that fixture's, which is what ship-or-delete
+turns on; another draw on `busiest-few` answers nothing.
