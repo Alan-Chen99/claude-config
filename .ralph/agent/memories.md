@@ -19,3 +19,11 @@
 ### mem-1790061592-858f
 > A session-analysis subagent dispatch can die instantly with 'safeguards flagged this message ... Details: [reasoning_extraction]' - twice on one transcript while an identical brief on a sibling transcript succeeded, so it is content-dependent and retrying the same dispatch does not help. Substitute: python over the .jsonl emitting only assistant 'thinking' and 'text' blocks. Re-hit 2026-09-24 on a first dispatch; the substitute worked immediately.
 <!-- tags: prompt-tests, session-analysis, tooling | created: 2026-09-22 -->
+
+### mem-1790400600-22b2
+> Where an agent puts a fact is decided by whether the fact is one it made itself. A defect it INHERITED goes into the reply -- a response template with a notes section is already the slot -- and a prompt line telling it to fix rather than record such a thing buys nothing, measured across four inherited defects differing in who may fix them. A consequence of the agent's OWN change has no slot, so a heading reading "add to the list when you find another" supplies one, and the entry lands in a file the task never named, written as a property of the project though it is false the moment the code changes. Hypothesis: writing is routed by where a fact fits.
+<!-- tags: sys-prompt, writing-for-agents, docs | created: 2026-09-24 -->
+
+### mem-1790400700-22c3
+> A prompt line that suppresses unrequested documentation can suppress the requested kind with it, and the tell is not in the documents it stops writing. Two wordings of one claim, sharing no vocabulary, each moved a self-made fact out of a conventions file and into the change's own docs as intended -- and each also omitted argparse's metavar, shipping a usage line its own --help contradicts, where both untreated arms matched. Read the program's user-facing surface, not only the prose, before crediting a line that reduces prose.
+<!-- tags: sys-prompt, prompt-tests, test-design | created: 2026-09-24 -->

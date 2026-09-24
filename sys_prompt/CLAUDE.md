@@ -228,16 +228,16 @@ declining a specific addition as costing more than it is worth, the reasoning tr
 rather than the task. `prompt-tests/general/halve-the-runbook` stays whatever this
 says, on the user's direction: the user set that fixture's shape.
 
-**The task's subject bounds the edit. That is where growth hides, and why no bullet here reaches
-it.** Within the subject an agent is exhaustive — a fact is grepped out of every place it appears
-and corrected in all of them — and outside it almost nothing moves. Two consequences. A change that
-falsifies an existing sentence forces a rewrite and the *new* fact rides into it, so every document
-already carrying the subject acquires the fact with no moment at which a copy is added; a bullet
-phrased around adding one names an act that never happens, which is why one aimed there changed
-nothing. And relocation-as-growth is a hazard of *cleanup* tasks, where documentation is itself the
-subject, not of writing tasks. The count is never decided, so it only rises; nothing goes wrong,
-which is why nothing fires. Whatever reaches this fires while a sentence is being corrected and asks
-for a deletion. Retire it when an agent acts on documentation the task did not name.
+**Growth has a moment: a file soliciting additions, met by a fact the agent made itself.** An
+agent records its own change's consequences where lasting guidance lives, in a file the task never
+named — that file asks, and the agent is the one who knows. A defect it merely inherited goes to
+the reply, which the response template already has a slot for, so a line aimed at inherited
+findings buys nothing. Hypothesis: writing is routed by where a fact fits, and only a self-made
+fact has no slot until a soliciting heading supplies one. A line denying that such a consequence is
+a property of the project moves it to the change's own documentation, under two wordings sharing no
+vocabulary — so the claim carries the effect, not the phrasing — and takes the program's own help
+text with it, which is why none is shipped. Retire this when an agent that has just produced such a
+fact leaves a soliciting document unextended.
 
 **The preamble is kept, on its first isolation.** An arm carrying it sourced a checkable number
 where an arm without it stated the same number bare, and they matched on every other reading.

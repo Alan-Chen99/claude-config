@@ -159,3 +159,47 @@ doc slot, and picks the doc slot. Every prior growth wording aimed at volume or
 at readership, and the standing explanation for why they failed is that no such
 moment exists. It does. A line aimed at the moment is the candidate no round has
 written.
+
+### The round's work and result
+
+Cleanup, `62c5bf6a`. Probe `busiest-few`, four runs: pre-registration `6b52d254`,
+candidate 1 `0fb7dd36`, candidate 2 `307ccfa6`, candidate 3 and the paragraph it
+replaced in this round's last commit. Probe deleted with the round that wrote it;
+the sha is in that commit, and `git checkout <sha> -- prompt-tests/runs/busiest-few`
+restores it in one command.
+
+**Candidate 1, `Repairing beats recording`, not shipped.** Four inherited defects
+differing in who may fix them; both arms put every one of them in the reply and
+none in a file. The response template is already their destination, so a line
+aimed at inherited findings had nothing to buy.
+
+**What grew instead, in both arms:** a standing entry in a conventions file the
+task never named, under a heading reading *add to the list when you find
+another*, about the flag the session had just written. Dependency-shaped claims
+in fact position, in the sense of `notes/workers-bullet-hint-in-fact-position.md`
+— false the moment the sort changes — and neither arm priced an end for its
+entry though both carried `Say what ends it`.
+
+**Candidates 2 and 3 both reached the pre-registered ship criterion and neither
+is shipped.** Each leaves the conventions file untouched and lands the same fact
+in the file the conventions require, and each arm's own reasoning names the
+line's test while declining the edit. The two wordings share no vocabulary, so
+the claim carries the effect rather than the phrasing. Both also dropped the
+`--since` interaction and both omitted argparse's `metavar`, shipping
+documentation that contradicts their own `--help` where both untreated arms
+matched — 2/2 against 0/2. The pre-registration says either recurrence outranks
+the ship criterion, and both recurred.
+
+### `(instruction)` for iteration 23
+
+1. The claim is measured and the wording is not finished. Write one that keeps
+   *a consequence of your own change is not a property of the project* and does
+   not suppress the program's own user-facing surface, and re-run the same
+   probe — restore it from this round's last commit rather than rebuilding it.
+   Read `metavar` and the `--since` interaction as the cost side; the decisive
+   criterion stays the conventions file and `docs/report.md`.
+2. Do not widen the claim to inherited defects. Measured twice: they go to the
+   reply unaided, and a line aimed there is the ninth failed wording.
+3. The fixture's `## Gotchas` heading is the soliciting document. If a wording
+   has to be tested against a *different* solicitation to be trusted, build the
+   second genre rather than re-running this one.
