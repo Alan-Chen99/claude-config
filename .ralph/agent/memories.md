@@ -2,21 +2,13 @@
 
 ## Patterns
 
-### mem-1790273752-26cf
-> The owner's own account of why unwanted documentation gets written is a two-sided mispricing, not volume: 'the calibration is poor ... not incorrect but fairly expensive to cleanup, and likely will only be cleaned if i ordered one. my guess is that its added because "it looks like it only helps". and a research is actually MUCH CHEAPER but was considered more expensive here.' Side one -- a durable note is priced at zero because it only helps -- is what the shipped 'Say what ends it' already prices, and that line was absent from the specimen, so it is untested against this failure rather than refuted. Side two -- finding out is priced above writing it down, and is in fact cheaper -- is priced by nothing in either prompt version. The owner also said the volunteered inventory row (addition 4) was fine, just shorter and more general, so the class to reduce is the poorly-calibrated note, not the volunteered fact.
-<!-- tags: sys-prompt, docs-growth, writing-for-agents | created: 2026-09-24 -->
-
-### mem-1790530000-8b7e
-> The owner's objection to over-documentation is NOT volume. Asked which of the four durable additions in their own specimen (e828eab7) they did not want, they said the changes "dont make sense": they "dont belong", "does not actually solve the problem", and "introduced new problems that have no solution (who will actually solve the problem?)". Their four sensible alternatives were a fix instead of a note (remove the literal $1; find a flag), a note in the skill header where the invoker reads it, and a general gotcha in the root index. So the lever is PLACEMENT, documentation-in-place-of-a-fix, and obligations recorded with no owner -- not how many lines. A wording that only cuts volume does not reach any of the three, whatever it measures.
-<!-- tags: sys-prompt, docs-growth, writing-for-agents | created: 2026-09-24 -->
+### mem-1790275989-2871
+> An agent asked to document a change writes ONE instance as a PROJECT-WIDE RULE, and the rule's scope is the half no observation constrained -- so the doc error lands in the generalisation while the volume barely moves. Measured at iter35 on three legs of one fixture: each added 2-5 binding sentences to the document the task named, and two of three generalisations were false against their own tree (a matching cadence asserted, and tested, to guarantee a matching run_date that is a pinned variable; a naming scheme the config violates). The leg that stayed on the instance shipped nothing false and a blind reader chose it to inherit. This is why eleven say-less wordings that measured VOLUME found nothing: volume is not where the error is. sys_prompt/CLAUDE.md's **Force** paragraph already says scope is a claim, and has only ever addressed whoever edits the prompt.
+<!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-24 -->
 
 ### mem-1790530000-3f52
 > A say-less wording buys volume and pays in scope qualifiers. Measured twice, two fixtures, one wording (*a change owes documentation only where it made a document false; what it could newly explain, it does not owe*): the treated arm wrote a third to a seventh of the bare arm's unfalsified prose, and in BOTH draws shipped exactly one sentence false against its own delivered code where the bare arm shipped none -- a cost claim missing the "write" qualifier, and a failure mode claimed to cover a case the code leaves invisible. Why: what a compression rule cuts first is the qualifying clause, and a qualifying clause is what made the claim true. Read every treated tree for claims false against its own code before crediting a volume win.
 <!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-24 -->
-
-### mem-1790241731-77bc
-> Document volume is one fact replicated, not many claims: under fixed depth one established fact reached 3-4 lasting files in BOTH arms, none wrong, none removable without a human. An agent does pose the second home as a choice and then take it -- 'it deserves a place among the conventions too, even though it's already noted in docs/layout.md' -- so 'already written down somewhere' is available as a reason and loses.
-<!-- tags: sys-prompt, docs-growth | created: 2026-09-24 -->
 
 ### mem-1790442000-31ac
 > Hold investigation depth fixed by STATING the load-bearing fact in the fixture, as already verified, in the file the task sends the agent to -- and make the natural implementation the one that trips over it. Two arms then ran 13 tool calls each and both met the trap, so document volume could be read without riding on how much each arm found out. This is the fix for the confound that blocked iteration 29: prose is emitted about what was discovered, so an arm that investigates more writes more whatever the prompt says.
@@ -39,6 +31,10 @@
 ## Fixes
 
 ## Context
+
+### mem-1790276015-082f
+> The owner's own diagnosis of why unwanted documentation gets written, from their specimen e828eab7 (channel #78/#81): the additions 'dont make sense' -- they 'dont belong', 'does not actually solve the problem', and 'introduced new problems that have no solution (who will actually solve the problem?)'; 'the calibration is poor ... not incorrect but fairly expensive to cleanup, and likely will only be cleaned if i ordered one. my guess is that its added becuase "it looks like it only helps". and a reserach is actuall MUCH CHEAPER but was considered more expensive here'. Their four sensible alternatives: find a flag; remove the $1 from the helper; note it in the skill header where the invoker reads it; put the general gotcha in the root index. So the lever is never volume. 'It looks like it only helps' is priced by the shipped 'Say what ends it'; 'research is cheaper' was measured saturated at 35, both legs checking unprompted.
+<!-- tags: sys-prompt, docs-growth | created: 2026-09-24 -->
 
 ### mem-1790273746-2aa1
 > A specimen session on this machine did NOT run this branch's prompt. /repos/claude-config -- the installed checkout every ordinary session loads via claude.sh -- still carries the pre-round-11 '# Writing for other agents' block (Omit by default / Claim less) and the docs order at :15; writing-for-agents2 has never been merged, so 28 rounds of edits reach only the prompt-test harness. Verified by pulling the prompt_snapshot attachments out of e828eab7's own JSONL and grepping them. Consequence: the owner's specimen is evidence about the DELETED say-less bullets (one was in the prompt while the session wrote four durable additions anyway), not about the live block -- 'Say what ends it' and the self-consequence bullet were both absent from it. Before treating any real session here as evidence about a prompt line, grep that session's prompt_snapshot for the line.

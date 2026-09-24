@@ -12,9 +12,10 @@ meant to test.
 **Closed**, their content in the commit messages and in `sys_prompt/CLAUDE.md`:
 DEC-001–031 (rounds 1–23); 035 (superseded by 036); 036 (upheld at 32 in a second
 genre); 038; 039 and 040/041 (restated as contract clauses); 042 and 043 (decided at
-33). Independent evaluation: not started for all. DEC-030's stated reason is withdrawn —
-the fixture's own pre-existing option carried the mismatch it read as a cost of the line
-— and its wording shipped at round 23.
+33); 044 (decided at 34, and its wording's successor decided at 35). Independent
+evaluation: not started for all. DEC-030's stated reason is withdrawn — the fixture's own
+pre-existing option carried the mismatch it read as a cost of the line — and its wording
+shipped at round 23.
 
 ## DEC-032 / 033 / 034 / 037 — the four shipped-or-deleted lines still open to re-argument
 
@@ -42,22 +43,6 @@ measurement is in its commit. What is here is only what that file does not carry
   evaluation: the blind reader set the questions, and was not asked which arm was better
   placed. Revert: n/a.
 
-## DEC-044 — fix-instead-of-note is decided and not shipped (iter 34, conf 80)
-
-The finding and what would ship a wording here are in `sys_prompt/CLAUDE.md`.
-**Alternatives**: ship it on the adversarial null alone, which prices a harm that did not
-occur and no benefit that did; hand it forward, which the contract forbids for a line a
-second round has measured; widen it to the placement half of the owner's answer, which
-would be a different sentence and a different round. **Framing bias**: the round wrote
-both fixtures and chose a hazard whose removal is one argument long, which is the easiest
-possible case for the bullet and the hardest possible case for a difference — a harder
-removal might separate the arms, and nothing here measured one. **Independent
-evaluation**: done, and it went further than asked — one blind reader holding both trees
-and both sessions of the benefit probe, told neither what was under test nor which arm
-was which, found no attributable difference, checked 16 and 27 added sentences against
-the running code and found none false in either tree, and traced the prose gap to a
-review subagent one arm ran. **Revert**: n/a, no prompt edit.
-
 ## DEC-045 — the branch's edits do not reach any session here (iter 34, conf 95)
 
 Recorded rather than acted on. `/repos/claude-config` is what `scripts/claude.sh` loads
@@ -69,3 +54,22 @@ had. **Framing bias**: the round found this while checking its own critique and 
 over-weighting it against the round's measured result. **Independent evaluation**: not
 started; the fact is a grep and needs none. The owner acknowledged the provenance point
 on the channel; whether the merge is wanted is unanswered at close. **Revert**: n/a.
+
+## DEC-046 — the research candidate is not written, and scope replaces volume (iter 35, conf 85)
+
+The measurement is in `4291d5b4` and the claim in `sys_prompt/CLAUDE.md`. **Alternatives**:
+write it anyway on the specimen's evidence, which prices a benefit two legs produced
+unprompted; hand it forward a second time, which the contract forbids; widen it to cover the
+scope finding, which is a different sentence and iteration 36's. **Framing bias**: the fixture
+was built to make *checking* one command and *fixing* one character, which is the easiest
+possible case for the behaviour the candidate asks for and therefore the hardest case for the
+candidate to earn anything — a costlier check might separate the legs and nothing here
+measured one. The pre-registered outcome set assumed some leg would write a note about the
+exposure; none did, so that set is withdrawn rather than honoured, and the scope finding is
+an unpre-registered observation carried forward as a candidate, not as a result.
+**Independent evaluation**: done and it went against the round's own reading — one blind
+reader holding three trees and three sessions, told neither what was under test nor which leg
+was which, answered "no attributable difference" and preferred the leg that generalised least
+on grounds the round had not named (nothing false against its own tree). **Revert**: n/a, no
+prompt edit; the three compressed paragraphs in `sys_prompt/CLAUDE.md` revert with
+`git checkout 15b6682d -- sys_prompt/CLAUDE.md`.
