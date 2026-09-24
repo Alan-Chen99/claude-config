@@ -290,6 +290,34 @@ arm without it stated it flat with no warrant. Retire it when an arm carrying it
 exits than one without, on `prompt-tests/general/retirement-policy`.
 
 
+### The `pre_output.record` reminder, and why only one rule is left in it
+
+`src/claude_config/pre_output/record.py` prints its `RULES` into the tool result of a call
+`## Before response` makes mandatory, so every line there is a system-prompt line with a
+`NEVER` in front of it. `NEVER reply to user if uncertainties remain. Do more verification and
+research` is deleted. `# Epistemic Integrity` already states the rule *with* the branch this
+wording drops — investigate **or** escalate — and `## Before response` already makes the
+re-record discretionary, so three wordings stood with nothing saying which governs (step 2
+above).
+
+What the arms showed: on a case whose items differ in whether a doubt can be discharged at
+all, every arm disproved the task's own account of an incident before writing about it, and
+every arm replied with residual doubt still listed — the arms carrying the line included, one
+tool call after receiving it. So the line neither buys the verification it exists for nor is
+obeyed. Where it did act, it added durable text: one arm answered it with five further tool
+calls that rewrote a pinned dependency's comment around a reproduction command, and documented
+an environment-variable name the session had itself invented. Its cost is paid in what gets
+written down, which is what the deletion is for.
+
+Limits: it acted in one of two draws under the same treatment, and that draw's extra work did
+scope one claim more narrowly than the session had. The untreated arm is n=1 and its tree
+carried three statements a blind reader falsified — all written before that arm ever called
+`pre_output.record`, so the line could not have prevented them.
+
+Restore it when an arm without it replies as if a doubt were settled where an arm with it
+either resolves the doubt or reports it, on `prompt-tests/general/retirement-policy`.
+
+
 ### `# Git`
 
 The section is the only git policy a `claude.sh` session receives, because `settings.json` turns
