@@ -17,7 +17,7 @@ favours.
 
 **What an agent adds is one fact written as a rule, and the rule's scope is the part no
 observation constrained.** So the error lands in the generalisation while the volume barely
-moves — which is why eleven say-less wordings measured volume and found nothing. Measured at
+moves — which is why nine say-less wordings measured volume and found nothing. Measured at
 35: three legs each turned one instance into a project-wide rule, two of the three false
 against their own tree, always in the added scope.
 
@@ -78,10 +78,12 @@ disappears there, the target is the genre and not the wording.
 > your own. `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` < 6000.
 > `tasks.jsonl` stays empty.
 
-> **A question to the owner is sent the moment it is formed and blocked on before the round
-> closes** — `skills/telegram-hitl`, one topic per loop, a waiter under
-> `run_in_background: true`. Their answer has changed the round's conclusion three times;
-> the cost of waiting is not the loop's limiting factor and the user has said so.
+> **A question to the owner is sent the moment it is formed, and the round does not emit its
+> event until the waiter has exited** — `skills/telegram-hitl`, one topic per loop, a waiter
+> under `run_in_background: true`. Their answer has changed the round's conclusion three times;
+> the cost of waiting is not the loop's limiting factor and the user has said so. Two rounds
+> running wrote this as an intention and closed on an unanswered question, so it is written as
+> the mechanism instead.
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
@@ -114,62 +116,43 @@ a blind reader attributed nothing. Its larger finding is DEC-045: `scripts/claud
 `/repos/claude-config`, still the pre-round-11 fork, so nothing this loop measures is live
 and the owner's specimen ran `Omit by default`. DEC-044.
 
-## Iteration 35 — `15b6682d` → (this round)
+**35, `15b6682d` → `3c5bec5e`.** `amber-thicket`, three legs on one fixture, pre-registered.
+The handed-forward candidate *Finding out costs less than the rule you would write instead* was
+never written: both branch legs ran the check unprompted, named the one-character fix and handed
+the choice to the owner, so the saturation branch of its own outcome set fired. What all three
+legs did do was turn the one instance into a project-wide rule in the document the task named —
+two to five binding sentences each, two of three false in the added scope. Cut the `(contract)`
+to ten clauses. DEC-046.
 
-### Critique of 34
+## Iteration 36 — `3c5bec5e` → (this round)
 
-**C1 (workflow, verified).** 34 asked the merge question at 18:15:30 and closed at 18:30:46 —
-fifteen minutes — having found that no session on this machine runs anything the loop has
-produced. That is the one open question that decides whether any round's product exists, and
-the contract already said blocking is cheaper than a round; the user's own followup says the
-same in stronger words. Fix: the ask-the-owner clause now says *sent when formed, blocked on
-before close*, and this round ran the waiter.
+### Critique of 35
 
-**C2 (fact/workflow, verified).** 34 left the tree dirty. `git diff` at this round's start
-showed an uncommitted DEC-045 edit that contradicts the commit it sits on: the committed text
-records the owner's acknowledgement, the working copy says only that the question was asked.
-Channel message 83 — *i see, that was my mistake, acknoledged; your point is correct* —
-confirms the committed text. A later round reading the tree rather than the log would have
-recorded a fact that did not happen. Discarded; the checklist item exists and was skipped.
+**C1 (workflow, verified from the channel).** 35 wrote *a question is sent the moment it is
+formed and blocked on before the round closes* into the contract, as its own fix for 34's
+fifteen-minute close — and then closed with message 84, the merge question, unanswered: the last
+inbound in the channel log is 83, replying to 82. A clause the round that wrote it does not keep
+is not a clause. Fix is a mechanism rather than an intention: this round sent message 86 before
+designing anything, and does not emit its event until the waiter has exited. Folded into the
+existing clause, not added as a new one.
 
-**C3 (workflow, verified from 34's own text).** 34 wrote a new candidate before checking
-whether a shipped line already reached the failure, and its own hypothesis then said neither
-fixture instantiates the case the wording is for. Four runs to reach an outcome the design
-could not avoid. Its handoff says as much — instruction 3 to this round was *do the shipped
-line first*. Folded into the candidate clause rather than added as a new one.
+**C2 (fact, verified).** The wording 35 handed forward — *one instance does not support a
+project-wide rule* — is an anti-generality order, and it contradicts an owner answer 35 had
+already read and quoted in the same round: of the specimen's inventory row, message 81 says
+"actually ok but can be more shorter and **general**". 35 never checked the candidate against
+it. This round runs a wording aimed at *unchecked* width instead, and put the tension to the
+owner before launching.
 
-**C4 (workflow, measured).** The `(contract)` block has gone 0 → 125 → 181 → 248 → 334 → 435
-→ … → 800 words over 34 rounds, and has only ever shrunk when the user's token ceiling forced
-it (`800 → 793` at 33, `790 → 675` at 34). The loop's own governance is the ratchet the
-objective is against, and the only thing that has removed text from it is a human-set size
-limit — the mechanism the objective explicitly wants to do without. This round cut it to ten
-clauses by deleting two that restate files which govern (`## Required notes`'s intent, now in
-`sys_prompt/CLAUDE.md`; case-ownership conditions, now in `.claude/skills/prompt-tests/SKILL.md`)
-and merging two pairs. **Deleting a clause because the file it restates governs is the only
-compression here that is not the ceiling talking.**
+**C3 (workflow, admitted by 35 and acted on here).** The scope finding is an unpre-registered
+reading of three legs that differ in whole prompts, composed after the arms were in — which the
+contract calls inadmissible. 35 recorded that and handed it forward anyway. Rather than reject
+it, this round gives it the provenance the contract asks for, outside the fixtures: the owner's
+own specimen `0d3c560b` asserts *"`$N` is the (N+1)-th whitespace-separated word"* from a
+single-digit probe, and `b394ebbf` — next commit, same session — repairs it for `$10`. The
+candidate now rests on that, not on the inadmissible reading.
 
-### Result — the research candidate is decided and not written
+**C4 (fact, minor).** 35 left two counts of the same thing in its own output: the scratchpad says
+"eleven say-less wordings", `sys_prompt/CLAUDE.md` says "nine". One of them is wrong and nothing
+says which; the loop's own text carries the error class the loop is against. Corrected to nine
+here, which is the number the prompt file's own history supports.
 
-`amber-thicket` (deleted; `git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket`), three
-legs on one fixture, pre-registered at `96ffd5b7`, result at `4291d5b4`. Full account in
-`sys_prompt/CLAUDE.md`. In short: both branch legs ran the check unprompted and wrote no rule,
-so *Finding out costs less than the rule you would write instead* has no benefit left to buy
-and is not written. `Say what ends it` was not separated either — no leg wrote a note about
-the exposure. The fork the specimen ran was the only leg to amend a nested `CLAUDE.md` and the
-only one never to check; the blind reader calls that noise at one run per leg and this round
-takes its word. What all three did was turn one instance into a project-wide rule in the
-document the task named, and two of three generalisations are false in their added scope.
-
-### `(instruction)` for iteration 36
-
-1. **One candidate, already provenanced and already checked against the shipped lines**, in
-   the words to run, as a bullet in `# Writing for other agents`:
-   `- An instruction's scope is a claim. One instance does not support a project-wide rule.`
-   Its occurrence outside `sys_prompt/` is the owner's specimen and 35's three legs. No
-   shipped line reaches it: the paragraph that says it, **Force** in `sys_prompt/CLAUDE.md`,
-   has only ever addressed whoever edits the prompt. Pre-register the kill as an agent that
-   writes the instance and drops something true with the scope — 33 measured exactly that
-   failure for a compression wording.
-2. **The decisive reading is whether the added sentences are true against the delivered
-   tree**, not how many there are. Volume has now failed as a metric in four rounds.
-3. 36 is not a cleanup round; 40 is.
