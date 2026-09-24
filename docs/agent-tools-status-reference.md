@@ -20,7 +20,7 @@ be polled. Only the `--events` log cannot — see "`ps`" below.
 
 ## Block shape
 
-A block opens with a stamped header, `[agent-tools] run status @ HH:MM:SS ±ZZZZ:`, built
+A block opens with a stamped header, `[agent-tools] run status @ YYYY-MM-DD HH:MM:SS ±ZZZZ:`, built
 once by `report_header` in `hook_post.rs` and used by both delivery channels. The stamp is
 taken when the report's lines were measured, not when the header was built, and every
 relative figure below it — each `<age>`, each running total — is relative to that instant.
@@ -62,12 +62,23 @@ foreground command moved to the background when it outruns its `timeout`; the no
 `Cause:` field separates those two from a user's Ctrl+B, a turn abort, and a background
 taken so a queued message could reach the model — one response field per cause
 (`src/chunk-dbb93264.js:215694-215699`), and the notice says the cause is unstated rather
-than naming one when no field is set. A command the harness will not background — one
-whose first statement's first word is `sleep` (`yzs`, `src/chunk-dbb93264.js:215729`,
-against the one-entry list at `:215644`) — is killed at its timeout instead, and no notice
-is emitted. Nothing else about the command's shape disqualifies it: measured on 2.1.269,
-`echo start; sleep 25` at `timeout: 3000` came back with a `backgroundTaskId` and
-`timedOutAfterMs: 3000`.
+than naming one when no field is set. Besides the cause and the task id `TaskStop` takes,
+the notice names the `long-bash` skill, which carries the protocol for waiting on the
+command without polling; `hook_post_test::the_backgrounding_notice_names_a_skill_that_exists`
+reads that name back out of the emitted text and resolves it against `skills/`, because
+`check-prompt-coupling.sh` cannot pin a second literal at an emit site that already carries
+a `// PROMPT-COUPLED` marker.
+
+Upstream refuses to background one command shape — one whose first statement's first
+word is `sleep` (`yzs`, `src/chunk-dbb93264.js:215729`,
+gating the `onTimeout` handler at `:216563`, against the one-entry list at `:215644`) —
+killing it at its timeout instead, with no notice emitted. That guard cannot fire here:
+`hook_pre.rs` rewrites every Bash command to begin `unset …; export
+AGENT_TOOLS_PARENT_DIR=…;`, so the first statement `yzs` reads is never `sleep`. Measured
+2026-09-21 on 2.1.269, all with `timeout: 3000` and all returning a `backgroundTaskId` with
+`timedOutAfterMs: 3000`: `sleep 20`, `sleep 20; echo done`, and `echo start; sleep 25` —
+the last of which the guard never covered anyway. The foreground `sleep ≥ 25 s` block is
+unaffected, because it runs in `validateInput`, before the rewrite.
 
 ## Keys
 
@@ -103,7 +114,10 @@ of them, five shapes are reachable in all:
 | `pid -, started <t>, <age>, <bytes>` | Nothing ever ran, so there is no pid (`spawn-failed`) |
 | `pid -, <age>, <bytes>` | The child's own record did not read (`abandoned`) — the record is gone, not the line malformed. `<name>` falls back to the capture directory path on this shape alone |
 
-`<t>` is local `%H:%M:%S`; `<d>` is `Ns`, `Nm0Ss` or `Nh0Mm`.
+`<t>` is local `%H:%M:%S`, and `%m-%d %H:%M:%S` when the instant falls on a different
+local day from the report's own stamp — so a date on a line means "not today" and its
+absence means "today". `<d>` is `Ns`, `Nm0Ss` or `Nh0Mm`, and carries no day component:
+a run spanning three days reads `73h15m`.
 `<paths>` names the capture file: `<dir>/output` when the streams were merged, else the one
 brace form `<dir>/{stdout,stderr}` — a rendered line carries that compact shape, not two
 separate names, though the JSON `capture` field does list both real paths. The two pids on a line differ on purpose: `<pid>` is the

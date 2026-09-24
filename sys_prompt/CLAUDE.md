@@ -338,7 +338,7 @@ and nothing checks it.
 `CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the precondition, not a second enforcement:
 with the fork gate on, `run_in_background` is omitted from the Agent tool's input schema outright
 and the rule would be unfollowable. The gate's source reading, the alternative settings and the
-trial counts are in the repository's own `CLAUDE.md`; this entry justifies the bullet's clauses.
+trial counts are in `docs/subagent-backgrounding.md`; this entry justifies the bullet's clauses.
 
 Each clause was measured or read out of the source, not assumed:
 

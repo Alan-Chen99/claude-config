@@ -166,6 +166,11 @@ env var. Export the token before running:
 set -a && . /workspace/.env && set +a   # or wherever the token lives
 ```
 
+That file carries a second `CLAUDE_CODE_OAUTH_TOKEN`, commented out, for when
+the active one is out of credit — the failure reads as a quota error on the
+first request, not as an auth error. Swap which line is commented rather than
+exporting both.
+
 `capture.py` refuses to spawn when neither source has credentials. Without the
 guard the child renders "Not logged in", issues zero API calls, and the failure
 surfaces only as an empty capture. Unchanged in 2.1.269 — this snapshot's fix

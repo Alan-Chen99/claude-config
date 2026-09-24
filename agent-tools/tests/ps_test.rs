@@ -238,8 +238,10 @@ fn main_thread_two_captures_under_one_tool_use_id() {
     assert!(s.contains("cmd:     echo probe-b"), "{s}");
     // The fixture's stored "2026-05-17T10:00:00Z" in UTC+9: a bare UTC
     // formatter reads "10:00:00" here regardless of the host's own zone,
-    // since it never looks at one.
-    assert!(s.contains("started: 19:00:00"), "{s}");
+    // since it never looks at one. The date is carried because the fixture is
+    // not today — which is the whole point of listing a capture that outlived
+    // a midnight, and the one literal pins both rules at once.
+    assert!(s.contains("started: 05-17 19:00:00"), "{s}");
 }
 
 #[test]
@@ -869,8 +871,8 @@ fn ps_text_renders_the_start_in_local_time_not_bare_utc() {
     );
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(
-        s.contains("started: 19:00:00"),
-        "expected the UTC+9 rendering of the fixture's stored 10:00:00Z: {s}"
+        s.contains("started: 05-17 19:00:00"),
+        "expected the dated UTC+9 rendering of the fixture's stored 10:00:00Z: {s}"
     );
 }
 

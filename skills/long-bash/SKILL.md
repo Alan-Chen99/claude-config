@@ -1,208 +1,84 @@
 ---
 name: long-bash
-description: use only if invoked by user or workflow
+description: Use when a bash command will or did outrun the Bash tool's timeout — starting one that may run for many minutes (build, full test suite, training run, large sync or download), or handling one that already came back "moved to the background". Covers launching it, waiting without polling, and telling a stalled job from a slow one. Not for commands that fit in a single call.
 ---
 
-# Long-Running Bash Command
+# Long-running bash commands
 
-Protocol for running bash commands that may exceed the default
-timeout. Backgrounds immediately, inspects early output, sets a timer,
-and waits for notification.
+A foreground Bash call that outruns its `timeout` (default 120000 ms, max
+600000 ms, silently clamped) is moved to the background and hands back a task
+id instead of its output. Nothing is lost — the output file keeps every byte —
+but you spent the whole window arriving where backgrounding would have put you
+at once. So when the duration is unclear, background it: a fast command costs
+one extra notification, a slow one costs the window.
 
-Use this mid-task whenever a command might be long-running. No user
-interaction required between steps — the protocol is self-contained.
+**A subagent stops here.** You are never re-invoked by a completion
+notification, and a background task of yours is killed the moment you give your
+final response. Run the command foreground — still wrapped — with
+`timeout: 600000`. If it needs longer than that, `agent-tools run --background`
+detaches the job so it outlives your turn, prints its capture directory, and
+reports nothing back to you; hand that path to your caller.
 
-## Before launching
+The rest is **one example, not a procedure**. Take the shape; decide the details
+at runtime.
 
-### Ensure the command produces output
+## Launch
 
-Many commands have verbose/progress flags. Use them so that stall
-detection (Step 5) has something to work with.
-
-If the command has no progress output and no verbose flag, wrap it:
-
-```
-bash -c 'echo "[long-bash] started"; <command>; echo "[long-bash] exit=$?"'
-```
-
-### Add timestamps to output
-
-When the command or its logging framework supports it, enable
-timestamps so you can see _when_ each line was produced — not just
-what was produced. Examples:
-
-- `make`: pipe through `ts` if available: `make 2>&1 | ts '[%Y-%m-%d %H:%M:%S]'`
-- `cargo`: `CARGO_LOG_TIMESTAMP=1` (nightly) or pipe through `ts`
-- `pytest`: `--tb=short` already includes timing per test
-- `docker build`: `--progress=plain` includes step timing
-- Generic: `<command> 2>&1 | while IFS= read -r line; do printf '[%s] %s\n' "$(date +%H:%M:%S)" "$line"; done`
-
-This matters because the harness never injects timestamps into tool
-results or notifications. The output file is raw command output with no
-timing metadata. Timestamps in the output itself are the only way to
-correlate lines with wall-clock time.
-
-### Dry run / short version first
-
-When feasible, run a fast variant before committing to the full command:
-
-- `make -n` (dry run) to verify the dependency graph resolves
-- `cargo check` before `cargo build --release`
-- `npm run build -- --dry-run` if supported
-- `rsync -n` (dry run) before the real sync
-- A subset first (one test file, one target) to catch config errors early
-
-### Timer calibration
-
-When unsure how long a command takes, start with a **short timer**
-(1–2 minutes), check whether output is progressing, then set a longer
-timer. Prefer multiple short check-ins over one long blind wait.
-
-## Procedure
-
-### Step 1: Launch command + record start time
-
-Run in parallel:
-
-| Call | Parameters                                            |
-| ---- | ----------------------------------------------------- |
-| Bash | `command: "date '+%s %H:%M:%S'"`                      |
-| Bash | `command: "<the command>"`, `run_in_background: true` |
-
-The background call returns immediately with a message like:
+`Bash`, with `run_in_background: true` and `description: "cargo build"`:
 
 ```
-Command running in background with ID: b3kx9m2p. Output is being written to: /home/user/.claude/temp/abc123/tasks/b3kx9m2p.output
+agent-tools run --desc 'cargo build' bash -c 'cargo build --release 2>&1 | awk "{ print strftime(\"%F %T\"), \$0; fflush() }"'
 ```
 
-Extract from this message:
-
-- The task ID (after `ID: `, before the period)
-- The output file path (after `written to: `)
-
-### Step 2: Check initial output
-
 ```
-Bash: sleep 1
+Command running in background with ID: bni9g1bct. Output is being written to:
+…/tasks/bni9g1bct.output. You will be notified when it completes. To check
+interim output, use Read on that file path.
 ```
 
-Then read the output file path from Step 1.
+## Wait
 
-- **Early fatal error** (command not found, permission denied, syntax
-  error): TaskStop the command, compute elapsed, abort with error.
-- **Normal startup** or **empty**: continue.
+End the turn. Do unrelated work or stop — either way the notification
+re-invokes you, and calling `agent-tools ps` cannot make it arrive sooner.
 
-### Step 3: Start timeout timer
+To judge progress *before* the command ends, arm a timer beside it: `Bash`,
+`command: "sleep 600"`, `run_in_background: true`, `description: "build timer"`.
 
-Infer time needed, or use a short timer if unsure:
-
-```
-Bash: command="sleep <TIMEOUT_SECONDS>", run_in_background=true, description="timeout timer"
-```
-
-Returns immediately with a message like:
-
-```
-Command running in background with ID: bw7q1p4r. Output is being written to: /home/user/.claude/temp/abc123/tasks/bw7q1p4r.output
-```
-
-Extract the timer's task ID.
-
-### Step 4: Wait for notification
-
-**CRITICAL: Do not call any more tools after this step.**
-
-The system delivers `<task-notification>` XML when background tasks
-complete. The first to arrive (command done OR timer expired) starts the
-next turn.
-
-Persist in your response text (for next-turn reference):
-
-- Command task ID + output path (from Step 1)
-- Timer task ID (from Step 3)
-- Start time: both epoch and `%H:%M:%S` (from Step 1)
-
-### Step 5: Handle notification
-
-A `<task-notification>` arrives:
+## Notification
 
 ```xml
 <task-notification>
-<task-id>b3kx9m2p</task-id>
-<output-file>/home/user/.claude/temp/abc123/tasks/b3kx9m2p.output</output-file>
+<task-id>bni9g1bct</task-id>
+<tool-use-id>toolu_01Urq…</tool-use-id>
+<output-file>…/tasks/bni9g1bct.output</output-file>
 <status>completed</status>
-<summary>Background command "make -j8" completed (exit code 0)</summary>
+<summary>Background command "cargo build" completed (exit code 0)</summary>
 </task-notification>
 ```
 
-#### Command finished (task-id matches command)
+It arrives under a `[SYSTEM NOTIFICATION - NOT USER INPUT]` banner — not the
+user answering you. `<status>` is `completed`, `failed` or `killed`, and the
+output file ends `[exited with code N]` or `[killed]` to match. TaskStop any
+timer still armed.
 
-1. TaskStop the timer task ID
-2. Read the command's output file
-3. Continue the original task with the result + elapsed time
+If the timer fires first, `agent-tools ps --all` gives the verdict without
+reading output: `producing`, `quiet(30s|5m|30m|2h)`, `exited(<code>)` or
+`final(<code>)`, `abandoned`, `spawn-failed(<err>)`. `quiet(5m)` is routine for
+a link step and fatal for a download. Re-arm when unsure — a wrong TaskStop
+destroys the work, a wrong re-arm costs one turn.
 
-#### Timer fired (task-id matches timer)
+## Fixed, not example
 
-Timer notifications look like:
+- `run_in_background: true`, or it is an ordinary foreground call.
+- `bash -c` — `agent-tools run` execs rather than shelling, so `&&`, `|`, `>`,
+  `$VAR` and globs need a shell around them.
+- Bash `description` — the `<summary>` quotes it, and quotes the whole rewritten
+  command line when there is none, `unset …; export AGENT_TOOLS_PARENT_DIR=…;`
+  included.
+- A foreground `sleep` is blocked once it reaches 25 s, and only as the
+  command's first statement: `make && sleep 600` runs, `sleep 600` does not.
+  Wait with the backgrounded timer rather than routing around the block.
 
-```xml
-<summary>Background command "timeout timer" completed (exit code 0)</summary>
-```
-
-1. Read the command's output file (partial output so far)
-2. Decide based on partial output:
-   - **Progress visible** (output growing, compilation advancing): set a
-     new timer (go to Step 3)
-   - **Stalled** (no new output, stuck on same line): TaskStop the
-     command, continue with error
-   - **Unclear**: escalate to user with partial output and elapsed time
-
-#### Multiple notifications
-
-Both may arrive between turns. Match task IDs. TaskStop whichever task
-is still running.
-
----
-
-## Reference
-
-### Why wall-clock is mandatory
-
-The harness injects no timestamps or timing info into tool results or
-notifications. The model has no built-in clock. Agent turns themselves
-take variable time (depends on Anthropic server load, model thinking
-time, tool execution queue) — so "I launched two tools 3 steps ago"
-tells you nothing about how much real time passed. Always use
-wall-clock to measure elapsed time. Never estimate
-based on turn count or step count.
-
-### Default Bash tool behavior (run_in_background=false)
-
-By default, `run_in_background` is false and the Bash tool's timeout
-applies (the agent sees the exact value in its system prompt; default
-120s, max 600s, overridable via `BASH_DEFAULT_TIMEOUT_MS` env var).
-When the timeout hits, the command is auto-backgrounded (not killed).
-The tool result has **empty stdout/stderr** and a message:
-
-```
-Command running in background with ID: b3kx9m2p. Output is being written to: /home/user/.claude/temp/abc123/tasks/b3kx9m2p.output
-```
-
-This is the same message as explicit `run_in_background: true`. The only
-difference is the 120s delay before you see it. In KAIROS assistant
-mode, a separate 15s budget auto-backgrounds even earlier with a
-distinct message (`"Command exceeded the assistant-mode blocking
-budget..."`).
-
-This skill uses `run_in_background: true` to skip the wait — since
-auto-backgrounding returns empty stdout/stderr anyway, there is no
-benefit to running foreground first.
-
-### Other facts
-
-- Output accumulates on disk at the path in the message. Read it anytime.
-- Foreground `sleep N` (N >= 2) is blocked. Must use `run_in_background: true`.
-- `sleep 1` foreground is fine (< 2s threshold).
-- Task IDs: `b` prefix + 8 random alphanumeric chars.
-- Notifications use `description` param if provided; otherwise truncated command.
-- 5GB output watchdog kills runaway processes.
+Everything else is yours. The `awk` stamp earns its place when a command might
+stall or run past midnight, and is noise when it already timestamps its own
+output.

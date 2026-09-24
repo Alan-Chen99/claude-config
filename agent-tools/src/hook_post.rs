@@ -167,6 +167,7 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
     Some(format!(
         "BACKGROUNDED: Command was backgrounded. Cause: {cause}. \
          Process is still running (task_id: {bg_task_id}). \
+         To wait for it without polling: load the long-bash skill. \
          To kill it: use TaskStop tool with task_id {bg_task_id}."
     ))
 }
@@ -285,19 +286,40 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
     let (running, terminal): (Vec<_>, Vec<_>) = pending
         .into_iter()
         .partition(|(_, _, _, _, still_running)| *still_running);
+    // A reset ledger makes every child look new. Say why, or the agent sees a
+    // burst of repeats with no explanation.
+    if let Some(reason) = ledger.reset_reason.clone() {
+        notes.insert(
+            0,
+            format!(
+                "  note: report history lost — {reason}; each child below is reported again once"
+            ),
+        );
+    }
+    // What the report spends before it carries a single child: the header both
+    // delivery points prepend, and the notes prepended after packing. Budgeting
+    // from zero measured only the middle of the report and let the ends push the
+    // total past the ceiling — a 9,000-char budget emitting 9,003 characters,
+    // the size at which the runtime replaces the whole block with its stub. The
+    // backgrounding notice is deliberately not charged: it rides on top because
+    // it is the one message this hook must never drop for size.
+    let reserved: usize = report_header(now).len()
+        + 1
+        + notes.iter().map(|n| n.len() + 1).sum::<usize>();
     let mut lines = bound(
         &mut ledger,
         terminal
             .into_iter()
             .map(|(id, key, line, _, _)| (id, key, line))
             .collect(),
+        reserved,
     );
     // `collapse_running` gets only what `bound` left of the budget, not the
     // module ceiling again: checking its one line against the whole of
     // `REPORT_BUDGET` a second time would let the two sums together exceed
     // it, and a report over `REPORT_BUDGET` is replaced whole by the
     // runtime's stub — which reads to the agent as nothing else changed.
-    let used: usize = lines.iter().map(|l| l.len() + 1).sum();
+    let used: usize = reserved + lines.iter().map(|l| l.len() + 1).sum::<usize>();
     let running: Vec<(String, String, String, String)> = running
         .into_iter()
         .map(|(id, key, line, name, _)| (id, key, line, name))
@@ -324,16 +346,6 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
             }
         }
     }
-    // A reset ledger makes every child look new. Say why, or the agent sees a
-    // burst of repeats with no explanation.
-    if let Some(reason) = ledger.reset_reason.clone() {
-        notes.insert(
-            0,
-            format!(
-                "  note: report history lost — {reason}; each child below is reported again once"
-            ),
-        );
-    }
     for note in notes.into_iter().rev() {
         lines.insert(0, note);
     }
@@ -355,38 +367,65 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
 fn bound(
     ledger: &mut crate::ledger::Ledger,
     pending: Vec<(String, String, String)>,
+    reserved: usize,
 ) -> Vec<String> {
-    let mut used = 0;
-    let mut kept: Vec<String> = Vec::new();
-    let mut dropped = 0;
-    for (id, key, line) in pending {
-        // `continue`, not `break`: a short line after a long one still fits.
-        if used + line.len() + 1 > REPORT_BUDGET {
-            dropped += 1;
-            continue;
+    // Which lines fit under `ceiling`, and what they spend. `continue`, not
+    // `break`: a short line after a long one still fits.
+    let select = |ceiling: usize| -> (Vec<usize>, usize) {
+        let mut used = reserved;
+        let mut fit = Vec::new();
+        for (i, (_, _, line)) in pending.iter().enumerate() {
+            if used + line.len() + 1 > ceiling {
+                continue;
+            }
+            used += line.len() + 1;
+            fit.push(i);
         }
-        used += line.len() + 1;
-        ledger.record(&id, &key);
-        kept.push(line);
+        (fit, used)
+    };
+
+    // Two passes, because the note announcing a drop has to have its room
+    // reserved before any line is recorded. Checked for after packing, the note
+    // is the thing that does not fit — and a truncation nobody announced is
+    // indistinguishable from a report of no change, the one failure this
+    // function exists to prevent. The first pass only asks whether anything
+    // drops and records nothing; the reserve it then takes is the note at its
+    // widest possible count, so the second pass dropping more lines can never
+    // outgrow it.
+    let (fit, used) = select(REPORT_BUDGET);
+    let (fit, used) = if fit.len() == pending.len() {
+        (fit, used)
+    } else {
+        select(REPORT_BUDGET.saturating_sub(omitted_note(pending.len()).len() + 1))
+    };
+
+    let mut kept: Vec<String> = Vec::with_capacity(fit.len() + 1);
+    for i in &fit {
+        let (id, key, line) = &pending[*i];
+        ledger.record(id, key);
+        kept.push(line.clone());
     }
+    let dropped = pending.len() - fit.len();
     if dropped > 0 {
-        let note = format!(
-            "  ... {dropped} more changed, omitted for size; they are reported at the \
-             next delivery point, or run `agent-tools ps` now"
-        );
-        // The note itself spends budget too. Pushing it unconditionally could
-        // let `kept`'s own total exceed REPORT_BUDGET by the note's length —
-        // the same gap `collapse_running`'s `Dropped` case had, in reverse:
-        // there the fix was discovered by a test that packed this function
-        // this tightly. In the corner where even the note does not fit,
+        let note = omitted_note(dropped);
+        // The second pass reserved this note's room, so it fits unless the
+        // caller's own `reserved` had already spent the ceiling. In that corner
         // saying nothing is the only honest option left; every dropped line
-        // already stayed unrecorded, so it is retried at the next delivery
-        // point regardless.
+        // stayed unrecorded, so it is retried at the next delivery point.
         if used + note.len() < REPORT_BUDGET {
             kept.push(note);
         }
     }
     kept
+}
+
+/// The one wording for "some lines did not fit", so the room `bound` reserves
+/// for it and the text it finally pushes cannot disagree about its length.
+fn omitted_note(dropped: usize) -> String {
+    format!(
+        "  ... {dropped} more changed, omitted for size; they are reported at the \
+         next delivery point, or run `agent-tools ps` now"
+    )
 }
 
 /// What became of the still-running children: nothing to say, something said
@@ -479,16 +518,12 @@ mod tests {
             .strip_prefix("[agent-tools] run status @ ")
             .and_then(|s| s.strip_suffix(':'))
             .unwrap_or_else(|| panic!("header shape: {header:?}"));
-        // Read back through the offset the stamp itself carries, so the
-        // assertion holds in whatever zone the test runs in. The date comes
-        // from `at` because the stamp does not carry one; a header stamping a
-        // different instant lands on a different time of day and fails here.
-        let local_date = at.with_timezone(&chrono::Local).format("%Y-%m-%d");
-        let parsed = chrono::DateTime::parse_from_str(
-            &format!("{local_date} {stamp}"),
-            "%Y-%m-%d %H:%M:%S %z",
-        )
-        .unwrap_or_else(|e| panic!("stamp {stamp:?} did not parse: {e}"));
+        // Read back through the date and offset the stamp itself carries, so
+        // the assertion holds in whatever zone the test runs in and supplies
+        // nothing the reader of a compacted report would not have. A header
+        // stamping a different instant fails here.
+        let parsed = chrono::DateTime::parse_from_str(stamp, "%Y-%m-%d %H:%M:%S %z")
+            .unwrap_or_else(|e| panic!("stamp {stamp:?} did not parse: {e}"));
         assert_eq!(
             parsed.with_timezone(&chrono::Utc),
             at,
@@ -519,7 +554,7 @@ mod tests {
                 )
             })
             .collect();
-        let kept = super::bound(&mut ledger, pending);
+        let kept = super::bound(&mut ledger, pending, 0);
         let total: usize = kept.iter().map(|l| l.len() + 1).sum();
         assert!(
             total <= super::REPORT_BUDGET,
@@ -540,7 +575,7 @@ mod tests {
             ("b/2".to_string(), "final(0)".to_string(), oversized),
             ("c/3".to_string(), "final(0)".to_string(), "c".repeat(50)),
         ];
-        let lines = super::bound(&mut ledger, pending);
+        let lines = super::bound(&mut ledger, pending, 0);
         assert!(lines.iter().any(|l| l.starts_with("aaa")), "lines: {lines:?}");
         assert!(
             lines.iter().any(|l| l.starts_with("ccc")),
@@ -568,7 +603,7 @@ mod tests {
             "final(0)".to_string(),
             "x".repeat(super::REPORT_BUDGET - 40),
         )];
-        let lines = super::bound(&mut ledger, terminal);
+        let lines = super::bound(&mut ledger, terminal, 0);
         let used: usize = lines.iter().map(|l| l.len() + 1).sum();
 
         // Comfortably under REPORT_BUDGET on its own, but not under the

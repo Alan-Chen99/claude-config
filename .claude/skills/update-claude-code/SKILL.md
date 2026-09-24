@@ -124,7 +124,7 @@ numbers moves).
 ### 3.2b Knobs that are unset here, and what each would do if set
 
 Nothing here sets them; each would silently change behaviour a row above asserts. Same shape as
-`CLAUDE_AUTO_BACKGROUND_TASKS` in `CLAUDE.md`.
+`CLAUDE_AUTO_BACKGROUND_TASKS` in `docs/subagent-backgrounding.md`.
 
 | Unset knob | What setting it would do here |
 |---|---|
@@ -138,7 +138,8 @@ Nothing here sets them; each would silently change behaviour a row above asserts
 assertion.
 
 **Re-verify the claim, keep the label:** the version banners in `docs/system-prompt-anatomy*.md`,
-`docs/tool-token-limits.md`, `docs/background-sessions.md`, `docs/system-prompt-snapshot/README.md`,
+`docs/tool-token-limits.md`, `docs/background-sessions.md`, `docs/subagent-backgrounding.md`,
+`docs/system-prompt-snapshot/README.md`,
 `skills/cc-history/SKILL.md`, `output-styles/README.md`, `agent-tools/CLAUDE.md`,
 `docs/agent-tools-status-reference.md`, and the first-byte-watchdog window in
 `scripts/intercept/README.md`, "Pass-through streaming" — if that number moves, an

@@ -184,6 +184,55 @@ fn explicit_run_in_background_is_not_reported_as_timeout() {
     );
 }
 
+/// The notice points the agent at a skill by name, and nothing else checks that
+/// the skill exists: a rename or a deletion leaves the pointer dangling, and an
+/// agent told to load it gets a refusal from the Skill tool at the one moment it
+/// needed the protocol. `check-prompt-coupling.sh` cannot cover this — its
+/// coverage assertion pairs one needle with one `// PROMPT-COUPLED` marker, and
+/// this literal shares an emit site with the `BACKGROUNDED:` prefix — so read the
+/// name back out of the emitted text and resolve it against `skills/`.
+#[test]
+fn the_backgrounding_notice_names_a_skill_that_exists() {
+    let home = tempfile::tempdir().unwrap();
+    let (status, stdout, stderr) = run_post(
+        home.path(),
+        serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Bash",
+            "tool_input": {"command": "slow", "run_in_background": true},
+            "tool_use_id": "tuid",
+            "tool_response": {"backgroundTaskId": "bt-skill"}
+        }),
+    );
+    assert!(status.success(), "stderr: {stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+
+    let tail = ctx
+        .split_once("load the ")
+        .unwrap_or_else(|| panic!("notice no longer points at a skill: {ctx}"))
+        .1;
+    let name = tail
+        .split_once(" skill")
+        .unwrap_or_else(|| panic!("skill pointer lost its ` skill` suffix: {ctx}"))
+        .0;
+
+    let skill = worktree_root().join("skills").join(name).join("SKILL.md");
+    let body = std::fs::read_to_string(&skill).unwrap_or_else(|e| {
+        panic!(
+            "notice names skill `{name}`, but {} is unreadable: {e}",
+            skill.display()
+        )
+    });
+    assert!(
+        body.contains(&format!("\nname: {name}\n")),
+        "{} does not declare `name: {name}` in its frontmatter",
+        skill.display()
+    );
+}
+
 #[test]
 fn each_cause_field_the_tool_declares_gets_its_own_label() {
     // One arm per field in the Bash tool's output schema
@@ -933,20 +982,20 @@ fn a_report_header_carries_the_clock_it_was_made_at() {
         first.ends_with(':'),
         "header ends with a colon, got: {first}"
     );
-    // A stamp with an offset, so the line still resolves after a compaction.
+    // A stamp carrying its own date and offset, so the line still resolves when
+    // it is re-read after a compaction — days later in a long session, where a
+    // bare time anchors the block's relative ages to the wrong day.
     let stamp = first
         .trim_start_matches("[agent-tools] run status @ ")
         .trim_end_matches(':');
+    let parsed = chrono::DateTime::parse_from_str(stamp, "%Y-%m-%d %H:%M:%S %z")
+        .unwrap_or_else(|e| panic!("stamp {stamp} did not parse whole: {e}"));
+    let age = (chrono::Utc::now() - parsed.with_timezone(&chrono::Utc))
+        .num_seconds()
+        .abs();
     assert!(
-        chrono::NaiveTime::parse_from_str(&stamp[..8], "%H:%M:%S").is_ok(),
-        "stamp did not start with HH:MM:SS: {stamp}"
-    );
-    let offset = &stamp[9..];
-    assert!(
-        offset.len() == 5
-            && (offset.starts_with('+') || offset.starts_with('-'))
-            && offset[1..].chars().all(|c| c.is_ascii_digit()),
-        "stamp {stamp} carried {offset} where a signed four-digit offset belongs"
+        age < 120,
+        "stamp {stamp} is {age}s from now; it must name the instant the report was made"
     );
 }
 

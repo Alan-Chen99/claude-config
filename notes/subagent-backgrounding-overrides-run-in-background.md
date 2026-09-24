@@ -5,8 +5,7 @@
 > `sys_prompt/alan-default-next.md` now asks the model to pass `run_in_background: false`
 > itself, which the gate makes possible by leaving the parameter in the Agent schema. Every
 > measurement below still stands as a measurement; the sentences that describe the hook as
-> present do not. Current state: `CLAUDE.md`, "`settings.json` —
-> `CLAUDE_CODE_FORK_SUBAGENT`, and how subagents stay in the foreground".
+> present do not. Current state: `docs/subagent-backgrounding.md`.
 
 Investigated 2026-08-28 on Claude Code **2.1.235**; the workaround was re-checked on
 **2.1.269** on 2026-09-12 and still holds. Everything below, including every source
