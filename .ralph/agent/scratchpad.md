@@ -108,7 +108,7 @@ session rather than a fixture; 23 shipped the bullet across two genres; 24 ran a
 third, deleted the cost paragraph it had written after its own arms, and wrote a
 new one the same way — see C1.
 
-## Iteration 25 — `b7e01d08` → ...
+## Iteration 25 — `b7e01d08` → `9504b5dc`
 
 ### Critique of 24
 
@@ -145,3 +145,48 @@ fixtures *before a candidate wording is written*, and requires pre-registration
 *before launching the arms*. A claim about how fixtures differ is neither, so C1
 walked straight through both. One grep of three files would have killed it.
 Amended below.
+
+### Why this milestone
+
+The user's every-fifth rule makes 25 a cleanup round, and two things made the
+same round the right place for both halves. `.ralph/agent/*` stood at 5988 of
+6000, so nothing could be written until something was cut. And the first thing to
+check before spending a round on iteration 24's instruction 2 was whether its
+hypothesis was true — one grep of three fixtures, cheaper than the probe it was
+asking for, and it was not. That freed the round for instruction 1, the deletion
+that had been open across two rounds.
+
+### The round's work and result
+
+Probe on `prompt-tests/general/hushed-rollcall`, two arms, pre-registration
+`9a27d14f`. Arms differ only in whether the block states one rationale twice.
+
+**Outcome 2.** Both arms left the fixture's `CLAUDE.md` byte-identical and put
+the option's semantics in `docs/cli.md`. The cut shipped, 6464 → 6445 API tokens.
+Its limit is in `sys_prompt/CLAUDE.md` with it: the two arms reached one artifact
+by two routes, and only the uncut one ever considered the heading.
+
+The blind reader preferred the cut arm's tree — the first time in three rounds a
+reader has preferred the shorter block — on a sentence the edit does not touch,
+and volunteered the finding that matters most for the objective: both sessions
+put their most valuable discovery in the reply, which is thrown away, and the
+uncut one wrote into `docs/cli.md` a guarantee its own session had disproven.
+Neither is attributable to the edit. Both are in `9504b5dc`, not in the durable
+home.
+
+### `(instruction)` for iteration 26
+
+1. `Say what ends it` has now gone three rounds without an observed exit priced
+   in any arm, in any position. Its retirement condition names
+   `prompt-tests/general/retirement-policy` and no round has run it since the
+   bullet shipped. Run it before anything else: a shipped line with no observed
+   effect is the cheapest deletion available and the objective's top priority.
+2. Do not open a fourth genre for the self-consequence bullet. Two costs are now
+   recorded against it — an inherited fact declined by name (`weary-waitlist`),
+   and a false sentence written into a durable home by the arm carrying it
+   (`hushed-rollcall`, blind, unattributed) — and neither has been separated from
+   its fixture. The separation is the work, not another genre.
+3. The block's trade has never been put to the user: it buys fewer rules only a
+   human can remove, and blind readers split two-to-one against the arm carrying
+   more of it. `/telegram-hitl` is permitted and unused across 25 rounds. A round
+   that asks should ask this.

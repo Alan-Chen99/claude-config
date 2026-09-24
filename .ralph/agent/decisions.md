@@ -49,3 +49,30 @@ an over-reach (iter 24, conf 65)
   evaluated.
 - **Reversibility**: one bullet; `git revert` of `d98c5753`.
 - 2026-09-24T06:20:00Z, framing bias amended 2026-09-24T06:30:00Z
+
+## DEC-033 — delete a rationale rather than a directive, on a run where both
+arms produced the same artifact (iter 25, conf 75)
+
+- **Decision / chosen**: `# Writing for other agents` stated one rationale in two
+  wordings. Cut the copy from the second bullet and ship, on outcome 2 of a
+  pre-registered two-arm probe.
+- **Alternatives**: cut on the reading alone, the repo's own step 2 requiring it
+  (rejected: every other line in this block was measured, and a rationale is what
+  makes a directive persuasive); cut from the first bullet instead (rejected: its
+  second leg has no counterpart, the second bullet's does); keep both (rejected:
+  nothing says which governs, which is the defect step 2 names).
+- **Reasoning**: the surviving bullet reached the same placement without the
+  copy, in a genre where the fixture requires a home for exactly that fact.
+- **Re-evaluate**: restore the copy if an arm carrying the cut block extends a
+  soliciting document that an arm carrying the uncut one leaves alone, on
+  `prompt-tests/general/hushed-rollcall`.
+- **Framing bias**: the probe reused the case the bullet was shipped on, so the
+  fixture is the one most likely to show the bullet working and least likely to
+  show a wording cost. Its `CLAUDE.md` requires every option documented, which is
+  enough on its own to route the fact — the cut arm took that route without ever
+  considering the heading. The confidence is in the deletion being cheap, not in
+  the bullet being load-bearing.
+- **Independent evaluation**: the tree comparison was blind and preferred the cut
+  arm, on a sentence the edit does not touch. Not evidence for the cut.
+- **Reversibility**: one clause; `git revert` of `9504b5dc`.
+- 2026-09-24T06:40:00Z

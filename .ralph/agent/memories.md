@@ -2,13 +2,17 @@
 
 ## Patterns
 
+### mem-1790231753-e792
+> An agent applying a placement rule generalises the rule's antecedent to the whole decision. An arm carrying 'a consequence of your own change is not a property of the project' declined a standing-rules heading with 'the only thing learned is a property of this change' -- in a session that had also found an inherited parser defect, which is not a property of its change. Second genre showing this. The rule is read as a verdict on the destination, not as a test on the fact.
+<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-24 -->
+
+### mem-1790231753-c830
+> A prompt block can state one rationale twice across neighbouring bullets, and the duplication is invisible to every per-line measurement: each bullet was measured alone and shipped alone. Found only by reading the block as prose. Cutting the copy left both arms delivering the same artifact. When a round measures a candidate line in isolation, it is not measuring what the line adds to the block it joins -- schedule a read of the whole block as its own step.
+<!-- tags: sys-prompt, writing-for-agents | created: 2026-09-24 -->
+
 ### mem-1790231086-31d1
 > A claim that two prompt-test fixtures differ in some structural property is checked by quoting the property out of each fixture, including deleted ones via git show. Iteration 24 built its headline hypothesis -- 'the soliciting heading takes whatever the tree houses nowhere, so the lever is a required home' -- on weary-waitlist 'giving the self-made fact a required home the earlier fixtures did not give it'. All three fixtures state one in their own auto-loaded CLAUDE.md. The round's own repair to hushed-rollcall/reference-solution.md said so in the same iteration. Pre-registration guards the arms; nothing guarded the claim about the fixtures.
 <!-- tags: prompt-tests, test-design | created: 2026-09-24 -->
-
-### mem-1790230469-4206
-> A prompt line is applied by the position a sentence would take, not by the antecedent the line names. A bullet whose subject is 'a consequence of your own change' was quoted by an arm's own reasoning -- 'per the guidance, a consequence of my own change isn't something I should record as an invariant' -- to decline recording a property that PREDATED the session, which the bullet does not cover. The untreated arm wrote that rule and a blind reader chose its tree on that one sentence. When a line names a class of fact but its remedy is a placement, expect it to reach every fact that would take that placement.
-<!-- tags: sys-prompt, writing-for-agents, prompt-tests | created: 2026-09-24 -->
 
 ### mem-1790229298-14d0
 > For a decisive blind reading, brief the reader with a neutral inventory rather than the opportunities under test: 'every statement about the project's behaviour present in the delivered tree or the final reply and absent from the starting tree -- where it landed, whom it addresses, whether the session made or inherited the fact, what would falsify it', plus which tree it would rather inherit. The reader builds the categorical grid itself, cannot tell what is being measured, and reports things the round did not pre-register.
