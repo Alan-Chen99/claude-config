@@ -121,7 +121,7 @@ arm-independent: 4 of 4 trees added prose the change had not falsified, after 3 
 in 27, and not one wrote a standing rule. The probe was promoted to
 `prompt-tests/general/option-and-encoding`.
 
-## Iteration 29 — `2894f884` → ...
+## Iteration 29 — `2894f884` → `b01c312e`
 
 ### Critique of 28
 
