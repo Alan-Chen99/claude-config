@@ -32,6 +32,10 @@
 
 ## Decisions
 
+### mem-1790237061-0993
+> A standing order to update docs is saturated where the project's auto-loaded CLAUDE.md indexes its own doc files: arms without the order rewrote the same documents and followed a data-file rename through them. What routes a change into the docs is the index, read as part of the task.
+<!-- tags: prompt, docs | created: 2026-09-24 -->
+
 ## Fixes
 
 ### mem-1790234297-5ef8

@@ -318,41 +318,34 @@ Restore it when an arm without it replies as if a doubt were settled where an ar
 either resolves the doubt or reports it, on `prompt-tests/general/retirement-policy`.
 
 
-### `# Doing tasks`: the docs clause, kept without evidence that it does anything
+### `# Doing tasks`: the docs order is deleted
 
-The clause is *After making a new file or making edits, check if project CLAUDE.md needs an update.*
-It restates the sentence before it — *Always update docs when you modify code or system state* —
-narrowed to one file and widened in trigger: the first fires on docs a change made wrong, which is
-checkable against the change; this one fires on the fact that an edit happened.
-`output-styles/alan-default-next.md` still carries the unwidened fork, *When you add a new file,
-update project CLAUDE.md*.
+The line was *Always update docs when you modify code or system state. Search for references across
+the entire codebase. After making a new file or making edits, check if project CLAUDE.md needs an
+update.* All three sentences are saturated on a tree whose auto-loaded `CLAUDE.md` indexes its own
+documents. Arms carrying the line and arms with it cut rewrote the same three documents, renamed the
+data file the docs referenced and followed the rename into every document naming it, and added the
+same `CLAUDE.md` row for the test file they had created — an arm without the line included. The one
+tree that left a `CLAUDE.md` row stale was an arm without the line that created no new file, so the
+sentence naming that file had nothing to fire on there either. A blind reader holding all four trees,
+told nothing about arms, separated them on four dimensions and none of the four was the arm.
 
-Four runs of one task on a fixture with three doc files — a `README.md` a TTL change falsifies, a
-nested index a new module leaves stale, and a third index nothing touches — two runs carrying the
-clause, two with it cut. **It bought nothing attributable.** Three of the four delivered correct
-docs; the one that did not was an arm without the clause, and a blind reader holding all four
-trees grouped them on a dimension that cuts across the arms: whether the *first* listing showed the
-doc files at all (`ls -R` and a `find` with `-name '*.md'` did; `ls -la` plus a `.py` sweep did not).
-Of the two runs that started blind, the one that recovered did so on a later `grep -rn` whose
-`--include` list happened to carry `*.md`; the one that did not repair anything grepped the root
-`CLAUDE.md` alone — that is, the arm *without* the clause is the one that went to the file the clause
-names, and the arm with it went wider. The clause names an artifact; the outcome was decided by a
-search's breadth, chosen before the agent knew there were docs to find.
+Hypothesis for why dropping it costs nothing: what routes a change into the documents is the
+project's own index of them, read as part of the task, and not a standing order read before there is
+anything to apply it to.
 
-So it stays, unjustified rather than justified: nothing here shows it earns its tokens, and nothing
-here shows dropping it is free. **What a later round must fix before it can be measured at all** is
-the instrument: a fixture whose doc files are named in the auto-loaded root `CLAUDE.md`, so no arm
-can miss them by accident, removing search breadth as the dominant variable. Until then this
-paragraph is the record that the line is untested, not that it is load-bearing.
+Limits: two runs an arm, one fixture, one genre, and only on a tree that indexes its documents. On a
+tree that hides them the same order was measured at four runs earlier and attributed nothing either —
+there the outcome was set by whether the session's first listing happened to show the `.md` files.
+Neither measurement reaches a tree that both hides its documents and is repaired by an agent that
+searches narrowly, which is the case this deletion is a bet about.
 
-Two findings the same four runs do support, neither attributable to any line under test. **A repair
-is a rewrite.** Every run that opened the `README.md` replaced the whole paragraph rather than the
-false number, and two of the three deleted the inherited rationale — *the endpoints regenerate on a
-15-minute cron* — while correcting the figure, disclosing the deletion to the user and not to the
-tree. One run reconciled it instead. **A repair also grows.** All three appended new prose the
-change had not falsified, under the `## Design Decisions` heading the fixture already had. The
-doc-error mechanism in this genre is a paragraph rewritten from the change rather than from the
-paragraph, and its home is not `sys_prompt/`.
+`output-styles/` keeps the unwidened fork of the sentence and `sys_prompt/alan-default.md` keeps the
+whole line; neither was in any arm, and `settings.json` sets `outputStyle: default`, so nothing loads
+the first.
+
+Restore it when an arm without it leaves a document false that an arm with it repairs, on
+`prompt-tests/general/option-and-encoding`.
 
 ### `# Git`
 

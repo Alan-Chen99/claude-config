@@ -59,22 +59,26 @@ cheaply resolvable doubt — the condition under which the live case showed the 
 **Independent evaluation**: the blind reader preferred the arm carrying the line,
 on sentences the line could not have caused. Revert: `291d3c55`. 2026-09-24.
 
-## DEC-035 — keep an unjustified shipped clause because four runs could not
-measure it (iter 27, conf 60)
+## DEC-035 — superseded by DEC-036 (iter 27, conf 60)
 
-`# Doing tasks`'s *After making a new file or making edits, check if project
-CLAUDE.md needs an update* stays. Two arms × two runs on one fixture: three trees
-had correct docs, the one that did not was an arm without the clause, and a blind
-reader grouped all four on whether the *first* listing showed the doc files — a
-split cutting across the arms. **Alternatives**: delete on 3/4 saturation (the 1/4 is a real doc
-error); keep as load-bearing (its stratum-mate recovered on one `grep --include`);
-ship a wording naming the search instead (untested, and the user requires a test
-before an add).
-**Re-evaluate**: only after a fixture whose doc files are named in the auto-loaded
-root `CLAUDE.md`, removing search breadth as the dominant variable; until then the
-line is untested, not upheld. **Framing bias**: the round picked this clause
-because it was the most direct doc-growth order in the stack, and the probe it
-then built could show growth only in files the agent had to find first — the same
-search variable that swamped the result. **Independent evaluation**: the blind
-reader's grouping is what refuted the round's own stratified reading. No revert
-needed; nothing shipped to the prompt. 2026-09-24.
+Kept the `# Doing tasks` CLAUDE.md clause as untested, re-evaluable only on a
+fixture whose doc files are named in the auto-loaded root `CLAUDE.md`. Iteration
+28 built that fixture and the line went.
+
+## DEC-036 — delete the whole docs order in `# Doing tasks` (iter 28, conf 75)
+
+All three sentences of `alan-default-next.md:15`, on two runs an arm against a
+tree whose auto-loaded `CLAUDE.md` indexes its documents. Both arms rewrote all
+three documents, followed a data-file rename into every document naming it, and
+added the same `CLAUDE.md` row for a file they had created; a blind reader
+holding all four trees found four separating dimensions and no arm among them.
+**Alternatives**: keep sentence 1 and cut the other two (untested as a unit, and
+nothing in the runs distinguishes them); keep on the hidden-docs risk the limits
+paragraph names. **Re-evaluate / restore**: an arm without the line leaves a
+document false that an arm with it repairs, on
+`prompt-tests/general/option-and-encoding`. **Framing bias**: the fixture was
+built to remove the variable that swamped iteration 27, and removing it is also
+what makes the baseline competent — a tree that indexes its own documents is the
+condition most favourable to deletion, and the round chose it. **Independent
+evaluation**: the blind reader supplied the grouping; it was not asked, and did
+not say, which tree was better. Revert: this round's prompt commit. 2026-09-24.

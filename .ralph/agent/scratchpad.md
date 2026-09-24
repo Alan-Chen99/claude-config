@@ -134,7 +134,7 @@ clause names. DEC-035 records the line untested and names the instrument fix.
 Arm-independent, on the top priority: a doc repair is a paragraph **rewrite** that
 drops inherited rationale, and it **appends** prose the change had not falsified.
 
-## Iteration 28 — `59bb9965` → (pending)
+## Iteration 28 — `59bb9965` → `pending`
 
 ### Critique of 27
 
@@ -162,17 +162,39 @@ written about the trees while the decisive reading turned out to be a blind
 reader's grouping nobody had named. 28 pre-registers the reader's questions and
 derives the outcomes from the answers.
 
-### Milestone
+### Milestone and result
 
 The whole of `alan-default-next.md:15` on trial for deletion — not the third
 clause alone, which subsumes 27's instruction 1, since the breadth sentence it
-names is the second. The instrument defect C1 names is fixed first: the fixture's
+names is the second. The instrument defect C1 names was fixed first: the fixture's
 auto-loaded `CLAUDE.md` indexes every doc file, so no arm can miss them.
-Pre-registration and fixture: `prompt-tests/runs/option-and-encoding/README.md`.
+
+**Shipped: the line is deleted**, pre-registered outcome 1, saturated on both
+arms. Two runs an arm; a blind reader given the four trees and the two
+pre-registered questions found four separating dimensions and no arm among them.
+The arm with no docs instruction at all rewrote three documents, followed a
+data-file rename into every document naming it, and added a `CLAUDE.md` row for a
+file it had created. DEC-036 carries the reading, its limits and what restores the
+line; the fixture is promoted to `prompt-tests/general/option-and-encoding` because
+the restoration condition has to name a case that exists.
+
+**Growth replicated, and it is not this line's.** Outcome 3 also fired: every tree
+in both arms added prose the change had not falsified, the largest addition coming
+from an untreated arm — 4 of 4 here after 3 of 3 in 27, two genres. All of it was
+descriptive or rationale prose inside the documents; not one tree wrote a standing
+rule, including into the `## Conventions` heading the fixture left soliciting one.
+Hypothesis: the growth is a property of rewriting a paragraph from the change
+rather than from the paragraph, so it rides on the repair and no order to document
+causes it. That makes the repair-as-rewrite genre, not any prompt clause, the
+target for the user's top priority.
 
 ### `(instruction)` for iteration 29
 
-1. Unspent from 26, twice deferred: read `# Epistemic Integrity`, `# Error
+1. The top priority now has a measured mechanism and no owner. Before any new
+   candidate wording, run one arm that varies `# Writing for other agents` on the
+   promoted case — it is the block aimed at what goes into a lasting document and
+   it has never been varied on a repair task, which is what C2 charged 27 with.
+2. Unspent from 26, twice deferred: read `# Epistemic Integrity`, `# Error
    Propagation` and `## Required notes` as prose before measuring any of them.
-2. `tasks.jsonl` grows ~190 tokens a round against the ceiling, with no prune
-   command. Round 30's cleanup solves that or the ceiling eats the scratchpad.
+3. `tasks.jsonl` was pruned of closed rows this round to fit the ceiling; there is
+   still no prune command. Round 30's cleanup builds one or the pruning repeats.
