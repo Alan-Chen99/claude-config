@@ -175,4 +175,5 @@ failure this loop has found that a shipped line does not already reach.
    an arm that overwrites a rule its change did *not* falsify.
 3. 40 is the cleanup round; 37 is not.
 
-Iteration 36: `3c5bec5e` → `HEADSHA`. `.ralph/agent/*` at close: TOKENS tokens.
+Iteration 36: `3c5bec5e` → `997a5c02`, plus this line's own commit. `.ralph/agent/*` at
+close: the number is in that commit's message.
