@@ -30,10 +30,12 @@ by 21 and left unrun. Independent evaluation: not-started for all.
   composed after the arms and read against the same fixture, which is the
   overfitting the repo's own hints name); keep the probe as a case (rejected:
   `git checkout <sha> -- <path>` restores it and a kept directory is the ratchet).
-- **Reasoning**: the costs are not incidental. Both treated arms wrote less
-  user-facing text of every kind, including the part of it that was correct to
-  add, so the line as worded buys less unasked-for prose by suppressing prose
-  generally. A wording that separates the two is what remains to be found.
+- **Reasoning**: the pre-registered condition fired on the observation, and the
+  observation is unexplained. Both treated arms wrote less user-facing text of
+  every kind, including the part that was correct to add — but no arm on either
+  side deliberated about `metavar`, so nothing traces the split to the line, and
+  the untreated arm that set it never reasoned about it either. Shipping would
+  assert a mechanism this round does not have.
 - **Re-evaluate**: when an arm carrying a wording of this claim leaves the
   soliciting file untouched and still matches the untreated arms on the
   program's own help surface.

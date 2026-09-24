@@ -235,8 +235,10 @@ the reply, which the response template already has a slot for, so a line aimed a
 findings buys nothing. Hypothesis: writing is routed by where a fact fits, and only a self-made
 fact has no slot until a soliciting heading supplies one. A line denying that such a consequence is
 a property of the project moves it to the change's own documentation, under two wordings sharing no
-vocabulary — so the claim carries the effect, not the phrasing — and takes the program's own help
-text with it, which is why none is shipped. Retire this when an agent that has just produced such a
+vocabulary — so the claim carries the effect, not the phrasing. Both arms carrying it also shipped
+a usage line their own `--help` contradicts, where both arms without it matched; no arm's reasoning
+mentions that surface at all, so the split is observed and unexplained, which is why none is
+shipped. Retire this when an agent that has just produced such a
 fact leaves a soliciting document unextended.
 
 **The preamble is kept, on its first isolation.** An arm carrying it sourced a checkable number

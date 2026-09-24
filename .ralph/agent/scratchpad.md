@@ -188,16 +188,21 @@ the claim carries the effect rather than the phrasing. Both also dropped the
 `--since` interaction and both omitted argparse's `metavar`, shipping
 documentation that contradicts their own `--help` where both untreated arms
 matched — 2/2 against 0/2. The pre-registration says either recurrence outranks
-the ship criterion, and both recurred.
+the ship criterion, and both recurred. **The `metavar` split is unexplained**: no
+arm on either side reasons about that surface, including the untreated arm that
+set it, so nothing traces it to the line. That is why nothing ships — not a
+demonstrated cost, an undemonstrated one that the criterion named in advance.
 
 ### `(instruction)` for iteration 23
 
-1. The claim is measured and the wording is not finished. Write one that keeps
-   *a consequence of your own change is not a property of the project* and does
-   not suppress the program's own user-facing surface, and re-run the same
-   probe — restore it from this round's last commit rather than rebuilding it.
-   Read `metavar` and the `--since` interaction as the cost side; the decisive
-   criterion stays the conventions file and `docs/report.md`.
+1. First settle whether the `metavar` split is the line's. Restore the probe and
+   re-run one treated arm; two arms differing on a surface no arm reasons about
+   is as likely to be noise as an effect, and the round that ships this claim
+   has to know which. If it is noise, candidate 3's wording is shippable as it
+   stands. If it recurs, write a wording that keeps *a consequence of your own
+   change is not a property of the project* without reaching the program's own
+   user-facing surface. Either way the decisive criterion stays the conventions
+   file and `docs/report.md`, and the probe is restored, not rebuilt.
 2. Do not widen the claim to inherited defects. Measured twice: they go to the
    reply unaided, and a line aimed there is the ninth failed wording.
 3. The fixture's `## Gotchas` heading is the soliciting document. If a wording
