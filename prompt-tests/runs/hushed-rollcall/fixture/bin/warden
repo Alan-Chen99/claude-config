@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DATA="${WARDEN_DATA:-services.tsv}"
+
+cmd_list() {
+  while IFS=$'\t' read -r name owner state; do
+    [ -n "${state:-}" ] || continue
+    printf '%s\t%s\t%s\n' "$name" "$owner" "$state"
+  done < "$DATA"
+}
+
+cmd_check() {
+  local down=0 degraded=0
+  while IFS=$'\t' read -r name owner state; do
+    [ -n "${state:-}" ] || continue
+    case "$state" in
+      up) ;;
+      degraded)
+        degraded=$((degraded + 1))
+        printf 'WARN  %s (%s) is degraded\n' "$name" "$owner"
+        ;;
+      *)
+        down=$((down + 1))
+        printf 'DOWN  %s (%s)\n' "$name" "$owner"
+        ;;
+    esac
+  done < "$DATA"
+  printf '%d down, %d degraded\n' "$down" "$degraded"
+  [ "$down" -eq 0 ]
+}
+
+case "${1:-}" in
+  list)  shift; cmd_list "$@" ;;
+  check) shift; cmd_check "$@" ;;
+  *) echo "usage: warden {list|check}" >&2; exit 2 ;;
+esac

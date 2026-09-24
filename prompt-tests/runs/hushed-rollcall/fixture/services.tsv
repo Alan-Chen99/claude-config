@@ -1,0 +1,5 @@
+api	platform	up
+billing	payments	degraded
+cache platform up
+queue	messaging	up
+search	discovery	up
