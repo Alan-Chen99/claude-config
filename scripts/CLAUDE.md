@@ -24,7 +24,7 @@ and one-off probes.
 
 | Directory    | What                                                        | When to read                                      |
 | ------------ | ----------------------------------------------------------- | ------------------------------------------------- |
-| `intercept/` | MITM proxy that captures every API request to `~/.claude/requests-log/`; its `README.md` carries the port, the CA setup and the streaming watchdog | Capturing requests; diagnosing an intercepted session whose turns abort |
+| `intercept/` | MITM proxy that captures conversation-shaped API calls to `~/.claude/requests-log/` — only from sessions `claude.sh` launched while it was listening; its `README.md` carries the port, the CA setup, the streaming watchdog and the four things a capture cannot record | Capturing requests; diagnosing an intercepted session whose turns abort; judging what a missing capture means |
 
 ## `claude.sh` — the launcher
 

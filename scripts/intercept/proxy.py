@@ -100,7 +100,13 @@ def resolve_session(session_id: str) -> SessionInfo:
 
 
 def parse_sse_stream(raw: str) -> dict:
-    """Reconstruct an Anthropic Messages API response from SSE events."""
+    """Reconstruct an Anthropic Messages API response from SSE events.
+
+    Message-level fields are copied as the API sends them rather than picked
+    from a list, so a field the list was never told about is not dropped
+    silently: `stop_details` carries the category and explanation behind
+    `stop_reason: "refusal"`, and nothing else in the capture records either.
+    """
     message: dict = {
         "id": "",
         "model": "",
@@ -126,20 +132,14 @@ def parse_sse_stream(raw: str) -> dict:
         etype = event.get("type")
 
         if etype == "message_start":
-            msg = event.get("message", {})
-            message["id"] = msg.get("id", "")
-            message["model"] = msg.get("model", "")
-            message["role"] = msg.get("role", "assistant")
-            u = msg.get("usage", {})
-            message["usage"]["input_tokens"] = u.get("input_tokens", 0)
-            if u.get("cache_creation_input_tokens"):
-                message["usage"]["cache_creation_input_tokens"] = u[
-                    "cache_creation_input_tokens"
-                ]
-            if u.get("cache_read_input_tokens"):
-                message["usage"]["cache_read_input_tokens"] = u[
-                    "cache_read_input_tokens"
-                ]
+            start = dict(event.get("message", {}))
+            usage = dict(start.get("usage") or {})
+            usage.setdefault("input_tokens", 0)
+            usage.setdefault("output_tokens", 0)
+            start["usage"] = usage
+            # content_block events rebuild the blocks below.
+            start["content"] = []
+            message.update(start)
 
         elif etype == "content_block_start":
             idx = event.get("index", 0)
@@ -175,9 +175,8 @@ def parse_sse_stream(raw: str) -> dict:
                 )
 
         elif etype == "message_delta":
-            delta = event.get("delta", {})
-            if delta.get("stop_reason"):
-                message["stop_reason"] = delta["stop_reason"]
+            # stop_reason, stop_details and stop_sequence all arrive here.
+            message.update(event.get("delta", {}))
             u = event.get("usage", {})
             if u.get("output_tokens"):
                 message["usage"]["output_tokens"] = u["output_tokens"]
@@ -204,6 +203,31 @@ def parse_sse_stream(raw: str) -> dict:
 
     message["content"] = [b for b in message["content"] if b is not None]
     return message
+
+
+ERROR_BODY_MAX = 8192
+
+
+def error_detail(raw: bytes | None) -> dict:
+    """The API's own account of a failed call, read from the error body.
+
+    A status line names neither the limit that was hit nor the field that was
+    rejected; the body does. `{"error": {"type", "message"}}` is what the API
+    sends, and it is kept in that shape so a reader finds the same two keys as
+    on an in-stream error. Anything else -- a gateway's HTML, a partial body --
+    is kept as capped text.
+    """
+    if not raw:
+        return {}
+    text = raw.decode("utf-8", errors="replace")
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        parsed = None
+    if isinstance(parsed, dict) and isinstance(parsed.get("error"), dict):
+        err = parsed["error"]
+        return {"type": err.get("type", ""), "message": err.get("message", "")}
+    return {"body": text[:ERROR_BODY_MAX]}
 
 
 # --- Logging ---
@@ -368,6 +392,9 @@ class InterceptAddon:
                     "error": {
                         "status": flow.response.status_code,
                         "statusText": flow.response.reason,
+                        # strict=False: a body that fails to decode is still
+                        # worth more than no body at all.
+                        **error_detail(flow.response.get_content(strict=False)),
                     },
                     "request": body,
                 },
