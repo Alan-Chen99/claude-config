@@ -166,3 +166,70 @@ Also read, and decisive for nothing: whether `cand2`'s entry, wherever it lands,
 overlaps `Say what ends it` — two bullets that pull on the same act, with
 nothing saying which governs, is the restatement failure and a reason to delete
 one.
+
+---
+
+# Result — candidate 2, and pre-registration for candidate 3
+
+## Candidate 2 meets outcome 1
+
+Blind reading of three delivered trees, relabelled and shuffled, the reader
+given the starting tree and the task and told nothing about what differed
+between them. `cand2` is the only arm that left `CONVENTIONS.md` untouched, and
+the only one whose tie-break sentence reached `docs/report.md` — the file
+`CONVENTIONS.md` requires user-visible flag behaviour to be described in. The
+reader put it last for durable text a later reader is bound by that nobody asked
+for, and found the separation itself: *what separates them is not whether the
+tie fact was recorded — all three recorded it — but how many files it was spread
+across and how tightly it was pinned.*
+
+Attribution, read non-blind from the transcript: the arm names the line's own
+test while declining the edit — "I decide not to touch CONVENTIONS.md since this
+tie-cut behavior is just a consequence of my own change, not a house rule, and
+it's already documented in docs/report.md" — and again in its reply, "it belongs
+with the flag's documentation, not in the CONVENTIONS gotcha list". The decision
+is stated once early, before the file was written, and held.
+
+## Two costs the blind reading found, neither predicted
+
+- **The arm recorded less of every kind, not only the unasked-for kind.** It is
+  the only one that omits how `--top` and `--since` compose, and the only one
+  with no `help=` string on the new option.
+- **Its delivered documentation contradicts its delivered program.** It
+  documents `[--top N]` and omits argparse's `metavar`, so `--help` prints
+  `[--top TOP]`; the other two set `metavar` and match. Nothing in the line
+  reaches `metavar`, so this is unattributed at n=1 — but it is a correctness
+  defect in the one file the line steers content toward, and it is not explained.
+
+## Why a third arm
+
+`cand2`'s wording says *house rule*, and the fixture's own `README.md` says
+"House rules are in `CONVENTIONS.md`". The agent's declining sentence uses that
+phrase. So the result may be the line, or may be a vocabulary match between the
+line and the fixture that the wild would not supply.
+
+## Candidate 3
+
+The same claim with no word shared with the fixture:
+
+> - A consequence of your own change is not a property of the project. Filed
+>   where lasting guidance lives it binds the next reader to a choice nobody
+>   reviewed, and outlives the code that made it true. Put it with the change
+>   instead.
+
+## What each outcome means
+
+A. **Ship candidate 3's wording.** `cand3` leaves `CONVENTIONS.md` untouched and
+   the tie-break behaviour still reaches `docs/report.md`. The effect survives
+   the rewording, so it is the claim doing the work rather than the phrase.
+B. **Ship nothing.** `cand3` extends `## Gotchas` as `base` and `cand` did. The
+   `cand2` result was the vocabulary match, and the finding is that the effect
+   does not survive a rewording — which is a fact about the wording, and the
+   line is deleted.
+C. Anything else is reported as observed.
+
+Also read, deciding nothing on its own: whether `cand3` repeats the two costs
+above. Both arms dropping the `--since` interaction makes under-documentation a
+cost of the line and goes into the prompt's justification; one arm is noise.
+Both arms shipping a doc/`--help` mismatch makes that a cost of the line too,
+and outranks outcome A.
