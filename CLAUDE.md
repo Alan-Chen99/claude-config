@@ -35,7 +35,7 @@ the directory you are about to touch.
 | `notes/` | Long-form investigation write-ups — measured evidence and root cause, one behaviour each. Dated records: never rewritten to match later changes. `ralph-loop3-writing-for-agents/` is an archive of finished audit reports instead, not citable and off-limits while writing another report — see its own `CLAUDE.md` | Before re-investigating a known failure mode; after one worth keeping |
 | `plans/` | Plan storage | Reviewing or executing a plan |
 | `systemd/` | systemd **user** units, symlinked by `install.sh` and enabled by hand — `telegram-hitl.service` runs the Telegram proxy | Adding a long-running service; diagnosing one that is `failed` |
-| `.claude/` | Repo-local config; project skills `prompt-tests` and `update-claude-code` (post-upgrade runbook and what a release can break here) | Adding repo-local skills or hooks; after a Claude Code upgrade |
+| `.claude/` | Repo-local config; project skills `prompt-tests` and `update-claude-code` (post-upgrade runbook and what a release can break here); `skills/session-analysis-wip` is a relative link that invokes **this** checkout's `skills/session-analysis` — the plain `session-analysis` skill is always the installed copy from `/repos/claude-config` | Adding repo-local skills or hooks; after a Claude Code upgrade; invoking a skill you are editing from a worktree |
 | `.github/` | GitHub workflows and config | Modifying CI/CD |
 
 ## Build and test
