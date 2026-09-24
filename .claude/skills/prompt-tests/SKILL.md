@@ -118,6 +118,10 @@ Two more ways an attribution fails silently, both of which have happened here:
   underdetermined. Cheaper than measuring the spread: give one run **several
   opportunities for the behaviour under test, differing in character**, and read
   the line the agent drew between them (`docs/prompt-testing-design.md`).
+  **The starting tree is a baseline too.** Before crediting a defect to an arm,
+  check whether the fixture already ships it: an arm that matches the fixture's
+  existing house style introduces nothing, and reading that as a cost of the
+  treatment has blocked a ship here on something no run was needed to see.
 - **A rule that reaches the agent in a tool result explains nothing written
   before the first call to that tool.** The `pre_output.record` reminder is the
   case in point: its text arrives in the tool response, so behaviour at earlier
