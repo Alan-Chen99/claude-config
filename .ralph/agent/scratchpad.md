@@ -33,6 +33,12 @@ outranks any new candidate — inside the objective's scope only.
 
 **When an instruction exists to compensate for a harness, fix the harness.**
 
+**The prompt is the whole stack, not one file.** `sys_prompt/alan-default-next.md`,
+`output-styles/`, `conventions/documentation.md` (pulled in by any doc-writing
+task) and `src/claude_config/pre_output/record.py` — whose RULES string is
+delivered in a tool result before every response, at NEVER force — all reach the
+session. 25 rounds measured the first only.
+
 **Before writing a clause for a failure, re-run the failure in a second genre.**
 If it disappears there, the target is the genre and not the wording.
 
@@ -92,101 +98,83 @@ rounds had missed (22).
 > `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` < 6000.
 > `tasks.jsonl` counts toward it: a task points here, never copies.
 
+> **A claim about what an earlier round did or observed is checked against git
+> before it is written** — `git log --all -S'<line>'` for a prompt line, the
+> result commit's own message for a result — and names the commit it checked.
+> 25's rule covers claims about fixtures; this covers claims about the loop.
+
+> **A round may spend its milestone on any file in the stack above**, not only on
+> `sys_prompt/alan-default-next.md`. The durable justification still lands in
+> `sys_prompt/CLAUDE.md`. The standing ban is on spending a whole milestone on the
+> prompt-test *instrument*, which none of those files is.
+
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–24, `9f6c03a0` → `b7e01d08`
+## History — rounds 1–25, `9f6c03a0` → `00396475`
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — the durable
 home, and the file to read before touching the block. Everything else is in the
-commit messages. Shipped: `Say what ends it`, and the self-consequence bullet.
-Deleted: `Omit by default`, `Claim less`, and the help-surface cost paragraph.
-Eight candidate wordings failed, the last four all claim-handling. Round 10 fixed
-a nine-round harness contamination and voided every arm stored before 2026-09-22.
-Every sentence still in the block has been measured alone. 22 diagnosed a live
-session rather than a fixture; 23 shipped the bullet across two genres; 24 ran a
-third, deleted the cost paragraph it had written after its own arms, and wrote a
-new one the same way — see C1.
+commit messages. Shipped: `Say what ends it` (11), the self-consequence bullet
+(23), and one duplicated rationale cut out of it (25). Deleted: `Omit by
+default`, `Claim less`, the help-surface cost paragraph. Eight candidate
+wordings failed, the last four all claim-handling. Round 10 fixed a nine-round
+harness contamination and voided every arm stored before 2026-09-22. Every
+sentence still in the block has been measured alone. 19 isolated `Say what ends
+it` on `retirement-policy` and its retirement condition did not fire. 22
+diagnosed a live session rather than a fixture. 25 falsified 24's required-home
+hypothesis from the tree, withdrew it, and cut the restatement on outcome 2.
 
-## Iteration 25 — `b7e01d08` → `9504b5dc`
+## Iteration 26 — `00396475` → (see last commit)
 
-### Critique of 24
+### Critique of 25
 
-**C1 (fact — the round's headline hypothesis names a fixture property that has
-never existed in any fixture).** 24 withdrew *only a self-made fact has no slot*
-and installed, in `sys_prompt/CLAUDE.md` and in a memory, *the heading takes
-whatever the tree houses nowhere … the lever is a required home rather than an
-instruction to write less*, on the stated ground that `weary-waitlist` "gave the
-self-made fact a required home the earlier fixtures did not give it". All three
-fixtures give it one, in one line of their own auto-loaded `CLAUDE.md`:
-`hushed-rollcall`, *Every subcommand and option of `bin/warden` is described in
-`docs/cli.md`*; `busiest-few` (`git show c28e1ac5:…/fixture/CONVENTIONS.md`),
-*Every user-visible flag is described in `docs/report.md`*; `weary-waitlist`,
-*Every flag of `bin/spool` has a row in `README.md`'s flag table*. The round
-rewrote `hushed-rollcall/reference-solution.md` in the same iteration and its own
-repair names `docs/cli.md` as "which the same `CLAUDE.md` names as where every
-option is described". So the comparison was uncontrolled, not reversed, and the
-hypothesis, its retirement condition, and instructions 2 and 3 all rest on a
-difference that is not in the tree. Withdrawn here, not replaced: the three
-fixtures also differ in whether the task asks for documentation at all and in
-what their soliciting heading solicits (*learn* vs *find*), and no round
-controlled either.
+**C1 (fact — instruction 1 rests on a claim about the loop that git falsifies).**
+25 wrote that `Say what ends it` "has gone three rounds without an observed exit
+priced in any arm" and that "no round has run [`retirement-policy`] since the
+bullet shipped". The bullet shipped at `52f519de` (05:13); iteration 19 ran that
+case against it four hours later (`b71737f7`, `4eae4b69`): the arms part on the
+row whose end is a design change, and a blind reader preferred the treated arm on
+the register row. The condition did not fire and `sys_prompt/CLAUDE.md` still
+carries that reading. Instruction 1 withdrawn, nothing replaces it. Same failure
+class 25 caught in 24, one level up — 25 required fixture-property claims to be
+quoted, and then wrote an unchecked claim about run history. Contract amended.
 
-**C2 (workflow — the loop reproduces the growth the objective is against, in its
-own state).** `.ralph/agent/*` went 5071 → 5988 tokens in one round, and the
-round's answer to breaching the 6000 ceiling was to shorten the ceiling clause
-(`40e384d4`), not to cut content. Round narrative is the growth: 24's own section
-was ~1400 tokens of material the contract already routes to commit messages and
-to `sys_prompt/CLAUDE.md`. Compressed here to the paragraph above.
+**C2 (workflow — the user handed a live case and three rounds did not open it).**
+The followup names session `e828eab7` and its two commits as an instance of the
+top-priority failure. 23–25 ran fixture probes on the block instead. The loop's
+own memory says a log finds the mechanism a fixture cannot. Opened here.
 
-**C3 (workflow — the guard against composed-after-the-arms readings covers
-wordings only).** The contract requires an occurrence outside the round's own
-fixtures *before a candidate wording is written*, and requires pre-registration
-*before launching the arms*. A claim about how fixtures differ is neither, so C1
-walked straight through both. One grep of three files would have killed it.
-Amended below.
+**C3 (workflow — 25 rounds optimised one file; the stack is larger).** See the
+durable-method line added above. The live case attributes growth to two members
+of the stack that no round has measured: `conventions/documentation.md`'s
+*Duplication is acceptable; the maintenance burden is the cost of locality*, read
+at record-index 108 and followed at 112 by the decision to give one fact two
+homes; and `pre_output.record`'s *NEVER reply to user if uncertainties remain*.
+
+### The live case, read
+
+One-symlink task; ~20 lines of durable text across four files, then a second
+commit refining two of them. The attributable half, by tool-call index: at #30
+the session recorded three uncertainties, one of them *"Did not probe whether
+`$10` … is rewritten"*. The reminder arrives in #30's result. Calls #31–#42
+resolve that one — a third throwaway probe skill — and produce `b394ebbf`, a
+two-file documentation edit stating that `$N` parses greedily past one digit. A
+second uncertainty (skill-list refresh) is dropped unresolved rather than
+settled. Both records list, under `possible-next-steps`, *"Rewrite the
+ocr()/ocrange() helpers to avoid literal `$N`, removing the coupling instead of
+documenting it"* — the fix, named twice, deferred twice, while the post-reminder
+effort went into documenting the defect instead.
+
+So the line converts a residual doubt into durable text, picks the cheapest doubt
+rather than the one that matters, and leaves the fix it names undone. What it is
+*for* — stopping an unverified claim reaching the user — is unmeasured.
 
 ### Why this milestone
 
-The user's every-fifth rule makes 25 a cleanup round, and two things made the
-same round the right place for both halves. `.ralph/agent/*` stood at 5988 of
-6000, so nothing could be written until something was cut. And the first thing to
-check before spending a round on iteration 24's instruction 2 was whether its
-hypothesis was true — one grep of three fixtures, cheaper than the probe it was
-asking for, and it was not. That freed the round for instruction 1, the deletion
-that had been open across two rounds.
-
-### The round's work and result
-
-Probe on `prompt-tests/general/hushed-rollcall`, two arms, pre-registration
-`9a27d14f`. Arms differ only in whether the block states one rationale twice.
-
-**Outcome 2.** Both arms left the fixture's `CLAUDE.md` byte-identical and put
-the option's semantics in `docs/cli.md`. The cut shipped, 6464 → 6445 API tokens.
-Its limit is in `sys_prompt/CLAUDE.md` with it: the two arms reached one artifact
-by two routes, and only the uncut one ever considered the heading.
-
-The blind reader preferred the cut arm's tree — the first time in three rounds a
-reader has preferred the shorter block — on a sentence the edit does not touch,
-and volunteered the finding that matters most for the objective: both sessions
-put their most valuable discovery in the reply, which is thrown away, and the
-uncut one wrote into `docs/cli.md` a guarantee its own session had disproven.
-Neither is attributable to the edit. Both are in `9504b5dc`, not in the durable
-home.
-
-### `(instruction)` for iteration 26
-
-1. `Say what ends it` has now gone three rounds without an observed exit priced
-   in any arm, in any position. Its retirement condition names
-   `prompt-tests/general/retirement-policy` and no round has run it since the
-   bullet shipped. Run it before anything else: a shipped line with no observed
-   effect is the cheapest deletion available and the objective's top priority.
-2. Do not open a fourth genre for the self-consequence bullet. Two costs are now
-   recorded against it — an inherited fact declined by name (`weary-waitlist`),
-   and a false sentence written into a durable home by the arm carrying it
-   (`hushed-rollcall`, blind, unattributed) — and neither has been separated from
-   its fixture. The separation is the work, not another genre.
-3. The block's trade has never been put to the user: it buys fewer rules only a
-   human can remove, and blind readers split two-to-one against the arm carrying
-   more of it. `/telegram-hitl` is permitted and unused across 25 rounds. A round
-   that asks should ask this.
+The user's top priority is that less documentation gets written; the strongest
+evidence available is the live case, and the only growth in it attributable by
+quotation is this line. It is shipped, unmeasured, NEVER-force, delivered before
+every response, and lives in a file nobody reads — the objective's own target
+shape. The durable method already ranks a shipped line with a named unmeasured
+harm above any new candidate.
