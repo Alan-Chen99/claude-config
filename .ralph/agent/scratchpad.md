@@ -125,7 +125,7 @@ of `retirement-policy`; DEC-034 carries the reading and its limits. Transferable
 result: a rule arriving in a tool result acts only on what follows the call, and
 every arm replied with residual doubt still listed anyway.
 
-## Iteration 27 — `d8b2ba5c` → (this commit)
+## Iteration 27 — `d8b2ba5c` → `fb8b260d`
 
 ### Critique of 26
 
@@ -158,8 +158,7 @@ all four trees grouped them on whether the *first* listing showed the doc files
 across the arms. The one tree that left docs false was an arm without the clause
 whose stratum-mate recovered on one `grep --include`; and the arm *without* the
 clause is the one that grepped the root `CLAUDE.md` the clause names, while the
-arm with it went wider. Both pre-registered outcomes partly fired, so neither is
-honoured. `sys_prompt/CLAUDE.md` records the line as untested and names the
+arm with it went wider. Both pre-registered outcomes partly fired; neither is honoured. `sys_prompt/CLAUDE.md` records the line as untested and names the
 instrument fix: doc files listed in the auto-loaded root `CLAUDE.md`.
 
 Two arm-independent findings the same runs support are in `sys_prompt/CLAUDE.md`
