@@ -99,7 +99,7 @@ commit messages. Shipped: `Say what ends it` (9). Deleted: `Omit by default`
 harness contamination and voided every arm stored before 2026-09-22. Every
 sentence still in the block has been measured alone.
 
-## Iteration 22 — `942cf683` → (this round)
+## Iteration 22 — `942cf683` → `fa5128ea` + this commit
 
 ### Critique of prior iterations
 
