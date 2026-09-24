@@ -121,7 +121,7 @@ declines an addition. Volume there was confounded with depth — the arm writing
 ran half again the tool calls and wrote the only true new claim. Unfalsified prose:
 11 of 11 trees over three rounds. DEC-037, DEC-038.
 
-## Iteration 30 — `98b3f320` → (this round)
+## Iteration 30 — `98b3f320` → `1690abaa`
 
 ### Critique of 29
 
