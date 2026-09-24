@@ -228,27 +228,27 @@ declining a specific addition as costing more than it is worth, the reasoning tr
 rather than the task. `prompt-tests/general/halve-the-runbook` stays whatever this
 says, on the user's direction: the user set that fixture's shape.
 
-**Growth has a moment: a document soliciting additions, met by a fact the agent made itself.** An
-agent files its own change's consequences where lasting guidance lives, in a file the task never
-named — that file asks, and the agent is the one who knows. A defect it merely inherited goes to
-the reply, which the response template already slots, so a line aimed at inherited findings buys
-nothing. Hypothesis: writing is routed by where a fact fits, and only a self-made fact has no slot
-until a soliciting heading supplies one. The bullet ships at the wording that was measured, across
-two genres and two wordings sharing no vocabulary: each treated arm left the soliciting document
-untouched, named the line's own test in its reasoning while declining the edit, and put the fact
-where the project already required the option described. A blind reader preferred the arm that
-grew, on the strength of the standing rule it added — a dependency written as a fact, false the
-moment the implementation changes, with nothing to signal it. The trade is reader-perceived quality
-against a rule only a human removes. Retire the bullet when an arm carrying it extends the
-soliciting document on `prompt-tests/general/hushed-rollcall`.
+**Growth has a moment: a document soliciting additions, met by a fact the tree houses nowhere
+else.** The bullet ships at the wording measured across two genres under two vocabularies sharing
+no words: each treated arm left the soliciting document untouched and put the fact where the
+project already required the option described, naming the line's own test while declining the edit.
+The trade is reader-perceived quality against a rule only a human removes — blind readers have
+twice preferred the arm that grew, each time on a standing rule written as a fact and signalling
+nothing when it goes false. *Withdrawn:* that only a **self-made** fact lacks a slot. A third genre
+gave the self-made fact a required home in the flag table, and the heading took the session's
+**inherited** finding instead. Hypothesis: the heading takes whatever the tree houses
+nowhere, so the lever is a required home rather than an instruction to write less. Retire the bullet
+when an arm carrying it extends the soliciting document on
+`prompt-tests/general/hushed-rollcall`.
 
-**What it costs: the program's own help surface.** In both genres the treated arm documented an
-option its own program does not admit exists, where both untreated arms updated that surface.
-Nothing in the bullet reaches it. Hypothesis: the untreated arms did more than the literal ask in
-several directions at once, and the line trims unrequested work without sorting the wanted kind
-from the unwanted — the same untreated arm also rewrote an untouched subcommand's argument
-handling. Retire this when an arm carrying the line updates that surface as fully as an arm
-without it, on `prompt-tests/general/hushed-rollcall`.
+**What it costs: a true inherited fact, declined by name.** On a task with no documentation ask, an
+arm carrying the bullet cited it — *a consequence of my own change isn't something I should record
+as an invariant* — about a property that predated the session, and filed it in a code comment where
+the arm without it wrote the standing rule. Hypothesis: the bullet is applied by position, so a
+heading soliciting rules reads as the thing denied whatever the fact's provenance. The help-surface
+cost recorded here before is deleted: on the one genre whose program enumerates its own flags, both
+arms updated it. Retire this when an arm carrying the line records an inherited property under a
+soliciting heading as fully as an arm without it, on `prompt-tests/general/weary-waitlist`.
 
 **The preamble is kept, on its first isolation.** An arm carrying it sourced a checkable number
 where an arm without it stated the same number bare, and they matched on every other reading.

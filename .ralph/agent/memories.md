@@ -2,6 +2,14 @@
 
 ## Patterns
 
+### mem-1790230469-4206
+> A prompt line is applied by the position a sentence would take, not by the antecedent the line names. A bullet whose subject is 'a consequence of your own change' was quoted by an arm's own reasoning -- 'per the guidance, a consequence of my own change isn't something I should record as an invariant' -- to decline recording a property that PREDATED the session, which the bullet does not cover. The untreated arm wrote that rule and a blind reader chose its tree on that one sentence. When a line names a class of fact but its remedy is a placement, expect it to reach every fact that would take that placement.
+<!-- tags: sys-prompt, writing-for-agents, prompt-tests | created: 2026-09-24 -->
+
+### mem-1790230469-2c9a
+> Where an agent files a fact is decided by what the tree gives that fact a home for, not by whether the agent made the fact itself. Measured three times: where the self-made fact had a required home (a CLAUDE.md saying every flag has a README row), the untreated arm filed it there and put its INHERITED finding under the soliciting heading instead -- the reverse of the two earlier genres, where the self-made fact had no required home and took the heading. Hypothesis: a soliciting heading collects whatever the tree houses nowhere. The lever on documentation growth is therefore a required home for each kind of fact, not an instruction to write less.
+<!-- tags: sys-prompt, writing-for-agents, docs | created: 2026-09-24 -->
+
 ### mem-1790229298-14d0
 > For a decisive blind reading, brief the reader with a neutral inventory rather than the opportunities under test: 'every statement about the project's behaviour present in the delivered tree or the final reply and absent from the starting tree -- where it landed, whom it addresses, whether the session made or inherited the fact, what would falsify it', plus which tree it would rather inherit. The reader builds the categorical grid itself, cannot tell what is being measured, and reports things the round did not pre-register.
 <!-- tags: prompt-tests, test-design | created: 2026-09-24 -->
@@ -22,13 +30,7 @@
 > A real session log is admissible evidence where a fixture is not, and this loop ignored them for 21 rounds. Every session on this machine is at ~/.claude/projects/<slug>/<id>.jsonl; the cheap read is python over the JSONL emitting only assistant thinking/text blocks plus tool-call headers (a 790KB log yields ~8k tokens). A fixture shows what a wording does to a situation the round invented; a log shows which situations actually arise and what the agent said while deciding. Use a log to FIND the mechanism, a fixture to measure a wording against it.
 <!-- tags: prompt-tests, test-design, session-analysis | created: 2026-09-24 -->
 
-### mem-1790400600-22b2
-> Where an agent puts a fact is decided by whether the fact is one it made itself. A defect it INHERITED goes into the reply -- a response template with a notes section is already the slot -- and a prompt line telling it to fix rather than record such a thing buys nothing, measured across four inherited defects differing in who may fix them. A consequence of the agent's OWN change has no slot, so a heading reading "add to the list when you find another" supplies one, and the entry lands in a file the task never named, written as a property of the project though it is false the moment the code changes. Hypothesis: writing is routed by where a fact fits.
-<!-- tags: sys-prompt, writing-for-agents, docs | created: 2026-09-24 -->
-
-### mem-1790400700-22c3
-> A prompt line that suppresses unrequested documentation can suppress the requested kind with it, and the tell is not in the documents it stops writing. Two wordings of one claim, sharing no vocabulary, each moved a self-made fact out of a conventions file and into the change's own docs as intended -- and each also omitted argparse's metavar, shipping a usage line its own --help contradicts, where both untreated arms matched. Read the program's user-facing surface, not only the prose, before crediting a line that reduces prose.
-<!-- tags: sys-prompt, prompt-tests, test-design | created: 2026-09-24 -->
+## Decisions
 
 ## Fixes
 
@@ -36,3 +38,4 @@
 > A session-analysis subagent dispatch can die instantly with 'safeguards flagged this message ... Details: [reasoning_extraction]' - twice on one transcript while an identical brief on a sibling transcript succeeded, so it is content-dependent and retrying the same dispatch does not help. Substitute: python over the .jsonl emitting only assistant 'thinking' and 'text' blocks. Re-hit 2026-09-24 on a first dispatch; the substitute worked immediately.
 <!-- tags: prompt-tests, session-analysis, tooling | created: 2026-09-22 -->
 
+## Context
