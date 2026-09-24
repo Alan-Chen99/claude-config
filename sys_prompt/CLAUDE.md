@@ -188,6 +188,24 @@ decoded string rather than the source line.
 
 ## Why the prompt says what it says
 
+### A session on this machine is not evidence about this file until its snapshot says so
+
+`scripts/claude.sh` loads the **installed** checkout's copy, and `/repos/claude-config`
+is still on the pre-round-11 fork: its `# Writing for other agents` is `Omit by default`
+and `Claim less`, and `# Doing tasks` still carries the docs order. The development
+branch has never been merged, so every edit recorded in this file reaches the
+prompt-test runners and nothing else. Read out of the `prompt_snapshot` attachments in
+`e828eab7`'s own JSONL on 2026-09-24.
+
+The specimen the owner named therefore had `Omit by default` in front of it while it
+wrote four durable additions, and had neither `Say what ends it` nor the
+self-consequence bullet. It is one more null for the deleted wording and says nothing
+about the live one. Grep a session's own snapshot for the line before citing it.
+
+Retire this when `git merge-base --is-ancestor` puts the branch inside the installed
+checkout.
+
+
 Reasoning cut from the prompt under step 3 above, kept so a future edit can tell a live rule from
 cargo. Each entry names what would retire it.
 
@@ -291,6 +309,26 @@ That looked like the predicted harm; a blind reader contradicted it, finding tha
 the template uniformly was also the one that filed a bare preference *as* a preference where the
 arm without it stated it flat with no warrant. Retire it when an arm carrying it names no more
 exits than one without, on `prompt-tests/general/retirement-policy`.
+
+**Telling the agent to fix rather than record is saturated, in two genres.** *A note
+telling the next reader to avoid something is a fix you did not make. Make the fix
+instead* was run against a bare arm on two fixtures. On the first, finishing the task
+puts a `%` into a `configparser` file whose default interpolation rejects it, with `%%`
+named in the exception's own message and `ConfigParser(interpolation=None)` one argument
+away: both arms took the argument, with near-identical comments, and neither wrote a
+rule about escaping — the arm carrying the bullet wrote one more standing sentence than
+the bare arm, not fewer. On the second, built so the reachable fix sits inside a vendored
+directory a script replaces wholesale, neither arm touched it and both wrote the same
+guard in the repo's own code, so the harm predicted for the wording did not appear
+either. A blind reader holding both trees and both sessions of the first probe
+attributed nothing to a prompt delta and traced the prose difference to a review
+subagent one arm happened to run. Hypothesis: removing an exposure you have just tripped
+over is a coding decision, and `# Error Propagation` and `# Completeness` already own it;
+a note is reached only where the fix is not available, and neither fixture nor this
+wording reaches that case. Ship a wording here when an arm without it preserves an
+exposure it could have removed and writes a standing rule in place of removing it —
+`git checkout d530b4ed -- prompt-tests/runs/slate-harbor` and
+`git checkout d530b4ed -- prompt-tests/runs/bronze-kettle` restore the two probes.
 
 
 ### The `pre_output.record` reminder, and why only one rule is left in it
@@ -414,9 +452,20 @@ The owner's answer of 2026-09-24 is the second reason and the more important one
 which of the four durable additions in their own specimen they did not want, they said
 the changes there "dont make sense": the additions do not belong where they were put,
 do not solve the problem, and introduce new problems that have no solution and no owner.
-The alternatives they name are a fix instead of a note, a note in the skill header where
-the invoker reads it, and a general gotcha in the root index. None of those is a volume
+The alternatives they name are four: find out whether the platform has an off switch
+for the behaviour at all; remove the exposure from our own artifact; a note in the skill
+header where the invoker reads it; a general gotcha in the root index. None is a volume
 question, so a lever on how much a change owes is not the lever that specimen needs.
+
+Asked again on 2026-09-24 which additions were unwanted, they kept the volunteered
+inventory row — *actually ok but can be more shorter and general* — and rejected only
+the per-skill rule, as *not incorrect but fairly expensive to cleanup, and likely will
+only be cleaned if i ordered one*. Their account of the cause is a two-sided
+mispricing: the note is written because *it looks like it only helps*, and *a research
+is actually MUCH CHEAPER but was considered more expensive here*. The first side is what
+`Say what ends it` already prices, and that line was absent from the specimen, so it is
+untested against this failure rather than refuted. The second side is priced by nothing
+in either fork, and is the open candidate.
 
 Ship a wording here when an arm carrying it writes less unfalsified prose than a bare
 arm *and* a reader running the delivered code finds no sentence in its tree false

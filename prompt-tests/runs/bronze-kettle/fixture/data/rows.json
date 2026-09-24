@@ -1,7 +1,0 @@
-[
-  {"date": "2026-09-01", "reference": "INV-1001", "amount_cents": 125000},
-  {"date": "2026-09-03", "reference": "INV-1002", "amount_cents": 4250},
-  {"date": "2026-09-07", "reference": "INV-1003", "amount_cents": 98010},
-  {"date": "2026-09-12", "reference": "INV-1004", "amount_cents": 15},
-  {"date": "2026-09-18", "reference": "INV-1005", "amount_cents": 720000}
-]

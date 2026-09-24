@@ -9,64 +9,63 @@ commit messages. Standing framing bias on every
 decision here: each fixture was written from the shape of the line its round
 meant to test.
 
-**Closed.** DEC-001–031, rounds 1–23; DEC-035 (superseded by DEC-036); DEC-038
-(discharged); DEC-042 (decided at 33, below); DEC-036 (upheld at 32 in a second genre, the finding in `sys_prompt/CLAUDE.md`);
-DEC-039 (restated as a standing contract clause, so the copy here was the duplication
-this journal's own header forbids); DEC-040 and DEC-041 (both closed at 32 by owner intent — `## Required
-notes` is best-effort surfacing and is not ablatable, so neither round's frame could
-have decided its bullet); the scratchpad's history paragraph carries what they decided
-and the commit messages carry the rest. Independent evaluation:
-not-started for all. DEC-030's stated reason is withdrawn — the fixture's own
-pre-existing option carried the mismatch it read as a cost of the line — and its
-wording shipped in round 23.
+**Closed**, their content in the commit messages and in `sys_prompt/CLAUDE.md`:
+DEC-001–031 (rounds 1–23); 035 (superseded by 036); 036 (upheld at 32 in a second
+genre); 038; 039 and 040/041 (restated as contract clauses); 042 and 043 (decided at
+33). Independent evaluation: not started for all. DEC-030's stated reason is withdrawn —
+the fixture's own pre-existing option carried the mismatch it read as a cost of the line
+— and its wording shipped at round 23.
 
-## DEC-032 — keep the self-consequence bullet (iter 24, conf 65)
+## DEC-032 / 033 / 034 / 037 — the four shipped-or-deleted lines still open to re-argument
 
-**Alternatives**: delete it on the over-reach. **Framing bias**: conf 65 was set
-against a contrast 25 showed did not exist. **Independent evaluation**: the blind
-comparison preferred the untreated arm; the decision to keep is unevaluated.
-Revert: `d98c5753`.
+Each one's claim, hypothesis and retirement condition are in `sys_prompt/CLAUDE.md`; the
+measurement is in its commit. What is here is only what that file does not carry.
 
-## DEC-033 — cut the duplicated rationale, not the directive (iter 25, conf 75)
+- **032, keep the self-consequence bullet** (conf 65). Alternative: delete it on the
+  over-reach. Bias: the confidence was set against a contrast 25 showed does not exist.
+  Independent evaluation: the blind comparison preferred the *untreated* arm, so the
+  decision to keep is unevaluated. Revert `d98c5753`.
+- **033, cut the duplicated rationale, not the directive** (conf 75). Alternatives: cut
+  the directive; cut neither. Bias: the probe reused the case the bullet shipped on,
+  whose `CLAUDE.md` already requires every option documented, so the confidence is in the
+  cut being cheap, not in the bullet being load-bearing. Independent evaluation: both
+  arms delivered the same artifact, so nothing was compared. Revert `9504b5dc`.
+- **034, delete `pre_output.record`'s NEVER-uncertainties rule** (conf 75). Alternatives:
+  keep it and cut one of the two wordings agreeing with it; reword it to carry the escape
+  branch. Bias: the treated arm ran two draws to the untreated arm's one, and the blind
+  reader's preference rested on three statements written before that arm called the tool.
+  Independent evaluation: done, and it disagreed; the deletion was taken over it on the
+  tool-call indices. Revert `291d3c55`.
+- **037, keep `# Writing for other agents`** (conf 70). Alternatives: delete it on the
+  volume gap; call it saturated. Bias: the arms diverged on depth as well as prompt, so
+  volume and investigation moved together and neither was held fixed. Independent
+  evaluation: the blind reader set the questions, and was not asked which arm was better
+  placed. Revert: n/a.
 
-**Alternatives**: cut the directive instead; cut neither. **Framing bias**: the
-probe reused the case the bullet shipped on, whose `CLAUDE.md` already requires
-every option documented, so the confidence is in the deletion being cheap and not
-in the bullet being load-bearing. **Independent evaluation**: both arms delivered
-the same artifact, so nothing was compared. Revert: `9504b5dc`.
+## DEC-044 — fix-instead-of-note is decided and not shipped (iter 34, conf 80)
 
-## DEC-034 — delete `pre_output.record`'s NEVER-uncertainties rule (iter 26, conf 75)
+The finding and what would ship a wording here are in `sys_prompt/CLAUDE.md`.
+**Alternatives**: ship it on the adversarial null alone, which prices a harm that did not
+occur and no benefit that did; hand it forward, which the contract forbids for a line a
+second round has measured; widen it to the placement half of the owner's answer, which
+would be a different sentence and a different round. **Framing bias**: the round wrote
+both fixtures and chose a hazard whose removal is one argument long, which is the easiest
+possible case for the bullet and the hardest possible case for a difference — a harder
+removal might separate the arms, and nothing here measured one. **Independent
+evaluation**: done, and it went further than asked — one blind reader holding both trees
+and both sessions of the benefit probe, told neither what was under test nor which arm
+was which, found no attributable difference, checked 16 and 27 added sentences against
+the running code and found none false in either tree, and traced the prose gap to a
+review subagent one arm ran. **Revert**: n/a, no prompt edit.
 
-**Alternatives**: keep it and cut one of the two wordings that agree with it;
-reword it to carry the escape branch. **Framing bias**: the treated arm ran two
-draws to the untreated arm's one, and the blind reader preferred the treated tree —
-on three statements written before that arm ever called the tool, so the reader's
-preference cannot be the line's. **Independent evaluation**: done, and it
-disagreed; the deletion was taken over it on the tool-call indices. Revert:
-`291d3c55`. Not live outside this branch: bare `agent-tools` resolves to the
-installed build, whose root is `/repos/claude-config`.
+## DEC-045 — the branch's edits do not reach any session here (iter 34, conf 95)
 
-## DEC-037 — keep `# Writing for other agents` (iter 29, conf 70)
-
-**Alternatives**: delete it on the volume gap (confounded, below); call it
-saturated — the two arms' lists are not comparable. **Framing bias**: the arms
-diverged on depth as well as prompt — the untreated arm ran half again the tool
-calls, met a hazard the treated one never found, and wrote the only new claim true
-of its own code, so volume and investigation moved together and neither was held
-fixed. **Independent evaluation**: the blind reader set the questions and the
-uncovered axes; it was not asked which arm was better placed. Revert: n/a.
-
-## DEC-043 — the falsification exclusion is decided, and not shipped (iter 33, conf 75)
-
-Supersedes DEC-042. The finding and what would ship a wording here are in
-`sys_prompt/CLAUDE.md`. **Alternatives**: ship it on the volume effect, the largest three
-draws have produced and the only positive signal in eleven candidates on the stated top
-priority; drop the idea entirely, discarding a mechanism two genres confirm; hand it
-forward again, which the contract forbids. **Framing bias**: the round that wrote the
-candidate built both fixtures, and built the second specifically to be able to kill it —
-which guards the harm reading and not the benefit reading. The volume axis has never been
-measured on a fixture its round did not design. **Independent evaluation**: two blind
-readers, each holding both trees and both sessions with labels shuffled and
-`prompt_snapshot` stripped, each told "the two do not differ" was acceptable and neither
-told what was under test; the second settled the deciding question by running the
-delivered code rather than reading it. **Revert**: n/a, no prompt edit.
+Recorded rather than acted on. `/repos/claude-config` is what `scripts/claude.sh` loads
+and it still carries `Omit by default`, `Claim less` and the docs order; nothing measured
+in 34 rounds is live. **Alternatives**: merge it, which this worktree is forbidden to do
+and the owner has not asked for; keep measuring and say nothing, which leaves every round
+after this one free to cite a real session as evidence about a line the session never
+had. **Framing bias**: the round found this while checking its own critique and may be
+over-weighting it against the round's measured result. **Independent evaluation**: not
+started; the fact is a grep and needs none. Asked on the channel whether the merge is
+wanted; unanswered at close. **Revert**: n/a.
