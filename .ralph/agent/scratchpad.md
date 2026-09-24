@@ -118,7 +118,7 @@ minimum-complexity rule and its ban on one-time helpers; both blockquote-plus-ta
 duplications stand unmeasured. `scripts/check-prompt-upstream.py` cannot run here —
 `/repos/claude-code-decompiled` is absent. DEC-037 – DEC-040.
 
-## Iteration 31 — `3d5ddcdb` → (this round)
+## Iteration 31 — `3d5ddcdb` → `b3dc93b6`
 
 ### Critique of 30, and the milestone
 
