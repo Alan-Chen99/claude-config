@@ -104,97 +104,67 @@ cannot.
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–25, `9f6c03a0` → `00396475`
+## History — rounds 1–27, `9f6c03a0` → `59bb9965`
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — read it before
 touching the block. Everything else is in the commit messages. Shipped: `Say what
 ends it` (11, upheld at 19), the self-consequence bullet (23), one duplicated
-rationale cut out of it (25). Deleted: `Omit by default`, `Claim less`, the
-help-surface cost paragraph. Eight candidate wordings failed, the last four all
-claim-handling. Round 10 voided every arm stored before 2026-09-22. Every sentence
-still in the block has been measured alone.
-
-## Iteration 26 — `00396475` → `d8b2ba5c`
-
-Withdrew 25's instruction 1: git showed iteration 19 had already run the case it
-said no round had run. Shipped the deletion of `pre_output.record`'s `NEVER reply to user if
-uncertainties remain` on three runs of `retirement-policy`; DEC-034 carries the
-reading and its limits. Transferable: a rule arriving in a tool result acts only
-on what follows the call, and every arm replied with residual doubt listed anyway.
-
-## Iteration 27 — `d8b2ba5c` → `59bb9965`
-
-Withdrew 26's live-case attribution — record 107 named both doc homes before 108
-read `conventions/documentation.md`, which nothing auto-loads. Milestone:
-`alan-default-next.md:15`'s third clause, shipped and never justified. Four runs,
-two arms, no prompt edit: a blind reader grouped all four trees on whether the
-*first* listing showed the `.md` files, a split cutting across the arms, and the
-arm *without* the clause is the one that grepped exactly the root `CLAUDE.md` the
-clause names. DEC-035 records the line untested and names the instrument fix.
-Arm-independent, on the top priority: a doc repair is a paragraph **rewrite** that
-drops inherited rationale, and it **appends** prose the change had not falsified.
+rationale cut out of it (25), the deletion of `pre_output.record`'s `NEVER reply to
+user if uncertainties remain` (26, DEC-034). Deleted: `Omit by default`, `Claim
+less`, the help-surface cost paragraph. Eight candidate wordings failed, the last
+four all claim-handling. Round 10 voided every arm stored before 2026-09-22. Every
+sentence still in the block has been measured alone. 27 spent four runs on
+`alan-default-next.md:15` and decided nothing: a blind reader grouped its trees on
+whether the session's first listing showed the `.md` files, a split cutting across
+the arms.
 
 ## Iteration 28 — `59bb9965` → `adb80213`
 
-### Critique of 27
+Put the whole docs order at `alan-default-next.md:15` on trial against a fixture
+whose auto-loaded `CLAUDE.md` indexes its own documents, so 27's dominant variable
+was gone. Four runs, two arms, pre-registered at `901be8f4`. **Shipped the
+deletion**, saturated: both arms rewrote all three documents, followed a data-file
+rename through them, and three of four added a `CLAUDE.md` row for a file they had
+created — one an arm with no docs instruction at all. DEC-036. Arm-independent and
+on the user's top priority: 4 of 4 trees added prose the change had not falsified,
+after 3 of 3 in 27, in a second genre — and **not one tree wrote a standing rule**,
+including into the `## Conventions` heading the fixture solicits one from. The
+probe was promoted to `prompt-tests/general/option-and-encoding`.
 
-**C1 (workflow — the loop's own ratchet).** A round that shipped no prompt edit
-added 36 lines to `sys_prompt/CLAUDE.md`, concluding in its own text that the line
-is untested and that its two real findings do not belong in that file. The probe
-those lines rest on was deleted in the same commit, so the paragraph names no case
-and its stated condition — *a fixture whose doc files are named in the auto-loaded
-root `CLAUDE.md`* — names a fixture property no case has. The skill already calls
-that a deletion candidate; no round had ever run the grep in that direction.
-Contract amended above. The amendment permitting the addition was written by 27
-in the commit that used it.
+## Iteration 29 — `2894f884` → ...
 
-**C2 (workflow — priority).** 27's only reproducible, arm-independent observation
-was the growth mechanism the user's followup calls the top priority, and it
-disposed of it in four words — *neither mechanism lives in `sys_prompt/`* — with
-no test and no argument, then pointed 28 at search breadth, which serves doc
-correctness instead. `# Writing for other agents` ships two bullets aimed at what goes
-into a lasting document; neither was varied in those runs, so nothing measured
-supports the claim that the prompt cannot reach the mechanism.
+### Critique of 28
 
-**C3 (measurement).** Both of 27's pre-registered outcomes "partly fired", so
-neither was honoured and four runs decided nothing. The defect is the pre-registration: outcomes were
-written about the trees while the decisive reading turned out to be a blind
-reader's grouping nobody had named. 28 pre-registers the reader's questions and
-derives the outcomes from the answers.
+**C1 (workflow — the ratchet, inside the loop's own corpus).** 28 promoted its
+probe into `prompt-tests/general/` with three-quarters of a case: a
+`reference-solution.md`, three foci no run has been read under, and no stored
+artifacts. The skill defines a case as reference, grader per arm, foci and stored
+runs, and the reason it gives for keeping one is artifact-against-artifact
+comparability — which a case holding no artifacts cannot offer. The corpus grew by
+a directory only a human removes, the form the objective names. Its stated reason,
+*the restoration condition has to name a case that exists*, is circular: the
+condition was written in the same commit. This round runs the case whole.
 
-### Milestone and result
+**C2 (workflow — priority; the charge 28 laid on 27).** 28's scratchpad states
+*that makes the repair-as-rewrite genre, not any prompt clause, the target for the
+user’s top priority*, from four arms all carrying `# Writing for other agents`
+intact. The clause aimed at what goes into a lasting document was never varied, so
+nothing measured supports *not any prompt clause*, and a later round reading the
+scratchpad alone stops looking in the prompt. 28’s own instruction 1 names the fix.
 
-The whole of `alan-default-next.md:15` on trial for deletion — not the third
-clause alone, which subsumes 27's instruction 1, since the breadth sentence it
-names is the second. The instrument defect C1 names was fixed first: the fixture's
-auto-loaded `CLAUDE.md` indexes every doc file, so no arm can miss them.
+**C3 (measurement — the instrument was blind to the mechanism).** The decisive
+blind reading was taken on delivered **trees**; the skill’s blind comparison holds
+both **sessions**. A tree cannot show an addition considered and declined, which is
+this block’s characteristic effect in the loop’s own prior readings — DEC-033’s
+limit is exactly that. So *not one tree wrote a standing rule* was measured with an
+instrument that cannot separate suppression from absence. This round’s blind reader
+gets the sessions.
 
-**Shipped: the line is deleted**, pre-registered outcome 1, saturated on both
-arms. Two runs an arm; a blind reader given the four trees and the two
-pre-registered questions found four separating dimensions and no arm among them.
-The arm with no docs instruction at all rewrote three documents, followed a
-data-file rename into every document naming it, and added a `CLAUDE.md` row for a
-file it had created. DEC-036 carries the reading, its limits and what restores the
-line; the fixture is promoted to `prompt-tests/general/option-and-encoding` because
-the restoration condition has to name a case that exists.
+### Milestone
 
-**Growth replicated, and it is not this line's.** Outcome 3 also fired: every tree
-in both arms added prose the change had not falsified, the largest addition coming
-from an untreated arm — 4 of 4 here after 3 of 3 in 27, two genres. All of it was
-descriptive or rationale prose inside the documents; not one tree wrote a standing
-rule, including into the `## Conventions` heading the fixture left soliciting one.
-Hypothesis: the growth is a property of rewriting a paragraph from the change
-rather than from the paragraph, so it rides on the repair and no order to document
-causes it. That makes the repair-as-rewrite genre, not any prompt clause, the
-target for the user's top priority.
-
-### `(instruction)` for iteration 29
-
-1. The top priority now has a measured mechanism and no owner. Before any new
-   candidate wording, run one arm that varies `# Writing for other agents` on the
-   promoted case — it is the block aimed at what goes into a lasting document and
-   it has never been varied on a repair task, which is what C2 charged 27 with.
-2. Unspent from 26, twice deferred: read `# Epistemic Integrity`, `# Error
-   Propagation` and `## Required notes` as prose before measuring any of them.
-3. `tasks.jsonl` was pruned of closed rows this round to fit the ceiling; there is
-   still no prune command. Round 30's cleanup builds one or the pruning repeats.
+The whole of `# Writing for other agents` on trial, on the promoted case, at n=1 an
+arm. Live hypothesis: bullet 2’s remedy clause *Put it with the change instead* is
+what the 7-of-7 growth obeys — the additions were rationale prose inside the
+repaired documents and no standing rules, which is the shape that bullet asks for.
+An arm without the block separates *the block suppresses rules* from *the block
+redirects rules into prose*. Pre-registration and outcomes: this commit.
