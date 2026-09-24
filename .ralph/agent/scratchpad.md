@@ -103,10 +103,9 @@ rounds had missed (22).
 > result commit's own message for a result — and names the commit it checked.
 > 25's rule covers claims about fixtures; this covers claims about the loop.
 
-> **A round may spend its milestone on any file in the stack above**, not only on
-> `sys_prompt/alan-default-next.md`. The durable justification still lands in
-> `sys_prompt/CLAUDE.md`. The standing ban is on spending a whole milestone on the
-> prompt-test *instrument*, which none of those files is.
+> **A round may spend its milestone on any file in the stack above**, justified in
+> `sys_prompt/CLAUDE.md` as always. The standing ban is on spending a whole
+> milestone on the prompt-test *instrument*, which none of those files is.
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
@@ -115,17 +114,14 @@ rounds had missed (22).
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — the durable
 home, and the file to read before touching the block. Everything else is in the
-commit messages. Shipped: `Say what ends it` (11), the self-consequence bullet
-(23), and one duplicated rationale cut out of it (25). Deleted: `Omit by
-default`, `Claim less`, the help-surface cost paragraph. Eight candidate
-wordings failed, the last four all claim-handling. Round 10 fixed a nine-round
-harness contamination and voided every arm stored before 2026-09-22. Every
-sentence still in the block has been measured alone. 19 isolated `Say what ends
-it` on `retirement-policy` and its retirement condition did not fire. 22
-diagnosed a live session rather than a fixture. 25 falsified 24's required-home
-hypothesis from the tree, withdrew it, and cut the restatement on outcome 2.
+commit messages. Shipped: `Say what ends it` (11, isolated and upheld at 19), the
+self-consequence bullet (23), one duplicated rationale cut out of it (25).
+Deleted: `Omit by default`, `Claim less`, the help-surface cost paragraph. Eight
+candidate wordings failed, the last four all claim-handling. Round 10 voided
+every arm stored before 2026-09-22. Every sentence still in the block has been
+measured alone.
 
-## Iteration 26 — `00396475` → (see last commit)
+## Iteration 26 — `00396475` → `291d3c55` (+ this commit)
 
 ### Critique of 25
 
@@ -154,21 +150,12 @@ homes; and `pre_output.record`'s *NEVER reply to user if uncertainties remain*.
 
 ### The live case, read
 
-One-symlink task; ~20 lines of durable text across four files, then a second
-commit refining two of them. The attributable half, by tool-call index: at #30
-the session recorded three uncertainties, one of them *"Did not probe whether
-`$10` … is rewritten"*. The reminder arrives in #30's result. Calls #31–#42
-resolve that one — a third throwaway probe skill — and produce `b394ebbf`, a
-two-file documentation edit stating that `$N` parses greedily past one digit. A
-second uncertainty (skill-list refresh) is dropped unresolved rather than
-settled. Both records list, under `possible-next-steps`, *"Rewrite the
-ocr()/ocrange() helpers to avoid literal `$N`, removing the coupling instead of
-documenting it"* — the fix, named twice, deferred twice, while the post-reminder
-effort went into documenting the defect instead.
-
-So the line converts a residual doubt into durable text, picks the cheapest doubt
-rather than the one that matters, and leaves the fix it names undone. What it is
-*for* — stopping an unverified claim reaching the user — is unmeasured.
+Detail and tool-call indices are in `858a2ab5`. In one line: a one-symlink task
+produced ~20 lines of durable text across four files plus a second commit
+refining two of them, and the only part attributable by quotation is the
+`pre_output.record` reminder, which the session answered by settling its cheapest
+doubt, dropping another unresolved, and writing the answer into two documents —
+while naming the real fix under `possible-next-steps` twice and leaving it undone.
 
 ### Why this milestone
 
@@ -178,3 +165,32 @@ quotation is this line. It is shipped, unmeasured, NEVER-force, delivered before
 every response, and lives in a file nobody reads — the objective's own target
 shape. The durable method already ranks a shipped line with a named unmeasured
 harm above any new candidate.
+
+### The round's work and result
+
+Two commits. `b2ecb31d` fixes the harness the probe exposed: `agent-tools claude`
+wires the binary to the checkout and never asserted the Python half, so this
+worktree's venv served `/repos/claude-config/src` and the first attempt at arm b
+would have been a silent null. `291d3c55` ships the deletion on outcome 2 — three
+runs, readings and limits in the commit and in `sys_prompt/CLAUDE.md`.
+
+The result that matters beyond this line: **every arm disproved the task's own
+account of an incident without being told to, and every arm replied with residual
+doubt still listed, including one tool call after receiving a rule that says
+NEVER.** A tool-result rule arriving after the work is done cannot do anything;
+when it arrives early enough to act, what it adds is writing.
+
+### `(instruction)` for iteration 27
+
+1. The same three-wordings defect is one level up and unmeasured: `# Epistemic
+   Integrity`, `# Error Propagation` and `## Required notes` in
+   `sys_prompt/alan-default-next.md` all tell the agent to surface what it could
+   not settle. Read the block as prose before measuring any of it — 25 found a
+   restatement that way and no per-line measurement could have.
+2. `conventions/documentation.md` line 11 says *Duplication is acceptable; the
+   maintenance burden is the cost of locality*. The live case read it at
+   record-index 108 and gave one fact two homes at 112. It is auto-pulled by any
+   doc-writing task, is outside `sys_prompt/`, and no round has measured it. This
+   is the strongest remaining candidate for *less documentation gets written*.
+3. Do not re-open `Say what ends it`. 19 measured it in isolation on its own case
+   and the condition did not fire; C1 above.

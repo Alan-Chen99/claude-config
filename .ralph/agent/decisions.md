@@ -20,59 +20,52 @@ live and honoured every round since 15; claim-handling decided against on a
 fixture built to fire its own condition (20), then reopened at a narrower target
 by 21 and left unrun. Independent evaluation: not-started for all.
 
-## DEC-032 — keep a shipped line whose only measured effect in a third genre is
-an over-reach (iter 24, conf 65)
+## DEC-032 — keep the self-consequence bullet whose only measured effect in a
+third genre is an over-reach (iter 24, conf 65)
 
-- **Decision / chosen**: after a third genre where the bullet's intended effect
-  was saturated and its one measurable effect was to suppress a *true inherited*
-  fact from a heading soliciting standing rules — keep the bullet, delete the
-  help-surface cost paragraph, record the over-reach with its own retirement
-  condition and case. No prompt edit.
-- **Alternatives**: delete the bullet (rejected: deletion was not a
-  pre-registered outcome of that probe, and two earlier genres had an unsaturated
-  baseline); reword to bound the antecedent (rejected: composed after the arms,
-  so an unmeasured line).
-- **Reasoning**: the deciding evidence is one arm's own reasoning quoting the
-  bullet to decline a fact outside its subject — an attribution, not a
-  preference. But it is n=1 and the same arm gave a second, sound reason for the
-  same act, so the bullet is not shown to be load-bearing for the omission.
-- **Re-evaluate**: on the next run of `prompt-tests/general/weary-waitlist`. If
-  an arm carrying the line again declines an inherited property that an arm
-  without it records, with the line quoted and no second reason beside it, the
-  line goes.
-- **Framing bias**: iteration 25 found this round's stated reason for choosing
-  that fixture — a required home the others lacked — was not a difference at all
-  (all three state one). So the third genre was a third sample of one condition,
-  not a contrast, and *conf 65* was set against a contrast that did not exist.
-- **Independent evaluation**: the tree comparison was blind and preferred the
-  untreated arm for the second consecutive round; the decision to keep is not
-  evaluated.
-- **Reversibility**: one bullet; `git revert` of `d98c5753`.
-- 2026-09-24T06:20:00Z, framing bias amended 2026-09-24T06:30:00Z
+Kept after a genre where its intended effect was saturated and its one
+measurable effect was to suppress a *true inherited* fact from a heading
+soliciting standing rules; the help-surface cost paragraph was deleted instead.
+Deciding evidence is one arm quoting the bullet to decline a fact outside its
+subject — an attribution — but n=1, and the same arm gave a second sound reason.
+**Re-evaluate** on the next run of `prompt-tests/general/weary-waitlist`: if an
+arm carrying the line again declines an inherited property that an arm without it
+records, with the line quoted and no second reason beside it, the line goes.
+**Framing bias**: 25 showed the stated reason for choosing that fixture — a
+required home the others lacked — was not a difference at all, so conf 65 was set
+against a contrast that did not exist. **Independent evaluation**: the blind
+comparison preferred the untreated arm; the decision to keep is unevaluated.
+Revert: `d98c5753`. 2026-09-24.
 
-## DEC-033 — delete a rationale rather than a directive, on a run where both
-arms produced the same artifact (iter 25, conf 75)
+## DEC-033 — cut a rationale rather than a directive, both arms producing the
+same artifact (iter 25, conf 75)
 
-- **Decision / chosen**: `# Writing for other agents` stated one rationale in two
-  wordings. Cut the copy from the second bullet and ship, on outcome 2 of a
-  pre-registered two-arm probe.
-- **Alternatives**: cut on the reading alone, the repo's own step 2 requiring it
-  (rejected: every other line in this block was measured, and a rationale is what
-  makes a directive persuasive); cut from the first bullet instead (rejected: its
-  second leg has no counterpart, the second bullet's does); keep both (rejected:
-  nothing says which governs, which is the defect step 2 names).
-- **Reasoning**: the surviving bullet reached the same placement without the
-  copy, in a genre where the fixture requires a home for exactly that fact.
-- **Re-evaluate**: restore the copy if an arm carrying the cut block extends a
-  soliciting document that an arm carrying the uncut one leaves alone, on
-  `prompt-tests/general/hushed-rollcall`.
-- **Framing bias**: the probe reused the case the bullet was shipped on, so the
-  fixture is the one most likely to show the bullet working and least likely to
-  show a wording cost. Its `CLAUDE.md` requires every option documented, which is
-  enough on its own to route the fact — the cut arm took that route without ever
-  considering the heading. The confidence is in the deletion being cheap, not in
-  the bullet being load-bearing.
-- **Independent evaluation**: the tree comparison was blind and preferred the cut
-  arm, on a sentence the edit does not touch. Not evidence for the cut.
-- **Reversibility**: one clause; `git revert` of `9504b5dc`.
-- 2026-09-24T06:40:00Z
+`# Writing for other agents` stated one rationale in two wordings; the copy went
+from the second bullet, whose other leg is the block's only subject-specific
+rationale. Both arms then left the soliciting `CLAUDE.md` byte-identical.
+**Re-evaluate**: restore the copy if an arm carrying the cut block extends a
+soliciting document that an arm carrying the uncut one leaves alone, on
+`prompt-tests/general/hushed-rollcall`. **Framing bias**: the probe reused the
+case the bullet shipped on — the fixture least likely to show a wording cost —
+and that `CLAUDE.md` already requires every option documented, which alone routes
+the fact. Confidence is in the deletion being cheap, not in the bullet being
+load-bearing. Revert: `9504b5dc`. 2026-09-24.
+
+## DEC-034 — delete a shipped tool-result rule on three runs of one case
+(iter 26, conf 70)
+
+`NEVER reply to user if uncertainties remain` deleted from
+`pre_output.record`. Every arm disproved the task's false premise unprompted, and
+every arm replied with doubt still listed — one tool call after receiving the
+rule. Where it acted it produced durable text and a documented guess.
+**Alternatives**: keep and narrow the wording (rejected: composed after the arms,
+so unmeasured); keep on the blind reader's preference (rejected: every statement
+it decided on was written before the untreated arm's only record call).
+**Re-evaluate / restore**: an arm without it replies as if a doubt were settled
+where an arm with it resolves or reports it, on
+`prompt-tests/general/retirement-policy`. **Framing bias**: the round chose the
+instrument for the one reading the line is *for*, and that case has no cheaply
+resolvable doubt — the condition under which the live case showed the harm — so
+the harm was sampled at one draw out of two and the benefit at three.
+**Independent evaluation**: the blind reader preferred the arm carrying the line,
+on sentences the line could not have caused. Revert: `291d3c55`. 2026-09-24.
