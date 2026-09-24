@@ -228,18 +228,27 @@ declining a specific addition as costing more than it is worth, the reasoning tr
 rather than the task. `prompt-tests/general/halve-the-runbook` stays whatever this
 says, on the user's direction: the user set that fixture's shape.
 
-**Growth has a moment: a file soliciting additions, met by a fact the agent made itself.** An
-agent records its own change's consequences where lasting guidance lives, in a file the task never
+**Growth has a moment: a document soliciting additions, met by a fact the agent made itself.** An
+agent files its own change's consequences where lasting guidance lives, in a file the task never
 named — that file asks, and the agent is the one who knows. A defect it merely inherited goes to
-the reply, which the response template already has a slot for, so a line aimed at inherited
-findings buys nothing. Hypothesis: writing is routed by where a fact fits, and only a self-made
-fact has no slot until a soliciting heading supplies one. A line denying that such a consequence is
-a property of the project moves it to the change's own documentation, under two wordings sharing no
-vocabulary — so the claim carries the effect, not the phrasing. Both arms carrying it also shipped
-a usage line their own `--help` contradicts, where both arms without it matched; no arm's reasoning
-mentions that surface at all, so the split is observed and unexplained, which is why none is
-shipped. Retire this when an agent that has just produced such a
-fact leaves a soliciting document unextended.
+the reply, which the response template already slots, so a line aimed at inherited findings buys
+nothing. Hypothesis: writing is routed by where a fact fits, and only a self-made fact has no slot
+until a soliciting heading supplies one. The bullet ships at the wording that was measured, across
+two genres and two wordings sharing no vocabulary: each treated arm left the soliciting document
+untouched, named the line's own test in its reasoning while declining the edit, and put the fact
+where the project already required the option described. A blind reader preferred the arm that
+grew, on the strength of the standing rule it added — a dependency written as a fact, false the
+moment the implementation changes, with nothing to signal it. The trade is reader-perceived quality
+against a rule only a human removes. Retire the bullet when an arm carrying it extends the
+soliciting document on `prompt-tests/general/hushed-rollcall`.
+
+**What it costs: the program's own help surface.** In both genres the treated arm documented an
+option its own program does not admit exists, where both untreated arms updated that surface.
+Nothing in the bullet reaches it. Hypothesis: the untreated arms did more than the literal ask in
+several directions at once, and the line trims unrequested work without sorting the wanted kind
+from the unwanted — the same untreated arm also rewrote an untouched subcommand's argument
+handling. Retire this when an arm carrying the line updates that surface as fully as an arm
+without it, on `prompt-tests/general/hushed-rollcall`.
 
 **The preamble is kept, on its first isolation.** An arm carrying it sourced a checkable number
 where an arm without it stated the same number bare, and they matched on every other reading.

@@ -163,3 +163,40 @@ session that motivated the claim solicits differently — an `Agent Policy` unde
 a `CLAUDE.md`, auto-loaded, with no invitation at all. A second genre answers
 whether the effect is the claim's or that fixture's, which is what ship-or-delete
 turns on; another draw on `busiest-few` answers nothing.
+
+### The round's work and result
+
+Probe `hushed-rollcall`, two arms, pre-registration `08d4bcef`. **Outcome A.**
+The treated arm left `## Agent Policy` untouched and put the fact in
+`docs/cli.md` and in a comment beside the line it governs; the untreated arm
+added a standing rule about its own implementation's output buffer. Both arms
+sent the inherited defect to the reply, unaided, as the hypothesis predicts.
+Attribution, non-blind, the treated arm's own reasoning: *the new detail … is
+just a consequence of my specific change rather than a general project property,
+it belongs in `docs/cli.md` instead* — the line's vocabulary, none of which
+occurs anywhere in the fixture. The decisive reading was blind, and it preferred
+the arm that grew, on the strength of the standing rule that arm added.
+
+The pre-registered discriminator for C2 came back against suppression: nothing
+`base` states about behaviour that existed before the session is missing from
+`cand`'s `docs/cli.md`.
+
+Shipped, byte-identical to the measured arm; 6395 → 6464 API tokens. The probe
+is promoted to `prompt-tests/general/hushed-rollcall`, because the paragraph it
+now owns had no case at all and its retirement condition could not be observed
+by anyone. `busiest-few` deleted.
+
+### `(instruction)` for iteration 24
+
+1. The help-surface cost is two-for-two across genres and has a hypothesis and
+   no test. Test the hypothesis, not the wording: give an arm carrying the line
+   a task with **no** documentation ask in it. If it still does less than an
+   untreated arm beyond the literal request, the cost is an attention effect and
+   no rewording reaches it.
+2. Do not reword the shipped bullet from this round's observations. It was
+   composed before the arms and has now been measured twice; a wording composed
+   after the arms is the overfitting the repo's own hints name.
+3. Neither arm priced an end for anything it wrote, in any position, though both
+   carried `Say what ends it`. Two bullets now pull on the same act. The
+   compression rule's first question for the next round is whether one of them
+   is a restatement of the other.

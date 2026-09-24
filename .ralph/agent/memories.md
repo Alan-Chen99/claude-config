@@ -2,6 +2,14 @@
 
 ## Patterns
 
+### mem-1790229298-14d0
+> For a decisive blind reading, brief the reader with a neutral inventory rather than the opportunities under test: 'every statement about the project's behaviour present in the delivered tree or the final reply and absent from the starting tree -- where it landed, whom it addresses, whether the session made or inherited the fact, what would falsify it', plus which tree it would rather inherit. The reader builds the categorical grid itself, cannot tell what is being measured, and reports things the round did not pre-register.
+<!-- tags: prompt-tests, test-design | created: 2026-09-24 -->
+
+### mem-1790229298-fdae
+> Before crediting a cost you saw in a treated arm, check the fixture's own pre-existing code for it. One probe's existing option had no argparse metavar and no help while the fixture's docs spelled the value out, so the arms that omitted metavar on the NEW flag matched the only neighbour they had -- and the round that read that as a defect the line introduced blocked a ship on the fixture's house style, with no run needed to see it. The baseline that spans the outcome range can be the starting tree, not only the untreated arm.
+<!-- tags: prompt-tests, test-design | created: 2026-09-24 -->
+
 ### mem-1790052470-9c1e
 > A downstream reader does NOT stabilise an unstable baseline. It is a second stochastic session run against the first session's artifact, and the tested agent never sees it, so nothing about the tested agent becomes more determinate - it converts a spread in wording into a spread in reader behaviour. Use it for what it actually buys: turning 'does this sentence mislead' from the grader's opinion into an observation. To make a run readable at n=1, instrument the FIXTURE with several opportunities for the behaviour that differ in character, and read the line the agent drew between them.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
