@@ -10,7 +10,7 @@ decision here: each fixture was written from the shape of the line its round
 meant to test.
 
 **Closed.** DEC-001–031, rounds 1–23; DEC-035 (superseded by DEC-036); DEC-038
-(discharged); DEC-036 (upheld at 32 in a second genre, the finding in `sys_prompt/CLAUDE.md`);
+(discharged); DEC-042 (decided at 33, below); DEC-036 (upheld at 32 in a second genre, the finding in `sys_prompt/CLAUDE.md`);
 DEC-039 (restated as a standing contract clause, so the copy here was the duplication
 this journal's own header forbids); DEC-040 and DEC-041 (both closed at 32 by owner intent — `## Required
 notes` is best-effort surfacing and is not ablatable, so neither round's frame could
@@ -56,19 +56,17 @@ of its own code, so volume and investigation moved together and neither was held
 fixed. **Independent evaluation**: the blind reader set the questions and the
 uncovered axes; it was not asked which arm was better placed. Revert: n/a.
 
-## DEC-042 — do not ship the falsification bound as written (iter 32, conf 70)
+## DEC-043 — the falsification exclusion is decided, and not shipped (iter 33, conf 75)
 
-**Alternatives**: ship a2 entire, on the largest volume effect ten candidates have
-produced; ship only its second sentence, untested as a standalone, which the loop's
-own rule forbids; take a second a2 draw, which the user's no-replication rule
-discourages. **Reasoning**: a2's first sentence is the saturated half — every arm,
-untreated included, repaired every falsified statement — so shipping it to carry the
-effective half is step 2's duplication. The effective half is confounded at n=1 with
-a2 declining the code review both other arms ran and shipping the one live defect.
-**Framing bias**: the round that wrote the candidate is the round that read its
-transcript for exculpating reasoning, and found it. **Independent evaluation**: the
-blind reader held all three trees and sessions with labels shuffled, was given R1-R5
-and no arm identity, and was told it was acceptable to answer that the three do not
-differ; the residue read was a separate agent in evidence mode, asked for quotes and
-not for a verdict. Revert: n/a, no prompt edit. **Re-evaluate**: iteration 33's
-depth-fixed arm on the bound alone.
+Supersedes DEC-042. The finding and what would ship a wording here are in
+`sys_prompt/CLAUDE.md`. **Alternatives**: ship it on the volume effect, the largest three
+draws have produced and the only positive signal in eleven candidates on the stated top
+priority; drop the idea entirely, discarding a mechanism two genres confirm; hand it
+forward again, which the contract forbids. **Framing bias**: the round that wrote the
+candidate built both fixtures, and built the second specifically to be able to kill it —
+which guards the harm reading and not the benefit reading. The volume axis has never been
+measured on a fixture its round did not design. **Independent evaluation**: two blind
+readers, each holding both trees and both sessions with labels shuffled and
+`prompt_snapshot` stripped, each told "the two do not differ" was acceptable and neither
+told what was under test; the second settled the deciding question by running the
+delivered code rather than reading it. **Revert**: n/a, no prompt edit.

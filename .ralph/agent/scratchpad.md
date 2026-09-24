@@ -15,26 +15,23 @@ a **duplicate of executable code**, a **trap** (keep). Deletion is the default.
 for.** It makes the consideration salient, and the agent argues it in whichever
 direction the task favours.
 
-**Categorical or it is not evidence, per reading rather than per table.** *Stated
-bare or sourced* is readable at n=1; a count is a sample of an unmeasured spread.
-
-**Test the lines already shipped.** A shipped line with a named, unmeasured harm
-outranks any new candidate — inside the objective's scope only.
+**Categorical or it is not evidence.** *Stated bare or sourced* is readable at n=1; a
+count is a sample of an unmeasured spread. A shipped line with a named, unmeasured harm
+outranks any new candidate, inside the objective's scope only.
 
 **The prompt is the whole stack, not one file.** `sys_prompt/alan-default-next.md`,
 `output-styles/`, `conventions/documentation.md` (reached only via `doc-sync`,
-`technical-writer`, `quality-reviewer`, `planner`) and
-`src/claude_config/pre_output/record.py`, whose RULES string arrives in a tool
-result before every response, all reach the session.
+`technical-writer`, `quality-reviewer`, `planner`) and `pre_output/record.py`, whose
+RULES arrive in a tool result before every response, all reach the session.
 
 **Before writing a clause for a failure, re-run the failure in a second genre.**
 If it disappears there, the target is the genre and not the wording.
 
 ## Standing `(contract)`
 
-> An iteration may spend its milestone on any file in the stack, and may not spend
-> a whole milestone on the prompt-test *instrument* unless it also runs at least
-> one arm against `sys_prompt/alan-default-next.md`.
+> An iteration may spend its milestone on any file in the stack, and may not spend a
+> whole milestone on the prompt-test *instrument* without also running one arm against
+> `sys_prompt/alan-default-next.md`.
 
 > A prompt edit's justification lands in `sys_prompt/CLAUDE.md` in the same commit,
 > naming what would retire the line. Counts, arm labels, byte deltas, dates and
@@ -132,26 +129,65 @@ here — `/repos/claude-code-decompiled` is absent. DEC-037, DEC-042.
 ### Critique of 32
 
 **C1 (quality, verified).** `c8ff940d` committed `rep-skill-{1,2,3}.out` — 87 lines of
-`set -x` trace from `claude.sh` — into the repository root, named in no commit message,
-by a round whose message otherwise itemises every deletion and its restore command.
-`git status` was clean afterwards, so the checklist passed on the letter while the round
-whose subject is *things a human must intervene to remove* left three of them behind.
-Deleted at `7fccd245`; contract clause added.
+`set -x` trace — into the repository root, named in no commit message, by a round whose
+message otherwise itemises every deletion and its restore command. `git status` was
+clean, so the checklist passed on the letter while the round whose subject is *things a
+human must intervene to remove* left three of them behind. Deleted at `7fccd245`.
 
-**C2 (fact, verified).** 32's handoff and its `sys_prompt/CLAUDE.md` entry both direct
-the next round to measure "the bound alone", but the sentence they name — *That repair
-is the documentation a change owes; what the change could newly explain is not* — opens
-on an anaphor whose antecedent is the sentence 32 ruled out as saturated. No standalone
-form of it exists, so a round following that instruction would have invented a wording
-and attributed its result to a sentence never run. Contract clause added: a line is
-handed forward in the words a later round would run.
+**C2 (fact, verified).** 32 handed forward "the bound alone", but the sentence it names
+opens on an anaphor whose antecedent is the sentence 32 itself ruled out as saturated.
+No standalone form existed, so a round following it would have invented a wording and
+credited the result to a sentence never run.
 
-**C3 (workflow, verified).** The contract already required naming one occurrence outside
-the fixtures. 32 recorded the user's own specimen `e828eab7` as "a small change grew
-documentation that only a human can remove" and marked the search as finding nothing —
-while the log sat on this machine, readable. Read this round, it contradicts the frame
-the candidate was measured under: two of its four durable additions were the literal ask
-(*"and docuemnt it"*), one was commanded by a repo-local skill's own frontmatter
-directive that no system-prompt line outranks, and the session's criterion at the moment
-of writing was *"genuinely useful and unrecorded"* — usefulness alone. Contract clause
-added: a session on this machine is read, not cited.
+**C3 (workflow, verified).** 32 marked the occurrence search as finding nothing while
+the user's own specimen `e828eab7` sat readable on this machine. Read this round, it
+contradicts the frame the candidate was measured under: two of its four durable
+additions were the literal ask, one was ordered by a repo-local skill's frontmatter, and
+the session's criterion was *"genuinely useful and unrecorded"* — usefulness alone.
+
+One contract clause added per critique.
+
+### Milestone and result — the exclusion is decided, and not shipped
+
+The contract required this round to decide the line 32 handed forward. The wording 32
+named did not exist (C2), so a standalone was written and said to be new: *A change
+owes documentation only where it made a document false; what it could newly explain,
+it does not owe.* Two probes, two arms each, same two prompt files, depth fixed in both
+fixtures by stating the load-bearing fact in the auto-loaded file.
+
+**Probe 1, `amber-ferry`** (`7fccd245`), 32's hidden-docs tree. Both arms repaired all
+nine falsified statements; the treated arm wrote 3 unfalsified lines to 12, one net-new
+standing instruction to two, and ran *more* verification, so 32's effort confound is
+reversed. Its reasoning names the rule: *matching the rule that docs only need updating
+when a change makes them false.*
+
+**Probe 2, `tin-meridian`** (`f04a01d4`), adversarial, built to be able to kill the
+line. A runbook procedure every step of which stays accurate while the procedure stops
+reaching its stated end. **N2: both arms amended the step** — the exclusion is not read
+as a licence to ignore a document that broke without going false. Volume again: 1
+unfalsified line to 7.
+
+**What decides it was not predicted.** In both probes the treated arm shipped exactly
+one sentence false against its own delivered code — a cost claim missing the *write*
+qualifier, a failure mode claimed to cover a case the code leaves invisible — and the
+bare arm shipped none in either while writing three times as much. What a compression
+rule cuts first is the qualifying clause, and the qualifying clause is what made the
+claim true. Not shipped. DEC-043 supersedes DEC-042.
+
+**The owner's answer reframes the target, and is the more important reason.** Asked
+which of the specimen's four durable additions they did not want, they answered that
+the changes "dont make sense": they do not belong, do not solve the problem, and
+introduce new problems "that have no solution (who will actually solve the problem?)".
+Their alternatives are a fix instead of a note, a note in the header the invoker reads,
+and a general gotcha in the root index. Volume is not any of the three.
+
+### `(instruction)` for iteration 34
+
+1. **The lever is placement, documentation-in-place-of-a-fix, and obligations recorded
+   with no owner.** Not how much a change owes. Nine say-less wordings and this one have
+   now failed or been declined; stop writing them.
+2. **Whatever is measured next, read every treated tree for claims false against its own
+   code**, by running the code. Two rounds of volume readings missed this axis entirely.
+3. Open with the owner, asked and unanswered: whether reducing repo-local rules that
+   command durable additions is in scope, or strictly "do not add new ones". Their (d)
+   suggests such a rule is right when general and placed where the invoker reads it.

@@ -247,7 +247,11 @@ as an invariant* — about a property that predated the session, and filed it in
 the arm without it wrote the standing rule. Hypothesis: the bullet is applied by position, so a
 heading soliciting rules reads as the thing denied whatever the fact's provenance. The help-surface
 cost recorded here before is deleted: on the one genre whose program enumerates its own flags, both
-arms updated it. Retire this when an arm carrying the line records an inherited property under a
+arms updated it. It is also read as a two-way test, and passing it licenses: an arm weighing a second
+durable home for a fact reasoned *the append-only index behavior is a genuine durable design
+property, distinct from just being a side effect of my change, so it deserves a place among the
+conventions too, even though it's already noted in `docs/layout.md`* — the bullet's own distinction
+supplying the warrant for the copy. Retire this when an arm carrying the line records an inherited property under a
 soliciting heading as fully as an arm without it, on `prompt-tests/general/weary-waitlist`.
 
 **The two bullets stated one rationale twice, and the copy is cut.** *Followed without being
@@ -386,11 +390,40 @@ other arms ran, and shipped the one live defect of the three, an uncaught
 `OverflowError` on an absurd duration. Nothing in its quoted reasoning connects the
 two, which weakens the confound without removing it.
 
-What a later round measures, and the only form worth measuring: the bound alone,
-against no bullet, on a fixture whose investigation depth is fixed by construction so
-that volume cannot ride on how much each arm found out. Restore this round's tree with
-`git checkout 37a6b901 -- prompt-tests/runs/copper-lantern`; the falsified-statement
-sweep is the check that the bound has not cost repair.
+**The exclusion was isolated and it is still not shipped, for a cost that replicates.**
+A standalone wording — *A change owes documentation only where it made a document
+false; what it could newly explain, it does not owe* — was run against a bare arm on
+two fixtures, each with its investigation depth fixed by stating the load-bearing fact
+in the auto-loaded file. It cuts unfalsified prose four- and sevenfold, adds no
+falsified statement left standing, and the arm carrying it names the rule in its own
+reasoning: *matching the rule that docs only need updating when a change makes them
+false.* The harm predicted for it was refuted adversarially — on a runbook whose
+restore procedure every step of stays accurate while the procedure stops reaching its
+stated end, both arms amended the step, so the exclusion is not read as a licence to
+ignore a document that broke without going false.
+
+What it costs is the accuracy of the prose it does write. In both probes the arm
+carrying it shipped exactly one sentence false against its own delivered code — a cost
+claim missing the *write* qualifier that made it true, and a failure mode claimed to
+cover a case the code leaves invisible — and the bare arm shipped none in either, while
+writing three times as much. The mechanism is the wording's own: what it cuts is the
+qualifying clause that scoped a claim. That is the objective's own doc-error axis
+pulling against its volume axis, so the volume result does not carry the edit alone.
+
+The owner's answer of 2026-09-24 is the second reason and the more important one. Asked
+which of the four durable additions in their own specimen they did not want, they said
+the changes there "dont make sense": the additions do not belong where they were put,
+do not solve the problem, and introduce new problems that have no solution and no owner.
+The alternatives they name are a fix instead of a note, a note in the skill header where
+the invoker reads it, and a general gotcha in the root index. None of those is a volume
+question, so a lever on how much a change owes is not the lever that specimen needs.
+
+Ship a wording here when an arm carrying it writes less unfalsified prose than a bare
+arm *and* a reader running the delivered code finds no sentence in its tree false
+against that code. Both probes restore in one command —
+`git checkout 7fccd245 -- prompt-tests/runs/amber-ferry` for the hidden-docs tree,
+`git checkout f04a01d4 -- prompt-tests/runs/tin-meridian` for the runbook whose
+procedure breaks without going false.
 
 `output-styles/` keeps the unwidened fork of the deleted sentence and
 `sys_prompt/alan-default.md` keeps the whole line; neither was in any arm, and
