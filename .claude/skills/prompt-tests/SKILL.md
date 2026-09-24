@@ -199,6 +199,14 @@ command, so a round that needs the probe back pays a line for it. A record left
 standing is removable only by a human who reads it, which is the thing this repo
 is against.
 
+**A retirement condition may name a deleted probe by its restore sha**, not only a
+live case. `prompt-tests/runs/` is outside the ownership grep, so naming one pins no
+directory, and the condition then names where the observation was actually made.
+Without this the two rules above pull against each other: a probe-measured claim gets
+a condition pointing at a case where the behaviour was never seen, and one such
+condition named a case whose arms had been measured leaving the soliciting file
+untouched.
+
 A probe still runs under the contamination rules below — the fixture is copied
 into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
 

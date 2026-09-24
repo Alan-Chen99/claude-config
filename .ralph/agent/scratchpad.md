@@ -101,10 +101,14 @@ cannot.**
 > was on the table, the framing bias, whether anyone independent looked, the revert
 > sha. Claim, hypothesis and retirement condition are stated once, there.
 
+> A retirement condition may name a **deleted probe** by its restore sha rather than a
+> live case. `prompt-tests/runs/` is outside the ownership grep, so naming one pins no
+> directory, and a condition then names where the observation was actually made.
+
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–29, `9f6c03a0` → `98b3f320`
+## History — rounds 1–30, `9f6c03a0` → `3d5ddcdb`
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — read it before
 touching the block. Everything else is in the commit messages. Shipped: `Say what
@@ -112,99 +116,57 @@ ends it` (11, upheld at 19), the self-consequence bullet (23), one duplicated
 rationale cut out of it (25), the deletion of `pre_output.record`'s `NEVER reply to
 user if uncertainties remain` (26, DEC-034), the deletion of the whole docs order at
 `alan-default-next.md:15` (28, DEC-036). Deleted also: `Omit by default`, `Claim
-less`, the help-surface cost paragraph. Eight candidate wordings failed, the last
-four all claim-handling. Every sentence still in the block has been measured alone.
-29 put the whole `# Writing for other agents` block on trial and kept it, refuting
-its own hypothesis that bullet 2 redirects growth into prose: the treated arm wrote
-7 unfalsified sentences to the untreated arm's 16, and neither arm's reasoning
-declines an addition. Volume there was confounded with depth — the arm writing more
-ran half again the tool calls and wrote the only true new claim. Unfalsified prose:
-11 of 11 trees over three rounds. DEC-037, DEC-038.
+less`, the help-surface cost paragraph. Nine candidate wordings failed, the last four
+claim-handling and the ninth (30) a `rule added:` report bullet, saturated. Every
+sentence still in the block has been measured alone. 29 kept the whole `# Writing for
+other agents` block, refuting its own hypothesis that bullet 2 redirects growth into
+prose; volume there was confounded with depth, and 30 removed that confound by
+stating the load-bearing fact in the fixture — 13 tool calls an arm, and the volume
+gap survived at 14 durable lines to 6. Unfalsified prose: 11 of 11 trees over three
+rounds. Open and unmeasured: `# Error Propagation`'s `Silent retry` and `Partial
+success` rows require retry counters and partial-failure lists against `# Coding`'s
+minimum-complexity rule and its ban on one-time helpers; both blockquote-plus-table
+duplications stand unmeasured. `scripts/check-prompt-upstream.py` cannot run here —
+`/repos/claude-code-decompiled` is absent. DEC-037 – DEC-040.
 
-## Iteration 30 — `98b3f320` → `1690abaa`
+## Iteration 31 — `3d5ddcdb` → (this round)
 
-### Critique of 29
+### Critique of 30
 
-**C1 (workflow — the specimen was read as a diff, never as a session).** The user's
-followup hands the loop a live instance: session `e828eab7`, commits `0d3c560b` and
-`b394ebbf`. 26 read it by tool-call index; 29 did not open it. The log settles two
-things no fixture round could. Its `prompt_snapshot` carries `# Writing for other
-agents`, so the shipped block was in force while the failure happened — the loop's
-one real-world n=1 against it. And the agent **states the fix-the-hazard alternative
-and declines it on a contextual ground** (the file was under the user's own edit).
-A ninth candidate telling an agent to remove a hazard rather than write a rule about
-it is therefore saturated on the one occurrence anyone has. Candidate killed for the
-price of a read, which is what the name-an-occurrence clause is for. Quotes and refs:
-the pre-registration commit.
+**C1 (fact — the reading that chose 30's direction is false).** Its pre-registration
+says the user's specimen `e828eab7` "surfaced none of the three documentation
+additions it made". The final message names all three: the `update-claude-code`
+inventory row under `unexpected change:`, with an explicit revert offer; the
+`session-analysis/CLAUDE.md` invoke-with-no-args rule in the body; the root-index row
+in `## Summary`. Its `prompt_snapshot` carries `unexpected change:`. So the half of
+the ratchet 30 called unserved is the half already firing in the wild, through the
+one line no arm has ever run without — which is what this round ablates. Record 311
+of the log.
 
-**C2 (fact — 29 recorded a contradiction that is not one).** Its commit says
-`# Error Propagation`'s fallback rows pull against `# Coding`'s *don't add error
-handling, fallbacks, or validation for scenarios that can't happen*. They agree: a
-scenario that cannot happen has no real data demonstrating it. 29 handed this reading
-to this round to act on, so a misidentified pair would have aimed the next edit wrong.
-The pull that does exist is named in the instruction list below.
+**C2 (instrument — the condition points where the behaviour is measured absent).**
+30's entry retires on `prompt-tests/general/hushed-rollcall`; `9504b5dc` measured
+both arms there leaving the soliciting `CLAUDE.md` byte-identical. An arm cannot
+"name the standing rules it wrote" where no arm writes one. The evidence was taken on
+`amber-turnstile`, which the same round deleted.
 
-**C3 (workflow — the half of the ratchet no round has aimed at).** That same agent put
-its one git-reversible decision to the user through `AskUserQuestion` and surfaced none
-of its three documentation additions, two of them standing rules only a human removes.
-Adding a rule is not felt as a decision; committing a file is. Twenty-nine rounds have
-varied wordings asking the agent to write less. None has asked it to say what standing
-rule it just added.
+**C3 (workflow — two standing rules collide, and the entry pays the ceiling in git's
+currency).** Probes are deleted by their own round; conditions must name a live case;
+so every probe-measured claim gets a condition naming a case where it was not
+measured. `(contract)` below fixes it. Separately the entry carries the counts, arm
+labels and fixture description the contract sends to git, and
+`sys_prompt/CLAUDE.md` grew 36 lines for a round that shipped nothing.
 
-### Milestone — the reporting surface, not another say-less wording
+### Milestone — ablate `unexpected change:`, the line no arm has run without
 
-On trial: one `## Required notes` bullet naming a standing rule the session wrote
-into a file others read. It is a report, not a gate: it cannot refuse an addition,
-it makes one visible in the turn where it happened, and visibility is the half of
-the objective's ratchet that nothing in the stack currently serves. Chosen over a
-ninth say-less wording because eight have failed and because C1 shows the
-act-shaped alternative is already reached unaided.
+Chosen over a tenth say-less wording: nine have failed, and C1 shows the reporting
+half works in the wild through this line. A shipped line whose justification was
+written from arms that all carried it is the loop's own ratchet. Either outcome pays:
+saturated deletes a line, load-bearing gives the entry its first falsifiable content
+and tells later rounds that a report line does what nine say-less wordings could not.
 
-Depth is held fixed by construction, which iteration 29's instruction 3 requires:
-the probe fixture states the established fact in a file the task must touch, so
-neither arm has anything to investigate and volume cannot ride on tool-call count.
+Fixture: `amber-turnstile` restored from `9e66c94a` — the one genre where arms
+demonstrably do write standing rules. Framing bias: it was built by 30 from the
+shape of a report bullet, so it is the condition most favourable to reporting.
 
-Pre-registration and outcomes: this commit.
-
-### Result — no prompt edit; the baseline already reports the rule
-
-**The fixture design answered 29's instrument question.** Stating the load-bearing
-fact in the fixture, as verified, in the file the task sends the agent to — and making
-the natural implementation the one that trips over it — held depth fixed: thirteen
-tool calls an arm, both arms met the trap. Volume is separable from checking now, and
-the recipe transfers.
-
-O3 fires. Both arms extended the soliciting `## Agent Policy` and both named what they
-had added, under `## Required notes` — the untreated arm under `unexpected change:`,
-quoting its own additions. The candidate named the same act in other words, which is
-step 2's duplication. **Not shipped.** Justification and retirement condition:
-`sys_prompt/CLAUDE.md`, the first entry that line has ever had.
-
-The saturation is not total and the pre-registration left no room for that: O1 and O3
-were all-or-nothing, and the untreated arm reported one obligation as a past act where
-its page now instructs a later reader. Read as saturated, per the rule that an outcome
-asserting more than the observation is withdrawn. A cost a report has and a page does
-not, on the treated arm: its bullet said *must* for a page stating a consequence.
-
-**Arm-independent and new: both arms declined a destination out loud**, each weighing a
-second document and saying in the reply why the fact went elsewhere. 29 looked for
-declining, found none, and withdrew DEC-037's mechanism conjunct on that. It is
-genre-bound — it shows where two documents compete for one fact — not absent.
-
-Volume under fixed depth: 14 lines of durable prose to 6, untreated to treated. One
-draw an arm; the direction is a sample. DEC-040.
-
-### `(instruction)` for iteration 31
-
-1. **Run the arm this round could not.** No arm ran *without* `unexpected change:`,
-   so its own necessity is untested; the entry justifies the absence of a second
-   bullet. Condition and case are in `sys_prompt/CLAUDE.md`.
-2. Instruction 2 of 26/29 is closed, and 29's reading of it was wrong: `# Error
-   Propagation`'s fallback rows and `# Coding` agree — a scenario that cannot happen
-   has no real data demonstrating it. The pull that does exist is `Silent retry` and
-   `Partial success`, which require counters and partial-failure lists, against
-   `# Coding`'s minimum-complexity rule and its ban on helpers for one-time
-   operations. Both blockquote-plus-table duplications stand unmeasured.
-3. `scripts/check-prompt-upstream.py` cannot run on this machine:
-   `/repos/claude-code-decompiled` does not exist. It is not a check a round can
-   green, and an upstream rebase cannot be done from here.
+Pre-registration, readings and outcomes: the probe's `README.md`, and this round's
+pre-registration commit.
