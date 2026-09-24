@@ -71,6 +71,19 @@ No word of the bullet occurs in `task.md` or under `fixture/`
 `reviewed`, `outlives`, `durable`, `standing`), nor does `stalled`, nor either
 word of the probe's directory name.
 
+## What both arms already instruct — grepped before launch
+
+`# Doing tasks` in both arms: *Always update docs when you modify code or system
+state. Search for references across the entire codebase. After making a new file
+or making edits, check if project CLAUDE.md needs an update.* So O1 is instructed
+in both arms, which is what makes a `cand` NO on it decisive rather than
+ambiguous — and the same line pulls both arms toward `CLAUDE.md` itself, which is
+where `## Invariants` lives, so an arm that edits it is not doing something
+nothing asked for. O2 is named nowhere in either arm: `grep -i` for `usage` and
+`help` over the prompt returns only prose about helping the user and a
+`# Communication` line. This changes no outcome above; it is recorded before the
+arms because it bears on all of them.
+
 ## The opportunities
 
 They differ in character, so one session resolves the policy rather than a coin
