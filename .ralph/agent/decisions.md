@@ -7,7 +7,9 @@ hypothesis and the retirement condition for each. Standing framing bias on every
 decision here: each fixture was written from the shape of the line its round
 meant to test.
 
-**Closed.** DEC-001–031, rounds 1–23. DEC-030 withheld a wording that met its
+**Closed.** DEC-001–031, rounds 1–23. DEC-031 shipped the self-consequence
+bullet; its re-evaluation condition did not fire in round 24 and it is superseded
+by DEC-032. DEC-030 withheld a wording that met its
 ship criterion, on a doc/`--help` mismatch it read as a cost of the line; the
 fixture's own pre-existing option carried that mismatch, so the reason is
 withdrawn and the wording shipped in round 23. Candidate wordings rejected and
@@ -18,52 +20,32 @@ live and honoured every round since 15; claim-handling decided against on a
 fixture built to fire its own condition (20), then reopened at a narrower target
 by 21 and left unrun. Independent evaluation: not-started for all.
 
-## DEC-031 — discharged (iter 23)
-
-Shipped the bullet against a blind reader that preferred the arm that grew. Its
-re-evaluation condition did not fire in round 24 — both arms wrote the flag row
-the project requires — and its framing bias is gone, that round's task saying
-nothing about documenting. Superseded by DEC-032 on one point: the rule the
-preferred arm added was a true statement about the tree as inherited, not a
-dependency on that session's own code.
-
 ## DEC-032 — keep a shipped line whose only measured effect in a third genre is
 an over-reach (iter 24, conf 65)
 
-- **Decision**: what to do with the self-consequence bullet after a third genre
-  where its intended effect was saturated — the untreated arm filed the
-  self-made fact with the change unaided — and its one measurable effect was to
-  suppress a *true inherited* fact from a heading soliciting standing rules.
-- **Chosen**: keep the bullet, delete the help-surface cost paragraph it was
-  carrying, and record the over-reach as a cost with its own retirement
-  condition and its own case. No prompt edit.
-- **Alternatives**: delete the bullet (rejected: not a pre-registered outcome of
-  this round's probe — outcome 1 required the treated arm to omit the
-  project-required flag row and it did not — and the standing contract's
-  saturation rule is *a reason to delete*, weighed against two genres where the
-  baseline was not saturated); bound the antecedent by rewording (rejected:
-  composed after the arms, which iteration 23's instruction 2 and this repo's
-  own hints name as the overfitting to avoid; a reworded line is an unmeasured
-  line).
+- **Decision / chosen**: after a third genre where the bullet's intended effect
+  was saturated and its one measurable effect was to suppress a *true inherited*
+  fact from a heading soliciting standing rules — keep the bullet, delete the
+  help-surface cost paragraph, record the over-reach with its own retirement
+  condition and case. No prompt edit.
+- **Alternatives**: delete the bullet (rejected: deletion was not a
+  pre-registered outcome of that probe, and two earlier genres had an unsaturated
+  baseline); reword to bound the antecedent (rejected: composed after the arms,
+  so an unmeasured line).
 - **Reasoning**: the deciding evidence is one arm's own reasoning quoting the
-  bullet to decline a fact outside its subject, which is an attribution and not
-  a preference — but it is n=1 in one genre, and the same arm gave a second,
-  sound reason for the same act (*I can't be sure it's a general project
-  property versus just a fixture quirk*). Two reasons pointing one way mean the
-  bullet is not shown to be load-bearing for the omission. Deleting a line
-  measured twice on one confounded observation would repeat what rounds 22 and
-  23 did in the other direction.
+  bullet to decline a fact outside its subject — an attribution, not a
+  preference. But it is n=1 and the same arm gave a second, sound reason for the
+  same act, so the bullet is not shown to be load-bearing for the omission.
 - **Re-evaluate**: on the next run of `prompt-tests/general/weary-waitlist`. If
   an arm carrying the line again declines an inherited property that an arm
   without it records, with the line quoted and no second reason beside it, the
-  bullet's subject is not doing any work and the line goes.
-- **Framing bias**: this round chose the one fixture whose house style makes an
-  omission decidable by grep, and got a saturated baseline on the bullet's own
-  effect as a consequence — a tree tidy enough to make the cost readable is a
-  tree that already houses the self-made fact. The two properties may not be
-  separable, and no round has tried.
+  line goes.
+- **Framing bias**: iteration 25 found this round's stated reason for choosing
+  that fixture — a required home the others lacked — was not a difference at all
+  (all three state one). So the third genre was a third sample of one condition,
+  not a contrast, and *conf 65* was set against a contrast that did not exist.
 - **Independent evaluation**: the tree comparison was blind and preferred the
   untreated arm for the second consecutive round; the decision to keep is not
   evaluated.
 - **Reversibility**: one bullet; `git revert` of `d98c5753`.
-- 2026-09-24T06:20:00Z
+- 2026-09-24T06:20:00Z, framing bias amended 2026-09-24T06:30:00Z
