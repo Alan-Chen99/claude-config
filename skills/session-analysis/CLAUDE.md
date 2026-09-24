@@ -20,6 +20,7 @@ skeleton-first reading protocol with task, evidence and adjudication modes.
 - Invoke with **no `args`**. Passing args substitutes them into every literal `$N` and
   `$ARGUMENTS` in the loaded text, which mangles the `ocr()` / `ocrange()` shell helpers in
   `SKILL.md`. `$N` takes the (N+1)-th whitespace-separated word of the args string — args
-  `alpha bravo charlie` render `$1` as `bravo` — and an out-of-range `$N` stays literal.
+  `alpha bravo charlie` render `$1` as `bravo` — parsing greedily past one digit; an
+  out-of-range `$N` stays literal.
   With no args, every `$N` stays literal and `$ARGUMENTS` renders empty (probed 2026-09-24,
   cc 2.1.269).
