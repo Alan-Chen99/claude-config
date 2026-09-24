@@ -124,7 +124,7 @@ skipping the review the others ran. Open and unmeasured: `# Error Propagation`'s
 both blockquote-plus-table duplications. `scripts/check-prompt-upstream.py` cannot run
 here — `/repos/claude-code-decompiled` is absent. DEC-037, DEC-042.
 
-## Iteration 33 — `1497221c` → (pending)
+## Iteration 33 — `1497221c` → `412e675b`
 
 ### Critique of 32
 
