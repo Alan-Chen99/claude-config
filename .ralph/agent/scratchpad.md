@@ -34,9 +34,8 @@ result before every response, all reach the session.
 **Before writing a clause for a failure, re-run the failure in a second genre.**
 If it disappears there, the target is the genre and not the wording.
 
-**A fixture written from the shape of the line tests the wording, not the world.**
-Real session logs under `~/.claude/projects/` carry the base rate a fixture
-cannot.
+**Real session logs under `~/.claude/projects/` carry the base rate a fixture
+cannot.**
 
 ## Standing `(contract)`
 
@@ -58,9 +57,6 @@ cannot.
 > right call. A round that ships no prompt edit may add a paragraph there only as
 > the first justification of a line that had none, naming the instrument defect a
 > later round must fix; otherwise it may only replace a paragraph, shorter.
-
-> **Run the case-ownership grep in both directions before leaving** — the skill
-> states the rule; only one direction was ever run before iteration 29.
 
 > Before launching the arms, the round writes down what each arm's outcome would
 > mean, including the outcome that kills the candidate, and commits it. **Outcomes
@@ -97,6 +93,14 @@ cannot.
 > before it is written** — `git log --all -S'<line>'` for a prompt line, the
 > result commit's own message for a result — and names the commit it checked.
 
+> **A round opens no task row.** `tasks.jsonl` stays empty; the round's state is this
+> file, `decisions.md` and the commit messages, which the ceiling already counts.
+> DEC-039.
+
+> **`decisions.md` carries only the half `sys_prompt/CLAUDE.md` does not** — what else
+> was on the table, the framing bias, whether anyone independent looked, the revert
+> sha. Claim, hypothesis and retirement condition are stated once, there.
+
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
@@ -123,35 +127,29 @@ ran half again the tool calls and wrote the only true new claim. Unfalsified pro
 
 **C1 (workflow — the specimen was read as a diff, never as a session).** The user's
 followup hands the loop a live instance: session `e828eab7`, commits `0d3c560b` and
-`b394ebbf`. 26 read it by tool-call index; 29 did not open it. Reading the log
-settles two things no fixture round could. Its `prompt_snapshot` carries
-`# Writing for other agents`, so the shipped block was in force while the failure
-happened — the loop's one real-world n=1 against the block. And at `@L158` the agent
-**states the fix-the-hazard alternative and declines it on a contextual ground**:
-*"I briefly consider just fixing the SKILL.md helpers directly … to eliminate the
-coupling entirely, but that file is under active edit by the user on this branch."*
-A prompt line telling an agent to remove a hazard rather than write a rule about it
-is therefore saturated on the one occurrence anyone has. Candidate killed for the
-price of a read, which is what the standing name-an-occurrence clause is for.
+`b394ebbf`. 26 read it by tool-call index; 29 did not open it. The log settles two
+things no fixture round could. Its `prompt_snapshot` carries `# Writing for other
+agents`, so the shipped block was in force while the failure happened — the loop's
+one real-world n=1 against it. And the agent **states the fix-the-hazard alternative
+and declines it on a contextual ground** (the file was under the user's own edit).
+A ninth candidate telling an agent to remove a hazard rather than write a rule about
+it is therefore saturated on the one occurrence anyone has. Candidate killed for the
+price of a read, which is what the name-an-occurrence clause is for. Quotes and refs:
+the pre-registration commit.
 
 **C2 (fact — 29 recorded a contradiction that is not one).** Its commit says
-`# Error Propagation`'s `Default/fallback values` and `Fallback behavior` rows pull
-against `# Coding`'s *don't add error handling, fallbacks, or validation for
-scenarios that can't happen*. They agree: a scenario that cannot happen has no real
-data demonstrating it, so both forbid the same fallback. The pull that does exist is
-elsewhere — `Silent retry` and `Partial success` require retry counters and
-partial-failure lists, which `# Coding`'s minimum-complexity rule and its ban on
-helpers for one-time operations push against. Instruction 2 handed this reading to
-this round to act on, so a misidentified pair would have aimed the next edit wrong.
+`# Error Propagation`'s fallback rows pull against `# Coding`'s *don't add error
+handling, fallbacks, or validation for scenarios that can't happen*. They agree: a
+scenario that cannot happen has no real data demonstrating it. 29 handed this reading
+to this round to act on, so a misidentified pair would have aimed the next edit wrong.
+The pull that does exist is named in the instruction list below.
 
-**C3 (workflow — the asymmetry the objective names is visible in the specimen and no
-round has aimed at it).** At `@L98` that agent put the one git-reversible decision to
-the user through `AskUserQuestion` — commit the symlink or gitignore it — reasoning
-that *"this cost is worth surfacing rather than silently deciding on my own."* It
-surfaced none of the three documentation additions it made in the same session, two
-of which are standing rules that only a human removes. Adding a rule is not felt as a
-decision; committing a file is. Twenty-nine rounds have varied wordings that ask the
-agent to write less. None has asked it to **say what standing rule it just added**.
+**C3 (workflow — the half of the ratchet no round has aimed at).** That same agent put
+its one git-reversible decision to the user through `AskUserQuestion` and surfaced none
+of its three documentation additions, two of them standing rules only a human removes.
+Adding a rule is not felt as a decision; committing a file is. Twenty-nine rounds have
+varied wordings asking the agent to write less. None has asked it to say what standing
+rule it just added.
 
 ### Milestone — the reporting surface, not another say-less wording
 
@@ -167,3 +165,46 @@ the probe fixture states the established fact in a file the task must touch, so
 neither arm has anything to investigate and volume cannot ride on tool-call count.
 
 Pre-registration and outcomes: this commit.
+
+### Result — no prompt edit; the baseline already reports the rule
+
+**The fixture design answered 29's instrument question.** Stating the load-bearing
+fact in the fixture, as verified, in the file the task sends the agent to — and making
+the natural implementation the one that trips over it — held depth fixed: thirteen
+tool calls an arm, both arms met the trap. Volume is separable from checking now, and
+the recipe transfers.
+
+O3 fires. Both arms extended the soliciting `## Agent Policy` and both named what they
+had added, under `## Required notes` — the untreated arm under `unexpected change:`,
+quoting its own additions. The candidate named the same act in other words, which is
+step 2's duplication. **Not shipped.** Justification and retirement condition:
+`sys_prompt/CLAUDE.md`, the first entry that line has ever had.
+
+The saturation is not total and the pre-registration left no room for that: O1 and O3
+were all-or-nothing, and the untreated arm reported one obligation as a past act where
+its page now instructs a later reader. Read as saturated, per the rule that an outcome
+asserting more than the observation is withdrawn. A cost a report has and a page does
+not, on the treated arm: its bullet said *must* for a page stating a consequence.
+
+**Arm-independent and new: both arms declined a destination out loud**, each weighing a
+second document and saying in the reply why the fact went elsewhere. 29 looked for
+declining, found none, and withdrew DEC-037's mechanism conjunct on that. It is
+genre-bound — it shows where two documents compete for one fact — not absent.
+
+Volume under fixed depth: 14 lines of durable prose to 6, untreated to treated. One
+draw an arm; the direction is a sample. DEC-040.
+
+### `(instruction)` for iteration 31
+
+1. **Run the arm this round could not.** No arm ran *without* `unexpected change:`,
+   so its own necessity is untested; the entry justifies the absence of a second
+   bullet. Condition and case are in `sys_prompt/CLAUDE.md`.
+2. Instruction 2 of 26/29 is closed, and 29's reading of it was wrong: `# Error
+   Propagation`'s fallback rows and `# Coding` agree — a scenario that cannot happen
+   has no real data demonstrating it. The pull that does exist is `Silent retry` and
+   `Partial success`, which require counters and partial-failure lists, against
+   `# Coding`'s minimum-complexity rule and its ban on helpers for one-time
+   operations. Both blockquote-plus-table duplications stand unmeasured.
+3. `scripts/check-prompt-upstream.py` cannot run on this machine:
+   `/repos/claude-code-decompiled` does not exist. It is not a check a round can
+   green, and an upstream rebase cannot be done from here.

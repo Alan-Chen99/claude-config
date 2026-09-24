@@ -317,6 +317,42 @@ Restore it when an arm without it replies as if a doubt were settled where an ar
 either resolves the doubt or reports it, on `prompt-tests/general/retirement-policy`.
 
 
+### `## Required notes`: `unexpected change:` is where a rule the session wrote gets reported
+
+First justification for a line that had none. A candidate bullet — *rule added: a
+standing rule or convention this session wrote into a file others read* — was put on
+trial against it and **not shipped**, because the untreated arm already reports.
+
+Both arms met a `CLAUDE.md` carrying an `## Agent Policy` bullet, and both extended
+it: the treated arm with three bullets, the untreated arm with a new contract section
+and a fourth bullet. Both named what they had added, in the body and again under a
+`## Required notes` heading — the untreated arm under `unexpected change:`, quoting
+its own additions as *the lookup-order contract and the no-braces label rule beyond
+the one-line preset row*. A second bullet naming the same act in different words is
+step 2 above, not a second caution.
+
+Hypothesis for why no bullet is needed: a rule written into a documentation file is
+an unexpected change by the writer's own lights, and the existing category collects
+it without being told that rules are the thing to collect.
+
+**Depth was held fixed and the volume gap survived it.** The load-bearing fact was
+stated in the fixture rather than left to be found, and the arms ran thirteen tool
+calls each — so iteration 29's confound is gone, and the untreated arm still wrote
+roughly twice the durable prose. Which way the treatment pushes is not knowable from
+one draw an arm.
+
+Limits, and the instrument defect a later round fixes. The saturation is not total:
+the untreated arm reported its mirror obligation as a past act — *I added it to both
+and added a test* — where the page now instructs a future reader to do it, so a
+reader of the reply alone would not know that rule exists. And the treated arm's
+report was more prescriptive than its own page, reporting *must be added to both
+directories* for a page that states the consequence rather than the imperative. No
+arm ran **without** `unexpected change:`, so what this entry justifies is the absence
+of a second bullet, not the presence of the first.
+
+Retire this when an arm without `unexpected change:` names the standing rules it
+wrote as fully as an arm carrying it, on `prompt-tests/general/hushed-rollcall`.
+
 ### `# Doing tasks`: the docs order is deleted
 
 The line was *Always update docs when you modify code or system state. Search for references across
