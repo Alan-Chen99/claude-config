@@ -26,16 +26,14 @@ outranks any new candidate — inside the objective's scope only.
 
 **When an instruction exists to compensate for a harness, fix the harness.**
 
-**Attribution runs on the decision's index, not the read's.** A file read after
-the decision is already formed in the transcript explains nothing; and a live
-case's growth is charged to the prompt only after reading the request that
-started it.
+**Attribution runs on the decision's index, not the read's**, and a live case's
+growth is charged to the prompt only after reading the request that started it.
 
 **The prompt is the whole stack, not one file.** `sys_prompt/alan-default-next.md`,
-`output-styles/`, `conventions/documentation.md` (pulled in by any doc-writing
-task) and `src/claude_config/pre_output/record.py` — whose RULES string is
-delivered in a tool result before every response, at NEVER force — all reach the
-session. 25 rounds measured the first only.
+`output-styles/`, `conventions/documentation.md` (reached only via `doc-sync`,
+`technical-writer`, `quality-reviewer`, `planner`) and
+`src/claude_config/pre_output/record.py`, whose RULES string arrives in a tool
+result before every response, all reach the session.
 
 **Before writing a clause for a failure, re-run the failure in a second genre.**
 If it disappears there, the target is the genre and not the wording.
@@ -62,8 +60,11 @@ rounds had missed (22).
 
 > Each round either edits `sys_prompt/alan-default-next.md`, or writes into
 > `sys_prompt/CLAUDE.md` what its own measurement showed that makes no edit the
-> right call. A round that ships no prompt edit may not add a paragraph there; it
-> may replace one, and the replacement is shorter.
+> right call. A round that ships no prompt edit may add a paragraph there only as
+> the first justification of a line that had none, naming the instrument defect a
+> later round must fix; otherwise it may only replace a paragraph, shorter. 27 hit
+> the contradiction: that file exists to justify prompt lines, and the old wording
+> made a kept line's first measurement unrecordable.
 
 > Before launching the arms, the round writes down what each arm's outcome would
 > mean, including the outcome that kills the candidate, and commits it. A reading
@@ -99,21 +100,19 @@ rounds had missed (22).
 > **A claim about what an earlier round did or observed is checked against git
 > before it is written** — `git log --all -S'<line>'` for a prompt line, the
 > result commit's own message for a result — and names the commit it checked.
-> 25's rule covers claims about fixtures; this covers claims about the loop.
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
 ## History — rounds 1–25, `9f6c03a0` → `00396475`
 
-Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — the durable
-home, and the file to read before touching the block. Everything else is in the
-commit messages. Shipped: `Say what ends it` (11, isolated and upheld at 19), the
-self-consequence bullet (23), one duplicated rationale cut out of it (25).
-Deleted: `Omit by default`, `Claim less`, the help-surface cost paragraph. Eight
-candidate wordings failed, the last four all claim-handling. Round 10 voided
-every arm stored before 2026-09-22. Every sentence still in the block has been
-measured alone.
+Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — read it before
+touching the block. Everything else is in the commit messages. Shipped: `Say what
+ends it` (11, upheld at 19), the self-consequence bullet (23), one duplicated
+rationale cut out of it (25). Deleted: `Omit by default`, `Claim less`, the
+help-surface cost paragraph. Eight candidate wordings failed, the last four all
+claim-handling. Round 10 voided every arm stored before 2026-09-22. Every sentence
+still in the block has been measured alone.
 
 ## Iteration 26 — `00396475` → `d8b2ba5c`
 
@@ -130,33 +129,50 @@ every arm replied with residual doubt still listed anyway.
 
 ### Critique of 26
 
-**C1 (fact — the live case's attribution fails on its own indices).** 26 wrote
-that `conventions/documentation.md`'s *Duplication is acceptable* was "read at
-record-index 108 and followed at 112 by the decision to give one fact two homes".
-The log says otherwise. At 107, *before* the read, the agent had already named
-both homes ("I might need to create one since the root doc says details should
-live in each directory's own file" … "also consider adding a line to
-`skills/session-analysis/CLAUDE.md`"), and 108's stated purpose was "how table
-rows are formatted". At 112 the second home is justified by audience — "that file
-gets read when someone's actively working on the skill" — not by duplication
-being acceptable. The attribution is withdrawn and with it instruction 2's claim
-that line 11 is the strongest remaining candidate.
+**C1 (fact).** 26 attributed the live case's two-homes decision to
+`conventions/documentation.md`'s *Duplication is acceptable*, "read at
+record-index 108 and followed at 112". Record 107 names both homes before 108
+reads the file, 108's stated purpose is table formatting, and 112 justifies the
+second home by audience. Withdrawn, and with it instruction 2.
 
-**C2 (fact).** 26 called that file "auto-pulled by any doc-writing task". It is
-referenced only by `skills/doc-sync/SKILL.md`, `agents/technical-writer.md`,
-`agents/quality-reviewer.md` and `skills/planner/resources/plan-format.md`, none
-auto-loaded; in the live case the agent reached it with a hand-written `sed`.
+**C2 (fact).** That file is not "auto-pulled by any doc-writing task": only
+`skills/doc-sync`, `agents/technical-writer`, `agents/quality-reviewer` and
+`skills/planner` reference it, none auto-loaded.
 
-**C3 (workflow — no round read the request the live case started from).** User
-prompt at record 8 ends "and docuemnt it". 26's write-up frames ~20 lines of
-durable text as unrequested growth from a one-symlink task. Documentation was
-requested; what the stack can be charged with is spread and volume. Durable-method
-line added above.
+**C3 (workflow).** The live case's user prompt ends "and docuemnt it". 26 framed
+the growth as unrequested; what the stack can be charged with is spread.
 
-**C4 (fact — the stack's most direct doc-growth order went unread for 26
-rounds).** `sys_prompt/alan-default-next.md:15`, third clause: *After making a new
-file **or making edits**, check if project CLAUDE.md needs an update.* It is
-strictly wider than the wording it was forked from
-(`output-styles/alan-default-next.md:70`: *When you add a new file, update project
-CLAUDE.md*). `sys_prompt/CLAUDE.md` has no section on `# Doing tasks`, so the
-widening is unjustified and unmeasured. Milestone.
+**C4 (fact — the milestone).** `sys_prompt/alan-default-next.md:15`'s third
+clause, *After making a new file or making edits, check if project CLAUDE.md
+needs an update*, is wider than the fork it came from
+(`output-styles/alan-default-next.md:70`) and `sys_prompt/CLAUDE.md` had no
+section on `# Doing tasks`, so the widening was never justified.
+
+
+### The round's work and result
+
+No prompt edit. Four runs, two arms, one task. **The clause bought nothing
+attributable, and the decisive variable was not the arm:** a blind reader holding
+all four trees grouped them on whether the *first* listing showed the doc files
+(`ls -R`, `find -name '*.md'`) or not (`ls -la` + a `.py` sweep), a split cutting
+across the arms. The one tree that left docs false was an arm without the clause
+whose stratum-mate recovered on one `grep --include`; and the arm *without* the
+clause is the one that grepped the root `CLAUDE.md` the clause names, while the
+arm with it went wider. Both pre-registered outcomes partly fired, so neither is
+honoured. `sys_prompt/CLAUDE.md` records the line as untested and names the
+instrument fix: doc files listed in the auto-loaded root `CLAUDE.md`.
+
+Two arm-independent findings the same runs support are in `sys_prompt/CLAUDE.md`
+in full: a repair is a **rewrite** that drops inherited rationale, and a repair
+**grows**. Neither's home is `sys_prompt/`.
+
+### `(instruction)` for iteration 28
+
+1. Search breadth, not the named artifact, decided every doc outcome here.
+   `# Doing tasks` already carries *Search for references across the entire
+   codebase*, and two of four runs scoped their search to `.py` or to one file.
+   That is the measurable line in this block, and it is shipped and unjustified.
+2. 26's instruction 1 is unspent: read `# Epistemic Integrity`, `# Error
+   Propagation` and `## Required notes` as prose before measuring any of them.
+3. `tasks.jsonl` grows ~190 tokens a round against the ceiling, with no prune
+   command. Round 30's cleanup solves that or the ceiling eats the scratchpad.

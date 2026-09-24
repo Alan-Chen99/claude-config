@@ -2,9 +2,13 @@
 
 ## Patterns
 
-### mem-1790234297-4904
-> A rule delivered in a tool result acts only on what comes after the call, and its characteristic effect is to convert a residual doubt into durable text. Measured on pre_output.record's 'NEVER reply to user if uncertainties remain': across three runs it arrived last in one and did nothing, arrived mid-run in another and produced five further tool calls that rewrote a dependency comment around a reproduction command and documented an invented env-var name. It fires only when a cheap resolving act exists -- doubts nobody can settle from inside the session leave it inert, and every arm replied with doubt still listed anyway. Read such a rule by tool-call index before crediting it with anything.
-<!-- tags: sys-prompt, prompt-tests | created: 2026-09-24 -->
+### mem-1790235782-346f
+> Repairing a doc is a rewrite, not a patch, and it grows. Across four runs whose change falsified one sentence in a README, every run that opened the file replaced the whole paragraph; two of three deleted the inherited rationale (the reason the old value was chosen) while correcting the value, and disclosed the deletion to the user rather than to the tree; all three appended new prose the change had not falsified, under a '## Design Decisions' heading the fixture already had. Arm-independent -- the mechanism is the paragraph being rewritten from the change instead of from the paragraph.
+<!-- tags: writing-for-agents, test-design | created: 2026-09-24 -->
+
+### mem-1790235782-1b19
+> A doc-maintenance prompt line cannot be measured on a fixture whose doc files the agent has to discover. Four runs, two arms, one task: the outcome tracked whether the FIRST listing showed the .md files (ls -R or find -name '*.md') and not which arm it was; the arm lacking a 'check project CLAUDE.md' clause was the one that grepped exactly that file, and the arm carrying it went wider. Control it by naming every doc file in the fixture's auto-loaded root CLAUDE.md before attributing anything to a wording.
+<!-- tags: prompt-tests, test-design, sys-prompt | created: 2026-09-24 -->
 
 ### mem-1790231753-e792
 > An agent applying a placement rule generalises the rule's antecedent to the whole decision. An arm carrying 'a consequence of your own change is not a property of the project' declined a standing-rules heading with 'the only thing learned is a property of this change' -- in a session that had also found an inherited parser defect, which is not a property of its change. Second genre showing this. The rule is read as a verdict on the destination, not as a test on the fact.
@@ -16,10 +20,6 @@
 
 ### mem-1790229298-14d0
 > For a decisive blind reading, brief the reader with a neutral inventory rather than the opportunities under test: 'every statement about the project's behaviour present in the delivered tree or the final reply and absent from the starting tree -- where it landed, whom it addresses, whether the session made or inherited the fact, what would falsify it', plus which tree it would rather inherit. The reader builds the categorical grid itself, cannot tell what is being measured, and reports things the round did not pre-register.
-<!-- tags: prompt-tests, test-design | created: 2026-09-24 -->
-
-### mem-1790229298-fdae
-> Before crediting a cost you saw in a treated arm, check the fixture's own pre-existing code for it. One probe's existing option had no argparse metavar and no help while the fixture's docs spelled the value out, so the arms that omitted metavar on the NEW flag matched the only neighbour they had -- and the round that read that as a defect the line introduced blocked a ship on the fixture's house style, with no run needed to see it. The baseline that spans the outcome range can be the starting tree, not only the untreated arm.
 <!-- tags: prompt-tests, test-design | created: 2026-09-24 -->
 
 ### mem-1790070627-b0f9

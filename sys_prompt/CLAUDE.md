@@ -318,6 +318,42 @@ Restore it when an arm without it replies as if a doubt were settled where an ar
 either resolves the doubt or reports it, on `prompt-tests/general/retirement-policy`.
 
 
+### `# Doing tasks`: the docs clause, kept without evidence that it does anything
+
+The clause is *After making a new file or making edits, check if project CLAUDE.md needs an update.*
+It restates the sentence before it — *Always update docs when you modify code or system state* —
+narrowed to one file and widened in trigger: the first fires on docs a change made wrong, which is
+checkable against the change; this one fires on the fact that an edit happened.
+`output-styles/alan-default-next.md` still carries the unwidened fork, *When you add a new file,
+update project CLAUDE.md*.
+
+Four runs of one task on a fixture with three doc files — a `README.md` a TTL change falsifies, a
+nested index a new module leaves stale, and a third index nothing touches — two runs carrying the
+clause, two with it cut. **It bought nothing attributable.** Three of the four delivered correct
+docs; the one that did not was an arm without the clause, and a blind reader holding all four
+trees grouped them on a dimension that cuts across the arms: whether the *first* listing showed the
+doc files at all (`ls -R` and a `find` with `-name '*.md'` did; `ls -la` plus a `.py` sweep did not).
+Of the two runs that started blind, the one that recovered did so on a later `grep -rn` whose
+`--include` list happened to carry `*.md`; the one that did not repair anything grepped the root
+`CLAUDE.md` alone — that is, the arm *without* the clause is the one that went to the file the clause
+names, and the arm with it went wider. The clause names an artifact; the outcome was decided by a
+search's breadth, chosen before the agent knew there were docs to find.
+
+So it stays, unjustified rather than justified: nothing here shows it earns its tokens, and nothing
+here shows dropping it is free. **What a later round must fix before it can be measured at all** is
+the instrument: a fixture whose doc files are named in the auto-loaded root `CLAUDE.md`, so no arm
+can miss them by accident, removing search breadth as the dominant variable. Until then this
+paragraph is the record that the line is untested, not that it is load-bearing.
+
+Two findings the same four runs do support, neither attributable to any line under test. **A repair
+is a rewrite.** Every run that opened the `README.md` replaced the whole paragraph rather than the
+false number, and two of the three deleted the inherited rationale — *the endpoints regenerate on a
+15-minute cron* — while correcting the figure, disclosing the deletion to the user and not to the
+tree. One run reconciled it instead. **A repair also grows.** All three appended new prose the
+change had not falsified, under the `## Design Decisions` heading the fixture already had. The
+doc-error mechanism in this genre is a paragraph rewritten from the change rather than from the
+paragraph, and its home is not `sys_prompt/`.
+
 ### `# Git`
 
 The section is the only git policy a `claude.sh` session receives, because `settings.json` turns
