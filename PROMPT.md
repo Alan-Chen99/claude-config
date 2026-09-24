@@ -79,3 +79,9 @@ I merged changes on main branch in `e8ff9c00`, I think did not change anything y
 [idea] Then next session `e828eab7-4107-46f6-8551-481c08fffda0` made next 2 commits: I asked for a session-analysis-wip link, small change that caused significant hard-to-remove documentation growth, showing how common this is. [idea] So the top priority i think should be to ensure less documentation gets written.
 
 </followup>
+
+<followup added="loop3" from="user" commit="31f26b8d">
+[idea] I saw that you removed "Always update docs when you" line; so I will note here that this line was suposed to fix "oudated docs". It maybe worthwhile to try formulations such as "check if project CLAUDE.md is oudated"
+
+Also -- you should feel more free to message me on telegram and even blocking on it. Do not be concerned about this taking time, since that is not the limiting factor in this loop anyways.
+</followup>
