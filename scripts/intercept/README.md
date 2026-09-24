@@ -92,14 +92,24 @@ Sessions without an ID go to `~/.claude/requests-log/unknown/`.
       { "type": "thinking", "thinking": "..." }
     ],
     "stop_reason": "end_turn",
+    "stop_details": null,
     "usage": { "input_tokens": 1000, "output_tokens": 200 }
   }
 }
 ```
 
-A call that failed at the HTTP layer carries `error` — `{"status": 429,
-"statusText": "Too Many Requests"}` — in place of `response`. The request half
-is a complete conversation, so `cc-pretty-intercept` renders these.
+A call that failed at the HTTP layer carries `error` in place of `response`:
+`status` and `statusText`, plus the API's own account read from the error body
+— `type` and `message`, the same two keys an in-stream error uses, or `body`
+(capped at 8 KB) when the body was something else, such as a gateway's HTML.
+The request half is a complete conversation, so `cc-pretty-intercept` renders
+these.
+
+A refusal is not an HTTP error: it arrives on a 200 stream as `stop_reason:
+"refusal"` with `stop_details` carrying `category` (`reasoning_extraction`,
+`cyber`, …) and `explanation`. Claude Code then shows the user a locally
+synthesized `invalid_request` message, so the transcript and the capture
+describe the same event in different words.
 
 Only bodies carrying both `model` and `messages` are logged, so every file on
 disk is a conversation-shaped request. That includes Claude Code's own
@@ -108,10 +118,46 @@ auxiliary calls — its WebSearch tool reaches the API as a separate
 entry, the server-side `web_search_20250305` with `max_uses: 8` (observed in
 this machine's own intercept logs, 2.1.269).
 
-SSE reassembly keeps each `content_block_start` block whole and lets deltas
-fill in `text`, `thinking`, and `input`. Keeping the whole block is
-load-bearing for server-side tools: `web_search_tool_result` delivers its
-result list on the start event and nothing later restores it.
+SSE reassembly copies the whole message object from `message_start` and every
+field `message_delta` finalizes, then lets content deltas fill in `text`,
+`thinking` and `input`. Copying rather than picking is what keeps
+`stop_details`, `stop_sequence`, `container` and `context_management` — and
+whatever the API adds next — in the capture. Each `content_block_start` block
+is kept whole for the same reason: `web_search_tool_result` delivers its result
+list on the start event and nothing later restores it.
+
+A non-streaming reply is stored verbatim; only the streamed path is
+reassembled.
+
+## What a capture does not record
+
+Four losses. None of them produces a capture, and only one leaves any
+trace at all:
+
+- **A call that never produced a response.** A stream cut mid-body, an
+  unreachable origin, a client abort: mitmproxy routes these to the `error`
+  hook, which drops the flow's state and writes nothing — not even the request
+  half. The client still sees the failure; the capture does not.
+- **A capture whose addon was replaced mid-flight.** mitmdump rebuilds the
+  addon when its script file changes, and the new instance has no record of a
+  response already in progress, so that capture is dropped with one
+  `parse-response` line in `requests-log/_errors/errors.log` naming no session
+  and no request. Editing `proxy.py` while sessions are running costs those
+  captures.
+- **Everything that is not conversation-shaped.** The `model` + `messages`
+  filter runs before any logging, so a failure on `count_tokens`, on OAuth
+  refresh, or on telemetry is never seen.
+- **Anything about a session that did not start under the proxy.** See below.
+
+## Which sessions are captured
+
+A call is captured only if the session process had `HTTPS_PROXY` pointed at
+this proxy when it started. `scripts/claude.sh` sets it, and only when
+something answers on 9160 at launch — otherwise it warns on stderr and runs
+unintercepted. `agent-tools claude` does not set it at all, so worktree and
+prompt-test sessions produce no captures. Subagents are not separate sessions
+here: their calls carry the parent's session id and land in the parent's
+directory.
 
 ## Pass-through streaming
 
