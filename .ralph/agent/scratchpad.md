@@ -129,7 +129,7 @@ against `# Coding`'s minimum-complexity rule; both blockquote-plus-table duplica
 `scripts/check-prompt-upstream.py` cannot run here — `/repos/claude-code-decompiled`
 is absent. DEC-037 – DEC-041.
 
-## Iteration 32 — `b3472db2` → (see close)
+## Iteration 32 — `b3472db2` → `c8ff940d`
 
 ### Critique of 28–31
 
