@@ -99,105 +99,66 @@ commit messages. Shipped: `Say what ends it` (9). Deleted: `Omit by default`
 harness contamination and voided every arm stored before 2026-09-22. Every
 sentence still in the block has been measured alone.
 
-## Iteration 22 — `942cf683` → `06679ac6` (context)
+## Iterations 22–23 — `942cf683` → `39bb9453` (context)
 
-Diagnosed a live session rather than a fixture, and falsified the block's
+22 diagnosed a live session rather than a fixture and falsified the block's
 standing explanation of documentation growth: growth has a moment, and a
-document soliciting additions supplies it. Ran the `busiest-few` probe four
-ways (`6b52d254` … `fa5128ea`; restore with `git checkout 307ccfa6 --
-prompt-tests/runs/busiest-few`). Candidate 1, aimed at inherited defects,
-bought nothing — those go to the reply, which the response template already
-slots. Candidates 2 and 3 are one claim under two vocabularies; each met its
-pre-registered ship criterion and neither shipped, because 22 read two
-collateral costs as outranking it.
+document soliciting additions supplies it. It ran the `busiest-few` probe four
+ways and shipped nothing, blocking on two collateral costs. 23 falsified the
+first from the fixture itself — the arms that omitted argparse's `metavar`
+matched the one pre-existing option they had — showed the second was
+underdetermined between suppression and displacement, then ran the claim in a
+second genre (`hushed-rollcall`: bash CLI, an auto-loaded `## Agent Policy`) and
+met its pre-registered ship outcome. The self-consequence bullet shipped
+byte-identical to the measured arm, 6395 → 6464 API tokens; the probe was
+promoted to a case because the paragraph it owns had none; `busiest-few` was
+deleted. A blind reader preferred the arm that grew, and 23 shipped against it,
+recording the trade in DEC-031 rather than in the prompt.
 
-## Iteration 23 — `06679ac6` → `d8a0aeef` + this commit
+## Iteration 24 — `39bb9453` → this commit
 
-### Critique of 22
+### Critique of 23
 
-**C1 (fact — the cost that stopped the ship is the fixture's own house style,
-checkable with no run).** 22 blocked the ship on: the treated arms omit
-argparse's `metavar`, so their `docs/report.md` says `[--top N]` while `--help`
-prints `[--top TOP]`. The fixture's only other option is
-`rep.add_argument("--since")` — no `metavar`, no `help` — and its
-`docs/report.md` documents it as `--since YYYY-MM-DD`. **The delivered
-documentation contradicted the delivered program before any arm ran.** The arms
-that omitted `metavar` matched the one neighbour they had; the arms that set it
-improved on house style. 22 priced this as "a correctness defect in the one file
-the line steers content toward". Its accompanying claim — *no arm on either side
-reasons about that surface* — is also false: the candidate-1 arm's thinking says
-"I'll wire this into the argument parser with metavar N".
+**C1 (workflow — a reading pre-registered as deciding nothing was written into
+the durable home as an established cost).** `08d4bcef` reads: *Read as context,
+deciding nothing. Whether either arm updates `bin/warden`'s `usage:` line … the
+previous round mistook exactly this kind of house-style match for a defect
+introduced by the line.* `sys_prompt/CLAUDE.md` now carries that same
+observation as **What it costs: the program's own help surface**, with a
+hypothesis and a retirement condition. The standing contract says a reading
+composed after the arms are in is not admissible; this is one, and it is the
+class of error 23's own C1 had just caught 22 committing.
 
-**C2 (fact — the second cost has an alternative reading 22 never excluded).**
-22 recorded that both treated arms "dropped the `--since` interaction" and
-called that under-documentation. Displacement fits the same observation: the
-untreated arm filed the tie-break fact in `CONVENTIONS.md` and the composition
-sentence in `docs/report.md`; the treated arms filed the tie-break in
-`docs/report.md` and left the composition out, at about equal bullet length. If
-that is what happened the line wrote no less — it routed a self-made fact into
-the slot another fact held. The pre-registration could not separate the two, so
-the cost is underdetermined rather than established, and it decided the round.
+**C2 (fact — the cost's "two-for-two across genres" counts a withdrawn
+observation).** Its `busiest-few` leg *is* the `metavar` reading 23 spent its
+own critique withdrawing. The paragraph reasserts as half its evidence what the
+same round established was the fixture's house style. On the `hushed-rollcall`
+leg the fixture's `usage: warden {list|check}` names no option at all, so
+neither answer mismatches anything. No leg is admissible, and *documented an
+option its own program does not admit exists* overstates what was seen:
+`warden check --quiet` works; only a bare error-path usage string omits it.
 
-**C3 (workflow — an unexplained observation became a standing blocker in the
-durable home).** `sys_prompt/CLAUDE.md` now reads "…the split is observed and
-unexplained, which is why none is shipped". The user's rule is that a claim is
-valid only with a hypothesis of why beside it; this one states it has none, and
-it is the reason a measured effect does not ship. A sentence that blocks an
-action and names no observation that would lift it is the ratchet the objective
-targets: nothing a later round can see retires it.
-
-**C4 (workflow — 22's instruction 1 prescribes what the user's guidance rules
-out).** *Default to `n=1`. If you want more, build new cross-domain test cases;
-do not replicate.* Instruction 1 is a re-run of one arm of the same fixture, and
-a third draw on a 2-vs-2 split settles nothing either way. **Override of
-instruction 1.** Instruction 3 — build the second genre rather than re-running
-this one — is taken instead, and C1 removes the question instruction 1 existed
-to answer.
+**C3 (quality — the promoted case's reference carries the conclusion the user
+required stripped).** The user's rule: *rubric help grader understand nuances of
+the situation, nothing more … with all conclusions stripped.*
+`prompt-tests/general/hushed-rollcall/reference-solution.md` told the grader
+that a sentence in that position *is a dependency written as a fact: sound for
+the code as that session left it … false the moment someone changes the code
+again* — the shipped bullet's own claim, in the reference for the case whose job
+is to test that bullet. Its hedge (*which position is right … is not settled
+here*) does not remove it: a grader reads the verdict first. Repaired this round
+to state the three positions and what each costs the next reader, with no
+position preferred.
 
 ### Why this milestone
 
-After C1 and C2 the only live doubt about candidate 3 is the one DEC-030 named
-as its framing bias: the claim was found and measured on a single fixture, whose
-soliciting document is a `## Gotchas` list with an explicit invitation. The live
-session that motivated the claim solicits differently — an `Agent Policy` under
-a `CLAUDE.md`, auto-loaded, with no invitation at all. A second genre answers
-whether the effect is the claim's or that fixture's, which is what ship-or-delete
-turns on; another draw on `busiest-few` answers nothing.
-
-### The round's work and result
-
-Probe `hushed-rollcall`, two arms, pre-registration `08d4bcef`. **Outcome A.**
-The treated arm left `## Agent Policy` untouched and put the fact in
-`docs/cli.md` and in a comment beside the line it governs; the untreated arm
-added a standing rule about its own implementation's output buffer. Both arms
-sent the inherited defect to the reply, unaided, as the hypothesis predicts.
-Attribution, non-blind, the treated arm's own reasoning: *the new detail … is
-just a consequence of my specific change rather than a general project property,
-it belongs in `docs/cli.md` instead* — the line's vocabulary, none of which
-occurs anywhere in the fixture. The decisive reading was blind, and it preferred
-the arm that grew, on the strength of the standing rule that arm added.
-
-The pre-registered discriminator for C2 came back against suppression: nothing
-`base` states about behaviour that existed before the session is missing from
-`cand`'s `docs/cli.md`.
-
-Shipped, byte-identical to the measured arm; 6395 → 6464 API tokens. The probe
-is promoted to `prompt-tests/general/hushed-rollcall`, because the paragraph it
-now owns had no case at all and its retirement condition could not be observed
-by anyone. `busiest-few` deleted.
-
-### `(instruction)` for iteration 24
-
-1. The help-surface cost is two-for-two across genres and has a hypothesis and
-   no test. Test the hypothesis, not the wording: give an arm carrying the line
-   a task with **no** documentation ask in it. If it still does less than an
-   untreated arm beyond the literal request, the cost is an attention effect and
-   no rewording reaches it.
-2. Do not reword the shipped bullet from this round's observations. It was
-   composed before the arms and has now been measured twice; a wording composed
-   after the arms is the overfitting the repo's own hints name.
-3. Neither arm priced an end for anything it wrote, in any position, though both
-   carried `Say what ends it`. Two bullets now pull on the same act. The
-   compression rule's first question for the next round is whether one of them
-   is a restatement of the other.
-
+The shipped bullet is the objective's top priority made concrete, and the only
+thing that could make it net-negative is the recorded cost — a line that writes
+less documentation is worth nothing if the documentation it stops is the kind
+the project asked for. C1 and C2 show that cost has no admissible evidence
+behind it, and the durable home is where an unfalsifiable blocker does the most
+damage. So the choice is not *test it or delete it* but both: the paragraph is
+settled by a reading taken under a pre-registration, or it goes. Instruction 1
+of 23 names the design, and this round adds the piece both earlier genres
+lacked — a fixture whose own help text enumerates every flag, so an omission is
+decidable by `grep` instead of by taste.

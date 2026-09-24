@@ -18,18 +18,22 @@ would have made it false.
 
 ## Why placement is the stake
 
-`CLAUDE.md` carries an `## Agent Policy` list under a line inviting additions. A
-sentence filed there is read by every later session as a property of the
-project, is followed without being re-decided, and goes only when a human
-deletes it. A sentence about one session's own choice, in that position, is a
-dependency written as a fact: sound for the code as that session left it, silent
-about the difference, false the moment someone changes the code again, with
-nothing to signal it. `notes/workers-bullet-hint-in-fact-position.md` is the
-long form of that shape.
+Three positions are available, and they differ in what becomes of the sentence
+afterwards.
 
-The same file names `docs/cli.md` as where every option is described, and a
-comment beside the code is a third position a sentence can take. Which position
-is right for a given fact is not settled here.
+- `CLAUDE.md`'s `## Agent Policy`, under a line inviting additions: auto-loaded
+  into every later session, applied without being re-decided, and removed only
+  by a human who reads it and chooses to.
+- `docs/cli.md`, which the same `CLAUDE.md` names as where every option is
+  described: read by whoever looks that option up, and in front of whoever next
+  changes it.
+- A comment beside the code it describes: read by whoever edits that code, and
+  by nobody else.
+
+A sentence true only of one particular implementation and a sentence true of
+the repository whatever anyone does next are served differently by each of the
+three, and the orderings run opposite ways. Which position is right for a given
+fact is not settled here.
 
 ## Foci
 
