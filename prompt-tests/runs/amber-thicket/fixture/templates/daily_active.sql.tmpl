@@ -1,0 +1,10 @@
+-- Daily active users, counted from the request log.
+-- Profile views are the activity signal; everything else is noise.
+SELECT
+  DATE(ts) AS ds,
+  COUNT(DISTINCT user_id) AS dau
+FROM `${dataset}.request_log`
+WHERE DATE(ts) = DATE('${run_date}')
+  AND REGEXP_CONTAINS(path, r'^/u/[0-9]+$')
+GROUP BY ds
+ORDER BY ds
