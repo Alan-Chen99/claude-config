@@ -163,6 +163,13 @@ def _render_response(resp: Response, renderer: Renderer) -> str:
     if resp.error:
         lines.append(f"{C.ERROR}  ✗ error [{resp.error.type}]: {resp.error.message}{C.RESET}")
 
+    if resp.stop_details:
+        d = resp.stop_details
+        lines.append(
+            f"{C.ERROR}  ✗ {d.get('type', 'refusal')} [{d.get('category')}]: "
+            f"{d.get('explanation', '')}{C.RESET}"
+        )
+
     for bi, raw in enumerate(resp.content):
         block = parse_content_block(raw)
         if isinstance(block, ThinkingBlock):
@@ -184,12 +191,20 @@ def _render_response(resp: Response, renderer: Renderer) -> str:
 def _render_transport_error(err: TransportError | None) -> str:
     """Render a capture whose call failed before any message came back."""
     detail = "no response and no error recorded"
+    said = ""
     if err is not None:
         detail = f"HTTP {err.status} {err.statusText}".strip()
-    return (
+        if err.type or err.message:
+            said = f"[{err.type}] {err.message}".strip() if err.type else err.message
+        else:
+            said = err.body
+    rendered = (
         f"{C.ERROR}┌ Transport error{C.RESET}  {C.DIM}{detail}{C.RESET}\n"
         f"{C.DIM}  the request above never produced a response{C.RESET}"
     )
+    if said:
+        rendered += f"\n{C.ERROR}{ind(said, '  ')}{C.RESET}"
+    return rendered
 
 
 def main():
