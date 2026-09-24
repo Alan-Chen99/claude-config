@@ -111,7 +111,7 @@ slots. Candidates 2 and 3 are one claim under two vocabularies; each met its
 pre-registered ship criterion and neither shipped, because 22 read two
 collateral costs as outranking it.
 
-## Iteration 23 — `06679ac6` → this commit
+## Iteration 23 — `06679ac6` → `d8a0aeef` + this commit
 
 ### Critique of 22
 
@@ -200,3 +200,4 @@ by anyone. `busiest-few` deleted.
    carried `Say what ends it`. Two bullets now pull on the same act. The
    compression rule's first question for the next round is whether one of them
    is a restatement of the other.
+
