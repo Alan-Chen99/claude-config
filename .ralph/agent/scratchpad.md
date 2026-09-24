@@ -134,7 +134,7 @@ clause names. DEC-035 records the line untested and names the instrument fix.
 Arm-independent, on the top priority: a doc repair is a paragraph **rewrite** that
 drops inherited rationale, and it **appends** prose the change had not falsified.
 
-## Iteration 28 — `59bb9965` → `pending`
+## Iteration 28 — `59bb9965` → `adb80213`
 
 ### Critique of 27
 
