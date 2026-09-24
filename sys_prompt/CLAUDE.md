@@ -332,22 +332,23 @@ writes a standing rule instead — `git checkout d530b4ed -- prompt-tests/runs/s
 `... bronze-kettle` and `git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket` restore the
 three probes.
 
-**What grew was the document the task named, and what it grew by was scope.** Asked for one
-report variant *and document it*, three arms each turned that instance into a project-wide
-rule in the document the task sent them to — two to five binding sentences apiece: how *any*
-report gets a second dataset, a naming scheme, a cadence rule. Two of the three generalisations
-were false against their own tree, and false in the added scope rather than in the instance: one
-inferred that a matching cadence guarantees a matching `run_date`, which is a pinned variable,
-and asserted it in a test; the other stated a naming scheme its own config violates. The arm
-that stayed on the instance shipped nothing false and a blind reader holding all three chose it
-to inherit. Hypothesis: a rule is the form an agent writes a fact in, and its scope is the part
-no observation constrained, so generalising raises the error rate while barely moving the
-volume — which is why nine say-less wordings measured volume and found nothing. **Force** above
-says this to whoever edits this file and has never been in the prompt a session reads. The
-wording to run is *An instruction's scope is a claim; one instance does not support a
-project-wide rule*; ship it when an arm carrying it writes the instance where an arm without it
-writes the rule, and does not lose anything true in doing so —
-`git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket`.
+**Scope is decided, and no wording ships.** *A rule's scope is a claim. Wording one wider
+than you checked asserts the cases you did not look at — narrow it to those you did, or check
+the rest* ran against a bare arm, on a task adding one report variant and saying *document it*.
+The arm carrying it shipped the failure the line names: two entries sharing one template *so*
+differ in the dataset and nothing else, which one render refutes — give them different
+`run_date` values and a second line differs — where the bare arm stated that coupling correctly.
+The owner's specimen does the same, asserting *"`$N` is the (N+1)-th whitespace-separated
+word"* off a single-digit probe. Hypothesis: the unchecked half of a claim is invisible while
+the sentence is being composed, so a line naming it changes nothing; what catches it is
+rendering the two queries. What
+separated the trees was repair — the change falsified `templates/CLAUDE.md`'s opening, the
+treated arm rewrote that sentence, the bare arm *added a minimal amendment documenting this
+exception* beneath it and left a file asserting and denying one rule. So *a note telling the
+next reader to avoid something is a fix you did not make*, read saturated at 34, is not
+saturated where the note contradicts a rule the change just falsified. Ship a wording here when
+an arm carrying it states no claim its own tree refutes where a bare arm does —
+`git checkout 4cb01c30 -- prompt-tests/runs/pewter-dial`.
 
 
 ### The `pre_output.record` reminder, and why only one rule is left in it

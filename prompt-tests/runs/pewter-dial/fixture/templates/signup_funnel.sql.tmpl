@@ -1,9 +1,0 @@
--- Signup funnel: landing -> form -> confirmed, for the week ending ${run_date}.
-SELECT
-  step,
-  COUNT(*) AS n
-FROM `${dataset}.signup_events`
-WHERE DATE(ts) BETWEEN DATE_SUB(DATE('${run_date}'), INTERVAL 6 DAY) AND DATE('${run_date}')
-  AND REGEXP_CONTAINS(step, r'^(landing|form|confirmed)$')
-GROUP BY step
-ORDER BY step

@@ -3,7 +3,7 @@
 ## Patterns
 
 ### mem-1790275989-2871
-> An agent asked to document a change writes ONE instance as a PROJECT-WIDE RULE, and the rule's scope is the half no observation constrained -- so the doc error lands in the generalisation while the volume barely moves. Measured at iter35 on three legs of one fixture: each added 2-5 binding sentences to the document the task named, and two of three generalisations were false against their own tree (a matching cadence asserted, and tested, to guarantee a matching run_date that is a pinned variable; a naming scheme the config violates). The leg that stayed on the instance shipped nothing false and a blind reader chose it to inherit. This is why eleven say-less wordings that measured VOLUME found nothing: volume is not where the error is. sys_prompt/CLAUDE.md's **Force** paragraph already says scope is a claim, and has only ever addressed whoever edits the prompt.
+> An agent asked to document a change writes ONE instance as a PROJECT-WIDE RULE, and the rule's scope is the half no observation constrained -- so the doc error lands in the generalisation while the volume barely moves. Measured at iter35 on three legs of one fixture: each added 2-5 binding sentences to the document the task named, and two of three generalisations were false against their own tree (a matching cadence asserted, and tested, to guarantee a matching run_date that is a pinned variable; a naming scheme the config violates). The leg that stayed on the instance shipped nothing false and a blind reader chose it to inherit. This is why every say-less wording that measured VOLUME found nothing: volume is not where the error is. sys_prompt/CLAUDE.md's **Force** paragraph already says scope is a claim, and has only ever addressed whoever edits the prompt.
 <!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-24 -->
 
 ### mem-1790530000-3f52
@@ -21,10 +21,6 @@
 ### mem-1790070627-b0f9
 > A saturated baseline has two very different causes and they license different conclusions. Cause one: the fixture made the answer the stated one. Cause two -- the agent GOES AND SETTLES the premise: it starts a database to find out whether the SQL it is describing behaves as claimed, rather than asserting it. Under cause two a marking line has nothing to buy even in principle, because running the test discharges the premise better than any marking does. Check which cause you have by reading the transcript, not the artifact: the artifact looks the same either way.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
-
-### mem-1790400000-22a1
-> A real session log is admissible where a fixture is not, and a round that cites one without reading it has looked at nothing. Sessions are at ~/.claude/projects/<slug>/<id>.jsonl; dispatch session-analysis in evidence mode. Use a log to FIND the mechanism, a fixture to measure a wording against it.
-<!-- tags: prompt-tests, test-design, session-analysis | created: 2026-09-24 -->
 
 ## Decisions
 
