@@ -51,6 +51,37 @@ def _delta(idx: int, delta: dict) -> dict:
     return {"type": "content_block_delta", "index": idx, "delta": delta}
 
 
+def _sse_no_space(*events: dict) -> str:
+    """SSE as the Kimi endpoint sends it: no space after `data:`."""
+    return "\n".join(f"data:{json.dumps(e)}" for e in events)
+
+
+def test_a_stream_without_the_space_after_data_is_still_reassembled() -> None:
+    """The space is optional per the SSE spec, and one provider omits it.
+
+    Requiring it skipped every line, and the all-defaults message that came out
+    was written to disk as if it were a real empty turn.
+    """
+    events = (
+        {"type": "message_start", "message": {"id": "msg_1", "model": "k3", "usage": {}}},
+        _start(0, {"type": "text", "text": ""}),
+        _delta(0, {"type": "text_delta", "text": "CAPTURED"}),
+        {"type": "message_delta", "delta": {"stop_reason": "end_turn"}},
+    )
+    msg = proxy.parse_sse_stream(_sse_no_space(*events))
+
+    assert msg["model"] == "k3"
+    assert msg["stop_reason"] == "end_turn"
+    assert msg["content"][0]["text"] == "CAPTURED"
+    assert msg == proxy.parse_sse_stream(_sse(*events))
+
+
+def test_a_stream_nothing_parsed_out_of_raises_instead_of_capturing_defaults() -> None:
+    """An all-defaults message on disk is indistinguishable from a real empty turn."""
+    with pytest.raises(ValueError):
+        proxy.parse_sse_stream("event:message_start\nsomething that is not SSE\n")
+
+
 def test_web_search_result_content_survives_reassembly() -> None:
     results = [
         {
@@ -323,7 +354,7 @@ def _post_through_proxy(proxy_port: int, origin_port: int, session_id: str) -> l
     ).encode()
     request = (
         f"POST http://127.0.0.1:{origin_port}/v1/messages HTTP/1.1\r\n"
-        f"Host: {proxy.TARGET_HOST}\r\n"
+        f"Host: {proxy.TARGET_HOSTS[0]}\r\n"
         f"{proxy.SESSION_HEADER}: {session_id}\r\n"
         "Content-Type: application/json\r\n"
         f"Content-Length: {len(body)}\r\n"

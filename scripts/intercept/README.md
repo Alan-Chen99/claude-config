@@ -126,12 +126,18 @@ whatever the API adds next — in the capture. Each `content_block_start` block
 is kept whole for the same reason: `web_search_tool_result` delivers its result
 list on the start event and nothing later restores it.
 
+A `data:` line is read with or without the space after the colon. SSE makes
+that space optional and the first-party API sends it, so requiring it went
+unnoticed until `api.kimi.ai` joined `TARGET_HOSTS` and sent streams without
+it — every line was skipped and the all-defaults message went to disk looking
+like a real empty turn. A stream nothing parses out of now raises instead.
+
 A non-streaming reply is stored verbatim; only the streamed path is
 reassembled.
 
 ## What a capture does not record
 
-Four losses. None of them produces a capture, and only one leaves any
+Five losses. None of them produces a capture, and only two leave any
 trace at all:
 
 - **A call that never produced a response.** A stream cut mid-body, an
@@ -144,6 +150,10 @@ trace at all:
   `parse-response` line in `requests-log/_errors/errors.log` naming no session
   and no request. Editing `proxy.py` while sessions are running costs those
   captures.
+- **A streamed response no SSE event could be read out of.** Reassembly
+  raises rather than returning a message of defaults, so this too costs the
+  capture and leaves a `parse-response` line — the trade is deliberate: an
+  all-defaults capture on disk is indistinguishable from a real empty turn.
 - **Everything that is not conversation-shaped.** The `model` + `messages`
   filter runs before any logging, so a failure on `count_tokens`, on OAuth
   refresh, or on telemetry is never seen.
@@ -154,8 +164,9 @@ trace at all:
 A call is captured only if the session process had `HTTPS_PROXY` pointed at
 this proxy when it started. `scripts/claude.sh` sets it, and only when
 something answers on 9160 at launch — otherwise it warns on stderr and runs
-unintercepted. `agent-tools claude` does not set it at all, so worktree and
-prompt-test sessions produce no captures. Subagents are not separate sessions
+unintercepted. `scripts/kimi.sh` execs `claude.sh`, so a Kimi session is
+covered on the same terms. `agent-tools claude` does not set it at all, so
+worktree and prompt-test sessions produce no captures. Subagents are not separate sessions
 here: their calls carry the parent's session id and land in the parent's
 directory.
 
@@ -200,12 +211,21 @@ every host the proxy sees, and it lives in `run-proxy.py` rather than in the add
 ```
 Client ──CONNECT──▶ mitmproxy (127.0.0.1:9160)
                       │
-                      ├─ api.anthropic.com ──▶ MITM ──▶ relay each chunk onward,
-                      │                                 capture it, log at end
-                      └─ other hosts        ──▶ pass through
+                      ├─ api.anthropic.com ─┐
+                      │                     ├─▶ MITM ──▶ relay each chunk
+                      ├─ api.kimi.ai ───────┘            onward, capture it,
+                      │                                  log at end
+                      └─ other hosts ──────────────────▶ pass through
 ```
 
 `proxy.py` is a mitmproxy addon. mitmproxy handles TLS, MITM certs, and the
-CONNECT tunnel. The addon filters for Anthropic API calls, resolves sessions,
+CONNECT tunnel. The addon filters for Anthropic-shaped API calls, resolves sessions,
 streams and captures response bodies, parses the captured SSE, and writes log
 entries per-session.
+
+`TARGET_HOSTS` is the filter. It holds both the first-party API and
+`api.kimi.ai`, the Anthropic-compatible endpoint `scripts/kimi.sh` points
+`ANTHROPIC_BASE_URL` at, because a host outside the tuple is not an error
+anywhere — the flow passes through and that session simply leaves no request
+log. Traffic to either host is captured in the same format; the log carries the
+model id, so Kimi and first-party requests stay distinguishable.

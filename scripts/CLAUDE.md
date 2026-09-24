@@ -8,6 +8,7 @@ and one-off probes.
 | File                          | What                                                                                          | When to read                                                       |
 | ----------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `claude.sh`                   | The launcher — git identity, `IS_SANDBOX`, agent-view and proxy env, then `exec claude --system-prompt-file sys_prompt/alan-default-next.md` | Changing how sessions start; diagnosing a session whose prompt, proxy or scratch root is wrong |
+| `kimi.sh`                     | Kimi launcher — Moonshot provider env and the `Claude(Kimi)` git identity, then `claude.sh` for the rest | Running a session on Kimi; diagnosing one that reached Anthropic, sized its context wrong, or committed under the wrong name |
 | `check-prompt-coupling.sh`    | Fails when a string `agent-tools` emits drifts from the system prompt that teaches the agent to recognize it | Editing an emitted literal in `hook_post.rs`/`status.rs`, or the prompt bullets quoting them |
 | `check-prompt-upstream.py`    | Pins the passages `sys_prompt/` and the env-context hook borrowed verbatim from Claude Code's own prompt | After a Claude Code upgrade; before editing a borrowed passage      |
 | `check-env-context.sh`        | Reports when cc's own env block drifts from the field set `agent-tools env-context` is pinned to; `--update` re-pins the manifest | After an env-context drift warning; re-pinning after an upgrade     |
@@ -26,9 +27,59 @@ and one-off probes.
 | ------------ | ----------------------------------------------------------- | ------------------------------------------------- |
 | `intercept/` | MITM proxy that captures conversation-shaped API calls to `~/.claude/requests-log/` — only from sessions `claude.sh` launched while it was listening; its `README.md` carries the port, the CA setup, the streaming watchdog and the four things a capture cannot record | Capturing requests; diagnosing an intercepted session whose turns abort; judging what a missing capture means |
 
+## `kimi.sh` — the Kimi launcher
+
+Exports the provider environment for Moonshot's Anthropic-compatible endpoint at
+`https://api.kimi.ai/coding/`, then `exec`s the sibling `claude.sh`, which
+supplies everything a session needs whatever serves it —
+`IS_SANDBOX`, the agent-view flag, the scratch root, the proxy probe and the
+system prompt. It resolves that sibling through `readlink -f` on its own path,
+the same way `claude.sh` resolves the prompt, so an installed `kimi.sh` runs the
+canonical pair and a worktree copy invoked by path runs that worktree's. What it
+does not inherit is the git identity: it exports `CLAUDE_SH_AUTHOR_NAME`, so a
+Kimi session commits as `Claude(Kimi)` and a commit says which model made it.
+
+The key comes from `KIMI_API_KEY` in the environment, and nothing is read off
+disk. `docker-compose.yml` gives the `personal-env` service `env_file:
+../.env`, so every line of `/workspace/.env` is exported before any shell
+starts — which also means a key added to that file while the container is up is
+not there until a restart, and the failure message says so. The same `env_file`
+exports `CLAUDE_CODE_OAUTH_TOKEN`, so the script unsets it, and
+`ANTHROPIC_API_KEY` with it, leaving `ANTHROPIC_AUTH_TOKEN` as the one
+credential in play rather than an Anthropic one sitting in the environment of a
+session pointed at Kimi. `ANTHROPIC_API_KEY` would authenticate too — the endpoint takes the key as
+`x-api-key` or as `Authorization: Bearer` — but it is also what Claude Code's
+`customApiKeyResponses` list in `~/.claude.json` keys on, so it brings an
+approval decision along with it.
+
+`KIMI_MODEL` defaults to `k3[1m]`. The bracket is Claude Code syntax, not part
+of the id: the API rejects `k3[1m]` outright (*"Please set model id as `k3`"*),
+while claude sends `k3` and reports a 1,000,000-token window. All five tier
+variables and `CLAUDE_CODE_SUBAGENT_MODEL` are pinned to that one model. The
+endpoint answers to any model string — `sonnet` and `claude-opus-4-5` both
+return 200 and echo the name back — so a tier left unmapped does not fail, it
+quietly takes whatever window Claude Code sizes for that Anthropic name.
+
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS` and `CLAUDE_CODE_AUTO_COMPACT_WINDOW` are both
+derived from the model rather than set independently, so they cannot drift apart
+from it or from each other. Stating them is load-bearing for any id without the
+`[1m]` suffix: Claude Code reads a size off the model name and falls back to
+200,000 for a name it does not recognize — measured, `k3-256k` reported a
+200,000-token window with these unset, 62,144 short of what it serves. An id
+outside the known set is a hard failure unless `KIMI_CONTEXT_TOKENS` is set
+alongside it.
+
+Available on this subscription: `k3[1m]` (1,048,576), `kimi-for-coding`
+(1,048,576), `k3-256k` (262,144). `kimi-for-coding-highspeed` returns 401,
+*"Your current subscription does not have access"* (checked 2026-09-24).
+
 ## `claude.sh` — the launcher
 
-Exports the `Claude` git identity, sets `IS_SANDBOX=1` and
+Exports the git identity — `Claude`, or whatever `CLAUDE_SH_AUTHOR_NAME` names,
+which is how `kimi.sh` commits as `Claude(Kimi)`. The name is fixed against the
+ambient environment rather than defaulted from it, so a `GIT_AUTHOR_NAME`
+already in the shell cannot reach a commit; that variable is the only input
+taken. Sets `IS_SANDBOX=1` and
 `CLAUDE_CODE_DISABLE_AGENT_VIEW=1`, optionally points Node at the MITM proxy on
 `127.0.0.1:9160`, then execs
 `claude --dangerously-skip-permissions --system-prompt-file <repo>/sys_prompt/alan-default-next.md`.

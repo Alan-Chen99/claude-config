@@ -22,7 +22,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
-TARGET_HOST = "api.anthropic.com"
+# Every host a session's Anthropic-shaped traffic can go to: the first-party
+# API, and the Anthropic-compatible endpoint scripts/kimi.sh points
+# ANTHROPIC_BASE_URL at. A host missing here is not an error anywhere — the
+# flow passes through uncaptured and the session leaves no request log.
+TARGET_HOSTS = ("api.anthropic.com", "api.kimi.ai")
 LOG_BASE = Path.home() / ".claude" / "requests-log"
 SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 SESSION_HEADER = "x-claude-code-session-id"
@@ -121,13 +125,22 @@ def parse_sse_stream(raw: str) -> dict:
     json_accum: dict[int, str] = {}
     thinking_accum: dict[int, str] = {}
 
+    events = 0
     for line in raw.split("\n"):
-        if not line.startswith("data: "):
+        if not line.startswith("data:"):
             continue
+        # SSE makes the space after the colon optional and strips exactly one
+        # when present (WHATWG server-sent events, "process the field").
+        # Anthropic sends it; the Kimi endpoint does not, and requiring it
+        # skipped every line of a Kimi stream into an empty capture.
+        payload = line[5:]
+        if payload.startswith(" "):
+            payload = payload[1:]
         try:
-            event = json.loads(line[6:])
+            event = json.loads(payload)
         except (json.JSONDecodeError, ValueError):
             continue
+        events += 1
 
         etype = event.get("type")
 
@@ -202,6 +215,14 @@ def parse_sse_stream(raw: str) -> dict:
             message["content"][idx]["thinking"] = thinking
 
     message["content"] = [b for b in message["content"] if b is not None]
+    # A stream nothing could be read out of yields a message that is entirely
+    # defaults -- blank model, no content, zero usage -- which on disk is
+    # indistinguishable from a real empty turn. Raising routes it to the
+    # `parse-response` line in `_errors/errors.log` instead, where a capture
+    # that went missing has somewhere to be found.
+    if events == 0:
+        raise ValueError("no SSE data events in a streamed response")
+
     return message
 
 
@@ -327,10 +348,10 @@ class InterceptAddon:
 
         A `stream` callable receives every chunk and returns what to forward;
         capturing here rather than through mitmproxy's `store_streamed_bodies`
-        option keeps the capture scoped to this host and working under a bare
+        option keeps the capture scoped to these hosts and working under a bare
         `mitmdump -s proxy.py`.
         """
-        if flow.request.pretty_host != TARGET_HOST:
+        if flow.request.pretty_host not in TARGET_HOSTS:
             return
 
         captured = bytearray()
@@ -343,7 +364,7 @@ class InterceptAddon:
         flow.response.stream = relay
 
     def response(self, flow: "mitmproxy.http.HTTPFlow") -> None:
-        if flow.request.pretty_host != TARGET_HOST:
+        if flow.request.pretty_host not in TARGET_HOSTS:
             return
 
         captured = self._streamed.pop(flow.id, None)

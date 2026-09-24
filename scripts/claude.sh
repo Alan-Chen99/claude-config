@@ -2,7 +2,11 @@
 
 set -eux
 
-export GIT_AUTHOR_NAME="Claude"
+# Fixed against the ambient environment rather than defaulted from it, so a
+# GIT_AUTHOR_NAME already in the shell cannot end up on a commit. A sibling
+# launcher names the model behind the session through CLAUDE_SH_AUTHOR_NAME --
+# scripts/kimi.sh sets `Claude(Kimi)` -- and that is the only input taken.
+export GIT_AUTHOR_NAME="${CLAUDE_SH_AUTHOR_NAME:-Claude}"
 export GIT_AUTHOR_EMAIL="81847+claude@users.noreply.github.com"
 export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"

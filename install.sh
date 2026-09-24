@@ -106,18 +106,20 @@ if [ -f "${AGENT_TOOLS_DIR}/Cargo.toml" ]; then
     fi
 fi
 
-# Put the launcher on PATH.
+# Put the launchers on PATH.
 # IMPORTANT: canonical-repo-only, same rule as agent-tools above. A worktree that
 # installs its own copy redirects every session's `claude.sh` to that worktree's
 # scripts/claude.sh and sys_prompt/, and leaves a dangling symlink behind when the
 # worktree is deleted.
-CLAUDE_SH_SRC="${REPO_DIR}/scripts/claude.sh"
-CLAUDE_SH_DST="${HOME}/.local/bin/claude.sh"
-if [ -f "$CLAUDE_SH_SRC" ]; then
-    mkdir -p "${HOME}/.local/bin"
-    ln -sf "$CLAUDE_SH_SRC" "$CLAUDE_SH_DST"
-    echo "installed: $CLAUDE_SH_DST -> $CLAUDE_SH_SRC"
-fi
+for launcher in claude.sh kimi.sh; do
+    LAUNCHER_SRC="${REPO_DIR}/scripts/${launcher}"
+    LAUNCHER_DST="${HOME}/.local/bin/${launcher}"
+    if [ -f "$LAUNCHER_SRC" ]; then
+        mkdir -p "${HOME}/.local/bin"
+        ln -sf "$LAUNCHER_SRC" "$LAUNCHER_DST"
+        echo "installed: $LAUNCHER_DST -> $LAUNCHER_SRC"
+    fi
+done
 
 # Provision the canonical Python venv (mitmproxy + claude_config package).
 #

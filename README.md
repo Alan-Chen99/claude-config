@@ -285,7 +285,7 @@ neutral harness for the other harness's prompt: its default subject is
 | [`docs/`](docs/) | Captured system prompts, harness anatomy, design specs and plans |
 | [`skills/`](skills/), [`agents/`](agents/), [`conventions/`](conventions/) | Skills, sub-agent definitions, documentation and code conventions — upstream's, extended |
 | [`src/claude_config/`](src/claude_config/) | Python: log renderers, the Telegram proxy, the env-context hook, token counting |
-| [`scripts/`](scripts/) | The `claude.sh` launcher, the MITM intercept proxy, prompt-test runners, drift checks |
+| [`scripts/`](scripts/) | The `claude.sh` launcher and its Kimi-backed sibling `kimi.sh`, the MITM intercept proxy, prompt-test runners, drift checks |
 | [`opencode/`](opencode/) | opencode configuration and agent prompts |
 | [`plans/`](plans/) | Plan storage, historical |
 | [`tests/`](tests/) | The Python suite (pytest + hypothesis); Rust tests live under `agent-tools/tests/` |
@@ -312,7 +312,8 @@ git clone https://github.com/Alan-Chen99/claude-config ~/claude-config
 Directory-level symlinks for `agents`, `conventions`, `output-styles` and
 `skills` into `~/.claude/`, `~/.config/opencode` → `opencode/`, file symlinks
 for `settings.json` and `statusline.sh`, an `agent-tools` build linked with
-`scripts/claude.sh` into `~/.local/bin`, and the Python venv. Run it from the
+the `scripts/claude.sh` and `scripts/kimi.sh` launchers into `~/.local/bin`,
+and the Python venv. Run it from the
 canonical checkout only: a worktree that installs its own build repoints
 `~/.local/bin` at the worktree and breaks every other session when the
 worktree is deleted.

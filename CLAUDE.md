@@ -11,7 +11,7 @@ the directory you are about to touch.
 | File | What | When to read |
 | --- | --- | --- |
 | `README.md` | Public-facing: the fork's ideas with links to their evidence, upstream attribution, install and tests | First orientation; before pointing anyone at the repository |
-| `install.sh` | Symlinks config into `~/.claude/` and units into `~/.config/systemd/user/`, builds `agent-tools`, puts `claude.sh` on PATH | Installing the config |
+| `install.sh` | Symlinks config into `~/.claude/` and units into `~/.config/systemd/user/`, builds `agent-tools`, puts `claude.sh` and `kimi.sh` on PATH | Installing the config |
 | `settings.json` | Claude Code user settings: hooks, statusline, permissions, `env`. Keys documented elsewhere: git policy (`includeGitInstructions`, `attribution`) in `sys_prompt/CLAUDE.md`, `CLAUDE_CODE_FORK_SUBAGENT` in `docs/subagent-backgrounding.md`, `TELEGRAM_HITL_STATE_DIR` in `src/claude_config/CLAUDE.md` | Modifying hooks, statusline, permissions, env |
 | `statusline.sh` | Status line wired up via `settings.json`; its open-tasks row is `agent-tools ps --format statusline` | Customizing the status line |
 | `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After an upstream sync |
@@ -28,7 +28,7 @@ the directory you are about to touch.
 | `agents/` | Sub-agent definitions (developer, architect, …) | Customizing agent behavior |
 | `sys_prompt/` | Full replacement prompts loaded via `--system-prompt-file`, not inherited by background sessions | Editing the launcher's system prompt — read `sys_prompt/CLAUDE.md` first |
 | `output-styles/` | Output formatting styles — the only prompt customization that survives a background handoff | Customizing output format; a rule that must hold in every session |
-| `scripts/` | `claude.sh` launcher, MITM proxy, drift and coupling guards, prompt-test runners | Running or modifying utility scripts |
+| `scripts/` | `claude.sh` launcher, `kimi.sh` Kimi-backed launcher, MITM proxy, drift and coupling guards, prompt-test runners | Running or modifying utility scripts |
 | `prompt-tests/` | Runner-neutral prompt evaluation cases | Running or grading prompt evaluations |
 | `conventions/` | Documentation and code-quality standards; `documentation.md` governs every CLAUDE.md here | Writing docs, understanding coding rules |
 | `docs/` | Reference material on Claude Code's own behaviour, captured prompts, design records | Investigating cc behavior; after an upgrade |

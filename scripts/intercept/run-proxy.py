@@ -10,7 +10,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from proxy import TARGET_HOST, LOG_BASE, get_total_count
+from proxy import TARGET_HOSTS, LOG_BASE, get_total_count
 
 
 def main() -> None:
@@ -24,7 +24,7 @@ def main() -> None:
     ca_cert = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.pem"
 
     print(f"intercept-proxy starting on 127.0.0.1:{port}")
-    print(f"  target:  {TARGET_HOST}")
+    print(f"  targets: {', '.join(TARGET_HOSTS)}")
     print(f"  ca cert: {ca_cert}")
     print(f"  logs:    {LOG_BASE}/{{session_id}}/")
     print(f"  logged:  {get_total_count()} requests total")
