@@ -71,3 +71,11 @@ The idea is that almost no doc exist to "answer a question". Here you answer que
 Both [idea]s are stakes for the reference to carry, not axes — there are no axes. "Grade on correctness" reads as: the alternative argument prices a step the delivered runbook got wrong or left unrunnable, and does not price the skill for prescribing less than it could have.
 
 </request>
+
+<followup added="loop3" from="user" commit="b394ebbf">
+
+I merged changes on main branch in `e8ff9c00`, I think did not change anything you touch.
+
+[idea] Then next session `e828eab7-4107-46f6-8551-481c08fffda0` made next 2 commits: I asked for a session-analysis-wip link, small change that caused significant hard-to-remove documentation growth, showing how common this is. [idea] So the top priority i think should be to ensure less documentation gets written.
+
+</followup>
