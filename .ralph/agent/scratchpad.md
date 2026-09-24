@@ -23,8 +23,6 @@ bare or sourced* is readable at n=1; a count is a sample of an unmeasured spread
 **Test the lines already shipped.** A shipped line with a named, unmeasured harm
 outranks any new candidate — inside the objective's scope only.
 
-**When an instruction exists to compensate for a harness, fix the harness.**
-
 **The prompt is the whole stack, not one file.** `sys_prompt/alan-default-next.md`,
 `output-styles/`, `conventions/documentation.md` (reached only via `doc-sync`,
 `technical-writer`, `quality-reviewer`, `planner`) and
@@ -33,9 +31,6 @@ result before every response, all reach the session.
 
 **Before writing a clause for a failure, re-run the failure in a second genre.**
 If it disappears there, the target is the genre and not the wording.
-
-**Real session logs under `~/.claude/projects/` carry the base rate a fixture
-cannot.**
 
 ## Standing `(contract)`
 
@@ -72,9 +67,9 @@ cannot.**
 > saturated baseline is a reason to delete it. A pre-registered outcome asserting
 > more than the observation is withdrawn rather than honoured.
 
-> **A condition in `sys_prompt/CLAUDE.md` names, in its own sentence, a case that
-> exists and a comparison a later round could run.** *Retire this when an arm
-> carrying the line does no better than one without* is the only actionable form.
+> **A condition in `sys_prompt/CLAUDE.md` names, in its own sentence, a runnable case
+> and a comparison.** *Retire this when an arm carrying the line does no better than
+> one without* is the only actionable form.
 
 > **Before a candidate wording is written, the round names one occurrence of the
 > behaviour outside its own fixtures** — a real session log, a commit in this
@@ -101,10 +96,6 @@ cannot.**
 > was on the table, the framing bias, whether anyone independent looked, the revert
 > sha. Claim, hypothesis and retirement condition are stated once, there.
 
-> A retirement condition may name a **deleted probe** by its restore sha rather than a
-> live case. `prompt-tests/runs/` is outside the ownership grep, so naming one pins no
-> directory, and a condition then names where the observation was actually made.
-
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
@@ -121,9 +112,7 @@ claim-handling and the ninth (30) a `rule added:` report bullet, saturated. Ever
 sentence still in the block has been measured alone. 29 kept the whole `# Writing for
 other agents` block, refuting its own hypothesis that bullet 2 redirects growth into
 prose; volume there was confounded with depth, and 30 removed that confound by
-stating the load-bearing fact in the fixture — 13 tool calls an arm, and the volume
-gap survived at 14 durable lines to 6. Unfalsified prose: 11 of 11 trees over three
-rounds. Open and unmeasured: `# Error Propagation`'s `Silent retry` and `Partial
+stating the load-bearing fact in the fixture. Open and unmeasured: `# Error Propagation`'s `Silent retry` and `Partial
 success` rows require retry counters and partial-failure lists against `# Coding`'s
 minimum-complexity rule and its ban on one-time helpers; both blockquote-plus-table
 duplications stand unmeasured. `scripts/check-prompt-upstream.py` cannot run here —
@@ -131,42 +120,59 @@ duplications stand unmeasured. `scripts/check-prompt-upstream.py` cannot run her
 
 ## Iteration 31 — `3d5ddcdb` → (this round)
 
-### Critique of 30
+### Critique of 30, and the milestone
 
-**C1 (fact — the reading that chose 30's direction is false).** Its pre-registration
-says the user's specimen `e828eab7` "surfaced none of the three documentation
-additions it made". The final message names all three: the `update-claude-code`
-inventory row under `unexpected change:`, with an explicit revert offer; the
-`session-analysis/CLAUDE.md` invoke-with-no-args rule in the body; the root-index row
-in `## Summary`. Its `prompt_snapshot` carries `unexpected change:`. So the half of
-the ratchet 30 called unserved is the half already firing in the wild, through the
-one line no arm has ever run without — which is what this round ablates. Record 311
-of the log.
+Three, argued with quotes and refs in the pre-registration commit `53d0102b`.
+**C1 (fact)**: its motivating reading of the user's specimen `e828eab7` is false — the
+session names all three of its documentation additions, one of them under
+`unexpected change:` with a revert offer, and its `prompt_snapshot` carries that line.
+The half of the ratchet 30 called unserved is the half already firing in the wild.
+**C2 (instrument)**: its retirement condition named `hushed-rollcall`, where `9504b5dc`
+measured both arms leaving the soliciting `CLAUDE.md` byte-identical — an arm cannot
+name rules it does not write. **C3 (workflow)**: probes are deleted by their own round
+while conditions must name a live case, so every probe-measured claim gets a condition
+pointing where it was not measured; one sentence in `.claude/skills/prompt-tests`
+fixes it — a condition may name a deleted probe by its restore sha — and the contract's
+own last clause keeps it there rather than here. The entry also carried the counts and fixture
+description the contract sends to git, 36 lines for a round that shipped nothing.
 
-**C2 (instrument — the condition points where the behaviour is measured absent).**
-30's entry retires on `prompt-tests/general/hushed-rollcall`; `9504b5dc` measured
-both arms there leaving the soliciting `CLAUDE.md` byte-identical. An arm cannot
-"name the standing rules it wrote" where no arm writes one. The evidence was taken on
-`amber-turnstile`, which the same round deleted.
+**Milestone**: ablate `unexpected change:`, the line no arm had run without, on
+`amber-turnstile` restored from `9e66c94a` — the one genre where arms demonstrably
+write standing rules. Chosen over a tenth say-less wording: nine have failed, and C1
+shows the reporting half already works in the wild through this line. Framing bias: the
+fixture was built by the round that wanted a report bullet to succeed. Readings and
+outcomes: the probe's `README.md` at `53d0102b`.
 
-**C3 (workflow — two standing rules collide, and the entry pays the ceiling in git's
-currency).** Probes are deleted by their own round; conditions must name a live case;
-so every probe-measured claim gets a condition naming a case where it was not
-measured. `(contract)` below fixes it. Separately the entry carries the counts, arm
-labels and fixture description the contract sends to git, and
-`sys_prompt/CLAUDE.md` grew 36 lines for a round that shipped nothing.
+### Result — no prompt edit; the entry's mechanism is refuted, the line is not
 
-### Milestone — ablate `unexpected change:`, the line no arm has run without
+Both arms wrote the same two standing rules into the soliciting `config/CLAUDE.md`,
+both named them in the reply, and **neither filed one under `unexpected change:`** —
+they went in the passage explaining what was done, which every arm owes. The blind
+reader, told only that the prompts differ, separated the arms on one table row and on
+nothing load-bearing. So 30's mechanism is wrong and its conclusion survives: no
+second bullet, for a different reason. `sys_prompt/CLAUDE.md` is rewritten, shorter.
 
-Chosen over a tenth say-less wording: nine have failed, and C1 shows the reporting
-half works in the wild through this line. A shipped line whose justification was
-written from arms that all carried it is the loop's own ratchet. Either outcome pays:
-saturated deletes a line, load-bearing gives the entry its first falsifiable content
-and tells later rounds that a report line does what nine say-less wordings could not.
+Not deleted. Asked a question this round had not pre-registered — what *else* each
+session changed — the reader found the arm carrying the line naming a file it edited
+and restored and the caches its test runs left, and the arm without it naming neither.
+Inadmissible here, decisive next round. DEC-041.
 
-Fixture: `amber-turnstile` restored from `9e66c94a` — the one genre where arms
-demonstrably do write standing rules. Framing bias: it was built by 30 from the
-shape of a report bullet, so it is the condition most favourable to reporting.
+**Arm-independent, pre-registered, and the strongest lead for the user's top
+priority:** one fact reaches three to four lasting files. The `str.format` fact went
+into `config/CLAUDE.md`, both preset copies and a test in one arm, on top of the
+comment already in `render.py` that states it — four live copies of one fact, none of
+them wrong, none of them removable without a human reading all four. Neither arm's
+reasoning treats a second durable home as a choice. Volume here is not extra claims;
+it is one claim, replicated. No prompt line in the stack addresses it.
 
-Pre-registration, readings and outcomes: the probe's `README.md`, and this round's
-pre-registration commit.
+### `(instruction)` for iteration 32
+
+1. **Decide the deletion on the admissible reading.** Pre-register the collateral
+   reading — files created and not removed, files edited and restored — and run the
+   same ablation. Probe: `git checkout 53d0102b -- prompt-tests/runs/amber-turnstile`.
+2. **Seven of the eight `## Required notes` bullets have no justification anywhere in
+   `sys_prompt/CLAUDE.md`** — only `unexpected change:` does. They are standing rules
+   in the prompt that no round has priced. Ablating one is a round.
+3. Replication, not claim count, is what a fixture now shows about volume. A candidate
+   aimed at it must name where a second durable home is declined; no arm here declines
+   one, so the occurrence has to be found in a real log before a wording is written.

@@ -92,3 +92,19 @@ favourable to a rule being both written and noticed. **Independent evaluation**:
 blind reader held both sessions with labels randomised, was asked only to list added
 instruction-sentences and whether each is named in the final message, and found both
 the saturation and the gap this decision is taken over. Revert: n/a, no prompt edit.
+**Amended at 31**: the decision stands, its stated mechanism does not — an arm without
+`unexpected change:` names its rules just as fully, and neither arm files a rule under
+that bullet.
+
+## DEC-041 — keep `unexpected change:` pending one more reading (iter 31, conf 60)
+
+**Alternatives**: delete it now, on the pre-registered outcome O1 — the saturation it
+asks for did hold on standing rules; take a second draw an arm first. **Reasoning for
+not deleting**: the reading that would have justified deletion is not the reading that
+found the line's remaining function. Collateral change — a file edited and restored, a
+stray backup, cache directories — was named by the arm carrying the line and not by the
+arm without it, and that question was composed after the arms were in, so it is not
+admissible here. **Framing bias**: the round that ran the ablation is the round that
+would have had to defend the deletion against an observation it could not use.
+**Independent evaluation**: the blind reader supplied both readings and was not told
+what differed; it was not asked which arm was better. Revert: n/a, no prompt edit.

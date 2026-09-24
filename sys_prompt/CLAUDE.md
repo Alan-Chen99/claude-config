@@ -317,41 +317,36 @@ Restore it when an arm without it replies as if a doubt were settled where an ar
 either resolves the doubt or reports it, on `prompt-tests/general/retirement-policy`.
 
 
-### `## Required notes`: `unexpected change:` is where a rule the session wrote gets reported
+### `## Required notes`: what `unexpected change:` does not collect
 
-First justification for a line that had none. A candidate bullet — *rule added: a
-standing rule or convention this session wrote into a file others read* — was put on
-trial against it and **not shipped**, because the untreated arm already reports.
+The line is `- unexpected change: any changes made that were not expected at the
+start of the task`. Iteration 30 gave it its first justification, on arms that all
+carried it: that a standing rule written into a documentation file is an unexpected
+change by the writer's own lights, so the existing category collects it and a second
+bullet naming rules would be a duplicate. An arm run **without** the line refutes the
+mechanism and leaves the conclusion standing.
 
-Both arms met a `CLAUDE.md` carrying an `## Agent Policy` bullet, and both extended
-it: the treated arm with three bullets, the untreated arm with a new contract section
-and a fourth bullet. Both named what they had added, in the body and again under a
-`## Required notes` heading — the untreated arm under `unexpected change:`, quoting
-its own additions as *the lookup-order contract and the no-braces label rule beyond
-the one-line preset row*. A second bullet naming the same act in different words is
-step 2 above, not a second caution.
+Both arms wrote the same two standing rules into a soliciting `## Agent Policy`, and
+both named them in the reply — in the passage explaining what was done, not under
+`unexpected change:`, which the arm carrying it spent on a file it had edited and
+restored and on the cache directories its test runs left behind. A blind reader
+holding both sessions, told only that the prompts differ, separated them on one table
+row and on nothing load-bearing.
 
-Hypothesis for why no bullet is needed: a rule written into a documentation file is
-an unexpected change by the writer's own lights, and the existing category collects
-it without being told that rules are the thing to collect.
+Hypothesis, replacing 30's: what routes a rule into the reply is the obligation to
+say what the change was, which every arm has. The category name does not reach it, so
+a bullet soliciting rules by name is still unwarranted — for a different reason than
+30 recorded.
 
-**Depth was held fixed and the volume gap survived it.** The load-bearing fact was
-stated in the fixture rather than left to be found, and the arms ran thirteen tool
-calls each — so iteration 29's confound is gone, and the untreated arm still wrote
-roughly twice the durable prose. Which way the treatment pushes is not knowable from
-one draw an arm.
+Not deleted, on an observation this round did not pre-register and so cannot rule on:
+the arm without the line left a stray backup file and two cache directories
+unmentioned where the arm carrying it named both. Collateral change, not durable
+prose, is the line's candidate function and the next thing measured.
 
-Limits, and the instrument defect a later round fixes. The saturation is not total:
-the untreated arm reported its mirror obligation as a past act — *I added it to both
-and added a test* — where the page now instructs a future reader to do it, so a
-reader of the reply alone would not know that rule exists. And the treated arm's
-report was more prescriptive than its own page, reporting *must be added to both
-directories* for a page that states the consequence rather than the imperative. No
-arm ran **without** `unexpected change:`, so what this entry justifies is the absence
-of a second bullet, not the presence of the first.
-
-Retire this when an arm without `unexpected change:` names the standing rules it
-wrote as fully as an arm carrying it, on `prompt-tests/general/hushed-rollcall`.
+Retire this when an arm without the line reports the collateral changes it made —
+files created and not removed, files edited and restored — as fully as an arm
+carrying it, on the probe restored by
+`git checkout 53d0102b -- prompt-tests/runs/amber-turnstile`.
 
 ### `# Doing tasks`: the docs order is deleted
 
