@@ -108,7 +108,7 @@ underdetermined, ran the claim in a second genre (`hushed-rollcall`) and shipped
 the self-consequence bullet at the measured wording, 6395 → 6464 API tokens,
 against a blind reader that preferred the arm that grew.
 
-## Iteration 24 — `39bb9453` → this commit
+## Iteration 24 — `39bb9453` → `4e33c5fb` + this commit
 
 ### Critique of 23
 
