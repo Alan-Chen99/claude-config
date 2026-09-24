@@ -1,0 +1,4 @@
+name = "strict"
+label = "feedmill report {scope}"
+trace = false
+on_malformed = "fail"

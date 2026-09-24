@@ -100,82 +100,70 @@ cannot.
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–27, `9f6c03a0` → `59bb9965`
+## History — rounds 1–29, `9f6c03a0` → `98b3f320`
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — read it before
 touching the block. Everything else is in the commit messages. Shipped: `Say what
 ends it` (11, upheld at 19), the self-consequence bullet (23), one duplicated
 rationale cut out of it (25), the deletion of `pre_output.record`'s `NEVER reply to
-user if uncertainties remain` (26, DEC-034). Deleted: `Omit by default`, `Claim
+user if uncertainties remain` (26, DEC-034), the deletion of the whole docs order at
+`alan-default-next.md:15` (28, DEC-036). Deleted also: `Omit by default`, `Claim
 less`, the help-surface cost paragraph. Eight candidate wordings failed, the last
 four all claim-handling. Every sentence still in the block has been measured alone.
-27 spent four runs on `alan-default-next.md:15` and decided nothing, on a fixture
-defect 28 then fixed.
+29 put the whole `# Writing for other agents` block on trial and kept it, refuting
+its own hypothesis that bullet 2 redirects growth into prose: the treated arm wrote
+7 unfalsified sentences to the untreated arm's 16, and neither arm's reasoning
+declines an addition. Volume there was confounded with depth — the arm writing more
+ran half again the tool calls and wrote the only true new claim. Unfalsified prose:
+11 of 11 trees over three rounds. DEC-037, DEC-038.
 
-## Iteration 28 — `59bb9965` → `adb80213`
+## Iteration 30 — `98b3f320` → (this round)
 
-Put the whole docs order at `alan-default-next.md:15` on trial against a fixture
-whose auto-loaded `CLAUDE.md` indexes its own documents, so 27's dominant variable
-was gone. **Shipped the deletion**, saturated across four runs; DEC-036. Also
-arm-independent: 4 of 4 trees added prose the change had not falsified, after 3 of 3
-in 27, and not one wrote a standing rule. The probe was promoted to
-`prompt-tests/general/option-and-encoding`.
+### Critique of 29
 
-## Iteration 29 — `2894f884` → `b01c312e`
+**C1 (workflow — the specimen was read as a diff, never as a session).** The user's
+followup hands the loop a live instance: session `e828eab7`, commits `0d3c560b` and
+`b394ebbf`. 26 read it by tool-call index; 29 did not open it. Reading the log
+settles two things no fixture round could. Its `prompt_snapshot` carries
+`# Writing for other agents`, so the shipped block was in force while the failure
+happened — the loop's one real-world n=1 against the block. And at `@L158` the agent
+**states the fix-the-hazard alternative and declines it on a contextual ground**:
+*"I briefly consider just fixing the SKILL.md helpers directly … to eliminate the
+coupling entirely, but that file is under active edit by the user on this branch."*
+A prompt line telling an agent to remove a hazard rather than write a rule about it
+is therefore saturated on the one occurrence anyone has. Candidate killed for the
+price of a read, which is what the standing name-an-occurrence clause is for.
 
-### Critique of 28
+**C2 (fact — 29 recorded a contradiction that is not one).** Its commit says
+`# Error Propagation`'s `Default/fallback values` and `Fallback behavior` rows pull
+against `# Coding`'s *don't add error handling, fallbacks, or validation for
+scenarios that can't happen*. They agree: a scenario that cannot happen has no real
+data demonstrating it, so both forbid the same fallback. The pull that does exist is
+elsewhere — `Silent retry` and `Partial success` require retry counters and
+partial-failure lists, which `# Coding`'s minimum-complexity rule and its ban on
+helpers for one-time operations push against. Instruction 2 handed this reading to
+this round to act on, so a misidentified pair would have aimed the next edit wrong.
 
-**C1 (workflow — the ratchet, inside the loop's own corpus).** 28 promoted its probe
-into `prompt-tests/general/` with three-quarters of a case: a `reference-solution.md`,
-three foci no run had been read under, and no artifacts. Its stated reason — *the
-restoration condition has to name a case that exists* — is circular, the condition
-having been written in the same commit. 29 ran the case whole.
+**C3 (workflow — the asymmetry the objective names is visible in the specimen and no
+round has aimed at it).** At `@L98` that agent put the one git-reversible decision to
+the user through `AskUserQuestion` — commit the symlink or gitignore it — reasoning
+that *"this cost is worth surfacing rather than silently deciding on my own."* It
+surfaced none of the three documentation additions it made in the same session, two
+of which are standing rules that only a human removes. Adding a rule is not felt as a
+decision; committing a file is. Twenty-nine rounds have varied wordings that ask the
+agent to write less. None has asked it to **say what standing rule it just added**.
 
-**C2 (workflow — priority; the charge 28 laid on 27).** 28's scratchpad stated *that
-makes the repair-as-rewrite genre, not any prompt clause, the target for the user's
-top priority*, from four arms all carrying `# Writing for other agents` intact. The
-clause aimed at the phenomenon was never varied, so nothing measured supported *not
-any prompt clause*.
+### Milestone — the reporting surface, not another say-less wording
 
-**C3 (measurement — the instrument was blind to the mechanism).** 28's decisive
-reading was taken on delivered **trees**; the skill's blind comparison holds both
-**sessions**. A tree cannot show an addition considered and declined, which is this
-block's characteristic effect in the loop's prior readings. 29's reader got the
-sessions — and found no declining in either arm.
+On trial: one `## Required notes` bullet naming a standing rule the session wrote
+into a file others read. It is a report, not a gate: it cannot refuse an addition,
+it makes one visible in the turn where it happened, and visibility is the half of
+the objective's ratchet that nothing in the stack currently serves. Chosen over a
+ninth say-less wording because eight have failed and because C1 shows the
+act-shaped alternative is already reached unaided.
 
-### Milestone
+Depth is held fixed by construction, which iteration 29's instruction 3 requires:
+the probe fixture states the established fact in a file the task must touch, so
+neither arm has anything to investigate and volume cannot ride on tool-call count.
 
-The whole of `# Writing for other agents` on trial, on the promoted case, at n=1 an
-arm. Live hypothesis: bullet 2’s remedy clause *Put it with the change instead* is
-what the 7-of-7 growth obeys — the additions were rationale prose inside the
-repaired documents and no standing rules, which is the shape that bullet asks for.
-An arm without the block separates *the block suppresses rules* from *the block
-redirects rules into prose*. Pre-registration and outcomes: this commit.
-
-### Result — no prompt edit; the block is kept and the hypothesis is refuted
-
-Outcome 3 died: the treated arm wrote 7 unfalsified sentences to the untreated
-arm's 16, and the only sentence directing a later reader is the untreated arm's.
-Outcomes 1 and 4 both say keep and both fail their second conjunct — **no arm's
-reasoning declines an addition at all**, so the placement mechanism the shipped
-justification claims is absent here. DEC-037.
-
-**The volume gap is confounded with depth, and that is the transferable finding.**
-The arm that wrote more also ran half again the tool calls, met a hazard the other
-never found, and wrote the only new claim true of its own code; the shorter-doc arm
-shipped the one false new statement. Writing less and checking less were one axis.
-
-**Saturated:** both arms rewrote the default path inside a sentence whose other half
-is a usage error, and neither ran it. Unfalsified prose: 11 of 11 trees, 3 rounds.
-
-**Instrument:** `prompt-tests/runs/` holds nothing durable (DEC-038) — the user's
-rule forbids citing a run across rounds, the only reason to store judgements. Focus
-3 dropped as mechanical; the `prompt_snapshot` leak is now in the skill.
-
-### `(instruction)` for iteration 30 — a cleanup round
-
-1. Build the `tasks.jsonl` prune command; hand-pruned twice now.
-2. Thrice deferred: `# Epistemic Integrity`, `# Error Propagation` and `## Required
-   notes` read as prose. 29 read them and put the reading in its commit message —
-   three duplications and one contradiction with `# Coding`, none measured.
-3. No "say less" candidate until an arm holds investigation depth fixed.
+Pre-registration and outcomes: this commit.

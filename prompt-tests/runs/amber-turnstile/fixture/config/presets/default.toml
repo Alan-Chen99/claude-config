@@ -1,0 +1,4 @@
+name = "default"
+label = "feedmill report"
+trace = false
+on_malformed = "skip"
