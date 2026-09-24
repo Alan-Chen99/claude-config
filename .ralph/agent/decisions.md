@@ -9,9 +9,13 @@ commit messages. Standing framing bias on every
 decision here: each fixture was written from the shape of the line its round
 meant to test.
 
-**Closed.** DEC-001–031, rounds 1–23, DEC-035 (superseded by DEC-036) and DEC-038 (discharged — the skill
-and `prompt-tests/runs/README.md` now say nothing durable lives there); the scratchpad's history paragraph carries
-what they decided and the commit messages carry the rest. Independent evaluation:
+**Closed.** DEC-001–031, rounds 1–23; DEC-035 (superseded by DEC-036); DEC-038
+(discharged); DEC-036 (upheld at 32 in a second genre, the finding in `sys_prompt/CLAUDE.md`);
+DEC-039 (restated as a standing contract clause, so the copy here was the duplication
+this journal's own header forbids); DEC-040 and DEC-041 (both closed at 32 by owner intent — `## Required
+notes` is best-effort surfacing and is not ablatable, so neither round's frame could
+have decided its bullet); the scratchpad's history paragraph carries what they decided
+and the commit messages carry the rest. Independent evaluation:
 not-started for all. DEC-030's stated reason is withdrawn — the fixture's own
 pre-existing option carried the mismatch it read as a cost of the line — and its
 wording shipped in round 23.
@@ -42,16 +46,6 @@ disagreed; the deletion was taken over it on the tool-call indices. Revert:
 `291d3c55`. Not live outside this branch: bare `agent-tools` resolves to the
 installed build, whose root is `/repos/claude-config`.
 
-## DEC-036 — delete the whole docs order in `# Doing tasks` (iter 28, conf 75)
-
-**Alternatives**: keep sentence 1 and cut the other two, untested as a unit.
-**Framing bias**: a tree that indexes its own documents is the condition most
-favourable to deletion and the round chose it; the risk it named — a tree that
-hides its documents, repaired by an agent that searches narrowly — has no case and
-so no condition anywhere. **Independent evaluation**: the blind reader supplied the
-grouping and was not asked which tree was better; iteration 29 ran the case again
-and neither arm left a document unrepaired. Revert: `adb80213`.
-
 ## DEC-037 — keep `# Writing for other agents` (iter 29, conf 70)
 
 **Alternatives**: delete it on the volume gap (confounded, below); call it
@@ -62,49 +56,19 @@ of its own code, so volume and investigation moved together and neither was held
 fixed. **Independent evaluation**: the blind reader set the questions and the
 uncovered axes; it was not asked which arm was better placed. Revert: n/a.
 
-## DEC-039 — the `tasks.jsonl` prune command is not built; rounds open no task row
-(iter 30, conf 85)
+## DEC-042 — do not ship the falsification bound as written (iter 32, conf 70)
 
-Iteration 29 left an instruction to build a command pruning closed rows from
-`.ralph/agent/tasks.jsonl`, hand-pruned twice by then. The file is empty and the
-right size for it is zero: a round completes one milestone, so a task list never
-holds more than one live row, and a tool built to manage growth in a file that
-should not grow is the ratchet the objective is against — a subcommand, a wiring
-assertion and a doc line, all of which only a human removes. The user's ceiling rule
-says cut before add and counts relocation as growth. **Chosen**: override the
-instruction; a round's state is the scratchpad, this journal and the commit
-messages, which the ceiling already counts. **Alternatives**: build it (a `jq`
-filter plus a place in `agent-tools`' subcommand list and its wired-subcommand
-assertion); keep hand-pruning each round. **Re-evaluate**: a round needs to hand
-work to the next one that does not fit in the scratchpad's instruction list — then
-the row is the cheaper carrier and the pruning question returns with it.
-**Framing bias**: the round deciding not to build the tool is the round that would
-have had to build it. **Independent evaluation**: not-started.
-
-## DEC-040 — do not ship a `rule added:` bullet (iter 30, conf 75)
-
-**Alternatives**: ship it on the one obligation the untreated arm reported as a past
-act rather than as a rule now on its page; reword `unexpected change:` instead, an
-edit to a line no arm has run without; take a second draw an arm first. **Framing
-bias**: the fixture was built from the user's own specimen, so the soliciting heading
-the arms extended already carried a bullet of the same kind — the condition most
-favourable to a rule being both written and noticed. **Independent evaluation**: the
-blind reader held both sessions with labels randomised, was asked only to list added
-instruction-sentences and whether each is named in the final message, and found both
-the saturation and the gap this decision is taken over. Revert: n/a, no prompt edit.
-**Amended at 31**: the decision stands, its stated mechanism does not — an arm without
-`unexpected change:` names its rules just as fully, and neither arm files a rule under
-that bullet.
-
-## DEC-041 — keep `unexpected change:` pending one more reading (iter 31, conf 60)
-
-**Alternatives**: delete it now, on the pre-registered outcome O1 — the saturation it
-asks for did hold on standing rules; take a second draw an arm first. **Reasoning for
-not deleting**: the reading that would have justified deletion is not the reading that
-found the line's remaining function. Collateral change — a file edited and restored, a
-stray backup, cache directories — was named by the arm carrying the line and not by the
-arm without it, and that question was composed after the arms were in, so it is not
-admissible here. **Framing bias**: the round that ran the ablation is the round that
-would have had to defend the deletion against an observation it could not use.
-**Independent evaluation**: the blind reader supplied both readings and was not told
-what differed; it was not asked which arm was better. Revert: n/a, no prompt edit.
+**Alternatives**: ship a2 entire, on the largest volume effect ten candidates have
+produced; ship only its second sentence, untested as a standalone, which the loop's
+own rule forbids; take a second a2 draw, which the user's no-replication rule
+discourages. **Reasoning**: a2's first sentence is the saturated half — every arm,
+untreated included, repaired every falsified statement — so shipping it to carry the
+effective half is step 2's duplication. The effective half is confounded at n=1 with
+a2 declining the code review both other arms ran and shipping the one live defect.
+**Framing bias**: the round that wrote the candidate is the round that read its
+transcript for exculpating reasoning, and found it. **Independent evaluation**: the
+blind reader held all three trees and sessions with labels shuffled, was given R1-R5
+and no arm identity, and was told it was acceptable to answer that the three do not
+differ; the residue read was a separate agent in evidence mode, asked for quotes and
+not for a verdict. Revert: n/a, no prompt edit. **Re-evaluate**: iteration 33's
+depth-fixed arm on the bound alone.

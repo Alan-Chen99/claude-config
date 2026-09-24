@@ -7,11 +7,9 @@ written* the top priority. Carry **what retires this line** into every decision.
 
 ## Durable method, reusable across rounds
 
-**The compression rule.** Cut in this order, stopping at the first class that is
-load-bearing: a **claim** (only claims can be wrong), a **restatement** (two
-wordings, nothing saying which governs), a **duplicate of executable code**
-(replace with its name), a **trap** (what the reader gets wrong silently; keep).
-Deletion is the default; each *keep* needs the argument.
+**The compression rule.** Cut in this order, stopping at the first load-bearing
+class: a **claim**, a **restatement** (two wordings, nothing saying which governs),
+a **duplicate of executable code**, a **trap** (keep). Deletion is the default.
 
 **A line that names a consideration does not deliver the conclusion it argues
 for.** It makes the consideration salient, and the agent argues it in whichever
@@ -67,9 +65,23 @@ If it disappears there, the target is the genre and not the wording.
 > saturated baseline is a reason to delete it. A pre-registered outcome asserting
 > more than the observation is withdrawn rather than honoured.
 
+> **A line whose purpose is best-effort surfacing is not ablatable by a saturation
+> reading.** The owner's intent for `## Required notes` (2026-09-24): the bullets
+> exist so a recurring problem *eventually* reaches the user across many sessions,
+> and being surfaced *sometimes* is the whole requirement. One untreated session
+> that surfaces the same item refutes nothing about a per-occurrence rate. Do not
+> ablate such a line; price it by what it costs when it fires.
+
+> **A round hands one line forward at most once.** A second consecutive round on
+> the same line decides it — ships an edit, deletes it, or records that the
+> instrument cannot decide it and names the instrument that could. Three rounds
+> ending in "one more reading" is the keep-by-default ratchet this objective is
+> against, applied to the loop itself.
+
 > **A condition in `sys_prompt/CLAUDE.md` names, in its own sentence, a runnable case
 > and a comparison.** *Retire this when an arm carrying the line does no better than
-> one without* is the only actionable form.
+> one without* is the only actionable form. A condition naming a fixture property
+> no named case has is unobservable — check both directions.
 
 > **Before a candidate wording is written, the round names one occurrence of the
 > behaviour outside its own fixtures** — a real session log, a commit in this
@@ -92,87 +104,103 @@ If it disappears there, the target is the genre and not the wording.
 > file, `decisions.md` and the commit messages, which the ceiling already counts.
 > DEC-039.
 
-> **`decisions.md` carries only the half `sys_prompt/CLAUDE.md` does not** — what else
-> was on the table, the framing bias, whether anyone independent looked, the revert
-> sha. Claim, hypothesis and retirement condition are stated once, there.
+> **Ask the owner what a line is for before spending a round measuring it.** Two
+> rounds were spent ablating `## Required notes` under a frame the owner's intent
+> rules out; one question, answered in three minutes, settled it. One topic per
+> loop; `skills/telegram-hitl`.
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–30, `9f6c03a0` → `3d5ddcdb`
+## History — rounds 1–31, `9f6c03a0` → `b3dc93b6`
 
 Anything justifying a prompt line lives in `sys_prompt/CLAUDE.md` — read it before
 touching the block. Everything else is in the commit messages. Shipped: `Say what
-ends it` (11, upheld at 19), the self-consequence bullet (23), one duplicated
-rationale cut out of it (25), the deletion of `pre_output.record`'s `NEVER reply to
-user if uncertainties remain` (26, DEC-034), the deletion of the whole docs order at
-`alan-default-next.md:15` (28, DEC-036). Deleted also: `Omit by default`, `Claim
-less`, the help-surface cost paragraph. Nine candidate wordings failed, the last four
-claim-handling and the ninth (30) a `rule added:` report bullet, saturated. Every
-sentence still in the block has been measured alone. 29 kept the whole `# Writing for
-other agents` block, refuting its own hypothesis that bullet 2 redirects growth into
-prose; volume there was confounded with depth, and 30 removed that confound by
-stating the load-bearing fact in the fixture. Open and unmeasured: `# Error Propagation`'s `Silent retry` and `Partial
-success` rows require retry counters and partial-failure lists against `# Coding`'s
-minimum-complexity rule and its ban on one-time helpers; both blockquote-plus-table
-duplications stand unmeasured. `scripts/check-prompt-upstream.py` cannot run here —
-`/repos/claude-code-decompiled` is absent. DEC-037 – DEC-040.
+ends it` (11), the self-consequence bullet (23), one duplicated rationale cut out of
+it (25), the deletion of `pre_output.record`'s `NEVER reply to user if uncertainties
+remain` (26, DEC-034), the deletion of the whole docs order at `alan-default-next.md:15`
+(28, DEC-036). Deleted also: `Omit by default`, `Claim less`, the help-surface cost
+paragraph. Nine candidate say-less wordings failed. 29 kept the whole `# Writing for
+other agents` block, refuting its own hypothesis. 30 and 31 both spent a round on
+`## Required notes` and shipped nothing; 31's ablation of `unexpected change:` found
+both arms writing and naming the same standing rules, refuting 30's stated mechanism.
+Open and unmeasured: `# Error Propagation`'s `Silent retry` and `Partial success` rows
+against `# Coding`'s minimum-complexity rule; both blockquote-plus-table duplications.
+`scripts/check-prompt-upstream.py` cannot run here — `/repos/claude-code-decompiled`
+is absent. DEC-037 – DEC-041.
 
-## Iteration 31 — `3d5ddcdb` → `b3dc93b6`
+## Iteration 32 — `b3472db2` → (see close)
 
-### Critique of 30, and the milestone
+### Critique of 28–31
 
-Three, argued with quotes and refs in the pre-registration commit `53d0102b`.
-**C1 (fact)**: its motivating reading of the user's specimen `e828eab7` is false — the
-session names all three of its documentation additions, one of them under
-`unexpected change:` with a revert offer, and its `prompt_snapshot` carries that line.
-The half of the ratchet 30 called unserved is the half already firing in the wild.
-**C2 (instrument)**: its retirement condition named `hushed-rollcall`, where `9504b5dc`
-measured both arms leaving the soliciting `CLAUDE.md` byte-identical — an arm cannot
-name rules it does not write. **C3 (workflow)**: probes are deleted by their own round
-while conditions must name a live case, so every probe-measured claim gets a condition
-pointing where it was not measured; one sentence in `.claude/skills/prompt-tests`
-fixes it — a condition may name a deleted probe by its restore sha — and the contract's
-own last clause keeps it there rather than here. The entry also carried the counts and fixture
-description the contract sends to git, 36 lines for a round that shipped nothing.
+**C1 (instrument, verified).** 28's restore condition for the docs order names
+`prompt-tests/general/option-and-encoding`, whose fixture `CLAUDE.md` carries a
+`## Files` table indexing every document — while `adb80213`'s own limits paragraph
+says the saturation holds *because* the tree indexes its documents and that the
+untested case is "a tree that both hides its documents and is repaired by an agent
+that searches narrowly, which is the case this deletion is a bet about". The
+condition therefore cannot be observed where it points, and four rounds passed with
+that unnoticed. The prompt-tests skill already names this defect class; nobody ran
+its second direction.
 
-**Milestone**: ablate `unexpected change:`, the line no arm had run without, on
-`amber-turnstile` restored from `9e66c94a` — the one genre where arms demonstrably
-write standing rules. Chosen over a tenth say-less wording: nine have failed, and C1
-shows the reporting half already works in the wild through this line. Framing bias: the
-fixture was built by the round that wanted a report bullet to succeed. Readings and
-outcomes: the probe's `README.md` at `53d0102b`.
+**C2 (workflow, verified).** `git log --oneline -- sys_prompt/alan-default-next.md`:
+the last prompt edit is `adb80213`, iteration 28. Rounds 29, 30 and 31 shipped none,
+and all three spent their milestone in one neighbourhood — the `# Writing for other
+agents` block, then a `## Required notes` bullet twice — each ending by handing the
+same line forward for one more reading. That is the objective's own ratchet applied
+to the loop: a shipped line survives because deciding it is always deferrable.
+Contract clause added.
 
-### Result — no prompt edit; the entry's mechanism is refuted, the line is not
+**C3 (fact, settled by the owner).** 30 and 31 both decided a `## Required notes`
+bullet by asking whether an untreated arm does the same thing once. Asked on the
+channel, the owner said the block is **best effort** — "the important is they are
+sometimes surfaced", so a recurring problem eventually reaches them. The requirement
+is a rate across sessions, and no single-session saturation reading can bear on it.
+Both rounds' frames were undecidable whatever the arms showed, and neither round
+asked the one question that settles it. The entry in `sys_prompt/CLAUDE.md` is
+rewritten around the owner's intent and no longer waits on a measurement.
 
-Both arms wrote the same two standing rules into the soliciting `config/CLAUDE.md`,
-both named them in the reply, and **neither filed one under `unexpected change:`** —
-they went in the passage explaining what was done, which every arm owes. The blind
-reader, told only that the prompts differ, separated the arms on one table row and on
-nothing load-bearing. So 30's mechanism is wrong and its conclusion survives: no
-second bullet, for a different reason. `sys_prompt/CLAUDE.md` is rewritten, shorter.
+### Milestone and result — the repair half is dead, the bound is the live half
 
-Not deleted. Asked a question this round had not pre-registered — what *else* each
-session changed — the reader found the arm carrying the line naming a file it edited
-and restored and the caches its test runs left, and the arm without it naming neither.
-Inadmissible here, decisive next round. DEC-041.
+**Milestone chosen** over 31's handoff: the owner's newest followup names the docs
+order directly, user instruction outranks a prior iteration's `(instruction)`, and 28's
+own limit names the same untested tree. Three arms on a tree that hides its documents
+— `CLAUDE.md` with conventions and no index, `docs/` reachable only by looking, a task
+naming no document — with nine statements across four files falsified by the changes
+asked for. a0 no bullet, a1 the deleted line verbatim, a2 a bound: *That repair is the
+documentation a change owes; what the change could newly explain is not.*
 
-**Arm-independent, pre-registered, and the strongest lead for the user's top
-priority:** one fact reaches three to four lasting files. The `str.format` fact went
-into `config/CLAUDE.md`, both preset copies and a test in one arm, on top of the
-comment already in `render.py` that states it — four live copies of one fact, none of
-them wrong, none of them removable without a human reading all four. Neither arm's
-reasoning treats a second durable home as a choice. Volume here is not extra claims;
-it is one claim, replicated. No prompt line in the stack addresses it.
+**Every arm repaired or deleted every falsified statement, a0 included.** O1 fired, in
+the genre 28 called the case its deletion was a bet about. The repair half of any docs
+order is saturated in two genres now, and the owner's staleness worry is not realised:
+a0's reasoning listed the four documents it had falsified before writing any code.
 
-### `(instruction)` for iteration 32
+**What separated them is the half nobody had written.** Unfalsified prose 44 lines
+(a0), 27 (a1), 6 (a2); standing instruction-sentences 4, 4, 2. First positive signal
+in ten candidates on the top priority. a2's reasoning shows the mechanism, not just
+the artifact: the falsified set enumerated as a list, discoveries routed to the reply,
+and **not one narrowing decision gave a documentation-scope reason** — every one was
+implementation scope or what the user had asked for.
 
-1. **Decide the deletion on the admissible reading.** Pre-register the collateral
-   reading — files created and not removed, files edited and restored — and run the
-   same ablation. Probe: `git checkout 53d0102b -- prompt-tests/runs/amber-turnstile`.
-2. **Seven of the eight `## Required notes` bullets have no justification anywhere in
-   `sys_prompt/CLAUDE.md`** — only `unexpected change:` does. They are standing rules
-   in the prompt that no round has priced. Ablating one is a round.
-3. Replication, not claim count, is what a fixture now shows about volume. A candidate
-   aimed at it must name where a second durable home is declined; no arm here declines
-   one, so the occurrence has to be found in a real log before a wording is written.
+**Not shipped.** a2's first sentence is the saturated half, and shipping a saturated
+sentence to carry an effective one is the duplication the file's own step 2 forbids.
+Its second half is confounded at n=1: a2 also declined the review both other arms ran
+and shipped the one live defect, an uncaught `OverflowError`. The quoted reasoning does
+not connect them, which weakens the confound without removing it.
+
+`prompt-tests/general/option-and-encoding` went unowned when that entry was rewritten
+and is deleted; `b01c312e` restores it. DEC-042.
+
+### `(instruction)` for iteration 33
+
+1. **Measure the bound alone**, with no repair clause in front of it, against a bare
+   arm. Restore the tree with `git checkout 37a6b901 -- prompt-tests/runs/copper-lantern`,
+   or build a second genre. Fix investigation depth by construction — state the
+   load-bearing fact in the fixture (`mem-1790442000-31ac`) — so volume cannot ride on
+   how much each arm found out, and pre-register the code-review decision as a reading,
+   since that is what the confound rode on here.
+2. **Do not ablate a `## Required notes` bullet.** Owner intent settles it; the entry in
+   `sys_prompt/CLAUDE.md` says why, and the contract forbids the frame.
+3. The saturation result kills the repair half of any docs wording. A candidate that
+   tells an agent to repair, update, check or sweep documents is spending tokens on
+   something two genres show it does unaided.

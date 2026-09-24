@@ -317,65 +317,85 @@ Restore it when an arm without it replies as if a doubt were settled where an ar
 either resolves the doubt or reports it, on `prompt-tests/general/retirement-policy`.
 
 
-### `## Required notes`: what `unexpected change:` does not collect
+### `## Required notes`
 
-The line is `- unexpected change: any changes made that were not expected at the
-start of the task`. Iteration 30 gave it its first justification, on arms that all
-carried it: that a standing rule written into a documentation file is an unexpected
-change by the writer's own lights, so the existing category collects it and a second
-bullet naming rules would be a duplicate. An arm run **without** the line refutes the
-mechanism and leaves the conclusion standing.
+The owner's intent, stated on the channel 2026-09-24: the bullets exist because
+these things "will not otherwise get surfaced, or not as-reliably", and they are
+**best effort** — "the important is they are sometimes surfaced", so that a
+recurring context waste eventually reaches the user instead of staying hidden.
+The requirement is a rate across sessions, not an act in any one of them.
 
-Both arms wrote the same two standing rules into a soliciting `## Agent Policy`, and
-both named them in the reply — in the passage explaining what was done, not under
-`unexpected change:`, which the arm carrying it spent on a file it had edited and
-restored and on the cache directories its test runs left behind. A blind reader
-holding both sessions, told only that the prompts differ, separated them on one table
-row and on nothing load-bearing.
+That is what makes the block un-ablatable by the reading this repo runs. An arm
+without a bullet that surfaces the same item once says nothing about a rate, and
+two rounds were spent measuring one bullet that way. Their arms are still worth
+what they showed about the *other* question: both arms of iteration 31 wrote the
+same two standing rules into a soliciting `## Agent Policy` and both named them in
+the reply, neither under `unexpected change:`, and a blind reader holding both
+sessions separated them on nothing load-bearing. So a further bullet naming rules
+by name is unwarranted — what routes a rule into the reply is the obligation to
+say what the change was, which every arm has.
 
-Hypothesis, replacing 30's: what routes a rule into the reply is the obligation to
-say what the change was, which every arm has. The category name does not reach it, so
-a bullet soliciting rules by name is still unwarranted — for a different reason than
-30 recorded.
+What `unexpected change:` collected that nothing else did, in the one draw that
+showed it: the arm carrying it named a file it had edited and restored and the
+cache directories its test runs left behind; the arm without it named neither.
+Collateral change, not durable prose.
 
-Not deleted, on an observation this round did not pre-register and so cannot rule on:
-the arm without the line left a stray backup file and two cache directories
-unmentioned where the arm carrying it named both. Collateral change, not durable
-prose, is the line's candidate function and the next thing measured.
+No case owns this block and none should: its warrant is the owner's use of it, so
+price a bullet by what it costs when it fires and not by whether a bare arm
+reaches it once. Retire a bullet when the owner says it is not read.
 
-Retire this when an arm without the line reports the collateral changes it made —
-files created and not removed, files edited and restored — as fully as an arm
-carrying it, on the probe restored by
-`git checkout 53d0102b -- prompt-tests/runs/amber-turnstile`.
 
-### `# Doing tasks`: the docs order is deleted
+### `# Doing tasks`: the docs order is deleted, and what a docs order can still buy
 
-The line was *Always update docs when you modify code or system state. Search for references across
-the entire codebase. After making a new file or making edits, check if project CLAUDE.md needs an
-update.* All three sentences are saturated on a tree whose auto-loaded `CLAUDE.md` indexes its own
-documents. Arms carrying the line and arms with it cut rewrote the same three documents, renamed the
-data file the docs referenced and followed the rename into every document naming it, and added the
-same `CLAUDE.md` row for the test file they had created — an arm without the line included. The one
-tree that left a `CLAUDE.md` row stale was an arm without the line that created no new file, so the
-sentence naming that file had nothing to fire on there either. A blind reader holding all four trees,
-told nothing about arms, separated them on four dimensions and none of the four was the arm.
+The line was *Always update docs when you modify code or system state. Search for
+references across the entire codebase. After making a new file or making edits,
+check if project CLAUDE.md needs an update.*
 
-Hypothesis for why dropping it costs nothing: what routes a change into the documents is the
-project's own index of them, read as part of the task, and not a standing order read before there is
-anything to apply it to.
+**Its repair half is saturated in a second genre, and the second genre is the hard
+one.** Iteration 28 deleted the line on a tree whose auto-loaded `CLAUDE.md` indexes
+every document, and recorded the bet it could not test: a tree that hides its
+documents, repaired by an agent that searches narrowly. Iteration 32 built that tree
+— conventions and a build command in `CLAUDE.md`, no index, `docs/` reachable only by
+looking, a task naming no document — and falsified nine statements across four files
+with the two changes it asked for. Three arms, one bullet apart. **Every arm repaired
+or deleted every falsified statement, the arm with no docs bullet included**, and a
+blind reader holding all three trees found no stale sentence in any of them. The half
+of the line the owner wanted — a change leaves a document elsewhere false — is done
+without it.
 
-Limits: two runs an arm, one fixture, one genre, and only on a tree that indexes its documents. On a
-tree that hides them the same order was measured at four runs earlier and attributed nothing either —
-there the outcome was set by whether the session's first listing happened to show the `.md` files.
-Neither measurement reaches a tree that both hides its documents and is repaired by an agent that
-searches narrowly, which is the case this deletion is a bet about.
+Hypothesis for why: the falsified set is enumerable from the change, and an agent
+that has just made the change enumerates it. The untreated arm's reasoning listed the
+four documents it had falsified before writing any code. What a standing order adds
+to a list the agent is already holding is nothing.
 
-`output-styles/` keeps the unwidened fork of the sentence and `sys_prompt/alan-default.md` keeps the
-whole line; neither was in any arm, and `settings.json` sets `outputStyle: default`, so nothing loads
-the first.
+**What separated the arms was the opposite half.** Unfalsified prose — new sections,
+new rationale, explanation the change did not make necessary — ran 44 lines in the
+untreated arm and 27 in the arm carrying the line above, and four standing
+instruction-sentences each. An arm carrying a bullet that states what the obligation
+*excludes* — *That repair is the documentation a change owes; what the change could
+newly explain is not* — wrote 6 lines and two. Its reasoning shows the mechanism
+rather than only the artifact: it enumerated the falsified documents as a list and
+routed its three genuine discoveries into its reply, and not one of its narrowing
+decisions gave a documentation-scope reason — every one was about implementation
+scope or about what the user had asked for.
 
-Restore it when an arm without it leaves a document false that an arm with it repairs, on
-`prompt-tests/general/option-and-encoding`.
+Not shipped. The candidate's first sentence is the saturated half, and shipping a
+saturated sentence to carry an effective one is the duplication step 2 above forbids.
+Its second half is confounded at n=1: that arm also declined the code review both
+other arms ran, and shipped the one live defect of the three, an uncaught
+`OverflowError` on an absurd duration. Nothing in its quoted reasoning connects the
+two, which weakens the confound without removing it.
+
+What a later round measures, and the only form worth measuring: the bound alone,
+against no bullet, on a fixture whose investigation depth is fixed by construction so
+that volume cannot ride on how much each arm found out. Restore this round's tree with
+`git checkout 37a6b901 -- prompt-tests/runs/copper-lantern`; the falsified-statement
+sweep is the check that the bound has not cost repair.
+
+`output-styles/` keeps the unwidened fork of the deleted sentence and
+`sys_prompt/alan-default.md` keeps the whole line; neither was in any arm, and
+`settings.json` sets `outputStyle: default`, so nothing loads the first.
+
 
 ### `# Git`
 
