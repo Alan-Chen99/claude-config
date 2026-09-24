@@ -18,17 +18,14 @@ live and honoured every round since 15; claim-handling decided against on a
 fixture built to fire its own condition (20), then reopened at a narrower target
 by 21 and left unrun. Independent evaluation: not-started for all.
 
-## DEC-031 — closed by DEC-032 (iter 23, conf 80)
+## DEC-031 — discharged (iter 23)
 
-Shipped the self-consequence bullet against a blind reader that preferred the
-arm that grew. Its own re-evaluation condition — *if an arm carrying the line
-omits something a project actually requires* — was tested in round 24 and did
-not fire: both arms wrote the flag row the project requires in as many words.
-Its framing bias (both genres said *document it*) is discharged: round 24's task
-said nothing about documenting. The trade it accepted stands, and its reasoning
-is superseded by DEC-032 on one point — the rule the preferred arm added was not
-a dependency on that session's own code but a true statement about the tree as
-inherited, which the bullet does not name.
+Shipped the bullet against a blind reader that preferred the arm that grew. Its
+re-evaluation condition did not fire in round 24 — both arms wrote the flag row
+the project requires — and its framing bias is gone, that round's task saying
+nothing about documenting. Superseded by DEC-032 on one point: the rule the
+preferred arm added was a true statement about the tree as inherited, not a
+dependency on that session's own code.
 
 ## DEC-032 — keep a shipped line whose only measured effect in a third genre is
 an over-reach (iter 24, conf 65)

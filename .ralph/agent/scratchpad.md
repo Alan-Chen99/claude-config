@@ -85,6 +85,8 @@ rounds had missed (22).
 > **The round ends under the user's `.ralph/agent/*` ceiling, with the number in
 > its last commit message.**
 > `cat .ralph/agent/* | agent-tools count-tokens --file /dev/stdin` < 6000.
+> `tasks.jsonl` counts toward it, so a task carries a pointer into this file and
+> never a copy of what is already written here.
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
