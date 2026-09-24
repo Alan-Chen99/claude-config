@@ -118,7 +118,7 @@ that scoped the claim. The owner's answer was the larger reason — the specimen
 defect is placement, documentation-in-place-of-a-fix, and unowned obligations, not
 volume. Full account in `sys_prompt/CLAUDE.md`; the round is `412e675b`, DEC-043.
 
-## Iteration 34 — `270b5f13` → RANGE_END
+## Iteration 34 — `270b5f13` → `e6552d3b`
 
 ### Critique of 33
 

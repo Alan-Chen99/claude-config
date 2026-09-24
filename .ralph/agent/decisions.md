@@ -67,5 +67,5 @@ and the owner has not asked for; keep measuring and say nothing, which leaves ev
 after this one free to cite a real session as evidence about a line the session never
 had. **Framing bias**: the round found this while checking its own critique and may be
 over-weighting it against the round's measured result. **Independent evaluation**: not
-started; the fact is a grep and needs none. Asked on the channel whether the merge is
-wanted; unanswered at close. **Revert**: n/a.
+started; the fact is a grep and needs none. The owner acknowledged the provenance point
+on the channel; whether the merge is wanted is unanswered at close. **Revert**: n/a.
