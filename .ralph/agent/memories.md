@@ -6,9 +6,9 @@
 > Ask the owner what a prompt line is FOR before spending a round measuring it. One Telegram question answered in 3 minutes settled a question two rounds of arms could not, and ruled out a candidate wording the owner had themselves floated ('check if project CLAUDE.md is outdated' - the owner's actual target is every doc, with CLAUDE.md merely the bigger risk). Why it works here: a retirement condition is a claim about what the owner wants observed, and the owner is reachable. skills/telegram-hitl; one topic per loop.
 <!-- tags: workflow, prompt-tests | created: 2026-09-24 -->
 
-### mem-1790268810-52c9
-> A rule whose purpose is BEST-EFFORT SURFACING cannot be ablated by a saturation reading, and this loop spent two rounds (30, 31) doing exactly that. Owner's stated intent for '## Required notes' (2026-09-24, channel): the bullets exist because these things 'will not otherwise get surfaced, or not as-reliably'; they are best effort and 'the important is they are sometimes surfaced', so a recurring problem eventually reaches the user instead of staying hidden. The requirement is a RATE ACROSS SESSIONS. An untreated arm that surfaces the same item once therefore refutes nothing. Price such a line by what it costs when it fires; do not ablate it.
-<!-- tags: sys-prompt, prompt-tests, test-design | created: 2026-09-24 -->
+### mem-1790528000-4c31
+> The decision to write a durable document is made on usefulness alone; cost never enters. Real specimen e828eab7 (the user's own): a one-symlink change produced four durable additions across three files, and the session's stated criterion at the moment of writing was that the observation was "genuinely useful and unrecorded, so it's worth adding". It declined four other additions -- every time on the scope of the change or on conflict risk, never on what a document costs. Two additions were the literal ask ("and docuemnt it") and one was commanded by a repo-local skill's frontmatter directive, which no system-prompt line outranks. So a say-less wording has at most one of four to reach, and the ratchet's biggest single source here is a rule the repo already carries.
+<!-- tags: sys-prompt, docs-growth, writing-for-agents | created: 2026-09-24 -->
 
 ### mem-1790241731-77bc
 > Document volume is one fact replicated, not many claims: measured under fixed depth, one established fact reached 3-4 lasting files in BOTH arms -- a str.format trap went into config/CLAUDE.md, both preset copies and a test, on top of the render.py comment already stating it. Four live copies, none wrong, none removable without a human reading all four. Neither arm's reasoning treats a second durable home as a choice, so a say-less wording has nothing to attach to; the target is replication. Why: each destination is chosen for its own reader, and the choice is never posed as 'this is already written down somewhere'.
@@ -39,7 +39,7 @@
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
 
 ### mem-1790400000-22a1
-> A real session log is admissible evidence where a fixture is not, and this loop ignored them for 21 rounds. Every session on this machine is at ~/.claude/projects/<slug>/<id>.jsonl; the cheap read is python over the JSONL emitting only assistant thinking/text blocks plus tool-call headers (a 790KB log yields ~8k tokens). A fixture shows what a wording does to a situation the round invented; a log shows which situations actually arise and what the agent said while deciding. Use a log to FIND the mechanism, a fixture to measure a wording against it.
+> A real session log is admissible evidence where a fixture is not, and a round that cites one without reading it has looked at nothing. Every session on this machine is at ~/.claude/projects/<slug>/<id>.jsonl; dispatch session-analysis in evidence mode rather than reading it inline. A fixture shows what a wording does to a situation the round invented; a log shows which situations actually arise and what the agent said while deciding. Use a log to FIND the mechanism, a fixture to measure a wording against it.
 <!-- tags: prompt-tests, test-design, session-analysis | created: 2026-09-24 -->
 
 ## Decisions
