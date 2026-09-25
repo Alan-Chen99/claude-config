@@ -157,15 +157,15 @@ occurring outside every fixture, and it is why 32's saturation reading does not 
 
 Merged `staging` (16 commits, no conflicts, four auto-merged files read hunk by hunk), then
 ran the public-ready pass on this branch's parts, which is what the owner's #96 asked for:
-`staging` *was* that cleanup. One repair, by editing the sentence: the two false `README.md`
-claims in C3. The round also added rows indexing `PROMPT.md` and `.ralph/` to the root
+`staging` *was* that cleanup. Repairs, each by editing the sentence: the two false
+`README.md` claims in C3, and one line citation in the coupling inventory that the merge
+itself made stale. The round also added rows indexing `PROMPT.md` and `.ralph/` to the root
 `CLAUDE.md` and then took them out again on the owner's #98 — the loop's files are removed
 from the tree before any merge, so an index row for them is two lines that same commit must
 remove, and nothing reads them. DEC-048. Swept and found
 clean, so nothing else was touched; the sweeps and their sizes are in `e8589613`. No prompt
 test ran and `sys_prompt/` is untouched, so no `(contract)` clause about prompt edits applies
-to this round. Green: `uv run pytest tests/ -q` 544, `cargo test --release` 15 binaries,
-`check-prompt-coupling.sh` OK.
+to this round.
 
 ### `(instruction)` for iteration 38
 
