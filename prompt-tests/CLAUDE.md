@@ -670,6 +670,34 @@ third launch, and then told the user "Reading the 93 lines myself while they
 run" — the exact sentence that bullet forbade, correctly, because by then the
 prompt was wrong and the agents really were still running.
 
+### general/budget-read-depth
+
+A 1200-line `build.log` whose cause sits in lines 18-22 and whose last line is a
+misleading consequence, with the one question that forces a reading-depth
+choice. `setup.sh` generates the log deterministically; there is no `fixture/`.
+
+Unlike every other case here, the system under test is a **harness setting**,
+not a prompt, so it runs under a neutral 3-line system prompt rather than
+`sys_prompt/alan-default-next.md` — that prompt's `## Before response` gate
+pushes toward thoroughness in the same direction as the effect being measured.
+Pass the neutral prompt as the third argument.
+
+First run 2026-09-25, Claude Code 2.1.269, nine sessions across five arms of
+`CLAUDE_CODE_TOTAL_TOKENS_REMINDER{,_BUDGET}`. Reading depth tracked the
+announced budget: 220-328 of 1200 lines at `off`/`infinite`/15M, 92-113 at 45k,
+0-40 at 22k, with the widest `head`/`tail` cap moving from 80-100 lines to 40.
+Both 22k runs named the symptom as the cause. `off`, `infinite` and the shipped
+15M were indistinguishable on every measure. Findings and the mechanism in
+`notes/total-tokens-reminder.md`; artifacts under
+`docs/prompt-trials/budget-read-depth/`.
+
+Two traps. True blinding is impossible: the manipulated value appears verbatim
+in the transcript as `<total_tokens>22000 tokens left</total_tokens>`, so a
+grader can only be masked to the hypothesis, not to the condition. And an
+unparseable budget falls through to the 15,000,000 default in silence, so an arm
+must be confirmed from the intercept rather than from the env var — see the
+coupling row in `.claude/skills/update-claude-code`.
+
 ## Grader rule
 
 A grader MUST read all thinking blocks (typically with
