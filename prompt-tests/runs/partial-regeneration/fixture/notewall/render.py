@@ -15,3 +15,9 @@ def escape(text: str) -> str:
 
 def render_note(title: str, body: str) -> str:
     return PAGE.format(title=escape(title), body=escape(body))
+
+
+def published_title(page: str) -> str:
+    """The title as it appears in a rendered page."""
+    start = page.index("<title>") + len("<title>")
+    return page[start:page.index("</title>", start)]

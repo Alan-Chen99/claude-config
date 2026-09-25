@@ -1,6 +1,6 @@
 import pathlib
 
-from .render import render_note
+from .render import published_title, render_note
 from .slug import slugify
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -18,7 +18,10 @@ def build() -> int:
     written = 0
     for path in sorted((ROOT / "notes").glob("*.md")):
         title, body = read_note(path)
-        (out / f"{slugify(path.stem)}.html").write_text(render_note(title, body))
+        page = render_note(title, body)
+        target = out / f"{slugify(path.stem)}.html"
+        target.write_text(page)
+        print(f"  {target.name}  {published_title(page)}")
         written += 1
     print(f"wrote {written} pages to {out}")
     return 0

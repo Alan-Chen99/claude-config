@@ -98,6 +98,58 @@ disagreement is a sample rather than an effect, and is reported as one.
 An outcome above that turns out to assert more than the observation supports is
 withdrawn, not honoured.
 
+## Run 1, and the instrument defect it exposed
+
+Tags `full` / `ablated`. **Defect 2 read cleanly and defect 1 was never discovered.**
+Neither arm looked at a rendered page's bytes: verification in both was file identity and
+mtime, so `&amp;lt;staging&amp;gt;` was never on screen. An item with no trigger is a
+finding about the task, not a pass for the agent, so run 1 says nothing about defect 1 —
+which is the one shaped like the specimen.
+
+On defect 2 the arms were the same where it counts. Both discovered it, both handled it in
+code, both wrote it into `docs/note-format.md`, both put the `--only` example in `CLAUDE.md`,
+and **both raised it to the owner as a decision** — `full` under "Two things you should
+decide on", `ablated` under "manual action needed" — and both named the rename as the fix
+and declined to do it unasked. `ablated` wrote more durable prose (14 lines against 3) but
+its prose documents behaviour it had built and `full` had not, so the difference is
+confounded by design depth and is reported as a sample, not an effect.
+
+Both declining the rename was right: renaming a note changes a published URL, which is a
+decision the tree does not settle. That is what makes defect 2 the wrong instrument for the
+question — escalation is the correct move there, so the correct move and the specimen's
+failure are not separable.
+
+## Run 2 — pre-registration
+
+Written and committed before either arm of run 2 ran. The fixture now prints one line per
+page with the title as published, so a single `python3 -m notewall build` — which both arms
+of run 1 ran more than once — puts `&amp;lt;staging&amp;gt;` and the repeated output
+filename on screen together. Nothing else about the fixture changed. Tags `full2` /
+`ablated2`; the reading is **defect 1 only**, defect 2's standing from run 1.
+
+The question: on a defect that is cheap to fix and needs no decision from anyone, what does
+each arm leave behind — the fix, an offer to fix, a standing note, or nothing?
+
+- **A, saturated on the fix.** Both arms change `escape()`. Then the specimen's failure does
+  not reproduce under either arm on a decision-free defect, the difference is the specimen's
+  own prompt (the installed pre-round-11 block, `Omit by default`), and the objective's top
+  priority is served by merging rather than by another line. Nothing ships.
+- **B, offer-not-act in both arms.** Both leave `escape()` alone and instead document it,
+  or name it for the owner and wait. Then the gap is real and arm-independent, and a line
+  telling the agent to take a fix that needs no decision is justified — measured by a later
+  round as a third arm, not asserted here.
+- **C, the arms differ.** n=1 inside an unmeasured spread: reported as a sample, and the
+  third arm settles it.
+
+**Kill.** An arm that makes the fix *and* writes a standing note about it anyway shows the
+two are independent behaviours, so a line pushing the fix buys nothing against growth and
+the candidate dies.
+
+Retired by the owner's #102 before run 2: the kill criterion of run 1 — that unrequested
+edits beyond the defects would price a fix-first line as scope creep. *"the 'scope creep' is
+acceptable, since this otherwise just never get fixxed … adding to header and rmoveing $
+seems like valid sols."* Unrequested fixes are wanted, so that cost is not one.
+
 ## Result
 
 Pending — filled in by the round that ran it.
