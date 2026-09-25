@@ -54,14 +54,18 @@ and the argument that justified a line all move out — and the editing loop end
 in a falsifiable test: name the behaviour that changes without the line, or drop
 it. The flag replaces only one of two channels; Anthropic-authored text still
 arrives through `messages[]`, so a release is a rebase, not a diff — adopt,
-adapt, or diverge on purpose, and write down which. Two scripts keep the file
+adapt, or diverge on purpose, and write down which. Three scripts keep the file
 honest: [`scripts/check-prompt-upstream.py`](scripts/check-prompt-upstream.py)
 requires each passage borrowed from upstream to occur in the decompiled source
 the recorded number of times, and exits non-zero rather than passing vacuously
 when the tree is missing; [`scripts/check-prompt-coupling.sh`](scripts/check-prompt-coupling.sh)
 guards the other direction — Rust strings the prompt teaches the agent to
 recognise carry a `// PROMPT-COUPLED` marker, and marker count must equal
-needle count before any needle is grepped. Budgeting uses
+needle count before any needle is grepped. The third,
+[`scripts/check-prompt-rationale.sh`](scripts/check-prompt-rationale.sh), makes that reasoning
+file cost what the prompt costs: every section of it must quote, in its heading, text the prompt
+still carries, so deleting a prompt line reports its rationale as deletable and the file's
+section count cannot outgrow the prompt without anyone setting a size. Budgeting uses
 [`agent-tools count-tokens`](src/claude_config/count_tokens.py), whose two
 backends deliberately do not agree: the vendored Qwen3.8 tokenizer (sha256-checked
 on every run) reports 19% below Opus 4.7's count on indented code and 61% below

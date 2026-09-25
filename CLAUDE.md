@@ -44,6 +44,7 @@ the directory you are about to touch.
 cd agent-tools && cargo build --release   # then: cargo test
 UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/$(basename $PWD) uv run pytest
 scripts/check-prompt-coupling.sh         # emitted strings vs the prompt
+scripts/check-prompt-rationale.sh        # every sys_prompt/CLAUDE.md section vs the prompt
 ```
 
 ## Agent Policy

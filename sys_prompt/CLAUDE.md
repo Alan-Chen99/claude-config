@@ -200,25 +200,26 @@ decoded string rather than the source line.
 Reasoning cut from the prompt under step 3 above, kept so a future edit can tell a live rule
 from cargo.
 
-**One paragraph per line the prompt stack carries** — the claim, the hypothesis behind it, and
-the retirement condition: an observation that would end the line, and the case where it gets
-made. A round that measures a line **replaces** that line's paragraph; it does not add a
-second. A wording measured and not shipped is one row of the ledger at the end. What an arm
-said, how much it wrote, which fixture it ran on and on what date stay in the commit that
-measured them — a run is evidence for the round that ran it, so quoting one here spends context
-on what the next round may not rely on.
+**A section here owns one thing the prompt does, by quoting it**: a backticked literal in the
+heading occurring verbatim in `alan-default-next.md`. It carries the claim, the hypothesis behind
+it, and the retirement condition — an observation that would end the line, and the case where it
+gets made. `scripts/check-prompt-rationale.sh` fails on a section quoting nothing live, so
+deleting a prompt line reports its section as deletable and nobody has to notice. Section count is
+then a function of the prompt's size and cannot outgrow it, with no ceiling set by hand. That is
+the term that grew: across this file's history sections went 1 → 14 while words per section went
+370 → 538.
 
-That is the whole bound on this file: one paragraph per line, one row per dead wording, nothing
-that is neither. Held to, it makes the file as long as the prompt has lines and no longer, with no
-size set by hand. What it is worth: opening any file in this directory with the **Read** tool
-attaches this whole file as a system-reminder — `prompt-tests/CLAUDE.md` states that mechanism and
-how to re-check it — so every paragraph here is spent on every session that comes to edit the
-prompt. `.claude/skills/prompt-tests/SKILL.md` bounds the case
-corpus by the same construction — one grep against the retirement conditions below.
-A round that finds it needs a second paragraph for one line has found the bound wrong: say so and
-replace it, rather than appending under it.
+What an arm said, how much it wrote, which fixture it ran on and on what date stay in the commit
+that measured them — a run is evidence for the round that ran it, so quoting one here spends
+context on what the next round may not rely on. A wording measured and not shipped is one row of
+the ledger, which sits under its own heading because it owns no prompt line. What the check buys:
+opening any file in this directory with the **Read** tool attaches this whole file as a
+system-reminder — `prompt-tests/CLAUDE.md` states that mechanism and how to re-check it — so every
+paragraph here is spent on every session that comes to edit the prompt.
+`.claude/skills/prompt-tests/SKILL.md` bounds the case corpus by the same construction, one grep
+against the retirement conditions below.
 
-### `Prefer model: haiku` on Explore spawns
+### `model: haiku` on Explore spawns
 
 Claude Code 2.1.198 (2026-07-01) changed the built-in Explore agent's model from `haiku` to
 `inherit`, as a reliability fix rather than a quality one: issue #45357 reported that a large MCP
@@ -458,7 +459,7 @@ under the same gate; its proxy keeps `--background` and now says why. The `TaskS
 trigger is measured on both sides in that doc, "The kill boundary". Retire or revisit this if
 `--background` gains a completion notification of its own.
 
-### Ledger: wordings measured and not shipped
+## Ledger: wordings measured and not shipped
 
 A row is a wording no longer under consideration, kept only so a later round does not re-run it
 believing it new. Its probe is restorable; its run is in the commit that measured it.

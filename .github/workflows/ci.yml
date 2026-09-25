@@ -18,6 +18,16 @@ jobs:
       - name: Run the Python suite
         run: uv run pytest -q
 
+  prompt-rationale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Needs only python3 and the two files it reads, so it runs on the bare
+      # image: a section of sys_prompt/CLAUDE.md that names no live prompt text
+      # is what fails, and the fix is to delete it.
+      - name: Every rationale section names live prompt text
+        run: ./scripts/check-prompt-rationale.sh
+
   rust:
     runs-on: ubuntu-latest
     defaults:
