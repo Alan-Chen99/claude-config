@@ -96,9 +96,23 @@ value that makes it say nothing.
 
 `countdown` emits `vp(model, sdkBetas) - MB(messages)`: the model's real context
 window minus the conversation's current size. `vp` is the window resolver
-(`src/chunk-5cs6j3p3.js:15217`) — an `Ez()` override first, else the 1M-beta
-window `I1`, else `Sz()`. So `countdown` is genuinely remaining context, where
-`padded-countdown` is a per-turn task budget.
+(`src/chunk-5cs6j3p3.js:15217`) and has exactly three branches: an `Ez()`
+override, else `I1 = 200000` (`:15144`) when `qNn` holds — that is the
+*credit-blocked downgrade*, `longContext1mCreditsBlocked() && Sz() > I1`, not a
+1M path — else `Sz()`, which returns `1e6` for a `[1m]`-suffixed id, for a beta
+header, or via `nh()`, and `200000` otherwise. So `countdown` is genuinely
+remaining context, where `padded-countdown` is a per-turn task budget.
+
+**There is no supported way to set that window to an arbitrary value** while
+auto-compaction stays on, which rules out expressing a lower working ceiling in
+one knob. `Ez()` needs `DISABLE_COMPACT`. `Sz()`'s own
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS` branch is gated on `hz(e)`, true only for a
+model id that is not a canonical `claude-*` name — the `kimi.sh`/`zai.sh` case,
+not a first-party session. `HMt()` is `claude-sonnet-4-6` only. The one other
+reachable value is 200,000, and it comes from an account-credit latch rather
+than a setting. `autoCompactWindow` is therefore the only lever on when
+compaction fires, and it does not move the reminder, because `I6s` reads `vp()`
+and never `tw().window` (`src/chunk-dbb93264.js:225147`).
 
 Three arms, same case, 2026-09-25:
 
