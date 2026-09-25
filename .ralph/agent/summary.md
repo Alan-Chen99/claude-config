@@ -1,1 +1,1 @@
-Stale; read `scratchpad.md`.
+See `scratchpad.md`.

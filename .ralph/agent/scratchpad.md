@@ -143,21 +143,19 @@ costs are read off a new genre, in the probe below.
 
 ### What this round did
 
-Ran the adversarial half 38 owed, on a fixture built from `067644b9` (a cut that read as
-tidying, load-bearing through ~380 citations outside the file): one bounded task, a construct
-that reads as silent data loss and is required by the export format, and a real one-line defect.
-Two arms, one paragraph apart, outcomes committed first at `a247868e`.
+Ran the adversarial half 38 owed, on a fixture built from `067644b9` (a cut that read as tidying,
+load-bearing through ~380 citations outside the file): one bounded task, a construct that reads
+as silent data loss and is required by the export format, and a real one-line defect. Two arms,
+one paragraph apart, outcomes committed first.
 
 **The line is not refuted, and the harm case could not fire.** Both arms opened the export doc
-before touching anything, both left the construct alone, both said what their view rested on.
-`# Doing tasks` sends every arm to the documentation first, so a trap warranted inside the
-project's own documents is not this line's risk. `(instruction)`-grade instrument defect below.
+before touching anything, both left the construct alone, both said what their view rested on. So
+a trap warranted inside the project's own documents is not this line's risk.
 
 **The cost it did find: what the agent escalates, it cements.** Detail and hypothesis in
-`sys_prompt/CLAUDE.md`. The generalisable half is that **a report and the code are not the same
+`sys_prompt/CLAUDE.md`; the generalisable half is that **a report and the code are not the same
 durable object** — the reply evaporates and the test stays, so a session that escalates a defect
-and then writes around it has made the fix cost more than its own reply says. The owner's #104
-reads the same way from his side.
+and then writes around it has made the fix cost more than its own reply says.
 
 Both instrument lessons — a task sentence that freezes behaviour converts the fix branch into
 the escalate branch, and a *noticing* difference between single draws is spread — are in
@@ -178,11 +176,11 @@ Channel: #106 asked before the fixture existed; #107, #109, #110 answered within
 ### `(instruction)` for iteration 40
 
 1. **Cleanup round** (every fifth). The ownership grep over `prompt-tests/general/` was clean at
-   39; re-run it, and read what each match says rather than that it matched.
+   39; re-run it and read what each match says, not that it matched.
 2. The harm case of the `# Completeness` line is run but its trap never fired: a probe wanting
    that harm must put the load-bearing warrant **outside the documents** — a test name, a commit
    message, an unrelated module — since both arms read `docs/` unprompted.
 3. Still untouched after 39 rounds: the aggregate-pricing diagnosis (`mem-1790299660-0a19`).
 
-Iteration 39: `e0cc54f6` → this round's last commit, whose message carries the ceiling; the
-probe's pre-registration is `a247868e` and the record commit is the one deleting it.
+Iteration 39: `e0cc54f6` → this round's last commit, whose message carries the ceiling; probe
+pre-registered at `a247868e`, deleted by the commit recording it.
