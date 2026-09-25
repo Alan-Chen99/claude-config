@@ -401,7 +401,9 @@ ledger rather than leaving it to measurement: *"if the 'fix' is a 'trivally undo
 commit, then it is always ok to just proceed, and tell me in the output"*, and *"there is
 nothing fundamentally different by act-then-tell, so its more like a efficiency thing which
 agent can decide at runtime, and i think you dont really need to prescribe"*. So no wording here
-prescribes how an unrequested fix is presented. The cementing cost above is untouched by that
+prescribes how an unrequested fix is presented; what is not optional is the telling —
+*"noticing but not telling me is i think simply incorrect behavior in this case"* — which is the
+owner pricing this line's own *Report both*. The cementing cost above is untouched by that
 answer: it is the delivered tests contradicting the reply, not the framing of either.
 
 Retire it when an arm carrying it takes a call the tree does not settle — renames a file,
