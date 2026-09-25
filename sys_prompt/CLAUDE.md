@@ -368,7 +368,8 @@ write reaches a choice already made.
 
 Retire it when an arm carrying it takes a call the tree does not settle — renames a file,
 changes a rule's semantics — or when an arm without it fixes a defect the carrying arm leaves
-named and undone.
+named and undone. `git checkout f75aceb6 -- prompt-tests/runs/partial-regeneration` restores the
+probe all three runs were made on, its pre-registrations included.
 
 ### The `pre_output.record` reminder, and why only one rule is left in it
 
