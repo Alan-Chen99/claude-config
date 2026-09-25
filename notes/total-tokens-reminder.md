@@ -8,7 +8,7 @@ that ships.
 
 > **Dated record.** The citations below are pinned to 2.1.269 and the
 > measurements to that build on one machine. Do not re-pin either; re-run the
-> experiment instead — the case is `prompt-tests/general/budget-read-depth`.
+> experiment instead — the case is `prompt-tests/harness/budget-read-depth`.
 
 ## The finding
 

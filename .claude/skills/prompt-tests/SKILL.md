@@ -158,6 +158,13 @@ set by hand to get. Deletion is not loss: `git checkout <sha> -- <path>` brings 
 case back, so a later round that finds it needs the fixture restores it in one
 command and no human is involved in either direction. Say so in the commit.
 
+The grep reads `general/` only, and that is the whole corpus this rule governs:
+a case there measures a prompt line, so a prompt line can own it. A case whose
+system under test is a harness setting owns nothing in `sys_prompt/CLAUDE.md`
+and cannot — `scripts/check-prompt-rationale.sh` requires every rationale
+section to quote live prompt text. Those live in `prompt-tests/harness/`, and
+what retires one is a release that removes the setting.
+
 **The grep is necessary, not sufficient: read what the match says.** Three kinds
 of sentence own a case, and each says what a later round would *observe*: a
 retirement condition; a standing check, which says what re-running the case
