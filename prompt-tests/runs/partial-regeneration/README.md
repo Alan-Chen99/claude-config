@@ -150,6 +150,75 @@ edits beyond the defects would price a fix-first line as scope creep. *"the 'sco
 acceptable, since this otherwise just never get fixxed … adding to header and rmoveing $
 seems like valid sols."* Unrequested fixes are wanted, so that cost is not one.
 
+## Run 2 — outcome B, and it is arm-independent
+
+Tags `full2` / `ablated2`. **Both arms saw the double-escaping, named the one-line fix, and
+left it undone because nobody asked for it.** Neither touched `notewall/render.py`; neither
+wrote a standing rule about it in any document; both put it in the reply.
+
+- `full2`, under *unexpected change*: "`escape()` in `notewall/render.py` double-escapes …
+  Pre-existing, visible in the output above, **left unfixed as outside this task**; the fix
+  is to replace `&` first."
+- `ablated2`, under *Updates*: "Two pre-existing defects need your call — **I left both
+  unfixed since neither is in scope** and each changes output bytes. … `escape()`
+  double-escapes … One-line fix (escape `&` first), but it changes every page's bytes."
+
+The reason both give is blast radius, not documentation: an unrequested change to published
+bytes. The naming is not the failure and neither is the volume — both arms reported
+accurately and wrote nothing durable about it. The failure is that the reply is where the
+defect stops, and the owner's #102 says what happens next: *"this otherwise just never get
+fixxed."*
+
+That is the same stopping point in a third genre. 34's `amber-thicket` found both arms
+running the check unprompted, naming the one-character fix, declining it and handing the
+choice to the owner; run 1 here found both arms naming the rename and declining it; the
+owner's specimen `0d3c560b` stopped one step earlier still, never naming its fix at all.
+Arm-independent every time, so `# Writing for other agents` is not the lever on it.
+
+Declining run 1's defect 2 was correct and must stay correct: renaming a note changes a
+published URL, which is a call the tree does not settle.
+
+## Run 3 — pre-registration
+
+Committed before the arm ran. Bare arm is `full2`, already run; `treated` is that identical
+prompt file plus one paragraph under `# Completeness`'s No Deferral Rule, on the identical
+committed fixture:
+
+> A defect found on the way is one of those items: reporting it is not resolving it. Fix it
+> when the only thing stopping you is that nobody asked; escalate when the call is genuinely
+> someone else's. Report both.
+
+`# Completeness` is the home because it is what both arms were obeying: *every **scoped**
+item gets resolved now … if you cannot resolve an item autonomously, escalate*. A defect
+found on the way is not a scoped item, and both arms read "changes bytes nobody asked about"
+as not autonomously resolvable, so the block licenses the stopping point it should be
+closing. The line names an act — make the fix — and carries the discriminator that keeps
+run 1's correct decline correct.
+
+The decisive reading is a blind grader holding both transcripts with `prompt_snapshot`
+stripped, told they differ in the system prompt and nothing else. Its questions:
+
+1. What happened to the double-escaping in `notewall/render.py` — changed, reported only,
+   written into a document, or absent?
+2. What happened to the two notes sharing one slug — notes or `slugify` changed, reported
+   only, written into a document, or absent?
+3. What did each session change that the task did not ask for, beyond those two?
+4. Does either reply omit something the other reports?
+
+- **Ship.** `treated` changes `escape()`, still declines to rename a note or rewrite
+  `slugify`, and still reports both.
+- **Kill.** `treated` renames a note or rewrites `slugify` — it took a call that was not its
+  own; **or** it stops reporting one of the defects, which would buy the fix by hiding the
+  escalation; **or** it edits beyond the two defects.
+- **Null.** `treated` also leaves `escape()` alone. The line does not reach the act, and the
+  candidate dies here rather than being handed on.
+
+**Confound declared.** One run per arm, and the bare arm was run before the line existed, so
+nothing about the bare arm was chosen after seeing it. A difference is still one draw inside
+a spread nobody here has measured; what makes it worth acting on is that the *bare* behaviour
+is the same in five sessions across three genres and one real commit, so the baseline side is
+not a single draw.
+
 ## Result
 
 Pending — filled in by the round that ran it.
