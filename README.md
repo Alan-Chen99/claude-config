@@ -77,19 +77,23 @@ context window is built from obeys the same rules.
 [`prompt-tests/`](prompt-tests/CLAUDE.md) is a runner-neutral corpus of cases —
 `task.md`, a grader-only `reference-solution.md`, fixtures — run against Claude
 Code by [`scripts/prompt-test-cc.sh`](scripts/prompt-test-cc.sh) or against
-opencode by [`scripts/prompt-test-run.sh`](scripts/prompt-test-run.sh). The
-recorded result is the trajectory, not the answer: a `session-analysis`
-evidence artifact under [`prompt-tests/runs/`](prompt-tests/runs/README.md),
-compared artifact-against-artifact between arms; `pass`/`fail` is never stamped
-on a run. Tested agents run from a fresh directory holding only fixture files,
-because harnesses auto-load nearby `CLAUDE.md` — and graders are contaminated
-by the same channel. One case shows the shape:
+opencode by [`scripts/prompt-test-run.sh`](scripts/prompt-test-run.sh). What a
+run is read for is the trajectory, not the answer: a `session-analysis`
+evidence artifact, compared artifact-against-artifact between arms;
+`pass`/`fail` is never stamped on a run. No run is kept —
+[`prompt-tests/runs/`](prompt-tests/runs/README.md) is scratch space the round
+that wrote a probe deletes, because what a later round inherits is a claim and
+the hypothesis beside it, not another run's artifacts. Tested agents run from a
+fresh directory holding only fixture files, because harnesses auto-load nearby
+`CLAUDE.md` — and graders are contaminated by the same channel. One case shows
+the shape:
 [`subagent-foreground-default`](prompt-tests/general/subagent-foreground-default/reference-solution.md)
 is graded mechanically — a per-record table of the `Agent` tool-use inputs,
 read with `jq` — because omission of `run_in_background` is the failure mode
-and a backgrounded call looks unremarkable in a transcript. With the old prompt bullet, 0 of 3 calls carried
-the parameter and all three backgrounded; with the rewritten one, 9 of 9 across
-three trials passed `false` and none did (2026-09-16, cc 2.1.269).
+and a backgrounded call looks unremarkable in a transcript. With the old prompt
+bullet, 0 of 3 calls carried the parameter and all three backgrounded; with the
+rewritten one, 9 of 9 across three trials passed `false` and none did
+(2026-09-16, cc 2.1.269).
 [`skills/prompt-engineer-v2/experiments.md`](skills/prompt-engineer-v2/experiments.md)
 states the measurement rules as negatives: no enforcement the agent would
 derive alone, none for a failure the agent cannot perceive, no targeting a pass
@@ -280,7 +284,7 @@ neutral harness for the other harness's prompt: its default subject is
 | [`agent-tools/`](agent-tools/) | Rust binary: the `run`/`ps` process wrapper and hooks, `cc-pretty`, `count-tokens`, `env-context`, launchers |
 | [`sys_prompt/`](sys_prompt/) | Replacement system prompts loaded by `scripts/claude.sh`, and the reasoning behind each line |
 | [`output-styles/`](output-styles/) | Output styles — the customisation surface that survives a background handoff |
-| [`prompt-tests/`](prompt-tests/) | Runner-neutral prompt evaluation cases and recorded runs |
+| [`prompt-tests/`](prompt-tests/) | Runner-neutral prompt evaluation cases; `runs/` is scratch, deleted with the round |
 | [`notes/`](notes/) | Investigation write-ups: measured evidence and root cause, one behaviour each |
 | [`docs/`](docs/) | Captured system prompts, harness anatomy, design specs and plans |
 | [`skills/`](skills/), [`agents/`](agents/), [`conventions/`](conventions/) | Skills, sub-agent definitions, documentation and code conventions — upstream's, extended |
