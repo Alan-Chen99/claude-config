@@ -212,9 +212,11 @@ every host the proxy sees, and it lives in `run-proxy.py` rather than in the add
 Client ──CONNECT──▶ mitmproxy (127.0.0.1:9160)
                       │
                       ├─ api.anthropic.com ─┐
-                      │                     ├─▶ MITM ──▶ relay each chunk
-                      ├─ api.kimi.ai ───────┘            onward, capture it,
-                      │                                  log at end
+                      │                     │
+                      ├─ api.kimi.ai ───────┼─▶ MITM ──▶ relay each chunk
+                      │                     │            onward, capture it,
+                      ├─ api.z.ai ──────────┘            log at end
+                      │
                       └─ other hosts ──────────────────▶ pass through
 ```
 
@@ -223,9 +225,10 @@ CONNECT tunnel. The addon filters for Anthropic-shaped API calls, resolves sessi
 streams and captures response bodies, parses the captured SSE, and writes log
 entries per-session.
 
-`TARGET_HOSTS` is the filter. It holds both the first-party API and
-`api.kimi.ai`, the Anthropic-compatible endpoint `scripts/kimi.sh` points
-`ANTHROPIC_BASE_URL` at, because a host outside the tuple is not an error
-anywhere — the flow passes through and that session simply leaves no request
-log. Traffic to either host is captured in the same format; the log carries the
-model id, so Kimi and first-party requests stay distinguishable.
+`TARGET_HOSTS` is the filter. It holds the first-party API and the two
+Anthropic-compatible endpoints this repo's sibling launchers point
+`ANTHROPIC_BASE_URL` at — `api.kimi.ai` for `scripts/kimi.sh`, `api.z.ai` for
+`scripts/zai.sh` — because a host outside the tuple is not an error anywhere:
+the flow passes through and that session simply leaves no request log. Traffic
+to any of them is captured in the same format; the log carries the model id, so
+Kimi, GLM and first-party requests stay distinguishable.

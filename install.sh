@@ -111,7 +111,7 @@ fi
 # installs its own copy redirects every session's `claude.sh` to that worktree's
 # scripts/claude.sh and sys_prompt/, and leaves a dangling symlink behind when the
 # worktree is deleted.
-for launcher in claude.sh kimi.sh; do
+for launcher in claude.sh kimi.sh zai.sh; do
     LAUNCHER_SRC="${REPO_DIR}/scripts/${launcher}"
     LAUNCHER_DST="${HOME}/.local/bin/${launcher}"
     if [ -f "$LAUNCHER_SRC" ]; then

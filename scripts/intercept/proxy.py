@@ -23,10 +23,10 @@ from pathlib import Path
 from threading import Lock
 
 # Every host a session's Anthropic-shaped traffic can go to: the first-party
-# API, and the Anthropic-compatible endpoint scripts/kimi.sh points
-# ANTHROPIC_BASE_URL at. A host missing here is not an error anywhere — the
-# flow passes through uncaptured and the session leaves no request log.
-TARGET_HOSTS = ("api.anthropic.com", "api.kimi.ai")
+# API, and the Anthropic-compatible endpoints scripts/kimi.sh and scripts/zai.sh
+# point ANTHROPIC_BASE_URL at. A host missing here is not an error anywhere —
+# the flow passes through uncaptured and the session leaves no request log.
+TARGET_HOSTS = ("api.anthropic.com", "api.kimi.ai", "api.z.ai")
 LOG_BASE = Path.home() / ".claude" / "requests-log"
 SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 SESSION_HEADER = "x-claude-code-session-id"
