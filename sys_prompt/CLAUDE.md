@@ -366,10 +366,44 @@ the escalated defect than the bare arm did. Hypothesis: *fix it* is an act the a
 picture and *needs no decision but yours* is a test it can apply, where a line about what to
 write reaches a choice already made.
 
+**Its harm case is run, and the line is not refuted by it.** A second genre put a construct in
+the code that reads as silent data loss — `list({row.id: row for row in rows}.values())` — and
+made it load-bearing, the source export repeating one row per page boundary. Both arms opened the
+export doc before touching anything, both then left the construct alone, and both said what their
+view rested on. So the harm this line was suspected of — changing something deliberate because it
+reads as a defect — is not reached where the warrant sits in a document the project already has:
+`# Doing tasks` sends every arm to the documentation first. A probe that wants that harm has to
+put the warrant somewhere the task gives no reason to look.
+
+**What it costs, measured: what the agent escalates, it also cements.** The same run's other
+anomaly was real — `--top 3` prints the three smallest where the README and the flag's own help
+say largest. The arm carrying the line caught it from reading the code, escalated it with the
+one-word fix named and both resolutions offered, and in the same delivery wrote two tests
+asserting smallest-first, so accepting the fix it recommends fails its own suite and nothing in
+its reply says so. The arm without the line never saw the defect, so its tests do not fight the
+fix. A blind reader holding both preferred the escalating tree on its reply and the other on its
+files, in those terms. Hypothesis: escalation settles the question for the rest of the session —
+having decided the call is someone else's, the agent treats the current behaviour as correct in
+everything else it writes, and a clause about what to report reaches none of that. This is the
+owner's *"i have one sensible option which is for this to get fixed"* from a second side, so it
+argues for the *fix* half rather than against the line.
+
+Two limits on that run. The **noticing** was one draw each and the blind reader read it as
+attention rather than instruction, naming two other places where the same arm was simply more
+careful; what is not a draw is that arm quoting the conflict in its own notes — the task's
+*existing flags keep working as they do now* against the fix-what-you-find guidance — and
+choosing to escalate. So a fixture for this line must carry no sentence that reads as freezing
+behaviour, or it measures the escalate branch whatever the arms do. And of 38's two costs, the
+narrower menu did **not** reproduce: the carrying arm named the one-word fix and both
+resolutions. The *unexpected change* framing did, but neither arm presented any change it
+actually made as declinable with a revert named, so that is this genre's baseline and not the
+line's cost.
+
 Retire it when an arm carrying it takes a call the tree does not settle — renames a file,
 changes a rule's semantics — or when an arm without it fixes a defect the carrying arm leaves
 named and undone. `git checkout f75aceb6 -- prompt-tests/runs/partial-regeneration` restores the
-probe all three runs were made on, its pre-registrations included.
+probe all three runs were made on, its pre-registrations included, and
+`git checkout a247868e -- prompt-tests/runs/spend-window` the probe the harm case ran on.
 
 ### The `pre_output.record` reminder, and why only one rule is left in it
 
