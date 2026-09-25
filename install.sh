@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Runnable from any working directory. Every path read or written below derives
+# from $REPO_DIR, never from $PWD. git's path output is where that breaks:
+# `rev-parse --git-common-dir` prints a path relative to the repository it was
+# asked about, so resolving one against $PWD describes whatever checkout happens
+# to sit there -- or nothing, and the script dies before it links anything.
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Every symlink below is absolute and lives outside the repo, so installing from
@@ -13,8 +18,11 @@ REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ "${ALLOW_WORKTREE_INSTALL:-}" != "1" ] \
    && command -v git >/dev/null 2>&1 \
    && git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
-    gd="$(git -C "$REPO_DIR" rev-parse --absolute-git-dir)"
-    gcd="$(cd "$(git -C "$REPO_DIR" rev-parse --git-common-dir)" && pwd)"
+    # --path-format=absolute on both queries: each answer is then independent of
+    # $PWD and normalized the same way, so this compares two paths from a single
+    # resolution of $REPO_DIR.
+    gd="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-dir)"
+    gcd="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir)"
     if [ "$gd" != "$gcd" ]; then
         echo "refusing to install from a worktree: $REPO_DIR" >&2
         echo "its links would point here and break when it is removed; run this" >&2
