@@ -545,6 +545,11 @@ the output style carrying `pre_output.record`. Wire three of the four and the
 session looks healthy while testing the installed checkout, so `claude.rs`
 wires all four from one place.
 
+What it deliberately does not wire is the MITM proxy. `scripts/claude.sh` binds
+`HTTPS_PROXY` when one is listening; `claude.rs` never does, so a session
+launched this way writes nothing under `~/.claude/requests-log/` and its API
+traffic is readable only from the transcript.
+
 Isolation runs through `CLAUDE_CONFIG_DIR`, pointed at
 `<root>/.claude/worktree-config/` (gitignored, so it dies with the worktree
 rather than orphaning under `~/.claude`). The alternative — layering this

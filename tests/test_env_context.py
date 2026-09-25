@@ -1441,6 +1441,17 @@ def _run_hook(payload: str, env_overrides: dict[str, str]) -> dict[str, object]:
     return json.loads(result.stdout)
 
 
+def _installed_claude() -> bool:
+    try:
+        drift.find_binary(os.environ)
+    except RuntimeError:
+        return False
+    return True
+
+
+# The no-NOTE assertion below holds only where the pinned manifest's binary is
+# installed; a runner without Claude Code would report the drift check failing.
+@pytest.mark.skipif(not _installed_claude(), reason="no installed Claude Code to drift-check against")
 def test_hook_emits_the_envelope(tmp_path: Path) -> None:
     payload = json.dumps(
         {

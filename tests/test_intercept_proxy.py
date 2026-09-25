@@ -51,6 +51,37 @@ def _delta(idx: int, delta: dict) -> dict:
     return {"type": "content_block_delta", "index": idx, "delta": delta}
 
 
+def _sse_no_space(*events: dict) -> str:
+    """SSE as the Kimi endpoint sends it: no space after `data:`."""
+    return "\n".join(f"data:{json.dumps(e)}" for e in events)
+
+
+def test_a_stream_without_the_space_after_data_is_still_reassembled() -> None:
+    """The space is optional per the SSE spec, and one provider omits it.
+
+    Requiring it skipped every line, and the all-defaults message that came out
+    was written to disk as if it were a real empty turn.
+    """
+    events = (
+        {"type": "message_start", "message": {"id": "msg_1", "model": "k3", "usage": {}}},
+        _start(0, {"type": "text", "text": ""}),
+        _delta(0, {"type": "text_delta", "text": "CAPTURED"}),
+        {"type": "message_delta", "delta": {"stop_reason": "end_turn"}},
+    )
+    msg = proxy.parse_sse_stream(_sse_no_space(*events))
+
+    assert msg["model"] == "k3"
+    assert msg["stop_reason"] == "end_turn"
+    assert msg["content"][0]["text"] == "CAPTURED"
+    assert msg == proxy.parse_sse_stream(_sse(*events))
+
+
+def test_a_stream_nothing_parsed_out_of_raises_instead_of_capturing_defaults() -> None:
+    """An all-defaults message on disk is indistinguishable from a real empty turn."""
+    with pytest.raises(ValueError):
+        proxy.parse_sse_stream("event:message_start\nsomething that is not SSE\n")
+
+
 def test_web_search_result_content_survives_reassembly() -> None:
     results = [
         {
@@ -112,6 +143,83 @@ def test_only_conversation_shaped_bodies_are_logged() -> None:
     """The capture filter is why every file on disk carries a messages array."""
     source = _PROXY.read_text()
     assert 'if not body.get("model") or not body.get("messages"):' in source
+
+
+def test_a_refusal_keeps_its_category_and_explanation() -> None:
+    """stop_details is the only record of *why* a call was refused."""
+    msg = proxy.parse_sse_stream(
+        _sse(
+            {
+                "type": "message_start",
+                "message": {
+                    "id": "msg_refused",
+                    "model": "claude-fable-5-1",
+                    "role": "assistant",
+                    "usage": {"input_tokens": 2},
+                },
+            },
+            _start(0, {"type": "thinking", "thinking": "", "signature": ""}),
+            _delta(0, {"type": "thinking_delta", "thinking": "partial"}),
+            {
+                "type": "message_delta",
+                "delta": {
+                    "stop_reason": "refusal",
+                    "stop_details": {
+                        "type": "refusal",
+                        "category": "reasoning_extraction",
+                        "explanation": "This request was blocked...",
+                    },
+                },
+                "usage": {"output_tokens": 16},
+            },
+        )
+    )
+    assert msg["stop_reason"] == "refusal"
+    assert msg["stop_details"]["category"] == "reasoning_extraction"
+    assert msg["stop_details"]["explanation"] == "This request was blocked..."
+
+
+def test_message_level_fields_the_parser_was_never_told_about_survive() -> None:
+    """The reassembly copies the message object; it does not pick from a list."""
+    msg = proxy.parse_sse_stream(
+        _sse(
+            {
+                "type": "message_start",
+                "message": {
+                    "id": "msg_new_shape",
+                    "model": "m",
+                    "role": "assistant",
+                    "type": "message",
+                    "container": {"id": "c-1"},
+                    "context_management": {"applied_edits": []},
+                    "a_field_from_a_later_release": 7,
+                    "usage": {"input_tokens": 1},
+                },
+            },
+            {"type": "message_delta", "delta": {"stop_sequence": "</done>"}, "usage": {}},
+        )
+    )
+    assert msg["container"] == {"id": "c-1"}
+    assert msg["context_management"] == {"applied_edits": []}
+    assert msg["a_field_from_a_later_release"] == 7
+    assert msg["stop_sequence"] == "</done>"
+    assert msg["content"] == []
+
+
+def test_an_api_error_body_is_kept_in_the_shape_an_in_stream_error_uses() -> None:
+    detail = proxy.error_detail(
+        json.dumps(
+            {"type": "error", "error": {"type": "rate_limit_error", "message": "slow down"}}
+        ).encode()
+    )
+    assert detail == {"type": "rate_limit_error", "message": "slow down"}
+
+
+def test_an_error_body_that_is_not_the_api_s_is_kept_as_capped_text() -> None:
+    assert proxy.error_detail(b"<html>502</html>") == {"body": "<html>502</html>"}
+    assert proxy.error_detail(None) == {}
+    long = proxy.error_detail(b"x" * (proxy.ERROR_BODY_MAX + 500))
+    assert len(long["body"]) == proxy.ERROR_BODY_MAX
 
 
 # --- Pass-through streaming ---
@@ -246,7 +354,7 @@ def _post_through_proxy(proxy_port: int, origin_port: int, session_id: str) -> l
     ).encode()
     request = (
         f"POST http://127.0.0.1:{origin_port}/v1/messages HTTP/1.1\r\n"
-        f"Host: {proxy.TARGET_HOST}\r\n"
+        f"Host: {proxy.TARGET_HOSTS[0]}\r\n"
         f"{proxy.SESSION_HEADER}: {session_id}\r\n"
         "Content-Type: application/json\r\n"
         f"Content-Length: {len(body)}\r\n"
@@ -301,3 +409,64 @@ def test_a_streamed_response_is_still_logged_in_full(sse_origin, proxy_process) 
     assert entry["response"]["content"] == [{"type": "text", "text": "first second"}]
     assert entry["response"]["stop_reason"] == "end_turn"
     assert entry["response"]["usage"] == {"input_tokens": 11, "output_tokens": 7}
+
+
+@pytest.fixture(scope="module")
+def error_origin() -> Iterator[int]:
+    """An origin that refuses every call the way the API refuses one."""
+    body = json.dumps(
+        {"type": "error", "error": {"type": "rate_limit_error", "message": "requires usage credits"}}
+    ).encode()
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(8)
+
+    def serve(conn: socket.socket) -> None:
+        buf = b""
+        while b"\r\n\r\n" not in buf:
+            received = conn.recv(65536)
+            if not received:
+                conn.close()
+                return
+            buf += received
+        conn.sendall(
+            b"HTTP/1.1 429 Too Many Requests\r\nContent-Type: application/json\r\n"
+            b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body
+        )
+        conn.close()
+
+    def accept_loop() -> None:
+        while True:
+            try:
+                conn, _ = listener.accept()
+            except OSError:
+                return
+            threading.Thread(target=serve, args=(conn,), daemon=True).start()
+
+    threading.Thread(target=accept_loop, daemon=True).start()
+    yield listener.getsockname()[1]
+    listener.close()
+
+
+def test_a_refused_call_is_logged_with_the_api_s_own_reason(error_origin, proxy_process) -> None:
+    """A status line alone names neither the limit hit nor the field rejected."""
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, error_origin, session_id)
+
+    log_file = home / ".claude" / "requests-log" / session_id / "0001.json"
+    deadline = time.monotonic() + 10
+    while not log_file.exists() and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert log_file.exists(), f"no capture written to {log_file}"
+
+    entry = json.loads(log_file.read_text())
+    assert "response" not in entry
+    assert entry["error"] == {
+        "status": 429,
+        "statusText": "Too Many Requests",
+        "type": "rate_limit_error",
+        "message": "requires usage credits",
+    }
+    assert entry["request"]["model"] == "claude-stream-test"

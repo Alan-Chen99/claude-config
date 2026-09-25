@@ -70,6 +70,9 @@ class Response(_Base):
     role: str = "assistant"
     content: list[dict[str, Any]] = []
     stop_reason: str | None = None
+    # Populated only when stop_reason is "refusal": type, category
+    # (e.g. "reasoning_extraction") and explanation. Null everywhere else.
+    stop_details: dict[str, Any] | None = None
     error: ResponseError | None = None
     usage: Usage | None = None
 
@@ -80,9 +83,15 @@ class TransportError(_Base):
     The proxy writes `error` instead of `response` when the call never produced
     a message — 401, 429, 529 and friends. The request half is a complete
     conversation, so these captures still render.
+
+    `type` and `message` carry the API's own account of the failure; `body`
+    holds an error body that was not in that shape, such as a gateway's HTML.
     """
     status: int = 0
     statusText: str = ""
+    type: str = ""
+    message: str = ""
+    body: str = ""
 
 
 class InterceptLog(_Base):
