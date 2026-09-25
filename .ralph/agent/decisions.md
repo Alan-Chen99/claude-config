@@ -49,13 +49,13 @@ started. **Revert**: `git revert e8589613` takes the README repairs with it.
 
 ## DEC-049 — one line ships under `# Completeness` (iter 38, conf 85)
 
-Claim, cost and retirement condition in `sys_prompt/CLAUDE.md`; three pre-registrations and the
-probe at `git checkout f75aceb6 -- prompt-tests/runs/partial-regeneration`. **Alternatives**: ship
+Claim, cost and retirement condition in `sys_prompt/CLAUDE.md`; probe and its three
+pre-registrations at `git checkout f75aceb6 -- prompt-tests/runs/partial-regeneration`. **Alternatives**: ship
 nothing and hand the baseline to 39, the deferral this round deleted from the contract; put the
 line in `# Writing for other agents`, where the ablation had just shown the block
 arm-independent on this failure. **Framing bias**: the round wrote the wording it measured —
 mitigated, not removed, by the fixture being built from `0d3c560b` and committed before the
 wording existed, and by the decisive reading being blind. **Independent evaluation**: done,
 blind, both transcripts; it declined to name a winner and named the trade, which the owner had
-already answered in #102 and #104. Its two unresolved costs are instruction 1 for 39.
+already answered in #102 and #104. Its two unresolved costs are 39's instruction 1.
 **Revert**: `git revert f75aceb6` and restore the `sys_prompt/CLAUDE.md` paragraph it replaced.

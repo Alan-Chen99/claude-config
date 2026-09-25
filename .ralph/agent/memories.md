@@ -2,6 +2,10 @@
 
 ## Patterns
 
+### mem-1790301452-7f2d
+> Editing a sentence is not checking it: a repair is scoped to the clause the change falsified, and the rest of the sentence is invisible even while being retyped. Measured arm-independent -- both arms rewrote the falsified half of a usage line and neither ran the form they left standing, which was already a usage error against the real parser.
+<!-- tags: docs-errors, writing-for-agents | created: 2026-09-25 -->
+
 ### mem-1790300415-fd60
 > A defect found outside the task reaches an explicit fork and the agent takes the reporting branch on SCOPE -- not on oversight, and not on any documentation rule. Both arms of iter38's ablation reasoned it in those words ('outside my current scope but worth flagging in notes rather than fixing'; 'should I fix it or just report it?'; 'touches every rendered page's output, so rather than bundling a fix into this change, I should flag it clearly'), then named the one-line fix in the reply and left the code alone. Arm-independent across the # Writing for other agents ablation, so nothing in that block reaches it; what licenses the stop is # Completeness, whose rule covers every SCOPED item and offers escalation as the out. The owner's specimen e828eab7 DID raise its defect -- headed paragraph, probe table, and a Required-notes line offering the revert -- so 'it never gets raised' (#102) is false for it; what is missing is that the one-line fix is never named as an option, so the only thing the human can act on is accept-or-revert a doc row. Their #104 closes it: 'to report to me it still have to do the work of understanding how it works. i have one sensible option which is for this to get fixed.' So reporting is saturated and the lever is the fix. Shipped at 38 under # Completeness; costs and retirement condition in sys_prompt/CLAUDE.md.
 <!-- tags: sys-prompt, docs-growth, writing-for-agents | created: 2026-09-25 -->
@@ -21,10 +25,6 @@
 ### mem-1790275989-2871
 > An agent asked to document a change writes ONE instance as a PROJECT-WIDE RULE, and the rule's scope is the half no observation constrained -- so the doc error lands in the generalisation while the volume barely moves. Measured at iter35 on three legs of one fixture: each added 2-5 binding sentences to the document the task named, and two of three generalisations were false against their own tree (a matching cadence asserted, and tested, to guarantee a matching run_date that is a pinned variable; a naming scheme the config violates). The leg that stayed on the instance shipped nothing false and a blind reader chose it to inherit. This is why every say-less wording that measured VOLUME found nothing: volume is not where the error is. sys_prompt/CLAUDE.md's **Force** paragraph already says scope is a claim, and has only ever addressed whoever edits the prompt.
 <!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-24 -->
-
-### mem-1790239111-9bed
-> Editing a sentence is not checking it. Both arms rewrote the half of 'Every command takes --store <path>, defaulting to ./sample-store.json' their change falsified, and neither ran the documented form, which is a usage error because --store sits on the top-level parser. Arm-independent. Why: a repair is scoped to the clause the change falsified, and the rest of the sentence it stands in is invisible even while being retyped.
-<!-- tags: docs-errors, writing-for-agents | created: 2026-09-24 -->
 
 ## Decisions
 

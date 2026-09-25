@@ -172,7 +172,8 @@ probe.
    38 rounds reaches it. Next candidate; it needs an instrument spanning sessions.
 3. 40 cleans up.
 
-Channel: #100, #102 and #104 each answered inside two minutes; #105 unanswered at close after
-ten, waiter left live. 39 reads the log first.
+Channel: #100, #102, #104 each answered inside two minutes; #105 unanswered ten minutes later
+at close, waiter live. 39 reads the log first.
 
-Iteration 38: `1f2ca9de` → the commit carrying this line; ceiling at close in its message.
+Iteration 38: `1f2ca9de` → this round's last commit, whose message carries the ceiling;
+`1630fddb` is the last commit of its substance.
