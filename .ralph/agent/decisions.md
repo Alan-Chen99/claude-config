@@ -1,16 +1,15 @@
 # Decision journal — writing-for-agents loop3
 
-Only decisions still open to re-argument live here, and only the half of each that
-`sys_prompt/CLAUDE.md` does not carry: what else was on the table, the framing bias,
-whether anyone independent has looked, and the revert. Everything discharged is in the
-commit messages.
+Only decisions still open to re-argument, and only the half `sys_prompt/CLAUDE.md` does not
+carry: what else was on the table, the framing bias, whether anyone independent looked, the
+revert. Everything discharged is in the commit messages.
 
 **Closed**: DEC-001–031, 035–036, 038–044, 046. Content in the commit messages and in
 `sys_prompt/CLAUDE.md`; none has an independent evaluation.
 
-**Standing framing bias on every entry below**: rounds 33–36 each wrote its fixture from the
-shape of the line it meant to test. The contract now requires the fixture to be built from a
-named occurrence instead; 38 is the first round under it.
+**Standing framing bias below**: rounds 33–36 each wrote its fixture from the shape of the line
+it meant to test. The contract now requires a named occurrence instead; 38 is the first round
+under it.
 
 ## DEC-032 / 033 / 034 / 037 — four shipped-or-deleted lines still open to re-argument
 
@@ -24,12 +23,12 @@ prompt.
 
 ## DEC-045 — the branch's edits do not reach any session here (iter 34, conf 95)
 
-`/repos/claude-config` is what `scripts/claude.sh` loads, and it still carries `Omit by
-default`, `Claim less` and the docs order; nothing measured in 37 rounds is live. Answered
-2026-09-25: *"i may choose to merge myself, but you shoudl not do that."* So a round's
-product remains an edit to `alan-default-next.md` that no session here runs — a fact every
-round states rather than a defect it repairs. It also means the owner's own specimen is
-evidence about the **deleted** say-less bullets, not about the shipped block. **Revert**: n/a.
+`scripts/claude.sh` loads `/repos/claude-config`, which still carries `Omit by default`, `Claim
+less` and the docs order; nothing measured in 38 rounds is live. Answered 2026-09-25: *"i may
+choose to merge myself, but you shoudl not do that."* So a round's product remains an edit no
+session here runs — a fact every round states rather than a defect it repairs — and the owner's
+specimen is evidence about the **deleted** say-less bullets, not the shipped block. **Revert**:
+n/a.
 
 ## DEC-047 — the scope wording is decided and not shipped (iter 36, conf 80)
 

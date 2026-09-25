@@ -9,7 +9,7 @@ decision.
 
 **The compression rule.** Cut in this order, stopping at the first load-bearing class: a
 **claim**, a **restatement** (two wordings, nothing saying which governs), a **duplicate of
-executable code**, a **trap** (keep). Deletion is the default.
+executable code**, a **trap** (keep). Deletion is default.
 
 **A line that names a consideration does not deliver the conclusion it argues for** — it makes
 the consideration salient and the agent argues it whichever way the task favours. **A wording is
@@ -20,8 +20,8 @@ of the sentence being written reaches nothing (36).
 constrained**, so the error lands in the generalisation while the volume barely moves — which is
 why every say-less wording measured volume and found nothing.
 
-**Scope decides whether an agent fixes a defect or writes it down**, and a fixture that makes
-the fix *the task* cannot see it. Measured and shipped at 38.
+**Scope decides whether an agent fixes a defect or writes it down**, and a fixture making the
+fix *the task* cannot see it. Shipped at 38.
 
 **Categorical or it is not evidence**; a count is a sample of an unmeasured spread. **A
 saturation reading on fixtures does not transfer to this repository's own documents** — 37
@@ -73,12 +73,15 @@ the target is the genre.
 > how the search was run and over how much text**, and only where it was run the same way over
 > both arms.
 
-> **A question to the owner is sent the moment it is formed, and the waiter's exit gates the
-> round's last commit, not only its event** — `skills/telegram-hitl`, one topic per loop, a
-> waiter under `run_in_background: true`, **keyed to activity in the topic, not to a reply
-> id**, and the log re-read after the round's own last send. 36 closed 33 seconds after an
-> instruction it never read; 37 closed 68 seconds after asking a question answered at 127.
-> Waiting is not this loop's limiting factor and the user has said so.
+> **A question is sent the moment it is formed, and the round holds its last commit for the
+> waiter's exit or ten minutes past its own last send, whichever comes first** —
+> `skills/telegram-hitl`, one topic per loop, a waiter under `run_in_background: true`, **keyed
+> to activity in the topic, not to a reply id**, the log re-read directly after the last send,
+> and the last commit saying whether the waiter is still live. 36 closed 33 seconds after an
+> instruction it never read; 37 closed 68 seconds after asking a question answered at 127. The
+> bound is 38's own correction: unbounded, it would have held a finished round 24 hours on a
+> question whose text said silence was an answer. An unbounded gate is not waiting, it is not
+> closing.
 
 > **The round ends under the `.ralph/agent/*` ceiling, with the number in its last commit
 > message.** Compress every earlier round to one paragraph *before* writing your own.
@@ -114,23 +117,20 @@ commit messages.
 
 **C1 (workflow).** 37 diagnosed 36 for closing 33 seconds after an instruction it never read,
 wrote the topic-keyed-waiter clause for it, then ended its own round 68 seconds after sending a
-question the owner answered at 127. #100 — *"you can decide that yourself … you dont need to ask
-me for decision for what-prompt-to-test"* — went untaken until this round, and it retires 37's
+question the owner answered at 127. #100 — the round decides the candidate itself, no
+need to ask which prompt to test — went untaken until this round, and it retires 37's
 instructions 1–2 for 38, which had pinned this round to a candidate the owner never asked for.
-The clause was written against the symptom (not reading) where the mechanism is not waiting.
-Fixed above: the waiter's exit gates the last commit.
+Its clause addressed the symptom where the mechanism is not waiting.
 
 **C2 (workflow).** 37's own C2 said the hand-forward clause must bind or go, then handed the
-same candidate forward a third time without the exact words the clause requires — leaving 38 to
-write the wording it would judge, the bias that decided 33–36. A clause whose three outings all
-produced a deferral is a deferral mechanism. Deleted above.
+same candidate forward a third time without the words the clause requires — leaving 38 to write
+the wording it would judge, the bias that decided 33–36. Deleted above.
 
 **C3 (fact).** 37 read the fixtures-versus-real-documents discrepancy as venue when a
 falsifiable reading was available: every fixture from 33 to 36 made the fix *the task*, and the
 specimen did not. Under it, 37's instruction to hunt for an occurrence outside fixtures pointed
-at a search whose answer was already committed here — `0d3c560b` is the instance — so the round
-would have spent itself looking for what it had. What was missing was a mechanism, not an
-occurrence.
+at a search whose answer was already committed here — `0d3c560b` — so the round would have spent
+itself looking for what it had. What was missing was a mechanism, not an occurrence.
 
 ### What this round did
 
@@ -154,22 +154,25 @@ have one sensible option which is for this to get fixed."*
 **Shipped**, under `# Completeness`'s No Deferral Rule, whose *escalate* clause was licensing
 the stop: *A defect found on the way is one of those items: reporting it is not resolving it.
 Fix it when the only thing stopping you is that nobody asked; escalate when the call is
-genuinely someone else's. Report both.* Run 3's treated arm fixed the cheap defect and pinned
-it with a test the existing suite could not have caught, left the other unrenamed and
-escalated, and reported both; a blind grader holding both transcripts volunteered *"This is
-the one defect the two sessions handle differently."* Its two costs are in
-`sys_prompt/CLAUDE.md` with the line. The probe is deleted; the retirement condition there
-names `f75aceb6` to restore it.
+genuinely someone else's. Report both.* Run 3's treated arm fixed the cheap defect and pinned it
+with a test the existing suite could not have caught, left the other unrenamed and escalated,
+and reported both; a blind grader holding both transcripts volunteered *"This is the one defect
+the two sessions handle differently."* Its two costs are with the line in
+`sys_prompt/CLAUDE.md`, whose retirement condition names `f75aceb6` to restore the deleted
+probe.
 
 ### `(instruction)` for iteration 39
 
-1. The treated side is one draw. Restore the probe and check the blind reader's two costs —
-   the treated arm filed its own fix under *unexpected change* rather than as a decision the
-   owner could decline, and offered a narrower menu on the escalated defect than the bare arm.
-   Whether that belongs to the new line or to `## Required notes` is unmeasured, and it is the
-   one thing that could still make the line worse than nothing.
+1. The treated side is one draw. Restore the probe and check the blind reader's two costs — the
+   treated arm filed its own fix under *unexpected change* rather than as a decision the owner
+   could decline, and offered a narrower menu on the escalated defect. Whether that belongs to
+   the new line or to `## Required notes` is unmeasured, and is the one thing that could still
+   make the line worse than nothing. #105 asks the owner which they want.
 2. The owner's aggregate-pricing diagnosis (memories, #91) is untouched and nothing measured in
    38 rounds reaches it. Next candidate; it needs an instrument spanning sessions.
-3. 40 is the cleanup round.
+3. 40 cleans up.
+
+Channel: #100, #102 and #104 each answered inside two minutes; #105 unanswered at close after
+ten, waiter left live. 39 reads the log first.
 
 Iteration 38: `1f2ca9de` → the commit carrying this line; ceiling at close in its message.
