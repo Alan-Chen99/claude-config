@@ -92,6 +92,52 @@ limit" — a category error. It was never a statement about a limit. It is a
 per-turn task budget, re-anchored on each regular user prompt, and 15M is the
 value that makes it say nothing.
 
+## The `countdown` mode is the "real" option, and it is not the number to stay under
+
+`countdown` emits `vp(model, sdkBetas) - MB(messages)`: the model's real context
+window minus the conversation's current size. `vp` is the window resolver
+(`src/chunk-5cs6j3p3.js:15217`) — an `Ez()` override first, else the 1M-beta
+window `I1`, else `Sz()`. So `countdown` is genuinely remaining context, where
+`padded-countdown` is a per-turn task budget.
+
+Three arms, same case, 2026-09-25:
+
+| Real window | Marker first → last | Tool calls | Paced? | Outcome |
+| --- | --- | --- | --- | --- |
+| 1,000,000 (1M beta) | 1,000,000 → 966,773 | 8 | no — no match for `/token|budget|limited|econom/i` in any thinking block | cause |
+| 100,000 | 100,000 → 74,771 | 6 | yes — *"a big file with limited tokens left"* | cause |
+| 40,000 | 40,000 → 24,784 | 2 | yes — *"way too large to read in full given my token budget"* | **refused: `Prompt is too long`** |
+
+**On a 1M-context model, `countdown` is exactly as inert as 15M.** The true
+number is itself astronomical against a task that wants ~41k, so it changes
+nothing — same tool count, same answer, and not one mention of capacity. The
+marker only starts to bite once the window is small enough that the remainder is
+a small multiple of the task's appetite; at 84,758 left the model already called
+it "limited".
+
+**The number counts toward a zero the session cannot reach.** The 40,000 arm was
+refused with `Prompt is too long` while the last figure the model had seen read
+**24,784 tokens left**. The refusal is client-side: only three requests were ever
+sent (`~/.claude/requests-log/ef9e0bfa-…/`, last one `stop_reason: tool_use`),
+the fourth never left, and the proxy logged no error. Context at refusal was
+~30.5k of the 40,000 window (~76%). The exact threshold is not established here.
+What is established: every Opus request carries `max_tokens: 64000`, and
+`countdown` does not subtract it, so the reported remainder overstates what is
+actually spendable.
+
+**Shrinking the real window requires disabling compaction**, because `Ez()` reads
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS` only when `DISABLE_COMPACT` is set. That makes a
+small-window arm a poor instrument for endgame behaviour twice over: compaction
+is the mechanism a real long session would use at that point, and a single-turn
+`-p` run has nothing to compact anyway — the designed handling says so in as many
+words (`src/chunk-dbb93264.js:92683-92685`, "A single-exchange conversation
+cannot be compacted").
+
+One point in `countdown`'s favour over a fixed low `padded-countdown` budget: a
+subagent's number is its own real remaining, which is large in a fresh context.
+The measured pathology above — a delegate inheriting the parent's 22k and
+repeating its error — is specific to a fixed budget, not to `countdown`.
+
 ## What this does not establish
 
 - n is 1–2 per arm. The three unconstrained arms are separated by nothing; the
