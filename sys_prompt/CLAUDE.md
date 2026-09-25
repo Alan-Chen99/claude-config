@@ -306,31 +306,19 @@ That looked like the predicted harm; a blind reader contradicted it, finding tha
 the template uniformly was also the one that filed a bare preference *as* a preference where the
 arm without it stated it flat with no warrant. Retire it when an arm carrying it names no more
 exits than one without, on `prompt-tests/general/retirement-policy`.
-It is untested against the owner's own specimen rather than refuted, and one probe did not
-change that: on `amber-thicket` neither an arm carrying it nor an arm without it wrote a
-standing rule about the exposure at all, so there was nothing for it to decline. The leg
-running the fork the specimen itself ran was the only one of three to amend a nested
-`CLAUDE.md`, and the only one that never checked the exposure — a blind reader told nothing
-called that sampling noise at one run per leg, and this file takes its word.
+Against the owner's own specimen it is now tested and not refuted: the whole block was
+ablated on a fixture built from that commit's shape, and on both of the fixture's defects the
+arms did the same thing, so the block is not what decides a defect found outside the task.
+See `# Completeness` below for what does.
 
-**Two wordings that tell the agent to act rather than record are decided, and neither ships.**
-*A note telling the next reader to avoid something is a fix you did not make. Make the fix
-instead* ran against a bare arm on two fixtures: a `%` written into a `configparser` file with
-`%%` named in the exception and `interpolation=None` one argument away, and a fix reachable only
-inside a vendored directory a script replaces wholesale. Both arms took the argument on the
-first and neither touched the vendored directory on the second, and the bullet's arm wrote one
-more standing sentence than the bare arm, not fewer. *Finding out costs less than the rule you
-would write instead* was never written: on a third fixture, where a latent exposure fires only
-under a mode nobody runs yet and one command settles whether it is live, both arms ran that
-command unprompted, named the one-character fix, declined to bundle it into a directory the
-repo puts under review, and handed the choice to the owner in the reply. Hypothesis: checking
-or removing an exposure you have just tripped over is a coding decision, and `# Error
-Propagation`, `# Completeness` and `# Epistemic Integrity` already own it; a note is reached
-only where neither the fix nor the check is available, and no fixture here reaches that. Ship a
-wording here when an arm without it preserves an exposure it could have checked or removed and
-writes a standing rule instead — `git checkout d530b4ed -- prompt-tests/runs/slate-harbor`,
-`... bronze-kettle` and `git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket` restore the
-three probes.
+**Two wordings that tell the agent to act rather than record were decided and not shipped**
+— *A note telling the next reader to avoid something is a fix you did not make* and *finding
+out costs less than the rule you would write instead*, both saturated on three fixtures that
+made the fix or the check part of the task, so the arms took it either way.
+`git checkout d530b4ed -- prompt-tests/runs/slate-harbor`, `... bronze-kettle` and
+`git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket` restore those three probes. What
+separates the owner's specimen from all three is that the fix was left undone with the task
+finished, and nothing in this block reaches that: see `### # Completeness` below.
 
 **Scope is decided, and no wording ships.** *A rule's scope is a claim. Wording one wider
 than you checked asserts the cases you did not look at — narrow it to those you did, or check
@@ -350,6 +338,37 @@ saturated where the note contradicts a rule the change just falsified. Ship a wo
 an arm carrying it states no claim its own tree refutes where a bare arm does —
 `git checkout 4cb01c30 -- prompt-tests/runs/pewter-dial`.
 
+
+### `# Completeness`: a defect found on the way
+
+**`A defect found on the way is one of those items: reporting it is not resolving it. Fix it
+when the only thing stopping you is that nobody asked; escalate when the call is genuinely
+someone else's. Report both.`** A defect the agent trips over is not a *scoped* item, so the
+No Deferral Rule above it does not cover one, and its *escalate to the user* clause licenses
+stopping at the report. Both arms of an ablation stopped exactly there and said why in their
+own reasoning — *"outside my current scope but worth flagging in notes rather than fixing"*,
+*"should I fix it or just report it?"*, *"touches every rendered page's output, so rather than
+bundling a fix into this change, I should flag it clearly"* — each naming the one-line fix in
+the reply and leaving the code alone. The owner's specimen stopped a step earlier still, never
+naming its fix at all. So reporting is saturated and is not the lever; the fix is. The owner
+settled the trade no measurement here can: *"the 'scope creep' is acceptable, since this
+otherwise just never get fixxed"*, and *"suppose it just report to me only. then what i do
+with that? and to report to me it still have to do the work of understanding how it works. i
+have one sensible option which is for this to get fixed."*
+
+What it buys: the arm carrying it made the one-line fix and pinned it with a test the existing
+suite could not have caught, while leaving the fixture's other defect — two filenames the
+build cannot both honour — unrenamed and escalated, which is the call the tree does not
+settle. What it costs, from the blind reader: that arm reached into shared rendering while
+nominally adding a flag, so every page's bytes changed; it filed that under *unexpected
+change* rather than as a decision the owner could decline; and it offered a narrower menu on
+the escalated defect than the bare arm did. Hypothesis: *fix it* is an act the agent can
+picture and *needs no decision but yours* is a test it can apply, where a line about what to
+write reaches a choice already made.
+
+Retire it when an arm carrying it takes a call the tree does not settle — renames a file,
+changes a rule's semantics — or when an arm without it fixes a defect the carrying arm leaves
+named and undone.
 
 ### The `pre_output.record` reminder, and why only one rule is left in it
 

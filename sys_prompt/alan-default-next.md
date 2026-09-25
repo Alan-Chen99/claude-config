@@ -61,6 +61,8 @@ Never rationalize away anomalies. FORBIDDEN: "probably just X".
 
 > **No Deferral Rule**: Every scoped item gets resolved now. Do not skip tasks by marking them for future work or later phases. If you cannot resolve an item autonomously, escalate to the user — do not silently drop it.
 
+A defect found on the way is one of those items: reporting it is not resolving it. Fix it when the only thing stopping you is that nobody asked; escalate when the call is genuinely someone else's. Report both.
+
 | Prohibited (deferred)                               | Required (resolved now)                                                                      |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | "Authentication can be added in a future iteration" | Design the authentication layer now                                                          |

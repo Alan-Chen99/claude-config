@@ -1,7 +1,8 @@
 # partial-regeneration — probe
 
-Ablation of the shipped `# Writing for other agents` block against the owner's
-own growth specimen, `0d3c560b`.
+Three runs. An ablation of the shipped `# Writing for other agents` block against the
+owner's own growth specimen `0d3c560b`, and then one line shipped under `# Completeness`,
+measured against the ablation's own bare arm.
 
 ## What is asked
 
@@ -219,11 +220,42 @@ a spread nobody here has measured; what makes it worth acting on is that the *ba
 is the same in five sessions across three genres and one real commit, so the baseline side is
 not a single draw.
 
-## Result
+## Run 3 — the ship condition, met on every axis
 
-Pending — filled in by the round that ran it.
+Tag `treated`, against `full2` as the bare arm. The blind grader held both transcripts with
+`prompt_snapshot` dropped, labelled A and B by a coin, and was told only that they differ in
+the system prompt. Neither transcript contains any phrase from the added paragraph, checked
+by grep before staging, so the reader had nothing to read the arm off.
+
+Its answer, unprompted on the point that decides this: **"This is the one defect the two
+sessions handle differently."** On the escaping, `treated` reordered `escape()` with a
+why-comment and pinned it with `test_escape_does_not_double_escape_angle_brackets`, which the
+pre-existing `test_escape_ampersand` could not have caught; the bare arm left the file
+byte-identical and reported the fix in its reply. On the collision the grader found them the
+same: *"same diagnosis, same escalation, same refusal to rename, and the same deliberate
+breaking change to the full build's exit code."* Both note filenames and `notewall/slug.py`
+are byte-identical to the fixture in both arms, and both replies ask the owner to choose.
+
+So: ship met — `escape()` changed, no call taken that the tree does not settle, both defects
+still reported. No kill criterion fired: `treated` renamed nothing, rewrote no rule, and
+hid no escalation.
+
+The costs are the grader's, not the round's, and they are real. `treated` "reached into
+shared rendering while nominally adding a flag", so every page's bytes changed; it filed that
+under *unexpected change* rather than as a decision the owner could decline; and it offered a
+narrower menu on the escalated defect than the bare arm, which added *"say the word if you'd
+rather have a warning with exit 0."* It also changed `build()`'s signature for testability
+where the bare arm reached the same isolation with a `monkeypatch`, and it ran 4m01s against
+the bare arm's 2m22s. The grader declined to name a winner and said the choice is "how much
+you trust an agent to edit shared rendering unasked" — which the owner answered in the same
+hour, twice, in #102 and #104.
+
+**Baseline strength.** One run per arm, so the treated side is a single draw. The bare side is
+not: the same stopping point appears in `full2`, `ablated2`, both arms of run 1 on the other
+defect, 34's `amber-thicket`, and the owner's real commit `0d3c560b` — five sessions across
+three genres plus one commit, with the block present in some and absent in others.
 
 ## What deletes this directory
 
-The round that ran it, in the commit recording what it concluded. Restore with
-`git checkout <sha> -- prompt-tests/runs/partial-regeneration`.
+The round that ran it, in the commit recording what it concluded — the next one. The
+retirement condition in `sys_prompt/CLAUDE.md` names the restore sha.

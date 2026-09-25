@@ -2,12 +2,20 @@
 
 ## Patterns
 
+### mem-1790299646-ea9b
+> An agent that trips over a defect outside its task reaches an explicit fork and takes the reporting branch on SCOPE, not on oversight or on any documentation rule. Both arms of iter38 run 2 reasoned it in those words -- 'That's outside my current scope but worth flagging in notes rather than fixing'; 'should I fix it or just report it?'; 'out of scope for the --only feature and touches every rendered page's output, so rather than bundling a fix into this change, I should flag it clearly to the user' -- then named the one-line fix in the reply and left the code alone. Arm-independent across the # Writing for other agents ablation, so no wording in that block reaches it. The blast-radius half of the reason ('changes bytes nobody asked about') is what # Completeness licenses: its rule covers every SCOPED item and offers escalation as the out. The owner's #102 closes the loop: 'the scope creep is acceptable, since this otherwise just never get fixxed.' So the reply is where such a defect dies, and reporting is already saturated -- the lever is the fix, not the note.
+<!-- tags: sys-prompt, docs-growth, writing-for-agents | created: 2026-09-25 -->
+
+### mem-1790299418-0a88
+> What a compression rule cuts first is the qualifying clause, and the qualifying clause is what made the claim true. Measured twice on one say-less wording: the treated arm wrote a third to a seventh of the bare arm's unfalsified prose and in BOTH draws shipped exactly one sentence false against its own delivered code, where the bare arm shipped none. Read every treated tree for claims false against its own code before crediting a volume win.
+<!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-25 -->
+
+### mem-1790299401-5843
+> A null has three causes, not two, and they license different conclusions. (1) The fixture made the answer the stated one. (2) The agent GOES AND SETTLES the premise -- starts a database, runs a probe -- so a marking line has nothing to buy even in principle. (3) The behaviour was never triggered: no arm was in a position to exhibit it. Cause 3 looks exactly like saturation in the artifacts and is only visible in the transcript -- iter38 run 1 read two arms as agreeing about a defect neither had ever seen, because verification there was file identity and mtime and no rendered page's bytes were ever on screen. Check which cause you have by reading the transcript for the trigger, not the artifact.
+<!-- tags: prompt-tests, test-design | created: 2026-09-25 -->
+
 ### mem-1790275989-2871
 > An agent asked to document a change writes ONE instance as a PROJECT-WIDE RULE, and the rule's scope is the half no observation constrained -- so the doc error lands in the generalisation while the volume barely moves. Measured at iter35 on three legs of one fixture: each added 2-5 binding sentences to the document the task named, and two of three generalisations were false against their own tree (a matching cadence asserted, and tested, to guarantee a matching run_date that is a pinned variable; a naming scheme the config violates). The leg that stayed on the instance shipped nothing false and a blind reader chose it to inherit. This is why every say-less wording that measured VOLUME found nothing: volume is not where the error is. sys_prompt/CLAUDE.md's **Force** paragraph already says scope is a claim, and has only ever addressed whoever edits the prompt.
-<!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-24 -->
-
-### mem-1790530000-3f52
-> A say-less wording buys volume and pays in scope qualifiers. Measured twice, two fixtures, one wording (*a change owes documentation only where it made a document false; what it could newly explain, it does not owe*): the treated arm wrote a third to a seventh of the bare arm's unfalsified prose, and in BOTH draws shipped exactly one sentence false against its own delivered code where the bare arm shipped none -- a cost claim missing the "write" qualifier, and a failure mode claimed to cover a case the code leaves invisible. Why: what a compression rule cuts first is the qualifying clause, and a qualifying clause is what made the claim true. Read every treated tree for claims false against its own code before crediting a volume win.
 <!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-24 -->
 
 ### mem-1790442000-31ac
@@ -18,23 +26,19 @@
 > Editing a sentence is not checking it. Both arms rewrote the half of 'Every command takes --store <path>, defaulting to ./sample-store.json' their change falsified, and neither ran the documented form, which is a usage error because --store sits on the top-level parser. Arm-independent. Why: a repair is scoped to the clause the change falsified, and the rest of the sentence it stands in is invisible even while being retyped.
 <!-- tags: docs-errors, writing-for-agents | created: 2026-09-24 -->
 
-### mem-1790070627-b0f9
-> A saturated baseline has two very different causes and they license different conclusions. Cause one: the fixture made the answer the stated one. Cause two -- the agent GOES AND SETTLES the premise: it starts a database to find out whether the SQL it is describing behaves as claimed, rather than asserting it. Under cause two a marking line has nothing to buy even in principle, because running the test discharges the premise better than any marking does. Check which cause you have by reading the transcript, not the artifact: the artifact looks the same either way.
-<!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
-
-### mem-1790300000-9a44
-> The owner's own account of the growth mechanism, 2026-09-25, asked whether their specimen's inventory row should be more general or merely shorter: a shorter form ("check arg substitution including $blah") "works too", the detailed form "saves investigation speed when update next runs, or as it seems", BUT "if every session says 'adding this will save a little bit of time', thats how you get unbounded doc growth that ends up costing a lot more tokens". So the driver is not a bad judgement in any one session -- each addition is locally justified by a small expected saving, and nothing prices the aggregate. Any candidate aimed at growth has to reach that pricing, not the local judgement. Also settled: the loop must NOT merge this branch -- "i may choose to merge myself, but you shoudl not do that."
-<!-- tags: sys-prompt, docs-growth, owner | created: 2026-09-25 -->
-
 ## Decisions
 
 ## Fixes
 
 ## Context
 
-### mem-1790276015-082f
-> The owner's own diagnosis of why unwanted documentation gets written, from their specimen e828eab7 (channel #78/#81): the additions 'dont make sense' -- they 'dont belong', 'does not actually solve the problem', and 'introduced new problems that have no solution (who will actually solve the problem?)'; 'the calibration is poor ... not incorrect but fairly expensive to cleanup, and likely will only be cleaned if i ordered one. my guess is that its added becuase "it looks like it only helps". and a reserach is actuall MUCH CHEAPER but was considered more expensive here'. Their four sensible alternatives: find a flag; remove the $1 from the helper; note it in the skill header where the invoker reads it; put the general gotcha in the root index. So the lever is never volume. 'It looks like it only helps' is priced by the shipped 'Say what ends it'; 'research is cheaper' was measured saturated at 35, both legs checking unprompted.
-<!-- tags: sys-prompt, docs-growth | created: 2026-09-24 -->
+### mem-1790299660-0a19
+> The owner's own diagnosis of unwanted documentation, from their specimen e828eab7 (#78/#81/#91). The additions 'dont make sense' -- they 'dont belong', 'does not actually solve the problem', and 'introduced new problems that have no solution (who will actually solve the problem?)'; 'the calibration is poor ... not incorrect but fairly expensive to cleanup, and likely will only be cleaned if i ordered one. my guess is that its added becuase "it looks like it only helps", and a reserach is actuall MUCH CHEAPER but was considered more expensive here'. Their four alternatives: find a flag; remove the $1 from the helper; note it in the skill header where the invoker reads it; put the general gotcha in the root index. On the mechanism (#91): a shorter row 'works too', the detailed one 'saves investigation speed when update next runs' -- BUT 'if every session says "adding this will save a little bit of time", thats how you get unbounded doc growth that ends up costing a lot more tokens'. So the driver is not a bad judgement in any one session; each addition is locally justified by a small expected saving and nothing prices the aggregate. Any candidate aimed at growth has to reach that pricing, not the local judgement. Also settled: the loop must NOT merge this branch -- 'i may choose to merge myself, but you shoudl not do that.'
+<!-- tags: sys-prompt, docs-growth, owner | created: 2026-09-25 -->
+
+### mem-1790299407-7a24
+> The owner's growth specimen DID raise its out-of-task defect to them, so 'it never gets raised' (their #102) is false for e828eab7: the final response carries a headed paragraph, the whole probe table, and a Required-notes line offering the revert ('revert the row if you disagree with it being inventory-grade'). What is missing is narrower -- the one-line fix, dropping the $1 from the ocr() helper, is never named as an option anywhere in that response, so the note is presented as the resolution and the only thing the human can act on is accept-or-revert a doc row. Iter38's probe found the same stopping point arm-independently on a decision-needing defect: both arms documented it, raised it, named the fix, and declined to take it. Hypothesis: an agent treats a defect outside its task as a reporting obligation rather than a repair opportunity, so the repair never enters the set of options it offers. The surfacing channel is not the lever; what the agent puts in that channel is.
+<!-- tags: sys-prompt, docs-growth, owner | created: 2026-09-25 -->
 
 ### mem-1790273746-2aa1
 > A specimen session on this machine did NOT run this branch's prompt. /repos/claude-config -- the installed checkout every ordinary session loads via claude.sh -- still carries the pre-round-11 '# Writing for other agents' block (Omit by default / Claim less) and the docs order at :15; writing-for-agents2 has never been merged, so 28 rounds of edits reach only the prompt-test harness. Verified by pulling the prompt_snapshot attachments out of e828eab7's own JSONL and grepping them. Consequence: the owner's specimen is evidence about the DELETED say-less bullets (one was in the prompt while the session wrote four durable additions anyway), not about the live block -- 'Say what ends it' and the self-consequence bullet were both absent from it. Before treating any real session here as evidence about a prompt line, grep that session's prompt_snapshot for the line.
