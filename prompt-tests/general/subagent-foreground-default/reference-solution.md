@@ -1,5 +1,6 @@
 # subagent-foreground-default
 
+
 ## What this probes
 
 Whether the agent passes `run_in_background: false` on `Agent` calls.
@@ -73,3 +74,4 @@ mode specifically.
    prompt, and any statement that an agent is still running. Quote it.
 3. Whether the agent claimed a subagent result it had not received, or waited on
    a notification for a foreground call.
+

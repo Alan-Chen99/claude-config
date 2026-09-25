@@ -4,7 +4,12 @@
 #
 #   scripts/prompt-test-cc.sh <case> <tag> [prompt-file]
 #
-# <case>        directory name under prompt-tests/general/
+# <case>        a bare name, resolved under prompt-tests/general/; or a path
+#               containing a slash, used as the case directory as given. The
+#               path form is what a probe uses: a probe's fixture and task live
+#               beside the README that states what deletes them, under
+#               prompt-tests/runs/<probe>/, and a probe that leaves nothing in
+#               the permanent case corpus needs no later round to remember it.
 # <tag>         label for the output log, e.g. full / stripped / baseline
 # [prompt-file] defaults to sys_prompt/alan-default-next.md
 #
@@ -23,8 +28,16 @@ CASE="${1:?usage: prompt-test-cc.sh <case> <tag> [prompt-file]}"
 TAG="${2:?usage: prompt-test-cc.sh <case> <tag> [prompt-file]}"
 PROMPT_FILE="${3:-$REPO/sys_prompt/alan-default-next.md}"
 
-CASE_DIR="$REPO/prompt-tests/general/$CASE"
+case "$CASE" in
+  */*) CASE_DIR="$CASE" ;;
+  *)   CASE_DIR="$REPO/prompt-tests/general/$CASE" ;;
+esac
 test -d "$CASE_DIR" || { echo "no such case: $CASE_DIR" >&2; exit 1; }
+CASE_DIR="$(cd "$CASE_DIR" && pwd)"
+# Both the log filename and the child's own /proc/<pid>/cmdline carry this, and
+# a probe directory sits several segments deep, so it is flattened to its last
+# segment rather than spelled as a path.
+CASE_LABEL="$(basename "$CASE_DIR")"
 test -f "$PROMPT_FILE" || { echo "no such prompt file: $PROMPT_FILE" >&2; exit 1; }
 PROMPT_FILE="$(readlink -f "$PROMPT_FILE")"
 
@@ -52,8 +65,20 @@ test -x "$AT" || { echo "build the worktree binary first: (cd $REPO/agent-tools 
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-SCRATCH="$(mktemp -d "/tmp/ptcc-${CASE}-${TAG}.XXXXXX")"
-OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
+# The scratch cwd carries no case or tag name. The tested agent sees its own
+# cwd -- in Claude Code's environment block, in its scratchpad path, and in
+# every shell prompt -- so a directory named for what the case measures tells
+# the agent what is being measured. Case names here describe the behaviour
+# under test (halve-the-runbook, retirement-policy), which is the right name
+# for a reader and the wrong one for the subject. Measured 2026-09-22: a case
+# directory named for its question had the phrase back in both arms' delivered
+# artifacts. The mapping from this directory to the case is printed below.
+#
+# The prefix decodes to nothing. It was `ptcc` until 2026-09-22 -- no case name
+# in it, but it abbreviates this script, and the rule bans anything in the cwd
+# that names the harness, not just anything that names the case.
+SCRATCH="$(mktemp -d "/tmp/wk.XXXXXXXX")"
+OUT="$OUT_DIR/${CASE_LABEL}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"
 
@@ -63,10 +88,17 @@ OUT="$OUT_DIR/${CASE}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 # what it leaves on disk. A failing setup fails the run.
 [ -f "$CASE_DIR/setup.sh" ] && ( cd "$SCRATCH" && bash "$CASE_DIR/setup.sh" )
 
-# Plugin defaults for prompt tests are "none loaded" (prompt-tests/CLAUDE.md).
+# Plugin defaults for prompt tests are "none loaded".
 # A --settings file carrying only enabledPlugins adds no hook of its own, so the
 # checkout's hooks stay registered exactly once.
-SETTINGS="$SCRATCH/.prompt-test-settings.json"
+#
+# It lives outside the scratch cwd. A tested agent lists its own working
+# directory, and a file there whose name contains "prompt-test" tells it what it
+# is inside -- observed 2026-09-22, a run reporting the file by name as
+# irrelevant harness config. The scratch directory is kept neutral for the same
+# reason its name is.
+SETTINGS="$(mktemp "/tmp/cfg.XXXXXXXX.json")"
+trap 'rm -f "$SETTINGS"' EXIT
 python3 - "$REPO/settings.json" "$SETTINGS" <<'PY'
 import json, sys
 src, dst = sys.argv[1], sys.argv[2]
@@ -111,7 +143,7 @@ sed -n '/^{/,$p' "$OUT.raw" > "$OUT"
 SID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("session_id",""))' "$OUT")"
 TRANSCRIPT="$(find "$REPO/.claude/worktree-config/projects" -name "$SID.jsonl" 2>/dev/null | head -1)"
 
-echo "case:       $CASE"
+echo "case:       $CASE_DIR"
 echo "tag:        $TAG"
 echo "prompt:     $PROMPT_FILE"
 echo "result:     $OUT"

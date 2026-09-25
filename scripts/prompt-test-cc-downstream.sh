@@ -21,7 +21,11 @@ CASE="${1:?usage: prompt-test-cc-downstream.sh <case> <artifact-file> <tag>}"
 ARTIFACT="${2:?usage: prompt-test-cc-downstream.sh <case> <artifact-file> <tag>}"
 TAG="${3:?usage: prompt-test-cc-downstream.sh <case> <artifact-file> <tag>}"
 
-CASE_DIR="$REPO/prompt-tests/general/$CASE"
+case "$CASE" in
+  */*) CASE_DIR="$CASE" ;;
+  *)   CASE_DIR="$REPO/prompt-tests/general/$CASE" ;;
+esac
+CASE_LABEL="$(basename "$CASE")"
 DOWNSTREAM="$CASE_DIR/downstream.md"
 test -f "$DOWNSTREAM" || { echo "no downstream.md for case: $CASE_DIR" >&2; exit 1; }
 test -f "$ARTIFACT" || { echo "no such artifact file: $ARTIFACT" >&2; exit 1; }
@@ -33,10 +37,11 @@ test -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" || { echo "CLAUDE_CODE_OAUTH_TOKEN unset 
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-SCRATCH="$(mktemp -d "/tmp/ptcc-down-${CASE}-${TAG}.XXXXXX")"
+# Neutral name: see prompt-test-cc.sh for why the cwd carries no case name.
+SCRATCH="$(mktemp -d "/tmp/wkd.XXXXXXXX")"
 CFG="$SCRATCH/.cfg"
 mkdir -p "$CFG"
-OUT="$OUT_DIR/${CASE}-downstream-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
+OUT="$OUT_DIR/${CASE_LABEL}-downstream-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 
 PROMPT="$SCRATCH/prompt.md"
 python3 - "$DOWNSTREAM" "$ARTIFACT" "$PROMPT" <<'PY'

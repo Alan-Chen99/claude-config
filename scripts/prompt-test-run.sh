@@ -3,7 +3,8 @@
 #
 #   scripts/prompt-test-run.sh <case> <tag> [prompt-file]
 #
-# <case>        directory name under prompt-tests/general/
+# <case>        a bare name under prompt-tests/general/, or a path with a slash
+#               used as given (how a probe under prompt-tests/runs/ is named)
 # <tag>         label for the output log, e.g. red / green / baseline
 # [prompt-file] defaults to sys_prompt/alan-default-next.md
 #
@@ -22,7 +23,11 @@ CASE="${1:?usage: prompt-test-run.sh <case> <tag> [prompt-file]}"
 TAG="${2:?usage: prompt-test-run.sh <case> <tag> [prompt-file]}"
 PROMPT_FILE="${3:-$REPO/sys_prompt/alan-default-next.md}"
 
-CASE_DIR="$REPO/prompt-tests/general/$CASE"
+case "$CASE" in
+  */*) CASE_DIR="$CASE" ;;
+  *)   CASE_DIR="$REPO/prompt-tests/general/$CASE" ;;
+esac
+CASE_LABEL="$(basename "$CASE")"
 test -d "$CASE_DIR" || { echo "no such case: $CASE_DIR" >&2; exit 1; }
 test -f "$PROMPT_FILE" || { echo "no such prompt file: $PROMPT_FILE" >&2; exit 1; }
 
@@ -35,8 +40,12 @@ head -1 "$PROMPT_FILE" | grep -qx -- '---' && {
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-SCRATCH="$(mktemp -d "/tmp/prompt-test-${CASE}.XXXXXX")"
-OUT="$OUT_DIR/${CASE}-${TAG}.jsonl"
+# Neutral name: see prompt-test-cc.sh for why the cwd carries no case name. It
+# carries no category name either -- an agent whose environment block reads
+# /tmp/ptcc.ab12cd34 knows it is being measured without any case name
+# being involved.
+SCRATCH="$(mktemp -d "/tmp/wk.XXXXXXXX")"
+OUT="$OUT_DIR/${CASE_LABEL}-${TAG}.jsonl"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"
 
@@ -48,7 +57,7 @@ OPENCODE_CONFIG_CONTENT='{
   "$schema": "https://opencode.ai/config.json",
   "plugin": [],
   "agent": {
-    "prompt-test": {
+    "dev": {
       "mode": "primary",
       "model": "'"${PROMPT_TEST_MODEL:-openrouter/anthropic/claude-opus-5}"'",
       "prompt": "{file:'"$PROMPT_FILE"'}",
@@ -56,7 +65,7 @@ OPENCODE_CONFIG_CONTENT='{
     }
   }
 }' \
-  opencode run --agent prompt-test --format json --dir "$SCRATCH" \
+  opencode run --agent dev --format json --dir "$SCRATCH" \
     < "$CASE_DIR/task.md" > "$OUT"
 
 echo "log:     $OUT"

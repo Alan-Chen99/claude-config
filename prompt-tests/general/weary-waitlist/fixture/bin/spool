@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+'use strict';
+const fs = require('fs');
+
+const USAGE = `usage: spool [--file PATH] [--state NAME]
+
+  --file PATH   read this queue file instead of queue.jsonl
+  --state NAME  report only jobs whose state is NAME
+  --help        print this message
+`;
+
+function parseArgs(argv) {
+  const opts = { file: 'queue.jsonl', state: null };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--help') {
+      process.stdout.write(USAGE);
+      process.exit(0);
+    } else if (a === '--file') {
+      opts.file = argv[++i];
+    } else if (a === '--state') {
+      opts.state = argv[++i];
+    } else {
+      process.stderr.write(USAGE);
+      process.exit(2);
+    }
+  }
+  return opts;
+}
+
+function load(file) {
+  return fs
+    .readFileSync(file, 'utf8')
+    .split('\n')
+    .filter((l) => l.trim() !== '')
+    .map((l) => JSON.parse(l));
+}
+
+function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  const jobs = load(opts.file);
+  const shown = opts.state === null ? jobs : jobs.filter((j) => j.state === opts.state);
+  for (const j of shown) {
+    process.stdout.write(`${j.id}\t${j.state}\t${j.attempts}\n`);
+  }
+  const failed = jobs.filter((j) => j.state === 'failed').length;
+  process.stdout.write(`${shown.length} shown, ${failed} failed\n`);
+  process.exit(failed === 0 ? 0 : 1);
+}
+
+main();

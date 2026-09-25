@@ -20,7 +20,11 @@ SCRATCH="${3:?missing scratch-dir — prompt-test-cc.sh prints it as 'scratch:'}
 TAG="${4:?missing tag}"
 PROMPT_FILE="${5:-$REPO/sys_prompt/alan-default-next.md}"
 
-CASE_DIR="$REPO/prompt-tests/general/$CASE"
+case "$CASE" in
+  */*) CASE_DIR="$CASE" ;;
+  *)   CASE_DIR="$REPO/prompt-tests/general/$CASE" ;;
+esac
+CASE_LABEL="$(basename "$CASE")"
 LEG2="$CASE_DIR/leg2.md"
 test -f "$LEG2" || { echo "no leg2.md for case: $CASE_DIR" >&2; exit 1; }
 test -d "$SCRATCH" || { echo "scratch dir is gone: $SCRATCH" >&2; exit 1; }
@@ -40,24 +44,32 @@ test -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" || { echo "CLAUDE_CODE_OAUTH_TOKEN unset 
 AT="$REPO/agent-tools/target/release/agent-tools"
 test -x "$AT" || { echo "build the worktree binary first: (cd $REPO/agent-tools && cargo build --release)" >&2; exit 1; }
 
-# The settings file prompt-test-cc.sh wrote is still in the scratch dir; reuse it
-# so plugin state matches leg 1 exactly.
-SETTINGS="$SCRATCH/.prompt-test-settings.json"
-test -f "$SETTINGS" || { echo "no $SETTINGS — was this scratch dir written by prompt-test-cc.sh?" >&2; exit 1; }
+# Rebuilt rather than reused: leg 1's settings file is written outside the
+# scratch cwd and removed when that run exits, because a file named for the
+# harness inside the agent's own working directory tells it what it is inside.
+# Both legs derive it from the same source, so plugin state still matches.
+SETTINGS="$(mktemp "/tmp/cfg.XXXXXXXX.json")"
+trap 'rm -f "$SETTINGS"' EXIT
+python3 - "$REPO/settings.json" "$SETTINGS" <<'PY_SETTINGS'
+import json, sys
+src, dst = sys.argv[1], sys.argv[2]
+plugins = json.load(open(src)).get("enabledPlugins", {})
+json.dump({"enabledPlugins": {k: False for k in plugins}}, open(dst, "w"))
+PY_SETTINGS
 
 OUT_DIR="${PROMPT_TEST_OUT_DIR:-/tmp/prompt-test-logs}"
 mkdir -p "$OUT_DIR"
-OUT="$OUT_DIR/${CASE}-${TAG}-leg2.json"
+OUT="$OUT_DIR/${CASE_LABEL}-${TAG}-leg2.json"
 
 # Leg 2 edits leg 1's artifact in place, so leg 1's is gone the moment this runs
 # and the pair cannot be scored. Snapshot first.
-SNAP="$OUT_DIR/${CASE}-${TAG}-leg1-artifacts"
+SNAP="$OUT_DIR/${CASE_LABEL}-${TAG}-leg1-artifacts"
 if [ -d "$SNAP" ]; then
   echo "leg-1 snapshot already exists, refusing to overwrite: $SNAP" >&2
   exit 1
 fi
 mkdir -p "$SNAP"
-find "$SCRATCH" -maxdepth 1 -type f ! -name '.prompt-test-settings.json' -exec cp -a {} "$SNAP/" \;
+find "$SCRATCH" -maxdepth 1 -type f -exec cp -a {} "$SNAP/" \;
 echo "leg-1 snapshot: $SNAP"
 
 # Since cc 2.1.267 a resume replays the system prompt recorded on the first

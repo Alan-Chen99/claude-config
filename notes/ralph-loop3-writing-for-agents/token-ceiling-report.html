@@ -1,0 +1,671 @@
+<title>The 6000-Token Ceiling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --ground:      #f4f4f1;
+    --surface:     #fcfcfb;
+    --surface-2:   #efefea;
+    --ink:         #16181a;
+    --ink-2:       #53575b;
+    --ink-3:       #7c8086;
+    --rule:        #dddcd5;
+    --rule-strong: #c3c2ba;
+    --accent:      #2a78d6;
+    --accent-soft: #e6eef9;
+    --breach:      #d03b3b;
+    --breach-soft: #fae9e9;
+    --good:        #0ca30c;
+    --s1:          #2a78d6;
+    --s2:          #eb6834;
+    --s3:          #1baf7a;
+    --shadow:      0 1px 2px rgba(20,22,24,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground:      #131413;
+      --surface:     #1a1a19;
+      --surface-2:   #232320;
+      --ink:         #f1f1ec;
+      --ink-2:       #aeafa7;
+      --ink-3:       #83847d;
+      --rule:        #303029;
+      --rule-strong: #43433b;
+      --accent:      #3987e5;
+      --accent-soft: #17293d;
+      --breach:      #e45f5f;
+      --breach-soft: #331c1c;
+      --good:        #3cbf3c;
+      --s1:          #3987e5;
+      --s2:          #d95926;
+      --s3:          #199e70;
+      --shadow:      0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:      #131413;
+    --surface:     #1a1a19;
+    --surface-2:   #232320;
+    --ink:         #f1f1ec;
+    --ink-2:       #aeafa7;
+    --ink-3:       #83847d;
+    --rule:        #303029;
+    --rule-strong: #43433b;
+    --accent:      #3987e5;
+    --accent-soft: #17293d;
+    --breach:      #e45f5f;
+    --breach-soft: #331c1c;
+    --good:        #3cbf3c;
+    --s1:          #3987e5;
+    --s2:          #d95926;
+    --s3:          #199e70;
+    --shadow:      0 1px 2px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding-inline: 20px;
+    padding-block: 0 72px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .prose { max-width: 68ch; }
+
+  h1, h2, h3, .eyebrow, .tile-v, .chip, th, .mono, code, .num {
+    font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  }
+  .mono, code, .num, .tile-v, .chip, .axis, .tt {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 14px;
+  }
+  header.masthead { padding-block: 56px 0; border-bottom: 1px solid var(--rule); padding-bottom: 36px; }
+  h1 {
+    font-size: clamp(34px, 6vw, 54px); font-weight: 700; letter-spacing: -.022em;
+    line-height: 1.02; margin: 0 0 20px; text-wrap: balance;
+  }
+  .standfirst { font-size: 20px; line-height: 1.55; color: var(--ink-2); margin: 0; max-width: 62ch; }
+  .rulebox {
+    margin: 28px 0 0; padding: 14px 16px; background: var(--surface); border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent); box-shadow: var(--shadow);
+    font-family: "IBM Plex Mono", monospace; font-size: 13.5px; line-height: 1.65; color: var(--ink);
+    overflow-x: auto;
+  }
+  .rulebox .src { display: block; color: var(--ink-3); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 7px; }
+
+  h2 {
+    font-size: 13px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 22px; padding-bottom: 10px; border-bottom: 1px solid var(--rule);
+  }
+  section { padding-block: 48px 0; }
+  h3 { font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 10px; text-wrap: balance; }
+  p { margin: 0 0 18px; }
+  a { color: var(--accent); }
+  code {
+    font-size: .88em; background: var(--surface-2); padding: 1px 5px;
+    border-radius: 2px; color: var(--ink);
+  }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .tile { background: var(--surface); padding: 20px 18px 18px; display: flex; flex-direction: column; gap: 6px; }
+  .tile-k { font-family: "Archivo", sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .tile-v { font-size: 30px; font-weight: 600; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .tile-n { font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+  .tile.up .tile-v { color: var(--breach); }
+  .tile.flat .tile-v { color: var(--accent); }
+
+  /* figures */
+  figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); box-shadow: var(--shadow); }
+  .fig-head { padding: 18px 20px 0; }
+  .fig-title { font-family: "Archivo", sans-serif; font-weight: 600; font-size: 16px; letter-spacing: -.005em; margin: 0 0 4px; }
+  .fig-sub { font-size: 14px; color: var(--ink-2); margin: 0; max-width: 72ch; }
+  .plot { position: relative; padding: 8px 12px 4px; }
+  .plot svg { display: block; width: 100%; height: auto; overflow: visible; }
+  figcaption {
+    border-top: 1px solid var(--rule); padding: 12px 20px; font-size: 13px; color: var(--ink-2);
+    font-family: "IBM Plex Mono", monospace; line-height: 1.6;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 20px 0; font-size: 13px; color: var(--ink-2); font-family: "IBM Plex Mono", monospace; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+  .tt {
+    position: absolute; pointer-events: none; opacity: 0; transition: opacity .1s;
+    background: var(--ink); color: var(--ground); font-size: 12px; line-height: 1.45;
+    padding: 7px 9px; border-radius: 3px; max-width: 280px; z-index: 5;
+  }
+  .tt b { font-weight: 600; }
+
+  /* ledger */
+  .ledger { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .item { background: var(--surface); display: grid; grid-template-columns: 74px 1fr; gap: 0 18px; padding: 20px; }
+  .chip {
+    font-size: 12px; font-weight: 600; letter-spacing: .04em; align-self: start;
+    padding: 4px 0 0; color: var(--ink-3);
+  }
+  .item.pos .chip { color: var(--good); }
+  .item.neg .chip { color: var(--breach); }
+  .item h3 { margin-bottom: 8px; }
+  .item p { margin: 0 0 12px; font-size: 16.5px; }
+  .item p:last-child { margin-bottom: 0; }
+  .ev {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.65;
+    color: var(--ink-2); background: var(--surface-2); padding: 10px 12px;
+    border-left: 2px solid var(--rule-strong); overflow-x: auto;
+  }
+  .ev b { color: var(--ink); font-weight: 600; }
+
+  /* table */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  td { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  td.wide { white-space: normal; font-family: "Source Serif 4", serif; font-size: 15px; color: var(--ink-2); }
+  tr:last-child td { border-bottom: 0; }
+  td.over { color: var(--breach); font-weight: 600; }
+  td.under { color: var(--ink); }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .pair > div { background: var(--surface); padding: 22px; }
+  .pair h3 { font-size: 17px; }
+  .pair p { font-size: 16px; margin-bottom: 0; }
+
+  ol.recs { counter-reset: r; list-style: none; padding: 0; margin: 0; display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  ol.recs li { background: var(--surface); padding: 18px 20px 18px 62px; position: relative; font-size: 16.5px; }
+  ol.recs li::before {
+    counter-increment: r; content: counter(r);
+    position: absolute; left: 20px; top: 18px;
+    font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600;
+    color: var(--accent); background: var(--accent-soft); width: 26px; height: 26px;
+    display: grid; place-items: center; border-radius: 3px;
+  }
+
+  footer {
+    margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--rule);
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.75; color: var(--ink-3);
+  }
+  footer b { color: var(--ink-2); font-weight: 600; }
+
+  @media (max-width: 860px) {
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .pair { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    body { font-size: 16px; padding-inline: 16px; }
+    .tiles { grid-template-columns: 1fr; }
+    .item { grid-template-columns: 1fr; gap: 6px; }
+    .chip { padding-top: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Impact analysis &#183; ralph loop 3 &#183; rounds 12&#8211;21 &#183; 4 h 19 m</p>
+  <h1>The 6000-Token Ceiling</h1>
+  <p class="standfirst">One line in <code>PROMPT.md</code> caps the loop's own memory. Over ten iterations it held the notes flat to within 49 tokens &#8212; while a neighbouring file with no cap took on 1,234, some of it verbatim from what the cap deleted.</p>
+  <div class="rulebox">
+    <span class="src">PROMPT.md &#183; # Rules</span>
+    <code>.ralph/agent/*</code> &#8804; 6000 tokens by <code>agent-tools count-tokens</code>. relocation is growth. Cut before add.
+  </div>
+</header>
+
+<section>
+  <h2>What the ten rounds did to the number</h2>
+  <div class="tiles">
+    <div class="tile flat">
+      <span class="tile-k">Net change</span>
+      <span class="tile-v">+49</span>
+      <span class="tile-n">tokens across ten rounds, 5894 &#8594; 5943. The cap held.</span>
+    </div>
+    <div class="tile">
+      <span class="tile-k">Lines cut</span>
+      <span class="tile-v">1,552</span>
+      <span class="tile-n">against 1,548 written. Ten rounds of one-for-one exchange inside the directory.</span>
+    </div>
+    <div class="tile up">
+      <span class="tile-k">Rounds ending over</span>
+      <span class="tile-v">5 / 10</span>
+      <span class="tile-n">measured by the rule's literal glob. Nobody noticed until round 19.</span>
+    </div>
+    <div class="tile up">
+      <span class="tile-k">Uncapped neighbour</span>
+      <span class="tile-v">+26%</span>
+      <span class="tile-n"><code>prompt-tests/SKILL.md</code>, 4663 &#8594; 5897 tokens, absorbing deleted memories verbatim.</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <figure>
+    <div class="fig-head">
+      <p class="fig-title">Every committed state of <code>.ralph/agent/*</code>, rounds 1&#8211;21</p>
+      <p class="fig-sub">One point per commit that touched the directory, in order. The ceiling stops being a limit around round 6 and becomes the operating point: the line rides it, breaches it, and is cut back, round after round.</p>
+    </div>
+    <div class="plot" id="plot1"><div class="tt" id="tt1"></div></div>
+    <figcaption>Shaded span = the ten-iteration run under analysis (rounds 12&#8211;21). Red points sit above 6000. Source: <b>git show &lt;sha&gt;:.ralph/agent/&lt;f&gt; | agent-tools count-tokens</b>, summed over the five files, at all 60 commits.</figcaption>
+  </figure>
+</section>
+
+<section class="prose">
+  <h2>The short verdict</h2>
+  <p>The rule works as a <em>size</em> control and fails as a <em>growth</em> control. Inside the directory it names, it is close to perfect: ten rounds of an agent that writes constantly ended 49 tokens heavier than they started, and the notes stayed legible. It bought that by making every round delete something, which turned out to be the only recurring review of carried state the loop had.</p>
+  <p>Outside the directory it names, the material did not stop existing. It moved. The clause meant to prevent that &#8212; <code>relocation is growth</code> &#8212; never fired: across the ten sessions, not one reasoning block applies it to a decision, while the skill file that received the displaced content grew by a quarter. And for eight of the ten rounds the loop was measuring itself with a narrower glob than the rule states, so half the rounds closed over the ceiling believing they were under it.</p>
+</section>
+
+<section>
+  <h2>What it bought</h2>
+  <div class="ledger">
+
+    <div class="item pos">
+      <span class="chip">P1</span>
+      <div>
+        <h3>Flat notes under constant writing pressure</h3>
+        <p>Each round drafts a critique, a milestone rationale, a result, decisions and memories. Git records 1,548 lines written into the directory over the run and 1,552 removed &#8212; the exchange the rule asks for, sustained for ten rounds, ending 49 tokens heavier than it started.</p>
+        <div class="ev">gross churn, <b>0f32e2ef..0ccb29b9</b>: scratchpad <b>+1037 &#8722;1026</b> &#183; decisions <b>+408 &#8722;397</b> &#183; memories <b>+98 &#8722;110</b> &#183; summary <b>+1 &#8722;15</b><br>in-round token peaks over each round's start: <b>+715</b> (12) <b>+536</b> (13) <b>+289</b> (14) <b>+409</b> (15) <b>+660</b> (16) <b>+329</b> (17) <b>+634</b> (19) <b>+603</b> (20) <b>+756</b> (21) &#8212; about 4,930 tokens, a lower bound, since several rounds cut before they first measured.</div>
+      </div>
+    </div>
+
+    <div class="item pos">
+      <span class="chip">P2</span>
+      <div>
+        <h3>It produced a reusable compression method</h3>
+        <p>The loop's most transferable output is a cut-order it wrote for itself, and it exists because something had to be deleted every round. It is the part of the scratchpad every later round kept.</p>
+        <div class="ev">scratchpad.md &#183; "Durable method": cut in this order, stopping at the first class that is load-bearing &#8212; a <b>claim</b> (only claims can be wrong), a <b>restatement</b>, a <b>duplicate of executable code</b> (replace with its name), a <b>trap</b> (keep). Deletion is the default; each <i>keep</i> needs the argument.</div>
+      </div>
+    </div>
+
+    <div class="item pos">
+      <span class="chip">P3</span>
+      <div>
+        <h3>The forced re-read caught stale and false claims</h3>
+        <p>Deleting requires reading, and reading the carried state against the round's new findings surfaced defects nothing else in the loop was checking for. Round 20 deleted two memories not as redundant but as <em>contradicted by that round's own measurement</em>, and said so in its report. Round 12, sweeping under budget pressure, found a memory citing a prompt-test case that had already been deleted, and rewrote it to drop the dead name.</p>
+        <div class="ev">iter20 required-notes: "<b>unexpected change</b>: six memories deleted rather than kept &#8212; two are contradicted by this round's measurement, not merely superseded."</div>
+      </div>
+    </div>
+
+    <div class="item pos">
+      <span class="chip">P4</span>
+      <div>
+        <h3>The pattern propagated to a file nobody capped</h3>
+        <p>This is the result that speaks to the objective's own question &#8212; whether growth can be bounded without a human prescribing a number. Having lived under one, the loop wrote its own for the file it cared about, with no instruction to, and that file shrank.</p>
+        <div class="ev">self-imposed <b>(contract)</b>: "A round that ships no prompt edit may not add a paragraph to <code>sys_prompt/CLAUDE.md</code>; it may replace one, and the replacement is shorter than what it replaced."<br>result: <b>7417 &#8594; 7227 tokens</b> (&#8722;2.6%) across the run. The system prompt itself: <b>4261 &#8594; 4189</b>.</div>
+      </div>
+    </div>
+
+    <div class="item pos">
+      <span class="chip">P5</span>
+      <div>
+        <h3>The audit number ended up somewhere immutable</h3>
+        <p>Round 19 discovered that a token count written inside the counted files invalidates itself, and moved the figure to the commit message. Every round since closes with a dated, unrewritable statement of its own size &#8212; a better artifact than the in-file number ever was.</p>
+        <div class="ev">iter19 commit <b>cf8f2dac</b>: "Stating the token count inside .ralph/agent/ changes the count it states; the number goes in the round's last commit message instead. &#8230; = 5995, under the user's 6000."</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <figure>
+    <div class="fig-head">
+      <p class="fig-title">Where the tokens went instead</p>
+      <p class="fig-sub">Three files across the run, indexed to their round-11 size. The capped directory is flat. The justification file, which the loop capped itself, fell. The skill file, which nothing capped, took on a quarter again its size &#8212; including, verbatim, rules deleted from <code>memories.md</code> to fit under the ceiling.</p>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--s1)"></i>.ralph/agent/* (capped: 6000)</span>
+      <span><i class="sw" style="background:var(--s2)"></i>prompt-tests/SKILL.md (uncapped)</span>
+      <span><i class="sw" style="background:var(--s3)"></i>sys_prompt/CLAUDE.md (self-capped)</span>
+    </div>
+    <div class="plot" id="plot2"><div class="tt" id="tt2"></div></div>
+    <figcaption>Index, round 11 end = 100. Absolute end values: <b>.ralph 5943</b> &#183; <b>SKILL.md 5897</b> &#183; <b>CLAUDE.md 7227</b>.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>What it cost</h2>
+  <div class="ledger">
+
+    <div class="item neg">
+      <span class="chip">N1</span>
+      <div>
+        <h3>Eight rounds measured something narrower than the rule</h3>
+        <p>The rule names a tool, not a command, so each round invented one. Most used <code>.ralph/agent/*.md</code>, which silently drops <code>tasks.jsonl</code> &#8212; 193 to 505 tokens, 3&#8211;8% of the ceiling. Five of the ten rounds therefore closed above 6000 while reporting compliance. Round 19 was the first to run the literal glob, re-measured its predecessor's end state, and found the gap.</p>
+        <div class="ev">iter18 self-reported <b>5754</b>. iter19 re-measured the same commit at <b>6122</b>.<br>end-of-round totals, literal glob: 12 <b>5834</b> &#183; 13 <b>6156</b> &#183; 14 <b>6159</b> &#183; 15 <b>6071</b> &#183; 16 <b>5926</b> &#183; 17 <b>6118</b> &#183; 18 <b>6122</b> &#183; 19 <b>5995</b> &#183; 20 <b>5550</b> &#183; 21 <b>5943</b><br>iter19 critique: "a hard user budget unmeasured and breached for two rounds &#8230; a rule with no command is what let two rounds miss it."</div>
+      </div>
+    </div>
+
+    <div class="item neg">
+      <span class="chip">N2</span>
+      <div>
+        <h3>The measurement is inside the thing measured</h3>
+        <p>Recording the count, the commit range, or the ceiling rule itself changes the count. Round 19 spent six trimming passes on this: it committed at 5988, updated the heading with the commit hash it had just created, and was back at 6010. The fix &#8212; rewriting the contract line to say the number belongs in the commit message &#8212; was itself longer than the line it replaced and pushed the total to 6015, after which three unrelated paragraphs had to be cut to pay for it.</p>
+        <div class="ev">iter19 trace: <b>6122 &#8594; 6756 &#8594; 6248 &#8594; 6040 &#8594; 5988 &#8594; 6010 &#8594; 6015 &#8594; 6002 &#8594; 6003 &#8594; 5995</b>. One pass intended as a cut ran one token long; the session noted "That actually lengthened it."</div>
+      </div>
+    </div>
+
+    <div class="item neg">
+      <span class="chip">N3</span>
+      <div>
+        <h3>"Relocation is growth" never once fired</h3>
+        <p>The clause exists to stop the obvious evasion, and across all ten sessions it appears only where the harness pastes the rule in. No reasoning block applies it. Meanwhile the evasion it names is the loop's standard move: the most common stated reason for a deletion is that the content "already lives in the skill" or "already lives in <code>sys_prompt/CLAUDE.md</code>". Three such deletions can be matched to their arrival in the skill file, word for word.</p>
+        <div class="ev">deleted from <code>memories.md</code> under the cap &#8594; added to <code>.claude/skills/prompt-tests/SKILL.md</code>:<br>&#183; the staged-diff leak fix &#8594; "<b>--label before/&lt;f&gt; --label after/&lt;f&gt;</b>"<br>&#183; the probe-naming fix &#8594; "directory <b>sharing a word with its own fixture</b> is found by the ordinary search&#8230;"<br>&#183; the probe-deletion rule &#8594; "<b>A probe's directory is deleted by the round that wrote it</b>"<br>SKILL.md over the run: <b>4663 &#8594; 5897</b> tokens (+1234).</div>
+      </div>
+    </div>
+
+    <div class="item neg">
+      <span class="chip">N4</span>
+      <div>
+        <h3>Roughly half the budget is spent on files the next round never sees</h3>
+        <p>Only <code>scratchpad.md</code> is injected into the next iteration's prompt; <code>memories.md</code> is <code>inject: manual</code> and <code>decisions.md</code> is never injected by the harness at all. So the cap on the handoff channel is effectively 2,746 of a nominal 6,000, while the rest is taxed as archive. The two files the agent does not even author are taxed too &#8212; and the ceiling's last 56 tokens were spent, after the final round, by the harness summarizer writing a stale <code>summary.md</code> that says "<em>No scratchpad found.</em>"</p>
+        <div class="ev">current split: scratchpad <b>2746</b> (46%) &#183; memories <b>1639</b> (27%) &#183; decisions <b>1349</b> (22%) &#183; tasks <b>185</b> &#183; summary <b>80</b><br>working tree now: <b>5999 / 6000</b>. One token of headroom, consumed by a file no agent wrote.</div>
+      </div>
+    </div>
+
+    <div class="item neg">
+      <span class="chip">N5</span>
+      <div>
+        <h3>End-of-round trimming becomes word-level, at exactly the wrong moment</h3>
+        <p>The housekeeping block sits last, next to the handoff the round is writing for its successor &#8212; so the cap binds hardest on the text whose quality matters most. Round 14 ran roughly fifteen measure-and-edit cycles, the last of them removing single words to cross the threshold. Across the run, 9&#8211;33 tool calls per round are budget work.</p>
+        <div class="ev">iter14 tail: <b>6035 &#8594; 6011 &#8594; 6004 &#8594; 6002 &#8594; 6000 &#8594; 5966</b> ("after 1 word dropped", "after 1 more word dropped").<br>budget-related tool calls: 33 (12) &#183; 20 (13) &#183; 28 (14) &#183; 12 (15) &#183; 13 (16) &#183; 17 (17) &#183; 9 (20) &#183; 9 (21).</div>
+      </div>
+    </div>
+
+    <div class="item neg">
+      <span class="chip">N6</span>
+      <div>
+        <h3>Compression by line number, over a semantic contract</h3>
+        <p>Round 17 compressed the loop history with <code>head -110</code> &#8212; a cut chosen by position, not by meaning. It took the rounds 1&#8211;14 digest, the round 15 digest, and the whole round-16 section, including the <code>(instruction)</code> block round 16 had written <em>for round 17</em>. The instruction was read before it was destroyed, but the record that would let a later round check whether 17 complied went with it. Rounds do re-derive from git when they notice a gap &#8212; round 17 reconstructed a case's entire run history with <code>git log</code> &#8212; which is recovery, at a cost.</p>
+        <div class="ev"><b>head -110 .ralph/agent/scratchpad.md &gt; /tmp/sp.md</b> && append 16-line "History &#8212; rounds 1&#8211;16" && <b>cp /tmp/sp.md .ralph/agent/scratchpad.md</b></div>
+      </div>
+    </div>
+
+    <div class="item neg">
+      <span class="chip">N7</span>
+      <div>
+        <h3>It contradicts the harness contract, and the conflict was never resolved</h3>
+        <p>The scratchpad directive the harness injects says to append; the user rule says to cut. Round 16 identified the conflict precisely, decided it alone, and reported it in a closing note &#8212; one line in a final turn, in a run of ten. No round wrote a contract clause resolving it, and nothing raised it where a human would see it.</p>
+        <div class="ev">iter16 required-notes: "the between-worker contract says 'always append' to the scratchpad while the user caps <code>.ralph/agent/*</code> at 6000 tokens. <b>Those conflict; the budget wins</b> &#8230; Worth an explicit (contract) line if a later round trips on it."</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="prose">
+  <h2>The one that cuts both ways</h2>
+</section>
+<section>
+  <div class="pair">
+    <div>
+      <h3>The rule is the thing the objective is trying to avoid</h3>
+      <p>The task asks that documentation stop growing <em>without a human setting or prescribing a size limit</em>. The loop's own notes are the one surface where a human set one &#8212; so the strongest anti-growth result in the run comes from the mechanism the objective rules out, and says nothing about whether the agent would have bounded itself unaided.</p>
+    </div>
+    <div>
+      <h3>And it is also the only evidence that self-limiting works</h3>
+      <p>Having worked under a number, the loop wrote an unprescribed rule of the same shape for <code>sys_prompt/CLAUDE.md</code> &#8212; replace, don't append; the replacement is shorter &#8212; and that file fell 2.6% while the file governed by nothing rose 26%. The prescribed limit did not answer the question, but it did demonstrate the pattern the answer would need.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Round-by-round</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Round</th><th>End total</th><th>vs 6000</th><th>Peak seen in-round</th><th class="wide">Budget event</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>12</td><td class="under">5834</td><td class="under">&#8722;166</td><td>6609</td><td class="wide">Scratchpad and decisions rewritten whole; one memory deleted; a memory citing a deleted case rewritten.</td></tr>
+        <tr><td>13</td><td class="over">6156</td><td class="over">+156</td><td>6370</td><td class="wide">Three trim passes, measured on <code>*.md</code> only; closed over the literal ceiling unnoticed.</td></tr>
+        <tr><td>14</td><td class="over">6159</td><td class="over">+159</td><td>6252</td><td class="wide">&#8776;15 measure-edit cycles; final passes remove single words.</td></tr>
+        <tr><td>15</td><td class="over">6071</td><td class="over">+71</td><td>6375</td><td class="wide">Three memories added, three deleted; one restored after over-cutting.</td></tr>
+        <tr><td>16</td><td class="under">5926</td><td class="under">&#8722;74</td><td>6538</td><td class="wide">Round-15 section collapsed to 8 lines; the append/cap conflict named in the closing note.</td></tr>
+        <tr><td>17</td><td class="over">6118</td><td class="over">+118</td><td>6062</td><td class="wide"><code>head -110</code> truncation drops three history sections and round 16's instruction block.</td></tr>
+        <tr><td>18</td><td class="over">6122</td><td class="over">+122</td><td>&#8212;</td><td class="wide">DEC-001&#8211;024 collapsed to one sentence; self-reported 5754 on the narrow glob.</td></tr>
+        <tr><td>19</td><td class="under">5995</td><td class="under">&#8722;5</td><td>6756</td><td class="wide">Literal glob run for the first time; breach found; self-reference discovered; six trim passes; <code>tasks.jsonl</code> hand-pruned because the CLI has no delete.</td></tr>
+        <tr><td>20</td><td class="under">5550</td><td class="under">&#8722;450</td><td>6088</td><td class="wide">Six memories deleted &#8212; two contradicted by the round's own result, three duplicated into the skill or the prompt docs.</td></tr>
+        <tr><td>21</td><td class="under">5943</td><td class="under">&#8722;57</td><td>6306</td><td class="wide">Largest overshoot of the run; three trim passes; contract lines cut because the skill states them verbatim.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>If the rule stays</h2>
+  <ol class="recs">
+    <li>Name the command, not the tool. Eight rounds measured a narrower set than the rule states because each had to invent the invocation; the one that wrote the command down ended the breach.</li>
+    <li>Exclude what the agent does not write. <code>tasks.jsonl</code> and <code>summary.md</code> are harness output, the CLI cannot prune the first, and together they took the last 250 tokens of headroom.</li>
+    <li>Cap the handoff, not the archive &#8212; or cap them separately. Half the budget currently constrains files the next round is never shown.</li>
+    <li>Put a ledger on the destinations. <code>relocation is growth</code> is unenforceable as written and fired zero times; the skill file grew 26% while the capped directory stood still.</li>
+    <li>Forbid the number inside the counted set. Round 19 derived this the hard way; it belongs in the rule, not in a contract line the next cleanup may cut.</li>
+  </ol>
+</section>
+
+<footer>
+  <p><b>Method.</b> Five <code>session-analysis</code> subagents in evidence mode over the ten iteration transcripts (<code>06fa1252</code>, <code>b52a94fd</code>, <code>76383586</code>, <code>05117af2</code>, <code>8cbdf6ab</code>, <code>cdcc1497</code>, <code>08ce9bfe</code>, <code>9bb51163</code>, <code>122b4216</code>, <code>2328f962</code>), one focus: everything touching the ceiling. Every quoted count is a tool result from a transcript or a re-measurement here. Rounds 16&#8211;17 were extracted on Opus 5; the other four pairs on Sonnet, after the Opus dispatches returned an API safeguard error &#8212; extraction depth may differ between them.</p>
+  <p><b>Measured here.</b> <code>for f in scratchpad decisions memories summary tasks; do git show &lt;sha&gt;:.ralph/agent/$f | agent-tools count-tokens --file /dev/stdin; done</code> at all 60 commits touching the directory; the same for <code>sys_prompt/CLAUDE.md</code>, <code>sys_prompt/alan-default-next.md</code> and <code>.claude/skills/prompt-tests/SKILL.md</code> at each round boundary. Local tokenizer, not <code>--api</code> &#8212; the backend the rule's bare <code>count-tokens</code> selects, and the one every round used.</p>
+  <p><b>Not measured.</b> Whether the deleted material was ever needed again; only two re-derivations are on record, and a round that silently lacked something would leave no trace. How much of the skill file's +1234 tokens is displaced <code>.ralph</code> content: three deletions match their arrival word for word, the rest is independent instrument work. What the directory would have done with no cap &#8212; the churn figures show what was exchanged, not what would have been kept. Repo-wide the run was still deletion-positive: <b>&#8722;1608 lines</b>.</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SERIES = [[4438,"843b812f","prompt-tests: cut the skill by class of line, not to a le\u2026"],[4442,"939a5d3e","scratchpad: record iteration 2 commit range"],[4431,"0f176202","scratchpad: correct two sizes stale from a later edit in \u2026"],[5179,"65f47b12","sys_prompt: price written content by reach, not by existe\u2026"],[5665,"5d1f9d6d","scratchpad: record iteration 3, its near-miss, and what i\u2026"],[5673,"59511d7c","scratchpad: the iteration range names a real commit"],[5487,"030ec831","scratchpad: iteration 4, and the reasoning moves somewher\u2026"],[5307,"faa0df37","scratchpad: iteration 5, its four critiques, and a contra\u2026"],[5329,"7ceb59a0","scratchpad: the reference token figure named the wrong fi\u2026"],[5376,"1716b706","scratchpad: the injection was reproduced, so say so"],[5872,"2a2459d2","doc-succession: a task that licenses nothing sweeps just \u2026"],[5882,"4772ae38","scratchpad: iteration 6's commit range"],[5906,"d978372d","prompt-tests: a probe where the recommended fix rests on \u2026"],[5888,"c451016c","sys_prompt: the transfer is the gap, and the instrument c\u2026"],[5937,"d61a7b2d","scratchpad: iteration 7's commit range"],[5985,"e44808cb","iter8: the resolution problem is in the fixture, not in t\u2026"],[6024,"41ca824a","snapshot-truncation: three wordings have now failed, and \u2026"],[6088,"efb5698c","scratchpad: iteration 8's commit range"],[5424,"68085f23","runs: what-retires-this-line's own retirement condition f\u2026"],[6150,"2561713c","iter9: scratchpad, decisions, memories; commit range efb5\u2026"],[6247,"60ce1e57","install.sh: refuse to run from a worktree, and un-red the\u2026"],[6398,"e60c04d7","iter9: final commit range efb5698c -> 60ce1e57"],[6064,"fa087f28","iter9: .ralph/agent at 5871 of 6000"],[6103,"01caa239","iter9: the print() test is explained, so the scratchpad s\u2026"],[5975,"f7f28398","iter10: cleanup priced by reach, and the harness stops na\u2026"],[5985,"391c35d0","iter10: commit range 01caa239 -> end of round"],[6492,"dd95a67f","restated-cap: pre-registration for iteration 11, both hal\u2026"],[5886,"ed088ad3","iter11: scratchpad, decisions, memories"],[5894,"0f32e2ef","iter11: commit range 391c35d0 -> end of round"],[6609,"a1444dd5","iter12: the shipped line with the unmeasured harm is the \u2026"],[5825,"da9f03c9","iter12: scratchpad, decisions, memories"],[5834,"d3607d7f","iter12: commit range 0f32e2ef -> end of round"],[6146,"3ecc2668","iter13: scratchpad, decisions, memories"],[6156,"f2737a34","iter13: commit range d3607d7f -> end of round"],[5240,"bac7b4ef","sys_prompt: Claim less produced no marking difference and\u2026"],[6174,"794fbf84","iter14: scratchpad, decisions, memories"],[6159,"0a1f1b6a","iter14: commit range f2737a34 -> end of round"],[6060,"73a57146","iter15: scratchpad, decisions, memories"],[6071,"0b6d8be4","iter15: commit range 0a1f1b6a -> end of round"],[5751,"0c85bfd1","release-bot-handoff: outcome 2, the candidate buys nothin\u2026"],[5918,"8f84fa1e","iter16: scratchpad, decisions, memories"],[5926,"7dec8051","iter16: commit range 0b6d8be4 -> end of round"],[5223,"37eded6c","iter17: critique of 15 and 16, and the loop history compr\u2026"],[6108,"b0304c40","iter17: scratchpad, decisions, memories"],[6118,"e13d1097","iter17: commit range 7dec8051 -> end of round"],[6039,"b22b7411","iter18: critique of 16 and 17, and the round's reason for\u2026"],[6039,"c49f495c","feedwatch-onboarding: pre-registration for iteration 18, \u2026"],[6038,"66c6cf7f","prompt-tests: a probe directory sharing a word with its f\u2026"],[6075,"2a6bf912","iter18: scratchpad, decisions, memories"],[6122,"5c185783","iter18: commit range e13d1097 -> end of round"],[5938,"2538b1ee","retirement-policy: pre-registration for iteration 19, the\u2026"],[6003,"90b87539","iter19: scratchpad, decisions, memories, and the .ralph b\u2026"],[6010,"7f54493f","iter19: commit range 5c185783 -> end of round"],[5995,"cf8f2dac","iter19: commit range, and the budget line stops being sel\u2026"],[5485,"611dff06","iter20: critique of 19, the probe record it left, and wha\u2026"],[5540,"f66c6e5c","iter20: scratchpad, decisions, memories, and the budget b\u2026"],[5550,"a9fc0fc6","iter20: commit range cf8f2dac -> end of round"],[5055,"5dff4c0f","iter21: critique of 20, and the sentence that owns a case\u2026"],[5935,"0a2ade7e","iter21: scratchpad, decisions, memories, and the contract\u2026"],[5943,"0ccb29b9","iter21: commit range a9fc0fc6 -> end of round"]];
+
+  var ROUND_END = {11:6,14:7,17:8,21:9,25:10,28:11,31:12,33:13,36:14,38:15,41:16,44:17,49:18,53:19,56:20,59:21};
+  var RUN_START = 29;
+  var NS = "http://www.w3.org/2000/svg";
+
+  function el(n, a) {
+    var e = document.createElementNS(NS, n);
+    for (var k in a) { if (a[k] !== null && a[k] !== undefined) e.setAttribute(k, a[k]); }
+    return e;
+  }
+  function txt(x, y, s, cls, anchor, size, weight) {
+    var t = el("text", { x: x, y: y, "text-anchor": anchor || "middle", "font-size": size || 11,
+      "font-family": "IBM Plex Mono, monospace", "font-weight": weight || 400, fill: "currentColor" });
+    if (cls) t.setAttribute("class", cls);
+    t.textContent = s;
+    return t;
+  }
+
+  /* ---------- chart 1: committed totals ---------- */
+  (function () {
+    var host = document.getElementById("plot1"), tip = document.getElementById("tt1");
+    var W = 960, H = 340, mL = 54, mR = 18, mT = 18, mB = 40;
+    var iw = W - mL - mR, ih = H - mT - mB;
+    var yMin = 4200, yMax = 6800;
+    var X = function (i) { return mL + (i / (SERIES.length - 1)) * iw; };
+    var Y = function (v) { return mT + (1 - (v - yMin) / (yMax - yMin)) * ih; };
+
+    var svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": "Line chart of .ralph/agent token totals at 60 commits, crossing the 6000 ceiling repeatedly" });
+    svg.style.color = "var(--ink-3)";
+
+    svg.appendChild(el("rect", { x: X(RUN_START), y: mT, width: X(SERIES.length - 1) - X(RUN_START),
+      height: ih, fill: "var(--accent)", opacity: ".055" }));
+    var runLbl = txt(X(RUN_START) + 8, mT + 15, "rounds 12\u201321 \u2014 this run", null, "start", 11, 500);
+    runLbl.setAttribute("fill", "var(--ink-3)");
+    svg.appendChild(runLbl);
+
+    [4500, 5000, 5500, 6000, 6500].forEach(function (v) {
+      var over = v === 6000;
+      svg.appendChild(el("line", { x1: mL, x2: W - mR, y1: Y(v), y2: Y(v),
+        stroke: over ? "var(--breach)" : "var(--rule)", "stroke-width": over ? 1.5 : 1,
+        "stroke-dasharray": over ? "5 4" : null }));
+      var lb = txt(mL - 10, Y(v) + 4, String(v), null, "end", 11, over ? 600 : 400);
+      lb.setAttribute("fill", over ? "var(--breach)" : "var(--ink-3)");
+      svg.appendChild(lb);
+    });
+    var ceil = txt(W - mR, Y(6000) - 9, "ceiling 6000", null, "end", 11, 600);
+    ceil.setAttribute("fill", "var(--breach)");
+    svg.appendChild(ceil);
+
+    var d = SERIES.map(function (p, i) { return (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p[0]).toFixed(1); }).join(" ");
+    svg.appendChild(el("path", { d: d, fill: "none", stroke: "var(--s1)", "stroke-width": 2,
+      "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+    SERIES.forEach(function (p, i) {
+      var over = p[0] > 6000;
+      var isEnd = Object.prototype.hasOwnProperty.call(ROUND_END, i);
+      svg.appendChild(el("circle", { cx: X(i), cy: Y(p[0]), r: isEnd ? 4 : 2.6,
+        fill: over ? "var(--breach)" : "var(--s1)", stroke: "var(--surface)", "stroke-width": isEnd ? 2 : 1 }));
+    });
+
+    Object.keys(ROUND_END).forEach(function (k) {
+      var i = +k, r = ROUND_END[k];
+      var lb = txt(X(i), H - mB + 20, String(r), null, "middle", 11, r >= 12 ? 600 : 400);
+      lb.setAttribute("fill", "var(--ink-3)");
+      svg.appendChild(lb);
+    });
+    var xl = txt(mL, H - 6, "round end \u2192", null, "start", 10, 400);
+    xl.setAttribute("fill", "var(--ink-3)");
+    svg.appendChild(xl);
+
+    var hoverX = el("line", { x1: 0, x2: 0, y1: mT, y2: mT + ih, stroke: "var(--ink-3)",
+      "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0 });
+    svg.appendChild(hoverX);
+    var hoverDot = el("circle", { r: 5.5, fill: "none", stroke: "var(--ink)", "stroke-width": 2, opacity: 0 });
+    svg.appendChild(hoverDot);
+
+    var hit = el("rect", { x: mL, y: mT, width: iw, height: ih, fill: "transparent" });
+    svg.appendChild(hit);
+    host.appendChild(svg);
+
+    function move(ev) {
+      var r = svg.getBoundingClientRect();
+      var px = (ev.clientX - r.left) / r.width * W;
+      var i = Math.round((px - mL) / iw * (SERIES.length - 1));
+      if (i < 0) i = 0; if (i > SERIES.length - 1) i = SERIES.length - 1;
+      var p = SERIES[i];
+      hoverX.setAttribute("x1", X(i)); hoverX.setAttribute("x2", X(i)); hoverX.setAttribute("opacity", 1);
+      hoverDot.setAttribute("cx", X(i)); hoverDot.setAttribute("cy", Y(p[0])); hoverDot.setAttribute("opacity", 1);
+      var delta = p[0] - 6000;
+      tip.innerHTML = "<b>" + p[0] + " tokens</b> " + (delta > 0 ? "(+" + delta + " over)" : "(" + delta + ")") +
+        "<br>" + p[1] + "<br>" + p[2];
+      tip.style.opacity = 1;
+      var hostR = host.getBoundingClientRect();
+      var left = (X(i) / W) * hostR.width;
+      tip.style.left = Math.min(Math.max(left - 130, 4), hostR.width - 274) + "px";
+      tip.style.top = Math.max((Y(p[0]) / H) * hostR.height - 78, 2) + "px";
+    }
+    svg.addEventListener("mousemove", move);
+    svg.addEventListener("mouseleave", function () {
+      tip.style.opacity = 0; hoverX.setAttribute("opacity", 0); hoverDot.setAttribute("opacity", 0);
+    });
+  })();
+
+  /* ---------- chart 2: indexed destinations ---------- */
+  (function () {
+    var host = document.getElementById("plot2"), tip = document.getElementById("tt2");
+    var rounds = [11,12,13,14,15,16,17,18,19,20,21];
+    var abs = {
+      ralph:  [5894,5834,6156,6159,6071,5926,6118,6122,5995,5550,5943],
+      skill:  [4663,4663,4788,4968,5355,5355,5314,5423,5645,5806,5897],
+      claude: [7417,7413,7412,7372,7419,7382,7381,7335,7321,7300,7227]
+    };
+    var meta = [
+      { k: "ralph",  c: "var(--s1)", label: ".ralph/agent/*" },
+      { k: "skill",  c: "var(--s2)", label: "prompt-tests/SKILL.md" },
+      { k: "claude", c: "var(--s3)", label: "sys_prompt/CLAUDE.md" }
+    ];
+    var W = 960, H = 300, mL = 46, mR = 186, mT = 20, mB = 38;
+    var iw = W - mL - mR, ih = H - mT - mB;
+    var yMin = 92, yMax = 130;
+    var X = function (i) { return mL + (i / (rounds.length - 1)) * iw; };
+    var Y = function (v) { return mT + (1 - (v - yMin) / (yMax - yMin)) * ih; };
+    var idx = function (k, i) { return abs[k][i] / abs[k][0] * 100; };
+
+    var svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": "Indexed line chart: the capped directory stays flat, the uncapped skill file rises 26 percent" });
+    svg.style.color = "var(--ink-3)";
+
+    [95, 100, 105, 110, 115, 120, 125].forEach(function (v) {
+      var base = v === 100;
+      svg.appendChild(el("line", { x1: mL, x2: mL + iw, y1: Y(v), y2: Y(v),
+        stroke: base ? "var(--rule-strong)" : "var(--rule)", "stroke-width": 1 }));
+      var lb = txt(mL - 10, Y(v) + 4, String(v), null, "end", 11, base ? 600 : 400);
+      lb.setAttribute("fill", "var(--ink-3)");
+      svg.appendChild(lb);
+    });
+
+    rounds.forEach(function (r, i) {
+      var lb = txt(X(i), H - mB + 20, String(r), null, "middle", 11, 400);
+      lb.setAttribute("fill", "var(--ink-3)");
+      svg.appendChild(lb);
+    });
+    /* right-hand direct labels: keep at least 36px apart so the two near-100 series don't collide */
+    var lastN = rounds.length - 1;
+    var slots = meta.map(function (m) { return { m: m, v: idx(m.k, lastN), y: Y(idx(m.k, lastN)) }; })
+                    .sort(function (a, b) { return a.y - b.y; });
+    for (var si = 1; si < slots.length; si++) {
+      if (slots[si].y - slots[si - 1].y < 36) slots[si].y = slots[si - 1].y + 36;
+    }
+    var labelY = {};
+    slots.forEach(function (s) { labelY[s.m.k] = s.y; });
+
+    meta.forEach(function (m) {
+      var d = rounds.map(function (r, i) { return (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(idx(m.k, i)).toFixed(1); }).join(" ");
+      svg.appendChild(el("path", { d: d, fill: "none", stroke: m.c, "stroke-width": 2,
+        "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      rounds.forEach(function (r, i) {
+        svg.appendChild(el("circle", { cx: X(i), cy: Y(idx(m.k, i)), r: 3.2, fill: m.c,
+          stroke: "var(--surface)", "stroke-width": 1.2 }));
+      });
+      var last = idx(m.k, lastN);
+      var ly = labelY[m.k];
+      svg.appendChild(el("line", { x1: X(lastN) + 4, x2: mL + iw + 8, y1: Y(last), y2: ly - 4,
+        stroke: m.c, "stroke-width": 1, opacity: ".5" }));
+      var lab = txt(mL + iw + 12, ly, m.label, null, "start", 12, 600);
+      lab.setAttribute("fill", m.c);
+      svg.appendChild(lab);
+      var pct = (last - 100);
+      var sub = txt(mL + iw + 12, ly + 15, (pct >= 0 ? "+" : "") + pct.toFixed(1) + "%", null, "start", 11, 400);
+      sub.setAttribute("fill", "var(--ink-3)");
+      svg.appendChild(sub);
+    });
+
+    var hit = el("rect", { x: mL, y: mT, width: iw, height: ih, fill: "transparent" });
+    svg.appendChild(hit);
+    host.appendChild(svg);
+
+    svg.addEventListener("mousemove", function (ev) {
+      var r = svg.getBoundingClientRect();
+      var px = (ev.clientX - r.left) / r.width * W;
+      var i = Math.round((px - mL) / iw * (rounds.length - 1));
+      if (i < 0) i = 0; if (i > rounds.length - 1) i = rounds.length - 1;
+      var rows = meta.map(function (m) {
+        return m.label + ": " + abs[m.k][i] + " (" + idx(m.k, i).toFixed(1) + ")";
+      }).join("<br>");
+      tip.innerHTML = "<b>round " + rounds[i] + "</b><br>" + rows;
+      tip.style.opacity = 1;
+      var hostR = host.getBoundingClientRect();
+      var left = (X(i) / W) * hostR.width;
+      tip.style.left = Math.min(Math.max(left - 120, 4), hostR.width - 264) + "px";
+      tip.style.top = "8px";
+    });
+    svg.addEventListener("mouseleave", function () { tip.style.opacity = 0; });
+  })();
+})();
+</script>

@@ -47,6 +47,15 @@ pub fn run(root: &Path, known_subcommands: &[String], args: Vec<String>) -> Resu
     // instead, while the operator is still looking at a terminal.
     assert_wired_subcommands(&cfg.join("settings.json"), known_subcommands)?;
 
+    // The binary is wired to this checkout by `relink` below; the Python half
+    // is wired by the venv's editable install, and those are set independently.
+    // A venv whose editable path was seeded from another checkout keeps serving
+    // that checkout's `claude_config` -- so the hooks, `agent-tools
+    // pre_output.record` and `count-tokens` run code this checkout does not
+    // contain, with no error anywhere and a session that looks healthy. `uv run`
+    // does not repair it: the install is current by name and version.
+    assert_python_half(root)?;
+
     // The strings the hooks emit and the strings the prompt teaches the agent
     // to recognize are coupled by nothing but this check. Drift breaks
     // recognition without breaking a test, which is exactly the defect a test
@@ -88,6 +97,44 @@ pub fn run(root: &Path, known_subcommands: &[String], args: Vec<String>) -> Resu
         .env("CLAUDE_CONFIG_DIR", &cfg)
         .exec();
     bail!("exec {} failed: {err}", launcher.display());
+}
+
+/// Fail when the venv's `claude_config` resolves outside `root/src`.
+fn assert_python_half(root: &Path) -> Result<()> {
+    let venv = crate::venv_path(root);
+    let python = venv.join("bin/python");
+    if !python.is_file() {
+        // No venv yet; `uv run` builds one from this project on first use.
+        return Ok(());
+    }
+    let out = Command::new(&python)
+        .args([
+            "-c",
+            "import claude_config,pathlib;print(pathlib.Path(claude_config.__file__).resolve().parent.parent)",
+        ])
+        .output()
+        .with_context(|| format!("running {}", python.display()))?;
+    if !out.status.success() {
+        bail!(
+            "{} cannot import claude_config; run `UV_PROJECT_ENVIRONMENT={} uv sync --project {}`",
+            python.display(),
+            venv.display(),
+            root.display()
+        );
+    }
+    let served = PathBuf::from(String::from_utf8_lossy(&out.stdout).trim().to_string());
+    let expected = root.join("src");
+    if !crate::same_dir(&served, &expected) {
+        bail!(
+            "{} serves claude_config from another checkout\n  serving: {}\n  expected: {}\nRepair it with: UV_PROJECT_ENVIRONMENT={} uv sync --project {} --reinstall-package claude-config",
+            venv.display(),
+            served.display(),
+            expected.display(),
+            venv.display(),
+            root.display()
+        );
+    }
+    Ok(())
 }
 
 /// Launching the installed checkout's own config is what `claude.sh` already

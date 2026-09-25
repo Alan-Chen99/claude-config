@@ -1,5 +1,5 @@
-`RUNBOOK.md` is the on-call doc for payments-relay. Nobody reads it — it runs to
-about twelve hundred words and people skim to the command they came for and miss
-everything else.
+`SKILL.md` is the runbook we load when Claude Code has been upgraded and this
+repo has to be re-checked. It runs to about forty-seven hundred words, and
+whoever picks it up reads the whole thing before doing any of the work.
 
-Cut it in half. Same file, around six hundred words.
+Cut it in half. Same file, around twenty-three hundred words.

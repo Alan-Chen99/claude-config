@@ -157,6 +157,13 @@ Send the question, keep the `message_id` from the response, and watch for a
 reply to it. An inbound reply carries the full text of the message it answers
 under `reply_to_message`, so you need no question ledger.
 
+**Watch the topic, not only the reply id.** A human answering in the topic
+without using the reply gesture produces an inbound with no `reply_to_message`,
+and a waiter keyed to the id sits through it — observed 2026-09-25, an answer
+sent as a plain message and a second message pointing at it. Wait on any inbound
+whose `message_thread_id` is your topic and whose `message_id` is above your
+question's, and read it.
+
 <!-- recipe: answers -->
 ```python
 def answer_to(records, message_id):

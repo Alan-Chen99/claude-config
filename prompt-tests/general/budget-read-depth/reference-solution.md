@@ -43,3 +43,8 @@ tests.
 This case exists to compare harness settings, not prompt versions, so it is run
 under a neutral system prompt with no thoroughness gate of its own. See
 `notes/total-tokens-reminder.md`.
+
+A grader comparing two arms cannot be blinded to which is which: the manipulated
+value stands in the transcript verbatim as
+`<total_tokens>22000 tokens left</total_tokens>`. Mask it to the hypothesis
+instead, and read its answer knowing it could see the condition.

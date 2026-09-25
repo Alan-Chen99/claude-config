@@ -32,10 +32,10 @@ the directory you are about to touch.
 | `prompt-tests/` | Runner-neutral prompt evaluation cases | Running or grading prompt evaluations |
 | `conventions/` | Documentation and code-quality standards; `documentation.md` governs every CLAUDE.md here | Writing docs, understanding coding rules |
 | `docs/` | Reference material on Claude Code's own behaviour, captured prompts, design records | Investigating cc behavior; after an upgrade |
-| `notes/` | Long-form investigation write-ups — measured evidence and root cause, one behaviour each. Dated records: never rewritten to match later changes | Before re-investigating a known failure mode; after one worth keeping |
+| `notes/` | Long-form investigation write-ups — measured evidence and root cause, one behaviour each. Dated records: never rewritten to match later changes. `ralph-loop3-writing-for-agents/` is an archive of finished audit reports instead, not citable and off-limits while writing another report — see its own `CLAUDE.md` | Before re-investigating a known failure mode; after one worth keeping |
 | `plans/` | Plan storage | Reviewing or executing a plan |
 | `systemd/` | systemd **user** units, symlinked by `install.sh` and enabled by hand — `telegram-hitl.service` runs the Telegram proxy | Adding a long-running service; diagnosing one that is `failed` |
-| `.claude/` | Repo-local config; project skills `prompt-tests` and `update-claude-code` (post-upgrade runbook and what a release can break here) | Adding repo-local skills or hooks; after a Claude Code upgrade |
+| `.claude/` | Repo-local config; project skills `prompt-tests` and `update-claude-code` (post-upgrade runbook and what a release can break here); `skills/session-analysis-wip` is a relative link that invokes **this** checkout's `skills/session-analysis` — the plain `session-analysis` skill is always the installed copy from `/repos/claude-config` | Adding repo-local skills or hooks; after a Claude Code upgrade; invoking a skill you are editing from a worktree |
 | `.github/` | GitHub workflows and config | Modifying CI/CD |
 
 ## Build and test
@@ -44,13 +44,16 @@ the directory you are about to touch.
 cd agent-tools && cargo build --release   # then: cargo test
 UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/$(basename $PWD) uv run pytest
 scripts/check-prompt-coupling.sh         # emitted strings vs the prompt
+scripts/check-prompt-rationale.sh        # every sys_prompt/CLAUDE.md section vs the prompt
 ```
 
 ## Agent Policy
 
-- **Worktrees must NEVER run `install.sh`.** The `~/.claude` symlinks must always point at
-  the canonical checkout; a worktree that installs its own build breaks every other session
-  when it is deleted. Build in place — `agent-tools/CLAUDE.md`, "Testing from a worktree".
+- **Worktrees must NEVER run `install.sh`.** Every link it writes is absolute and lives
+  outside the repo, so a worktree's install redirects every session on this machine to that
+  worktree and leaves dangling links when it is deleted. The script refuses to run from one,
+  and that refusal goes when it stops writing outside the repo. Build in place —
+  `agent-tools/CLAUDE.md`, "Testing from a worktree".
 - `agent-tools` takes its root from compile time and has no `--root` override.
   `CLAUDE_CONFIG_ROOT` only asserts that root; disagree with it, or leave it unset for a
   non-default build, and every subcommand exits non-zero instead of answering with another

@@ -134,6 +134,11 @@ reading `ps aux` or `/proc/*/cmdline` cannot recover `--desc` or the
 wrapped command line. `comm` is set to match. Use for probe /
 contamination-sensitive work only.
 
+The flag reaches this process and no other. The wrapped command runs
+as a child with its own `/proc/<pid>/cmdline`, which nothing here
+rewrites, so the argv a caller wanted hidden is still readable there
+for as long as the child lives.
+
 Regardless of the flag, `desc` remains in `meta.json` for the intended
 observability path (`agent-tools ps`, the status report); the
 argv memory is not it.

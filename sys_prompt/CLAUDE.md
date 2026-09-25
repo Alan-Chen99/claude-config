@@ -36,6 +36,43 @@ Measure before and after:
 agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
 ```
 
+## What travels with an edit
+
+When editing the prompt in response to a failing case, the goal is to repair the invariant the
+case probes, not to make the case pass. A test case is one sample of the invariant's input
+space; treating it as the spec narrows the prompt to that sample. `skills/prompt-engineer-v2/`
+carries the general hints, "No overfitting to the case at hand" and "Overfitting review by a
+fresh subagent" in `SKILL.md`, "Implicit-guidance justification" and "Recognition before
+enforcement" in `experiments.md`, and "Every change is a regression risk" for the behavioural
+half. Two further things travel with an edit that no case exercises and that review tends to
+read as wording: the force it is written at, and whatever it permits.
+
+**Force.** How widely an imperative binds is itself a claim — that the failure is frequent
+enough, and costly enough, to be worth the compliance cost everywhere the imperative now
+reaches. Two observed incidents support a caution: this happens, watch for it. Reading them as
+support for a requirement needs something two incidents do not contain, a rate and a cost. For
+an evidential claim the quantity that outruns the evidence is its confidence; for an
+instruction it is its scope.
+
+**Exceptions.** Before writing one, answer how much of the forbidden space it readmits —
+breadth is a property of the exception's extension, not of how narrow its wording sounds. The
+costs are asymmetric: over-applying a prohibition yields a duller artifact, while
+over-applying a permission skips the work and ships a wrong answer. The exception is the half
+that repays the closer reading.
+
+**Why step 2 above is a deletion and not a merge.** An addition restating a rule the file
+already carries is not a second caution; it is a second, differently worded statement of the
+same rule, and nothing then says which governs.
+
+**A session on this machine is not evidence about this file until its snapshot says so.**
+`scripts/claude.sh` loads the **installed** checkout, `/repos/claude-config`, and that is still
+the pre-round-11 fork: `Omit by default` and `Claim less` where this branch has
+`# Writing for other agents`, and the docs order still in `# Doing tasks`. The branch has never
+been merged, so every edit recorded below reaches the prompt-test runners and nothing else — the
+owner's own specimen, `e828eab7`, ran the old fork. Grep a session's `prompt_snapshot` for the line before
+citing the session. Retire this when `git merge-base --is-ancestor` puts the branch inside the
+installed checkout.
+
 ## Rebasing on an upstream release
 
 These files replace Claude Code's own system prompt rather than adding to it.
@@ -160,180 +197,278 @@ decoded string rather than the source line.
 
 ## Why the prompt says what it says
 
-Reasoning cut from the prompt under step 3 above, kept so a future edit can tell a live rule from
-cargo. Each entry names what would retire it.
+Reasoning cut from the prompt under step 3 above, kept so a future edit can tell a live rule
+from cargo.
 
-### `Prefer model: haiku` on Explore spawns
+**A section here owns one thing the prompt does, by quoting it**: a backticked literal in the
+heading occurring verbatim in `alan-default-next.md`. It carries the claim, the hypothesis behind
+it, and the retirement condition — an observation that would end the line, and the case where it
+gets made. `scripts/check-prompt-rationale.sh` fails on a section quoting nothing live, so
+deleting a prompt line reports its section as deletable and nobody has to notice. Section count is
+then a function of the prompt's size and cannot outgrow it, with no ceiling set by hand. That is
+the term that grew: across this file's history sections went 1 → 14 while words per section went
+370 → 538.
+
+What an arm said, how much it wrote, which fixture it ran on and on what date stay in the commit
+that measured them — a run is evidence for the round that ran it, so quoting one here spends
+context on what the next round may not rely on. A wording measured and not shipped is one row of
+the ledger, which sits under its own heading because it owns no prompt line. What the check buys:
+opening any file in this directory with the **Read** tool attaches this whole file as a
+system-reminder — `prompt-tests/CLAUDE.md` states that mechanism and how to re-check it — so every
+paragraph here is spent on every session that comes to edit the prompt.
+`.claude/skills/prompt-tests/SKILL.md` bounds the case corpus by the same construction, one grep
+against the retirement conditions below.
+
+### `model: haiku` on Explore spawns
 
 Claude Code 2.1.198 (2026-07-01) changed the built-in Explore agent's model from `haiku` to
-`inherit`, so an Explore spawn now runs the session's model unless the call passes one. The change
-was a reliability fix, not a quality one: issue #45357 reported that a large MCP tool surface
-overflowed Haiku's prompt limit and killed every spawn. That failure needs a heavy MCP install; a
-session without one keeps Haiku's headroom, and Explore is scoped to locating code rather than
-reviewing or analysing it.
+`inherit`, as a reliability fix rather than a quality one: issue #45357 reported that a large MCP
+tool surface overflowed Haiku's prompt limit and killed every spawn. That failure needs a heavy
+MCP install; a session without one keeps Haiku's headroom, and Explore is scoped to locating code
+rather than reviewing it. `Prefer` carries the escape hatch, so the prompt spells none out: pass
+`sonnet` or `opus` when a search is genuinely hard. Haiku also drops the session's inherited
+`effort` setting, which the API rejects for that model. Per-call rather than a user-defined
+`Explore` agent shadowing the built-in: `omitClaudeMd` is set only on built-in definitions and is
+never read from frontmatter, so a shadow re-attaches the whole CLAUDE.md hierarchy to every spawn.
+`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (2.1.257, unset here) would override every per-spawn `model`
+and turn this line into text the harness discards; `CLAUDE_CODE_SUBAGENT_MODEL` would not, since
+2.1.251 made it a default an explicit `model` beats. Retire this if the built-in default returns
+to `haiku`, or if Explore spawns start failing on prompt size.
 
-`Prefer` carries the escape hatch, so the prompt does not spell one out: pass `sonnet` or `opus`
-when a search is genuinely hard — tracing minified identifiers through decompiled chunks, say,
-rather than finding a file. Haiku also drops the session's inherited `effort` setting, which the
-API rejects for that model, and falls back from adaptive to plain extended thinking.
+### `# Writing for other agents`
 
-Passing the parameter per call, rather than shadowing the built-in with a user-defined `Explore`
-agent: `omitClaudeMd` is set only on built-in agent definitions and is never read from frontmatter,
-so a shadow re-attaches the whole CLAUDE.md hierarchy to every spawn.
+**The preamble** — *read cold, by a reader who cannot ask what you meant … will act on it as a
+premise*. Hypothesis: naming that reader separates a value the reader can check from one it
+cannot tell from the hearsay beside it; an arm carrying it sourced a checkable number where a
+bare arm stated the same number flat. Confounded — the sourcing arms invoked
+`prompt-engineer-v2` and the bare one did not. Retire it when an arm without it sources as much
+as one with it on `prompt-tests/general/inherited-project`.
 
-`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (2.1.257, unset here) would override every per-spawn `model`,
-turning this line into an instruction the harness discards; `CLAUDE_CODE_SUBAGENT_MODEL` would not,
-since 2.1.251 made it a default that an explicit `model` beats.
+**`Say what ends it`** reaches the rule whose end is a design change rather than an observation
+— the one an agent gives the history of and leaves standing. Rules that end on an observation
+get their exit in either arm. Hypothesis: an exit is written once the agent can picture the act.
+What it produces is a *document template* carrying an exit as one field, so it reaches rows
+where no act is picturable and writes a thin exit anyway; that looked like the predicted harm
+until a blind reader weighed it against the same arm filing a bare preference *as* a preference
+where the bare arm stated it with no warrant, and preferred it. Retire it when an arm carrying
+it names no more exits than one without, on `prompt-tests/general/retirement-policy`.
 
-Retire this if the built-in default returns to `haiku`, or if Explore spawns start failing on prompt
-size — which would mean the MCP surface has grown into the case #45357 describes.
+**`A consequence of your own change is not a property of the project`.** Growth has a moment: a
+document soliciting additions, met by a fact the session has just established. Across two genres
+the carrying arm left the soliciting document untouched and put the fact where the project
+already required the option described. The trade is reader-perceived quality against a rule only
+a human removes, and blind readers have twice preferred the arm that grew. What it costs is a
+true inherited fact declined by name — a property that predated the session, filed in a code
+comment where the bare arm wrote the standing rule. Hypothesis: the bullet is applied by
+position, so a heading soliciting rules reads as the thing denied whatever the fact's provenance.
+It also reads as a two-way test, one arm taking its distinction as the warrant for a second
+durable copy of a fact already documented. Retire the bullet when an arm carrying it extends the
+soliciting document on `prompt-tests/general/hushed-rollcall`; retire the cost when an arm
+carrying it records an inherited property under a soliciting heading as fully as an arm without
+it, on `prompt-tests/general/weary-waitlist`.
+
+**The block as a whole is not what decides a defect found outside the task.** Ablated against a
+fixture built from the owner's own specimen, the arms did the same thing on both of that
+fixture's defects; `# Completeness` below is what reaches them. `prompt-tests/general/halve-the-runbook`
+stays whatever this section says, on the user's direction: the user set that fixture's shape.
+
+### `# Completeness`: a defect found on the way
+
+**`A defect found on the way is one of those items: reporting it is not resolving it. Fix it
+when the only thing stopping you is that nobody asked; escalate when the call is genuinely
+someone else's. Report both.`** A defect the agent trips over is not a *scoped* item, so the No
+Deferral Rule above it does not cover one, and its *escalate to the user* clause licensed
+stopping at the report: both arms of an ablation named the one-line fix in the reply and left
+the code alone, and the owner's specimen stopped a step earlier still, never naming its fix.
+Reporting is saturated and is not the lever; the fix is. The owner settled the trade no
+measurement here can — *"the 'scope creep' is acceptable, since this otherwise just never get
+fixxed"*, and *"suppose it just report to me only. then what i do with that? … i have one
+sensible option which is for this to get fixed"* — and priced the *Report both* clause
+separately: *"noticing but not telling me is i think simply incorrect behavior in this case"*,
+while how an unrequested fix is presented is *"an efficiency thing which agent can decide at
+runtime, and i think you dont really need to prescribe"*. Hypothesis: *fix it* is an act the
+agent can picture and *needs no decision but yours* is a test it can apply, where a line about
+what to write reaches a choice already made.
+
+Its harm case is run and it is not refuted: where the thing that reads as a defect is deliberate
+and a document in the project says so, both arms read the document first and left the construct
+alone, because `# Doing tasks` sends every arm to the documentation. A probe wanting that harm
+must put the warrant where the task gives no reason to look. What the same run cost, measured:
+**what the agent escalates, it also cements** — the carrying arm escalated a real defect with the
+one-word fix named, then wrote tests asserting the defective behaviour, so accepting the fix it
+recommends fails its own suite and nothing in its reply says so. Hypothesis: escalation settles
+the question for the rest of the session, and a clause about what to report reaches none of the
+writing that follows. That argues for the *fix* half rather than against the line. A fixture for
+this line must carry no sentence that reads as freezing current behaviour, or it measures the
+escalate branch whatever the arms do.
+
+Retire it when an arm carrying it takes a call the tree does not settle — renames a file, changes
+a rule's semantics — or when an arm without it fixes a defect the carrying arm leaves named and
+undone. `git checkout f75aceb6 -- prompt-tests/runs/partial-regeneration` and
+`git checkout a247868e -- prompt-tests/runs/spend-window` restore the two probes.
+
+### `pre_output.record`'s `RULES`
+
+`src/claude_config/pre_output/record.py` prints them into the tool result of a call
+`## Before response` makes mandatory, so each is a system-prompt line with a `NEVER` in front of
+it. One is left. `NEVER reply to user if uncertainties remain. Do more verification and research`
+is deleted: `# Epistemic Integrity` already states that rule *with* the branch this wording drops
+— investigate **or** escalate — so three wordings stood with nothing saying which governs. It
+bought neither the verification it exists for nor obedience; where it did act it added durable
+text, one arm answering it by documenting an environment-variable name the session had itself
+invented. Restore it when an arm without it replies as if a doubt were settled where an arm with
+it either resolves the doubt or reports it, on `prompt-tests/general/retirement-policy`.
+
+### `## Required notes`
+
+The owner's intent, stated on the channel: the bullets exist because these things "will not
+otherwise get surfaced, or not as-reliably", and they are **best effort** — "the important is
+they are sometimes surfaced". The requirement is a rate across sessions, not an act in any one of
+them, which is what makes the block un-ablatable by the reading this repo runs: an arm without a
+bullet that surfaces the same item once says nothing about a rate, and two rounds were spent
+measuring one bullet that way. What those rounds do settle is the *other* question — both arms
+wrote the same standing rules into a soliciting `## Agent Policy` and both named them in the
+reply, so a further bullet naming rules by name is unwarranted; what routes a rule into the reply
+is the obligation to say what the change was, which every arm has. What `unexpected change:`
+collected that nothing else did was collateral change — a file edited and restored, the cache
+directories a test run left behind — not durable prose. No case owns this block and none should:
+price a bullet by what it costs when it fires. Retire a bullet when the owner says it is not read.
+
+### `# Doing tasks` carries no docs order
+
+The deleted line was *Always update docs when you modify code or system state. Search for
+references across the entire codebase. After making a new file or making edits, check if project
+CLAUDE.md needs an update.* **Its repair half is saturated, including on the tree it was a bet
+about** — conventions in `CLAUDE.md` with no index, `docs/` reachable only by looking, a task
+naming no document, two changes falsifying nine statements across four files. Every arm repaired
+or deleted every falsified statement, the arm with no docs bullet included. Hypothesis: the
+falsified set is enumerable from the change, and an agent that has just made the change
+enumerates it — one untreated arm listed the four documents it had falsified before writing any
+code. What a standing order adds to a list the agent is already holding is nothing.
+
+What separates arms is the opposite half, unfalsified prose, and the wording that cuts it is not
+shipped: *A change owes documentation only where it made a document false; what it could newly
+explain, it does not owe* cuts that prose several-fold and survives the adversarial case (a
+runbook whose every step stays accurate while the procedure stops reaching its stated end — both
+arms amended it), but in both probes the arm carrying it shipped one sentence false against its
+own delivered code where the bare arm shipped none. The mechanism is the wording's own: what it
+cuts first is the qualifying clause that scoped the claim. That is this objective's doc-error
+axis pulling against its volume axis. The owner's account of their own specimen is the second and
+larger reason — the additions there "dont make sense": they do not belong where they were put, do
+not solve the problem, and introduce new problems with no owner; the alternatives they name are
+an off switch, removing the exposure, a note in the skill header, a general gotcha in the root
+index, and none is a volume question. Their account of why such a note gets written at all is a
+two-sided mispricing — *it looks like it only helps*, and *a research is actually MUCH CHEAPER but
+was considered more expensive here* — whose damage is an aggregate: *if every session says
+"adding this will save a little bit of time", thats how you get unbounded doc growth that ends up
+costing a lot more tokens*. Each addition is locally justified by a small expected saving, so a
+lever aimed at any single judgement does not reach the sum. Ship a wording here when an arm carrying it writes less
+unfalsified prose than a bare arm *and* a reader running the delivered code finds no sentence in
+its tree false against that code. `git checkout 7fccd245 -- prompt-tests/runs/amber-ferry` and
+`git checkout f04a01d4 -- prompt-tests/runs/tin-meridian` restore the two probes.
+
+`output-styles/` keeps an unwidened fork of the deleted sentence and `sys_prompt/alan-default.md`
+keeps the whole line; neither was in any arm, and `settings.json` sets `outputStyle: default`, so
+nothing loads the first.
 
 ### `# Git`
 
 The section is the only git policy a `claude.sh` session receives, because `settings.json` turns
 the other one off. `includeGitInstructions: false` removes the Bash tool description's `# Git`
-block — measured through the proxy on 2026-09-13, cc 2.1.269: the description loses exactly that
-block and nothing else — and with it cc's `gitStatus` reminder, because both hang off one gate
-(`q7()`, `chunk-dbb93264.js:69382`; the settings reference says the same). `attribution.commit`
-and `.pr` set to `""` remove the attribution reminder by a documented key; the first key removes
-it too, but that is observed, not documented, so both are set.
-
-What the block said, and where each line went:
+block and, off the same gate, cc's `gitStatus` reminder (`q7()`, `chunk-dbb93264.js:69382`).
+`attribution.commit` and `.pr` set to `""` remove the attribution reminder by a documented key;
+the first key removes it too, but that is observed rather than documented, so both are set.
 
 | Bash tool `# Git` line | Now |
 | --- | --- |
-| Interactive flags (`-i`) are not supported in this environment | Dropped. `# Using your tools` already says nothing gets a tty, and `GIT_SEQUENCE_EDITOR=… git rebase -i` works without one, so the line overclaimed. |
+| Interactive flags (`-i`) are not supported in this environment | Dropped: `# Using your tools` already says nothing gets a tty, and `GIT_SEQUENCE_EDITOR=… git rebase -i` works without one. |
 | Use the `gh` CLI for GitHub operations | Dropped; nothing replaces it. |
 | Commit or push only when the user asks | `Commit your changes.` Push stays under `# Executing actions with care`: outward-facing, so confirm first. |
-| If on the default branch, branch first | Dropped. With the line gone the probe below never saw the agent consider a branch. |
-| End commit messages with the attribution lines from the reminder | `Claude-Session: <session id>`. The id resolves to the transcript — `claude --resume <id>` finds it in any project on the machine — where a JSONL path would not: it moves with `CLAUDE_CONFIG_DIR` (prompt tests write under `.claude/worktree-config/`) and dies with a container rebuild. cc uses the same trailer token for its cloud session link. |
+| If on the default branch, branch first | Dropped. With the line gone the probes never saw the agent consider a branch. |
+| End commit messages with the attribution lines from the reminder | `Claude-Session: <session id>`. The id resolves to the transcript — `claude --resume <id>` finds it in any project on the machine — where a JSONL path would not: it moves with `CLAUDE_CONFIG_DIR` and dies with a container rebuild. |
 
-The author is set by `scripts/claude.sh` (`GIT_AUTHOR_*`, `Claude <81847+claude@users.noreply.github.com>`);
-the prompt is silent about it on purpose. The section says nothing about subagents either: the
-setting is session-wide, so a subagent that commits has no policy but its parent's prompt.
+The author is set by `scripts/claude.sh` (`GIT_AUTHOR_*`), so the prompt is silent about it. It is
+silent about subagents too: the setting is session-wide, so a subagent that commits has no policy
+but its parent's prompt. The snapshot is not lost — `agent-tools env-context` renders its own
+`# Git status at session start` (`environment.git_snapshot`), and re-fires on resume, `/clear` and compact where cc's was sent
+once. The clone sentence is the old `# Coding` line with `/tmp` replaced by the scratchpad; no run
+exercises it.
 
-The snapshot is not lost. `agent-tools env-context` renders its own `# Git status at session
-start` (`environment.git_snapshot`, cc's flags and 2000-character cap), and it re-fires on resume,
-`/clear` and compact, where cc's was sent once. It leaves out cc's `Git user` line — the config
-name cc prints is not who the commits are by — and the main-branch line, a PR aid.
+With no section and the tool block present the agent does not commit — *"you didn't ask for a
+commit"* — so the section is what produces the commit at all. Four clauses of a longer draft were
+then each removed in turn and none changed the behaviour, so none is in the shipped section:
+`without being asked`, `on the current branch`, `leave pre-existing uncommitted changes as they
+are`, and `, the id from the environment block`. That rests on a toy repository with no remote; one
+with an `origin/main` may pull toward a branch.
 
-The clone sentence is the old `# Coding` line with `/tmp` replaced by the scratchpad, which did
-not exist when that line was written. No run exercises it.
-
-**What the probes cut.** `prompt-tests/general/commit-own-changes`: a one-file task in a
-repository on `main` with an unrelated file already modified, nothing about git in the task.
-Baseline, no section and the tool block present: no commit — "you didn't ask for a commit". The
-first draft of the section was longer; it ran once whole and once per clause removed, one run
-each on `claude-opus-5`:
-
-| Draft clause | With it removed | Kept |
-| --- | --- | --- |
-| `without being asked` | committed | no |
-| `on the current branch` | committed on `main`, no branch created, none considered | no |
-| `leave pre-existing uncommitted changes as they are` | staged its own file only; every run, the baseline included, reasoned "not mine, leave it" unprompted | no |
-| `, the id from the environment block` | trailer carried the right id | no |
-
-What that rests on: one run per variant, a toy repository with one commit and no remote. A
-repository with an `origin/main` may pull toward a branch. Artifacts under
-`docs/prompt-trials/commit-own-changes/`.
-
-Measured: 7679 → 7693 API tokens (`claude-opus-4-7`), the clone line's rewrite included.
-
-Retire or re-test when: a release renames `includeGitInstructions` or stops gating the Bash block
-by it — the tool note returns beside this section and contradicts it. No capture will show that:
-`capture.py` passes `--setting-sources project,local` and `settings.json` installs as user
+Retire or re-test when a release renames `includeGitInstructions` or stops gating the Bash block
+by it, which puts the tool note back beside this section to contradict it. No capture will show
+that: `capture.py` passes `--setting-sources project,local` and `settings.json` installs as user
 settings, so `tools/Bash.md` carries the block either way. Read a live session's own Bash
-description instead; the case shows whether the agent still commits. The hook was trimmed on 2026-09-13 and the
-`Session ID:` line the trailer rule reads survived it — being unique to the hook is what kept it,
-since cc's own block never states the id, only embedding it in the scratchpad path
-(`…/<cwd-slug>/<session id>/scratchpad`). Retire this clause if that line ever goes; Bash
-subprocesses would still carry the id as `CLAUDE_CODE_SESSION_ID`, but no text would say so. When a run shows the agent branching, asking before a
-commit, or sweeping foreign changes in — those are what the cut clauses would have said.
+description instead; `prompt-tests/general/commit-own-changes` shows whether the agent still
+commits. The trailer rule reads the hook's `Session ID:` line, which is unique to the hook —
+cc's own block never states the id, only embedding it in the scratchpad path; retire that clause
+if the line goes, since `CLAUDE_CODE_SESSION_ID` would still carry the id but no text would say so.
 
 ### Subagents: `run_in_background: false` on every Agent call
 
-Until 2026-09-16 this was a harness guarantee rather than a rule: a `PreToolUse` hook on `Agent`
-rewrote the parameter to `false` on every call, and the bullet stated the foreground as a fact
-about the session. The user asked for a prompt rule instead, so the model now decides per call
-and nothing checks it.
-
-`CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the precondition, not a second enforcement
-(`docs/subagent-backgrounding.md` carries that gate, its alternatives, and what each costs).
-With the fork gate on, `run_in_background` is omitted from the Agent tool's input schema outright
-(`rc() || Z8()`, `src/chunk-dbb93264.js:171779`) and the rule would be unfollowable.
-
-Each clause was measured or read out of the source, not assumed:
+Until 2026-09-16 a `PreToolUse` hook rewrote the parameter on every call and the bullet stated the
+foreground as a fact about the session. The user asked for a prompt rule instead, so the model now
+decides per call and nothing checks it. `CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the
+precondition, not a second enforcement: with the fork gate on, `run_in_background` is omitted from
+the Agent tool's input schema outright and the rule would be unfollowable. The gate's source
+reading and the alternative settings are in `docs/subagent-backgrounding.md`.
 
 - **`false`, not omission.** Claude Code backgrounds unless the parameter is literally `false`
-  (`q4o`'s last term `!s && r !== !1`, `src/chunk-dbb93264.js:103955`). The clause exists because
-  omission is the failure mode and it is invisible — a call without the parameter reads like any
-  other call. Measured 2026-09-16 with the hook removed and the old bullet still in place: 3 of 3
-  Agent calls omitted the parameter and all three backgrounded. That run's own agent noticed —
-  "All three ran in the background and returned via task notifications instead. The guidance does
-  not match this session's behavior."
+  (`q4o`'s last term `!s && r !== !1`, `src/chunk-dbb93264.js:103955`). Omission is the failure
+  mode and it is invisible — which is why the old bullet, stating the foreground as a fact,
+  produced omission in every trial while the session read as normal.
 - **Concurrency is not a reason to background.** Several Agent calls in one assistant message run
   concurrently in the foreground, so the strongest legitimate pull toward backgrounding does not
-  hold. Without the clause the model has a good reason to background in exactly the case that
-  needs several agents at once.
-- **The tool description recommends the opposite.** The Agent tool description and the
-  `run_in_background` property's own `.describe()` both say to background by default and offer
-  "so the user can hand you other work" as the reason. Named and overridden, that is a resolved
-  conflict; unnamed, it is an unresolved one the model settles per call.
-- **`Default` carries the escape hatch**, as in ``Prefer `model: haiku` `` above, so the prompt
-  spells out no exception.
+  hold, in exactly the case that needs several agents at once.
+- **The tool description recommends the opposite**, in both the description and the
+  `run_in_background` property's own `.describe()`. Named and overridden, that is a resolved
+  conflict; unnamed, the model settles it per call.
+- **`Default` carries the escape hatch**, so the prompt spells out no exception.
 
-Dropped from the old bullet and not replaced: "never report an agent as still running and never
-wait for a notification that the launching call already answered". Both were true only while
-nothing could background. A backgrounded agent now genuinely is still running and a notification
-genuinely follows.
-
-`prompt-tests/general/subagent-foreground-default` is the check, and the only thing standing
-between this rule and silent decay. Measured the same day, same task, hook gone in both arms: with the old bullet, 3 of 3 Agent
-calls omitted the parameter and all three backgrounded; with this bullet, 9 of 9 across three
-trials passed `false`, none backgrounded, and every report returned as the launching call's own
-tool result. Trajectories under `prompt-tests/runs/subagent-foreground-default/`.
-
-**Unverified, decide at the next edit to this bullet:** no green trial's reasoning weighed the
-Agent tool's description against the prompt, and one of the three named neither the parameter nor
-the foreground at all while still passing `false`. So the override clause has no measured
-behaviour behind it — it may be what keeps the conflict from being weighed, or it may be text the
-first clause already covers. Removing it and re-running the case is what would tell them apart.
-
-Retire this if `settings.json` moves to `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which forces the
-foreground with no help from the model and makes every clause here dead text.
+Dropped and not replaced: "never report an agent as still running and never wait for a
+notification that the launching call already answered". Both were true only while nothing could
+background. `prompt-tests/general/subagent-foreground-default` is the check and the only thing
+standing between this rule and silent decay. **Unverified, decide at the next edit:** no passing
+trial's reasoning weighed the tool description against the prompt, so the override clause has no
+measured behaviour behind it — removing it and re-running the case is what would tell it from text
+the first clause already covers. Retire this if `settings.json` moves to
+`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which forces the foreground with no help from the model.
 
 ### Backgrounding a wrapped command: `run_in_background: true` by default, `--background` by exception
 
-The prompt names one default — `run_in_background: true` on an ordinary `agent-tools run` —
-and gates `agent-tools run --background` behind one trigger: the job must survive the call
-being killed, by a `TaskStop` or at a timeout the command is not promoted out of.
+The prompt names one default — `run_in_background: true` on an ordinary `agent-tools run` — and
+gates `agent-tools run --background` behind one trigger: the job must survive the call being
+killed. This is a preference the user stated on 2026-09-14 about this bullet; no measurement
+forced it, so it can be revisited by asking. What supports it: a detached run gives up the task id
+and the harness's completion notification and delivers only `final(<code>)` on the status channel,
+which arrives on the next tool result rather than waking the agent — so the default path is the
+one that reports, and the flag is what you pay for surviving a kill. Both sides are in the prompt
+already, which is why no reason for the ordering is. Before the edit the bullet described
+`--background` at twice the length with no trigger and no cost stated in contrast; length and
+final position were doing the recommending, and that is what changed, not the facts.
+`docs/agent-tools-status-reference.md` was reconciled in the same change — it named `--background`
+as the form to reach for whenever a job outlives its call, and it is the prompt's exhaustive half,
+so an agent that reads it gets whichever default it states. `skills/telegram-hitl/SKILL.md` came
+under the same gate; its proxy keeps `--background` and now says why. The `TaskStop` half of the
+trigger is measured on both sides in that doc, "The kill boundary". Retire or revisit this if
+`--background` gains a completion notification of its own.
 
-This is a preference the user stated on 2026-09-14, about this bullet: the default should not
-be `--background`. No measurement forced it, so it can be revisited by asking. What supports
-it: a detached run gives up the task id and the harness's completion notification and delivers
-only `final(<code>)` on the status channel, which arrives on the next tool result or user turn
-rather than waking the agent — so the default path is the one that reports, and the flag is
-what you pay for surviving a kill. Both sides of the trade are in the prompt already, which is
-why no reason for the ordering is.
+## Ledger: wordings measured and not shipped
 
-Before the edit the bullet named `run_in_background: true` first and then described
-`--background` at twice the length with no trigger and no cost stated in contrast. Length and
-final position were doing the recommending; that is what changed, not the facts.
+A row is a wording no longer under consideration, kept only so a later round does not re-run it
+believing it new. Its probe is restorable; its run is in the commit that measured it.
 
-`docs/agent-tools-status-reference.md` was reconciled in the same change — its "Delivery" and
-"kill boundary" sections each named `--background` as the form to reach for whenever a job
-outlives its call, which contradicts the prompt's gate. That doc is the prompt's exhaustive
-half, so an agent that reads it gets whichever default it states.
-
-`skills/telegram-hitl/SKILL.md` was brought under the same gate: its hours-long waiter now
-runs as a harness background task, because a detached one delivers no completion notification
-and the answer would sit unread until something else gave the session a turn. Its proxy keeps
-`--background` and now says why — a harness background task is session-scoped and the proxy
-has to outlive the session that starts it.
-
-The `TaskStop` half of the trigger is measured on both sides, in
-`docs/agent-tools-status-reference.md`, "The kill boundary": `--background` survives it, a
-harness background task is killed by it (`final(143)`).
-
-Retire or revisit this if `--background` gains a completion notification of its own, which
-would leave the flag with no cost to trade against.
+| Wording | Why it is not in the prompt | Probe |
+| --- | --- | --- |
+| `Omit by default` (and the reach half before it) | On a compression task an arm carrying it and one without were indistinguishable, each making an unrequested false claim. What it bought was attention to readership, and attention argues in whichever direction the task favours. Hypothesis: a document acquires a claim while a sentence is being written, not at a moment where adding could be declined. Bring it back if a transcript shows an agent declining a specific addition as costing more than it is worth, the reasoning tracing to a line rather than to the task. | in the prompt until round 13 |
+| The second bullet's *binds the next reader to a choice nobody reviewed* | One claim in two wordings with the bullet above it, and nothing said which governed. Both arms then left the soliciting `CLAUDE.md` byte-identical, so the surviving bullet reaches its placement without the copy. Limit: only the uncut arm's reasoning raised the heading at all. Restore the copy if an arm carrying the cut block extends a soliciting document that an arm carrying the uncut one leaves alone, on `prompt-tests/general/hushed-rollcall`. | in the prompt until round 33 |
+| A bullet asking for claim-handling | A premise gating an act the reader performs is recorded as a check with nothing asking for it; one inside a sentence explaining how a step works is asserted flat, by a session that had named that same doubt in its own `uncertainties`. Hypothesis: a doubt is routed to where the reader acts, and a descriptive sentence offers nowhere to put it, so it is dropped rather than declined. Retire this deletion when an arm carrying such a line qualifies a premise inside an explanatory sentence where an arm without it asserts it flat, on `prompt-tests/general/maintainer-briefing`. | — |
+| *A note telling the next reader to avoid something is a fix you did not make* | Saturated where the fix or the check is part of the task: the arms took it either way. Not saturated where the note contradicts a rule the change has just falsified — there one arm rewrote the sentence and the other left a file asserting and denying one rule. | `git checkout d530b4ed -- prompt-tests/runs/slate-harbor`, `… bronze-kettle` |
+| *Finding out costs less than the rule you would write instead* | Never written: every leg already ran the check unprompted, established the finding was pre-existing, named the fix and put the choice in the reply, with no standing rule in any tree. | `git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket` |
+| *A rule's scope is a claim. Wording one wider than you checked asserts the cases you did not look at — narrow it to those you did, or check the rest* | The arm carrying it shipped the failure the line names, asserting a coupling one render refutes, where the bare arm stated it correctly. Hypothesis: the unchecked half of a claim is invisible while the sentence is being composed, so a line naming it changes nothing — what catches it is looking at the second case. This is the live failure: every leg of the probe above turned one instance into a project-wide rule, and the added scope, not the instance, is where the false statements were. Ship a wording here when an arm carrying it states no claim its own tree refutes where a bare arm does. | `git checkout 4cb01c30 -- prompt-tests/runs/pewter-dial` |

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "parqueue"
+version = "0.4.2"
+description = "A tiny work queue over a directory of files."
+requires-python = ">=3.11"
+dependencies = ["click>=8.1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "build>=1.2"]
+
+[project.scripts]
+parqueue = "parqueue.cli:main"

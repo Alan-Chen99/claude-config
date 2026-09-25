@@ -6,352 +6,349 @@ description: Use when running, grading, or iterating any case under prompt-tests
 # prompt-tests
 
 Runner-neutral workflow for evaluating agent prompts using cases under
-`prompt-tests/general/<case>/`. Works for opencode agents, Claude Code, or any
-other runner that can be driven from a shell with stdin/stdout.
+`prompt-tests/general/<case>/`. Works for opencode, Claude Code, or any runner
+drivable from a shell.
 
-## Required methodology: TDD for prompts
+A run is read to understand what the prompt did, not to stamp a verdict on it.
+The reasoning behind every rule below is in `docs/prompt-testing-design.md`; this
+file is the operational half.
 
-**REQUIRED SUB-SKILL:** Always load `superpowers:writing-skills` before
-iterating on any prompt evaluated here — even when the artifact under test is
-not a skill (system prompts, agent prompts, runner configs, sub-agent
-definitions, etc.). The RED → GREEN → REFACTOR cycle and the Iron Law ("no
-edit without a failing test first") apply to all prompt iteration, not just
-skill authoring. Run the failing case first to capture the baseline (RED),
-then change the prompt (GREEN), then re-run affected cases to confirm no
-regression (REFACTOR). No exceptions for "small tweaks" or "obvious fixes".
+## The grader
 
-## Grader rule (load-bearing)
+One grader per arm, dispatched as a subagent, reading the **whole session** —
+`agent-tools cc-pretty` for Claude Code JSONL, `agent-tools opencode-pretty` for
+opencode — under the `session-analysis` reading protocol. Self-grading by the
+agent that produced the session satisfies nothing.
 
-A grader MUST read all thinking blocks (typically with `agent-tools cc-pretty`
-for Claude Code JSONL or `agent-tools opencode-pretty` for opencode sessions).
-**Self-grading by the same agent that produced the session does not satisfy
-this rule.** Final-answer-only review does not satisfy it either.
+The grader is the only reader who reads the whole session, so it holds final
+authority over every criterion it is given, the case's `reference-solution.md`
+included.
+
+`reference-solution.md` tells the grader what the caller cares about and why. It
+is guidance: it does not bind and it does not score. **It is inadmissible as a
+requirement** — the tested agent never saw it. An element satisfiable only by an
+agent that had read it is defective as written: delete it, or rewrite it as the
+stake it came from.
+
+## Grader dispatch
+
+Stage the inputs in a scratch directory with no path under `prompt-tests/`:
+reading a path there attaches `prompt-tests/CLAUDE.md` to the grader's context as
+a system-reminder, enlarging its instructions without its knowledge. Stage
+`task.md`, the arm's system prompt, the fixture, the delivered artifact, and the
+session log. Withhold the reference.
+
+**Copy content, not paths.** Anything generated from repository files carries
+their paths inside it, and the case directory is named for what is being
+measured: a `diff -u` writes the fixture's absolute path into its own header, so
+a staged diff hands a blind reader the case name in the first two lines. Pass
+`--label before/<f> --label after/<f>`, and grep the staged tree for the case
+name and for `prompt-test` before dispatching.
+
+**Phase 1, reference withheld.** Two arguments, in this order, to
+`judgement-<arm>.md`:
+
+1. **Constraint argument** — the strongest case that this output was the right
+   move given what the agent had, argued as the agent rather than as the person
+   who wrote the prompt. Its conclusion is always a claim of *no alternative*.
+   Two admissible limbs: (a) quoted text required it; (b) quoted text predictably
+   reads that way, evidenced by the agent's own reasoning forming that reading,
+   cited by ref. Neither limb available means a **concession**, written as one.
+2. **Alternative argument** — the concrete better action available within the
+   requirements argument 1 quoted. Argument 2 exists to kill argument 1: an
+   alternative surviving those quotes refutes the forcing claim. Every
+   alternative names a **trigger**: something the agent had already seen at that
+   point, cited by ref, that should have prompted it. No trigger means the item
+   is **undiscoverable from the agent's position** — a finding about the task,
+   not a pass for the agent, and inventing a trigger to avoid writing it is this
+   dispatch's characteristic failure.
+
+Inadmissible in argument 2, and the tell is the word *just*: "it could have just
+noticed X", where what makes X worth noticing is knowing the answer; anything
+reached by reading the source as a grader with both documents side by side;
+anything reached from how the run turned out.
+
+The deliverable is the **boundary** — per item, which side survives. Both
+surviving means a defect in the requirements and a defect in the behaviour; do
+not force a winner. Add what the output bought and what it paid, including
+anything no reader looking for defects in the delivered text would notice.
+
+Why this shape, rather than a score: `docs/prompt-testing-design.md`.
+
+**Phase 2, reference handed over** (`SendMessage` to the same agent, so it keeps
+the session in context): which items the reference would have caught and which it
+would have missed; the reference's defects — inadmissible elements, anything it
+scores as the agent's fault that argument 1 showed was forced, anything it cannot
+separate a good output from a bad one on; and whether reading it changed the
+verdict. "Adequate for this output" is a listed outcome and is preferable to a
+manufactured complaint. Quote the reference text and the output text that strains
+it; no critique in the abstract.
+
+~900 words phase 1, ~600 phase 2, quotes excluded.
+
+**Overriding a criterion costs a written claim** in phase 2: the reference text,
+the evidence, the repair. The owner then applies it to `reference-solution.md` or
+records the rejection.
+
+The judgement stays in the round's scratch directory and is not committed;
+`prompt-tests/runs/README.md` says why a later round cannot cite it anyway.
+
+**A prompt edit gets one more grader, and that one grades blind.** The
+judgements above are per-arm. The comparison is a separate dispatch: one grader
+holding both sessions labelled A and B, told only that they differ in the system
+prompt and what the decisive criterion is. A grader told which arm is the
+treatment has a visible pull toward finding a difference.
+
+**Strip the `prompt_snapshot` attachments before handing a transcript to that
+grader.** A Claude Code JSONL carries the whole system prompt in two of them, so a
+blind reader given the raw log reads the arm off it and nothing in its answer says
+that it did. Drop every record whose `attachment.type` is `prompt_snapshot`, then
+grep the copy for a phrase unique to the treated arm.
+
+**Before attributing a behaviour to an edit, grep the arm's own prompt for it.**
+A prompt that already instructs the behaviour a case grades produces it in both
+arms, and the difference you are measuring is then somewhere else.
+
+Two more ways an attribution fails silently, both of which have happened here:
+
+- **The baseline may already span the outcome range.** Where an arm comparison is
+  going to decide something, say what the baseline's spread is or say that it is
+  unknown — a difference inside that spread is a sample, and a null is equally
+  underdetermined. Cheaper than measuring the spread: give one run **several
+  opportunities for the behaviour under test, differing in character**, and read
+  the line the agent drew between them (`docs/prompt-testing-design.md`).
+  **The starting tree is a baseline too.** Before crediting a defect to an arm,
+  check whether the fixture already ships it: an arm that matches the fixture's
+  existing house style introduces nothing, and reading that as a cost of the
+  treatment has blocked a ship here on something no run was needed to see.
+- **A rule that reaches the agent in a tool result explains nothing written
+  before the first call to that tool.** The `pre_output.record` reminder is the
+  case in point: its text arrives in the tool response, so behaviour at earlier
+  tool calls is baseline behaviour whatever the arm was meant to test. State the
+  tool-call index of the behaviour and of the first call.
+
+## Probes, and when a run is a case instead
+
+Most runs should be **probes**: a small fixture, one targeted question, the
+artifact read by whoever launched it. No grader dispatch, no foci, no arm sweep.
+A probe answers *what does the prompt do here*, which is what almost every round
+actually needs, and it costs a fraction of a case, so a round can afford to
+re-read its own result and to run a second probe when the first one surprises it.
+
+A **case** — `reference-solution.md`, a grader per arm, foci, stored runs — is
+the exception. A probe that a later round needs to re-run is promoted to one;
+otherwise it is deleted with the round that wrote it. Keeping an un-promoted
+probe is the ratchet this repo is against: a directory nobody re-runs, that only
+a human will ever remove.
+
+**A case is kept only while `sys_prompt/CLAUDE.md` names it.** A retirement
+condition there says what observation would end a prompt line; the case is where
+that observation gets made, so the condition names the case and the case needs no
+argument of its own. One grep decides:
+
+```bash
+for c in prompt-tests/general/*/; do
+  grep -qF "prompt-tests/general/$(basename "$c")" sys_prompt/CLAUDE.md || echo "unowned: $c"
+done
+```
+
+Anything it prints is deleted by the round that runs it, and the corpus can then
+never outgrow the prompt — the property a size limit would otherwise have to be
+set by hand to get. Deletion is not loss: `git checkout <sha> -- <path>` brings a
+case back, so a later round that finds it needs the fixture restores it in one
+command and no human is involved in either direction. Say so in the commit.
+
+**The grep is necessary, not sufficient: read what the match says.** Three kinds
+of sentence own a case, and each says what a later round would *observe*: a
+retirement condition; a standing check, which says what re-running the case
+would catch going quietly wrong; and a user direction. A sentence naming the
+case as the place a past run happened is none of them — provenance is a
+statement about what already occurred, so nothing a later round observes can
+falsify it, and one such line pins a directory for as long as the paragraph
+stands. Where a case's only match is provenance, either the paragraph stops
+naming it or the case is unowned.
+
+**The owning sentence carries the path itself**, not *on that case* pointing back
+at a narrative sentence that has it. Otherwise the grep is held up by the
+narrative, deleting the narrative silently unowns the case, and the two rules —
+own by observation, and the rule keeping run narrative out of
+`sys_prompt/CLAUDE.md` and in the commit — pull against each
+other. Three of five entries here were in that state.
+
+Run it in the other direction too. A condition naming no case, or naming a
+fixture property no case has, cannot be observed either; it is a deletion
+candidate with an outstanding test, and the test is cheaper than the paragraph
+is long.
+
+A per-case argument for permanence — *the only case that does X* — is not one of
+these. It is a claim about the corpus rather than about the case, nothing a later
+round observes can falsify it, and deleting its neighbours makes it more true.
+Fifteen of them were written here and none survived contact with this grep.
+
+Delete it with `rm -r`, not `git rm -r`: running a fixture leaves gitignored
+artifacts (`__pycache__`) inside it, which `git rm -r` does not touch and
+`git status` does not show, so the directory survives a deletion that looks
+committed.
+
+**A probe's directory is deleted by the round that wrote it**, in the commit
+that records what the probe concluded. Not by a condition it states for someone
+else to check: two probes here wrote one, and both conditions turned out to
+depend on a future nobody controls — one could fire only if a later round
+re-added the very line the probe had just retired. Git holds the
+pre-registration and the artifacts, and `git checkout <sha> -- <path>` is one
+command, so a round that needs the probe back pays a line for it. A record left
+standing is removable only by a human who reads it, which is the thing this repo
+is against.
+
+**A retirement condition may name a deleted probe by its restore sha**, not only a
+live case. `prompt-tests/runs/` is outside the ownership grep, so naming one pins no
+directory, and the condition then names where the observation was actually made.
+Without this the two rules above pull against each other: a probe-measured claim gets
+a condition pointing at a case where the behaviour was never seen, and one such
+condition named a case whose arms had been measured leaving the soliciting file
+untouched.
+
+A probe still runs under the contamination rules below — the fixture is copied
+into a neutral `/tmp` scratch cwd and nothing else from the repo goes with it.
+
+**A probe lives entirely in one directory**, `prompt-tests/runs/<probe>/`: its
+`task.md`, its `fixture/`, and the `README.md` saying what was asked, what came
+back, and what deletes it. The runner takes that directory as its first argument
+— any `<case>` with a slash in it is used as given — so nothing is left in
+`prompt-tests/general/`, and deleting the probe is one `rm -r` with no second
+place to remember. Name the directory after the *task*, and after neither the
+behaviour under test nor anything inside the fixture: the name reaches the
+child's `/proc/<pid>/cmdline`, which a peer agent on this machine can read, and a
+directory sharing a word with its own fixture is found by the ordinary search the
+task sends the agent on. Observed 2026-09-22 — an arm looking for the git history
+of a pin ran a bounded `find` for the fixture's project name, listed the probe
+directory, and reported it in its own notes. Check with
+`grep -rwiF "<dir-name-words>" <probe>/task.md <probe>/fixture/`.
 
 ## Test case shape
 
-Each case under `prompt-tests/general/<case>/` contains:
+Under `prompt-tests/general/<case>/`:
 
-- `task.md` — exact prompt sent to the tested agent through stdin. It must be
-  clean task text, with no test-framework anti-cheating note.
-- `reference-solution.md` — what the case probes, and the `session-analysis`
-  foci a run is read under. The foci are the case's measurement instrument:
-  changing them makes new runs incomparable with stored ones, so treat a change
-  to them as a change to the case.
-- `downstream.md` (optional) — a second task carrying `{{ARTIFACT}}`, run
-  against the first session's output. See "`downstream.md`" below.
-- `fixture/` (optional) — runnable artifacts the agent needs. Pinned at the
-  fixture level (e.g., PEP 723 inline metadata for Python).
+- `task.md` — the exact prompt sent to the tested agent through stdin. Clean task
+  text, with no test-framework anti-cheating note.
+- `reference-solution.md` — what the case probes, and the `session-analysis` foci
+  a run is read under. Foci are the case's measurement instrument: changing them
+  makes new runs incomparable with stored ones, so treat that as a change to the
+  case.
+- `downstream.md` (optional) — a second task carrying `{{ARTIFACT}}`, run against
+  the first session's output.
+- `fixture/` (optional) — runnable artifacts the agent needs, pinned at the
+  fixture level (e.g. PEP 723 inline metadata for Python).
 - `setup.sh` (optional) — run by `scripts/prompt-test-cc.sh` in the scratch cwd
-  after the fixture copy, never copied in; for state a copy cannot carry, such
-  as a git repository with history.
-
-There is no `run.md` and no `baseline.md` inside the test directory.
-Historical baselines from the opencode era are at
-`docs/opencode-system-prompt/baselines/`.
+  after the fixture copy, never copied in; for state a copy cannot carry, such as
+  a git repository with history.
 
 ## Workflow
 
-1. **Pick a case.** Read `task.md` and `reference-solution.md` under
-   `prompt-tests/general/<case>/`.
+1. **Pick a case.** Read its `task.md` and `reference-solution.md`.
+2. **Run it once** via a runner below. Where a prompt edit is being assessed, run
+   the same case under the unedited prompt too — the comparison is against the
+   baseline arm, not against expectation, and cases here can behave the same way
+   in both. Snapshot both prompts to `/tmp` first (`git show HEAD:sys_prompt/…`):
+   a runner resolves its prompt path at session start, so editing the prompt
+   while runs are in flight splits one arm across two prompts.
+3. **Dispatch the grader**, one per arm.
+4. **Where the case has foci, dispatch one `session-analysis` subagent per
+   focus**, `mode: evidence` — the cross-run diff instrument, so skip them when
+   nothing is being compared and do not add foci to a case that has none. Where
+   an arm ran several times, give one subagent all its runs and one focus. Cap
+   each at ~500 words for a single-turn session, 600 for an arm of three; the
+   parent reads every artifact.
+5. **Read the judgement and the artifacts.** Store both.
 
-2. **Run the test once from a scratch cwd under `/tmp`.** Choose the
-   per-runner recipe below. Capture the session log under `/tmp/`.
+Run once first; add runs when the artifacts of one arm disagree with each other.
 
-3. **Dispatch one `session-analysis` subagent per focus.** `mode: evidence`,
-   the foci taken from the case's `reference-solution.md`. Where a case was run
-   several times under one prompt version, give one subagent all the runs of
-   that arm and one focus: the artifact then covers the arm rather than a single
-   session, which is the unit an arm-to-arm comparison reads anyway, and it keeps
-   one focus per artifact. Give every subagent a word cap — roughly 500 words for
-   a single-turn session, 600 for an arm of three — because the parent reads
-   every artifact, and an uncapped batch of them costs more context than the
-   sessions did.
+### What a run's recorded output is
 
-4. **Read the artifacts.** They are the result of the run. Store them so the
-   next version of the prompt can be compared against them.
+Within a round: the grader's judgement, plus the foci artifacts where the case has
+foci. Across rounds: the claim and the hypothesis beside it, nowhere else.
 
-Trial count is task-dependent. Run once first; add runs when the artifacts of
-one arm disagree with each other.
+Do not stamp `pass` or `fail` as a run's result: two runs can both pass and
+differ in every step that got them there. Nothing here produces a rate, and any
+aggregate built from these documents is a misuse of them.
 
-### What a run produces
+A prompt edit is justified when a forcing claim that held under the old prompt
+dies under the new one; an edit that creates a new forcing claim is a regression
+even where the output looks better. `invalid` survives as a verdict, because it is a fact about the harness rather
+than about the agent — see "Contamination".
 
-The result of a run is the **trajectory**, not the agent's final answer. What
-reached the answer is one span of the session; what the agent weighed and
-discarded on the way is the rest of it, and a prompt edit moves that part first.
-So a run's recorded output is the set of `session-analysis` evidence artifacts
-taken under the foci the case's `reference-solution.md` names — the same foci
-every time, so two runs are comparable line by line.
+### `downstream.md`
 
-Compare a new run to the stored artifacts of the old one, artifact against
-artifact. A verdict does not carry enough to compare: `fail` and `fail` look
-identical whether the second run failed the same way or a new one.
+A second task that puts the first session's artifact — a handoff note, a subagent
+prompt, a returned table row — in front of the reader it was written for, with
+the literal marker `{{ARTIFACT}}` where the artifact goes.
+`scripts/prompt-test-cc-downstream.sh` substitutes and runs it.
 
-Do not stamp `pass` or `fail` on a run. Whoever reads the artifacts later is
-working on something specific, and what counts as passing depends on what that
-is. Record what the agent did and quote it; leave the judgment to the reader who
-has a question.
+A defect in text written for another agent is only a defect in what the receiver
+then does. So the reader runs on stock Claude Code with a fresh empty
+`CLAUDE_CONFIG_DIR`: no plugins, no hooks, no `CLAUDE.md`, and **not the prompt
+under test** — a reader running that prompt can repair a defective artifact out
+of its own instructions and hide the effect being measured. The reader is an
+instrument, not a session under test; record its answer verbatim beside the
+artifacts rather than analysing it.
 
-`invalid` survives as a verdict, because it is a fact about the harness rather
-than about the agent: a contaminated run did not measure the task. See
-"Cheating and contamination detection".
+## Contamination
 
-### `downstream.md` (optional, per case)
+Every tested-agent trial runs with its cwd outside this repository, in a fresh
+`/tmp/prompt-test-...` directory — harnesses auto-load `CLAUDE.md`/`AGENTS.md`
+from the cwd and from files the agent reads. The runner scripts do this; a
+hand-rolled run must:
 
-A case may carry `downstream.md` next to `task.md`: a second task that puts the
-first session's artifact — a handoff note, a subagent prompt, a returned table
-row — in front of the reader it was written for, with the literal marker
-`{{ARTIFACT}}` where the artifact goes. `scripts/prompt-test-cc-downstream.sh`
-substitutes and runs it.
+- `SCRATCH="$(mktemp -d /tmp/prompt-test.XXXXXXXX)"`, and run the harness
+  process from there (for opencode, also `--dir "$SCRATCH"`). **No case or tag
+  name in that path.** The agent reads its own cwd — environment block,
+  scratchpad path, every shell prompt — and case names here describe the
+  behaviour under test, so a cwd built from one announces the measurement.
+- Copy only the case's `fixture/` in — never `reference-solution.md`,
+  `prompt-tests/CLAUDE.md`, or any other grader-only doc.
+- Use absolute `$REPO/...` paths for plumbing such as the prompt file and
+  `task.md` stdin.
+- For opencode, `OPENCODE_DISABLE_PROJECT_CONFIG=1` and
+  `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1`.
 
-It exists because a defect in text written for another agent is only a defect in
-what the receiver then does. The reader runs on stock Claude Code with a fresh
-empty `CLAUDE_CONFIG_DIR`: no plugins, no hooks, no `CLAUDE.md`, and not the
-prompt under test — a reader running that prompt can repair a defective artifact
-out of its own instructions and hide the effect being measured. The reader is an
-instrument, not a session under test; its answer is short, so record it verbatim
-beside the artifacts rather than analysing it.
+**No plugins, either runner.** Superpowers injects a `brainstorming` skill whose
+HARD-GATE blocks implementation tasks pending design approval, so the agent never
+reaches the artifact-delivery step a case grades and the run measures the plugin.
+A transcript showing that, or any other plugin enforcement before the
+artifact-delivery step, is **misconfigured** — rerun it, do not grade it.
 
-## Scratch cwd isolation (load-bearing)
+Detection is grader-only; `task.md` never carries an anti-cheating note. Mark a
+run **`invalid`** and rerun — not `fail`, since it did not measure the task — if
+the tested-agent transcript shows any of:
 
-Every tested-agent trial MUST run with its current working directory outside
-this repository, under a fresh `/tmp/prompt-test-...` directory. This applies
-to opencode, Claude Code, and any other harness.
+- any tool action touching a path matching `**/prompt-tests/**` in any worktree
+  of `claude-config`;
+- any access to `reference-solution.md`, `prompt-tests/CLAUDE.md`, grader
+  prompts, baselines, or prior results for the case;
+- auto-loaded instruction content from a `CLAUDE.md`/`AGENTS.md` under a
+  prompt-test directory;
+- the case's own name, or any word from it, in the agent's cwd, its scratchpad
+  path, or anything else it can read. The runner scripts name the scratch
+  directory neutrally; a hand-rolled run must too.
+- **anything naming the harness inside the cwd**, which is the same leak without
+  a case name in it: a settings file, a log, a marker. An agent lists its working
+  directory before it starts and reports what it found. Keep harness plumbing
+  outside the cwd and give it a path that does not say *prompt test*.
+- **the command line**, which `--hide-cmdline` does not cover. It hides the
+  wrapper's argv; the wrapped command is its own process and its
+  `/proc/<pid>/cmdline` still spells out the case name and the arm, where a peer
+  test-agent can read them. Both runners take a `<case>` containing a slash as
+  given and `pwd` is logical, so a neutral symlink —
+  `ln -s "$REPO/prompt-tests/general/<case>" /tmp/<neutral>` — keeps the name out
+  of the argv and out of the log filename at once.
 
-Rationale: harnesses can auto-load nearby instruction files such as
-`CLAUDE.md`/`AGENTS.md` from the current working tree or from files the agent
-reads. `prompt-tests/CLAUDE.md` intentionally contains grader-facing case
-summaries and assumption posture. If a tested agent sees it, the run is
-contaminated even if the agent did not explicitly read `reference-solution.md`.
+**Harness-side channels (opencode).** Full inventory in
+`skills/opencode-subcommand/SKILL.md`, "System-prompt contamination". The one
+that bites probe work: a spec loaded via `{file:PATH}` has its frontmatter
+injected verbatim. `scripts/strip-frontmatter.py --check <spec>.md` exits 1 if
+markers remain; without `--check` it writes `<spec>-clean.md`.
 
-Rules:
-
-- Create a fresh scratch directory, e.g. `SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"`.
-- Run the harness process from that scratch directory.
-- For opencode, also set `--dir "$SCRATCH"`.
-- Copy only task-visible fixture files into the scratch directory. Do not copy
-  `reference-solution.md`, `prompt-tests/CLAUDE.md`, or any grader-only docs.
-- Use absolute `$REPO/...` paths for harness plumbing such as the agent prompt
-  file and `task.md` stdin.
-- If the harness has a flag/env var to disable project instruction loading, use
-  it. For opencode, set `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1` in addition to
-  `OPENCODE_DISABLE_PROJECT_CONFIG=1`.
-
-## Cheating and contamination detection (grader-only)
-
-The tested agent must not receive anti-cheating instructions in `task.md`.
-Cheating detection belongs to graders and harness maintainers, not the agent
-being tested.
-
-Mark a run `invalid` and demand a rerun if the tested-agent transcript shows any
-of these, whether intentional, accidental, or auto-loaded:
-
-- Any read/list/glob/grep/search/bash/tool action touching a path matching
-  `**/prompt-tests/**` from any git worktree of `claude-config`, including
-  `/root/claude-config-work/prompt-tests/...` and `/repos/claude-config/...`.
-- Any explicit or implicit access to `reference-solution.md`,
-  `prompt-tests/CLAUDE.md`, grader prompts, baselines, or other grader-only
-  prompt-test files.
-- Any auto-loaded instruction content from `prompt-tests/CLAUDE.md` or nearby
-  `CLAUDE.md`/`AGENTS.md` files under a prompt-test directory.
-- Any other action whose purpose or effect is to inspect hidden test criteria,
-  expected answers, grader-only docs, or prior test results for the same case.
-
-Do not count this as `fail`: contamination means the run no longer measures the
-agent's behavior on the task. Discard the run and rerun with a clean scratch cwd
-and corrected harness isolation.
-
-### System-prompt contamination (harness-side)
-
-Beyond agent-visible cheating, opencode has three harness-side channels
-that inject content into the system prompt. See
-`skills/opencode-subcommand/SKILL.md` "System-prompt contamination"
-section for the full inventory (C1 `{file:PATH}` frontmatter leak, C2
-`agent-tools run --desc` argv leak, C3 CLAUDE.md/AGENTS.md/CONTEXT.md
-injection). For probe/eval work, the load-bearing hardening:
-
-- Any spec loaded via `{file:PATH}` MUST have its YAML frontmatter
-  stripped or must have no `#` comments referencing rounds, probes,
-  hypotheses, or prior outcomes. Verify per file with
-  `scripts/strip-frontmatter.py --check <spec>.md` (exit 1 if any
-  markers remain). Create clean variants with
-  `scripts/strip-frontmatter.py <spec>.md` — writes a sibling
-  `<spec>-clean.md`.
-- For probe wraps, pass `agent-tools run --hide-cmdline --desc ...` so
-  the description and wrapped argv do not leak via `/proc/*/cmdline`
-  (F88 fix; regression guard in
-  `tests/run_test.rs::hide_cmdline_hides_desc_and_argv_from_proc_self_cmdline`).
-  The hide is opt-in — without the flag, argv is visible for
-  debugging clarity but the desc is still recoverable via `ps aux`
-  by a peer test-agent. Older installed binaries do not recognize the
-  flag — rebuild in place if `agent-tools run --hide-cmdline --help`
-  errors.
-- The default opencode recipe in the "Runner recipes" section below
-  sets `OPENCODE_DISABLE_PROJECT_CONFIG=1` and
-  `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1`; keep both for any probe
-  harness derived from it.
-
-## Runner recipes
-
-### opencode
-
-See `skills/opencode-subcommand` for the full recipe. The minimal pattern for
-running a test under an existing agent prompt (e.g., `opencode/agents/alan-default-ids.md`):
-
-#### Plugin policy (load-bearing)
-
-Run the tested agent with **no plugins loaded** (`"plugin": []`) by default.
-Superpowers in particular injects a `brainstorming` skill whose HARD-GATE
-blocks all implementation tasks pending design approval; on cases like
-`coverage-disclosure` and `network-resilience` this produces a pre-disclosure
-failure (the agent never reaches the artifact-delivery step the test grades),
-so the test measures plugin behavior rather than the agent prompt's behavior.
-See `docs/opencode-system-prompt/baselines/coverage-disclosure.md`
-Configuration 1 for the verbatim failure.
-
-Opt in to plugins only for cases that specifically exercise plugin behavior.
-The only such case currently is `general/superpowers-startup-components`, which
-asks the agent to identify superpowers-origin prompt components and therefore
-requires the plugin loaded. Add to the plugin list for that case:
-
-```json
-"plugin": ["superpowers@git+https://github.com/obra/superpowers.git"]
-```
-
-#### Worktree `agent-tools` binary (load-bearing for any prompt that calls `agent-tools`)
-
-The default recipe always prepends the worktree's `agent-tools/target/release` directory to `PATH` and sets `CLAUDE_CONFIG_ROOT=$REPO`. `agent-tools opencode.gate` (and any other agent-tools subcommand reachable from the agent prompt) carries strings baked into the binary at build time, including the GATE_STDOUT constant in `agent-tools/src/main.rs`. The system binary at `~/.local/bin/agent-tools` resolves to the canonical repo (`/repos/claude-config`) per the install.sh rule; changes made in a worktree never reach it. Without the PATH override, the test agent invokes the canonical binary and your worktree GATE_STDOUT edit is silently invisible — the prompt change appears tested, but the gate the agent actually sees is the unchanged one.
-
-`CLAUDE_CONFIG_ROOT` is an assertion, not an override. Worktree-built `agent-tools` refuses to run unless the env var canonicalizes to the same root the binary was built from. This turns wrong-worktree and stale-binary prompt tests into setup failures instead of silent false confidence.
-
-The override is invisible to the tested agent's observable surface: `PATH` and `CLAUDE_CONFIG_ROOT` are process env vars, not directories or files. The agent does not read them in normal operation; even if it did (`which agent-tools` or inspecting env), the worktree path identifies the worktree but does not reveal which prompt clause is under test or what answer is being graded — unlike directory-based isolation, where a fixture file's contents can leak the test goal. Worktree-name-based information leakage is bounded to "this is being run from a worktree", which the agent should already assume during any prompt-test run.
-
-Rebuild the worktree binary whenever `agent-tools/src/main.rs` (or any prompt-coupled constant) changes:
-
-```bash
-cd "$REPO/agent-tools" && cargo build --release
-```
-
-Do not fall back to the system binary for opencode prompt tests. `alan-default-ids` calls `agent-tools opencode.gate`, so a missing worktree binary means the run does not exercise the worktree prompt-coupled code.
-
-#### Default recipe
-
-```bash
-REPO="$(git rev-parse --show-toplevel)"
-CASE="prompt-tests/general/network-resilience"
-SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
-WORKTREE_BIN="$REPO/agent-tools/target/release"
-test -x "$WORKTREE_BIN/agent-tools"
-export PATH="$WORKTREE_BIN:$PATH"
-export CLAUDE_CONFIG_ROOT="$REPO"
-OPENCODE_DISABLE_PROJECT_CONFIG=1 \
-OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
-OPENCODE_CONFIG_CONTENT='{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": [],
-  "agent": {
-    "prompt-test": {
-      "mode": "primary",
-      "model": "openai/gpt-5.5",
-      "variant": "xhigh",
-      "prompt": "{file:'"$REPO"'/opencode/agents/alan-default-ids.md}",
-      "permission": {"read":"allow","glob":"allow","grep":"allow","list":"allow","bash":"allow","edit":"allow","write":"allow"}
-    }
-  }
-}' \
-opencode run --agent prompt-test --format json --dir "$SCRATCH" \
-  < "$REPO/$CASE/task.md" | tee "/tmp/$(basename $CASE)-$(date +%s).jsonl"
-```
-
-Verify the agent will receive the worktree GATE_STDOUT before running tests:
-
-```bash
-CLAUDE_CONFIG_ROOT="$REPO" "$WORKTREE_BIN/agent-tools" opencode.gate < /dev/null | head -5
-```
-
-If the command fails or the printed text doesn't reflect your edit, rebuild the worktree binary before running the prompt test.
-
-For cases that need files in the tested agent's cwd, copy only the fixture
-contents into the scratch directory before running. Do not point `--dir` into
-the repository.
-
-Example for the pydantic case:
-
-```bash
-# pydantic fixture-confined run:
-REPO="$(git rev-parse --show-toplevel)"
-CASE="prompt-tests/general/pydantic-forward-ref-runtime-compat"
-SCRATCH="$(mktemp -d /tmp/prompt-test-$(basename "$CASE").XXXXXX)"
-cp -a "$REPO/$CASE/fixture/." "$SCRATCH/"
-OPENCODE_DISABLE_PROJECT_CONFIG=1 \
-OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
-OPENCODE_CONFIG_CONTENT='{ ... same as above ... }' \
-opencode run --agent prompt-test --format json --dir "$SCRATCH" \
-  < "$REPO/$CASE/task.md" | tee "/tmp/$(basename $CASE)-$(date +%s).jsonl"
-```
-
-### A `sys_prompt/` prompt under opencode (cross-runner arm)
-
-The standard runner for `sys_prompt/alan-default-next.md` is
-`scripts/prompt-test-cc.sh` — see "Claude Code" below. `scripts/prompt-test-run.sh`
-loads the same file as an opencode agent prompt, which answers a different
-question: whether an effect survives a change of runner and model family. Reach
-for it when a Claude-Code result looks model-specific, not as the default.
-
-```bash
-scripts/prompt-test-run.sh <case> <tag> [prompt-file]     # default: sys_prompt/alan-default-next.md
-```
-
-It creates the `/tmp` scratch cwd, copies the case's `fixture/` if it has one,
-disables project config and plugins, and prints the log path and session id.
-Override the model with `PROMPT_TEST_MODEL` (default
-`openrouter/anthropic/claude-opus-5`, chosen so a Claude Code prompt is exercised
-by a Claude model) and the log directory with `PROMPT_TEST_OUT_DIR`.
-
-**Always run a paired baseline arm when evaluating a prompt edit.** A prompt
-section that was added because a case failed must be shown to be why the case now
-passes, and several cases in this directory pass at baseline:
-
-```bash
-git show HEAD:sys_prompt/alan-default-next.md > /tmp/prompt-baseline.md
-scripts/prompt-test-run.sh <case> baseline /tmp/prompt-baseline.md
-scripts/prompt-test-run.sh <case> green
-```
-
-Two fidelity caveats for this runner. Tool names, hooks, and the agent-view fork
-behavior are Claude Code's, not opencode's, so anything the prompt says about them
-is not exercised. And the script refuses a prompt file beginning with YAML
-frontmatter, because opencode's `{file:...}` would inject it verbatim (C1 in the
-contamination inventory).
-
-**Snapshot both prompts to `/tmp` before launching a batch.** The runner resolves
-its prompt path at session start, so editing `sys_prompt/alan-default-next.md`
-while runs are in flight silently splits one arm across two prompts. Pass explicit
-snapshot paths for both arms rather than relying on the default.
-
-**Two log caveats.** The `--format json` stream is written incrementally: a log
-read while the run is still in flight can be missing the final text part, so check
-that the file has stopped growing, or recover the answer with
-`opencode export <session-id>`, which is the source of truth. And reasoning
-summaries are not always emitted — short deliberations (observed at 164–307
-reasoning tokens on `openrouter/anthropic/claude-opus-5`) produce no `reasoning`
-part at all while longer ones do, so a grader instructed to read every thinking
-block may correctly find none. Check `info.tokens.reasoning` before recording
-coverage.
-
-**Stage a blind grader's inputs outside `prompt-tests/`.** Reading a case's
-`task.md` is enough to make the harness inject `prompt-tests/CLAUDE.md` — which
-carries arm-level results — into the grader's context as a system-reminder.
-Instructing the grader not to read it does not help; copy `task.md` and the
-gradeable rubric sections into a scratch directory and point the grader there.
-
-**Grading a prompt edit is better done blind.** Give the grader both sessions
-labelled A and B, tell it the arms differ only in the system prompt, and do not
-say which is which. Name the decisive criterion in advance. Graders told which arm
-is the treatment have a visible pull toward finding a difference, and every grader
-in this repo's history has separately warned that the mandatory
-`agent-tools pre_output.record` gate — whose `uncertainties` field maps nearly
-one-to-one onto whatever the report ends up disclosing — over-determines most
-candidate effects.
+## Runners
 
 ### Claude Code — the standard runner for a `sys_prompt/` prompt
 
@@ -361,89 +358,81 @@ scripts/prompt-test-cc.sh <case> <tag> [prompt-file]   # default: sys_prompt/ala
 
 `sys_prompt/alan-default-next.md` is written for Claude Code, and this runs it
 there: `agent-tools claude -p`, so the session gets this checkout's hooks,
-settings, and output style alongside the prompt. Use it for any question about
-what that prompt does. `scripts/prompt-test-run.sh` (opencode) answers a
-different question — see below.
+settings, and output style alongside the prompt. Read the script for what it
+sets and why; each of its guards exits non-zero naming what to fix.
 
-The script creates the `/tmp` scratch cwd, copies the case's `fixture/` if it has
-one, disables plugins, sources the OAuth token, and prints the result JSON path,
-the transcript path, and the session id. Read the transcript with
-`agent-tools cc-pretty <FILE> --skeleton`.
+The one mechanic worth knowing outside it is `--thinking-display summarized`:
+without it every thinking block in the transcript is an empty string while the
+run still reports a thinking-token count, so a hand-rolled invocation that drops
+the flag yields a log indistinguishable from an agent that did not reason.
 
-The `claude -p` call is bounded at 900 seconds, because since 2.1.257 it waits
-for an armed Monitor rather than exiting once its result is in — a case whose
-model arms one would otherwise hang the runner with nothing said. A run that hits
-the bound exits 124 and says so. `PROMPT_TEST_TIMEOUT=<seconds>` raises it, and
-the same bound and variable apply to `prompt-test-cc-leg2.sh` and
-`prompt-test-cc-downstream.sh`.
+Two things the script cannot do for you:
 
-Read the `transcript:` path, not `result:`. `--output-format json` puts only the
-**final** assistant message in `.result`, while this prompt's `## Before response`
-gate makes `agent-tools pre_output.record` the last tool call — so an agent that
-writes a deliverable and then runs the gate leaves the deliverable in the
-second-to-last assistant message and the response template in the last one.
-`.result` then holds a sentence *about* the artifact and not the artifact, which
-reads as an agent claiming work it did not do.
+- **Read the `transcript:` path, not `result:`.** `--output-format json` puts only
+  the final assistant message in `.result`, and this prompt's `## Before response`
+  gate makes `agent-tools pre_output.record` the last tool call — so the
+  deliverable sits in the second-to-last assistant message and `.result` holds a
+  sentence *about* it, which reads as an agent claiming work it did not do. Open
+  it with `agent-tools cc-pretty <FILE> --skeleton`.
+- **Confirm the arm on a resumed leg.** Claude Code applies the **last**
+  `--system-prompt-file`, which is how the arm file wins over the one
+  `scripts/claude.sh` passes — but only on a session's first request, since a
+  resume replays the recorded prompt. `prompt-test-cc-leg2.sh` passes
+  `--system-prompt-snapshot off` for that. When the MITM proxy is listening on
+  `127.0.0.1:9160`, the system block actually sent is at
+  `~/.claude/requests-log/<session>/0001.json`.
 
-Five mechanics it depends on:
+Not isolated: the user's `~/.claude/CLAUDE.md` reaches the agent as a `claudeMd`
+system-reminder. It describes the machine and is identical across arms.
 
-- **Credentials.** `CLAUDE_CODE_OAUTH_TOKEN` comes from `/workspace/.env`
-  (override the file with `PROMPT_TEST_ENV_FILE`). The script exits non-zero if
-  the variable is unset after sourcing, rather than launching a session that
-  fails at the first request.
-- **Arm selection.** Claude Code applies the **last** `--system-prompt-file` on
-  the command line, so the arm file is appended after the one `scripts/claude.sh`
-  passes and the launcher needs no argument of its own. Verified against the
-  intercepted request body: a run with an override sends the override's text as
-  the entire system block, with no trace of the launcher's file. That holds for
-  a session's **first** request only: a resume replays the recorded prompt, so
-  `scripts/prompt-test-cc-leg2.sh` also passes `--system-prompt-snapshot off`.
-- **Plugins off.** A generated `--settings` file sets every key of the
-  checkout's `enabledPlugins` to `false`. It carries `enabledPlugins` and nothing
-  else, so it registers no hook of its own and the checkout's hooks stay
-  registered exactly once — settings sources are unioned, not overridden, and a
-  second file naming the same hooks would run each of them twice.
-- **Transcript location.** `agent-tools claude` relocates `CLAUDE_CONFIG_DIR`,
-  so transcripts land under
-  `<repo>/.claude/worktree-config/projects/<cwd-slug>/<session>.jsonl` and never
-  appear in a normal session's `/resume`.
-- **Reasoning capture.** `--thinking-display summarized`. Claude Code otherwise
-  sends `thinking: {type: "adaptive", display: "omitted"}`, and every thinking
-  block in the transcript is then `{"type":"thinking","thinking":"","signature":
-  "..."}` — an empty string. The run reports its thinking-token count normally
-  and the skeleton lists the blocks at `0~tok`, so a log with no reasoning in it
-  looks like a log of an agent that did not reason. Confirm per run against
-  `.request.thinking.display` in the intercept, or by a non-empty `.thinking` in
-  the JSONL.
+### opencode
 
-Two things this runner does not isolate. The user's `~/.claude/CLAUDE.md` is
-linked into the config dir and reaches the agent as a `claudeMd` system-reminder;
-it describes the machine, and it is identical across arms. And the launcher binds
-`HTTPS_PROXY` when the MITM proxy is listening on `127.0.0.1:9160`, which is how
-the request body above was read — the arm's system prompt can be confirmed per
-run at `~/.claude/requests-log/<session>/0001.json`.
+Answers a different question — whether an effect survives a change of runner and
+model family. Reach for it when a Claude Code result looks model-specific. Tool
+names, hooks, and the agent-view fork behaviour are Claude Code's, so nothing the
+prompt says about them is exercised here.
+
+```bash
+scripts/prompt-test-run.sh <case> <tag> [prompt-file]   # default: sys_prompt/alan-default-next.md
+```
+
+`PROMPT_TEST_MODEL` (default `openrouter/anthropic/claude-opus-5`, so a Claude
+Code prompt is exercised by a Claude model) and `PROMPT_TEST_OUT_DIR` override.
+The script refuses a prompt file starting with frontmatter, which `{file:...}`
+would inject verbatim.
+
+An agent file that *has* frontmatter — `opencode/agents/alan-default-ids.md` —
+therefore has to be driven directly, with `model` and `variant` set in the config
+block (`openai/gpt-5.5/xhigh` for `alan-default`). Full recipe:
+`skills/opencode-subcommand`.
+
+Three of its lines carry a failure that is silent when you get them wrong, and
+one of the three is specific to this repo:
+
+- **`model` and `variant` in the config block**, because `{file:...}` does not
+  apply the agent file's frontmatter. Verify the rendered header with
+  `agent-tools opencode-pretty <session-id> --agent`.
+- **`PATH` and `CLAUDE_CONFIG_ROOT`.** `alan-default-ids` calls `agent-tools
+  opencode.gate`, whose text is baked into the binary at build time, and
+  `~/.local/bin/agent-tools` is the installed checkout's — so a worktree edit to
+  the gate never reaches it and the change appears tested when it is not.
+  Rebuild, put the worktree binary first on `PATH`, and read the gate text back
+  out of it before trusting the run.
+- **`"plugin": []`.** Both runner scripts pass it; a hand-rolled run must. No
+  case here wants plugins loaded.
+
+Two log caveats for this runner. The `--format json` stream is written
+incrementally, so a log read mid-run can be missing the final text part —
+`opencode export <session-id>` is the source of truth. And reasoning summaries
+are not always emitted, so a grader told to read every thinking block may
+correctly find none; check `info.tokens.reasoning` before recording coverage.
 
 ## Pitfalls
 
 - **Do not launch trials from inside a subagent.** Background tasks scoped to a
   subagent turn are reaped before the runner finishes. Launch from the
-  longest-lived session (typically the parent / main session).
-- **Reading the rendered log is not optional.** A grader that only reads the
-  final answer text cannot satisfy the grader rule above.
-- **Read session logs via the session-analysis reading protocol.**
-  `agent-tools cc-pretty <FILE> --skeleton` /
-  `agent-tools opencode-pretty <session> --skeleton` gives a block map with
-  refs; extract batches per the protocol instead of rendering the full log —
-  Bash truncates large sessions at 30k chars, and full renders of big
-  sessions blow the grader's context.
-- **Don't commit raw JSON session logs.** Keep them under `/tmp/`. Summarize
-  the trial in a record at `docs/opencode-system-prompt/trials/<YYYY-MM-DD>-<case>-<descriptor>.md`
-  per the trial-logging rule in `prompt-tests/CLAUDE.md`. Do not append to a
-  single growing iteration log.
-- **Set model and variant in the config block, not the agent file frontmatter.**
-  When the recipe uses `"prompt": "{file:...}"`, opencode does not apply the
-  agent file's frontmatter. Set `model` and `variant` (e.g.
-  `openai/gpt-5.5` and `xhigh` for `alan-default`) inside the agent block of
-  `OPENCODE_CONFIG_CONTENT`, then verify with
-  `agent-tools opencode-pretty <session> --agent`. See `prompt-tests/CLAUDE.md`
-  ("Model/variant fidelity") for the failure mode.
+  longest-lived session.
+- **Read session logs via the `session-analysis` reading protocol.** `--skeleton`
+  gives a block map with refs; extract batches from it. Bash truncates large
+  sessions at 30k chars and a full render blows a grader's context.
+- **Don't commit raw JSON session logs.** Keep them under `/tmp/`.

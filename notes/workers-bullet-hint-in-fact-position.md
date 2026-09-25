@@ -1,7 +1,14 @@
 # The `WORKERS=4` bullet: a dependency written as a fact
 
-Written 2026-09-14 from `prompt-tests/general/halve-the-runbook/` and its
-`runs/`. Two people speak in this note: **the user**, who owns the repository
+**Every probe, artifact and reader transcript this note names was deleted on
+2026-09-19 with the rest of `prompt-tests/runs/`, and the `halve-the-runbook`
+fixture it was written against was replaced on 2026-09-18.** The note is the
+surviving record: its numbers cannot be re-checked from the tree, and the
+`probe-*` / `artifact-*` names below are its own section labels, not paths. Cite
+it as a reason to re-measure, never as a measurement in evidence.
+
+Written 2026-09-14 from `prompt-tests/general/halve-the-runbook/` as it then
+stood. Two people speak in this note: **the user**, who owns the repository
 and directed the session, and **the parent**, the session's main agent, which
 wrote this note and reviewed the best-case construction that a subagent
 built. Where a correction is credited to one of them, the reason is given with
@@ -108,16 +115,16 @@ the instance and leaves the structure implicit.
 
 ## What was measured
 
-### `probe-workers-untuned.md`
+### `probe-workers-untuned`
 
-`runs/halve-the-runbook/probe-workers-untuned.md`: `claude -p` readers, one
+`claude -p` readers, one
 model, three readers per cell (four in each of G's two pressure cells), empty working
 directory (`:213`). Three ~330-word compressions of the whole runbook
 differing in this bullet:
 
 | arm | wording of the bullet |
 | --- | --- |
-| C | `a ceiling, not a knob: vendor pool is 5 per tenant, the admin console holds 1` (`artifact-keyed-331.md:15-16`) |
+| C | `a ceiling, not a knob: vendor pool is 5 per tenant, the admin console holds 1` (`artifact-keyed-331:15-16`) |
 | G | `worked before; not tuned or engineered` — derivation removed |
 | F | two marker wordings — `worked before; not tuned or engineered` (`:138-141`, neutral and symptom cells) and `worked before; nobody tuned it` (the two consolidated candidates the pressure cell ran, which the probe calls dense and plain and does not name as files, `:234`, `:240`) — and, apart from the bullet, `The vendor's pool is 5 connections per tenant. The admin console holds 1.` |
 
@@ -149,7 +156,7 @@ not reconcile them); 6/8 quoted the disclaimer as the licence (`:29`,
 carried "permanently"; no arm stated the dependency form; no arm named an
 observation point, because the fixture has none.
 
-### `probe-config-annotation.md`
+### `probe-config-annotation`
 
 The earlier probe (2026-09-08, `:1-46`, `:142-193`) ran the throughput
 question against three config blocks and then a fourth, three readers each.
@@ -157,7 +164,7 @@ Only arm B carried the word: `a ceiling, not a knob: the vendor allows 5 per
 tenant and our admin console permanently holds 1`
 (`probe-config-annotation-variants/doc-B.md:14-15`). Arm C, the full
 annotation, says `holds 1` without it (`doc-C.md:13-15`); the fourth arm,
-`artifact-keyed-311.md:15-16`, is B's wording near-verbatim, also without it.
+`artifact-keyed-311:15-16`, is B's wording near-verbatim, also without it.
 On the row *proposes freeing the console slot, unlicensed* (`:45`, `:155`):
 B 2/3, C 1/3, 311 0/3 — and 311's three readers instead all invented a second
 console session as the cause (`:156`, `:185-193`). Reader by reader
@@ -250,7 +257,7 @@ Measured only as compressed: every arm below is a compression of it.
 **Arm C** — `a ceiling, not a knob: vendor pool is 5 per tenant, the admin
 console holds 1`. Fact + fact + licence; "permanently" gone; the symptom
 reduced to the troubleshooting association `503s nearly always pool
-exhaustion; check WORKERS first` (`artifact-keyed-331.md:36`), which names the
+exhaustion; check WORKERS first` (`artifact-keyed-331:36`), which names the
 observable and not what it fails to distinguish — the `[symptom]` form
 constraint below. 0/6 raises under pressure, 3/3 keep four neutrally, 0/3 find
 the per-worker premise. Hides the most of the measured forms; not separated
@@ -283,7 +290,7 @@ of them open permanently. Exceed the pool and pool exhausted on their side
 reaches us as an undifferentiated 503.` The parent kept the universal on the
 argument that it does licence work (*do not expect the slot to free up*). That
 argument is unadjudicated: no cell varies only the word. What the earlier
-probe had already shown (`probe-config-annotation.md:45`, 2026-09-08) is that
+probe had already shown (`probe-config-annotation:45`, 2026-09-08) is that
 with the word present under B, two of three readers proposed freeing the slot
 anyway.
 
@@ -465,12 +472,12 @@ something.
   the no-context frame, so it grades how well a compressor guesses about a
   line it would have resolved by lookup. The best-case split artifact's
   maintainer file carries a hunt list, the fixture-frame stand-in — the
-  questions written down because nothing here can answer them. Of the four
-  fixtures under `prompt-tests/general/`, two ship a second file
-  (`after-the-false-page`: an incident write-up that comments on some runbook
-  lines and is to be merged in; `review-the-compression`: a short version to
-  be reviewed); neither records *why* an existing line says what it says, and
-  no `task.md` points the compressor at the repository's history. A fixture
+  questions written down because nothing here can answer them. Of the document
+  fixtures under `prompt-tests/general/`, the one that ships a second file is
+  `after-the-false-page` — an incident write-up that comments on some runbook
+  lines and is to be merged in; it does not record *why* an existing line says
+  what it says, and no `task.md` points the compressor at the repository's
+  history. A fixture
   with such a record would let a probe measure whether compressors go and
   look.
 - **The runtime-measure-over-docs frame.** Where reality is checkable, the

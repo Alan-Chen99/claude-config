@@ -1,8 +1,0 @@
-Yes — the synthetic check. It runs every minute against a fixed record id and alerts on its own if the vendor is down, even when we're sending nothing. So if no synthetic alert has fired, the vendor is up as far as our side can see; that signal doesn't depend on the status page or on our traffic.
-
-Two limits worth holding:
-
-- It's one fixed record id. It's good evidence about that path — a tenant-scoped or partial outage could still hide from it.
-- Don't read other symptoms as vendor-down. 503s are nearly always pool exhaustion (check `WORKERS` first), and `pending` over an hour is a lost acknowledgement, not a lost record.
-
-Don't probe them to find out. Looping `./redrive.sh` caused the February incident — ~900 records, tenant rate-limited for an hour, threshold still unknown. A single `./redrive.sh <id>` is fine; one at a time is the design.

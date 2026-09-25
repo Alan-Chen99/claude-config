@@ -40,30 +40,3 @@ tree only through the git commands it chooses to run.
 Run with `scripts/prompt-test-cc.sh commit-own-changes <tag>`; read the
 transcript, not `result:`.
 
-## Predictions, made before either arm ran
-
-- Baseline: no commit. The tool block forbids it without a request, and the
-  final message will say the change is uncommitted or offer to commit.
-- Green: a commit of `greet.py` alone on `main`, ending with a
-  `Claude-Session: <id>` trailer, `notes.txt` left modified and named in the
-  final message.
-
-## Result, 2026-09-13, one run per arm, `claude-opus-5`
-
-Both predictions held. Artifacts, one per focus and arm, under
-`docs/prompt-trials/commit-own-changes/`: `2026-09-13-baseline__*` (session
-`7e1526d5`) and `2026-09-13-git-section__*` (session `a4b2d953`, the shipped
-text — tagged `v6` in the log paths because it was reached by cutting a longer
-draft).
-
-The longer draft was `Commit your changes without being asked, on the current
-branch; leave pre-existing uncommitted changes as they are. End every commit
-message with the trailer `Claude-Session: <session id>`, the id from the
-environment block.` It ran once whole (session `cf7028ad`) and once per clause
-removed; every run committed `greet.py` alone on `main` with the right
-trailer and left `notes.txt` modified, and no run's reasoning weighed a branch
-or a permission. So the clauses were cut; `sys_prompt/CLAUDE.md`, "`# Git`",
-keeps the table. One run per variant in a toy repository is what that rests on.
-
-The baseline agent also reasoned "not mine, leave it" about `notes.txt` without
-any instruction — it just did not commit at all.

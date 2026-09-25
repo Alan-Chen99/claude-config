@@ -401,7 +401,7 @@ fn drain_stdin() {
 }
 
 /// Derive the venv path for a project root: ~/.claude/venvs/<basename>/
-fn venv_path(root: &Path) -> PathBuf {
+pub(crate) fn venv_path(root: &Path) -> PathBuf {
     let home = env::var("HOME").expect("HOME not set");
     let name = root
         .file_name()

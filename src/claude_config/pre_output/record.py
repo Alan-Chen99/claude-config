@@ -15,7 +15,6 @@ RULES = """\
 <system-reminder>
 IMPORTANT RULES:
 - NEVER ask user to read files or run commands that you have not already read or run yourself
-- NEVER reply to user if uncertainties remain. Do more verification and research
 </system-reminder>"""
 
 
