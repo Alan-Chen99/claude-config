@@ -188,6 +188,19 @@ repeating its error — is specific to a fixed budget, not to `countdown`.
   40 lines would show the opposite.
 - Whether a server-side GrowthBook rollout ever lowers the value in practice.
   This machine's cached features carry `tengu_lapis_anchor_budget: 15000000`.
+- **The outcome measure is at ceiling for every unconstrained arm.** All four
+  `off` and 15M runs reached the cause, so their agreement bounds a difference in
+  *reading depth* and says nothing about a difference in *how the work turns
+  out*. Read "indistinguishable on every measure" as indistinguishable on the
+  measures that had room to move. A null here is not evidence that the marker
+  changes nothing downstream.
+- **Single-turn, so nothing here can observe compounding.** The shape a real
+  effect would most plausibly take is a marginal economy per turn accumulating
+  over a long session and across compactions — less read now, context missed
+  later, rework after that. Every session in this table is one user turn on one
+  file, which is the one shape that cannot show it. A fixture of this kind
+  measures the proximate response to the number; it is the wrong instrument for
+  the consequence of that response.
 
 ## Mechanism, for reference
 
