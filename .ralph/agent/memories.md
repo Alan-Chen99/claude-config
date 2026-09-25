@@ -2,8 +2,8 @@
 
 ## Patterns
 
-### mem-1790304142-7900
-> A durable file an agent-maintained loop must write to grows without bound unless its SHAPE is tied to something already bounded. Two that work here: a case is kept only while a retirement condition in sys_prompt/CLAUDE.md names it (one grep); sys_prompt/CLAUDE.md is one paragraph per prompt line plus one ledger row per dead wording (40). Neither sets a size. The growth they stop: each round's addition is locally justified by a small saving to the next round and nothing prices the sum, and relocating text to a 'durable home' is growth, not a cut. That file went 3,872 -> 8,393 words over 39 rounds, 2.9x the prompt it justifies, and attaches in FULL to any session that opens a file in its directory with the Read tool.
+### mem-1790304796-502b
+> A durable file an agent-maintained loop must write to grows unless its SHAPE is tied to something already bounded AND a script decides it. Stating the shape is not enough: 40 wrote 'one paragraph per line the prompt stack carries' onto sys_prompt/CLAUDE.md and nothing can compute whether the file satisfies it ('line' undefined; one paragraph for a multi-clause block, five for another) -- the same unfalsifiable shape this repo rejects for case ownership. Two that DO work, both one command: a case is kept only while a retirement condition names it; a rationale section is kept only while its heading quotes prompt text verbatim (scripts/check-prompt-rationale.sh, in CI). Neither sets a size. Measured on that file: 3,872 -> 8,393 words over 40 rounds, and NOT monotone -- 20 of 51 commits cut it, one by 920 words. Compression effort is not the lever; sections went 1->14 while words/section went 370->538, so the COUNT of owned things is the term a check can bind. The file attaches in FULL to any session that opens a file in its directory with Read.
 <!-- tags: docs-growth, sys-prompt, writing-for-agents | created: 2026-09-25 -->
 
 ### mem-1790304132-4745

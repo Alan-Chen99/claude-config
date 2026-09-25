@@ -1,7 +1,7 @@
 # writing-for-agents loop3 — scratchpad
 
-The objective's sharpest clause is *things that do not require explicit human approval to
-add, but require human intervention to remove*. The user's 2026-09-24 followup makes *less
+The objective's sharpest clause is *things that do not require explicit human approval to add,
+but require human intervention to remove*. The user's 2026-09-24 followup makes *less
 documentation gets written* the top priority. Carry **what retires this line** into every
 decision.
 
@@ -16,12 +16,12 @@ the consideration salient and the agent argues it whichever way the task favours
 worth running only where what it asks for is an act the agent can picture**; naming a property
 of the sentence being written reaches nothing (36).
 
-**What an agent adds is one fact written as a rule, whose scope is the part no observation
-constrained**, so the error lands in the generalisation while the volume barely moves — which is
+**What an agent adds is one fact written as a rule**, whose scope is the part no observation
+constrained, so the error lands in the generalisation while the volume barely moves — which is
 why every say-less wording measured volume and found nothing.
 
 **Scope decides whether an agent fixes a defect or writes it down**, and a fixture making the
-fix *the task* cannot see it. Shipped at 38.
+fix *the task* cannot see it (38).
 
 **Categorical or it is not evidence**; a count is a sample of an unmeasured spread. **A
 saturation reading on fixtures does not transfer to this repository's own documents.**
@@ -32,19 +32,25 @@ saturation reading on fixtures does not transfer to this repository's own docume
 **Re-run a failure in a second genre before writing a clause for it**; if it disappears there,
 the target is the genre.
 
-**What has bounded growth here is not a sentence in the prompt.** Twice now it was a shape rule
-with a check, applied to one of this repo's own artifacts: the ownership grep that deletes an
-unowned case, and the one-paragraph-per-line bound on `sys_prompt/CLAUDE.md` (40). Both make the
-artifact's size a function of something else that is already bounded.
+**What bounds growth here is a shape rule a script decides, over one of this repo's own
+artifacts** — the ownership grep that deletes an unowned case, and `check-prompt-rationale.sh`
+(41). Stating the shape does not work, measured at 40 on the loop's own file: the rule was
+unfalsifiable and its author could not tell whether the file obeyed it. **What a check binds is
+the count of owned things, not volume** — rounds compressed that file in 20 of 51 commits and it
+still grew 2.2x, while sections went 1 → 14.
 
 ## Standing `(contract)`
 
+> **A rule a round writes into a durable file ships with the command that decides it**, in the
+> same commit, watched to fail. A round that cannot write the command has not found a rule; it
+> deletes the sentence and says what it would have had to check.
+
 > A prompt edit's justification lands in `sys_prompt/CLAUDE.md` in the same commit, naming what
-> would retire the line. That file states its own shape — one paragraph per prompt line, one
-> ledger row per dead wording — and a round **replaces** a paragraph rather than adding one.
-> Counts, arm labels, byte deltas, dates and fixture descriptions belong to git. Each round
-> either edits `sys_prompt/alan-default-next.md` or writes there what its measurement showed
-> that makes no edit right.
+> would retire the line. `scripts/check-prompt-rationale.sh` states that file's shape: each
+> rationale section's heading quotes prompt text verbatim, and a round **replaces** a section
+> rather than adding one. Counts, arm labels, byte deltas, dates and fixture descriptions belong
+> to git. Each round either edits `sys_prompt/alan-default-next.md` or writes there what its
+> measurement showed that makes no edit right.
 
 > **No round writes a status claim** — *open*, *untouched*, *untested*, *nobody has yet* — into
 > `sys_prompt/CLAUDE.md`, the scratchpad or an `(instruction)`. The next round falsifies it and
@@ -88,7 +94,8 @@ artifact's size a function of something else that is already bounded.
 > re-read directly after the last send. No wall-clock bound: the owner's standing word is that
 > time is not this loop's limiting factor. The exception is a question whose own text makes
 > silence an answer. A waiter cannot outlive the round that started it, so no round reports one
-> as live; the next round reads the log first.
+> as live; the next round reads the log first. **An unanswered question does not gate the
+> milestone** — the round picks its work and says what the answer would change.
 
 > **The round ends under the `.ralph/agent/*` ceiling, with the number in its last commit
 > message.** Compress every earlier round to one paragraph *before* writing your own.
@@ -96,7 +103,7 @@ artifact's size a function of something else that is already bounded.
 > empty. Rules for running, grading and deleting prompt tests are in
 > `.claude/skills/prompt-tests/SKILL.md`, not restated here.
 
-## History — rounds 1–39
+## History — rounds 1–40
 
 **1–32, `9f6c03a0` → `1497221c`.** What justifies a prompt line is in `sys_prompt/CLAUDE.md`;
 the rest is in the commit messages. Every say-less wording failed; 29 kept the whole block,
@@ -104,66 +111,61 @@ refuting its own hypothesis; 30 and 31 both spent a round on `## Required notes`
 nothing, and the owner settled it at 32 — best-effort surfacing.
 `scripts/check-prompt-upstream.py` cannot run here: `/repos/claude-code-decompiled` is absent.
 
-**33–39, `1497221c` → `41aa4abe`.** Six candidates decided, one shipped. 33: the exclusion
-clause cuts unfalsified prose several-fold and shipped one sentence false against its own code
-in both probes. 34: *a note … is a fix you did not make* — saturated in two genres. 35: all three
-legs turned one instance into a project-wide rule, two of three false in the added scope, and the
-research candidate died unwritten. 36: the scope wording did not prevent the entailment error it
-named. 37: merged `staging`, repaired two falsified `README.md` claims, withdrew two index rows.
-38: ablated `# Writing for other agents` against the owner's specimen — arm-independent on both
-defects — and shipped one line under `# Completeness` instead. 39: ran that line's harm case;
-not refuted, the trap could not fire, and the cost found was that **what a session escalates it
-also cements**. DEC-043 to DEC-050.
+**33–40, `1497221c` → `9a7b5aa9`.** Seven candidates decided, one shipped. 33: the exclusion
+clause cuts unfalsified prose several-fold and shipped one sentence false against its own code.
+34: *a note … is a fix you did not make* — saturated in two genres. 35: all three legs turned one
+instance into a project-wide rule. 36: the scope wording did not prevent the entailment error it
+named. 37: merged `staging`, repaired two falsified `README.md` claims. 38: ablated
+`# Writing for other agents` — arm-independent — and shipped one line under `# Completeness`.
+39: ran that line's harm case; not refuted, and the cost found was that **what a session
+escalates it also cements**. 40: cleanup; cut the rationale file 12,147 → 9,265 tokens and wrote
+an unfalsifiable bound over it. DEC-043 to DEC-051.
 
-## Iteration 40 — `41aa4abe` → this round's last commit
+## Iteration 41 — `9a7b5aa9` → this round's last commit
 
-### Critique of 39 (and of the rounds before it)
+### Critique of 40
 
-**C1 (fact).** `sys_prompt/CLAUDE.md` said *finding out costs less than the rule you would write
-instead* was "the open candidate" in one section and "decided, not shipped, saturated" three
-sections earlier. Iteration 35 measured it and wrote the second without reconciling the first;
-36–39 read past it; 39 then made "still untouched after 39 rounds" its instruction 3 and would
-have sent this round at settled work. The check 35 says it ran — the ownership grep — verifies
-paths, not claims, and nothing in this loop verified a claim in that file.
+**C1 (fact).** 40 said it *applied* the bound it wrote — *one paragraph per line the prompt stack
+carries*. No procedure can decide that: *line* is undefined, and the file holds one paragraph for
+a multi-clause block (`## Required notes`) and five for another (`# Git`); `# Completeness`
+conforms under *line = sentence* and not under *line = prompt paragraph*. Unfalsifiable is the
+shape `.claude/skills/prompt-tests/SKILL.md` already rejects for case ownership, and 40 had the
+concept in front of it.
 
-**C2 (workflow).** The loop's own justification file was the growth specimen. 3,872 words at
-round 1, 8,393 at round 40, monotone; 12,147 tokens against the 4,232-token prompt; and opening
-any file in `sys_prompt/` with the Read tool attaches the whole thing. The contract obliged every
-round to write there and bounded only `.ralph/agent/*`, so each round added a locally justified
-paragraph and nothing priced the sum — the owner's own mechanism, run by the loop studying it.
+**C2 (workflow).** 40's own finding was that what bounds growth here is a shape rule **with a
+check**. It then wrote the weakness of its own rule into the scratchpad — *"nothing mechanical
+catches a second paragraph for one line"* — and shipped it anyway. A round that can name the
+inert half of its own output and ship it needs the contract to forbid it, not a reminder.
 
-**C3 (workflow).** About a quarter of that file was run narrative — arm labels, line counts,
-verbatim quotation of what an arm said. `prompt-tests/runs/README.md` already said a round
-inherits a claim and the hypothesis beside it *and nothing else*, and the user's rule is that
-prompt-test evidence is not citable across runs, so rounds were spending context on text no later
-round may rely on. `.claude/skills/prompt-tests/SKILL.md` referred to a rule forbidding it that
-was stated nowhere — a citation to a phantom, which reads as a rule in force and cannot be read.
+**C3 (fact).** 40 called the file's growth *monotone*. It is not: over this branch 20 of 51
+commits decreased it, one by 920 words, and it grew 2.2x regardless. That reverses the reading —
+rounds were compressing all along, so effort is not the lever, and the term that actually moved
+is section count (1 → 14) against words per section (370 → 538).
 
 ### What this round did
 
-Gave `sys_prompt/CLAUDE.md` the bound its case corpus already has and applied it: one paragraph
-per line the prompt stack carries (claim, hypothesis, retirement condition), one ledger row per
-wording measured and not shipped, nothing that is neither, run narrative in the commit.
-12,147 → 9,265 tokens, 705 → 470 lines, every retirement condition, case path and restore sha
-intact (verified by grep in both directions and by a token-level diff of identifiers, which
-dropped nine, two of them pointers and restored). The stale status claim goes with the shape:
-the wording is a ledger row.
+Replaced the bound with `scripts/check-prompt-rationale.sh`: a rationale section owns one thing
+the prompt does by quoting it verbatim in its heading, and CI runs the check — the first prompt
+check here a runner executes (coupling and upstream are runbook-only, which
+`.claude/skills/update-claude-code/SKILL.md` already flags). Watched to fail by deleting `# Git`
+from the prompt. It named two live faults on first run: a heading quoting `Prefer model: haiku`,
+which the prompt does not contain, and the dead-wording ledger, which owns no prompt line and
+moved outside the region. README's *"Two scripts keep the file honest"* was falsified and repaired.
 
-No prompt edit. The bound is a structure, not a wording, which is what both things that have
-worked here are.
+No prompt edit. The candidate queue is untouched and #115 asks the owner where the remaining
+rounds go.
 
-**The bound's weak half**, said plainly rather than claimed away: the case corpus has a grep and
-this has a read. Nothing mechanical catches a second paragraph for one line.
+### `(instruction)` for iteration 42
 
-### `(instruction)` for iteration 41
-
-1. Read the channel log first: #114 asks the owner whether the remaining rounds go to structures
-   with a check or to prompt text. The answer, if any, governs.
-2. The harm case of the `# Completeness` line is run but its trap never fired: a probe wanting
-   that harm must put the load-bearing warrant **outside the documents** — a test name, a commit
-   message, an unrelated module — since both arms read `docs/` unprompted.
-3. The scope failure is the one live wording target: one instance written as a project-wide rule,
+1. Read the channel log first: #114 and #115 are open — where the remaining rounds go, whether a
+   documentation-shape check belongs in CI, and whether `sys_prompt/CLAUDE.md`'s ~3,500-token
+   upstream-rebase half is load-bearing beside `.claude/skills/update-claude-code`. That half
+   owns no prompt line, so `check-prompt-rationale.sh` does not reach it.
+2. The scope failure is the live wording target: one instance written as a project-wide rule,
    false in the added scope. 36 ran the property-shaped wording and it did nothing; its own
    hypothesis names the act — *looking at the second case*. An act-shaped wording is untried.
+3. A probe wanting the `# Completeness` line's harm must put the load-bearing warrant **outside
+   the documents** — a test name, a commit message, an unrelated module — since both arms read
+   `docs/` unprompted.
 
-Iteration 40: `41aa4abe` → this round's last commit, whose message carries the ceiling.
+Iteration 41: `9a7b5aa9` → this round's last commit, whose message carries the ceiling.

@@ -27,49 +27,40 @@ a fact every round states rather than a defect it repairs. **Revert**: n/a.
 047, the scope wording: decided and not shipped, measurement in `997a5c02`; the round wrote the
 wording it judged and its own ship condition was not met. **Revert**:
 `git checkout 3c5bec5e -- sys_prompt/CLAUDE.md`. 048, *public-ready on your parts*: read as
-*repair claims this branch falsified, sweep citers, change nothing else*; the two index rows were
-withdrawn inside the round on #98. **Framing bias**: it chose the reading it could finish inside
-a merge-only instruction. **Revert**: `git revert e8589613`, which takes the README repairs too.
+*repair claims this branch falsified, sweep citers, change nothing else*. **Framing bias**: it
+chose the reading it could finish inside a merge-only instruction. **Revert**:
+`git revert e8589613`, which takes the README repairs too.
 
-## DEC-049 — one line ships under `# Completeness` (iter 38, conf 85)
+## DEC-049 / DEC-050 — the one shipped line, and its harm case (iter 38, 39; conf 85)
 
-Claim, cost and retirement condition in `sys_prompt/CLAUDE.md`; probe and its three
-pre-registrations at `git checkout f75aceb6 -- prompt-tests/runs/partial-regeneration`. **Alternatives**: ship
-nothing and hand the baseline to 39, the deferral this round deleted from the contract; put the
-line in `# Writing for other agents`, where the ablation had just shown the block
-arm-independent on this failure. **Framing bias**: the round wrote the wording it measured —
-mitigated, not removed, by the fixture being built from `0d3c560b` and committed before the
-wording existed, and by the decisive reading being blind. **Independent evaluation**: done,
-blind, both transcripts; it declined to name a winner and named the trade, which the owner had
-already answered in #102 and #104. Its two unresolved costs are 39's instruction 1.
-**Revert**: `git revert f75aceb6` and restore the `sys_prompt/CLAUDE.md` paragraph it replaced.
-
-## DEC-050 — the harm case runs, and no wording ships for what it found (iter 39, conf 85)
-
-The shipped `# Completeness` line gets its adversarial reading; it is not refuted, and its trap
-never fired because both arms found the warrant in the project's own docs. The new cost —
-what a session escalates, it cements — is measured, and **no wording ships for it**:
-`sys_prompt/CLAUDE.md` carries the claim and the hypothesis instead. **Alternatives**: ship an
-invented clause (*leave nothing behind that a fix you named would have to undo*) on this round's
-positive reading alone, which is the pattern 38 was critiqued for and which the contract now
-forbids; or delete the line on the blind reader's preference for the untreated **files**, which
-is an artefact of the task sentence that blocked the fix. **Framing bias**: the round chose the
-probe that would exonerate a line the previous round shipped, and a round measuring its
-predecessor's line has an interest in the line surviving — mitigated by the outcomes being
-committed first and by the decisive reading being blind, not removed. **Independent
-evaluation**: done, blind, both transcripts; it volunteered the cementing cost and read the
-noticing difference as attention rather than instruction. **Revert**: nothing to revert; the
-record is `git revert` of this round's `sys_prompt/CLAUDE.md` commit.
+One line under `# Completeness`; claim, cost and retirement condition in `sys_prompt/CLAUDE.md`,
+probes at `git checkout f75aceb6 -- prompt-tests/runs/partial-regeneration` and
+`git checkout a247868e -- prompt-tests/runs/spend-window`. 39 ran its harm case, did not refute
+it, and shipped **no** wording for the new cost it found (*what a session escalates, it cements*)
+— the alternative being an invented clause on one positive reading, which the contract now
+forbids. **Framing bias**: 38 wrote the wording it measured; 39 had an interest in its
+predecessor's line surviving. Both mitigated by pre-registered outcomes and a blind decisive
+reader, not removed. **Independent evaluation**: done, blind, both transcripts, both rounds.
+**Revert**: `git revert f75aceb6` plus the `sys_prompt/CLAUDE.md` paragraph it replaced.
 
 ## DEC-051 — `sys_prompt/CLAUDE.md` is bounded by its shape, not by a size (iter 40, conf 90)
 
-One paragraph per line the prompt stack carries, one ledger row per dead wording, run narrative
-in the commit; applied in the same commit, 12,147 → 9,265 tokens. **Alternatives**: leave the
-file and spend the cleanup round on a probe, which is what four cleanup rounds before it did
-while the file doubled; set a token ceiling on the file, which is the human-set size limit the
-objective rules out; move the narrative to `notes/`, which is relocation and therefore growth.
-**Framing bias**: the round chose a target it could both diagnose and fix inside one iteration,
-and a structural finding flatters a round that has no measurement to report — mitigated by the
-growth curve, the attachment and the token delta all being measured rather than argued, not
-removed. **Independent evaluation**: none; the deletions are checkable by grep and the commit
-names every check that was run. **Revert**: `git revert 98aff4c5`.
+Superseded in mechanism by DEC-052; the principle stands. **Revert**: `git revert 98aff4c5`,
+which also restores the 2,882 tokens that round cut.
+
+## DEC-052 — the shape rule is a script, or it is not a rule (iter 41, conf 90)
+
+40's bound was unfalsifiable (scratchpad C1), so it is replaced rather than patched:
+`scripts/check-prompt-rationale.sh` requires each rationale section's heading to quote prompt
+text verbatim, and `.github/workflows/ci.yml` runs it. **Alternatives**: a token ceiling on the
+file at the prompt's size — measured, and it forces a 26% cut into paragraphs carrying live
+retirement conditions, which is the *cut the qualifying clause* failure 33 already measured; a
+per-paragraph ownership check — tested, and it both false-positives on short literals (`haiku`,
+`, and `) and false-negatives on legitimate continuation paragraphs; keep the bound and add the
+check later, which is the deferral the contract forbids. **Framing bias**: a round that finds its
+predecessor's rule unfalsifiable has an interest in replacing it with its own, and a structural
+finding flatters a round with no measurement to report — mitigated by the check being watched to
+fail, by the two faults it named being ones this round did not plant, and by C3's growth numbers
+being recomputed from git rather than inherited. **Not covered**: the file's ~3,500-token
+upstream-rebase half owns no prompt line, so the check does not reach it; #115 asks the owner
+before cutting it. **Independent evaluation**: none. **Revert**: `git revert 2836b36a`.
