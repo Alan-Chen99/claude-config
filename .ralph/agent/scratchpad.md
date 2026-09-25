@@ -27,6 +27,10 @@ that ever moved anything named an act.
 **Categorical or it is not evidence.** *Stated bare or sourced* is readable at n=1; a count
 is a sample of an unmeasured spread.
 
+**A saturation reading taken on fixtures does not transfer to this repository's own
+documents.** 37 found a falsified claim standing in the public `README.md` through four
+rounds that were measuring the same failure in fixtures.
+
 **The prompt is the whole stack, not one file.** `sys_prompt/alan-default-next.md`,
 `output-styles/`, `conventions/documentation.md` (reached only via `doc-sync`,
 `technical-writer`, `quality-reviewer`, `planner`) and `pre_output/record.py` all reach a
@@ -83,109 +87,98 @@ disappears there, the target is the genre and not the wording.
 
 > **A question to the owner is sent the moment it is formed, and the round does not emit its
 > event until the waiter has exited** — `skills/telegram-hitl`, one topic per loop, a waiter
-> under `run_in_background: true`. Their answer has changed the round's conclusion three times;
-> the cost of waiting is not the loop's limiting factor and the user has said so. Two rounds
-> running wrote this as an intention and closed on an unanswered question, so it is written as
-> the mechanism instead.
+> under `run_in_background: true`, **keyed to activity in the topic and not to a reply id**,
+> and **the round re-reads the channel log after its own last send**. Their answer has
+> changed the round's conclusion four times, and 36 closed 33 seconds after an instruction it
+> never read. The cost of waiting is not the loop's limiting factor and the user has said so.
 
 > Operational rules for running, grading and deleting prompt tests live in
 > `.claude/skills/prompt-tests/SKILL.md` and are not restated here.
 
-## History — rounds 1–35
+## History — rounds 1–36
 
 **1–32, `9f6c03a0` → `1497221c`.** Anything justifying a prompt line lives in
-`sys_prompt/CLAUDE.md`; everything else is in the commit messages. Shipped: `Say what ends
-it` (11), the self-consequence bullet (23), one duplicated rationale cut out of it (25), the
-deletion of `pre_output.record`'s NEVER-uncertainties rule (26), the deletion of the whole
-docs order (28). Deleted also: `Omit by default`, `Claim less`, the help-surface cost
-paragraph. Every say-less wording failed; 29 kept the whole `# Writing for other agents`
-block, refuting its own hypothesis; 30 and 31 both spent a round on `## Required notes` and
+`sys_prompt/CLAUDE.md`, which names every line these rounds shipped or deleted; everything
+else is in the commit messages. Every say-less wording failed; 29 kept the whole block,
+refuting its own hypothesis; 30 and 31 both spent a round on `## Required notes` and
 shipped nothing, and the owner settled it at 32 — the block is best-effort surfacing. 32
 built the hidden-docs tree and found the docs order's repair half saturated there too.
 `scripts/check-prompt-upstream.py` cannot run here — `/repos/claude-code-decompiled` is
 absent. DEC-036, DEC-037.
 
-**33–35, `1497221c` → `3c5bec5e`.** Three candidates decided, none shipped. 33: the exclusion
-clause cuts unfalsified prose four- and sevenfold and in both probes shipped one sentence false
-against its own code where the bare arm shipped none — a compression rule cuts the qualifying
-clause that scoped the claim. 34: *a note telling the next reader to avoid something is a fix
-you did not make*, saturated in the two genres it was run in; its larger finding is DEC-045,
-that `scripts/claude.sh` loads `/repos/claude-config` and nothing this loop measures is live.
-35: *finding out costs less than the rule you would write instead* was never written, both legs
-doing it unprompted; what all three of its legs did do was turn the one instance into a
-project-wide rule, two of three false in the added scope. DEC-043 to DEC-046.
+**33–36, `1497221c` → `687838c3`.** Four candidates decided, none shipped, all four written
+and judged by the round that ran them. 33: the exclusion clause cuts unfalsified prose four-
+and sevenfold and in both probes shipped one sentence false against its own code. 34: *a note
+telling the next reader to avoid something is a fix you did not make*, saturated in two
+genres; its larger finding is DEC-045, that `scripts/claude.sh` loads `/repos/claude-config`
+and nothing this loop measures is live. 35: *finding out costs less than the rule you would
+write instead* was never written, both legs doing it unprompted; what all three legs did do
+was turn one instance into a project-wide rule, two of three false in the added scope. 36:
+*a rule's scope is a claim …* — the arm carrying it asserted the entailment one render
+refutes where the bare arm got it right, so the line naming the failure did not prevent it.
+36's unpre-registered finding is the live candidate: the change falsified
+`templates/CLAUDE.md`'s opening rule, the treated arm rewrote the sentence, and the bare arm
+saw the contradiction and *added a minimal amendment documenting this exception* beneath it,
+leaving a file asserting and denying one rule. A stale **rule** is not a stale statement: the
+agent reads it as someone else's standing convention and annotates around it. The owner also
+settled that the loop must not merge this branch, and named the growth driver — every
+addition locally justified by a small saving, nothing pricing the sum. DEC-043 to DEC-047.
 
-## Iteration 36 — `3c5bec5e` → (this round)
+## Iteration 37 — `687838c3` → (this round)
 
-### Critique of 35
+### Critique of 36
 
-**C1 (workflow, verified from the channel).** 35 wrote *a question is sent the moment it is
-formed and blocked on before the round closes* into the contract, as its own fix for 34's
-fifteen-minute close — then closed with message 84, the merge question, unanswered: the last
-inbound is 83, replying to 82. A clause its own author does not keep is not a clause, so it is
-rewritten as a mechanism: the round does not emit its event until the waiter has exited.
+**C1 (workflow, verified from the channel; it is this round's whole milestone).** 36 never
+read inbound #93 — *"have next round merge branch staging into your branch. that round
+should be doing only that"* — which arrived 33 seconds before 36's own closing message #94.
+#94 answers #91 and #92, says "Got both", and assigns 37 the repair candidate instead. Its
+waiter was keyed to a reply id while #93 replies to the topic root, so nothing woke it and it
+did not re-read the log before closing; its record of "The owner's answers, 2026-09-25"
+states two answers where there were three. The telegram clause is now a mechanism for that
+failure, not an intention: topic-keyed waiter, re-read after the last send. This round's
+waiter caught #96 in under a second.
 
-**C2 (fact, verified).** The wording 35 handed forward — *one instance does not support a
-project-wide rule* — forbids width, and message 81, which 35 had read and quoted, asks for width
-about the very specimen it cites: the inventory row is "actually ok but can be more shorter and
-**general**". 35 never checked the candidate against it. This round ran a wording aimed at
-*unchecked* width instead, and put the contradiction to the owner before launching.
+**C2 (workflow).** 36 handed the repair candidate forward without the exact words the
+contract requires, leaving 37 to write the wording it would then judge. That is four rounds
+running in which the author of a sentence measured it — DEC-047's own framing bias — and all
+four killed it. Either that clause binds or it goes; 38 decides, and no wording is measured
+this round because the owner's instruction says merge only.
 
-**C3 (workflow, admitted by 35, repaired here).** 35's scope finding is a reading of three legs
-differing in whole prompts, composed after the arms were in — inadmissible by its own contract —
-and it was handed forward anyway. Repaired rather than rejected: the candidate now rests on the
-owner's specimen `0d3c560b`, which asserts *"`$N` is the (N+1)-th whitespace-separated word"* off
-a single-digit probe and is repaired for `$10` one commit later in `b394ebbf`.
+**C3 (fact, from outside any fixture).** The loop has been measuring repair-versus-annotate
+on fixtures while carrying the same defect unrepaired in the repository's public entry point:
+`README.md` asserted a run's evidence artifact lives under `prompt-tests/runs/` and mapped
+that directory as holding "recorded runs", which this branch's own `runs/README.md` denies —
+nothing durable lives there and the round that wrote a probe deletes it. Four rounds touched
+that area; the merge is what put the two documents in one tree. Neither branch did anything
+wrong: `staging` described the tree it had. That is the situation the candidate is about,
+occurring outside every fixture, and it is why 32's saturation reading does not transfer.
 
-**C4 (fact, minor).** Two counts of one thing — "eleven say-less wordings" here, "nine" in
-`sys_prompt/CLAUDE.md` — neither checkable without re-reading 35 commit messages, and a count is
-what this contract sends to git. Both now say *every*, falsifiable by one counter-example.
+### What this round did, and what it did not
 
-### Result — the scope wording is decided and not written
+Merged `staging` (16 commits, no conflicts, four auto-merged files read hunk by hunk), then
+ran the public-ready pass on this branch's parts, which is what the owner's #96 asked for:
+`staging` *was* that cleanup. One repair, by editing the sentence: the two false `README.md`
+claims in C3. The round also added rows indexing `PROMPT.md` and `.ralph/` to the root
+`CLAUDE.md` and then took them out again on the owner's #98 — the loop's files are removed
+from the tree before any merge, so an index row for them is two lines that same commit must
+remove, and nothing reads them. DEC-048. Swept and found
+clean, so nothing else was touched; the sweeps and their sizes are in `e8589613`. No prompt
+test ran and `sys_prompt/` is untouched, so no `(contract)` clause about prompt edits applies
+to this round. Green: `uv run pytest tests/ -q` 544, `cargo test --release` 15 binaries,
+`check-prompt-coupling.sh` OK.
 
-`pewter-dial` (deleted; `git checkout 4cb01c30 -- prompt-tests/runs/pewter-dial`), two arms,
-pre-registered at `4cb01c30`; the claim and hypothesis are in `sys_prompt/CLAUDE.md`. What that
-file does not carry: the ship condition — *no added general sentence false against the delivered
-tree* — was fixed before the runs precisely because this round wrote the sentence it was testing,
-and it was not met. That retires the scope line and the last of 35's carry-forward.
+### `(instruction)` for iteration 38
 
-**The unpre-registered finding is repair, and it contradicts a saturation reading this loop has
-leaned on.** The change falsified `templates/CLAUDE.md`'s *one file per report, named after it*.
-The treated arm rewrote the sentence; the bare arm quoted it, saw the contradiction, and decided
-to *add a minimal amendment documenting this exception* beneath it, leaving a file that asserts
-and denies one rule — the most expensive wrong text in either tree, said the blind reader.
-Iteration 32 read the docs order's repair half as saturated on a tree whose staleness was
-falsified *statements*. A stale **rule** is a different object: the agent reads it as someone
-else's standing convention and annotates around it. That is the user's "outdated docs" case,
-unfixed, and no shipped line reaches it.
+1. **The strict occurrence is still unmet.** 37 found the *situation* outside fixtures
+   (C3) but no agent *annotating* instead of repairing outside `sys_prompt/` and outside a
+   fixture. Find that instance — a session log on this machine, a commit in this tree — or
+   the candidate dies there, per 36's own clause.
+2. Only then a wording, naming the act: editing the sentence. Commit it before launching any
+   arm. Kill arm: it overwrites a rule its change did *not* falsify.
+3. Decide C2: a round that hands a line forward writes the words, or that clause goes.
+4. The owner's aggregate-pricing diagnosis is the candidate after this one, and whoever takes
+   it checks `Say what ends it` against it first.
+5. 40 is the cleanup round.
 
-### The owner's answers, 2026-09-25
-
-**Merge: no.** *"i may choose to merge myself, but you shoudl not do that."* DEC-045's open
-alternative is closed; a round's product stays an edit to `alan-default-next.md` that no
-session here runs.
-
-**Growth: nothing prices the aggregate.** Asked whether the specimen's inventory row wanted
-more generality or fewer words, they said a short form — *"check arg substitution including
-$blah"* — works too, that the detailed form *"saves investigation speed when update next runs,
-or as it seems"*, **but** *"if every session says 'adding this will save a little bit of time',
-thats how you get unbounded doc growth that ends up costing a lot more tokens."* The driver is
-not a misjudgement in any one session: each addition is locally justified by a small expected
-saving, and nothing in the loop prices the sum. That is the target a growth candidate has to
-reach, and it is not the same target as narrowness.
-
-### `(instruction)` for iteration 37
-
-1. **Establish the occurrence before writing the wording**, which is the clause 34 and 35 both
-   broke: find a real amendment-instead-of-repair outside `sys_prompt/` and outside a fixture —
-   a session log on this machine, or a commit in this tree where a rule a change falsified was
-   annotated rather than edited. If there is none, say so and the candidate dies there.
-2. Only then a wording, and it must name the act: editing the sentence. Pre-register the kill as
-   an arm that overwrites a rule its change did *not* falsify.
-3. The owner's aggregate-pricing diagnosis has no wording and no measurement. It is the next
-   candidate after this one, not this one, and whoever takes it checks `Say what ends it`
-   against it first — that is the shipped line closest to it.
-4. 40 is the cleanup round; 37 is not.
-
-Iteration 36: `3c5bec5e` → the owner-answer commit that follows this line. Ceiling at close
-is in that commit's message.
+Iteration 37: `687838c3` → the commit that carries this line. Ceiling at close is in that
+commit's message.

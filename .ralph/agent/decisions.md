@@ -2,21 +2,16 @@
 
 Only decisions still open to re-argument live here, and only the half of each that
 `sys_prompt/CLAUDE.md` does not carry: what else was on the table, the framing bias,
-whether anyone independent has looked, and the revert. The claim, the hypothesis and
-the retirement condition are that file's, stated once; a second copy here would be
-two wordings with nothing saying which governs. Everything discharged is in the
-commit messages. Standing framing bias on every
-decision here: each fixture was written from the shape of the line its round
-meant to test.
+whether anyone independent has looked, and the revert. Everything discharged is in the
+commit messages. Standing framing bias on every decision here: each fixture was written
+from the shape of the line its round meant to test.
 
 **Closed**: DEC-001–031, 035–036, 038–044, 046. Their content is in the commit messages
 and in `sys_prompt/CLAUDE.md`; none has an independent evaluation.
 
 ## DEC-032 / 033 / 034 / 037 — four shipped-or-deleted lines still open to re-argument
 
-Claim, hypothesis and retirement condition are in `sys_prompt/CLAUDE.md`; the measurement is
-in each commit. Here only what that file does not carry. Shared bias: every confidence was set
-against the round's own fixture, written from the shape of the line it meant to test.
+Here only what `sys_prompt/CLAUDE.md` and the commits do not carry.
 
 - **032, keep the self-consequence bullet** (65). Alternative: delete it on the over-reach.
   The blind comparison preferred the *untreated* arm, so the keep is unevaluated. Revert
@@ -47,17 +42,26 @@ session here runs — which is a fact every round states rather than a defect it
 
 ## DEC-047 — the scope wording is decided and not shipped (iter 36, conf 80)
 
-Measurement in this round's result commit; claim and hypothesis in `sys_prompt/CLAUDE.md`.
-**Alternatives**: ship it on the blind reader's narrow preference for the treated tree, which
-prices a repair the pre-registration did not ask for and ignores a false sentence it did;
-re-run at n>1, which the user's default forbids without a new cross-domain case; hand it
-forward a third time, which the contract forbids. **Framing bias**: this round wrote the
-wording it tested, having rejected the one 35 handed forward, so the round is judging its own
-sentence — the pre-registered ship condition was fixed before the runs for exactly that reason
-and it was not met. Second bias: the fixture is the one 35 measured the failure on, so it is
-selected for eliciting the failure and says nothing about wordings on trees that do not.
-**Independent evaluation**: done, blind, both trees and both sessions, told neither what was
-under test nor which arm was which; it preferred the treated tree narrowly, on the repair, and
-independently found the false sentence. The two decisive facts were re-verified here by hand
-rather than taken from it. **Revert**: n/a, no prompt edit; the paragraph reverts with
-`git checkout 3c5bec5e -- sys_prompt/CLAUDE.md`.
+Measurement in `997a5c02`; claim and hypothesis in `sys_prompt/CLAUDE.md`. **Alternatives**:
+ship it on the blind reader's narrow preference for the treated tree, which prices a repair
+the pre-registration did not ask for and ignores a false sentence it did; hand it forward a
+third time, which the contract forbids. **Framing bias**: the round wrote the wording it
+judged, which is why the ship condition was fixed before the runs; it was not met. The
+fixture is the one 35 elicited the failure on, so it says nothing about trees that do not.
+**Independent evaluation**: done, blind, both trees; the two decisive facts were re-verified
+by hand. **Revert**: `git checkout 3c5bec5e -- sys_prompt/CLAUDE.md`.
+
+## DEC-048 — what "public-ready on your parts" covered, and what it left standing (iter 37, conf 85)
+
+The owner's #96 asked for `staging`'s public-ready pass on this branch's additions. Taken as:
+repair claims this branch falsified, sweep links and citers, change nothing else.
+**Alternatives**: read it as the full spec — a README section for the loop's own ideas, which
+asserts an idea the loop has not shipped; or move `PROMPT.md` out of the root the way
+`staging` moved the two stray analyses, which breaks `/workspace/ralph/build.yml:17`.
+**Reverted inside the round**: rows indexing `PROMPT.md` and `.ralph/` in the root
+`CLAUDE.md`. #98 — *"ralph loop files will be intentionally kept in git history, but a commit
+will remove them before merge"* — makes those rows two lines a later commit must also remove,
+and nothing reads them: the scratchpad and `PROMPT.md` are injected, not looked up. That is
+the ratchet this objective names, added by the round studying it. **Framing bias**: the round
+chose the reading it could finish inside a merge-only instruction. **Independent evaluation**:
+not started. **Revert**: `git revert e8589613` takes the README repairs with it.

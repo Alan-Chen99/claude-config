@@ -17,7 +17,6 @@ the directory you are about to touch.
 | `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After an upstream sync |
 | `pyproject.toml` | Python project config, entry points | Adding dependencies, modifying build settings |
 | `.env` / `.env.example` | Unified config (NTFY URL, OpenRouter, Anthropic token-count) | Setting up secrets — see `.env.example` |
-| `PROMPT.md` | The task text of the ralph campaign running here — the owner's request and its followups. `/workspace/ralph/build.yml` names this path, so it stays at the root | Before continuing that loop |
 
 ## Subdirectories
 
@@ -38,7 +37,6 @@ the directory you are about to touch.
 | `systemd/` | systemd **user** units, symlinked by `install.sh` and enabled by hand — `telegram-hitl.service` runs the Telegram proxy | Adding a long-running service; diagnosing one that is `failed` |
 | `.claude/` | Repo-local config; project skills `prompt-tests` and `update-claude-code` (post-upgrade runbook and what a release can break here); `skills/session-analysis-wip` is a relative link that invokes **this** checkout's `skills/session-analysis` — the plain `session-analysis` skill is always the installed copy from `/repos/claude-config` | Adding repo-local skills or hooks; after a Claude Code upgrade; invoking a skill you are editing from a worktree |
 | `.github/` | GitHub workflows and config | Modifying CI/CD |
-| `.ralph/` | Ralph loop state for the campaign in `PROMPT.md`: `agent/scratchpad.md` is the thinking journal, beside `decisions.md` and `memories.md`. The event and history files are gitignored | Running or reviewing that loop |
 
 ## Build and test
 
