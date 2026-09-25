@@ -113,7 +113,7 @@ specimen `0d3c560b` — **arm-independent on both defects**, so that block is no
 defect found outside the task — and shipped one line under `# Completeness` instead, whose
 *escalate* clause was licensing the stop. DEC-043 to DEC-049.
 
-## Iteration 39 — `e0cc54f6` → (this round)
+## Iteration 39 — `e0cc54f6` → this round's last commit
 
 ### Critique of 38
 
@@ -183,3 +183,6 @@ Channel: #106 asked before the fixture existed; #107, #109, #110 answered within
    that harm must put the load-bearing warrant **outside the documents** — a test name, a commit
    message, an unrelated module — since both arms read `docs/` unprompted.
 3. Still untouched after 39 rounds: the aggregate-pricing diagnosis (`mem-1790299660-0a19`).
+
+Iteration 39: `e0cc54f6` → this round's last commit, whose message carries the ceiling; the
+probe's pre-registration is `a247868e` and the record commit is the one deleting it.
