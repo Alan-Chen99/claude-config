@@ -1,0 +1,18 @@
+id,date,category,amount_cents,note
+t1001,2026-01-04,housing,142500,january rent
+t1002,2026-01-06,food,4210,
+t1003,2026-01-09,transport,2750,monthly pass
+t1004,2026-01-15,food,6680,groceries
+t1005,2026-01-21,utilities,9140,electricity
+t1005,2026-01-21,utilities,9140,electricity
+t1006,2026-02-03,housing,142500,february rent
+t1007,2026-02-08,food,5390,
+t1008,2026-02-11,misc,1899,replacement charger
+t1009,2026-02-19,transport,2750,monthly pass
+t1010,2026-02-24,food,7120,groceries
+t1010,2026-02-24,food,7120,groceries
+t1011,2026-03-02,housing,145000,march rent
+t1012,2026-03-05,food,4860,
+t1013,2026-03-11,utilities,8730,electricity
+t1014,2026-03-18,transport,-2750,refunded pass
+t1015,2026-03-26,food,5940,groceries
