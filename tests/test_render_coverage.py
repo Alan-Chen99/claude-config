@@ -30,8 +30,8 @@ from claude_config.cc_pretty.parse import (
     parse_content_block,
 )
 from claude_config.cc_pretty.render import C, Renderer
-from claude_config.cc_pretty_intercept.main import _render_message, _render_response
-from claude_config.cc_pretty_intercept.parse import Message, Response, load_intercept
+from claude_config.cc_pretty_intercept.convert import log_to_records
+from claude_config.cc_pretty_intercept.parse import load_intercept
 
 C.disable()  # All tests assert on plain text — no ANSI escapes.
 
@@ -122,15 +122,47 @@ def test_unknown_block_payload_is_rendered_not_dropped() -> None:
     assert "Chrome 136 remote-debugging-port" in out
 
 
-def test_intercept_message_renders_unknown_block_payload() -> None:
-    msg = Message(role="assistant", content=[SERVER_TOOL_USE])
-    out = _render_message(msg, 0, 1, _renderer(), lineno=3)
+def _intercept_render(capture: dict, tmp_path) -> str:
+    """The unbounded render of ``capture``, the way check_intercept builds it."""
+    import claude_config.cc_pretty.coverage as cov
+    from claude_config.cc_pretty import main as cm
+
+    path = tmp_path / "0001.json"
+    path.write_text(json.dumps(capture))
+    records, jq_paths = log_to_records(load_intercept(str(path)))
+    rendered, fail = cov._render_unbounded(
+        cm.PipelineInput(
+            records=records,
+            log_path=f"intercept://{path}",
+            args=cov._unbounded_args(),
+            jq_paths=jq_paths,
+            rewound=set(),
+        ),
+        str(path),
+    )
+    assert fail is None, fail
+    return rendered
+
+
+def test_intercept_message_renders_unknown_block_payload(tmp_path) -> None:
+    out = _intercept_render(
+        {
+            "request": {"messages": [
+                {"role": "assistant", "content": [SERVER_TOOL_USE]},
+            ]},
+            "response": {"content": []},
+        },
+        tmp_path,
+    )
     assert "Chrome 136 remote-debugging-port" in out
 
 
-def test_intercept_response_renders_unknown_block_payload() -> None:
-    resp = Response(model="m", content=[SERVER_TOOL_USE])
-    out = _render_response(resp, _renderer())
+def test_intercept_response_renders_unknown_block_payload(tmp_path) -> None:
+    out = _intercept_render(
+        {"request": {"messages": []}, "response": {"model": "m",
+                                                   "content": [SERVER_TOOL_USE]}},
+        tmp_path,
+    )
     assert "Chrome 136 remote-debugging-port" in out
 
 

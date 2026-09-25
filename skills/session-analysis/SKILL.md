@@ -1,6 +1,6 @@
 ---
 name: session-analysis
-description: Use when reading or analyzing a logged agent session — a Claude Code JSONL transcript or an opencode export — to answer any question about what an agent did: grading a prompt-test run, diagnosing a session's behavior, reconstructing what happened. Carries the skeleton-first reading protocol that keeps a large log out of your context, the evidence-artifact format, and how to phrase a focus. Load before running `agent-tools cc-pretty` or `agent-tools opencode-pretty` on a session, and before dispatching a `session-analysis` subagent.
+description: Use when reading or analyzing a logged agent session — a Claude Code JSONL transcript, an opencode export, or a captured API call — to answer any question about what an agent did: grading a prompt-test run, diagnosing a session's behavior, reconstructing what happened. Carries the skeleton-first reading protocol that keeps a large log out of your context, the evidence-artifact format, and how to phrase a focus. Load before running `agent-tools cc-pretty`, `agent-tools opencode-pretty` or `agent-tools cc-pretty-intercept` on a log, and before dispatching a `session-analysis` subagent.
 ---
 
 # Session Analysis
@@ -117,6 +117,13 @@ pretty file as reading substrate.
    - Claude Code: `agent-tools cc-pretty <session-id> --skeleton`
      (a subagent id or a path to the `.jsonl` works too; an id may be any
      unique prefix, and the render names the file it resolved to)
+   - One captured API call: `agent-tools cc-pretty-intercept <file.json>
+     --skeleton` (a capture is addressed by path, never by id). Its `@L<n>`
+     number the capture's records in reading order across `.request.system[]`,
+     `.request.tools`, `.request.messages[]` and `.response`, so a ref is
+     recovered with a plain `jq` against that path — the legend prints the
+     mapping. `--no-system` skips the system prompt, which is usually the
+     largest region and rarely what a capture is opened for.
 
    One line per content block: `@L<n>[i]` ref, type, approx size
    (`~tok` ≈ chars/4), the jq leaf, and a short preview.

@@ -1,13 +1,19 @@
 """Pretty-print one MITM intercept log file.
 
-Usage: cc-pretty-intercept <file.json>
-                            [--tool-max N] [--truncate-input]
-                            [--no-color] [--no-thinking]
-                            [--no-system] [--no-tools]
+One intercept file = one captured API request/response pair, written by
+scripts/intercept/proxy.py to ~/.claude/requests-log/<session_id>/NNNN.json.
 
-One intercept file = one captured API request/response pair. Operates on the
-output of scripts/intercept/proxy.py, stored at
-~/.claude/requests-log/<session_id>/NNNN.json.
+Shares cc-pretty's CLI surface and rendering pipeline: the capture is flattened
+into cc-pretty records by ``claude_config.cc_pretty_intercept.convert`` — see
+that module for how the API's named regions become records and keep their jq
+addresses. ``--no-system`` and ``--no-tools`` are the two options this
+front-end adds, for the two regions only an API payload has.
+
+Color output is auto-detected: on when stdout is a TTY, off when piped or when
+NO_COLOR is set (https://no-color.org). --color forces it on (e.g. piping to
+`less -R`), --no-color forces it off.
+
+Usage: cc-pretty-intercept <file.json> [<flag>...]
 """
 
 from __future__ import annotations
@@ -16,260 +22,64 @@ import argparse
 import os
 import sys
 
-from claude_config.cc_pretty.parse import (
-    TextBlock,
-    ThinkingBlock,
-    ToolResultBlock,
-    ToolUseBlock,
-    parse_content_block,
+from claude_config.cc_pretty.main import (
+    PipelineInput,
+    add_shared_args,
+    run_pipeline,
 )
-from claude_config.cc_pretty.render import (
-    C,
-    Renderer,
-    fmt_duration,
-    fmt_ts,
-    fmt_usage,
-    ind,
-    separator,
-    trunc,
-)
-from claude_config.cc_pretty_intercept.parse import (
-    InterceptLog,
-    Message,
-    Response,
-    SystemTextItem,
-    TransportError,
-    load_intercept,
-)
+from claude_config.cc_pretty_intercept.convert import header_lines, log_to_records
+from claude_config.cc_pretty_intercept.parse import load_intercept
 
 
-def _render_header(log: InterceptLog, path: str) -> str:
-    parts = [f"intercept: {os.path.basename(path)}"]
-    if log.request.model:
-        parts.append(log.request.model)
-    parts.append("streaming" if log.streaming else "non-stream")
-    if log.timestamp:
-        parts.append(fmt_ts(log.timestamp))
-    if log.duration_ms:
-        parts.append(f"dur:{fmt_duration(log.duration_ms)}")
-
-    lines = [f"{C.DIM}{'  '.join(parts)}{C.RESET}"]
-
-    if log.session:
-        sess_parts = []
-        if log.session.cwd:
-            sess_parts.append(f"cwd:{log.session.cwd}")
-        if log.session.session_id:
-            sess_parts.append(f"id:{log.session.session_id[:8]}")
-        if log.session.kind:
-            sess_parts.append(log.session.kind)
-        if log.session.entrypoint:
-            sess_parts.append(log.session.entrypoint)
-        if log.session.pid:
-            sess_parts.append(f"pid:{log.session.pid}")
-        if sess_parts:
-            lines.append(f"{C.DIM}  {'  '.join(sess_parts)}{C.RESET}")
-
-    req_parts = []
-    if log.request.max_tokens is not None:
-        req_parts.append(f"max_tokens:{log.request.max_tokens}")
-    if log.request.temperature is not None:
-        req_parts.append(f"temp:{log.request.temperature}")
-    if log.request.thinking:
-        budget = log.request.thinking.get("budget_tokens")
-        req_parts.append(
-            f"thinking:{budget}" if budget else f"thinking:{log.request.thinking.get('type', '?')}"
-        )
-    if log.request.output_config:
-        req_parts.append("output_config")
-    if req_parts:
-        lines.append(f"{C.DIM}  {'  '.join(req_parts)}{C.RESET}")
-
-    return "\n".join(lines)
-
-
-def _render_tools(tools: list[dict], tool_input_max: int) -> str:
-    names = [t.get("name", "?") for t in tools]
-    lines = [
-        f"{C.TOOL}┌ Tools ({len(tools)}){C.RESET}",
-        ind(trunc(", ".join(names), tool_input_max), "  "),
-    ]
-    return "\n".join(lines)
-
-
-def _render_system(system: str | list[SystemTextItem], tool_output_max: int) -> str:
-    lines = [f"{C.SYSTEM}┌ System{C.RESET}"]
-
-    if isinstance(system, str):
-        lines.append(ind(trunc(system, tool_output_max), "  "))
-        return "\n".join(lines)
-
-    for idx, item in enumerate(system):
-        tags = []
-        if item.cache_control:
-            cc = item.cache_control
-            tag = cc.type or "ephemeral"
-            if cc.ttl:
-                tag += f"/{cc.ttl}"
-            if cc.scope:
-                tag += f"/{cc.scope}"
-            tags.append(f"cache:{tag}")
-        suffix = f"  {C.DIM}[{' '.join(tags)}]{C.RESET}" if tags else ""
-        lines.append(f"{C.DIM}  [{idx + 1}/{len(system)}]{C.RESET}{suffix}")
-        lines.append(ind(trunc(item.text, tool_output_max), "    "))
-    return "\n".join(lines)
-
-
-def _render_message(
-    msg: Message, idx: int, total: int, renderer: Renderer, lineno: int = 1
-) -> str:
-    role_color = C.USER if msg.role == "user" else C.ASSISTANT
-    head = f"{role_color}┌ Message {idx + 1}/{total}: {msg.role}{C.RESET}"
-
-    if isinstance(msg.content, str):
-        return f"{head}\n{ind(msg.content, '  ')}"
-
-    lines = [head]
-    for bi, raw in enumerate(msg.content):
-        block = parse_content_block(raw)
-        if isinstance(block, ThinkingBlock):
-            if renderer.show_thinking:
-                lines.append(renderer._render_thinking(block, lineno, bi))
-            else:
-                lines.append(
-                    f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}"
-                )
-        elif isinstance(block, TextBlock):
-            lines.append(ind(trunc(block.text, renderer.tool_output_max), "  "))
-        elif isinstance(block, ToolUseBlock):
-            lines.append(renderer._render_tool_use(block, lineno, bi))
-        elif isinstance(block, ToolResultBlock):
-            lines.append(renderer._render_tool_result(block, lineno, bi))
-        else:
-            lines.append(renderer._render_unknown_block(block, lineno, bi))
-    return "\n".join(lines)
-
-
-def _render_response(resp: Response, renderer: Renderer) -> str:
-    head_parts = [f"{C.ASSISTANT}┌ Response{C.RESET}"]
-    if resp.model:
-        head_parts.append(f"{C.DIM}[{resp.model}]{C.RESET}")
-    if resp.stop_reason:
-        head_parts.append(f"{C.DIM}stop:{resp.stop_reason}{C.RESET}")
-    if resp.usage:
-        head_parts.append(f"{C.DIM}[{fmt_usage(resp.usage)}]{C.RESET}")
-    lines = ["  ".join(head_parts)]
-
-    if resp.error:
-        lines.append(f"{C.ERROR}  ✗ error [{resp.error.type}]: {resp.error.message}{C.RESET}")
-
-    if resp.stop_details:
-        d = resp.stop_details
-        lines.append(
-            f"{C.ERROR}  ✗ {d.get('type', 'refusal')} [{d.get('category')}]: "
-            f"{d.get('explanation', '')}{C.RESET}"
-        )
-
-    for bi, raw in enumerate(resp.content):
-        block = parse_content_block(raw)
-        if isinstance(block, ThinkingBlock):
-            if renderer.show_thinking:
-                lines.append(renderer._render_thinking(block, 1, bi))
-            else:
-                lines.append(
-                    f"{C.THINKING}  [thinking: {len(block.thinking)} chars]{C.RESET}"
-                )
-        elif isinstance(block, TextBlock):
-            lines.append(ind(block.text, "  "))
-        elif isinstance(block, ToolUseBlock):
-            lines.append(renderer._render_tool_use(block, 1, bi))
-        else:
-            lines.append(renderer._render_unknown_block(block, 1, bi))
-    return "\n".join(lines)
-
-
-def _render_transport_error(err: TransportError | None) -> str:
-    """Render a capture whose call failed before any message came back."""
-    detail = "no response and no error recorded"
-    said = ""
-    if err is not None:
-        detail = f"HTTP {err.status} {err.statusText}".strip()
-        if err.type or err.message:
-            said = f"[{err.type}] {err.message}".strip() if err.type else err.message
-        else:
-            said = err.body
-    rendered = (
-        f"{C.ERROR}┌ Transport error{C.RESET}  {C.DIM}{detail}{C.RESET}\n"
-        f"{C.DIM}  the request above never produced a response{C.RESET}"
-    )
-    if said:
-        rendered += f"\n{C.ERROR}{ind(said, '  ')}{C.RESET}"
-    return rendered
-
-
-def main():
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Pretty-print one MITM intercept log file",
     )
     parser.add_argument("file", help="Path to intercept .json file")
-    parser.add_argument(
-        "--tool-max", type=int, default=2000,
-        help="Max chars for tool output / system text bodies (default: 2000). "
-             "Tool input is shown in full unless --truncate-input is set.",
+    # A capture's bodies are whole tool outputs and system prompts, so the 200
+    # cc-pretty reads a session at is uselessly small here.
+    add_shared_args(parser, default_tool_max=2000)
+    region = parser.add_argument_group("SELECTION (capture regions)")
+    region.add_argument(
+        "--no-system", action="store_true", help="Hide the system prompt parts",
     )
-    parser.add_argument(
-        "--truncate-input", action="store_true",
-        help="Also truncate tool input to --tool-max chars",
+    region.add_argument(
+        "--no-tools", action="store_true", help="Hide the tool definitions list",
     )
-    parser.add_argument("--no-color", action="store_true", help="Disable ANSI colors")
-    parser.add_argument(
-        "--no-thinking", action="store_true",
-        help="Collapse thinking blocks to single-line summary",
-    )
-    parser.add_argument(
-        "--no-system", action="store_true",
-        help="Hide system prompt parts",
-    )
-    parser.add_argument(
-        "--no-tools", action="store_true",
-        help="Hide tool definitions list",
-    )
-    args = parser.parse_args()
-
-    if args.no_color:
-        C.disable()
+    args = parser.parse_args(argv)
 
     log = load_intercept(args.file)
-
-    tool_input_max = args.tool_max if args.truncate_input else sys.maxsize
-    renderer = Renderer(
-        args.file,
-        tool_output_max=args.tool_max,
-        tool_input_max=tool_input_max,
-        show_thinking=not args.no_thinking,
+    records, jq_paths = log_to_records(
+        log, show_system=not args.no_system, show_tools=not args.no_tools,
     )
 
-    print(_render_header(log, args.file))
+    if args.validate_only:
+        # load_intercept and the conversion both build through pydantic, so a
+        # bad capture has already raised by here.
+        print(
+            f"{len(records)}/{len(records)} records parsed OK, 0 errors",
+            file=sys.stderr,
+        )
+        sys.exit(0)
 
-    if not args.no_tools and log.request.tools:
-        print(separator())
-        print(_render_tools(log.request.tools, tool_input_max))
+    # Absolute, so the recovery recipes under truncated blocks run from anywhere.
+    log_path = f"intercept://{os.path.abspath(args.file)}"
+    stem = os.path.basename(args.file).removesuffix(".json")
+    session = log.session.session_id[:8] if log.session else ""
 
-    has_system = log.request.system if isinstance(log.request.system, str) else len(log.request.system) > 0
-    if not args.no_system and has_system:
-        print(separator())
-        print(_render_system(log.request.system, args.tool_max))
-
-    for idx, msg in enumerate(log.request.messages):
-        print(separator())
-        print(_render_message(msg, idx, len(log.request.messages), renderer))
-
-    print(separator())
-    if log.response is not None:
-        print(_render_response(log.response, renderer))
-    else:
-        print(_render_transport_error(log.error))
-    print(separator())
+    run_pipeline(PipelineInput(
+        records=records,
+        log_path=log_path,
+        args=args,
+        header=header_lines(log, args.file),
+        jq_paths=jq_paths,
+        agent_chunk_prefix="-".join(
+            x for x in ("cc-pretty-intercept", session, stem) if x
+        ),
+        # A capture is one request: nothing in it was ever rewound, and the
+        # parent-fork detector has no uuids to read here anyway.
+        rewound=set(),
+    ))
 
 
 if __name__ == "__main__":

@@ -194,7 +194,10 @@ def is_model_visible(rec: Record) -> bool:
     """True if this record contributes to the model's view of the conversation.
 
     user and assistant messages are always sent.  system messages only when
-    subtype is local_command.  attachment records are asked individually
+    subtype is local_command, or when the subtype is an ``api_`` region of an
+    intercept capture — the system prompt, tool definitions and refusal the
+    call itself carried are the most model-visible content there is, unlike
+    cc's bookkeeping system records.  attachment records are asked individually
     (see attachment_is_model_visible) — most carry text the model read as a
     <system-reminder>, such as the # Environment block, the skill and agent
     listings, or a hook's additional context.  The remaining record kinds
@@ -203,7 +206,9 @@ def is_model_visible(rec: Record) -> bool:
     """
     if isinstance(rec, (AssistantRecord, UserRecord)):
         return True
-    if isinstance(rec, SystemRecord) and rec.subtype == "local_command":
+    if isinstance(rec, SystemRecord) and (
+        rec.subtype == "local_command" or rec.subtype.startswith("api_")
+    ):
         return True
     if isinstance(rec, AttachmentRecord):
         return attachment_is_model_visible(rec)
@@ -692,6 +697,14 @@ class PipelineInput:
     ``source_id``: the id ``log_path`` was looked up by, when it was. Set, the
         render opens by naming the file the id resolved to — the reader typed an
         id and has no other way to tell which file answered it.
+    ``header``: front-matter lines printed above the legend in every density,
+        for a source whose identity lives outside its records. An intercept
+        capture carries model, timing and sampling parameters at the top level;
+        the record stream holds none of it. Plain text — colored here, after
+        the color decision, which a caller building the string cannot be.
+    ``jq_paths``: lineno → jq address of that record, for a format whose
+        records are not one per line. Reaches ``recovery_cmd`` so every ref
+        stays recoverable. See :func:`claude_config.cc_pretty.render.recovery_cmd`.
     ``agent_chunk_prefix``: filename stem for ``--agent`` chunk files.
     ``rewound``: pre-computed rewound indices. When set (even to an empty
         set), the parent-fork auto-detector is skipped — the caller is
@@ -707,6 +720,8 @@ class PipelineInput:
     agent_chunk_prefix: str = "cc-pretty"
     rewound: set[int] | None = None
     source_id: str | None = None
+    header: list[str] | None = None
+    jq_paths: dict[int, str] | None = None
 
 
 def run_pipeline(inp: PipelineInput) -> None:
@@ -732,6 +747,7 @@ def run_pipeline(inp: PipelineInput) -> None:
         show_thinking=not args.no_thinking,
         show_usage=args.show_usage,
         chat_only=args.chat_only,
+        jq_paths=inp.jq_paths,
     )
 
     saved_stdout = None
@@ -742,6 +758,11 @@ def run_pipeline(inp: PipelineInput) -> None:
     # After the --agent redirect, so the chunk files carry it too.
     if inp.source_id is not None:
         print(f"{C.HINT}# source: {inp.source_id} → {inp.log_path}{C.RESET}")
+
+    # Above the density branch: front-matter belongs to the source, not to a
+    # view of it, so --skeleton reports the same call as the full render.
+    for line in inp.header or ():
+        print(f"{C.DIM}{line}{C.RESET}")
 
     # ── Compaction & rewind detection ────────────────────────────────────
     compaction_bounds = find_compaction_boundaries(records)
@@ -906,7 +927,7 @@ def run_pipeline(inp: PipelineInput) -> None:
 
             elif isinstance(rec, SystemRecord):
                 print(separator())
-                print(r.render_system(rec, ts))
+                print(r.render_system(rec, ts, lineno))
                 i += 1
 
             elif isinstance(rec, ProgressRecord):
@@ -1016,7 +1037,7 @@ def emit_agent_output(output: str, chunk_prefix: str) -> None:
 # ─── cc-pretty entry point ───────────────────────────────────────────────────
 
 
-def main():
+def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(
         description="Pretty-print Claude Code JSONL session logs",
     )
@@ -1026,7 +1047,7 @@ def main():
              "by — whole, or any unique prefix",
     )
     add_shared_args(parser, default_tool_max=200)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # A mistyped id is expected input at a command-line boundary, not an
     # unexpected condition; everything else still propagates.

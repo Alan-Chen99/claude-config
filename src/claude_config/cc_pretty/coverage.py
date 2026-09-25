@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import re
 import sys
 from contextlib import redirect_stdout, redirect_stderr
@@ -209,34 +210,68 @@ def _findings_for(
 
 
 def check_intercept(path: str) -> list[Finding]:
-    from claude_config.cc_pretty.render import C, Renderer
-    from claude_config.cc_pretty_intercept import main as im
+    from claude_config.cc_pretty import main as cm
+    from claude_config.cc_pretty.render import C
+    from claude_config.cc_pretty_intercept.convert import log_to_records
     from claude_config.cc_pretty_intercept.parse import load_intercept
 
     C.disable()
     source_text = open(path, encoding="utf-8", errors="replace").read()
     try:
         log = load_intercept(path)
+        records, jq_paths = log_to_records(log)
     except Exception as exc:  # noqa: BLE001 — every load failure is a finding
         return [Finding("load_error", path, f"{type(exc).__name__}: {exc}")]
 
-    renderer = Renderer(
-        path, tool_output_max=UNBOUNDED, tool_input_max=UNBOUNDED, show_thinking=True
+    # The system prompt and tool list contribute no needles — they are not
+    # conversation content — but stay in the render so the truncation check,
+    # which reads the whole render, covers them too.
+    rendered, fail = _render_unbounded(
+        cm.PipelineInput(
+            records=records,
+            log_path=f"intercept://{os.path.abspath(path)}",
+            args=_unbounded_args(),
+            jq_paths=jq_paths,
+            rewound=set(),
+        ),
+        path,
     )
-    # The system block is rendered but contributes no needles: it is not
-    # conversation content. Rendering it anyway puts _render_system under the
-    # truncation check, which reads the whole render.
-    parts = []
-    system = log.request.system
-    if system if isinstance(system, str) else len(system) > 0:
-        parts.append(im._render_system(system, UNBOUNDED))
-    for idx, msg in enumerate(log.request.messages):
-        parts.append(im._render_message(msg, idx, len(log.request.messages), renderer))
-    if log.response is not None:
-        parts.append(im._render_response(log.response, renderer))
-    rendered = "\n".join(parts)
+    if fail is not None:
+        return [fail]
 
     return _findings_for(path, source_text, rendered, intercept_needles(json.loads(source_text)))
+
+
+def _unbounded_args() -> argparse.Namespace:
+    """Shared args with every view narrowed off and no truncation.
+
+    The hiding flags are deliberate view choices, not drops; leaving them on
+    would make the check vacuous.
+    """
+    from claude_config.cc_pretty import main as cm
+
+    parser = argparse.ArgumentParser()
+    cm.add_shared_args(parser, default_tool_max=UNBOUNDED)
+    args = parser.parse_args([])
+    args.tool_max = UNBOUNDED
+    args.show_all = True
+    args.compact_all = True
+    args.show_rewound = True
+    args.no_color = True
+    return args
+
+
+def _render_unbounded(inp, path: str) -> tuple[str, Finding | None]:
+    """The full render of ``inp``, or the finding its failure to render is."""
+    from claude_config.cc_pretty import main as cm
+
+    buf, err = io.StringIO(), io.StringIO()
+    try:
+        with redirect_stdout(buf), redirect_stderr(err):
+            cm.run_pipeline(inp)
+    except SystemExit as exc:
+        return "", Finding("load_error", path, f"render exited with {exc.code}")
+    return buf.getvalue(), None
 
 
 def check_jsonl(path: str) -> list[Finding]:
@@ -251,27 +286,14 @@ def check_jsonl(path: str) -> list[Finding]:
     except Exception as exc:  # noqa: BLE001 — every load failure is a finding
         return [Finding("load_error", path, f"{type(exc).__name__}: {exc}")]
 
-    parser = argparse.ArgumentParser()
-    cm.add_shared_args(parser, default_tool_max=UNBOUNDED)
-    args = parser.parse_args([])
-    # Everything visible: the hiding flags are deliberate view choices, not
-    # drops, and leaving them on would make the check vacuous.
-    args.tool_max = UNBOUNDED
-    args.show_all = True
-    args.compact_all = True
-    args.show_rewound = True
-    args.no_color = True
+    rendered, fail = _render_unbounded(
+        cm.PipelineInput(records=records, log_path=path, args=_unbounded_args()),
+        path,
+    )
+    if fail is not None:
+        return [fail]
 
-    buf, err = io.StringIO(), io.StringIO()
-    try:
-        with redirect_stdout(buf), redirect_stderr(err):
-            cm.run_pipeline(
-                cm.PipelineInput(records=records, log_path=path, args=args)
-            )
-    except SystemExit as exc:
-        return [Finding("load_error", path, f"render exited with {exc.code}")]
-
-    return _findings_for(path, source_text, buf.getvalue(), jsonl_needles(raw_records))
+    return _findings_for(path, source_text, rendered, jsonl_needles(raw_records))
 
 
 def check_path(path: str) -> list[Finding]:

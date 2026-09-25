@@ -231,13 +231,61 @@ def _is_opencode_path(log_path: str) -> bool:
     return log_path.startswith(("opencode://", "opencode-file://"))
 
 
-def recovery_cmd(log_path: str, lineno: int, block_idx: int | None, leaf: str) -> str:
+def _is_intercept_path(log_path: str) -> bool:
+    return log_path.startswith("intercept://")
+
+
+def source_family(log_path: str) -> str:
+    """Which log family ``log_path`` names: ``cc``, ``opencode`` or ``intercept``."""
+    if _is_opencode_path(log_path):
+        return "opencode"
+    if _is_intercept_path(log_path):
+        return "intercept"
+    return "cc"
+
+
+# The three formats hold the same conversation in different shapes, so the jq
+# leaf that yields a block's raw text differs by family. A reader handed the
+# wrong leaf extracts nothing, so the family decides it once here rather than
+# each call site re-deriving it.
+_LEAVES: dict[str, dict[str, str]] = {
+    "cc": {
+        "thinking": ".thinking", "text": ".text", "tool_input": ".input",
+        "tool_output": ".content", "message_string": ".message.content",
+        "system": ".content",
+    },
+    "opencode": {
+        "thinking": ".text", "text": ".text", "tool_input": ".state.input",
+        "tool_output": ".state.output", "message_string": ".text",
+        "system": ".content",
+    },
+    "intercept": {
+        "thinking": ".thinking", "text": ".text", "tool_input": ".input",
+        "tool_output": ".content", "message_string": ".content",
+        "system": ".text",
+    },
+}
+
+
+def jq_leaf(log_path: str, kind: str) -> str:
+    """The jq leaf holding ``kind``'s raw text in ``log_path``'s format."""
+    return _LEAVES[source_family(log_path)][kind]
+
+
+def recovery_cmd(log_path: str, lineno: int, block_idx: int | None, leaf: str,
+                 jq_prefix: str | None = None) -> str:
     """Exact shell command printing the raw string behind a ref.
 
     ``block_idx`` is the source-true block/part index (see :func:`block_ref`);
     ``None`` means the leaf addresses the whole record (cc user string input,
     attachments). ``leaf`` is the jq path suffix appended after the block
     selector (e.g. ``.state.output``, ``.content``).
+
+    ``jq_prefix`` addresses the record itself, for a format that keeps its
+    records in named top-level arrays instead of one per line. An intercept
+    capture splits them across ``.request.system``, ``.request.tools``,
+    ``.request.messages`` and ``.response``, so a line number alone locates
+    nothing; the converter supplies the address it assigned.
     """
     if log_path.startswith("opencode://"):
         sid = log_path[len("opencode://"):]
@@ -248,6 +296,15 @@ def recovery_cmd(log_path: str, lineno: int, block_idx: int | None, leaf: str) -
         src = log_path[len("opencode-file://"):]
         path = f".messages[{lineno - 1}].parts[{block_idx or 0}]{leaf}"
         return f"jq -r '{path}' {src}"
+    if log_path.startswith("intercept://"):
+        src = log_path[len("intercept://"):]
+        if jq_prefix is None:
+            raise ValueError(
+                f"intercept ref @L{lineno} has no jq address — the converter "
+                f"must supply one for every record it emits"
+            )
+        path = jq_prefix if block_idx is None else f"{jq_prefix}.content[{block_idx}]"
+        return f"jq -r '{path}{leaf}' {src}"
     if block_idx is None:
         return f"sed -n '{lineno}p' {log_path} | jq -r '{leaf}'"
     return (f"sed -n '{lineno}p' {log_path} | "
@@ -307,6 +364,18 @@ def legend_lines(log_path: str) -> list[str]:
             "leafs: reasoning/text/user .text · tool .state.input/.state.output",
             f"# recover: jq -r '.messages[<n-1>].parts[<i>]<leaf>' {src}",
         ]
+    if log_path.startswith("intercept://"):
+        src = log_path[len("intercept://"):]
+        return [
+            "# refs @L<n>[i] = capture record n, .content[i] (i=0 omitted) · "
+            "records run .request.system[] · .request.tools · "
+            ".request.messages[] · .response · "
+            "leafs: thinking .thinking · text .text · ▶ .input · "
+            "◀ result .content · user .content · system .text",
+            f"# recover: jq -r '.request.messages[<k>].content[<i>].input' {src} "
+            f"(system: '.request.system[<k>].text' · "
+            f"response: '.response.content[<i>].text')",
+        ]
     return [
         "# refs @L<n>[i] = line n, .message.content[i] (i=0 omitted) · "
         "leafs: thinking .thinking · text .text · ▶ .input · ◀ result .content · "
@@ -351,8 +420,13 @@ class Renderer:
 
     def __init__(self, log_path: str, tool_output_max: int,
                  tool_input_max: int, show_thinking: bool = True,
-                 show_usage: bool = False, chat_only: bool = False):
+                 show_usage: bool = False, chat_only: bool = False,
+                 jq_paths: dict[int, str] | None = None):
         self.log_path = log_path
+        # lineno → jq address of that record, for formats whose records are not
+        # one per line. Empty for cc and opencode, where the ref itself locates
+        # the record. See recovery_cmd.
+        self.jq_paths = jq_paths or {}
         self.tool_output_max = tool_output_max
         self.tool_input_max = tool_input_max
         self.show_thinking = show_thinking
@@ -371,7 +445,8 @@ class Renderer:
 
     def _hint(self, lineno: int, block_idx: int | None, leaf: str) -> str:
         """Dim recovery line printed under a truncated block."""
-        cmd = recovery_cmd(self.log_path, lineno, block_idx, leaf)
+        cmd = recovery_cmd(self.log_path, lineno, block_idx, leaf,
+                           self.jq_paths.get(lineno))
         return f"    {C.DIM}…full: {cmd}{C.RESET}"
 
     # ── Content block renderers ──────────────────────────────────────────
@@ -398,8 +473,8 @@ class Renderer:
         lines = [f"{C.TOOL}  ▶ {block.name}{C.RESET}  {C.DIM}{ref}{C.RESET}"]
         lines.append(ind(trunc(inp_str, self.tool_input_max), "    "))
         if len(inp_str) > self.tool_input_max:
-            leaf = ".state.input" if _is_opencode_path(self.log_path) else ".input"
-            lines.append(self._hint(lineno, _resolve_idx(block, block_idx), leaf))
+            lines.append(self._hint(lineno, _resolve_idx(block, block_idx),
+                                    jq_leaf(self.log_path, "tool_input")))
         return "\n".join(lines)
 
     def _render_tool_result(self, block: ToolResultBlock, lineno: int, block_idx: int,
@@ -438,8 +513,8 @@ class Renderer:
         ]
 
         if truncated:
-            leaf = ".state.output" if _is_opencode_path(self.log_path) else ".content"
-            lines.append(self._hint(lineno, _resolve_idx(block, block_idx), leaf))
+            lines.append(self._hint(lineno, _resolve_idx(block, block_idx),
+                                    jq_leaf(self.log_path, "tool_output")))
 
         if isinstance(tur, ToolUseResultDict):
             if tur.stderr:
@@ -552,6 +627,13 @@ class Renderer:
 
         body: list[str] = []
         for rec, lineno in records:
+            if isinstance(rec.message.content, str):
+                if rec.message.content:
+                    body.append(
+                        f"{C.DIM}  ── text {fmt_ref(lineno)} ──{C.RESET}"
+                    )
+                    body.append(ind(rec.message.content, "  "))
+                continue
             for bi, block in enumerate(rec.message.content_blocks()):
                 if isinstance(block, ThinkingBlock):
                     if self.show_thinking:
@@ -581,7 +663,46 @@ class Renderer:
 
         return "\n".join([header, *body])
 
-    def render_system(self, rec: SystemRecord, ts: str) -> str:
+    _API_LABELS = {
+        "api_system": "System",
+        "api_tools": "Tools",
+        "api_error": "API error",
+        "api_refusal": "Refusal",
+        "api_transport_error": "Transport error",
+    }
+
+    def _render_api_region(self, rec: SystemRecord, lineno: int) -> str:
+        """A region of an intercept capture: system prompt, tool list, failure.
+
+        Unlike cc's bookkeeping system records these carry the body the reader
+        opened the capture for, so each is truncated against --tool-max and
+        gets the ref and recovery hint any other addressable block gets.
+        """
+        is_error = rec.subtype in (
+            "api_error", "api_refusal", "api_transport_error",
+        )
+        color = C.ERROR if is_error else C.SYSTEM
+        label = self._API_LABELS.get(rec.subtype, rec.subtype)
+        head = f"{color}┌ {label}{C.RESET}"
+        detail = getattr(rec, "detail", "") or ""
+        if detail:
+            head += f"  {C.DIM}[{detail}]{C.RESET}"
+        if lineno:
+            head += f"  {C.DIM}{fmt_ref(lineno)}{C.RESET}"
+        if not rec.content:
+            return head
+        lines = [head, ind(trunc(rec.content, self.tool_output_max), "  ")]
+        if len(rec.content) > self.tool_output_max:
+            leaf = getattr(rec, "content_leaf", None)
+            if leaf is None:
+                leaf = jq_leaf(self.log_path, "system")
+            lines.append(self._hint(lineno, None, leaf))
+        return "\n".join(lines)
+
+    def render_system(self, rec: SystemRecord, ts: str, lineno: int = 0) -> str:
+        if rec.subtype.startswith("api_"):
+            return self._render_api_region(rec, lineno)
+
         if rec.subtype == "turn_duration":
             return (
                 f"{C.SYSTEM}┌ System{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"
@@ -880,6 +1001,7 @@ def render_skeleton(
     extract).
     """
     oc = _is_opencode_path(log_path)
+    ic = _is_intercept_path(log_path)
     tool_id_to_name: dict[str, str] = {}
     lines: list[str] = []
 
@@ -896,7 +1018,7 @@ def render_skeleton(
             model = m
             break
     n_units = len({ln for _, ln in records}) if oc else (records[-1][1] if records else 0)
-    unit = "msgs" if oc else "lines"
+    unit = "msgs" if oc else ("records" if ic else "lines")
     head = f"# skeleton: {slug} · {n_units} {unit}"
     if model:
         head += f" · {model}"
@@ -936,12 +1058,19 @@ def render_skeleton(
             continue
 
         if isinstance(rec, AssistantRecord):
+            if isinstance(rec.message.content, str):
+                if rec.message.content:
+                    emit(fmt_ref(lineno), "text",
+                         f"{_tok(rec.message.content)}~tok",
+                         jq_leaf(log_path, "message_string"),
+                         f'"{_preview(rec.message.content)}"')
+                continue
             for bi, block in enumerate(rec.message.content_blocks()):
                 ref = block_ref(block, lineno, bi)
                 if isinstance(block, ThinkingBlock):
                     emit(ref, "reasoning" if oc else "thinking",
                          f"{_tok(block.thinking)}~tok",
-                         ".text" if oc else ".thinking",
+                         jq_leaf(log_path, "thinking"),
                          f'"{_preview(block.thinking)}"')
                 elif isinstance(block, TextBlock):
                     emit(ref, "text", f"{_tok(block.text)}~tok", ".text",
@@ -958,7 +1087,7 @@ def render_skeleton(
                         leaf = ".state.input/.state.output"
                     else:
                         size = f"in:{_tok(inp_str)}~tok"
-                        leaf = ".input"
+                        leaf = jq_leaf(log_path, "tool_input")
                     emit(ref, f"tool:{block.name}", size, leaf,
                          _tool_target(block.input))
                 else:
@@ -973,7 +1102,7 @@ def render_skeleton(
                 pi = getattr(rec, "_pi", None)
                 ref = fmt_ref(lineno, pi if isinstance(pi, int) else 0)
                 emit(ref, "user", f"{_tok(rec.message.content)}~tok",
-                     ".text" if oc else ".message.content",
+                     jq_leaf(log_path, "message_string"),
                      f'"{_preview(rec.message.content)}"')
             else:
                 for bi, block in enumerate(rec.message.content_blocks()):
@@ -990,7 +1119,7 @@ def render_skeleton(
                             if isinstance(content, list) else str(content)
                         )
                         emit(ref, label, f"{_tok(text)}~tok",
-                             ".state.output" if oc else ".content",
+                             jq_leaf(log_path, "tool_output"),
                              f'"{_preview(text)}"')
                     elif isinstance(block, TextBlock):
                         # cc context block — raw string at .text, not .content
@@ -1019,9 +1148,12 @@ def render_skeleton(
             if rec.subtype == "compact_boundary":
                 continue  # the ⟐ marker line above already covers it
             content = getattr(rec, "content", "") or ""
+            sys_leaf = getattr(rec, "content_leaf", None)
+            if sys_leaf is None:
+                sys_leaf = jq_leaf(log_path, "system")
             emit(fmt_ref(lineno), f"system:{rec.subtype}",
                  f"{_tok(content)}~tok" if content else "",
-                 ".content" if content else "",
+                 sys_leaf if content else "",
                  f'"{_preview(content)}"' if content else "")
         # Progress / snapshots / queue ops / last-prompt / permission-mode:
         # bookkeeping — intentionally no skeleton lines.
