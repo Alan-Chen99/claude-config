@@ -47,6 +47,11 @@ the target is the genre.
 > included) and says which were left on purpose. The round reads `git show --stat` of each
 > commit against what it meant to commit.
 
+> **A line ships in the round that runs its harm case.** The benefit reading and the
+> adversarial reading are one round's work, or the line does not go in — the user's rule makes
+> the harm reading a precondition and not a follow-up. 38 shipped on a benefit draw and named
+> two costs it never measured.
+
 > Before launching the arms, the round commits what each outcome would mean, including the
 > one that kills the candidate. **Outcomes are keyed to the blind reader's own questions**;
 > where one arm's trees disagree on an axis, that axis is spread, not effect. A reading
@@ -56,6 +61,8 @@ the target is the genre.
 > **The fixture is built from an occurrence, not from the line**, and the probe's `README.md`
 > names the commit or session it models before the fixture exists. Rounds 33–36 each wrote
 > its fixture from the shape of its wording and all four killed their own candidate.
+> **One fixture, two opportunities differing in character** beats a second draw on the same
+> fixture: a repeat cannot separate a cost of the line from a cost of the fixture.
 
 > **Candidates in preference order: a shipped line (ablation), a line the owner named, a line
 > this round invented** — ablation being a legitimate milestone but not two rounds running.
@@ -64,24 +71,21 @@ the target is the genre.
 > first**. A session here is read, not cited, and its `prompt_snapshot` grepped for the line
 > before it is evidence about this file. **A round does not hand a wording forward** — it
 > measures its candidate or deletes it, and an `(instruction)` may name a question, an
-> instrument defect or a cleanup, never a line to run. That clause failed on all three outings
-> (36→37→38): each receiver rewrote the wording it was then left to judge.
+> instrument defect or a cleanup, never a line to run.
 
 > **A null is reported as saturated, not as a finding, when the untreated arm already does the
-> thing** — and a saturated baseline under a shipped line is a reason to delete it. An outcome
-> asserting more than the observation is withdrawn, not honoured. **A negative reading states
-> how the search was run and over how much text**, and only where it was run the same way over
-> both arms.
+> thing** — and a saturated baseline under a shipped line is a reason to delete it. A cost
+> present in both arms is likewise not the line's. An outcome asserting more than the
+> observation is withdrawn, not honoured. **A negative reading states how the search was run
+> and over how much text**, and only where it was run the same way over both arms.
 
 > **A question is sent the moment it is formed, and the round holds its last commit for the
-> waiter's exit or ten minutes past its own last send, whichever comes first** —
-> `skills/telegram-hitl`, one topic per loop, a waiter under `run_in_background: true`, **keyed
-> to activity in the topic, not to a reply id**, the log re-read directly after the last send,
-> and the last commit saying whether the waiter is still live. 36 closed 33 seconds after an
-> instruction it never read; 37 closed 68 seconds after asking a question answered at 127. The
-> bound is 38's own correction: unbounded, it would have held a finished round 24 hours on a
-> question whose text said silence was an answer. An unbounded gate is not waiting, it is not
-> closing.
+> waiter's exit** — `skills/telegram-hitl`, one topic per loop, a waiter under
+> `run_in_background: true`, **keyed to activity in the topic, not to a reply id**, the log
+> re-read directly after the last send. No wall-clock bound: the owner's standing word is that
+> time is not this loop's limiting factor. The exception is a question whose own text makes
+> silence an answer — that one is not held for at all. A waiter cannot outlive the round that
+> started it, so no round reports one as live; the next round reads the log first.
 
 > **The round ends under the `.ralph/agent/*` ceiling, with the number in its last commit
 > message.** Compress every earlier round to one paragraph *before* writing your own.
@@ -89,7 +93,7 @@ the target is the genre.
 > empty. Rules for running, grading and deleting prompt tests are in
 > `.claude/skills/prompt-tests/SKILL.md`, not restated here.
 
-## History — rounds 1–37
+## History — rounds 1–38
 
 **1–32, `9f6c03a0` → `1497221c`.** What justifies a prompt line is in `sys_prompt/CLAUDE.md`,
 which names every line these rounds shipped or deleted; the rest is in the commit messages.
@@ -98,82 +102,41 @@ both spent a round on `## Required notes` and shipped nothing, and the owner set
 best-effort surfacing. `scripts/check-prompt-upstream.py` cannot run here:
 `/repos/claude-code-decompiled` is absent. DEC-036, DEC-037.
 
-**33–37, `1497221c` → `1f2ca9de`.** Four candidates decided and none shipped, each written and
-judged by the round that ran it; 37 then spent its round on the owner's two directions. 33: the
-exclusion clause cuts unfalsified prose four- and sevenfold and shipped one sentence false
-against its own code in both probes. 34: *a note … is a fix you did not make* — saturated in
-two genres, and its larger finding is DEC-045. 35: *finding out costs less than the rule* was
-never written, both legs doing it unprompted; all three legs turned one instance into a
-project-wide rule, two of three false in the added scope. 36: the scope wording did not prevent
-the entailment error it named, and a stale **rule** got annotated around rather than repaired.
-37: merged `staging` on #93, ran the public-ready pass for #96 — two falsified `README.md`
-claims and a stale line citation repaired by editing the sentence — and withdrew two index rows
-on #98. DEC-043 to DEC-048. Everything else about them is in `sys_prompt/CLAUDE.md` and the
-commit messages.
+**33–38, `1497221c` → `e0cc54f6`.** Five candidates decided, one shipped. 33: the exclusion
+clause cuts unfalsified prose four- and sevenfold and shipped one sentence false against its own
+code in both probes. 34: *a note … is a fix you did not make* — saturated in two genres;
+DEC-045. 35: all three legs turned one instance into a project-wide rule, two of three false in
+the added scope. 36: the scope wording did not prevent the entailment error it named. 37: merged
+`staging`, repaired two falsified `README.md` claims, withdrew two index rows on #98. 38:
+ablated the whole `# Writing for other agents` block against a fixture built from the owner's
+specimen `0d3c560b` — **arm-independent on both defects**, so that block is not what decides a
+defect found outside the task — and shipped one line under `# Completeness` instead, whose
+*escalate* clause was licensing the stop. DEC-043 to DEC-049.
 
-## Iteration 38 — `1f2ca9de` → (this round)
+## Iteration 39 — `e0cc54f6` → (this round)
 
-### Critique of 37
+### Critique of 38
 
-**C1 (workflow).** 37 diagnosed 36 for closing 33 seconds after an instruction it never read,
-wrote the topic-keyed-waiter clause for it, then ended its own round 68 seconds after sending a
-question the owner answered at 127. #100 — the round decides the candidate itself, no
-need to ask which prompt to test — went untaken until this round, and it retires 37's
-instructions 1–2 for 38, which had pinned this round to a candidate the owner never asked for.
-Its clause addressed the symptom where the mechanism is not waiting.
+**C1 (workflow).** 38 shipped a line on one favourable draw, named two costs it had not
+measured, and sent the owner a question whose answer would decide whether the line is worse than
+nothing — *after* committing it. The user's rule reads *negative effects must be understood via
+adversarial testing*, which makes the harm reading a precondition. A line whose harm is unmeasured
+is exactly the objective's own class: added without approval, removable only by a human. Fixed in
+the contract above, and this round runs the missing half.
 
-**C2 (workflow).** 37's own C2 said the hand-forward clause must bind or go, then handed the
-same candidate forward a third time without the words the clause requires — leaving 38 to write
-the wording it would judge, the bias that decided 33–36. Deleted above.
+**C2 (fact).** 38's last commit records the waiter as live. A waiter started under
+`run_in_background: true` is a harness task scoped to the session, so it dies with the round —
+the sentence cannot be true after the commit asserting it, and #105 was still unanswered when 39
+opened. The clause's useful half was *39 reads the log first*.
 
-**C3 (fact).** 37 read the fixtures-versus-real-documents discrepancy as venue when a
-falsifiable reading was available: every fixture from 33 to 36 made the fix *the task*, and the
-specimen did not. Under it, 37's instruction to hunt for an occurrence outside fixtures pointed
-at a search whose answer was already committed here — `0d3c560b` — so the round would have spent
-itself looking for what it had. What was missing was a mechanism, not an occurrence.
+**C3 (workflow).** 38 wrote a ten-minute hold into the contract against the owner's standing
+*"feel more free to message me … even blocking on it. Do not be concerned about this taking time,
+since that is not the limiting factor"*. A user instruction outranks the contract, and the bound
+also mis-locates the fault: 36 and 37 closed without **reading**, which no amount of waiting
+causes. Replaced above.
 
-### What this round did
-
-Took the shipped `# Writing for other agents` block as the candidate — an ablation, so nothing
-measured was a wording this round wrote — and built the probe from `0d3c560b` rather than from
-the block: one bounded task, two silent defects outside it, one with a one-line fix and one
-needing a call the tree does not settle. Three runs, each pre-registered and committed first.
-
-**The ablation came out arm-independent on both defects**, so that block is not what decides a
-defect found outside the task. Run 1's defect was undiscoverable — verification in both arms
-was file identity and mtime, and no rendered page's bytes were ever on screen; the instrument
-was fixed in-round rather than handed on. Run 2, with the defect in the build's own stdout:
-both arms saw it, named the one-line fix, and left it undone *on scope*, in their own words.
-**And the specimen did raise its defect** — a headed paragraph, the probe table, and a
-Required-notes line offering the revert — so the owner's *"never raised to me"* is false for
-it; what is missing is that the fix is never named as an option anywhere in that response.
-Reporting is saturated. The owner then settled the trade twice: #102, unrequested fixes are
-wanted; #104, *"to report to me it still have to do the work of understanding how it works. i
-have one sensible option which is for this to get fixed."*
-
-**Shipped**, under `# Completeness`'s No Deferral Rule, whose *escalate* clause was licensing
-the stop: *A defect found on the way is one of those items: reporting it is not resolving it.
-Fix it when the only thing stopping you is that nobody asked; escalate when the call is
-genuinely someone else's. Report both.* Run 3's treated arm fixed the cheap defect and pinned it
-with a test the existing suite could not have caught, left the other unrenamed and escalated,
-and reported both; a blind grader holding both transcripts volunteered *"This is the one defect
-the two sessions handle differently."* Its two costs are with the line in
-`sys_prompt/CLAUDE.md`, whose retirement condition names `f75aceb6` to restore the deleted
-probe.
-
-### `(instruction)` for iteration 39
-
-1. The treated side is one draw. Restore the probe and check the blind reader's two costs — the
-   treated arm filed its own fix under *unexpected change* rather than as a decision the owner
-   could decline, and offered a narrower menu on the escalated defect. Whether that belongs to
-   the new line or to `## Required notes` is unmeasured, and is the one thing that could still
-   make the line worse than nothing. #105 asks the owner which they want.
-2. The owner's aggregate-pricing diagnosis (memories, #91) is untouched and nothing measured in
-   38 rounds reaches it. Next candidate; it needs an instrument spanning sessions.
-3. 40 cleans up.
-
-Channel: #100, #102, #104 each answered inside two minutes; #105 unanswered ten minutes later
-at close, waiter live. 39 reads the log first.
-
-Iteration 38: `1f2ca9de` → this round's last commit, whose message carries the ceiling;
-`1630fddb` is the last commit of its substance.
+**C4 (workflow).** 38's `(instruction)` 1 told this round to restore 38's own probe and re-check
+the two costs on it — the replication the user's guidance forbids (*default to n=1; if you want
+more, build new cross-domain test cases; do not replicate*), and a second draw on one fixture
+cannot separate a cost of the line from a cost of the fixture. Deviated deliberately: the same two
+costs are read off a new genre, in the probe below.
