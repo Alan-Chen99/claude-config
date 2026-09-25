@@ -46,17 +46,49 @@ def test_the_log_reader_surfaces_a_damaged_line_and_keeps_going(tmp_path) -> Non
     assert "sendMes" in found[1]["raw"]
 
 
-def test_the_answer_finder_matches_the_reply_to_a_question(tmp_path) -> None:
-    answer_to = _recipe("answers")["answer_to"]
+def test_the_inbox_takes_whatever_the_human_typed_in_your_own_topic() -> None:
+    """A topic with one reader needs no reply control: anything in it is yours.
+
+    Its past is not, though. Reading a topic whole reaches back to the service
+    message that opened it, and to every message already dealt with.
+    """
+    inbox = _recipe("answers")["inbox"]
     log = [
-        {"kind": "inbound", "update": {"message": {"message_id": 50, "text": "hello"}}},
         {"kind": "inbound", "update": {"message": {
-            "message_id": 51, "text": "yes, ship it",
-            "reply_to_message": {"message_id": 49, "text": "should I ship?"}}}},
+            "message_id": 6, "message_thread_id": 6, "is_topic_message": True,
+            "forum_topic_created": {"name": "research: alpha"}}}},
+        {"kind": "inbound", "update": {"message": {
+            "message_id": 50, "message_thread_id": 9, "is_topic_message": True,
+            "text": "another session's topic"}}},
+        {"kind": "inbound", "update": {"message": {
+            "message_id": 52, "message_thread_id": 6, "is_topic_message": True,
+            "text": "ship it"}}},
+        {"kind": "inbound", "update": {"message": {
+            "message_id": 53, "message_thread_id": 6, "is_topic_message": True,
+            "text": "and bump the version"}}},
     ]
 
-    assert answer_to(log, 49)["text"] == "yes, ship it"
-    assert answer_to(log, 12) is None
+    assert [m["text"] for m in inbox(log, 6, 51)] == ["ship it", "and bump the version"]
+    assert [m["text"] for m in inbox(log, 6, 52)] == ["and bump the version"]
+
+
+def test_the_inbox_catches_a_reply_that_landed_outside_the_topic() -> None:
+    """Measured live: an answer sent outside a topic carries no thread id at
+    all, and a message to the bot's DM arrives in a private chat that has none
+    to carry. A topic filter alone loses both."""
+    inbox = _recipe("answers")["inbox"]
+    log = [
+        {"kind": "inbound", "update": {"message": {
+            "message_id": 31, "text": "yes, ship it",
+            "reply_to_message": {"message_id": 30, "text": "Ship it?"}}}},
+        {"kind": "inbound", "update": {"message": {
+            "message_id": 32, "text": "someone else's answer",
+            "reply_to_message": {"message_id": 12, "text": "their question"}}}},
+        {"kind": "inbound", "update": {"message": {"message_id": 33, "text": "hello"}}},
+    ]
+
+    assert [m["text"] for m in inbox(log, 6, 30, {30})] == ["yes, ship it"]
+    assert list(inbox(log, 6, 30)) == []
 
 
 def test_the_topic_registry_is_reconstructed_from_the_log() -> None:
@@ -136,6 +168,7 @@ def test_the_skill_documents_every_refusal_the_proxy_returns(status) -> None:
     "MESSAGE_ID_INVALID",        # reactability is type-specific
     "REACTION_INVALID",          # the reaction alphabet is fixed
     "General",                   # the General topic is not addressable
+    "GroupAnonymousBot",         # a human answers as a bot, so is_bot filters drop them
     "migrate_to_chat_id",        # enabling Topics changes the chat id
     "partial",                   # reading a file under append needs care
 ])

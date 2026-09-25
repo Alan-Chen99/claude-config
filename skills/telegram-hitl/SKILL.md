@@ -7,8 +7,9 @@ description: Use when a session needs a human decision it cannot make alone - as
 
 Reach the human by making ordinary Bot API calls against a local proxy, and read
 their answers out of one append-only log. Any number of sessions do this at
-once, from any number of containers and from the host. Nothing is assigned to
-you, and no chat, topic or message is yours alone.
+once, from any number of containers and from the host. The chat, the proxy and
+the log are shared by all of them; the only ground a session holds to itself is
+a topic it made.
 
 `$TELEGRAM_HITL_STATE_DIR` names the channel, and everything else lives under it:
 
@@ -153,28 +154,47 @@ def records(path):
 
 ## Asking, then waiting
 
-Send the question, keep the `message_id` from the response, and watch for a
-reply to it. An inbound reply carries the full text of the message it answers
-under `reply_to_message`, so you need no question ledger.
+Ask in the topic you own (below) and read the whole of it: every human message
+there is meant for you, because nothing else is listening. That is what lets the
+human just type, rather than hunt for the reply control on a phone — observed
+2026-09-25, an answer arrived in the topic as a plain message with no
+`reply_to_message`, and a waiter keyed to the question's id sat through it.
 
-**Watch the topic, not only the reply id.** A human answering in the topic
-without using the reply gesture produces an inbound with no `reply_to_message`,
-and a waiter keyed to the id sits through it — observed 2026-09-25, an answer
-sent as a plain message and a second message pointing at it. Wait on any inbound
-whose `message_thread_id` is your topic and whose `message_id` is above your
-question's, and read it.
+Replies still matter, as the catchment a topic misses. An answer sent from
+General or from the bot's DM carries no topic id at all, so a topic filter alone
+drops it; and a reply carries the full text of the message it answers under
+`reply_to_message`, which is what tells you *which* question it settles when
+your topic has more than one outstanding.
 
 <!-- recipe: answers -->
 ```python
-def answer_to(records, message_id):
-    """The human's first reply to the message with this id, or None."""
+def inbox(records, thread_id, after_message_id, my_message_ids=()):
+    """Human messages meant for you, oldest first.
+
+    Two catchments, and you want both. `is_topic_message` is true of anything
+    *sent to* a topic, not just of replies, so your own topic is yours entire.
+    A reply to something you sent counts wherever it lands — measured on this
+    channel, an answer sent outside a topic arrived with `message_thread_id`
+    absent, and a message to the bot's DM arrived in a private chat carrying
+    none either.
+
+    `after_message_id` is the last message you have already dealt with — your
+    question, on the first call. Reading a topic whole means reading its past
+    too, starting with the `forum_topic_created` service message that opened it.
+    Later and higher are the same thing here, because the ids come from the one
+    per-chat counter the traps below describe.
+    """
+    mine = set(my_message_ids)
     for record in records:
         if record["kind"] != "inbound":
             continue
         message = record["update"].get("message") or {}
-        if (message.get("reply_to_message") or {}).get("message_id") == message_id:
-            return message
-    return None
+        in_my_topic = (message.get("is_topic_message")
+                       and message.get("message_thread_id") == thread_id
+                       and message.get("message_id", 0) > after_message_id)
+        answered = (message.get("reply_to_message") or {}).get("message_id")
+        if in_my_topic or (answered is not None and answered in mine):
+            yield message
 ```
 
 Waits here are measured in hours, so wait against the file, not against a socket.
@@ -183,7 +203,7 @@ Write a small waiter to your scratchpad and run it with `run_in_background: true
 notification you want:
 
 ```bash
-agent-tools run --desc "await human" python3 <your-scratchpad>/waiter.py 51
+agent-tools run --desc "await human" python3 <your-scratchpad>/waiter.py 6 51  # topic, question
 ```
 
 It needs nothing but the standard library, so it runs under plain `python3`. Not
@@ -234,19 +254,32 @@ def inbound_state(records, failing_for=180.0):
     return state
 ```
 
-For **unsolicited** input instead — a correction or a stop arriving mid-run with
-no question of yours to answer — use `Monitor` on the log. That is an open-ended
-stream of occurrences, which is what a persistent monitor is for; a background
-loop that exits on the first match is the wrong shape for it.
+For **unsolicited** input — a correction or a stop arriving mid-run with no
+question of yours to answer — the filter is the same one and only the stopping
+differs. Your topic is where such a message will be, because it is the part of
+the chat that is about your work. Use `Monitor` on the log rather than a waiter:
+an open-ended stream of occurrences is what a persistent monitor is for, and a
+background loop that exits on the first match is the wrong shape for it.
 
 ## Topics
 
 The chat is a forum. Messages land in a topic, addressed by `message_thread_id`.
 
-**Use an existing topic when your question is a natural continuation of it;
-otherwise make a new one.** Nothing prescribes how many topics you may have, or
-ties a topic to a session. Judge continuity, and remember the human has to read
-the result.
+**Make your own topic for the work you are doing, and read it whole.** One
+reader per topic is what makes reading it whole safe — two sessions asking in
+one topic each take the other's answers. Create it at the first question you
+actually have, so a session that never asks leaves nothing behind.
+
+**Name it for the work, not for the session.** A session id tells the human
+nothing, and the work outlives the session: a resumed or successor session
+carries a new id, and the name is how it finds the topic it is continuing. Join
+an existing topic when you are continuing its work — and then correlate by
+reply, not by topic, because you are no longer its only reader.
+
+**Say when you stop listening.** A topic outlives the session that made it, and
+a human who types into an abandoned one gets no reply and no reaction back. A
+last message in the topic when your work ends is the only thing that separates
+*finished* from *still thinking*.
 
 There is no `getForumTopics` in the Bot API, so the log is the only registry:
 
@@ -311,9 +344,12 @@ Each of these cost real time to find.
 - **Reading a file under append needs care in Python**, which yields a partial
   final line where a shell `read` loop does not. Use the reader above.
 - **A human replying as an anonymous group admin arrives as
-  `GroupAnonymousBot`**, not under their own name. The answer still correlates
-  through `reply_to_message`, so nothing breaks — but `from` will not tell you
-  who answered, and you should not claim it does.
+  `GroupAnonymousBot`**, not under their own name: `from.is_bot` is `true` and
+  `from.id` is the same 1087968824 for every such human. Measured on this
+  channel, every human message so far has arrived that way — so a sender filter
+  that skips bots, to keep your own service messages out of a whole-topic read,
+  drops every answer with them. Correlation is unaffected, but `from` will not
+  tell you who answered, and you should not claim it does.
 - **Never start another poller.** The first-party `telegram` plugin and the
   third-party `telegram-bot-skill` each start their own, and a newcomer does
   not get refused — it seizes the stream and kills the existing consumer. A

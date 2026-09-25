@@ -38,8 +38,8 @@ def _answering_fake(fake) -> None:
 
     def answer(recorded) -> tuple[int, bytes]:
         if recorded.method == "sendMessage":
-            asked.append(4242)
-            return 200, json.dumps({"ok": True, "result": {"message_id": 4242}}).encode()
+            asked.append(42)
+            return 200, json.dumps({"ok": True, "result": {"message_id": 42}}).encode()
         if recorded.method == "createForumTopic":
             return 200, json.dumps({"ok": True, "result": {
                 "message_thread_id": 6, "name": recorded.payload["name"]}}).encode()
@@ -50,6 +50,10 @@ def _answering_fake(fake) -> None:
                 delivered.append(True)
                 return 200, json.dumps({"ok": True, "result": [{
                     "update_id": 77, "message": {
+                        # Higher than the question's id: a chat's message ids
+                        # come from one counter, so an answer always outnumbers
+                        # what it answers, and a reader uses that to tell a new
+                        # message from one it has already dealt with.
                         "message_id": 99, "message_thread_id": 6,
                         "is_topic_message": True, "text": "yes, ship it",
                         "reply_to_message": {"message_id": asked[0],
@@ -94,7 +98,7 @@ def test_a_whole_cycle_runs_through_the_real_process(proxy_process, unix_call) -
     process, state, socket_path = proxy_process
     log = state / "channel.jsonl"
     records = _recipe("read-log")["records"]
-    answer_to = _recipe("answers")["answer_to"]
+    inbox = _recipe("answers")["inbox"]
     inbound_state = _recipe("health")["inbound_state"]
     topics = _recipe("topics")["topics"]
 
@@ -115,7 +119,7 @@ def test_a_whole_cycle_runs_through_the_real_process(proxy_process, unix_call) -
     deadline = time.monotonic() + 20
     found = None
     while found is None and time.monotonic() < deadline:
-        found = answer_to(records(log), asked["result"]["message_id"])
+        found = next(inbox(records(log), thread, asked["result"]["message_id"]), None)
         time.sleep(0.05)
     assert found is not None, "the skill's recipe never found the human's reply"
     assert found["text"] == "yes, ship it"
