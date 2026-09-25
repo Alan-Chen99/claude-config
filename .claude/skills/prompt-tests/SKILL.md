@@ -171,8 +171,9 @@ naming it or the case is unowned.
 **The owning sentence carries the path itself**, not *on that case* pointing back
 at a narrative sentence that has it. Otherwise the grep is held up by the
 narrative, deleting the narrative silently unowns the case, and the two rules —
-own by observation, and keep run narrative out of `sys_prompt/CLAUDE.md` — pull
-against each other. Three of five entries here were in that state.
+own by observation, and the one-paragraph-per-line bound `sys_prompt/CLAUDE.md`
+states on itself, which keeps run narrative in the commit — pull against each
+other. Three of five entries here were in that state.
 
 Run it in the other direction too. A condition naming no case, or naming a
 fixture property no case has, cannot be observed either; it is a deletion
