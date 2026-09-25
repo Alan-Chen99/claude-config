@@ -7,45 +7,31 @@ revert. Everything discharged is in the commit messages.
 **Closed**: DEC-001–031, 035–036, 038–044, 046. Content in the commit messages and in
 `sys_prompt/CLAUDE.md`; none has an independent evaluation.
 
-**Standing framing bias below**: rounds 33–36 each wrote its fixture from the shape of the line
-it meant to test. The contract now requires a named occurrence instead; 38 is the first round
-under it.
-
 ## DEC-032 / 033 / 034 / 037 — four shipped-or-deleted lines still open to re-argument
 
 Reverts, with what leaves each unevaluated: `d98c5753` (032, keep the self-consequence bullet —
 the blind comparison preferred the *untreated* arm); `9504b5dc` (033, cut the duplicated
 rationale — both arms delivered the same artifact, so the confidence is in the cut being cheap);
 `291d3c55` (034, delete `pre_output.record`'s NEVER-uncertainties rule — the independent
-evaluation disagreed and was overridden, and the treated arm ran two draws to the other's one).
-037, keep `# Writing for other agents`: no revert, and the arms diverged on depth as well as
-prompt.
+evaluation disagreed and was overridden). 037, keep `# Writing for other agents`: no revert, and
+the arms diverged on depth as well as prompt.
 
 ## DEC-045 — the branch's edits do not reach any session here (iter 34, conf 95)
 
-`scripts/claude.sh` loads `/repos/claude-config`, which still carries `Omit by default`, `Claim
-less` and the docs order; nothing measured in 38 rounds is live. Answered 2026-09-25: *"i may
-choose to merge myself, but you shoudl not do that."* So a round's product remains an edit no
-session here runs — a fact every round states rather than a defect it repairs — and the owner's
-specimen is evidence about the **deleted** say-less bullets, not the shipped block. **Revert**:
-n/a.
+Mechanism and verification in `mem-1790273746-2aa1`. Answered 2026-09-25: *"i may choose to merge
+myself, but you shoudl not do that."* So a round's product remains an edit no session here runs —
+a fact every round states rather than a defect it repairs. **Revert**: n/a.
 
-## DEC-047 — the scope wording is decided and not shipped (iter 36, conf 80)
+## DEC-047 / DEC-048 — two closed-but-revertable rounds (iter 36, 37)
 
-Measurement in `997a5c02`, claim and hypothesis in `sys_prompt/CLAUDE.md`. The round wrote the
-wording it judged and its own ship condition was not met. 38 retired the hand-forward clause
-that kept it alive two further rounds, so it is not a live candidate. Independent evaluation:
-done, blind, both trees. **Revert**: `git checkout 3c5bec5e -- sys_prompt/CLAUDE.md`.
-
-## DEC-048 — what "public-ready on your parts" covered (iter 37, conf 85)
-
-Taken as: repair claims this branch falsified, sweep citers, change nothing else, over the full
-spec (a README section asserting an idea the loop has not shipped) or moving `PROMPT.md` out of
-the root (breaks `/workspace/ralph/build.yml:17`). **Reverted inside the round** on #98: the
-rows indexing `PROMPT.md` and `.ralph/` — two lines the pre-merge removal must also remove, and
-nothing reads them. The round studying the ratchet performed it. **Framing bias**: it chose the
-reading it could finish inside a merge-only instruction. **Independent evaluation**: not
-started. **Revert**: `git revert e8589613` takes the README repairs with it.
+047, the scope wording: decided and not shipped, measurement in `997a5c02`, claim in
+`sys_prompt/CLAUDE.md`; the round wrote the wording it judged and its own ship condition was not
+met. Not a live candidate since 38 retired the hand-forward clause. **Revert**:
+`git checkout 3c5bec5e -- sys_prompt/CLAUDE.md`. 048, *public-ready on your parts*: taken as
+repair claims this branch falsified, sweep citers, change nothing else; the two `PROMPT.md` and
+`.ralph/` index rows were withdrawn inside the round on #98 — the round studying the ratchet
+performed it. **Framing bias**: it chose the reading it could finish inside a merge-only
+instruction. **Revert**: `git revert e8589613` takes the README repairs with it.
 
 ## DEC-049 — one line ships under `# Completeness` (iter 38, conf 85)
 
@@ -59,3 +45,20 @@ wording existed, and by the decisive reading being blind. **Independent evaluati
 blind, both transcripts; it declined to name a winner and named the trade, which the owner had
 already answered in #102 and #104. Its two unresolved costs are 39's instruction 1.
 **Revert**: `git revert f75aceb6` and restore the `sys_prompt/CLAUDE.md` paragraph it replaced.
+
+## DEC-050 — the harm case runs, and no wording ships for what it found (iter 39, conf 85)
+
+The shipped `# Completeness` line gets its adversarial reading; it is not refuted, and its trap
+never fired because both arms found the warrant in the project's own docs. The new cost —
+what a session escalates, it cements — is measured, and **no wording ships for it**:
+`sys_prompt/CLAUDE.md` carries the claim and the hypothesis instead. **Alternatives**: ship an
+invented clause (*leave nothing behind that a fix you named would have to undo*) on this round's
+positive reading alone, which is the pattern 38 was critiqued for and which the contract now
+forbids; or delete the line on the blind reader's preference for the untreated **files**, which
+is an artefact of the task sentence that blocked the fix. **Framing bias**: the round chose the
+probe that would exonerate a line the previous round shipped, and a round measuring its
+predecessor's line has an interest in the line surviving — mitigated by the outcomes being
+committed first and by the decisive reading being blind, not removed. **Independent
+evaluation**: done, blind, both transcripts; it volunteered the cementing cost and read the
+noticing difference as attention rather than instruction. **Revert**: nothing to revert; the
+record is `git revert` of this round's `sys_prompt/CLAUDE.md` commit.

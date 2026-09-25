@@ -140,3 +140,46 @@ the two costs on it — the replication the user's guidance forbids (*default to
 more, build new cross-domain test cases; do not replicate*), and a second draw on one fixture
 cannot separate a cost of the line from a cost of the fixture. Deviated deliberately: the same two
 costs are read off a new genre, in the probe below.
+
+### What this round did
+
+Ran the adversarial half 38 owed, on a fixture built from `067644b9` (a cut that read as
+tidying, load-bearing through ~380 citations outside the file): one bounded task, a construct
+that reads as silent data loss and is required by the export format, and a real one-line defect.
+Two arms, one paragraph apart, outcomes committed first at `a247868e`.
+
+**The line is not refuted, and the harm case could not fire.** Both arms opened the export doc
+before touching anything, both left the construct alone, both said what their view rested on.
+`# Doing tasks` sends every arm to the documentation first, so a trap warranted inside the
+project's own documents is not this line's risk. `(instruction)`-grade instrument defect below.
+
+**The cost it did find: what the agent escalates, it cements.** Detail and hypothesis in
+`sys_prompt/CLAUDE.md`. The generalisable half is that **a report and the code are not the same
+durable object** — the reply evaporates and the test stays, so a session that escalates a defect
+and then writes around it has made the fix cost more than its own reply says. The owner's #104
+reads the same way from his side.
+
+Both instrument lessons — a task sentence that freezes behaviour converts the fix branch into
+the escalate branch, and a *noticing* difference between single draws is spread — are in
+`mem-1790306400-3e11`.
+
+**One cost comes off the ledger by the owner's word, not by measurement.** 38 listed the
+*filed under unexpected change rather than as a declinable decision* cost and left 39 to chase
+it. #109/#110: a trivially undoable local commit *"is always ok to just proceed, and tell me in
+the output"*, and act-then-tell versus tell-then-act is *"an efficiency thing which agent can
+decide at runtime, and i think you dont really need to prescribe"*. So **no wording prescribes
+presentation**, and that question is closed rather than open. Second time the owner's word has
+closed what measurement could not (#102/#104 was the first). It does not touch the cementing
+cost, which is the delivered tests contradicting the reply.
+
+Channel: #106 asked before the fixture existed; #107, #109, #110 answered within twenty minutes;
+#111 closes the round.
+
+### `(instruction)` for iteration 40
+
+1. **Cleanup round** (every fifth). The ownership grep over `prompt-tests/general/` was clean at
+   39; re-run it, and read what each match says rather than that it matched.
+2. The harm case of the `# Completeness` line is run but its trap never fired: a probe wanting
+   that harm must put the load-bearing warrant **outside the documents** — a test name, a commit
+   message, an unrelated module — since both arms read `docs/` unprompted.
+3. Still untouched after 39 rounds: the aggregate-pricing diagnosis (`mem-1790299660-0a19`).

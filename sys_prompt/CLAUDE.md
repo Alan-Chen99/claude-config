@@ -395,9 +395,14 @@ careful; what is not a draw is that arm quoting the conflict in its own notes �
 choosing to escalate. So a fixture for this line must carry no sentence that reads as freezing
 behaviour, or it measures the escalate branch whatever the arms do. And of 38's two costs, the
 narrower menu did **not** reproduce: the carrying arm named the one-word fix and both
-resolutions. The *unexpected change* framing did, but neither arm presented any change it
-actually made as declinable with a revert named, so that is this genre's baseline and not the
-line's cost.
+resolutions. The *unexpected change* framing did, and neither arm presented any change it
+actually made as declinable with a revert named — but the owner has since removed that from the
+ledger rather than leaving it to measurement: *"if the 'fix' is a 'trivally undoable' local
+commit, then it is always ok to just proceed, and tell me in the output"*, and *"there is
+nothing fundamentally different by act-then-tell, so its more like a efficiency thing which
+agent can decide at runtime, and i think you dont really need to prescribe"*. So no wording here
+prescribes how an unrequested fix is presented. The cementing cost above is untouched by that
+answer: it is the delivered tests contradicting the reply, not the framing of either.
 
 Retire it when an arm carrying it takes a call the tree does not settle — renames a file,
 changes a rule's semantics — or when an arm without it fixes a defect the carrying arm leaves

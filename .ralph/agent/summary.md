@@ -1,1 +1,1 @@
-Stale; regenerated at fixed-point. Read `scratchpad.md`.
+Stale; read `scratchpad.md`.
