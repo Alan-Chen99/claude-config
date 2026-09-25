@@ -16,6 +16,7 @@ blind — `.claude/skills/update-claude-code` governs.
 | `tool-token-limits.md`                     | Token counting, truncation, and size limits per tool | Understanding tool output constraints, debugging limits |
 | `agent-tools-status-reference.md`          | Full `agent-tools run` status grammar, passthrough differences from bare, and the kill boundary — the exhaustive half of what `sys_prompt/alan-default-next.md` states in brief; pinned to source by `scripts/check-prompt-coupling.sh` | Reading a status line in detail, diagnosing a wrapped run, or editing either side of the prompt/source coupling |
 | `env-context-manifest.json`                | Pinned cc version and env-block literal set `agent-tools env-context`'s drift check is pinned to; re-pin with `scripts/check-env-context.sh --update` after a Claude Code upgrade. Byte-offset derivation for the two literal lists: `notes/env-context-manifest.md` | Reviewing or re-pinning after a drift warning |
+| `total-tokens-reminder-trial.md`           | Pre-registration for the randomized `off` vs `padded-countdown` trial `scripts/claude.sh` draws per interactive session: the frozen candidate-outcome list, the gating manipulation check, arm recovery, and what invalidates a session — cc 2.1.269 | Before analysing the trial, before adding an outcome to it, and after any Claude Code upgrade that touches the reminder |
 
 ## Subdirectories
 

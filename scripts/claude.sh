@@ -45,6 +45,43 @@ else
 	echo "claude.sh: WARNING: nothing listening on ${PROXY_HOST}:${PROXY_PORT}; HTTPS_PROXY unset, requests are NOT intercepted. Start it with: python3 ${REPO_DIR}/scripts/intercept/run-proxy.py" >&2
 fi
 
+# One randomized draw per interactive session for the total_tokens reminder,
+# against the hypothesis that the marker changes how a long session ends up.
+# A fixture cannot answer that: a single-turn case measures the response to the
+# number, not what that response costs over several hundred thousand tokens and
+# several compactions, and on a single-turn case both arms reached the same
+# answer, so the outcome measure was at ceiling.
+#
+# Both arms are safe to draw on real work. `padded-countdown` is what ships, and
+# the two were indistinguishable on every measure that had room to move
+# (notes/total-tokens-reminder.md). The harmful regime is a *small* budget, which
+# neither arm sets.
+#
+# `-t 0` confines the draw to interactive sessions. scripts/prompt-test-cc.sh
+# reaches claude through this launcher with stdin on a file, so without the test
+# every prompt-test case would silently acquire a randomized env var.
+#
+# padded-countdown is named rather than left unset so a GrowthBook flip cannot
+# redefine the treatment arm mid-trial (xAo(), src/chunk-dbb93264.js:68301).
+#
+# The draw is untraced because `set -x` would otherwise print the arm to the
+# terminal at every session start, and one candidate outcome is how often the
+# user redirects the session. Blinding is impossible -- the marker is in the
+# context -- but an arm announced in the first line of scrollback is worse.
+#
+# No bookkeeping records the arm: cc writes the marker into the transcript as
+# `attachment` records, so `off` is the arm that leaves none. Protocol, candidate
+# outcomes and invalidation conditions: docs/total-tokens-reminder-trial.md
+if [ -t 0 ] && [ -z "${CLAUDE_CODE_TOTAL_TOKENS_REMINDER:-}" ]; then
+	set +x
+	if [ $((RANDOM % 2)) -eq 0 ]; then
+		export CLAUDE_CODE_TOTAL_TOKENS_REMINDER=off
+	else
+		export CLAUDE_CODE_TOTAL_TOKENS_REMINDER=padded-countdown
+	fi
+	set -x
+fi
+
 exec claude --dangerously-skip-permissions \
 	--system-prompt-file "${REPO_DIR}/sys_prompt/alan-default-next.md" \
 	"$@"
