@@ -115,15 +115,39 @@ marker only starts to bite once the window is small enough that the remainder is
 a small multiple of the task's appetite; at 84,758 left the model already called
 it "limited".
 
-**The number counts toward a zero the session cannot reach.** The 40,000 arm was
-refused with `Prompt is too long` while the last figure the model had seen read
-**24,784 tokens left**. The refusal is client-side: only three requests were ever
-sent (`~/.claude/requests-log/ef9e0bfa-…/`, last one `stop_reason: tool_use`),
-the fourth never left, and the proxy logged no error. Context at refusal was
-~30.5k of the 40,000 window (~76%). The exact threshold is not established here.
-What is established: every Opus request carries `max_tokens: 64000`, and
-`countdown` does not subtract it, so the reported remainder overstates what is
-actually spendable.
+**The number counts toward a zero the session cannot reach, and the floor is
+fixed rather than proportional.** Auto-compaction's trigger is
+`WCe = UWe(WB(...), ...)`, and both terms are absolute:
+
+- `WB(model, n)` = `tw().window - min(Lje(model), x5n)`, where `x5n = 20000`
+  (`src/chunk-dbb93264.js:129838`) caps an output reserve and `Lje` reads
+  `CLAUDE_CODE_MAX_OUTPUT_TOKENS`.
+- `UWe(e, n)` returns `e - 13000` absent a test override.
+
+So the trigger sits `min(max_output, 20000) + 13000` below the window — **33,000
+tokens on any window large enough** — not a percentage. On the 1,000,000-token
+window, auto-compact fires at 967,000 of context, where `countdown` reads about
+**33,000 tokens left**; compaction then drops the context and the marker climbs
+back. Being a pure function of current context, it needs no re-anchoring.
+
+The consequence for a real 1M session: the marker's floor is ~33,000, which lands
+in the band measured here as *pacing without quality loss* — 84,758 drew "a big
+file with limited tokens left" and a correct answer, and the 45k arms paced at
+20-29k and stayed correct. The band where quality collapsed, around 5,000, sits
+below the compaction trigger and is unreachable while auto-compaction is on.
+
+Turn it off and it becomes reachable, which is what the 40,000-window arm shows:
+refused at a context of ~30,454 having been served at 15,380, consistent with a
+fixed ~20,000 reserve below the window once `Bp()` (`autoCompactEnabled`) is
+false. The exact branch is not pinned down here; that a fixed reserve rather than
+a fraction explains both observations is.
+
+`countdown` subtracts neither reserve, so "33,000 left" means "zero, compacting
+now". (An earlier revision of this note attributed that gap to the
+`max_tokens: 64000` each request carries. That is what is sent to the API, not
+what the threshold reserves, and the 40,000-window arm never tested it: the
+override moved only Claude Code's own accounting, while the API saw its real 1M
+window and answered three requests normally.)
 
 **Shrinking the real window requires disabling compaction**, because `Ez()` reads
 `CLAUDE_CODE_MAX_CONTEXT_TOKENS` only when `DISABLE_COMPACT` is set. That makes a
