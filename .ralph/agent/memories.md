@@ -22,6 +22,10 @@
 > A saturated baseline has two very different causes and they license different conclusions. Cause one: the fixture made the answer the stated one. Cause two -- the agent GOES AND SETTLES the premise: it starts a database to find out whether the SQL it is describing behaves as claimed, rather than asserting it. Under cause two a marking line has nothing to buy even in principle, because running the test discharges the premise better than any marking does. Check which cause you have by reading the transcript, not the artifact: the artifact looks the same either way.
 <!-- tags: prompt-tests, test-design | created: 2026-09-22 -->
 
+### mem-1790300000-9a44
+> The owner's own account of the growth mechanism, 2026-09-25, asked whether their specimen's inventory row should be more general or merely shorter: a shorter form ("check arg substitution including $blah") "works too", the detailed form "saves investigation speed when update next runs, or as it seems", BUT "if every session says 'adding this will save a little bit of time', thats how you get unbounded doc growth that ends up costing a lot more tokens". So the driver is not a bad judgement in any one session -- each addition is locally justified by a small expected saving, and nothing prices the aggregate. Any candidate aimed at growth has to reach that pricing, not the local judgement. Also settled: the loop must NOT merge this branch -- "i may choose to merge myself, but you shoudl not do that."
+<!-- tags: sys-prompt, docs-growth, owner | created: 2026-09-25 -->
+
 ## Decisions
 
 ## Fixes

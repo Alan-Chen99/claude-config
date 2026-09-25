@@ -137,33 +137,42 @@ and it was handed forward anyway. Repaired rather than rejected: the candidate n
 owner's specimen `0d3c560b`, which asserts *"`$N` is the (N+1)-th whitespace-separated word"* off
 a single-digit probe and is repaired for `$10` one commit later in `b394ebbf`.
 
-**C4 (fact, minor).** Two counts of one thing: the scratchpad said "eleven say-less wordings",
-`sys_prompt/CLAUDE.md` said "nine". Neither is checkable without re-reading 35 commit messages,
-and a count is what this contract sends to git. Both now say *every*, which is falsifiable by one
-counter-example.
+**C4 (fact, minor).** Two counts of one thing — "eleven say-less wordings" here, "nine" in
+`sys_prompt/CLAUDE.md` — neither checkable without re-reading 35 commit messages, and a count is
+what this contract sends to git. Both now say *every*, falsifiable by one counter-example.
 
 ### Result — the scope wording is decided and not written
 
-`pewter-dial` (deleted; `git checkout 4cb01c30 -- prompt-tests/runs/pewter-dial`), two arms on
-one fixture, pre-registered at `4cb01c30`. Account in `sys_prompt/CLAUDE.md`. In short: the arm
-carrying *A rule's scope is a claim … narrow it to those you did, or check the rest* wrote that
-two entries sharing one template *so* differ in the dataset and nothing else — false, one render
-with differing `run_date` refutes it — and never reached `run_date`, where the bare arm stated
-that coupling correctly. The pre-registered ship condition was *no added general sentence false
-against the tree*; it was not met, and it was fixed before the runs precisely because this round
-wrote the sentence it was testing. That retires the scope line and the last of 35's
-carry-forward.
+`pewter-dial` (deleted; `git checkout 4cb01c30 -- prompt-tests/runs/pewter-dial`), two arms,
+pre-registered at `4cb01c30`; the claim and hypothesis are in `sys_prompt/CLAUDE.md`. What that
+file does not carry: the ship condition — *no added general sentence false against the delivered
+tree* — was fixed before the runs precisely because this round wrote the sentence it was testing,
+and it was not met. That retires the scope line and the last of 35's carry-forward.
 
 **The unpre-registered finding is repair, and it contradicts a saturation reading this loop has
-been leaning on.** The change falsified `templates/CLAUDE.md`'s *one file per report, named after
-it*. The treated arm rewrote the sentence. The bare arm quoted it in its own reasoning, saw the
-contradiction, and decided to *add a minimal amendment documenting this exception* beneath it,
-leaving a file that asserts and denies one rule; the blind reader called that the most expensive
-wrong text in either tree. Iteration 32 read the repair half of the docs order as saturated, on a
-tree whose staleness was a set of falsified *statements*. A stale **rule** is not the same object:
-the agent reads it as a standing convention belonging to someone else and annotates around it
-rather than overwriting it. That is the user's "outdated docs" case, unfixed, and it is the first
-failure this loop has found that a shipped line does not already reach.
+leaned on.** The change falsified `templates/CLAUDE.md`'s *one file per report, named after it*.
+The treated arm rewrote the sentence; the bare arm quoted it, saw the contradiction, and decided
+to *add a minimal amendment documenting this exception* beneath it, leaving a file that asserts
+and denies one rule — the most expensive wrong text in either tree, said the blind reader.
+Iteration 32 read the docs order's repair half as saturated on a tree whose staleness was
+falsified *statements*. A stale **rule** is a different object: the agent reads it as someone
+else's standing convention and annotates around it. That is the user's "outdated docs" case,
+unfixed, and no shipped line reaches it.
+
+### The owner's answers, 2026-09-25
+
+**Merge: no.** *"i may choose to merge myself, but you shoudl not do that."* DEC-045's open
+alternative is closed; a round's product stays an edit to `alan-default-next.md` that no
+session here runs.
+
+**Growth: nothing prices the aggregate.** Asked whether the specimen's inventory row wanted
+more generality or fewer words, they said a short form — *"check arg substitution including
+$blah"* — works too, that the detailed form *"saves investigation speed when update next runs,
+or as it seems"*, **but** *"if every session says 'adding this will save a little bit of time',
+thats how you get unbounded doc growth that ends up costing a lot more tokens."* The driver is
+not a misjudgement in any one session: each addition is locally justified by a small expected
+saving, and nothing in the loop prices the sum. That is the target a growth candidate has to
+reach, and it is not the same target as narrowness.
 
 ### `(instruction)` for iteration 37
 
@@ -173,7 +182,10 @@ failure this loop has found that a shipped line does not already reach.
    annotated rather than edited. If there is none, say so and the candidate dies there.
 2. Only then a wording, and it must name the act: editing the sentence. Pre-register the kill as
    an arm that overwrites a rule its change did *not* falsify.
-3. 40 is the cleanup round; 37 is not.
+3. The owner's aggregate-pricing diagnosis has no wording and no measurement. It is the next
+   candidate after this one, not this one, and whoever takes it checks `Say what ends it`
+   against it first — that is the shipped line closest to it.
+4. 40 is the cleanup round; 37 is not.
 
-Iteration 36: `3c5bec5e` → `997a5c02`, plus this line's own commit. `.ralph/agent/*` at
-close: the number is in that commit's message.
+Iteration 36: `3c5bec5e` → the owner-answer commit that follows this line. Ceiling at close
+is in that commit's message.
