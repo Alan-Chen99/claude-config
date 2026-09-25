@@ -2,6 +2,22 @@
 
 ## Patterns
 
+### mem-1790304142-7900
+> A durable file an agent-maintained loop must write to grows without bound unless its SHAPE is tied to something already bounded. Two that work here: a case is kept only while a retirement condition in sys_prompt/CLAUDE.md names it (one grep); sys_prompt/CLAUDE.md is one paragraph per prompt line plus one ledger row per dead wording (40). Neither sets a size. The growth they stop: each round's addition is locally justified by a small saving to the next round and nothing prices the sum, and relocating text to a 'durable home' is growth, not a cut. That file went 3,872 -> 8,393 words over 39 rounds, 2.9x the prompt it justifies, and attaches in FULL to any session that opens a file in its directory with the Read tool.
+<!-- tags: docs-growth, sys-prompt, writing-for-agents | created: 2026-09-25 -->
+
+### mem-1790304132-4745
+> Status claims -- 'open candidate', 'untouched', 'nobody has measured yet' -- go stale silently in an agent-maintained document: the next round falsifies one and nothing re-reads it. Two instances, four rounds each: one wording filed as the open candidate in one section of sys_prompt/CLAUDE.md and as decided-not-shipped three sections earlier; an (instruction) carrying 'still untouched after 39 rounds' for work round 35 finished. A pointer check (does this path exist) does not catch them. Write the observation, not the state of the ledger.
+<!-- tags: docs-errors, writing-for-agents | created: 2026-09-25 -->
+
+### mem-1790304125-6900
+> The live doc-error target: an agent asked to document a change writes ONE instance as a PROJECT-WIDE RULE, and the rule's scope is the half no observation constrained, so the error lands in the generalisation while the volume barely moves. That is why every say-less wording that measured VOLUME found nothing. sys_prompt/CLAUDE.md's **Force** paragraph already says scope is a claim and has only ever addressed whoever edits the prompt; the property-shaped wording for agents was run at 36 and did nothing. Its own hypothesis names the act that would work -- looking at the second case.
+<!-- tags: docs-errors, docs-growth, sys-prompt | created: 2026-09-25 -->
+
+### mem-1790304103-d0e8
+> Instrument rules for these probes. (1) Hold investigation depth fixed by STATING the load-bearing fact in the fixture, as already verified, in the file the task sends the agent to, and make the natural implementation trip over it -- prose is emitted about what was discovered, so an arm that investigates more writes more whatever the prompt says. Same trick gives a defect a TRIGGER: put the symptom in the build's own stdout or neither arm sees it. (2) A null has three causes, not two: the fixture made the answer the stated one; the agent GOES AND SETTLES the premise so a marking line has nothing to buy; or the behaviour was never triggered and no arm was in a position to exhibit it. The third looks exactly like saturation in the artifacts and is visible only in the transcript. Read the transcript for the trigger, not the artifact.
+<!-- tags: prompt-tests, test-design | created: 2026-09-25 -->
+
 ### mem-1790301452-7f2d
 > Editing a sentence is not checking it: a repair is scoped to the clause the change falsified, and the rest of the sentence is invisible even while being retyped. Measured arm-independent -- both arms rewrote the falsified half of a usage line and neither ran the form they left standing, which was already a usage error against the real parser.
 <!-- tags: docs-errors, writing-for-agents | created: 2026-09-25 -->
@@ -10,22 +26,6 @@
 > A defect found outside the task reaches an explicit fork and the agent takes the reporting branch on SCOPE -- not on oversight and not on any documentation rule, in both arms' own words. Nothing in `# Writing for other agents` reaches it; what licenses the stop is `# Completeness`, whose rule covers every SCOPED item and offers escalation as the out. Reporting is saturated; the lever is the fix, which the owner settled (#104: 'to report to me it still have to do the work of understanding how it works. i have one sensible option which is for this to get fixed'). Shipped at 38, harm case run at 39; claim, costs and retirement condition in sys_prompt/CLAUDE.md.
 > What 39 adds: **what a session escalates, it also cements.** The arm that escalated a documented contradiction wrote two tests asserting the defective behaviour in the same delivery, so accepting the fix it recommended fails its own suite -- unsaid. A report and the code are not the same durable object: the reply evaporates, the test stays. Hypothesis: escalation settles the question for the rest of the session, and a clause about what to report reaches none of the writing that follows.
 <!-- tags: sys-prompt, docs-growth, writing-for-agents | created: 2026-09-25 -->
-
-### mem-1790300347-57ef
-> Hold investigation depth fixed by STATING the load-bearing fact in the fixture, as already verified, in the file the task sends the agent to, and make the natural implementation trip over it. Prose is emitted about what was discovered, so an arm that investigates more writes more whatever the prompt says -- the confound that blocked iteration 29. Same trick gives a defect a TRIGGER: 38 had to put the symptom in the build's own stdout before either arm saw it.
-<!-- tags: prompt-tests, test-design | created: 2026-09-25 -->
-
-### mem-1790299418-0a88
-> What a compression rule cuts first is the qualifying clause, and the qualifying clause is what made the claim true. Measured twice on one say-less wording: the treated arm wrote a third to a seventh of the bare arm's unfalsified prose and in BOTH draws shipped exactly one sentence false against its own delivered code, where the bare arm shipped none. Read every treated tree for claims false against its own code before crediting a volume win.
-<!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-25 -->
-
-### mem-1790299401-5843
-> A null has three causes, not two, and they license different conclusions. (1) The fixture made the answer the stated one. (2) The agent GOES AND SETTLES the premise -- starts a database, runs a probe -- so a marking line has nothing to buy even in principle. (3) The behaviour was never triggered: no arm was in a position to exhibit it. Cause 3 looks exactly like saturation in the artifacts and is only visible in the transcript -- iter38 run 1 read two arms as agreeing about a defect neither had ever seen, because verification there was file identity and mtime and no rendered page's bytes were ever on screen. Check which cause you have by reading the transcript for the trigger, not the artifact.
-<!-- tags: prompt-tests, test-design | created: 2026-09-25 -->
-
-### mem-1790275989-2871
-> An agent asked to document a change writes ONE instance as a PROJECT-WIDE RULE, and the rule's scope is the half no observation constrained -- so the doc error lands in the generalisation while the volume barely moves. Measured at iter35 on three legs of one fixture: each added 2-5 binding sentences to the document the task named, and two of three generalisations were false against their own tree (a matching cadence asserted, and tested, to guarantee a matching run_date that is a pinned variable; a naming scheme the config violates). The leg that stayed on the instance shipped nothing false and a blind reader chose it to inherit. This is why every say-less wording that measured VOLUME found nothing: volume is not where the error is. sys_prompt/CLAUDE.md's **Force** paragraph already says scope is a claim, and has only ever addressed whoever edits the prompt.
-<!-- tags: sys-prompt, docs-growth, docs-errors | created: 2026-09-24 -->
 
 ## Decisions
 

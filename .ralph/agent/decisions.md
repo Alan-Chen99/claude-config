@@ -24,14 +24,12 @@ a fact every round states rather than a defect it repairs. **Revert**: n/a.
 
 ## DEC-047 / DEC-048 — two closed-but-revertable rounds (iter 36, 37)
 
-047, the scope wording: decided and not shipped, measurement in `997a5c02`, claim in
-`sys_prompt/CLAUDE.md`; the round wrote the wording it judged and its own ship condition was not
-met. Not a live candidate since 38 retired the hand-forward clause. **Revert**:
-`git checkout 3c5bec5e -- sys_prompt/CLAUDE.md`. 048, *public-ready on your parts*: taken as
-repair claims this branch falsified, sweep citers, change nothing else; the two `PROMPT.md` and
-`.ralph/` index rows were withdrawn inside the round on #98 — the round studying the ratchet
-performed it. **Framing bias**: it chose the reading it could finish inside a merge-only
-instruction. **Revert**: `git revert e8589613` takes the README repairs with it.
+047, the scope wording: decided and not shipped, measurement in `997a5c02`; the round wrote the
+wording it judged and its own ship condition was not met. **Revert**:
+`git checkout 3c5bec5e -- sys_prompt/CLAUDE.md`. 048, *public-ready on your parts*: read as
+*repair claims this branch falsified, sweep citers, change nothing else*; the two index rows were
+withdrawn inside the round on #98. **Framing bias**: it chose the reading it could finish inside
+a merge-only instruction. **Revert**: `git revert e8589613`, which takes the README repairs too.
 
 ## DEC-049 — one line ships under `# Completeness` (iter 38, conf 85)
 
@@ -62,3 +60,16 @@ committed first and by the decisive reading being blind, not removed. **Independ
 evaluation**: done, blind, both transcripts; it volunteered the cementing cost and read the
 noticing difference as attention rather than instruction. **Revert**: nothing to revert; the
 record is `git revert` of this round's `sys_prompt/CLAUDE.md` commit.
+
+## DEC-051 — `sys_prompt/CLAUDE.md` is bounded by its shape, not by a size (iter 40, conf 90)
+
+One paragraph per line the prompt stack carries, one ledger row per dead wording, run narrative
+in the commit; applied in the same commit, 12,147 → 9,265 tokens. **Alternatives**: leave the
+file and spend the cleanup round on a probe, which is what four cleanup rounds before it did
+while the file doubled; set a token ceiling on the file, which is the human-set size limit the
+objective rules out; move the narrative to `notes/`, which is relocation and therefore growth.
+**Framing bias**: the round chose a target it could both diagnose and fix inside one iteration,
+and a structural finding flatters a round that has no measurement to report — mitigated by the
+growth curve, the attachment and the token delta all being measured rather than argued, not
+removed. **Independent evaluation**: none; the deletions are checkable by grep and the commit
+names every check that was run. **Revert**: `git revert 98aff4c5`.
