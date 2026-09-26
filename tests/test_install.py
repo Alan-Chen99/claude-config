@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STUB_COMMANDS = ("basename", "dirname", "git", "ln", "mkdir")
 
 
-def _install_env(tmp_path: Path) -> tuple[dict[str, str], Path]:
+def _install_env(tmp_path: Path, allow_worktree: bool = True) -> tuple[dict[str, str], Path]:
     home = tmp_path / "home"
     home.mkdir()
     bin_dir = tmp_path / "bin"
@@ -26,7 +26,13 @@ def _install_env(tmp_path: Path) -> tuple[dict[str, str], Path]:
     env = os.environ.copy()
     env["HOME"] = str(home)
     env["PATH"] = str(bin_dir)
-    env.pop("ALLOW_WORKTREE_INSTALL", None)
+    # ROOT is itself a worktree in any session working from one, and the tests
+    # that install from ROOT are about the links, not the guard. The guard's own
+    # tests build a throwaway worktree to meet it and clear this instead.
+    if allow_worktree:
+        env["ALLOW_WORKTREE_INSTALL"] = "1"
+    else:
+        env.pop("ALLOW_WORKTREE_INSTALL", None)
     return env, home
 
 
@@ -95,7 +101,7 @@ def _worktree_of_this_script(tmp_path: Path) -> tuple[Path, Path]:
 
 @pytest.mark.parametrize("cwd_name", ["worktree", "main", "neither"])
 def test_install_refuses_from_worktree_whatever_the_cwd(tmp_path: Path, cwd_name: str) -> None:
-    env, home = _install_env(tmp_path)
+    env, home = _install_env(tmp_path, allow_worktree=False)
     main, worktree = _worktree_of_this_script(tmp_path)
     cwd = {"worktree": worktree, "main": main, "neither": tmp_path}[cwd_name]
 
