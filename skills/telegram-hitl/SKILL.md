@@ -294,7 +294,10 @@ Monitor(command="python3 <your-scratchpad>/listen.py 61 <your-scratchpad>/seen",
 Thirty minutes is the cap, so a wait measured in hours is a chain of re-arms:
 the expiry notice is the turn in which you arm the next one, and an expiry
 nobody acted on is a channel nobody is reading. Re-arm before anything else in
-that turn. Not `agent-tools run --background` instead: a detached child produces
+that turn. Both halves of that chain reach a session that has already stopped —
+measured 2026-09-26, an event delivered two minutes after a turn ended
+re-invoked the session, and so did the expiry notice of a monitor that had
+delivered nothing. Not `agent-tools run --background`: a detached child produces
 no notification at all, only a `final(<code>)` status line, which is visible on
 your next tool result or the user's next turn and wakes nothing.
 
