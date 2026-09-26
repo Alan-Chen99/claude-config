@@ -77,7 +77,16 @@ mkdir -p "$OUT_DIR"
 # The prefix decodes to nothing. It was `ptcc` until 2026-09-22 -- no case name
 # in it, but it abbreviates this script, and the rule bans anything in the cwd
 # that names the harness, not just anything that names the case.
-SCRATCH="$(mktemp -d "/tmp/wk.XXXXXXXX")"
+# The base directory is listable, so every scratch tree under it is visible to
+# any run that can shell out -- including a downstream reader, which has tools
+# and no repo of its own to look at. Measured 2026-09-25: a reader handed one
+# arm's plan found six sibling trees by name, reported which were pre- and
+# post-execution, and edited prune.py inside the tree a different arm had just
+# been measured in. PROMPT_TEST_SCRATCH_BASE gives a round its own base so the
+# arms cannot see each other.
+SCRATCH_BASE="${PROMPT_TEST_SCRATCH_BASE:-/tmp}"
+mkdir -p "$SCRATCH_BASE"
+SCRATCH="$(mktemp -d "$SCRATCH_BASE/wk.XXXXXXXX")"
 OUT="$OUT_DIR/${CASE_LABEL}-${TAG}-$(basename "$SCRATCH" | sed 's/.*\.//').json"
 
 [ -d "$CASE_DIR/fixture" ] && cp -a "$CASE_DIR/fixture/." "$SCRATCH/"

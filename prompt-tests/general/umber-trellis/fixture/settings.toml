@@ -1,0 +1,6 @@
+[store]
+path = "records.csv"
+keep_days = 30
+
+[report]
+out = "summary.txt"

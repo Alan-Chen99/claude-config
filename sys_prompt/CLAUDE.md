@@ -470,7 +470,9 @@ promise of one buys reliance on a catch. And it asks rather than tells, in vocab
 gloss named `[proceed]` walked into. A clause permitting the unread plan to be amended was measured
 and dropped: the agent already does that.
 
-Retire the question form when an arm answers it and stops where the owner expected the work.
+Retire the question form when an arm answers it and stops where the owner expected the work, on
+`prompt-tests/general/umber-trellis`; the same arms check that the marker is not read as the
+carve-out's licence, and that an unread plan's status reaches the next reader's file.
 
 ## Ledger: wordings measured and not shipped
 

@@ -349,6 +349,17 @@ the tested-agent transcript shows any of:
   `ln -s "$REPO/prompt-tests/general/<case>" /tmp/<neutral>` — keeps the name out
   of the argv and out of the log filename at once.
 
+**The downstream reader is an agent with tools and nothing to look at.** Its cwd
+holds one file and the plan it is handed names several, so it goes looking — and
+every other arm's scratch tree is a sibling directory away under a shared
+`/tmp`. Measured 2026-09-25: one reader listed six of them by name, reported
+which were pre- and which post-execution, and edited a script inside the tree a
+different arm had just been measured in. Give each run its own
+`PROMPT_TEST_SCRATCH_BASE`, and have `downstream.md` put the machine out of
+reach, so the search is unproductive and unmotivated at once. `/tmp` is shared
+with other sessions on this host as well, so a base of `/tmp` is not private even
+when your own round is serial.
+
 **Harness-side channels (opencode).** Full inventory in
 `skills/opencode-subcommand/SKILL.md`, "System-prompt contamination". The one
 that bites probe work: a spec loaded via `{file:PATH}` has its frontmatter
