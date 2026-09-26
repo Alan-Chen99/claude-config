@@ -65,7 +65,7 @@ agent-tools run --background --desc "telegram-hitl proxy" \
   uv run --project /repos/claude-config python -m claude_config.telegram_hitl
 ```
 
-`--background` here, unlike the waiter below: a harness background task is
+`--background` here, unlike the listener below: a harness background task is
 session-scoped — a `TaskStop` kills it — and this proxy has to outlive the
 session that starts it. The environment variable is this repo's convention;
 without it `uv` would build a `.venv` inside the canonical checkout. The proxy
@@ -152,13 +152,14 @@ def records(path):
                 yield {"kind": "damaged", "raw": raw.decode("utf-8", errors="replace")}
 ```
 
-## Asking, then waiting
+## Asking, then listening
 
 Ask in the topic you own (below) and read the whole of it: every human message
 there is meant for you, because nothing else is listening. That is what lets the
 human just type, rather than hunt for the reply control on a phone — observed
-2026-09-25, an answer arrived in the topic as a plain message with no
-`reply_to_message`, and a waiter keyed to the question's id sat through it.
+2026-09-25, an answer arrived as a plain message in the topic and a wait keyed
+to the question's id sat through it, because what a typed message replies to is
+the topic itself (below) and not the question.
 
 Replies still matter, as the catchment a topic misses. An answer sent from
 General or from the bot's DM carries no topic id at all, so a topic filter alone
@@ -178,11 +179,12 @@ def inbox(records, thread_id, after_message_id, my_message_ids=()):
     absent, and a message to the bot's DM arrived in a private chat carrying
     none either.
 
-    `after_message_id` is the last message you have already dealt with — your
-    question, on the first call. Reading a topic whole means reading its past
-    too, starting with the `forum_topic_created` service message that opened it.
-    Later and higher are the same thing here, because the ids come from the one
-    per-chat counter the traps below describe.
+    `after_message_id` is the last message you have already dealt with. Pass the
+    thread id to mean the whole topic: a topic's id is the id of the service
+    message that opened it, so nothing in it sorts lower. Later and higher are
+    the same thing within one chat, because the ids come from the one per-chat
+    counter the traps below describe — which is also why this is not the
+    watermark a listener keeps.
     """
     mine = set(my_message_ids)
     for record in records:
@@ -197,25 +199,104 @@ def inbox(records, thread_id, after_message_id, my_message_ids=()):
             yield message
 ```
 
-Waits here are measured in hours, so wait against the file, not against a socket.
-Write a small waiter to your scratchpad and run it with `run_in_background: true`
-— the harness re-invokes you when it exits on the answer, which is the one
-notification you want:
+**Arm the listener when you create the topic, not when you run out of work.**
+The gap between those two is a window where the human types into a log nobody is
+reading, and you then wait for an answer already in the file. One listener
+covers both of the channel's cases — the answer to your question, and an
+unsolicited correction arriving with no question of yours to answer — because
+both are a message in your topic.
 
-```bash
-agent-tools run --desc "await human" python3 <your-scratchpad>/waiter.py 6 51  # topic, question
+Waits here are measured in hours, and the log is what to watch, not a socket.
+Watch it with `Monitor` rather than a loop that blocks until something arrives:
+each message is one notification and you keep working, so the human's thinking
+time is not also your idle time, and an open-ended stream of occurrences is what
+a persistent monitor is for.
+
+<!-- recipe: listen -->
+```python
+import time
+
+
+def listen(path, thread_id, seen, poll=2.0):
+    """`(line, seen)` to print and persist, forever. One line, one notification.
+
+    `seen` is the highest `update_id` already announced, and the caller keeps it
+    on disk: a monitor's command starts from nothing every time it is armed, so
+    that file is the whole of the listener's memory across an expiry. Seed it at
+    0 to hear the topic's history as it is read, or at the log's current highest
+    `update_id` to hear only what arrives next — a topic you are joining rather
+    than opening can hold more history than a notification stream should carry.
+
+    The watermark is an `update_id` and not a message id, because the reply
+    catchment reaches other chats and message ids are per-chat: a DM's are a
+    separate low-numbered sequence that would sort under the group's and be
+    announced forever. `update_id` is one sequence for the whole bot.
+
+    Your own message ids come from the log rather than from the caller. Every
+    `sendMessage` into your topic is yours — the same premise as reading the
+    topic whole — and that survives a resumed session's new id, where a
+    hand-carried list does not.
+
+    Health goes down the same pipe as the messages, because a listener that
+    prints only messages is silent in exactly the same way whether the answer is
+    still coming or the drain died an hour ago. The first line of every arm is
+    therefore the state of the channel you have just armed against.
+    """
+    state = None
+    while True:
+        found = list(records(path))
+        mine = {record["response"]["result"]["message_id"] for record in found
+                if record["kind"] == "outbound"
+                and record["method"].lower() == "sendmessage"
+                and (record["response"] or {}).get("ok")
+                and (record["params"] or {}).get("message_thread_id") == thread_id}
+        for record in found:
+            if record["kind"] != "inbound" or record["update"]["update_id"] <= seen:
+                continue
+            update_id = record["update"]["update_id"]
+            # one record at a time, so the filter stays the inbox above
+            for message in inbox([record], thread_id, thread_id, mine):
+                # Whitespace collapsed: one notification per message, not one
+                # per line of it. The log keeps what the human actually typed.
+                text = " ".join((message.get("text") or "").split())
+                yield text or "<non-text message>", update_id
+            seen = update_id
+        health = inbound_state(found)
+        if health != state:
+            state = health
+            yield "channel " + health, seen
+        time.sleep(poll)
 ```
 
-It needs nothing but the standard library, so it runs under plain `python3`. Not
-`agent-tools run --background`: that detaches the waiter from the harness, so its
-exit produces no notification — only a `final(<code>)` status line, which is
-visible on your next tool result or the user's next turn and wakes nothing. An
-answer would sit unread until something else gave you a turn.
+Write that, the reader, the inbox and the health check to one file in your
+scratchpad, and drive it from the bottom of the same file:
 
-A waiter that only looks for an answer cannot tell *no answer yet* from *the
-channel is down*. Check both — but do not abandon a wait on the first fault you
-see. A failed poll is ordinary, and the recipe below already forgives a recent
-one; only a fault that persists means the channel needs you.
+```python
+import os, pathlib, sys
+
+state = pathlib.Path(os.environ["TELEGRAM_HITL_STATE_DIR"])
+thread, mark = int(sys.argv[1]), pathlib.Path(sys.argv[2])
+seen = int(mark.read_text()) if mark.exists() else 0
+for line, seen in listen(state / "channel.jsonl", thread, seen):
+    print(line, flush=True)        # Python buffers otherwise, and a buffered
+    mark.write_text(str(seen))     # line is a notification that never arrives
+```
+
+The watermark is written after the line is printed, so a kill between the two
+repeats one message rather than losing it. Then arm it:
+
+```
+Monitor(command="python3 <your-scratchpad>/listen.py 61 <your-scratchpad>/seen",
+        description="telegram topic 61: the deploy questions",
+        timeout_ms=1800000)
+```
+
+Thirty minutes is the cap, so a wait measured in hours is a chain of re-arms:
+the expiry notice is the turn in which you arm the next one, and an expiry
+nobody acted on is a channel nobody is reading. Re-arm before anything else in
+that turn. Not `agent-tools run --background` instead: a detached child produces
+no notification at all, only a `final(<code>)` status line, which is visible on
+your next tool result or the user's next turn and wakes nothing.
 
 <!-- recipe: health -->
 ```python
@@ -232,8 +313,8 @@ def inbound_state(records, failing_for=180.0):
     A drain fault younger than `failing_for` seconds still reads as up, because
     one failed poll is ordinary — Telegram resets a long poll and the next one
     succeeds. Measured live: two connection resets in a seven-minute run, each
-    having happened once and cleared within 27 seconds, while a waiter that gave
-    up the moment it saw one abandoned an answer that was still coming. Three
+    having happened once and cleared within 27 seconds, while a wait that gave up
+    the moment it saw one abandoned an answer that was still coming. Three
     minutes therefore forgives the routine case and still notices a genuinely
     dead channel quickly. A stopped proxy is never a blip, however recent.
     """
@@ -254,12 +335,41 @@ def inbound_state(records, failing_for=180.0):
     return state
 ```
 
-For **unsolicited** input — a correction or a stop arriving mid-run with no
-question of yours to answer — the filter is the same one and only the stopping
-differs. Your topic is where such a message will be, because it is the part of
-the chat that is about your work. Use `Monitor` on the log rather than a waiter:
-an open-ended stream of occurrences is what a persistent monitor is for, and a
-background loop that exits on the first match is the wrong shape for it.
+Do not abandon a wait on the first fault the listener reports. A failed poll is
+ordinary, and the check above already forgives a recent one; only a fault that
+persists means the channel needs you rather than the human.
+
+## Back-references
+
+A message id correlates records for you. It is not an address the human has —
+no Telegram client shows one — so `re: message 62`, or `still waiting on 184`,
+asks them to guess which message you mean. **Name the question in its own words
+and let Telegram do the pointing:** reply to it, and the client renders the
+quoted words above yours and jumps to the original when tapped.
+
+```bash
+STATE=$TELEGRAM_HITL_STATE_DIR
+curl -s --unix-socket "$STATE/proxy.sock" -X POST http://localhost/sendMessage \
+  -H 'Content-Type: application/json' \
+  -d "{\"chat_id\": $(cat "$STATE/chat_id"), \"message_thread_id\": 61,
+       \"text\": \"Still waiting on this one.\",
+       \"reply_parameters\": {\"message_id\": 62,
+         \"quote\": \"should the resume PDF be served publicly?\"}}"
+```
+
+`quote` is what points *inside* a message. Without it the client quotes the
+opening line, which for a long status message is a heading rather than the
+question you mean. It has to be an exact substring of the message you are
+replying to: measured 2026-09-26, `"quote": "words that do not appear"` came
+back `400 QUOTE_TEXT_INVALID`, and so did those same real words aimed at a
+different `message_id` — so that error says the words are not in *that* message,
+which is as often a wrong id as wrong words. Copy the substring out of what you
+sent rather than retyping it.
+
+A reply points at one message, so **keep one open question per message** and the
+nudge is always a reply. Where a status message has to carry several, the words
+are all the human gets: make them the question, never an index into your own
+bookkeeping.
 
 ## Topics
 
@@ -343,6 +453,12 @@ Each of these cost real time to find.
   a stored chat id as stable.
 - **Reading a file under append needs care in Python**, which yields a partial
   final line where a shell `read` loop does not. Use the reader above.
+- **Every message in a forum topic carries `reply_to_message`**, and what it
+  points at is the `forum_topic_created` service message that opened the topic —
+  measured 2026-09-25, a message typed into topic 38 arrived carrying
+  `reply_to_message.message_id` 38. Its presence therefore never means the human
+  replied to *you*; only an id of your own in it does, which is why the inbox
+  above tests the id against a set rather than testing the field for absence.
 - **A human replying as an anonymous group admin arrives as
   `GroupAnonymousBot`**, not under their own name: `from.is_bot` is `true` and
   `from.id` is the same 1087968824 for every such human. Measured on this

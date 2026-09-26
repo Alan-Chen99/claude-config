@@ -1,5 +1,6 @@
 """The skill's recipes are executable, so they get executed here."""
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -8,16 +9,25 @@ import pytest
 SKILL = Path(__file__).resolve().parents[1] / "skills" / "telegram-hitl" / "SKILL.md"
 
 
-def _recipe(name: str) -> dict:
-    """Exec one marked python block from the skill and return its namespace."""
+def _recipe(*names: str) -> dict:
+    """Exec marked python blocks from the skill into one shared namespace.
+
+    Several names because the skill's listener calls the reader, the inbox and
+    the health check by name, the way the file an agent assembles does.
+    """
     text = SKILL.read_text()
-    marker = f"<!-- recipe: {name} -->"
-    assert marker in text, f"the skill has no recipe marked {name}"
-    opening = text.index("```python", text.index(marker))
-    body = text[opening + len("```python"):text.index("```", opening + 3)]
     namespace: dict = {}
-    exec(compile(body, str(SKILL), "exec"), namespace)
+    for name in names:
+        marker = f"<!-- recipe: {name} -->"
+        assert marker in text, f"the skill has no recipe marked {name}"
+        opening = text.index("```python", text.index(marker))
+        body = text[opening + len("```python"):text.index("```", opening + 3)]
+        exec(compile(body, str(SKILL), "exec"), namespace)
     return namespace
+
+
+class _Slept(Exception):
+    """Raised in place of the listener's poll, to bound one pass of its loop."""
 
 
 def test_the_log_reader_skips_a_partial_final_line(tmp_path) -> None:
@@ -146,6 +156,52 @@ def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> No
                                    "signature": "forward:URLError"}]) == "up"
 
 
+def test_the_listener_announces_each_message_once_and_says_what_the_channel_is(
+    tmp_path, monkeypatch,
+) -> None:
+    """A monitor's command restarts from nothing at every re-arm, so the
+    watermark on disk is the whole of the listener's memory. Replaying a topic
+    is a notification flood; advancing past a message is a lost answer.
+    """
+    namespace = _recipe("read-log", "answers", "health", "listen")
+    monkeypatch.setattr(namespace["time"], "sleep", lambda _: (_ for _ in ()).throw(_Slept()))
+    path = tmp_path / "channel.jsonl"
+    path.write_text("".join(json.dumps(record) + "\n" for record in [
+        {"kind": "proxy", "event": "started"},
+        # the service message that opened the topic: its id is the thread id
+        {"kind": "inbound", "update": {"update_id": 10, "message": {
+            "message_id": 6, "message_thread_id": 6, "is_topic_message": True,
+            "forum_topic_created": {"name": "deploy"}}}},
+        {"kind": "outbound", "method": "sendMessage",
+         "params": {"message_thread_id": 6, "text": "Ship it?"},
+         "response": {"ok": True, "result": {"message_id": 51}}},
+        {"kind": "inbound", "update": {"update_id": 11, "message": {
+            "message_id": 52, "message_thread_id": 6, "is_topic_message": True,
+            "text": "ship it,\nand bump\tthe version"}}},
+        # a reply from the bot's DM: low message id, own update_id sequence
+        {"kind": "inbound", "update": {"update_id": 12, "message": {
+            "message_id": 4, "text": "one more thing",
+            "reply_to_message": {"message_id": 51}}}},
+    ]))
+
+    def one_pass(seen: int) -> list:
+        announced = []
+        with pytest.raises(_Slept):
+            for line, mark in namespace["listen"](path, 6, seen):
+                announced.append((line, mark))
+        return announced
+
+    first = one_pass(0)
+
+    # the topic's own service message is not an announcement, the DM reply is,
+    # and a message arrives as one line however the human typed it
+    assert first == [("ship it, and bump the version", 11),
+                     ("one more thing", 12),
+                     ("channel up", 12)]
+    # the re-arm reports the channel it armed against and nothing else
+    assert one_pass(first[-1][1]) == [("channel up", 12)]
+
+
 def test_the_skill_names_the_session_variable_that_exists() -> None:
     """Claude Code sets CLAUDE_CODE_SESSION_ID and there is no CLAUDE_SESSION_ID.
     An example reading the wrong one sends an empty header rather than failing,
@@ -171,6 +227,9 @@ def test_the_skill_documents_every_refusal_the_proxy_returns(status) -> None:
     "GroupAnonymousBot",         # a human answers as a bot, so is_bot filters drop them
     "migrate_to_chat_id",        # enabling Topics changes the chat id
     "partial",                   # reading a file under append needs care
+    "QUOTE_TEXT_INVALID",        # a quote must be exact, and in that very message
+    "forum_topic_created",       # every topic message replies to it, so the
+                                 # field's presence proves nothing
 ])
 def test_the_skill_still_carries_every_trap_that_cost_time(trap) -> None:
     """These were measured the hard way; an edit must not quietly drop one."""
