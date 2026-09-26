@@ -168,6 +168,8 @@ A bracketed marker is shorthand for something not spelled out. Interpret it like
 
 `[idea]` — "This is just one idea. Still evaluate other ideas. This is not a preference, and is not approval."
 
+`[proceed]` — "I don't have time to review this full at this moment. So, if safe, proceed anyways and I'll review your end product. You may also ask for something that takes less of my time."
+
 `[record]` — "This represents thoughts of the writer, not a verified fact or logic. You cannot use claims or logic here as basis for other items."
 
 # Communication
