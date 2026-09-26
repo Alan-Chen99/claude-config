@@ -234,3 +234,54 @@ def test_the_skill_documents_every_refusal_the_proxy_returns(status) -> None:
 def test_the_skill_still_carries_every_trap_that_cost_time(trap) -> None:
     """These were measured the hard way; an edit must not quietly drop one."""
     assert trap in SKILL.read_text()
+
+
+def test_the_senders_registry_says_which_sessions_have_been_in_a_topic() -> None:
+    """Who asked, for a topic whose messages all arrive from the one bot. The
+    header is optional at the proxy, so the count of calls naming nobody is part
+    of the answer rather than a detail to drop.
+    """
+    senders = _recipe("senders")["senders"]
+    log = [
+        {"kind": "outbound", "method": "createForumTopic", "session": "s1",
+         "params": {"name": "alpha"},
+         "response": {"ok": True, "result": {"message_thread_id": 6, "name": "alpha"}}},
+        {"kind": "outbound", "method": "sendMessage", "session": "s1",
+         "params": {"message_thread_id": 6, "text": "Ship it?"},
+         "response": {"ok": True, "result": {"message_id": 51}}},
+        {"kind": "outbound", "method": "sendMessage", "session": "s2",
+         "params": {"message_thread_id": 6, "text": "continuing this work"},
+         "response": {"ok": True, "result": {"message_id": 52}}},
+        # the acknowledging recipe used to omit the header: this is that call
+        {"kind": "outbound", "method": "setMessageReaction", "session": None,
+         "params": {"message_thread_id": 6, "message_id": 52},
+         "response": {"ok": True, "result": True}},
+        {"kind": "outbound", "method": "sendMessage", "session": "s3",
+         "params": {"message_thread_id": 6, "text": "never arrived"},
+         "response": {"ok": False, "description": "message thread not found"}},
+        {"kind": "outbound", "method": "getMe", "session": "s9", "params": None,
+         "response": {"ok": True, "result": {"id": 1}}},
+        {"kind": "outbound", "method": "sendMessage", "session": "s1",
+         "params": "chat_id=1&text=hi",
+         "response": {"ok": True, "result": {"message_id": 7}}},
+        {"kind": "inbound", "update": {"message": {"message_id": 1}}},
+    ]
+
+    assert senders(log) == {6: {"sessions": ["s1", "s2"], "unattributed": 1}}
+
+
+def test_every_call_the_skill_shows_names_its_caller() -> None:
+    """Agents copy the page, so the page is the enforcement.
+
+    Measured 2026-09-26 on the live channel: 23 of 66 forwarded calls named no
+    session, and which calls those were follows the examples exactly — the send
+    recipe carried the header and 23 of its 25 sends were attributed, while the
+    reaction and back-reference recipes carried none and 7 of 14 reactions were
+    not. Nothing else surfaces the gap: an unattributed call still succeeds.
+    """
+    blocks = [block for block in SKILL.read_text().split("```")[1::2]
+              if "--unix-socket" in block]
+
+    assert len(blocks) >= 4
+    for block in blocks:
+        assert "X-Session-Id: $CLAUDE_CODE_SESSION_ID" in block, block

@@ -99,8 +99,12 @@ curl -s --unix-socket "$STATE/proxy.sock" -X POST http://localhost/sendMessage \
 The `localhost` in that URL is a placeholder curl requires and never resolves;
 `--unix-socket` decides where the request goes. Only the path after it matters.
 
-`X-Session-Id` is optional and uninterpreted; it lands in the log so the record
-says who called.
+**`X-Session-Id` on every call.** The proxy neither requires nor interprets
+it; it lands in the log, and it is the only thing there that says which session
+called. A call without it succeeds and lands unattributed, so nothing surfaces
+the gap afterwards. Pass `$CLAUDE_CODE_SESSION_ID` whole: the registry under
+Topics groups by equality, and a truncated id is a second session that does not
+exist.
 
 The ids in that request are yours alone. No Telegram client shows one, so
 nothing inside `text` can point at a message by number, and every message you
@@ -362,6 +366,7 @@ jumps to the original when tapped.
 STATE=$TELEGRAM_HITL_STATE_DIR
 curl -s --unix-socket "$STATE/proxy.sock" -X POST http://localhost/sendMessage \
   -H 'Content-Type: application/json' \
+  -H "X-Session-Id: $CLAUDE_CODE_SESSION_ID" \
   -d "{\"chat_id\": $(cat "$STATE/chat_id"), \"message_thread_id\": 61,
        \"text\": \"Still waiting on this one.\",
        \"reply_parameters\": {\"message_id\": 62,
@@ -390,15 +395,45 @@ reader per topic is what makes reading it whole safe — two sessions asking in
 one topic each take the other's answers. Create it at the first question you
 actually have, so a session that never asks leaves nothing behind.
 
-**Name it for the work, not for the session.** A session id tells the human
-nothing, and the work outlives the session: a resumed or successor session
+**Name it for the work, not for the session.** A topic name is the work's
+identity, and the work outlives the session: a resumed or successor session
 carries a new id, and the name is how it finds the topic it is continuing. Join
 an existing topic when you are continuing its work — and then correlate by
 reply, not by topic, because you are no longer its only reader.
 
-**Say when you stop listening.** A topic outlives the session that made it, and
-a human who types into an abandoned one gets no reply and no reaction back. A
-last message in the topic when your work ends is the only thing that separates
+**Name yourself in the topic when you start listening.** Every message in the
+chat arrives from the same bot, so this line is what tells the human which agent
+is talking, and the id is what `agent-tools cc-pretty <id>` and `claude --resume
+<id>` take — the only thing in the chat they can act on. Send it as you arm the
+listener and say what you are doing there, because a line claiming to listen
+while no monitor exists is a claim the human acts on:
+
+```bash
+STATE=$TELEGRAM_HITL_STATE_DIR
+curl -s --unix-socket "$STATE/proxy.sock" -X POST http://localhost/sendMessage \
+  -H 'Content-Type: application/json' \
+  -H "X-Session-Id: $CLAUDE_CODE_SESSION_ID" \
+  -d "{\"chat_id\": $(cat "$STATE/chat_id"), \"message_thread_id\": 61,
+       \"text\": \"▸ $CLAUDE_CODE_SESSION_ID · $PWD\nlistening here from now on\",
+       \"disable_notification\": true}"
+```
+
+The id whole, because the human copies it rather than types it, and the
+directory, because that is what says where those commands run — `hostname`
+inside a container is a hex string that identifies nothing to them. Unnotified,
+because it answers no question; the question that follows is what should buzz. A
+session posting once into a topic it is not reading says that instead — the line
+is a claim about who is listening, not a greeting.
+
+A session id is the one id these messages carry, and it is not the kind
+Back-references rules out: nothing in the chat asks the human to resolve it. The
+questions stand in their own words, and the handle is there for whoever wants the
+session behind them.
+
+**Say when you stop listening**, and carry the same handle: `▸ ad570ccd —
+merged, not listening`. A topic outlives the session that made it, and a human
+who types into an abandoned one gets no reply and no reaction back. A last
+message in the topic when your work ends is the only thing that separates
 *finished* from *still thinking*.
 
 There is no `getForumTopics` in the Bot API, so the log is the only registry:
@@ -428,6 +463,51 @@ def topics(records):
 Create one with `createForumTopic` (`{"chat_id": ..., "name": "..."}`) and use
 the `message_thread_id` it returns.
 
+The same log answers who has been in a topic, which is the question the chat's
+own entering lines answer for the human:
+
+<!-- recipe: senders -->
+```python
+def senders(records):
+    """Every session that has sent into each topic, and the sends naming none.
+
+    `X-Session-Id` is optional at the proxy, so `unattributed` is sometimes not
+    zero: those calls reached the topic and nothing says who made them. The
+    reader of this log is the only one placed to notice.
+
+    Only calls Telegram accepted count. A refused send put nothing in the topic,
+    so the session that attempted it was never there.
+
+    A topic's creator is attributed from the response, because the request that
+    creates a topic cannot name the thread id it is about to get. Sessions are
+    compared for equality, so one that sent a truncated id appears twice.
+    """
+    found = {}
+    for record in records:
+        if record["kind"] != "outbound":
+            continue
+        response = record["response"] if isinstance(record["response"], dict) else {}
+        params = record["params"] if isinstance(record["params"], dict) else {}
+        if not response.get("ok"):
+            continue
+        if record["method"].lower() == "createforumtopic":
+            thread = (response["result"] or {}).get("message_thread_id")
+        else:
+            thread = params.get("message_thread_id")
+        if thread is None:
+            continue
+        topic = found.setdefault(thread, {"sessions": [], "unattributed": 0})
+        session = record.get("session")
+        if session is None:
+            topic["unattributed"] += 1
+        elif session not in topic["sessions"]:
+            topic["sessions"].append(session)
+    return found
+```
+
+Which topics a session has been in is that table read the other way:
+`[t for t, who in senders(records).items() if session in who["sessions"]]`.
+
 ## Acknowledging
 
 When you have read the human's answer, react to their message — from your own
@@ -439,6 +519,7 @@ STATE=$TELEGRAM_HITL_STATE_DIR
 CHAT=$(cat "$STATE/chat_id")
 curl -s --unix-socket "$STATE/proxy.sock" -X POST http://localhost/setMessageReaction \
   -H 'Content-Type: application/json' \
+  -H "X-Session-Id: $CLAUDE_CODE_SESSION_ID" \
   -d "{\"chat_id\": $CHAT, \"message_id\": 51, \"reaction\": [{\"type\":\"emoji\",\"emoji\":\"👍\"}]}"
 ```
 
