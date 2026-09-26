@@ -102,6 +102,11 @@ The `localhost` in that URL is a placeholder curl requires and never resolves;
 `X-Session-Id` is optional and uninterpreted; it lands in the log so the record
 says who called.
 
+The ids in that request are yours alone. No Telegram client shows one, so
+nothing inside `text` can point at a message by number, and every message you
+send is read by someone holding no ids at all — Back-references below is how you
+point at one.
+
 Refused with `403`: `getUpdates`, `setWebhook`, `deleteWebhook`, `close`,
 `logOut`. Each would break the one update stream or the token. Everything else
 passes through.
@@ -344,11 +349,14 @@ persists means the channel needs you rather than the human.
 
 ## Back-references
 
-A message id correlates records for you. It is not an address the human has —
-no Telegram client shows one — so `re: message 62`, or `still waiting on 184`,
-asks them to guess which message you mean. **Name the question in its own words
-and let Telegram do the pointing:** reply to it, and the client renders the
-quoted words above yours and jumps to the original when tapped.
+`re: message 62`, or `still waiting on 184`, asks the human for a lookup they
+cannot perform. **What you write for the human has to resolve on sight** — which
+is first a matter of not accumulating things to point at. **Keep one open
+question per message**, and pointing back is a reply rather than an index.
+
+When you do point back, name the question in its own words and let Telegram do
+the rest: reply to it, and the client renders the quoted words above yours and
+jumps to the original when tapped.
 
 ```bash
 STATE=$TELEGRAM_HITL_STATE_DIR
@@ -369,10 +377,9 @@ different `message_id` — so that error says the words are not in *that* messag
 which is as often a wrong id as wrong words. Copy the substring out of what you
 sent rather than retyping it.
 
-A reply points at one message, so **keep one open question per message** and the
-nudge is always a reply. Where a status message has to carry several, the words
-are all the human gets: make them the question, never an index into your own
-bookkeeping.
+A reply points at one message. Where one has to carry several, the words are all
+the human gets, so make them the question — a timestamp, or a position in a list
+only you hold ("the third one"), is the same lookup under another name.
 
 ## Topics
 
