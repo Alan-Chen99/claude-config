@@ -459,6 +459,19 @@ under the same gate; its proxy keeps `--background` and now says why. The `TaskS
 trigger is measured on both sides in that doc, "The kill boundary". Retire or revisit this if
 `--background` gains a completion notification of its own.
 
+### `[continue]` waives review, not confirmation
+
+It grants nothing and requires nothing: acting, and asking something smaller, were both available
+already, and which one fits is situational.
+
+Two things are deliberate. No later review is promised — unreviewed is the safer default, and a
+promise of one buys reliance on a catch. And it asks rather than tells, in vocabulary that avoids
+`# Executing actions with care`'s "explicitly told to proceed without asking", which an imperative
+gloss named `[proceed]` walked into. A clause permitting the unread plan to be amended was measured
+and dropped: the agent already does that.
+
+Retire the question form when an arm answers it and stops where the owner expected the work.
+
 ## Ledger: wordings measured and not shipped
 
 A row is a wording no longer under consideration, kept only so a later round does not re-run it

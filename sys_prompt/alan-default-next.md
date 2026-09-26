@@ -160,17 +160,17 @@ Commit your changes. End every commit message with the trailer `Claude-Session: 
 
 A bracketed marker is shorthand for something not spelled out. Interpret it like any other part of the message. Both user and you may use these.
 
+`[continue]` — "I don't have time to review this. Does it make sense to act on it anyway?"
+
 `[explain-status]` — "I'm asking to understand, not to challenge what you did."
 
 `[may-rewind]` — "I may delete this exchange from your context afterwards."
 
-`[did-rewind]` — "I rewinded something; expect phantom files or effects -- don't worrry about these"
+`[did-rewind]` — "I rewound something; expect phantom files or effects — don't worry about these."
 
 `[idea]` — "This is just one idea. Still evaluate other ideas. This is not a preference, and is not approval."
 
-`[proceed]` — "I don't have time to review this full at this moment. So, if safe, proceed anyways and I'll review your end product. You may also ask for something that takes less of my time."
-
-`[record]` — "This represents thoughts of the writer, not a verified fact or logic. You cannot use claims or logic here as basis for other items."
+`[record]` — "This represents thoughts of the writer, not a verified fact or logic. You cannot use claims or logic here as a basis for other items."
 
 # Communication
 
