@@ -30,6 +30,12 @@ Needle extraction mirrors ``fmt_tool_input``: a string value is expected raw, a
 non-string value in its ``json.dumps`` form. That couples the check to the
 renderer's formatting, which is the point — a format change that stops showing
 a value fails here rather than passing quietly.
+
+One content string is excluded: the base64 payload of an ``image`` or
+``document`` block. The renderers summarize it and print an extraction recipe
+by design, so a needle drawn from it would report ``missing_content`` against
+every session that read an image. The block's media type is still demanded, so
+a render that drops the block entirely still fails.
 """
 
 from __future__ import annotations
@@ -98,11 +104,31 @@ def _values_of(payload: dict[str, Any]) -> list[str]:
     return out
 
 
+def _source_needles(source: Any, path: str) -> list[tuple[str, str]]:
+    """Needles for an image/document ``source``: everything but the payload.
+
+    A base64 blob is the one content the renderers deliberately never print —
+    they name it and emit an extraction recipe instead — so demanding it here
+    would report ``missing_content`` against every session that read an image,
+    and a check that fires on every real log is a check nobody reads. What is
+    still demanded is the media type, so a render that drops the block
+    entirely still fails. A ``url`` or ``file`` source prints in full and is
+    needled in full.
+    """
+    if not isinstance(source, dict):
+        return [(path, str(source))]
+    if source.get("type") == "base64":
+        return [(f"{path}.media_type", str(source.get("media_type", "")))]
+    return [(path, v) for v in _values_of(source)]
+
+
 def _block_needles(block: Any, path: str) -> list[tuple[str, str]]:
     """Content strings a single content block must put on screen."""
     if not isinstance(block, dict):
         return [(path, str(block))]
     btype = block.get("type", "")
+    if btype in ("image", "document"):
+        return _source_needles(block.get("source"), f"{path}.source")
     if btype == "text":
         return [(f"{path}.text", block.get("text", ""))]
     if btype == "thinking":
@@ -120,6 +146,10 @@ def _block_needles(block: Any, path: str) -> list[tuple[str, str]]:
         for i, sub in enumerate(content):
             if isinstance(sub, dict) and sub.get("type") == "text":
                 needles.append((f"{path}.content[{i}].text", sub.get("text", "")))
+            elif isinstance(sub, dict) and sub.get("type") in ("image", "document"):
+                needles.extend(
+                    _source_needles(sub.get("source"), f"{path}.content[{i}].source")
+                )
             else:
                 # The renderer prints non-text items via str(); match that.
                 needles.append((f"{path}.content[{i}]", str(sub)))

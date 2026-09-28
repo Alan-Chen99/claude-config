@@ -345,3 +345,54 @@ def test_skeleton_lists_an_unmodelled_block() -> None:
     row = next(line for line in out.splitlines() if "block:server_tool_use" in line)
     assert "@L1" in row
     assert " . " in row
+
+
+# ── Binary payloads are not needles ──────────────────────────────────────────
+# The renderers deliberately never print a base64 blob, so a needle drawn from
+# one turns every image-carrying log into a `missing_content` finding — and a
+# check that fires on every real session is a check nobody reads.
+
+PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQ"
+    "DJ/pLvAAAAAElFTkSuQmCC"
+)
+
+
+def _image_record(lineno: int = 1) -> dict:
+    return {
+        "type": "user",
+        "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "t1", "content": [
+                {"type": "text", "text": "Read 1 image"},
+                {"type": "image", "source": {
+                    "type": "base64", "media_type": "image/png", "data": PNG_B64}}]},
+            {"type": "image", "source": {
+                "type": "base64", "media_type": "image/png", "data": PNG_B64}},
+        ]},
+    }
+
+
+def test_a_base64_payload_is_not_demanded_of_the_render() -> None:
+    needles = jsonl_needles([(_image_record(), 1)])
+    assert PNG_B64 not in [text for _, text in needles]
+    assert not any(PNG_B64 in text for _, text in needles)
+
+
+def test_the_media_type_is_still_demanded_of_the_render() -> None:
+    """Dropping the blob must not drop the block: the render still has to say
+    an image was there and what kind."""
+    needles = jsonl_needles([(_image_record(), 1)])
+    assert "image/png" in [text for _, text in needles]
+
+
+def test_a_session_carrying_images_checks_clean(tmp_path) -> None:
+    path = tmp_path / "images.jsonl"
+    path.write_text(json.dumps(_image_record()) + "\n")
+    assert check_path(str(path)) == []
+
+
+def test_a_url_source_is_still_demanded_of_the_render() -> None:
+    rec = {"type": "user", "message": {"role": "user", "content": [
+        {"type": "image", "source": {"type": "url", "url": "https://e.com/a.png"}}]}}
+    needles = jsonl_needles([(rec, 1)])
+    assert any("https://e.com/a.png" in text for _, text in needles)

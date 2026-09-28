@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import io
 import json
 import subprocess
@@ -613,3 +614,161 @@ def test_skeleton_prefers_attachment_content_when_it_is_populated() -> None:
 def test_skeleton_still_omits_an_attachment_with_no_payload_anywhere() -> None:
     rec = AttachmentRecord(type="attachment", attachment=AttachmentData(type="mystery"))
     assert "attach:mystery" not in _skeleton(rec)
+
+
+# ─── Binary payloads: image and document blocks ──────────────────────────────
+# A base64 payload is the one content in a log that is worthless on screen and
+# ruinous in a context window: 43k chars of `iVBORw0KGg…` per screenshot. The
+# render names it and hands over the command that writes the file instead.
+
+# A real 1×1 red PNG, so the extraction recipe can be run and the result
+# checked for decodability rather than only for having been written.
+PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQ"
+    "DJ/pLvAAAAAElFTkSuQmCC"
+)
+PNG_BYTES = 69
+PDF_B64 = base64.b64encode(b"%PDF-1.5\n" + b"x" * 400 + b"\n%%EOF\n").decode()
+
+
+def _image_source(b64: str = PNG_B64, media_type: str = "image/png") -> dict:
+    return {"type": "base64", "media_type": media_type, "data": b64}
+
+
+def _image_session(tmp_path) -> object:
+    """A session carrying every shape a base64 payload reaches cc-pretty in."""
+    jsonl = tmp_path / "images.jsonl"
+    records = [
+        {"type": "user", "uuid": "u0", "message": {"role": "user", "content": "read it"}},
+        {"type": "assistant", "uuid": "a0", "message": {
+            "role": "assistant", "model": "claude-opus-5", "content": [
+                {"type": "tool_use", "id": "toolu_1", "name": "Read",
+                 "input": {"file_path": "/tmp/chart.png"}}]}},
+        # An image inside a tool_result content array — what Read and every
+        # screenshot MCP server return.
+        {"type": "user", "uuid": "u1", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "toolu_1", "content": [
+                {"type": "text", "text": "Read 1 image"},
+                {"type": "image", "source": _image_source()}]}]}},
+        # A document block standing alone on a user record — a PDF Claude Code
+        # injects mid-conversation.
+        {"type": "user", "uuid": "u2", "isMeta": True, "message": {
+            "role": "user", "content": [
+                {"type": "document",
+                 "source": _image_source(PDF_B64, "application/pdf")}]}},
+        # An image block standing alone, alongside text.
+        {"type": "user", "uuid": "u3", "message": {"role": "user", "content": [
+            {"type": "image", "source": _image_source()},
+            {"type": "text", "text": "what is wrong with this?"}]}},
+    ]
+    jsonl.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    return jsonl
+
+
+def _render(jsonl, *flags: str) -> str:
+    proc = _run_cli(jsonl, "--no-color", *flags)
+    assert proc.returncode == 0, proc.stderr
+    return proc.stdout
+
+
+def test_no_base64_payload_reaches_the_render(tmp_path) -> None:
+    out = _render(_image_session(tmp_path))
+    # The head of each payload — present in the render means the blob is on
+    # screen, truncated or whole.
+    assert PNG_B64[:32] not in out
+    assert PDF_B64[:32] not in out
+
+
+def test_an_unbounded_tool_max_still_elides_the_payload(tmp_path) -> None:
+    """--tool-max lifts truncation; it must not turn the blob back on. A
+    coverage run renders at 10**9, so this is the path that check exercises."""
+    out = _render(_image_session(tmp_path), "--tool-max", "1000000000")
+    assert PNG_B64[:32] not in out
+    assert PDF_B64[:32] not in out
+
+
+def test_each_payload_is_named_by_media_type_and_decoded_size(tmp_path) -> None:
+    out = _render(_image_session(tmp_path))
+    assert "image/png" in out
+    assert "application/pdf" in out
+    # Decoded bytes, not the base64 chars encoding them: a reader sizing the
+    # file to fetch wants the file's size.
+    assert f"{PNG_BYTES} B" in out
+    assert f"{len(PNG_B64)} B" not in out
+
+
+def test_every_payload_recipe_writes_the_original_bytes(tmp_path) -> None:
+    """A recipe that does not run is worse than none: it reads as truth."""
+    jsonl = _image_session(tmp_path)
+    out = _render(jsonl)
+    recipes = [
+        line.split("…file:", 1)[1].strip()
+        for line in out.splitlines() if "…file:" in line
+    ]
+    # Three payloads in the fixture: the tool_result image, the document, the
+    # standalone image.
+    assert len(recipes) == 3, out
+
+    expected = {"png": base64.b64decode(PNG_B64), "pdf": base64.b64decode(PDF_B64)}
+    written = []
+    for recipe in recipes:
+        got = subprocess.run(["bash", "-c", recipe], cwd=tmp_path,
+                             capture_output=True, text=True)
+        assert got.returncode == 0, f"{recipe!r} failed: {got.stderr}"
+        target = tmp_path / recipe.rsplit(">", 1)[1].strip()
+        assert target.exists(), f"{recipe!r} wrote no file"
+        body = target.read_bytes()
+        assert body == expected[target.suffix.lstrip(".")], recipe
+        written.append(target.name)
+    # One file per payload — a shared name would overwrite a sibling's image.
+    assert len(set(written)) == 3, written
+    assert any(n.endswith(".png") for n in written)
+    assert any(n.endswith(".pdf") for n in written)
+
+
+def test_a_url_source_is_still_shown_verbatim(tmp_path) -> None:
+    """Only the base64 blob is withheld. A URL source is the whole content of
+    the block and costs nine words to print."""
+    jsonl = tmp_path / "url.jsonl"
+    jsonl.write_text(json.dumps({"type": "user", "message": {"role": "user", "content": [
+        {"type": "image", "source": {"type": "url", "url": "https://e.com/a.png"}}]}}) + "\n")
+    out = _render(jsonl)
+    assert "https://e.com/a.png" in out
+
+
+def test_the_skeleton_names_a_payload_instead_of_previewing_it(tmp_path) -> None:
+    out = _render(_image_session(tmp_path), "--skeleton")
+    assert PNG_B64[:24] not in out
+    assert PDF_B64[:24] not in out
+    doc_row = next(line for line in out.splitlines() if "document" in line)
+    assert "application/pdf" in doc_row
+    # The leaf a reader would extract from: `.` yields the base64 with it.
+    assert ".source.data" in doc_row
+
+
+def test_the_skeleton_result_row_names_the_payload_it_carries(tmp_path) -> None:
+    """`result:Read  0~tok  ""` reads as an empty result; the image it actually
+    carried is the whole reason that row exists."""
+    out = _render(_image_session(tmp_path), "--skeleton")
+    row = next(line for line in out.splitlines() if "result:Read" in line)
+    assert "image/png" in row
+
+
+def test_a_malformed_source_renders_instead_of_aborting_the_file(tmp_path) -> None:
+    """A log is external input. Before `image` was modelled, a block whose
+    `source` is null went through the unmodelled-block arm and rendered; a
+    strict `dict` field would instead raise out of `content_blocks()` and take
+    the whole session's render with it."""
+    jsonl = tmp_path / "broken.jsonl"
+    jsonl.write_text("\n".join(json.dumps(r) for r in [
+        {"type": "user", "message": {"role": "user", "content": [
+            {"type": "image", "source": None}]}},
+        {"type": "user", "message": {"role": "user", "content": [
+            {"type": "image"}]}},
+        {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "text", "text": "still here"}]}},
+    ]) + "\n")
+    out = _render(jsonl)
+    assert "still here" in out
+    assert out.count("◆ image") == 2
+    assert "still here" in _render(jsonl, "--skeleton")

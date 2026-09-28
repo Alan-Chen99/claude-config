@@ -4,7 +4,7 @@ Handles all record types found in Claude Code JSONL logs:
   assistant, user, system, progress, file-history-snapshot, last-prompt,
   queue-operation, attachment, permission-mode
 
-Content block types: thinking, text, tool_use, tool_result
+Content block types: thinking, text, tool_use, tool_result, image, document
 toolUseResult: arbitrary tool-defined JSON — only the object form is
   modelled; see notes/tool-use-result-shapes.md
 Progress data types: bash_progress, agent_progress, hook_progress
@@ -53,17 +53,35 @@ class ToolResultBlock(_Base):
     content: str | list[dict[str, Any]] = ""
     is_error: bool = False
 
+class BinaryBlock(_Base):
+    """An `image` or `document` block — a payload no reader wants inline.
+
+    `source` is either the payload itself (`{type: base64, media_type, data}`)
+    or a reference to one (`{type: url, url}`, `{type: file, file_id}`). A
+    base64 screenshot runs 43k chars, so this type exists to keep image and
+    document blocks off the `UnknownBlock` path, whose contract is to dump
+    whatever it carries.
+    """
+    type: Literal["image", "document"]
+    # `Any`, not `dict`: a log is external input, and a `source` that is null or
+    # a bare string must render as what it is rather than raise a
+    # ValidationError that aborts the whole file.
+    source: Any = {}
+
 class UnknownBlock(_Base):
     """Catch-all for unrecognized block types."""
     type: str = "unknown"
 
-ContentBlock = ThinkingBlock | TextBlock | ToolUseBlock | ToolResultBlock | UnknownBlock
+ContentBlock = (ThinkingBlock | TextBlock | ToolUseBlock | ToolResultBlock
+                | BinaryBlock | UnknownBlock)
 
 _CONTENT_BLOCK_MAP: dict[str, type[ContentBlock]] = {
     "thinking": ThinkingBlock,
     "text": TextBlock,
     "tool_use": ToolUseBlock,
     "tool_result": ToolResultBlock,
+    "image": BinaryBlock,
+    "document": BinaryBlock,
 }
 
 def parse_content_block(raw: dict[str, Any]) -> ContentBlock:

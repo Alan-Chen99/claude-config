@@ -18,6 +18,7 @@ from claude_config.cc_pretty.parse import (
     AssistantRecord,
     AttachmentRecord,
     BashProgress,
+    BinaryBlock,
     FileHistorySnapshotRecord,
     HookProgress,
     LastPromptRecord,
@@ -311,6 +312,88 @@ def recovery_cmd(log_path: str, lineno: int, block_idx: int | None, leaf: str,
             f"jq -r '.message.content[{block_idx}]{leaf}'")
 
 
+# ─── Binary payloads ─────────────────────────────────────────────────────────
+# A base64 image or document is the one content a log carries that is worthless
+# on screen: a screenshot is ~43k chars of `iVBORw0KGg…`, ~11k tokens to scroll
+# past, and unreadable at any length. The render names it and hands over the
+# command that writes the file.
+
+BINARY_BLOCK_TYPES = ("image", "document")
+
+# Extensions where the media subtype is not the conventional one.
+_EXT_BY_MEDIA_TYPE = {
+    "image/jpeg": "jpg",
+    "image/svg+xml": "svg",
+    "text/plain": "txt",
+    "text/markdown": "md",
+    "application/octet-stream": "bin",
+}
+
+# What a payload whose log omits `media_type` is called, in the row and in the
+# filename the recipe writes.
+UNTYPED_MEDIA = "application/octet-stream"
+
+
+def source_dict(block: Any) -> dict[str, Any]:
+    """A block's ``source`` when it is an object, else an empty one."""
+    src = (block.get("source") if isinstance(block, dict)
+           else getattr(block, "source", None))
+    return src if isinstance(src, dict) else {}
+
+
+def base64_source(block: Any) -> dict[str, Any] | None:
+    """The `source` of a base64-carrying image/document block, else ``None``.
+
+    Takes a parsed block or the raw dict a ``tool_result`` content array holds,
+    because the payload reaches the renderer in both shapes. A ``url`` or
+    ``file`` source returns ``None``: it is a short reference that prints fine
+    as it is.
+    """
+    btype = block.get("type") if isinstance(block, dict) else getattr(block, "type", "")
+    if btype not in BINARY_BLOCK_TYPES:
+        return None
+    src = source_dict(block)
+    if src.get("type") != "base64" or not isinstance(src.get("data"), str):
+        return None
+    return src
+
+
+def media_ext(media_type: str) -> str:
+    """Filename extension for a media type, for the file the recipe writes."""
+    if media_type in _EXT_BY_MEDIA_TYPE:
+        return _EXT_BY_MEDIA_TYPE[media_type]
+    sub = re.sub(r"[^a-z0-9]", "", media_type.rsplit("/", 1)[-1].lower())
+    return sub or "bin"
+
+
+def b64_bytes(data: str) -> int:
+    """Bytes ``base64 -d`` writes for this payload — the size of the file."""
+    packed = "".join(data.split())
+    return max(0, len(packed) * 3 // 4 - packed.count("="))
+
+
+def fmt_bytes(n: int) -> str:
+    for unit, scale in (("MB", 1 << 20), ("KB", 1 << 10)):
+        if n >= scale:
+            return f"{n / scale:.1f} {unit}"
+    return f"{n} B"
+
+
+def binary_filename(lineno: int, block_idx: int, sub_idx: int | None,
+                    media_type: str) -> str:
+    """Output name for the file a payload's recipe writes.
+
+    Spelled from the payload's own address so two images in one record cannot
+    land on one name: a ``tool_result`` sub-block at ``.content[1]`` and a
+    sibling block at ``.content[1]`` both live on line 3, and a name built from
+    only one index would make the second overwrite the first.
+    """
+    name = f"L{lineno}-{block_idx}"
+    if sub_idx is not None:
+        name += f"-{sub_idx}"
+    return f"{name}.{media_ext(media_type)}"
+
+
 def attachment_payload(rec: Any) -> tuple[str, str]:
     """An attachment's text and the jq leaf it lives under.
 
@@ -491,7 +574,19 @@ class Renderer:
         if isinstance(content, list):
             parts = []
             raw_parts = []
-            for sub in content:
+            for sub_idx, sub in enumerate(content):
+                src = base64_source(sub)
+                if src is not None:
+                    # raw_parts keeps the payload, because the toolUseResult
+                    # divergence check below asks whether that value said
+                    # anything the body did not; parts — what prints — gets the
+                    # summary and the recipe.
+                    raw_parts.append(str(sub))
+                    parts.extend(self._binary_lines(
+                        src, lineno, _resolve_idx(block, block_idx), sub_idx,
+                        f".content[{sub_idx}].source.data",
+                    ))
+                    continue
                 if sub.get("type") == "text":
                     t = sub.get("text", "")
                 else:
@@ -532,6 +627,40 @@ class Renderer:
             )
 
         return "\n".join(lines)
+
+    def _binary_lines(self, source: dict[str, Any], lineno: int, block_idx: int,
+                      sub_idx: int | None, leaf: str) -> list[str]:
+        """What a base64 payload renders as: its identity, then how to get it.
+
+        The payload never goes on screen. What a reader wants from a screenshot
+        is the file, so the second line is the command that writes one —
+        ``recovery_cmd`` for the leaf holding the base64, piped through
+        ``base64 -d``.
+        """
+        media = str(source.get("media_type") or UNTYPED_MEDIA)
+        size = fmt_bytes(b64_bytes(source["data"]))
+        cmd = recovery_cmd(self.log_path, lineno, block_idx, leaf,
+                           self.jq_paths.get(lineno))
+        name = binary_filename(lineno, block_idx, sub_idx, media)
+        return [
+            f"{C.RESULT}⊡{C.RESET} {media} · {size} · base64",
+            f"{C.DIM}…file: {cmd} | base64 -d > {name}{C.RESET}",
+        ]
+
+    def _render_binary_block(self, block: BinaryBlock, lineno: int,
+                             block_idx: int) -> str:
+        """An `image` or `document` block standing on its own in a message."""
+        ref = block_ref(block, lineno, block_idx)
+        head = f"{C.RESULT}  ◆ {block.type}{C.RESET}  {C.DIM}{ref}{C.RESET}"
+        idx = _resolve_idx(block, block_idx)
+        src = base64_source(block)
+        if src is None:
+            # A url or file_id source is the block's whole content and costs a
+            # dozen characters to print.
+            body = fmt_tool_input({"source": block.source})
+            return f"{head}\n{ind(trunc(body, self.tool_output_max), '    ')}"
+        lines = self._binary_lines(src, lineno, idx, None, ".source.data")
+        return f"{head}\n" + ind("\n".join(lines), "    ")
 
     def _render_unknown_block(self, block: Any, lineno: int, block_idx: int) -> str:
         """Render a content block whose type the parser does not model.
@@ -595,6 +724,8 @@ class Renderer:
                     lines.append(self._render_tool_result(block, lineno, bi, tur=tur))
                 elif isinstance(block, TextBlock):
                     lines.append(self._render_context_text(block.text, lineno, bi))
+                elif isinstance(block, BinaryBlock):
+                    lines.append(self._render_binary_block(block, lineno, bi))
                 else:
                     lines.append(self._render_unknown_block(block, lineno, bi))
         return "\n".join(lines)
@@ -653,6 +784,8 @@ class Renderer:
                     if self.chat_only:
                         continue
                     body.append(self._render_tool_use(block, lineno, bi))
+                elif isinstance(block, BinaryBlock):
+                    body.append(self._render_binary_block(block, lineno, bi))
                 else:
                     body.append(self._render_unknown_block(block, lineno, bi))
 
@@ -980,6 +1113,43 @@ def _tool_target(inp: Any) -> str:
     return _preview(json.dumps(inp), 60)
 
 
+def _binary_row(block: BinaryBlock, lineno: int,
+                block_idx: int) -> tuple[str, str, str, str]:
+    """``(label, size, leaf, preview)`` for an image/document skeleton row.
+
+    The size column is bytes rather than ``~tok``: the row's leaf yields base64
+    that nobody should read, so what a reader is budgeting is a file to fetch,
+    not a batch to extract. The preview carries the pipe, because the skeleton
+    prints no per-row recipe.
+    """
+    media = str(source_dict(block).get("media_type") or UNTYPED_MEDIA)
+    label = f"{block.type}:{media}"
+    src = base64_source(block)
+    if src is None:
+        raw = json.dumps(block.source, default=str)
+        return label, f"{_tok(raw)}~tok", ".source", f'"{_preview(raw)}"'
+    name = binary_filename(lineno, block_idx, None, media)
+    return (label, fmt_bytes(b64_bytes(src["data"])), ".source.data",
+            f"⊡ base64 · pipe to: base64 -d > {name}")
+
+
+def _payload_inventory(content: Any) -> str:
+    """``⊡ image/png 69 B`` per base64 payload in a tool_result's content.
+
+    A result whose only content is a screenshot otherwise rows as ``0~tok`` and
+    an empty preview, which reads as a result that returned nothing.
+    """
+    if not isinstance(content, list):
+        return ""
+    marks = []
+    for sub in content:
+        src = base64_source(sub)
+        if src is not None:
+            marks.append(f"⊡ {src.get('media_type') or UNTYPED_MEDIA} "
+                         f"{fmt_bytes(b64_bytes(src['data']))}")
+    return " ".join(marks)
+
+
 def render_skeleton(
     records: list[tuple[Record, int]],
     *,
@@ -1090,6 +1260,9 @@ def render_skeleton(
                         leaf = jq_leaf(log_path, "tool_input")
                     emit(ref, f"tool:{block.name}", size, leaf,
                          _tool_target(block.input))
+                elif isinstance(block, BinaryBlock):
+                    emit(ref, *_binary_row(block, lineno,
+                                           _resolve_idx(block, bi)))
                 else:
                     raw = json.dumps(
                         block.model_dump(exclude={"type"}, exclude_none=True)
@@ -1118,13 +1291,19 @@ def render_skeleton(
                             )
                             if isinstance(content, list) else str(content)
                         )
+                        preview = f'"{_preview(text)}"' if text else ""
+                        inventory = _payload_inventory(content)
+                        if inventory:
+                            preview = f"{preview} {inventory}".strip()
                         emit(ref, label, f"{_tok(text)}~tok",
-                             jq_leaf(log_path, "tool_output"),
-                             f'"{_preview(text)}"')
+                             jq_leaf(log_path, "tool_output"), preview)
                     elif isinstance(block, TextBlock):
                         # cc context block — raw string at .text, not .content
                         emit(ref, "context", f"{_tok(block.text)}~tok",
                              ".text", f'"{_preview(block.text)}"')
+                    elif isinstance(block, BinaryBlock):
+                        emit(ref, *_binary_row(block, lineno,
+                                               _resolve_idx(block, bi)))
                     else:
                         raw = json.dumps(
                             block.model_dump(exclude={"type"}, exclude_none=True)

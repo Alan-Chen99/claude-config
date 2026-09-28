@@ -112,9 +112,18 @@ three shapes occurred: string, object, and — in exactly one file, the `claude-
 session, in 12 records — an array, byte-equal to `.message.content[0].content` every time.
 No scalar was observed; the plugin-eval path above is why the parser accepts one anyway.
 
-## Related rendering defect (not fixed)
+## Related rendering defect (fixed 2026-09-28)
 
 `_render_tool_result` renders a non-`text` block inside a list-valued `content` with
 `str(sub)`. For an `image` block that is a truncated base64 blob rather than a placeholder.
 The corpus sweep found 23 image blocks across 23 files, so this affects roughly 1% of
 transcripts, including the `claude-in-chrome` session that prompted this note.
+
+Fixed 2026-09-28: `image` and `document` are a modelled block type (`BinaryBlock`) whose
+render names the payload and prints the `base64 -d` command that writes the file. The sweep
+that fixed it walked 3,593 transcripts (2.6 GB) for base64-shaped strings rather than
+grepping for `"type":"image"`, and found 638 image blocks in tool_result content arrays
+across 102 files plus 13 `document` blocks sitting directly on a user record — the second
+position, which reached the render through the unmodelled-block arm. Two further positions
+carry a payload the renderer never reads and so never leaked:
+`.toolUseResult.file.base64` (381) and `.toolUseResult[].source.data` (15).
