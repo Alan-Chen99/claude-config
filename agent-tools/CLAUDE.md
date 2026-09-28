@@ -37,7 +37,7 @@ Venv location: each project root resolves to `~/.claude/venvs/<basename>/` (set 
 
 Build: `cd agent-tools && cargo build --release`. Installed as a symlink at `~/.local/bin/agent-tools` → `<repo>/agent-tools/target/release/agent-tools` by `install.sh`.
 
-**Worktrees must NEVER run `install.sh`** — that symlink must always point at the canonical checkout. Build in place instead; see "Testing from a worktree" below.
+That symlink always points at the canonical checkout, so a worktree's build is never on PATH — build in place; see "Testing from a worktree" below.
 
 
 ## Source files
@@ -524,7 +524,7 @@ without that block every failed tool call would be a delivery point arriving emp
 
 ## Testing from a worktree
 
-Per repo-root `CLAUDE.md`: **worktrees must NEVER run `install.sh`**. Build in place, then assert that the runtime root matches the binary's compile-time root:
+Build in place — `install.sh` refuses to run from a worktree — then assert that the runtime root matches the binary's compile-time root:
 
 ```bash
 cd agent-tools && cargo build --release

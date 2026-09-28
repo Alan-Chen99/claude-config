@@ -11,7 +11,7 @@ the directory you are about to touch.
 | File | What | When to read |
 | --- | --- | --- |
 | `README.md` | Public-facing: the fork's ideas with links to their evidence, upstream attribution, install and tests | First orientation; before pointing anyone at the repository |
-| `install.sh` | Symlinks config into `~/.claude/` and units into `~/.config/systemd/user/`, builds `agent-tools`, puts `claude.sh`, `kimi.sh` and `zai.sh` on PATH | Installing the config |
+| `install.sh` | Links config into `~/.claude/`, `opencode/` into `~/.config/opencode`, units into `~/.config/systemd/user/`; builds `agent-tools` and the `claude.sh`/`kimi.sh`/`zai.sh` launchers into `~/.local/bin/`. Links, not copies: an edit in the canonical checkout is live with no re-install, a worktree's is live nowhere. Refuses to run from a worktree, or to replace a destination that is not already a symlink | Installing the config; deciding whether an edit needs deploying |
 | `settings.json` | Claude Code user settings: hooks, statusline, permissions, `env`. Keys documented elsewhere: git policy (`includeGitInstructions`, `attribution`) in `sys_prompt/CLAUDE.md`, `CLAUDE_CODE_FORK_SUBAGENT` in `docs/subagent-backgrounding.md`, `TELEGRAM_HITL_STATE_DIR` in `src/claude_config/CLAUDE.md`, `autoCompactWindow` in `docs/total-tokens-reminder-trial.md` | Modifying hooks, statusline, permissions, env |
 | `statusline.sh` | Status line wired up via `settings.json`; its open-tasks row is `agent-tools ps --format statusline` | Customizing the status line |
 | `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After an upstream sync |
@@ -49,11 +49,6 @@ scripts/check-prompt-rationale.sh        # every sys_prompt/CLAUDE.md section vs
 
 ## Agent Policy
 
-- **Worktrees must NEVER run `install.sh`.** Every link it writes is absolute and lives
-  outside the repo, so a worktree's install redirects every session on this machine to that
-  worktree and leaves dangling links when it is deleted. The script refuses to run from one,
-  and that refusal goes when it stops writing outside the repo. Build in place —
-  `agent-tools/CLAUDE.md`, "Testing from a worktree".
 - `agent-tools` takes its root from compile time and has no `--root` override.
   `CLAUDE_CONFIG_ROOT` only asserts that root; disagree with it, or leave it unset for a
   non-default build, and every subcommand exits non-zero instead of answering with another
