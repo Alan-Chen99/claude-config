@@ -116,7 +116,9 @@ pretty file as reading substrate.
      hints then reference that file)
    - Claude Code: `agent-tools cc-pretty <session-id> --skeleton`
      (a subagent id or a path to the `.jsonl` works too; an id may be any
-     unique prefix, and the render names the file it resolved to)
+     unique prefix, and the render names the file it resolved to). When the
+     question starts from a commit, its message may carry the session id
+     as a `Claude-Session:` trailer (`git log --format='%h %(trailers:key=Claude-Session,valueonly)'`).
    - One captured API call: `agent-tools cc-pretty-intercept <file.json>
      --skeleton` (a capture is addressed by path, never by id). Its `@L<n>`
      number the capture's records in reading order across `.request.system[]`,
