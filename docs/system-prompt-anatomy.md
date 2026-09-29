@@ -319,6 +319,7 @@ non-ant users).
 
 - **Inherited:** MCP tools, environment info, current date
 - **Not inherited:** parent's `--system-prompt` / `--append-system-prompt`, output style, memory system
+- **Injectable anyway:** a `SubagentStart` hook's `hookSpecificOutput.additionalContext` arrives as a `hook_additional_context` attachment ahead of the subagent's first turn, for every agent type — including `Explore` and `Plan`, which omit CLAUDE.md. Measured on 2.1.269; `agent-tools hook-subagent-start` uses it. A hook that fails does not block the spawn.
 - **Conditional:** CLAUDE.md (only when `omitClaudeMd` is false), gitStatus, skills (from agent frontmatter)
 
 ## Extracting the API Payload

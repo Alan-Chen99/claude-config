@@ -204,8 +204,38 @@ coverage() {
     status_source=1
   fi
 }
+# The Required notes categories. `hook_subagent.rs` emits them into every
+# subagent's context through `additionalContext`, `conventions/agent-responses.md`
+# is the canonical set, and the prompt carries the parent's own copy of the same
+# eight — the parent is told to fold a subagent's block into its own, which only
+# composes while both name one set. A category added to one file and not the
+# others reaches either the parent or the subagent, never both, and nothing else
+# would notice. The needle is the bare category name because the three files
+# gloss it differently on purpose: the hook's copy is the terse one, spent once
+# per spawn.
+while read -r category; do
+  [ -n "$category" ] || continue
+  check "$category" "$src/hook_subagent.rs"
+  check "$category" "$root/conventions/agent-responses.md"
+  check "$category" "$prompt"
+done <<'CATEGORIES'
+manual action needed
+suspected user mistake
+hidden challenge
+corrected mistake
+instruction issue
+tool issue
+context waste
+unexpected change
+CATEGORIES
+
+# The heading the hook asks for, which is the one the prompt tells the parent to
+# fold in. Drift here leaves a parent scanning for a section no subagent writes.
+check '`## Required notes` block' "$src/hook_subagent.rs"
+
 coverage hook_post.rs
 coverage status.rs
+coverage hook_subagent.rs
 
 # The registered needles, grepped last.
 for i in "${!needle[@]}"; do

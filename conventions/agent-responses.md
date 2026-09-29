@@ -4,9 +4,11 @@ After finishing a task, include a **Required notes** section. The section MUST
 exist even if empty ("No items applicable").
 
 **Subagents MUST also follow this requirement.** Parent agents propagate
-significant items to the user, naming the agent that saw each one. An Agent
-call inherits neither the system prompt nor the output style, so the requirement
-and the category list travel in the dispatch prompt the parent writes.
+significant items to the user, naming the agent that saw each one. An Agent call
+inherits neither the system prompt nor the output style, and `Explore` and `Plan`
+receive no CLAUDE.md, so the ask reaches a subagent through the `SubagentStart`
+hook — `agent-tools hook-subagent-start`, whose terser copy of the categories
+below is pinned to this file by `scripts/check-prompt-coupling.sh`.
 
 ## Categories
 

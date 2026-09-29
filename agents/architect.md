@@ -138,3 +138,8 @@ Examples:
 
 - VERBOSE: "Now I need to find similar features. Let me search for authentication patterns."
 - CONCISE: "Similar auth: Grep auth, Read handlers/"
+
+## Required notes
+
+The structured output ends with a `## Required notes` block: items in the
+categories your caller named, or "none".

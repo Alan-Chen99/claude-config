@@ -335,14 +335,22 @@ directories a test run left behind — not durable prose. No case owns this bloc
 price a bullet by what it costs when it fires. Retire a bullet when the owner says it is not read.
 
 The subagent half repairs a dangling reference rather than betting on a rate: the block's own
-example cites an item "reported by subagent qr-3" while nothing ever asked a subagent for one,
-and an Agent call inherits neither a `--system-prompt-file` prompt nor an output style
-(`docs/system-prompt-anatomy.md`, "Sub-agents"). The dispatch prompt is the only channel that
-reaches every agent type, so the rule sits on the call; `agents/` would miss Explore, Plan,
-general-purpose and plugin agents, and a `PreToolUse` hook on `Agent` would make a best-effort
-block a harness guarantee, which `docs/subagent-backgrounding.md` records this repo backing out
-of once already. The five definitions whose output contract is exclusive carry a notes slot so
-the ask does not contradict them. Retire it with the rest of the block.
+example cites an item "reported by subagent qr-3" while nothing ever asked a subagent for one.
+No file this repo installs can do the asking — an Agent call inherits neither a
+`--system-prompt-file` prompt nor an output style, and `Explore` and `Plan` set `omitClaudeMd`,
+so CLAUDE.md does not reach the two agent types dispatched most. The `SubagentStart` hook does:
+measured on 2.1.269, one `additionalContext` reached `Explore`, `general-purpose` and `Plan`
+alike, landing in the subagent's messages before its first turn. So the ask belongs to the hook
+and the prompt keeps only the half no hook can do — folding what returns into the parent's own
+block. This is not the arrangement `docs/subagent-backgrounding.md` records backing out of: that
+hook overrode a parameter the model had chosen, where this one overrides no decision and spends
+none of the parent's attention. All six definitions in `agents/` carry a notes slot so the ask
+does not contradict the ones that constrain their output. What is measured is delivery, not
+compliance: in the one end-to-end run, a `haiku` `Explore` agent given a `wc -l` question received
+the ask in full and returned no block, and the 214 tokens it costs bought nothing on that call.
+That is within a best-effort block's own terms — there was nothing to report — but it is also the
+whole of the evidence, so treat a non-trivial subagent task and a non-`haiku` model as the
+measurement still owed. Retire it with the rest of the block.
 
 ### `# Doing tasks` carries no docs order
 

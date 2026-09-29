@@ -62,6 +62,7 @@ mod hook_input;
 mod hook_post;
 mod hook_pre;
 mod hook_prompt;
+mod hook_subagent;
 mod ledger;
 mod meta;
 mod opencode;
@@ -181,6 +182,9 @@ enum Cmd {
     /// UserPromptSubmit hook: carries pending run status changes into a user turn.
     #[command(name = "hook-prompt")]
     HookPrompt,
+    /// SubagentStart hook: asks the spawning subagent for a Required notes block.
+    #[command(name = "hook-subagent-start")]
+    HookSubagentStart,
     /// pre_output script used in output styles
     #[command(name = "pre_output.record")]
     PreOutputRecord {
@@ -674,6 +678,13 @@ fn main() {
             }
             std::process::exit(0);
         }
+        Cmd::HookSubagentStart => {
+            if let Err(e) = hook_subagent::run() {
+                eprintln!("agent-tools hook-subagent-start: {e:#}");
+                std::process::exit(1);
+            }
+            std::process::exit(0);
+        }
         Cmd::Ps {
             task,
             session_id,
@@ -798,6 +809,7 @@ fn main() {
             Cmd::HookPre => unreachable!(),
             Cmd::HookPost => unreachable!(),
             Cmd::HookPrompt => unreachable!(),
+            Cmd::HookSubagentStart => unreachable!(),
             Cmd::Run { .. } => unreachable!(),
             Cmd::RunCore { .. } => unreachable!(),
             Cmd::Ps { .. } => unreachable!(),
