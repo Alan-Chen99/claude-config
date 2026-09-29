@@ -182,6 +182,7 @@ def main() -> int:
     facts: render.Facts = {
         "cwd": cwd,
         "is_git_repo": is_git_repo,
+        "clock": environment.clock_line(),
         "worktree_common_dir": environment.worktree_common_dir(cwd),
         "shell": resolved_shell(),
         "session_id": session_id,

@@ -9,8 +9,11 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
+from datetime import datetime
 from pathlib import Path
 from typing import cast
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -143,6 +146,130 @@ def test_raises_when_no_shell_exists(tmp_path: Path) -> None:
         assert "no bash or zsh" in str(exc).lower()
     else:
         raise AssertionError("expected RuntimeError")
+
+
+def _fake_zoneinfo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A zoneinfo tree holding America/New_York, Etc/UTC and UTC.
+
+    Real zone files copied rather than empty stand-ins: `clock_line` hands the
+    names it recovers to nothing, but `_zone_name`'s is_file() check and the
+    `UTC` alias that makes the /UTC artifact resolve both depend on the layout
+    being the one a real tree has.
+    """
+    root = tmp_path / "zoneinfo"
+    for name in ("America/New_York", "Etc/UTC"):
+        dest = root / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"TZif")
+    (root / "UTC").write_bytes(b"TZif")
+    monkeypatch.setattr(environment, "ZONEINFO", root)
+    return root
+
+
+def test_local_zone_name_prefers_tz(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake_zoneinfo(tmp_path, monkeypatch)
+    etc = tmp_path / "etc"
+    etc.mkdir()
+    (etc / "timezone").write_text("Etc/UTC\n")
+    assert (
+        environment.local_zone_name({"TZ": "America/New_York"}, etc=etc)
+        == "America/New_York"
+    )
+
+
+def test_local_zone_name_falls_back_to_etc_timezone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fake_zoneinfo(tmp_path, monkeypatch)
+    etc = tmp_path / "etc"
+    etc.mkdir()
+    (etc / "timezone").write_text("America/New_York\n")
+    assert environment.local_zone_name({}, etc=etc) == "America/New_York"
+
+
+def test_local_zone_name_falls_back_to_localtime_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The last resort, and the only one an Arch or macOS host leaves behind."""
+    root = _fake_zoneinfo(tmp_path, monkeypatch)
+    etc = tmp_path / "etc"
+    etc.mkdir()
+    (etc / "localtime").symlink_to(root / "America/New_York")
+    assert environment.local_zone_name({}, etc=etc) == "America/New_York"
+
+
+def test_local_zone_name_rejects_the_tzdata_postinst_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`/UTC` resolves to a real file and still names no zone.
+
+    apt's tzdata postinst writes it into /etc/timezone when debconf has no
+    answer to give -- measured in this repo's own container, where
+    /etc/localtime pointed at `/usr/share/zoneinfo//UTC`. It resolves, so only
+    the leading slash distinguishes it from a name, and reporting it would put
+    a string in the block that `ZoneInfo()` cannot look up.
+    """
+    root = _fake_zoneinfo(tmp_path, monkeypatch)
+    assert (root / "UTC").is_file()
+
+    etc = tmp_path / "etc"
+    etc.mkdir()
+    (etc / "timezone").write_text("/UTC\n")
+    assert environment.local_zone_name({}, etc=etc) is None
+
+    (etc / "localtime").symlink_to(root / "UTC")
+    assert environment.local_zone_name({}, etc=etc) == "UTC"
+
+
+def test_local_zone_name_none_when_nothing_states_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fake_zoneinfo(tmp_path, monkeypatch)
+    etc = tmp_path / "etc"
+    etc.mkdir()
+    assert environment.local_zone_name({}, etc=etc) is None
+
+
+def test_clock_line_always_carries_an_offset(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The offset is the fact the bullet exists for, so it is never optional.
+
+    The zone name can be absent -- a machine that states none gets none rather
+    than a guess -- but an ISO stamp with no offset would leave the block
+    saying exactly as little as cc's own bare date.
+    """
+    monkeypatch.setattr(environment, "local_zone_name", lambda *_a, **_k: None)
+    line = environment.clock_line()
+    assert re.match(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d", line), line
+    # The abbreviation survives -- glibc always has one -- and the comma that
+    # would separate it from a zone name does not, which is what says the name
+    # was omitted rather than guessed at.
+    assert "," not in line, line
+
+
+def test_clock_line_reads_the_zone_the_process_was_given() -> None:
+    """TZ plus tzset() is how a personal-env container arrives, so it is how
+    this is exercised: the name, the abbreviation and the offset all have to
+    come out of the one zone rather than from two different sources.
+
+    The offset is compared against the zone's own rather than pinned to
+    -04:00, so the test says the same thing in March as in July.
+    """
+    before = os.environ.get("TZ")
+    try:
+        os.environ["TZ"] = "America/New_York"
+        time.tzset()
+        line = environment.clock_line()
+        expected = datetime.now(ZoneInfo("America/New_York"))
+        assert "(America/New_York, " in line, line
+        assert line.endswith(f", {expected.tzname()})"), line
+        offset = expected.strftime("%z")
+        assert f"{offset[:3]}:{offset[3:]}" in line, line
+    finally:
+        if before is None:
+            del os.environ["TZ"]
+        else:
+            os.environ["TZ"] = before
+        time.tzset()
 
 
 def test_is_git_repo_true_in_repo(tmp_path: Path) -> None:
@@ -492,6 +619,7 @@ def _facts(**overrides: object) -> render.Facts:
     base: dict[str, object] = {
         "cwd": "/root/claude-config-work",
         "is_git_repo": True,
+        "clock": "2026-09-29T01:07:01-04:00 (America/New_York, EDT)",
         "worktree_common_dir": None,
         "shell": "/bin/bash",
         "session_id": "abc-123",
@@ -513,6 +641,21 @@ def test_env_block_has_expected_bullets() -> None:
     )
     assert " - Shell the Bash tool runs: /bin/bash" in text
     assert " - Session ID: abc-123" in text
+
+
+def test_clock_bullet_reads_ccs_date_line_for_the_agent() -> None:
+    """The offset, and what cc's own date line means without one.
+
+    cc sends `Today's date is YYYY-MM-DD.` and nothing else about the clock,
+    so an agent asked when a UTC deadline falls has a local date and no way to
+    know it is local. The bullet has to carry both halves: the offset, and the
+    statement that cc's date is not the UTC date whenever they differ.
+    """
+    text = render.sections(_facts())
+    assert " - Clock at session start: 2026-09-29T01:07:01-04:00 " in text
+    assert "(America/New_York, EDT)" in text
+    assert "`Today's date is` line is a local date" in text
+    assert "not the UTC date whenever the two differ" in text
 
 
 def test_the_block_states_nothing_cc_already_states() -> None:
@@ -583,7 +726,7 @@ def test_full_text_matches_snapshot_when_fully_populated() -> None:
     text = render.sections(
         _facts(drift_note="Claude Code 2.1.240 changed its env block.")
     )
-    expected = "# Environment (supplement)\nFacts and rules Claude Code's own environment block does not carry:\n - Shell the Bash tool runs: /bin/bash\n - Session ID: abc-123\n - NOTE: Claude Code 2.1.240 changed its env block.\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given."
+    expected = "# Environment (supplement)\nFacts and rules Claude Code's own environment block does not carry:\n - Clock at session start: 2026-09-29T01:07:01-04:00 (America/New_York, EDT). Claude Code's `Today's date is` line is a local date in this zone carrying no zone or offset of its own, so it is not the UTC date whenever the two differ; `date -Iseconds` and `date -u` are authoritative for the current time.\n - Shell the Bash tool runs: /bin/bash\n - Session ID: abc-123\n - NOTE: Claude Code 2.1.240 changed its env block.\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given."
     assert text == expected
 
 
@@ -592,7 +735,7 @@ def test_full_text_matches_snapshot_for_worktree() -> None:
     lines' exact wording and position in the bullet order.
     """
     text = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
-    expected = '# Environment (supplement)\nFacts and rules Claude Code\'s own environment block does not carry:\n - The checkout this worktree belongs to is /repos/claude-config: reading it is fine, but do not edit, commit, or build there.\n - The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session\'s changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m "<unique-tag>"`, immediately capture your entry\'s SHA via `git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first.\n - Shell the Bash tool runs: /bin/bash\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
+    expected = '# Environment (supplement)\nFacts and rules Claude Code\'s own environment block does not carry:\n - The checkout this worktree belongs to is /repos/claude-config: reading it is fine, but do not edit, commit, or build there.\n - The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session\'s changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m "<unique-tag>"`, immediately capture your entry\'s SHA via `git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first.\n - Clock at session start: 2026-09-29T01:07:01-04:00 (America/New_York, EDT). Claude Code\'s `Today\'s date is` line is a local date in this zone carrying no zone or offset of its own, so it is not the UTC date whenever the two differ; `date -Iseconds` and `date -u` are authoritative for the current time.\n - Shell the Bash tool runs: /bin/bash\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
     assert text == expected
 
 

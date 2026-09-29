@@ -4,10 +4,11 @@ Bullets use the ` - ` prefix Claude Code's own formatter emits (`RT`,
 chunk-dbb93264.js:29113), so the bullet formatting matches the block cc
 produces in sessions that use its default prompt. The content itself
 deliberately diverges from cc's own env block (`AWr`,
-chunk-dbb93264.js:29195) in three places: `Shell` reports the shell the Bash
+chunk-dbb93264.js:29195) in four places: `Shell` reports the shell the Bash
 tool actually runs, where cc reports `$SHELL` or the literal `unknown`;
-`Session ID` has no cc equivalent; and the worktree line names the checkout
-path, where cc's own version names none.
+`Session ID` has no cc equivalent; the worktree line names the checkout
+path, where cc's own version names none; and the clock line puts an offset and
+a zone on a date cc states bare.
 
 The reason once given for that third divergence -- that cc's line describes
 only a worktree it created and owns -- stopped being true in 2.1.269, which
@@ -76,6 +77,7 @@ class Facts(TypedDict):
 
     cwd: str
     is_git_repo: bool
+    clock: str
     shell: str
     session_id: str
     worktree_common_dir: NotRequired[str | None]
@@ -119,6 +121,24 @@ def environment_section(facts: Facts) -> str:
             )
         )
         items.append(STASH_CAUTION)
+
+    # cc states the date and nothing else about the clock: `currentDate` is a
+    # bare `Today's date is YYYY-MM-DD.` built from local-time getters
+    # (`s0n()`, chunk-4zcseazt.js:206, reached from `currentDate` at
+    # chunk-dbb93264.js:69507), and no offset, zone or time of day accompanies
+    # it anywhere in the context. A local date alone does not say which day it
+    # is in UTC -- west of Greenwich the two differ for the last hours of every
+    # evening -- so the offset is the fact that makes cc's line readable, and
+    # the zone name is what makes the next transition predictable.
+    items.append(
+        (
+            f"Clock at session start: {facts['clock']}. Claude Code's "
+            "`Today's date is` line is a local date in this zone carrying no "
+            "zone or offset of its own, so it is not the UTC date whenever the "
+            "two differ; `date -Iseconds` and `date -u` are authoritative for "
+            "the current time."
+        )
+    )
 
     # Labelled, not `Shell:`, because cc's block carries a `Shell:` line of its
     # own reporting a different quantity -- measured in a live session on

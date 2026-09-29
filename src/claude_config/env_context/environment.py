@@ -13,9 +13,110 @@ import os
 import shutil
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
+from datetime import datetime
+from pathlib import Path
 from typing import TypedDict
 
 SEARCH_DIRS: tuple[str, ...] = ("/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin")
+
+ZONEINFO = Path("/usr/share/zoneinfo")
+
+
+def _zone_name(candidate: str) -> str | None:
+    """`candidate` if it names a zone under ZONEINFO, else None.
+
+    The file check is what separates a zone name from a string that merely
+    looks like one, and the two syntactic rejections carry their own weight:
+    `/UTC` is what apt's tzdata postinst writes into /etc/timezone when
+    debconf has nothing to answer from, and it resolves to a real file
+    (`ZONEINFO//UTC`) while naming nothing `ZoneInfo()` or another host can
+    look up. `..` is rejected for the same reason — a path that resolves is
+    not a name.
+    """
+    name = candidate.strip()
+    if not name or name.startswith("/") or ".." in name:
+        return None
+    return name if (ZONEINFO / name).is_file() else None
+
+
+def _read(path: Path) -> str | None:
+    """File contents, or None when the file is absent or unreadable.
+
+    A probe, not a suppressed error: every caller below is asking whether a
+    given machine states its timezone, and "it does not" is one of the
+    answers, indistinguishable in effect from a directory that cannot be read.
+    """
+    try:
+        return path.read_text()
+    except OSError:
+        return None
+
+
+def local_zone_name(
+    env: Mapping[str, str] | None = None, etc: Path | None = None
+) -> str | None:
+    """The IANA name of the local zone, or None when nothing states one.
+
+    No stdlib call answers this. A tzfile carries offsets and abbreviations
+    but not its own name, which is why the name has to be recovered from
+    whichever of three places wrote it, consulted in the order the C library
+    resolves them: TZ, which glibc reads ahead of both files and which
+    `docker-compose.yml` sets for every personal-env container; then
+    /etc/timezone, which Debian and Ubuntu hosts write; then the
+    ZONEINFO-relative target of the /etc/localtime symlink, all that is left
+    on a host with no /etc/timezone at all.
+
+    Three candidates rather than one because this hook runs on the host and
+    inside the container, and those two machines state it differently. `etc`
+    is where the two files are looked for, the same injection `resolve_shell`
+    takes for its search dirs, and for the same reason: the fallbacks are two
+    thirds of the behaviour and are otherwise reachable only on a machine
+    configured to exercise them.
+
+    A corrupted zoneinfo tree is out of reach here and deliberately so. Where
+    a bind mount has replaced the file ZONEINFO/Etc/UTC with another zone's,
+    every reading inside that container agrees with every other -- the name,
+    the offset, the abbreviation and `ZoneInfo()` all come from the swapped
+    bytes -- so no comparison made here can see it. The fix is to not mount
+    that way; `docker-compose.yml` carries why.
+    """
+    env = os.environ if env is None else env
+    etc = Path("/etc") if etc is None else etc
+
+    if name := _zone_name(env.get("TZ", "")):
+        return name
+    if (written := _read(etc / "timezone")) and (name := _zone_name(written)):
+        return name
+    try:
+        target = (etc / "localtime").readlink()
+    except OSError:
+        return None
+    try:
+        return _zone_name(str(target.relative_to(ZONEINFO)))
+    except ValueError:
+        return None
+
+
+def clock_line() -> str:
+    """Local time now, with its offset and whatever names its zone.
+
+    `astimezone()` on a naive now attaches the zone the C library resolved, so
+    the offset and the abbreviation are always available and always agree with
+    what `date` prints in the same shell. The IANA name is not always
+    available, and an unavailable one is omitted rather than guessed: DST
+    arithmetic turns on the name, so a wrong one is worse than none.
+
+    No `env` parameter, unlike its collaborators: the offset comes from the
+    process's own clock and only `tzset()` moves it, so an injected mapping
+    could name one zone while the offset beside it came from another. A test
+    that wants a different zone sets TZ and calls `time.tzset()`, which is
+    what the process does when compose hands it one.
+    """
+    now = datetime.now().astimezone()
+    zone = local_zone_name()
+    named = ", ".join(part for part in (zone, now.tzname()) if part)
+    stamp = now.isoformat(timespec="seconds")
+    return f"{stamp} ({named})" if named else stamp
 
 
 def _executable(path: str) -> bool:
