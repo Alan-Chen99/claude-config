@@ -62,6 +62,7 @@ mod hook_input;
 mod hook_post;
 mod hook_pre;
 mod hook_prompt;
+mod hook_provenance;
 mod hook_subagent;
 mod ledger;
 mod meta;
@@ -185,6 +186,10 @@ enum Cmd {
     /// SubagentStart hook: asks the spawning subagent for a Required notes block.
     #[command(name = "hook-subagent-start")]
     HookSubagentStart,
+    /// PreToolUse and Stop hook: writes the launch configuration into the
+    /// session transcript, once, where the model never sees it.
+    #[command(name = "hook-provenance")]
+    HookProvenance,
     /// pre_output script used in output styles
     #[command(name = "pre_output.record")]
     PreOutputRecord {
@@ -685,6 +690,15 @@ fn main() {
             }
             std::process::exit(0);
         }
+        // Exits 0 whatever happens: a PreToolUse hook's exit code is a
+        // permission verdict, and provenance must never block a tool call.
+        // Failures are reported inside the block instead -- see the module.
+        Cmd::HookProvenance => {
+            if let Err(e) = hook_provenance::run() {
+                eprintln!("agent-tools hook-provenance: {e:#}");
+            }
+            std::process::exit(0);
+        }
         Cmd::Ps {
             task,
             session_id,
@@ -810,6 +824,7 @@ fn main() {
             Cmd::HookPost => unreachable!(),
             Cmd::HookPrompt => unreachable!(),
             Cmd::HookSubagentStart => unreachable!(),
+            Cmd::HookProvenance => unreachable!(),
             Cmd::Run { .. } => unreachable!(),
             Cmd::RunCore { .. } => unreachable!(),
             Cmd::Ps { .. } => unreachable!(),

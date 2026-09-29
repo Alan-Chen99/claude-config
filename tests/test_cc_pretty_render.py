@@ -772,3 +772,90 @@ def test_a_malformed_source_renders_instead_of_aborting_the_file(tmp_path) -> No
     assert "still here" in out
     assert out.count("◆ image") == 2
     assert "still here" in _render(jsonl, "--skeleton")
+
+
+# ─── hook_success stdout (the write-only channel into a transcript) ─────────
+#
+# Claude Code fills `attachment.content` with a hook's stdout only when that
+# stdout was not itself hook JSON — a JSON-emitting hook leaves it empty. On
+# PreToolUse/PostToolUse/Stop that text never reaches the model, so the
+# transcript is the only place it exists and the renderer is the only thing
+# that shows it.
+
+
+def _hook_success(content: str, event: str = "Stop", stdout: str | None = None) -> AttachmentRecord:
+    return AttachmentRecord(
+        type="attachment",
+        attachment=AttachmentData(
+            type="hook_success",
+            hookName=event,
+            hookEvent=event,
+            content=content,
+            stdout=content if stdout is None else stdout,
+            exitCode=0,
+            durationMs=4,
+        ),
+    )
+
+
+def test_hook_success_stdout_is_printed_not_summarised_away() -> None:
+    r = Renderer("/tmp/log.jsonl", tool_output_max=200, tool_input_max=200)
+    out = r.render_attachment(_hook_success("<launch-provenance v1>\nsession:  s1"), ts="00:00:00", lineno=7)
+    assert out is not None
+    assert "hook Stop" in out
+    assert "<launch-provenance v1>" in out
+    assert "session:  s1" in out
+
+
+def test_a_json_emitting_hook_still_renders_as_one_line() -> None:
+    """The 5,000-odd PreToolUse records a real session carries keep `content`
+    empty, and must not gain a body."""
+    r = Renderer("/tmp/log.jsonl", tool_output_max=200, tool_input_max=200)
+    out = r.render_attachment(_hook_success("", event="PreToolUse"), ts="00:00:00", lineno=7)
+    assert out is not None
+    assert out.count("\n") == 0
+
+
+def test_long_hook_stdout_is_truncated_with_a_recovery_recipe() -> None:
+    r = Renderer("/tmp/log.jsonl", tool_output_max=50, tool_input_max=200)
+    out = r.render_attachment(_hook_success("P" * 4000), ts="00:00:00", lineno=9)
+    assert out is not None
+    assert "…full:" in out
+    assert ".attachment.stdout" in out
+    assert len(out) < 1000
+
+
+def test_a_persisted_output_stub_is_not_what_the_reader_gets() -> None:
+    """Past roughly 2 KB Claude Code swaps `content` for a stub naming a file
+    beside the log; `stdout` keeps the text itself."""
+    r = Renderer("/tmp/log.jsonl", tool_output_max=200, tool_input_max=200)
+    out = r.render_attachment(
+        _hook_success(
+            "<persisted-output>\nOutput too large (12.4KB). Full output saved to: /x/y.txt",
+            stdout="<launch-provenance v1>\nsession:  s1\n</launch-provenance v1>",
+        ),
+        ts="00:00:00",
+        lineno=7,
+    )
+    assert out is not None
+    assert "<launch-provenance v1>" in out
+    assert "persisted-output" not in out
+
+
+def test_hook_stdout_reaches_the_reader_only_under_show_all(tmp_path) -> None:
+    """Its whole point is to stay out of the model's context, so the default
+    view — which shows what the model was sent — must not carry it."""
+    jsonl = tmp_path / "session.jsonl"
+    jsonl.write_text(json.dumps({
+        "type": "attachment",
+        "uuid": "u1",
+        "attachment": {
+            "type": "hook_success", "hookName": "Stop", "hookEvent": "Stop",
+            "content": "<launch-provenance v1>\nsession:  s1\n</launch-provenance v1>",
+            "stdout": "<launch-provenance v1>\n", "stderr": "", "exitCode": 0,
+            "command": "agent-tools hook-provenance", "durationMs": 4,
+        },
+        "version": "2.1.269",
+    }) + "\n")
+    assert "launch-provenance" not in _run_cli(jsonl).stdout
+    assert "launch-provenance" in _run_cli(jsonl, "--show-all").stdout

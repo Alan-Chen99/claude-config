@@ -45,8 +45,12 @@ variable unset, so a server-side GrowthBook flip cannot redefine it mid-trial.
 
 ## Arm recovery
 
-No bookkeeping. Claude Code writes the marker into the session transcript as
-`attachment` records, so the arm is read off the JSONL:
+Two independent readings, and they answer different questions. The delivered
+treatment is read off the markers; the configuration that produced it is read
+off a provenance record the session writes for itself.
+
+**What was delivered.** Claude Code writes the marker into the session
+transcript as `attachment` records, so the count separates the two arms:
 
 ```bash
 python3 - <<'EOF'
@@ -62,6 +66,31 @@ EOF
 short-circuit the attachment set and the static block alike. Neither is set on
 this machine today. If either is ever set, sessions from that period are
 unlabelable and must be dropped rather than counted as `off`.
+
+**What was configured.** `agent-tools hook-provenance` writes the launch
+configuration into the same JSONL, out of the model's context — the launcher
+chain verbatim, every `CLAUDE_CODE_*` variable in force, and every settings file
+that could have been read:
+
+```bash
+jq -r 'select(.attachment.type=="hook_success") | .attachment.stdout
+       | select(startswith("<launch-provenance"))' <session>.jsonl
+```
+
+That is the reading a marker count cannot give. A count says which arm the
+session ran; it does not say which set of arms the draw was over, and with two
+arms that difference is invisible because the answer can only be one of two
+things. A third arm ends that: `off` still leaves no markers, but two treatment
+arms both leave markers, and separating them means knowing the budget each was
+meant to emit — which lives in the launcher and nowhere else. The launcher's own
+text is in the record, so the arm set is recoverable from the session even when
+the file it came from was uncommitted at the time and has since been rewritten.
+
+`grep -L '<launch-provenance' ` over the randomized sessions is also the check
+that the draw is still happening at all: a session with no provenance record and
+no marker is not an `off` session, it is an unlabelled one. The record dates from
+2026-09-29, so sessions before that carry only the marker count and the
+`off`/`padded-countdown` inference it supports.
 
 ## Gating check, before any outcome is read
 

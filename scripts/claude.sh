@@ -29,7 +29,16 @@ export CLAUDE_CODE_TMPDIR="$HOME/.claude/tmp"
 # readlink -f resolves the ~/.local/bin/claude.sh symlink, so the prompt loaded
 # belongs to the checkout the script physically lives in: the canonical repo via
 # the installed symlink, or a worktree's own prompt when that copy is run by path.
-REPO_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+CLAUDE_SH_SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+REPO_DIR="$(cd "$(dirname "$CLAUDE_SH_SELF")/.." && pwd)"
+
+# The chain of launchers that configured this session, in order, appended by
+# each one it passes through. `agent-tools hook-provenance` records it into the
+# transcript; nothing else can recover it, because the `exec` below replaces
+# this shell and leaves no process to walk back to. Assigned before the export
+# so a failed `readlink` is not masked by `export`'s own exit status, which
+# would hand the chain a truncated entry under `set -e`.
+export CLAUDE_SH_LAUNCHERS="${CLAUDE_SH_LAUNCHERS:+$CLAUDE_SH_LAUNCHERS:}$CLAUDE_SH_SELF"
 
 # Request interception is optional, and HTTPS_PROXY pointed at a dead listener
 # fails every request with ECONNREFUSED, surfacing inside claude as "Unable to

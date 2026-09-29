@@ -298,6 +298,24 @@ index). Hook/attachment records: `.attachment.content`. Rewound lines and
 pre-compaction legs stay in the file — sed/jq extraction bypasses all
 pretty-side hiding.
 
+A hook's plain stdout is in the file but not in the model's context: Claude Code
+records it as a `hook_success` attachment and converts it into a
+`<system-reminder>` only for `SessionStart`, `UserPromptSubmit` and
+`UserPromptExpansion`. Read it from `.attachment.stdout`, not
+`.attachment.content` — past roughly 2 KB the latter is replaced by a
+`<persisted-output>` stub naming a file beside the log. This is where a session
+states the configuration it ran under, which the conversation itself never says:
+
+```bash
+jq -r 'select(.attachment.type=="hook_success") | .attachment.stdout
+       | select(startswith("<launch-provenance"))' <session>.jsonl
+```
+
+The block names the launcher chain and quotes each launcher and settings file in
+full, so a question about what a session was configured to do is answered from
+the session rather than from today's checkout. Absent in sessions before
+2026-09-29, and in any session not started through a repo launcher.
+
 ## Mode: evidence
 
 ### Invariants

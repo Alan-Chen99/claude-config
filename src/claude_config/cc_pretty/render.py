@@ -934,10 +934,33 @@ class Renderer:
             return "\n".join(lines)
 
         if atype == "hook_success":
-            return (
+            head = (
                 f"{C.DIM}  ⊙ hook {a.hookName or '?'}: "
                 f"exit {a.exitCode}, {fmt_duration(a.durationMs)}{C.RESET}"
             )
+            # `content` holds a hook's stdout only when that stdout was not
+            # itself hook JSON — Claude Code parses JSON output and leaves this
+            # field empty. So a non-empty `content` is a hook writing plain text
+            # into the transcript, which for every event but SessionStart,
+            # UserPromptSubmit and UserPromptExpansion the model never sees.
+            # Nothing else prints it, and a record nothing prints is a record
+            # nobody reads.
+            #
+            # The text comes from `stdout` rather than from that same `content`:
+            # past roughly 2 KB Claude Code replaces `content` with a
+            # `<persisted-output>` stub naming a file beside the log, while
+            # `stdout` keeps the whole thing inside the record (measured to
+            # 204,016 bytes on 2.1.269). A stub is what the reader would
+            # otherwise get for exactly the hooks whose output is worth reading.
+            if not str(a.content or ""):
+                return head
+            body = str(a.stdout or a.content or "")
+            return "\n".join([
+                head,
+                ind(trunc(body, self.tool_output_max), "    "),
+                *([self._hint(lineno, None, ".attachment.stdout")]
+                  if len(body) > self.tool_output_max else []),
+            ])
 
         if atype == "hook_non_blocking_error":
             err = trunc(a.stderr or str(a.content) or "?", self.tool_output_max)
