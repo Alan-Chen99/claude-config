@@ -1952,6 +1952,11 @@ def test_wrong_type_session_id_exits_loudly_naming_the_contract() -> None:
     assert "Traceback" not in result.stderr
 
 
+# The clock line carries the instant the hook ran, to the second, so renders
+# taken either side of a second boundary differ on it and on nothing else.
+_CLOCK_INSTANT = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}")
+
+
 def test_the_payload_model_field_is_ignored_whatever_its_shape(tmp_path: Path) -> None:
     """The hook stopped reading `model` on 2026-09-13, when the model bullet
     went as a duplicate of cc's own richer line.
@@ -1975,7 +1980,10 @@ def test_the_payload_model_field_is_ignored_whatever_its_shape(tmp_path: Path) -
         context = out["hookSpecificOutput"]["additionalContext"]
         assert "# Environment (supplement)" in context, model
         assert "powered by the model" not in context, model
-        rendered.append(context)
+        # Only the instant is normalized; the zone, the wording and every other
+        # line stay under comparison, so a model fact hidden in the clock line
+        # still breaks the invariant below.
+        rendered.append(_CLOCK_INSTANT.sub("<instant>", context))
 
     # The invariant, stated once: the field changes nothing at all. A model
     # fact reintroduced under any name would break this before it broke the
