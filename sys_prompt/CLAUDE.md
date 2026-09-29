@@ -473,7 +473,8 @@ final position were doing the recommending, and that is what changed, not the fa
 `docs/agent-tools-status-reference.md` was reconciled in the same change — it named `--background`
 as the form to reach for whenever a job outlives its call, and it is the prompt's exhaustive half,
 so an agent that reads it gets whichever default it states. `skills/telegram-hitl/SKILL.md` came
-under the same gate; its proxy keeps `--background` and now says why. The `TaskStop` half of the
+under the same gate; its proxy kept `--background` and said why, until the 2026-09-28 cut to a
+1000-token budget dropped the by-hand proxy start altogether — the systemd unit starts it. The `TaskStop` half of the
 trigger is measured on both sides in that doc, "The kill boundary". Retire or revisit this if
 `--background` gains a completion notification of its own.
 

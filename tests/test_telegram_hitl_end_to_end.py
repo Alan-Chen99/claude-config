@@ -1,13 +1,13 @@
 """One question, one answer, one acknowledgement, through the real process.
 
 Every other test drives a single layer. This one proves the layers fit, and that
-the recipes in `skills/telegram-hitl/SKILL.md` work against what the proxy
-actually writes — which nothing else checks, since those recipes live in a
-document and are only ever executed out of it.
+the reader in `skills/telegram-hitl/listen.py` works against what the proxy
+actually writes — which nothing else checks.
 """
 
 import json
 import os
+import runpy
 import signal
 import subprocess
 import sys
@@ -18,17 +18,7 @@ import pytest
 
 import claude_config
 
-SKILL = Path(__file__).resolve().parents[1] / "skills" / "telegram-hitl" / "SKILL.md"
-
-
-def _recipe(name: str) -> dict:
-    """Exec one marked python block from the skill and return its namespace."""
-    text = SKILL.read_text()
-    opening = text.index("```python", text.index(f"<!-- recipe: {name} -->"))
-    body = text[opening + len("```python"):text.index("```", opening + 3)]
-    namespace: dict = {}
-    exec(compile(body, str(SKILL), "exec"), namespace)
-    return namespace
+SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "telegram-hitl" / "listen.py"
 
 
 def _answering_fake(fake) -> None:
@@ -97,10 +87,9 @@ def proxy_process(tmp_path, fake_telegram):
 def test_a_whole_cycle_runs_through_the_real_process(proxy_process, unix_call) -> None:
     process, state, socket_path = proxy_process
     log = state / "channel.jsonl"
-    records = _recipe("read-log")["records"]
-    inbox = _recipe("answers")["inbox"]
-    inbound_state = _recipe("health")["inbound_state"]
-    topics = _recipe("topics")["topics"]
+    script = runpy.run_path(str(SCRIPT))
+    records, inbox, inbound_state, topics = (
+        script[name] for name in ("records", "inbox", "inbound_state", "topics"))
 
     def call(method: str, payload: dict) -> dict:
         status, answer = unix_call(

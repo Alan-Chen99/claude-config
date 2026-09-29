@@ -1,29 +1,32 @@
-"""The skill's recipes are executable, so they get executed here."""
+"""The skill's reader is a script, so the script gets executed here; the rules
+the skill states in prose are pinned by string, because agents copy the page."""
 
 import json
+import os
+import runpy
+import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
-SKILL = Path(__file__).resolve().parents[1] / "skills" / "telegram-hitl" / "SKILL.md"
+from claude_config.count_tokens import _count_local
+
+SKILL_DIR = Path(__file__).resolve().parents[1] / "skills" / "telegram-hitl"
+SKILL = SKILL_DIR / "SKILL.md"
+SCRIPT = SKILL_DIR / "listen.py"
 
 
-def _recipe(*names: str) -> dict:
-    """Exec marked python blocks from the skill into one shared namespace.
+def _script() -> dict:
+    """The script's namespace, loaded without running its command line."""
+    return runpy.run_path(str(SCRIPT))
 
-    Several names because the skill's listener calls the reader, the inbox and
-    the health check by name, the way the file an agent assembles does.
-    """
-    text = SKILL.read_text()
-    namespace: dict = {}
-    for name in names:
-        marker = f"<!-- recipe: {name} -->"
-        assert marker in text, f"the skill has no recipe marked {name}"
-        opening = text.index("```python", text.index(marker))
-        body = text[opening + len("```python"):text.index("```", opening + 3)]
-        exec(compile(body, str(SKILL), "exec"), namespace)
-    return namespace
+
+def _cli(tmp_path: Path, *args: str) -> subprocess.Popen:
+    return subprocess.Popen([sys.executable, str(SCRIPT), *args],
+                            stdout=subprocess.PIPE, text=True,
+                            env=os.environ | {"TELEGRAM_HITL_STATE_DIR": str(tmp_path)})
 
 
 class _Slept(Exception):
@@ -37,7 +40,7 @@ def test_the_log_reader_skips_a_partial_final_line(tmp_path) -> None:
                      b'{"kind":"inbound","update":{"update_id":1}}\n'
                      b'{"kind":"inbound","update":{"upda')
 
-    records = _recipe("read-log")["records"]
+    records = _script()["records"]
 
     assert [r["kind"] for r in records(path)] == ["proxy", "inbound"]
 
@@ -49,7 +52,7 @@ def test_the_log_reader_surfaces_a_damaged_line_and_keeps_going(tmp_path) -> Non
                      b'{"kind":"outbound","method":"sendMes\n'
                      b'{"kind":"inbound","update":{"update_id":9}}\n')
 
-    records = _recipe("read-log")["records"]
+    records = _script()["records"]
 
     found = list(records(path))
     assert [r["kind"] for r in found] == ["proxy", "damaged", "inbound"]
@@ -62,7 +65,7 @@ def test_the_inbox_takes_whatever_the_human_typed_in_your_own_topic() -> None:
     Its past is not, though. Reading a topic whole reaches back to the service
     message that opened it, and to every message already dealt with.
     """
-    inbox = _recipe("answers")["inbox"]
+    inbox = _script()["inbox"]
     log = [
         {"kind": "inbound", "update": {"message": {
             "message_id": 6, "message_thread_id": 6, "is_topic_message": True,
@@ -86,7 +89,7 @@ def test_the_inbox_catches_a_reply_that_landed_outside_the_topic() -> None:
     """Measured live: an answer sent outside a topic carries no thread id at
     all, and a message to the bot's DM arrives in a private chat that has none
     to carry. A topic filter alone loses both."""
-    inbox = _recipe("answers")["inbox"]
+    inbox = _script()["inbox"]
     log = [
         {"kind": "inbound", "update": {"message": {
             "message_id": 31, "text": "yes, ship it",
@@ -103,7 +106,7 @@ def test_the_inbox_catches_a_reply_that_landed_outside_the_topic() -> None:
 
 def test_the_topic_registry_is_reconstructed_from_the_log() -> None:
     """There is no getForumTopics, so the log is the only registry there is."""
-    topics = _recipe("topics")["topics"]
+    topics = _script()["topics"]
     log = [
         {"kind": "outbound", "method": "createForumTopic", "params": {"name": "alpha"},
          "response": {"ok": True, "result": {"message_thread_id": 6, "name": "alpha"}}},
@@ -127,7 +130,7 @@ def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> No
     failed poll is not one of them — measured live, one cleared 26 seconds
     later, and treating it as a dead channel abandoned an answer still coming.
     """
-    inbound_state = _recipe("health")["inbound_state"]
+    inbound_state = _script()["inbound_state"]
     now = datetime.now(UTC)
 
     def at(seconds_ago: float) -> str:
@@ -163,7 +166,7 @@ def test_the_listener_announces_each_message_once_and_says_what_the_channel_is(
     watermark on disk is the whole of the listener's memory. Replaying a topic
     is a notification flood; advancing past a message is a lost answer.
     """
-    namespace = _recipe("read-log", "answers", "health", "listen")
+    namespace = _script()
     monkeypatch.setattr(namespace["time"], "sleep", lambda _: (_ for _ in ()).throw(_Slept()))
     path = tmp_path / "channel.jsonl"
     path.write_text("".join(json.dumps(record) + "\n" for record in [
@@ -175,12 +178,15 @@ def test_the_listener_announces_each_message_once_and_says_what_the_channel_is(
         {"kind": "outbound", "method": "sendMessage",
          "params": {"message_thread_id": 6, "text": "Ship it?"},
          "response": {"ok": True, "result": {"message_id": 51}}},
+        # a send whose body was not JSON: the proxy logs its params as a string
+        {"kind": "outbound", "method": "sendMessage", "params": "chat_id=1&text=hi",
+         "response": {"ok": True, "result": {"message_id": 3}}},
         {"kind": "inbound", "update": {"update_id": 11, "message": {
             "message_id": 52, "message_thread_id": 6, "is_topic_message": True,
-            "text": "ship it,\nand bump\tthe version"}}},
+            "chat": {"id": -100}, "text": "ship it,\nand bump\tthe version"}}},
         # a reply from the bot's DM: low message id, own update_id sequence
         {"kind": "inbound", "update": {"update_id": 12, "message": {
-            "message_id": 4, "text": "one more thing",
+            "message_id": 4, "chat": {"id": 4242}, "text": "one more thing",
             "reply_to_message": {"message_id": 51}}}},
     ]))
 
@@ -193,13 +199,71 @@ def test_the_listener_announces_each_message_once_and_says_what_the_channel_is(
 
     first = one_pass(0)
 
-    # the topic's own service message is not an announcement, the DM reply is,
-    # and a message arrives as one line however the human typed it
-    assert first == [("ship it, and bump the version", 11),
-                     ("one more thing", 12),
+    # the topic's own service message is not an announcement, the DM reply is
+    # and says so, and a message arrives as one line however the human typed
+    # it, carrying the ids a reaction or a reply needs
+    assert first == [("message 52 in chat -100: ship it, and bump the version", 11),
+                     ("message 4 in chat 4242, reply to 51: one more thing", 12),
                      ("channel up", 12)]
     # the re-arm reports the channel it armed against and nothing else
     assert one_pass(first[-1][1]) == [("channel up", 12)]
+
+
+def test_the_topics_command_lists_the_forum_and_who_has_sent_in_each_topic(tmp_path) -> None:
+    """What an agent runs before joining a topic instead of writing a reader."""
+    (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
+        {"kind": "outbound", "method": "createForumTopic", "session": "s1",
+         "params": {"name": "beta"},
+         "response": {"ok": True, "result": {"message_thread_id": 9, "name": "beta"}}},
+        {"kind": "outbound", "method": "createForumTopic", "session": "s1",
+         "params": {"name": "alpha"},
+         "response": {"ok": True, "result": {"message_thread_id": 6, "name": "alpha"}}},
+        {"kind": "outbound", "method": "sendMessage", "session": None,
+         "params": {"message_thread_id": 6, "text": "hi"},
+         "response": {"ok": True, "result": {"message_id": 7}}},
+        {"kind": "outbound", "method": "sendMessage", "session": "s2",
+         "params": {"message_thread_id": 6, "text": "continuing"},
+         "response": {"ok": True, "result": {"message_id": 8}}},
+    ]))
+
+    process = _cli(tmp_path, "topics")
+    out, _ = process.communicate(timeout=20)
+
+    assert process.returncode == 0
+    assert out == "6\talpha\ts1 s2  +1 unattributed\n9\tbeta\ts1\n"
+
+
+def test_from_now_seeds_an_absent_watermark_and_leaves_an_existing_one_alone(tmp_path) -> None:
+    """A joined topic's history is not a notification stream; a re-arm
+    carrying the same flag must not move the watermark the last arm left; and
+    an agent that touches the file first has not asked to start anywhere."""
+    (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
+        {"kind": "proxy", "event": "started"},
+        {"kind": "inbound", "update": {"update_id": 40, "message": {
+            "message_id": 7, "message_thread_id": 6, "is_topic_message": True,
+            "chat": {"id": -100}, "text": "old"}}},
+    ]))
+    mark = tmp_path / "seen"
+
+    process = _cli(tmp_path, "6", str(mark), "--from-now")
+    try:
+        first = process.stdout.readline()
+    finally:
+        process.kill()
+        process.wait()
+    assert first == "channel up\n"
+    assert mark.read_text() == "40"
+
+    # an existing watermark wins over the flag; a touched, empty one means 0
+    for existing in ("39", ""):
+        mark.write_text(existing)
+        process = _cli(tmp_path, "6", str(mark), "--from-now")
+        try:
+            first = process.stdout.readline()
+        finally:
+            process.kill()
+            process.wait()
+        assert first == "message 7 in chat -100: old\n", existing
 
 
 def test_the_skill_names_the_session_variable_that_exists() -> None:
@@ -219,21 +283,23 @@ def test_the_skill_documents_every_refusal_the_proxy_returns(status) -> None:
     assert status in SKILL.read_text()
 
 
-@pytest.mark.parametrize("trap", [
-    "is_topic_message",          # message_thread_id carries two different ids
-    "MESSAGE_ID_INVALID",        # reactability is type-specific
-    "REACTION_INVALID",          # the reaction alphabet is fixed
-    "General",                   # the General topic is not addressable
-    "GroupAnonymousBot",         # a human answers as a bot, so is_bot filters drop them
-    "migrate_to_chat_id",        # enabling Topics changes the chat id
-    "partial",                   # reading a file under append needs care
-    "QUOTE_TEXT_INVALID",        # a quote must be exact, and in that very message
-    "forum_topic_created",       # every topic message replies to it, so the
-                                 # field's presence proves nothing
+@pytest.mark.parametrize(("where", "trap"), [
+    ("SKILL.md", "MESSAGE_ID_INVALID"),   # reactability is type-specific
+    ("SKILL.md", "REACTION_INVALID"),     # the reaction alphabet is fixed
+    ("SKILL.md", "General"),              # the General topic is not addressable
+    ("SKILL.md", "migrate_to_chat_id"),   # enabling Topics changes the chat id
+    ("SKILL.md", "QUOTE_TEXT_INVALID"),   # a quote must be exact, and in that very message
+    ("listen.py", "is_topic_message"),    # message_thread_id carries two different ids
+    ("listen.py", "GroupAnonymousBot"),   # a human answers as a bot, so is_bot filters drop them
+    ("listen.py", "partial"),             # reading a file under append needs care
+    ("listen.py", "forum_topic_created"), # every topic message replies to it, so the
+                                          # field's presence proves nothing
 ])
-def test_the_skill_still_carries_every_trap_that_cost_time(trap) -> None:
-    """These were measured the hard way; an edit must not quietly drop one."""
-    assert trap in SKILL.read_text()
+def test_the_skill_still_carries_every_trap_that_cost_time(where, trap) -> None:
+    """These were measured the hard way; an edit must not quietly drop one. The
+    ones a reader of the log meets live with the reader, the rest with the
+    rules a sender follows."""
+    assert trap in (SKILL_DIR / where).read_text()
 
 
 def test_the_senders_registry_says_which_sessions_have_been_in_a_topic() -> None:
@@ -241,7 +307,7 @@ def test_the_senders_registry_says_which_sessions_have_been_in_a_topic() -> None
     header is optional at the proxy, so the count of calls naming nobody is part
     of the answer rather than a detail to drop.
     """
-    senders = _recipe("senders")["senders"]
+    senders = _script()["senders"]
     log = [
         {"kind": "outbound", "method": "createForumTopic", "session": "s1",
          "params": {"name": "alpha"},
@@ -282,6 +348,13 @@ def test_every_call_the_skill_shows_names_its_caller() -> None:
     blocks = [block for block in SKILL.read_text().split("```")[1::2]
               if "--unix-socket" in block]
 
-    assert len(blocks) >= 4
+    assert blocks
     for block in blocks:
         assert "X-Session-Id: $CLAUDE_CODE_SESSION_ID" in block, block
+
+
+def test_the_skill_stays_inside_its_token_budget() -> None:
+    """Every addition is locally justified by a small expected saving and
+    nothing prices the sum; this budget is the price. Counted by the local
+    tokenizer, the number `agent-tools count-tokens` reports."""
+    assert _count_local(SKILL.read_text()) <= 1000

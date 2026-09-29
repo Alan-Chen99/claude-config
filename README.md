@@ -193,9 +193,10 @@ file, where a proxy restart is invisible — and the proxy never reacts to a
 message, because an acknowledgement would mask the one failure that matters: a
 message logged and picked up by nobody. [`systemd/telegram-hitl.service`](systemd/telegram-hitl.service)
 runs it, [`skills/telegram-hitl/`](skills/telegram-hitl/SKILL.md) carries the
-working rules and the Bot API traps, and six test modules drive it against a
-fake Bot API on loopback — the skill's Python recipes are executed out of the
-markdown by [the tests](tests/test_telegram_hitl_skill.py).
+working rules and the Bot API traps beside the log reader agents arm as a
+script, and six test modules drive it against a fake Bot API on loopback —
+[the tests](tests/test_telegram_hitl_skill.py) execute that script and pin the
+skill's token budget.
 
 ### Environment context with drift detection
 
