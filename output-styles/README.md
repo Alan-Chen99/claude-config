@@ -18,9 +18,10 @@ and [Built-in vs Custom Coding Rules](#built-in-vs-custom-coding-rules).
 Two versions (`alan-default`, `alan-default-next`) exist so `alan-default-next`
 can be modified without breaking the known-good fallback.
 
-`pre_output.record` is a prompt engineering technique, not actual recording — the
-script discards its argument and prints a `<system-reminder>` that re-surfaces
-behavioral rules at generation time. See [pre_output.record](#pre_outputrecord).
+`pre_output.record` is a prompt engineering technique first — the script prints a
+`<system-reminder>` that re-surfaces behavioral rules at generation time, and that
+is what the call is for. It also keeps the argument: the `summary` field becomes the
+body of the ntfy "Done" push. See [pre_output.record](#pre_outputrecord).
 
 Output style content does not appear in session logs — the system prompt is
 rebuilt each API call and never persisted to the JSONL transcript. See
@@ -204,17 +205,22 @@ The custom Coding section in `alan-default`/`alan-default-next` diverges:
 ### pre_output.record
 
 The `Before response` section in the output styles invokes
-`agent-tools pre_output.record`. Despite the name, this script records nothing.
-The JSON argument is accepted and discarded. The mechanism:
+`agent-tools pre_output.record`. The mechanism:
 
 1. The output style instructs Claude to call the script before every response.
 2. The script prints a `<system-reminder>` containing behavioral rules.
 3. Because tool results inject at the recency edge of context, these rules get
    high model attention at generation time.
 
-This is a prompt engineering technique for rule reinforcement — the "record"
-framing gives the model a plausible reason to make the tool call. The actual
-value is the printed reminder, not any state persistence.
+Rule reinforcement is the whole reason the section is mandatory, and it does not
+depend on the argument: composing the JSON is the breakpoint, and the reminder
+prints even when the argument is rejected.
+
+The argument is kept as well. `summary` becomes the body of the ntfy "Done" push
+(`src/claude_config/ntfy_hook.py`), so the notification carries the session's own
+sentence rather than a second model's reading of the transcript. That gives the
+model a second reason to write the field carefully, and it is why an argument
+with no usable `summary` now fails the call instead of being discarded.
 
 Source: `src/claude_config/pre_output/record.py` (wrapped by `agent-tools pre_output.record`; see `agent-tools/src/main.rs`)
 
