@@ -83,6 +83,36 @@ them. The difference is lifetime — one started inside a container dies with th
 container, while the host's service outlives every container and returns after a
 reboot.
 
+## Whether to send
+
+Every send is a push notification the human cannot defer, so the default is to
+block on it, and the block is what prices it: one message per answer. The
+unnotified lines below — entering a topic, leaving it — are not what this prices.
+
+**Block on it, or skip it.** "Important" means an answer changes your next step.
+If nothing you do next turns on the reply, skip it and leave the record where
+your work already is. Measured on this channel 2026-09-14 to 09-28, neither half
+held: 156 sends, 110,505 chars in the peak day — about 22,000 words — and 57%
+carried no question at all. Half were a second message sent before any answer,
+which blocking forbids outright.
+
+The block is cheaper than it sounds. Over 132 sends the human's next message
+arrived in a median of 10 minutes, 68% inside the hour, and a 24-hour cap was
+reached zero times. What you cannot know is whether this one is the 2-minute case
+or the 7-hour one — p90 is 418 minutes — and that uncertainty is the price.
+
+**Send without blocking only when the message and your own next step are both
+time-critical.** Measured, that is one thing: a correction to what you just sent.
+Six of 156 sends qualified on their own words and five of the six were
+corrections.
+
+**Correct by editing.** If no human message has arrived since the one you are
+fixing, they have not read it: `editMessageText` the original. That spends no
+notification and leaves no wrong text standing. Once they have replied the wrong
+text has been read, and the correction has to be its own message. Measured:
+`editMessageText` 0 uses in 156 sends, against 24 corrections that each cost a
+fresh notification.
+
 ## Sending
 
 Take any Bot API URL, drop `https://api.telegram.org/bot<token>`, and point what
