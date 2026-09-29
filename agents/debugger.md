@@ -304,6 +304,8 @@ RULED OUT: [Alternative -> evidence citation]
 FIX: [high-level approach]
 
 CLEANUP: [+N/-N debug] [+N/-N files] [OK]
+
+REQUIRED NOTES: [Items in the categories your caller named, or "none"]
 ```
 
 ## Anti-Patterns

@@ -109,6 +109,7 @@ Documented: [file:symbol] or [directory/]
 Type: [classification]
 Index: [UPDATED | CREATED | VERIFIED]
 README: [CREATED | SKIPPED: reason]
+REQUIRED NOTES: [Items in the categories your caller named, or "none"]
 ```
 
 DO NOT include explanatory text before or after.

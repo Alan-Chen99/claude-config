@@ -334,6 +334,16 @@ collected that nothing else did was collateral change — a file edited and rest
 directories a test run left behind — not durable prose. No case owns this block and none should:
 price a bullet by what it costs when it fires. Retire a bullet when the owner says it is not read.
 
+The subagent half repairs a dangling reference rather than betting on a rate: the block's own
+example cites an item "reported by subagent qr-3" while nothing ever asked a subagent for one,
+and an Agent call inherits neither a `--system-prompt-file` prompt nor an output style
+(`docs/system-prompt-anatomy.md`, "Sub-agents"). The dispatch prompt is the only channel that
+reaches every agent type, so the rule sits on the call; `agents/` would miss Explore, Plan,
+general-purpose and plugin agents, and a `PreToolUse` hook on `Agent` would make a best-effort
+block a harness guarantee, which `docs/subagent-backgrounding.md` records this repo backing out
+of once already. The five definitions whose output contract is exclusive carry a notes slot so
+the ask does not contradict them. Retire it with the rest of the block.
+
 ### `# Doing tasks` carries no docs order
 
 The deleted line was *Always update docs when you modify code or system state. Search for

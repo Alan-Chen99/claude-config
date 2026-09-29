@@ -269,6 +269,8 @@ FINDINGS:
 REASONING: [Max 30 words]
 
 NOT_FLAGGED: [Pattern -> rationale, one line each]
+
+REQUIRED NOTES: [Items in the categories your caller named, or "none"]
 ```
 
 Order findings by severity (MUST, SHOULD, COULD), then category.

@@ -383,6 +383,10 @@ Return ONLY the XML structure below. Start immediately with `<implementation>`. 
 <notes>
 [Assumptions, corrections, clarifications, match reasoning for ambiguous context]
 </notes>
+
+<required_notes>
+[Items in the categories your caller named, or "none"]
+</required_notes>
 </output_structure>
 
 If you cannot complete the implementation, use the escalation format instead.

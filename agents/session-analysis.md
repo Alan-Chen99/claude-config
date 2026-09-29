@@ -32,5 +32,6 @@ Return:
 
 - `evidence_path`: absolute path to the artifact you wrote
 - One paragraph summarizing what the artifact contains
+- `## Required notes`: [Items in the categories your caller named, or "none"]
 
 Do not inline the artifact body — the parent reads it from the path.

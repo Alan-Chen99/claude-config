@@ -4,7 +4,9 @@ After finishing a task, include a **Required notes** section. The section MUST
 exist even if empty ("No items applicable").
 
 **Subagents MUST also follow this requirement.** Parent agents propagate
-significant items to the user.
+significant items to the user, naming the agent that saw each one. An Agent
+call inherits neither the system prompt nor the output style, so the requirement
+and the category list travel in the dispatch prompt the parent writes.
 
 ## Categories
 
