@@ -177,6 +177,11 @@ paths = ["skills/playwright-cli"]
 approved = "user:834203fa"
 why = "Written by `playwright-cli install --skills`; never edited by hand."
 
+[data.vendored-artifact-skills]
+paths = ["skills/artifact-design", "skills/artifact-diagramming"]
+approved = "599c5215"
+why = "Byte-identical copies of two Claude Code built-in skill assets, replaced only by `.claude/skills/update-claude-code/skilldiff.sh --update`; a cap cannot shrink what the binary ships."
+
 # prompt-tests/runs holds only its README.md, which counts as every index file
 # does, so it is not listed here.
 [data.fixtures]
