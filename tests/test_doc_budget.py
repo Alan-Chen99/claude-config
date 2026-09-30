@@ -261,8 +261,11 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
 @pytest.mark.parametrize(("registry", "message"), [
     (BASE + "\n[groups.x]\nloaded = 'a'\ncup = 3\n", "unknown key cup"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\n", "above 100 without `approved`"),
-    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 'nobody'\n", "is not `<8 hex"),
-    (BASE + "\n[data.d]\npaths = ['nowhere']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "covers no tracked file"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 'nobody'\n", "is not `<8 lower-case hex"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 'user:DEADBEEF'\n", "is not `<8 lower-case hex"),
+    (BASE + "\n[data.d]\npaths = ['nowhere']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "covers no countable file"),
+    (BASE + "\n[data.d]\npaths = ['i']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n",
+     "covers no countable file (README.md and CLAUDE.md count wherever they are)"),
     (BASE + "\n[groups.nowhere]\nloaded = 'a'\n", "covers no tracked file"),
     (BASE + "\n[held]\napproved = 'user:aaaaaaaa'\n[held.files]\n'gone.md' = 9\n", "not a tracked .md file"),
     (BASE + "\n[held]\napproved = 'user:aaaaaaaa'\n[held.files]\n'x/a.md' = 100\n", "not above its class cap"),
@@ -276,10 +279,14 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
     (BASE + "\n[data.d]\npaths = 'x'\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "`paths` must be a non-empty list of strings"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 4\n[groups.\"x/a.md\"]\nloaded = 'a'\n", "inherits `default_cap` 100, above 4"),
     (BASE + "\n[groups.x]\nloaded = 'a'\none_of = 5\n", "must be a string carrying a <name> placeholder"),
-    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 12345678\n", "is not `<8 hex"),
+    (BASE + "\n[groups.oc]\nloaded = 'a'\none_of = 'x/<n>.md'\n[held]\napproved = 'user:aaaaaaaa'\n"
+     "[held.files]\n'x/a.md' = 200\n", "claimed by one_of group 'oc'"),
+    ("cut_to = 0.8\ndefault_cap = 100\n[groups.infra]\nloaded = 'a'\nresidual = true\nper_file = true\n",
+     "residual group 'infra': per_file is not allowed"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 12345678\n", "is not `<8 lower-case hex"),
 ])
 def test_a_registry_error_exits_2_and_says_what(tmp_path, capsys, registry, message):
-    root = repo(tmp_path, {"x/a.md": w(5)}, registry)
+    root = repo(tmp_path, {"x/a.md": w(5), "i/README.md": w(5)}, registry)
     code, _, err = run(root, capsys=capsys)
     assert code == 2
     assert message in err, err
@@ -300,6 +307,22 @@ def test_a_path_outside_the_root_is_refused_before_the_registry_is_read(tmp_path
         run(root, "/etc", capsys=capsys)
     assert exit_.value.code == 2
     assert "is outside" in capsys.readouterr().err
+
+
+def test_a_tracked_file_missing_from_the_worktree_exits_2(tmp_path, capsys):
+    """Deleted and not staged: a boundary of the worktree, not a crash."""
+    root = repo(tmp_path, {"x/a.md": w(5), "x/b.md": w(5)})
+    (tmp_path / "x" / "a.md").unlink()
+    code, _, err = run(root, capsys=capsys)
+    assert code == 2
+    assert "a.md is tracked but missing from the worktree" in err
+
+
+def test_a_root_that_is_not_a_git_checkout_exits_2(tmp_path, capsys):
+    (tmp_path / "doc-budget.toml").write_text(BASE)
+    code, _, err = run(tmp_path, capsys=capsys)
+    assert code == 2
+    assert "is not a git checkout" in err
 
 
 def test_a_missing_registry_exits_2(tmp_path, capsys):
@@ -348,6 +371,13 @@ def test_over_cap_names_the_group_the_cut_target_and_the_files(tmp_path, capsys)
     assert code == 1
     assert "x is 120 against 100. Cut to 80" in out
     assert f"{70:9,d}{'':20}x/a.md" in out
+
+
+def test_detail_lines_of_one_size_are_ordered_by_name(tmp_path, capsys):
+    root = repo(tmp_path, {"x/b.md": w(60), "x/a.md": w(60)}, BASE + "\n[groups.x]\nloaded = 'a'\n")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 1
+    assert out.index("x/a.md") < out.index("x/b.md"), out
 
 
 def test_print_held_emits_registry_lines_for_over_cap_files(tmp_path, capsys):

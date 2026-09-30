@@ -10,7 +10,8 @@ cap, cut that group to 80% of cap in the same change.
 
 Counts are local-tokenizer tokens (`agent-tools count-tokens` without
 `--api`), loaded once for the whole tree. Exit status: 0 within budget, 1 when
-any group is over cap, 2 on a registry error.
+any group is over cap, 2 on a registry error or a worktree the tree cannot be
+read from.
 """
 
 from __future__ import annotations
@@ -44,7 +45,8 @@ exit status:
   0  every group within its cap
   1  a group over cap: cut it to 80% of the cap in the same change
      (conventions/documentation.md, "Documentation budget")
-  2  registry error, or a path with nothing counted under it
+  2  registry error, unreadable worktree, or a path with nothing counted
+     under it
 
 Counts are local-tokenizer tokens, what `agent-tools count-tokens` reports
 without --api; Claude context is about 1.5x on prose.
@@ -180,6 +182,8 @@ def load_registry(path: Path) -> dict[str, Any]:
     if len(residuals) != 1:
         raise RegistryError(
             f"exactly one group must set `residual`, found {len(residuals)}")
+    if groups[residuals[0]].get("per_file"):
+        raise RegistryError(f"residual group {residuals[0]!r}: per_file is not allowed")
     for name, d in _table(reg.get("data", {}), "data").items():
         d = _table(d, f"data {name!r}")
         _keys(d, DATA_KEYS, f"data {name!r}")
@@ -224,7 +228,7 @@ def _approved(table: dict[str, Any], where: str) -> None:
     value = table.get("approved")
     if "approved" in table and (not isinstance(value, str) or not APPROVED.fullmatch(value)):
         raise RegistryError(
-            f"{where}: `approved` {value!r} is not `<8 hex of session id>` "
+            f"{where}: `approved` {value!r} is not `<8 lower-case hex of session id>` "
             "for an agent's own session or `user:<8 hex>` for the session in which "
             "the user approved it")
 
@@ -279,12 +283,17 @@ class Resolver:
             for p in d["paths"]:
                 if not any(covering(p, f) for f in self.files
                            if PurePosixPath(f).name not in INDEX_NAMES):
-                    raise RegistryError(f"data {dn!r}: {p!r} covers no tracked file")
+                    raise RegistryError(
+                        f"data {dn!r}: {p!r} covers no countable file "
+                        "(README.md and CLAUDE.md count wherever they are)")
         for f, size in self.reg.get("held", {}).get("files", {}).items():
             if f not in self.file_set:
                 raise RegistryError(f"held {f!r}: not a tracked .md file")
             if f in self.reg["groups"]:
                 raise RegistryError(f"held {f!r}: already a group; hold it in one place")
+            if f in self.claimed:
+                raise RegistryError(
+                    f"held {f!r}: claimed by one_of group {self.claimed[f]!r}")
             cap = self.class_cap(f)
             if size <= cap:
                 raise RegistryError(
@@ -464,20 +473,18 @@ def render(res: Resolver, rep: Report, rows: list[tuple[str, str]], detail_all: 
     """The report text and the names of the groups over cap."""
     cut_to: float = res.reg["cut_to"]
     pct = f"{cut_to:.0%}"
-    over: list[tuple[str, int, int, int]] = []
     lines: list[str] = []
     if print_held:
-        for name, _ in rows:
-            c, cap = rep.counted[name], rep.caps[name]
-            if c > cap:
-                over.append((name, c, cap, int(cap * cut_to)))
-        for name, c, _, _ in sorted(over, key=lambda t: -t[1]):
+        held_over = [(name, rep.counted[name]) for name, _ in rows
+                     if rep.counted[name] > rep.caps[name]]
+        for name, c in sorted(held_over, key=lambda t: -t[1]):
             if name in res.file_set:
                 lines.append(f'"{name}" = {c}')
             else:
                 lines.append(f"# not a file, give it a group cap with `approved`: {name} {c:,}")
-        return "".join(line + "\n" for line in lines), [t[0] for t in over]
+        return "".join(line + "\n" for line in lines), [name for name, _ in held_over]
 
+    over: list[tuple[str, int, int, int]] = []
     width = max((len(name) for name, _ in rows), default=5)
     lines.append(f"{'counted':>9} {'cap':>7} {pct:>7}  group")
     label_shown: str | None = None
@@ -499,7 +506,7 @@ def render(res: Resolver, rep: Report, rows: list[tuple[str, str]], detail_all: 
             # sanctioned one; the row is read far from the registry that says so.
             state += " (held)"
         lines.append(f"{c:9,d} {cap:7,d} {target:7,d}  {name:<{width}} {state}")
-        for tokens, f, note in sorted(rep.detail[name], reverse=True):
+        for tokens, f, note in sorted(rep.detail[name], key=lambda d: (-d[0], d[1])):
             # A note says how the count was arrived at -- a one_of set paying its
             # largest member -- so it shows whether or not the group is over cap.
             if f != name and (note or c > cap or detail_all):
@@ -548,9 +555,9 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None, *, root: Path = ROOT,
          count: Callable[[str], int] | None = None,
          environ: Mapping[str, str] | None = None) -> int:
-    """Exit 0 within budget, 1 with a group over cap, 2 on a registry error; a path
-    that names no group and holds no counted file is a usage error, SystemExit(2)
-    from argparse."""
+    """Exit 0 within budget, 1 with a group over cap, 2 on a registry error or a
+    worktree that cannot be read; a path that names no group and holds no counted
+    file is a usage error, SystemExit(2) from argparse."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     environ = os.environ if environ is None else environ
@@ -573,13 +580,21 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
     except RegistryError as exc:
         print(f"{REGISTRY}: {exc}", file=sys.stderr)
         return 2
+    except subprocess.CalledProcessError:
+        print(f"doc-budget: error: {root} is not a git checkout", file=sys.stderr)
+        return 2
 
     if count is None:
         from claude_config.count_tokens import count_with, load_tokenizer
 
         count = partial(count_with, load_tokenizer())
 
-    rep = measure(root, res, count)
+    try:
+        rep = measure(root, res, count)
+    except FileNotFoundError as exc:
+        print(f"doc-budget: error: {exc.filename} is tracked but missing from the "
+              "worktree", file=sys.stderr)
+        return 2
     rows = display_order(res, rep)
     # A path the registry does not name is still countable text: show the group
     # paying for it, which is what an agent measuring its own edit is asking.
