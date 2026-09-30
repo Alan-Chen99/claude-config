@@ -529,7 +529,7 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Instead of the report, emit a [held.files] line for every "
                         "over-cap file, at its size. Exits 1 like the report whenever "
                         "a group is over cap.")
-    p.add_argument("paths", nargs="*",
+    p.add_argument("paths", nargs="*", metavar="path",
                    help="Narrow the report to the groups under these paths, with "
                         "per-file detail; `.` names every group.")
     return p
@@ -547,12 +547,6 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
     if not session:
         print("warning: CLAUDE_CODE_SESSION_ID unset, so the same-session gate is "
               "inactive and every approval counts as live", file=sys.stderr)
-    try:
-        reg = load_registry(root / REGISTRY)
-        res = Resolver(reg, tracked_md(root), session)
-    except RegistryError as exc:
-        print(f"{REGISTRY}: {exc}", file=sys.stderr)
-        return 2
 
     want: list[str] = []
     for a in args.paths:
@@ -561,6 +555,13 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
         except ValueError:
             parser.error(f"{a} is outside {root}")
         want.append("" if str(rel) == "." else rel.as_posix())
+
+    try:
+        reg = load_registry(root / REGISTRY)
+        res = Resolver(reg, tracked_md(root), session)
+    except RegistryError as exc:
+        print(f"{REGISTRY}: {exc}", file=sys.stderr)
+        return 2
 
     if count is None:
         from claude_config.count_tokens import count_with, load_tokenizer

@@ -35,7 +35,10 @@ fn doc_budget_help_is_forwarded_to_python() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("--print-held"), "stdout missing --print-held: {stdout}");
+    assert!(
+        stdout.contains("--print-held"),
+        "stdout missing --print-held: {stdout}"
+    );
     // Only the Python parser's epilog carries the exit-status table; clap's
     // help would list the flag from the doc comment and stop there.
     assert!(
@@ -45,14 +48,35 @@ fn doc_budget_help_is_forwarded_to_python() {
 }
 
 #[test]
-fn doc_budget_forwards_the_modules_exit_code_and_stderr() {
-    // A path that names no group is the module's own usage error: exit 2 with
-    // its wording, which clap could not have produced.
-    let out = doc_budget(&["nothing-here-xyz"]);
-    assert_eq!(out.status.code(), Some(2), "stdout={}", String::from_utf8_lossy(&out.stdout));
-    let stderr = String::from_utf8_lossy(&out.stderr);
+fn doc_budget_forwards_flags_and_positionals_and_returns_the_modules_exit_code() {
+    // clap forwards everything here (`trailing_var_arg`, `allow_hyphen_values`,
+    // `disable_help_flag`), so any rejection at all proves argparse ran. Both
+    // rejections happen before the registry is read or a file is tokenized, so
+    // this stays a wiring test whatever `doc-budget.toml` says about the tree.
+    let flag = doc_budget(&["--no-such-flag"]);
+    assert_eq!(
+        flag.status.code(),
+        Some(2),
+        "stdout={}",
+        String::from_utf8_lossy(&flag.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&flag.stderr);
     assert!(
-        stderr.contains("no group is named under"),
-        "expected the module's usage error, got: {stderr}"
+        stderr.contains("unrecognized arguments: --no-such-flag")
+            && stderr.contains("usage: doc-budget"),
+        "expected argparse's rejection, got: {stderr}"
+    );
+
+    let outside = doc_budget(&["/etc"]);
+    assert_eq!(
+        outside.status.code(),
+        Some(2),
+        "stdout={}",
+        String::from_utf8_lossy(&outside.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&outside.stderr);
+    assert!(
+        stderr.contains("is outside"),
+        "expected the module's own usage error, got: {stderr}"
     );
 }

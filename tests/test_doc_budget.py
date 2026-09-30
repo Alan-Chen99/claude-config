@@ -293,6 +293,15 @@ def test_a_path_naming_no_group_is_a_usage_error(tmp_path, capsys):
     assert "no group is named under nothing-here" in capsys.readouterr().err
 
 
+def test_a_path_outside_the_root_is_refused_before_the_registry_is_read(tmp_path, capsys):
+    root = repo(tmp_path, {"x/a.md": w(5)})
+    (tmp_path / "doc-budget.toml").unlink()
+    with pytest.raises(SystemExit) as exit_:
+        run(root, "/etc", capsys=capsys)
+    assert exit_.value.code == 2
+    assert "is outside" in capsys.readouterr().err
+
+
 def test_a_missing_registry_exits_2(tmp_path, capsys):
     root = repo(tmp_path, {"x/a.md": w(5)})
     (tmp_path / "doc-budget.toml").unlink()

@@ -225,8 +225,8 @@ enum Cmd {
     ///
     /// `disable_help_flag` forwards --help to the Python parser, whose help
     /// carries the flag list and the warning that the two backends do not
-    /// measure the same thing. The pass-throughs machinery invokes keep clap's
-    /// help; this one and `doc-budget` a person types.
+    /// measure the same thing. Machinery invokes the other pass-throughs, so
+    /// they keep clap's help; this one and `doc-budget` a person types.
     #[command(name = "count-tokens", disable_help_flag = true)]
     CountTokens {
         /// Arguments forwarded to claude_config.count_tokens
