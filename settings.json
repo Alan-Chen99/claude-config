@@ -238,5 +238,6 @@
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
+  "enableArtifact": false,
   "autoCompactWindow": 400000
 }
