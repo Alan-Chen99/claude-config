@@ -11,8 +11,6 @@ from pathlib import Path
 
 import pytest
 
-from claude_config.count_tokens import _count_local
-
 SKILL_DIR = Path(__file__).resolve().parents[1] / "skills" / "telegram-hitl"
 SKILL = SKILL_DIR / "SKILL.md"
 SCRIPT = SKILL_DIR / "listen.py"
@@ -351,10 +349,3 @@ def test_every_call_the_skill_shows_names_its_caller() -> None:
     assert blocks
     for block in blocks:
         assert "X-Session-Id: $CLAUDE_CODE_SESSION_ID" in block, block
-
-
-def test_the_skill_stays_inside_its_token_budget() -> None:
-    """Every addition is locally justified by a small expected saving and
-    nothing prices the sum; this budget is the price. Counted by the local
-    tokenizer, the number `agent-tools count-tokens` reports."""
-    assert _count_local(SKILL.read_text()) <= 1000

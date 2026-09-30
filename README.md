@@ -195,8 +195,8 @@ message logged and picked up by nobody. [`systemd/telegram-hitl.service`](system
 runs it, [`skills/telegram-hitl/`](skills/telegram-hitl/SKILL.md) carries the
 working rules and the Bot API traps beside the log reader agents arm as a
 script, and six test modules drive it against a fake Bot API on loopback —
-[the tests](tests/test_telegram_hitl_skill.py) execute that script and pin the
-skill's token budget.
+[the tests](tests/test_telegram_hitl_skill.py) execute that script;
+`doc-budget.toml` caps the skill at 1,000 tokens.
 
 ### Environment context with drift detection
 
