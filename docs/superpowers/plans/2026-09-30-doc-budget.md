@@ -1786,7 +1786,19 @@ EOF
 
 - [ ] **Step 1: `agent-tools/CLAUDE.md`**
 
-Insert, as a new bullet immediately before the line beginning `- \`agent-tools env-context\``:
+First, in the `count-tokens` bullet, replace its last sentence
+
+```
+Unlike the other pass-through subcommands, `--help` is forwarded to the Python parser (`disable_help_flag`), because that help carries the backend warning.
+```
+
+with
+
+```
+`--help` is forwarded to the Python parser (`disable_help_flag`), as `doc-budget`'s is, because that help carries the backend warning; the pass-throughs machinery invokes keep clap's.
+```
+
+Then insert, as a new bullet immediately before the line beginning `- \`agent-tools env-context\``:
 
 ```
 - `agent-tools doc-budget [--print-held] [path ...]` — every tracked `.md` against the caps in `doc-budget.toml` (wraps `python3 -m claude_config.doc_budget`). Groups follow the mechanism that loads a file, not its directory: the system prompt, the opencode agent set, the skill and agent `description:` fields, each `SKILL.md`, each agent body, each `CLAUDE.md`, and per-file caps under `docs/`, `notes/`, `plans/`; `[data]` paths are listed at the bottom and never counted. Exit 1 over cap, 2 on a registry error; `--print-held` emits a `[held.files]` line for every over-cap file. Counts with the local tokenizer, loaded once (`count_tokens.load_tokenizer`); `--help` is forwarded to Python like `count-tokens`. Policy in `conventions/documentation.md`, design in `docs/superpowers/specs/2026-09-29-doc-budget-design.md`.
