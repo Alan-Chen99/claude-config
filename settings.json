@@ -2,7 +2,48 @@
   "cleanupPeriodDays": 36500,
   "env": {
     "CLAUDE_CODE_FORK_SUBAGENT": "0",
-    "TELEGRAM_HITL_STATE_DIR": "/home/alan/personal/telegram-hitl"
+    "TELEGRAM_HITL_STATE_DIR": "/home/alan/personal/telegram-hitl",
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
+    "CLAUDE_CODE_ENABLE_CFC": "false"
+  },
+  "permissions": {
+    "deny": [
+      "ReportFindings",
+      "ScheduleWakeup"
+    ]
+  },
+  "feedbackDrafts": "off",
+  "skillOverrides": {
+    "dataviz": "name-only",
+    "claude-api": "name-only",
+    "workflow-authoring": "name-only",
+    "claude-in-chrome": "name-only",
+    "update-config": "user-invocable-only",
+    "keybindings-help": "user-invocable-only",
+    "code-review": "user-invocable-only",
+    "simplify": "user-invocable-only",
+    "fewer-permission-prompts": "user-invocable-only",
+    "loop": "user-invocable-only",
+    "schedule": "user-invocable-only",
+    "run": "user-invocable-only",
+    "init": "user-invocable-only",
+    "security-review": "user-invocable-only",
+    "alan-coding-style": "name-only",
+    "codebase-analysis": "name-only",
+    "copy-writing-style": "name-only",
+    "decision-critic": "name-only",
+    "deepthink": "name-only",
+    "diagnose-workflow": "name-only",
+    "do": "name-only",
+    "doc-sync": "name-only",
+    "incoherence": "name-only",
+    "leon-writing-style": "name-only",
+    "notes": "name-only",
+    "planner": "name-only",
+    "planner-lite": "name-only",
+    "problem-analysis": "name-only",
+    "prompt-engineer": "name-only",
+    "refactor": "name-only"
   },
   "attribution": {
     "commit": "",

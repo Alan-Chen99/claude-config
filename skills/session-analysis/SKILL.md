@@ -1,6 +1,6 @@
 ---
 name: session-analysis
-description: Use when reading or analyzing a logged agent session — a Claude Code JSONL transcript, an opencode export, or a captured API call — to answer any question about what an agent did: grading a prompt-test run, diagnosing a session's behavior, reconstructing what happened. Carries the skeleton-first reading protocol that keeps a large log out of your context, the evidence-artifact format, and how to phrase a focus. Load before running `agent-tools cc-pretty`, `agent-tools opencode-pretty` or `agent-tools cc-pretty-intercept` on a log, and before dispatching a `session-analysis` subagent.
+description: Use when reading or analyzing a logged agent session (Claude Code JSONL, opencode export, captured API call) — grading a prompt-test run, diagnosing behavior, reconstructing what happened. Load before running `agent-tools cc-pretty`, `opencode-pretty` or `cc-pretty-intercept` on a log, and before dispatching a `session-analysis` subagent.
 ---
 
 # Session Analysis

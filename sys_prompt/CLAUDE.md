@@ -67,15 +67,6 @@ that repays the closer reading.
 already carries is not a second caution; it is a second, differently worded statement of the
 same rule, and nothing then says which governs.
 
-**A session on this machine is not evidence about this file until its snapshot says so.**
-`scripts/claude.sh` loads the **installed** checkout, `/repos/claude-config`, and that is still
-the pre-round-11 fork: `Omit by default` and `Claim less` where this branch has
-`# Writing for other agents`, and the docs order still in `# Doing tasks`. The branch has never
-been merged, so every edit recorded below reaches the prompt-test runners and nothing else — the
-owner's own specimen, `e828eab7`, ran the old fork. Grep a session's `prompt_snapshot` for the line before
-citing the session. Retire this when `git merge-base --is-ancestor` puts the branch inside the
-installed checkout.
-
 ## Rebasing on an upstream release
 
 These files replace Claude Code's own system prompt rather than adding to it.
@@ -495,6 +486,14 @@ and dropped: the agent already does that.
 Retire the question form when an arm answers it and stops where the owner expected the work, on
 `prompt-tests/general/umber-trellis`; the same arms check that the marker is not read as the
 carve-out's licence, and that an unread plan's status reaches the next reader's file.
+
+### `listed without a description`
+
+Sixteen repo skills carry the description `use only if invoked by user or workflow`, and
+`skillOverrides` in `settings.json` lists them, and four bundled skills, `name-only`
+(`plans/2026-09-30-session-start-token-cuts.md`, #6, #9, #10), so the description that carried
+the rule no longer reaches the model; this sentence states it once for the set. Retire it when
+cc's `name-only` rendering states the rule itself, or when the overrides go.
 
 ## Ledger: wordings measured and not shipped
 
