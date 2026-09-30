@@ -1887,22 +1887,45 @@ Then insert after that row:
 | `src/claude_config/doc_budget.py` (`session_of`) | `CLAUDE_CODE_SESSION_ID` | The same-session gate on `approved`: an entry the running session approved is inert there. A renamed variable reads as unset, so the gate goes inert everywhere — every approval counts as live and an agent's own `[data]` entry or held size takes effect in the session that wrote it — with a warning on stderr on every run, which nothing automatic reads: `tests/test_doc_budget.py` passes the variable in itself. |
 ```
 
-- [ ] **Step 5: `docs/CLAUDE.md`**
+- [ ] **Step 5: `README.md`**
+
+The telegram paragraph's last sentence stacks an em-dash aside and a semicolon, and the README's file table never says what `doc-budget.toml` is. Replace
+
+```
+[the tests](tests/test_telegram_hitl_skill.py) execute that script;
+`doc-budget.toml` caps the skill at 1,000 tokens.
+```
+
+with
+
+```
+[the tests](tests/test_telegram_hitl_skill.py) execute that script.
+`doc-budget.toml` caps the skill at 1,000 tokens, enforced by
+[`tests/test_doc_budget.py`](tests/test_doc_budget.py).
+```
+
+and insert, directly after the file-table row that begins `| [\`CLAUDE.md\`](CLAUDE.md) |`:
+
+```
+| [`doc-budget.toml`](doc-budget.toml) | Token caps for every tracked `.md`, grouped by how the text reaches a context — the system prompt on every request, skill descriptions every session, a skill body per invocation; `agent-tools doc-budget` reports, [`tests/test_doc_budget.py`](tests/test_doc_budget.py) gates CI |
+```
+
+- [ ] **Step 6: `docs/CLAUDE.md`**
 
 Replace `` `plans/` (14) `` with `` `plans/` (15) `` on line 28 (this plan is the fifteenth).
 
-- [ ] **Step 6: Check the guards and the affected groups**
+- [ ] **Step 7: Check the guards and the affected groups**
 
 Run: `cd /root/claude-config-work && scripts/check-prompt-rationale.sh && scripts/check-prompt-coupling.sh 2>&1 | tail -2`
 Expected: both pass (the sys_prompt edit is outside the rationale region).
 
-Run: `CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget docs/CLAUDE.md skills/CLAUDE.md | grep -v '^--'`
-Expected: both ≤ 1,500.
+Run: `CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget docs/CLAUDE.md skills/CLAUDE.md infra | grep -v '^--'`
+Expected: both CLAUDE.md files ≤ 1,500; `infra` (root README.md and skills/README.md) ≤ 12,000.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add agent-tools/CLAUDE.md src/claude_config/CLAUDE.md sys_prompt/CLAUDE.md .claude/skills/update-claude-code/SKILL.md docs/CLAUDE.md
+git add agent-tools/CLAUDE.md src/claude_config/CLAUDE.md sys_prompt/CLAUDE.md .claude/skills/update-claude-code/SKILL.md README.md docs/CLAUDE.md
 git commit -q -F - <<'EOF'
 doc-budget: index rows for the subcommand, the module, the prompt's cap
 
