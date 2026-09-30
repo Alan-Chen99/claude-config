@@ -29,6 +29,30 @@ unverified here.
 visible from reading source code. If ANY invisible knowledge exists for a
 directory, README.md is required.
 
+## Documentation budget
+
+Prose that is always present is always paid for. Every tracked `.md` counts
+against a group in `doc-budget.toml`, grouped by how its text reaches a
+context — every request, every session, per invocation, per spawn, on demand —
+unless a `[data]` entry there declares it not guidance; design in
+`docs/superpowers/specs/2026-09-29-doc-budget-design.md`. Measure with
+`agent-tools doc-budget [path]`: local-tokenizer tokens, not `--api`.
+
+**Over cap, cut that group to 80% of cap in the same change** — the agent that
+crossed the line pays. A group already over when you arrived is debt: say so,
+and pay it when the task is about its docs rather than in passing.
+
+Only consolidation satisfies the cap: merge duplicates, resolve the conflicts
+you find, delete what the code already says. Moving prose out of `.md` (into a
+comment, JSON, a script's `--help`) is not a cut. Neither is loosening the
+registry: a `[data]` entry, a held size or a cap above the default needs the
+user's approval, and one an agent approves cannot take effect in the session
+that wrote it.
+
+What survives is non-rederivable and changes an action — the test is whether
+not knowing it makes an agent do the wrong thing. Everything else goes,
+including good writing — git history keeps it.
+
 ## CLAUDE.md Format Specification
 
 ### Index Format
