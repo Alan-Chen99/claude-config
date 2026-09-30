@@ -269,11 +269,12 @@ harness:
   record", are untouched.** A call that never produced a response still writes
   nothing, request half included. Recording the request half of a failed flow is a
   separate change to the `error` hook, not part of this one.
-- **A replay cannot reuse the captured call's credential, and here it cannot even
-  use the same kind.** A capture never stores one, by design. Beyond that, a Claude
-  Code OAuth token authenticates against the subscription organization, which holds
-  no API-tier quota on this machine: `/v1/messages` refuses it 429 with no
-  `anthropic-ratelimit-unified-*` header while interactive sessions in that same
-  organization keep succeeding, and no wait clears it. A faithful first-party replay
-  therefore needs an API key on `x-api-key`, whose organization accepts the whole
-  captured beta list. Measured in `notes/cc-replay-oauth-api-quota.md`.
+- **A replay cannot reuse the captured call's credential, and under OAuth the
+  system prompt is not editable.** A capture never stores a credential, by design.
+  Beyond that, a Claude Code OAuth token is honored only for a request carrying
+  Claude Code's own system prompt: the faithful body replays 200 and edits to
+  `max_tokens`, `messages` or anything else pass, but a replaced `system` returns
+  429 with no `anthropic-ratelimit-unified-*` header, in the same organization and
+  minute that the unedited body succeeds. A what-if that rewrites the system prompt
+  needs an API key on `x-api-key`, which carries no such constraint. Measured in
+  `notes/cc-replay-oauth-system-prompt-gate.md`.

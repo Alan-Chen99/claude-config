@@ -469,7 +469,7 @@ def test_an_env_credential_can_take_the_api_key_header_shape(monkeypatch) -> Non
 from claude_config.cc_replay.main import rate_limit_note
 
 
-def test_a_quota_429_names_the_organization_and_the_api_key_remedy() -> None:
+def test_a_scope_429_names_the_system_prompt_and_the_api_key_remedy() -> None:
     note = rate_limit_note(
         429,
         [
@@ -478,21 +478,24 @@ def test_a_quota_429_names_the_organization_and_the_api_key_remedy() -> None:
         ],
     )
     assert note is not None
-    assert "29f2cf32-1268-49fe-8794-9032b532a49a" in note
+    assert "`system` was edited" in note
     assert "--credential-header x-api-key" in note
+    assert "waiting will not clear it" in note
 
 
-def test_a_window_429_says_wait_instead_of_naming_a_credential() -> None:
+def test_a_window_429_says_wait_instead_of_naming_the_system_prompt() -> None:
     note = rate_limit_note(
         429,
         [
             ["anthropic-ratelimit-unified-5h-status", "rejected"],
-            ["anthropic-ratelimit-unified-reset", "2026-09-30T02:00:00Z"],
+            ["anthropic-ratelimit-unified-reset", "1790731200"],
         ],
     )
     assert note is not None
-    assert "2026-09-30T02:00:00Z" in note
+    # The header is a unix epoch; a bare one tells a reader nothing.
+    assert "2026-09-30T01:20:00Z" in note
     assert "x-api-key" not in note
+    assert "system" not in note
 
 
 def test_a_status_that_is_not_429_gets_no_note() -> None:

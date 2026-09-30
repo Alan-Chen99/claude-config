@@ -7,12 +7,13 @@
 them and writes the result in the capture format, so `cc-pretty-intercept`
 renders it.
 
-A send is a real call that costs real money, billed to whichever organization the
-credential belongs to. Which one that is decides whether it can run at all: an
-API key spends that key's API rate limits, while a Claude Code OAuth token
-authenticates against the subscription organization, which may hold no API quota
-and refuse every call 429. Every response's rate-limit headers are recorded in
-the result, and `rate_limit_note` reads a 429's back out.
+A send is a real call that costs real money. A first-party send under the OAuth
+credential spends the subscription's unified 5h/7d window and may mutate anything
+in the body except `system`: that token is honored only for a request carrying
+Claude Code's own system prompt, and a replaced one comes back 429 with no
+`anthropic-ratelimit-unified-*` header. An API key has no such constraint. Every
+response's rate-limit headers are recorded in the result, and `rate_limit_note`
+reads a 429's back out.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 from claude_config.cc_replay.credentials import resolve
@@ -33,25 +35,28 @@ def rate_limit_note(status: int, headers: list) -> str | None:
     Two unrelated refusals share the status, and the body distinguishes neither
     — it is `{"type":"error","error":{"type":"rate_limit_error","message":
     "Error"}}` either way. The headers do: a refusal by the subscription's
-    unified window carries `anthropic-ratelimit-unified-*` and clears on its own,
-    while a refusal for want of API quota carries none of those and never will,
-    no matter how long the caller waits.
+    unified window carries `anthropic-ratelimit-unified-*` and drains with time,
+    while a request rejected before that limiter ever saw it carries none of
+    those and will not drain, however long the caller waits.
     """
     if status != 429:
         return None
     found = {name.lower(): value for name, value in headers}
-    unified = {k: v for k, v in found.items() if k.startswith("anthropic-ratelimit-unified")}
-    if unified:
-        reset = found.get("anthropic-ratelimit-unified-reset", "(no reset header)")
-        return f"the subscription's unified window is exhausted; it resets at {reset}"
-    org = found.get("anthropic-organization-id", "(unreported)")
+    if any(k.startswith("anthropic-ratelimit-unified") for k in found):
+        reset = found.get("anthropic-ratelimit-unified-reset", "")
+        when = (
+            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(int(reset)))
+            if reset.isdigit()
+            else reset or "(no reset header)"
+        )
+        return f"the subscription's unified window is exhausted; it resets at {when}"
     return (
-        f"no anthropic-ratelimit-unified-* header: organization {org} was refused "
-        "by the API limiter, not by a subscription window, so waiting will not "
-        "clear it. A Claude Code OAuth token authenticates against the "
-        "subscription organization, which can hold no API quota even while "
-        "interactive sessions succeed. Send with an API key instead: "
-        "--credential-env VAR --credential-header x-api-key"
+        "no anthropic-ratelimit-unified-* header: the request was rejected before "
+        "the subscription limiter, so waiting will not clear it. A Claude Code "
+        "OAuth token is honored only for a request carrying Claude Code's own "
+        "system prompt. If request.json's `system` was edited, restore it — or "
+        "send with an API key, which has no such constraint: --credential-env VAR "
+        "--credential-header x-api-key"
     )
 
 

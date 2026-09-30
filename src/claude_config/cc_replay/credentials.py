@@ -1,14 +1,14 @@
 """Resolve a credential for a replay. A capture never carries one.
 
 Resolution is by host, and every resolution names its source, because the two
-first-party credentials are not the same caller. What separates them is the
-organization, not the request: an API key accepts a first-party capture's whole
-beta list, `claude-code-20250219` and `oauth-2025-04-20` included, so no beta is
-gated to the OAuth path. A Claude Code OAuth token authenticates against the
-subscription organization, which can hold no API-tier quota even while
-interactive sessions succeed there — `/v1/messages` then refuses it 429 with no
-`anthropic-ratelimit-unified-*` header, and no wait clears it. Naming the source
-is what lets a replay rule the credential in or out.
+first-party credentials do not accept the same requests. A Claude Code OAuth
+token is honored only for a request carrying Claude Code's own system prompt: it
+replays a capture faithfully, and tolerates edits anywhere else in the body, but
+a replaced `system` comes back 429 with no `anthropic-ratelimit-unified-*`
+header. An API key has no such constraint and accepts the whole captured beta
+list, `claude-code-20250219` and `oauth-2025-04-20` included, so no beta is gated
+to the OAuth path either. Naming the source is what lets a replay rule the
+credential in or out.
 """
 
 from __future__ import annotations
