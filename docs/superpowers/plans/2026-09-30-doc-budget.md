@@ -390,8 +390,11 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
 @pytest.mark.parametrize(("registry", "message"), [
     (BASE + "\n[groups.x]\nloaded = 'a'\ncup = 3\n", "unknown key cup"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\n", "above 100 without `approved`"),
-    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 'nobody'\n", "is not `<8 hex"),
-    (BASE + "\n[data.d]\npaths = ['nowhere']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "covers no tracked file"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 'nobody'\n", "is not `<8 lower-case hex"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 'user:DEADBEEF'\n", "is not `<8 lower-case hex"),
+    (BASE + "\n[data.d]\npaths = ['nowhere']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "covers no countable file"),
+    (BASE + "\n[data.d]\npaths = ['i']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n",
+     "covers no countable file (README.md and CLAUDE.md count wherever they are)"),
     (BASE + "\n[groups.nowhere]\nloaded = 'a'\n", "covers no tracked file"),
     (BASE + "\n[held]\napproved = 'user:aaaaaaaa'\n[held.files]\n'gone.md' = 9\n", "not a tracked .md file"),
     (BASE + "\n[held]\napproved = 'user:aaaaaaaa'\n[held.files]\n'x/a.md' = 100\n", "not above its class cap"),
@@ -405,21 +408,25 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
     (BASE + "\n[data.d]\npaths = 'x'\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "`paths` must be a non-empty list of strings"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 4\n[groups.\"x/a.md\"]\nloaded = 'a'\n", "inherits `default_cap` 100, above 4"),
     (BASE + "\n[groups.x]\nloaded = 'a'\none_of = 5\n", "must be a string carrying a <name> placeholder"),
-    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 12345678\n", "is not `<8 hex"),
+    (BASE + "\n[groups.oc]\nloaded = 'a'\none_of = 'x/<n>.md'\n[held]\napproved = 'user:aaaaaaaa'\n"
+     "[held.files]\n'x/a.md' = 200\n", "claimed by one_of group 'oc'"),
+    ("cut_to = 0.8\ndefault_cap = 100\n[groups.infra]\nloaded = 'a'\nresidual = true\nper_file = true\n",
+     "residual group 'infra': per_file is not allowed"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 12345678\n", "is not `<8 lower-case hex"),
 ])
 def test_a_registry_error_exits_2_and_says_what(tmp_path, capsys, registry, message):
-    root = repo(tmp_path, {"x/a.md": w(5)}, registry)
+    root = repo(tmp_path, {"x/a.md": w(5), "i/README.md": w(5)}, registry)
     code, _, err = run(root, capsys=capsys)
     assert code == 2
     assert message in err, err
 
 
-def test_a_path_naming_no_group_is_a_usage_error(tmp_path, capsys):
+def test_a_path_counting_nothing_is_a_usage_error(tmp_path, capsys):
     root = repo(tmp_path, {"x/a.md": w(5)})
     with pytest.raises(SystemExit) as exit_:
         run(root, str(tmp_path / "nothing-here"), capsys=capsys)
     assert exit_.value.code == 2
-    assert "no group is named under nothing-here" in capsys.readouterr().err
+    assert "nothing counted lies under nothing-here" in capsys.readouterr().err
 
 
 def test_a_path_outside_the_root_is_refused_before_the_registry_is_read(tmp_path, capsys):
@@ -429,6 +436,22 @@ def test_a_path_outside_the_root_is_refused_before_the_registry_is_read(tmp_path
         run(root, "/etc", capsys=capsys)
     assert exit_.value.code == 2
     assert "is outside" in capsys.readouterr().err
+
+
+def test_a_tracked_file_missing_from_the_worktree_exits_2(tmp_path, capsys):
+    """Deleted and not staged: a boundary of the worktree, not a crash."""
+    root = repo(tmp_path, {"x/a.md": w(5), "x/b.md": w(5)})
+    (tmp_path / "x" / "a.md").unlink()
+    code, _, err = run(root, capsys=capsys)
+    assert code == 2
+    assert "a.md is tracked but missing from the worktree" in err
+
+
+def test_a_root_that_is_not_a_git_checkout_exits_2(tmp_path, capsys):
+    (tmp_path / "doc-budget.toml").write_text(BASE)
+    code, _, err = run(tmp_path, capsys=capsys)
+    assert code == 2
+    assert "is not a git checkout" in err
 
 
 def test_a_missing_registry_exits_2(tmp_path, capsys):
@@ -479,6 +502,13 @@ def test_over_cap_names_the_group_the_cut_target_and_the_files(tmp_path, capsys)
     assert f"{70:9,d}{'':20}x/a.md" in out
 
 
+def test_detail_lines_of_one_size_are_ordered_by_name(tmp_path, capsys):
+    root = repo(tmp_path, {"x/b.md": w(60), "x/a.md": w(60)}, BASE + "\n[groups.x]\nloaded = 'a'\n")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 1
+    assert out.index("x/a.md") < out.index("x/b.md"), out
+
+
 def test_print_held_emits_registry_lines_for_over_cap_files(tmp_path, capsys):
     root = repo(tmp_path, {"n/a.md": w(9), "n/b.md": w(2), "x/c.md": w(200), "x/d.md": w(1)}, BASE + """
 [groups.n]
@@ -511,6 +541,27 @@ approved = "user:aaaaaaaa"
     code, out, _ = run(root, capsys=capsys)
     assert code == 0
     assert "n/a.md 2 <= 4" in out
+
+
+def test_a_held_row_is_marked_held(tmp_path, capsys):
+    """A frozen size is not a sanctioned one: the row says so where it is read."""
+    root = repo(tmp_path, {"n/a.md": w(9), "n/b.md": w(3)}, BASE + """
+[groups.n]
+loaded = "on demand"
+per_file = true
+cap = 4
+
+[held]
+approved = "user:aaaaaaaa"
+[held.files]
+"n/a.md" = 9
+""")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 0, out
+    held = next((ln for ln in out.splitlines() if "n/a.md" in ln), "")
+    plain = next(ln for ln in out.splitlines() if "n/b.md" in ln)
+    assert held.endswith("above 80% by 2 (held)"), held
+    assert "(held)" not in plain, plain
 
 
 def test_groups_print_under_the_label_of_the_class_that_loads_them(tmp_path, capsys):
@@ -546,6 +597,89 @@ def test_a_named_path_narrows_the_report_and_shows_its_files(tmp_path, capsys):
     assert "y/b.md" not in out and "  y " not in out
 
 
+def test_a_named_file_narrows_to_the_group_that_counts_it(tmp_path, capsys):
+    """The policy says to measure a path; the answer is the group paying for it,
+    with every file it counts -- not a usage error because no group has that name."""
+    root = repo(tmp_path, {"x/a.md": w(5), "x/b.md": w(6), "y/c.md": w(7)},
+                BASE + "\n[groups.x]\nloaded = 'a'\n[groups.y]\nloaded = 'a'\n")
+    code, out, _ = run(root, str(tmp_path / "x" / "a.md"), capsys=capsys)
+    assert code == 0, out
+    assert row(11, 100, 80, "x") in out
+    assert f"{6:9,d}{'':20}x/b.md" in out
+    assert "y/c.md" not in out and "  y " not in out
+
+
+def test_a_subdirectory_narrows_to_its_covering_group_and_the_groups_under_it(tmp_path, capsys):
+    root = repo(tmp_path, {"x/sub/a.md": w(5), "x/sub/CLAUDE.md": w(3), "y/c.md": w(7)}, BASE + """
+[groups.claude-md]
+loaded = "every session touching the directory"
+derived = "claude-md"
+cap = 10
+
+[groups.x]
+loaded = "on demand"
+
+[groups.y]
+loaded = "on demand"
+""")
+    code, out, _ = run(root, str(tmp_path / "x" / "sub"), capsys=capsys)
+    assert code == 0, out
+    assert row(5, 100, 80, "x") in out                  # counts x/sub/a.md
+    assert row(3, 10, 8, "x/sub/CLAUDE.md") in out      # a group nested under the path
+    assert "y/c.md" not in out and "  y " not in out
+
+
+def test_a_one_of_member_narrows_to_the_set_that_pays_for_it(tmp_path, capsys):
+    """A member is never a row of its own -- the set is -- so the path has to
+    reach the set; the row's detail line is the pattern, not the member."""
+    root = repo(tmp_path, {
+        "oc/agents/big.md": w(9),
+        "oc/agents/small.md": w(2),
+        "k.md": w(1),
+    }, BASE + """
+[groups.oc-prompt]
+loaded = "every request of an opencode session"
+one_of = "oc/agents/<agent>.md"
+cap = 10
+""")
+    code, out, _ = run(root, str(tmp_path / "oc" / "agents" / "small.md"), capsys=capsys)
+    assert code == 0, out
+    assert row(9, 10, 8, "oc-prompt") in out
+    assert "(largest of big 9, small 2)" in out
+    assert "  infra " not in out
+
+
+def test_a_data_path_is_a_usage_error_saying_data_is_not_counted(tmp_path, capsys):
+    root = repo(tmp_path, {"d/a.md": w(5), "k.md": w(1)}, BASE + """
+[data.dump]
+paths = ["d"]
+approved = "user:aaaaaaaa"
+why = "dump"
+""")
+    with pytest.raises(SystemExit) as exit_:
+        run(root, str(tmp_path / "d"), capsys=capsys)
+    assert exit_.value.code == 2
+    assert "a [data] path is listed, not counted" in capsys.readouterr().err
+
+
+def test_a_narrowed_report_leaves_out_the_data_table(tmp_path, capsys):
+    """Data totals are context for the whole tree and noise beside one path."""
+    root = repo(tmp_path, {"d/a.md": w(5), "x/b.md": w(1)}, BASE + """
+[groups.x]
+loaded = "on demand"
+
+[data.dump]
+paths = ["d"]
+approved = "user:aaaaaaaa"
+why = "dump"
+""")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 0 and "data, listed and not counted:" in out
+    code, out, _ = run(root, str(tmp_path / "x"), capsys=capsys)
+    assert code == 0, out
+    assert "data, listed and not counted:" not in out
+
+
 def test_data_totals_are_listed_at_the_bottom(tmp_path, capsys):
     root = repo(tmp_path, {"d/a.md": w(5), "d/b.md": w(6), "k.md": w(1)}, BASE + """
 [data.dump]
@@ -565,10 +699,13 @@ def test_the_registry_is_valid_and_the_tree_is_within_budget(capsys):
     """The CI gate. Counted with the vendored tokenizer, the number
     `agent-tools count-tokens` reports. An entry approved by the running
     session is inert here too, so an agent's own loosening fails this in the
-    session that wrote it and passes in CI -- that is the gate working."""
+    session that wrote it and passes in CI -- that is the gate working. A red
+    gate shows stderr and the footer lines that name an over-cap group, so it
+    reads as `X is N against M. Cut to T` rather than as the whole report."""
     code = doc_budget.main([], root=REPO)
     out, err = capsys.readouterr()
-    assert code == 0, out + err
+    over = [ln for ln in out.splitlines() if " against " in ln and "Cut to" in ln]
+    assert code == 0, err + "\n".join(over)
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -593,7 +730,8 @@ cap, cut that group to 80% of cap in the same change.
 
 Counts are local-tokenizer tokens (`agent-tools count-tokens` without
 `--api`), loaded once for the whole tree. Exit status: 0 within budget, 1 when
-any group is over cap, 2 on a registry error.
+any group is over cap, 2 on a registry error or a worktree the tree cannot be
+read from.
 """
 
 from __future__ import annotations
@@ -627,7 +765,8 @@ exit status:
   0  every group within its cap
   1  a group over cap: cut it to 80% of the cap in the same change
      (conventions/documentation.md, "Documentation budget")
-  2  registry error, or a path naming no group
+  2  registry error, unreadable worktree, or a path with nothing counted
+     under it
 
 Counts are local-tokenizer tokens, what `agent-tools count-tokens` reports
 without --api; Claude context is about 1.5x on prose.
@@ -706,6 +845,11 @@ def covering(name: str, f: str) -> str | None:
     return m.group(0) if m and f.startswith(m.group(0) + "/") else None
 
 
+def under(path: str, f: str) -> bool:
+    """Whether `f` is `path` or lies inside it; "" is the whole tree."""
+    return path == "" or f == path or f.startswith(path + "/")
+
+
 def covers_dir(name: str, other: str) -> bool:
     """Whether group `name` would cover group `other`'s name as a directory.
 
@@ -758,6 +902,8 @@ def load_registry(path: Path) -> dict[str, Any]:
     if len(residuals) != 1:
         raise RegistryError(
             f"exactly one group must set `residual`, found {len(residuals)}")
+    if groups[residuals[0]].get("per_file"):
+        raise RegistryError(f"residual group {residuals[0]!r}: per_file is not allowed")
     for name, d in _table(reg.get("data", {}), "data").items():
         d = _table(d, f"data {name!r}")
         _keys(d, DATA_KEYS, f"data {name!r}")
@@ -802,7 +948,7 @@ def _approved(table: dict[str, Any], where: str) -> None:
     value = table.get("approved")
     if "approved" in table and (not isinstance(value, str) or not APPROVED.fullmatch(value)):
         raise RegistryError(
-            f"{where}: `approved` {value!r} is not `<8 hex of session id>` "
+            f"{where}: `approved` {value!r} is not `<8 lower-case hex of session id>` "
             "for an agent's own session or `user:<8 hex>` for the session in which "
             "the user approved it")
 
@@ -857,12 +1003,17 @@ class Resolver:
             for p in d["paths"]:
                 if not any(covering(p, f) for f in self.files
                            if PurePosixPath(f).name not in INDEX_NAMES):
-                    raise RegistryError(f"data {dn!r}: {p!r} covers no tracked file")
+                    raise RegistryError(
+                        f"data {dn!r}: {p!r} covers no countable file "
+                        "(README.md and CLAUDE.md count wherever they are)")
         for f, size in self.reg.get("held", {}).get("files", {}).items():
             if f not in self.file_set:
                 raise RegistryError(f"held {f!r}: not a tracked .md file")
             if f in self.reg["groups"]:
                 raise RegistryError(f"held {f!r}: already a group; hold it in one place")
+            if f in self.claimed:
+                raise RegistryError(
+                    f"held {f!r}: claimed by one_of group {self.claimed[f]!r}")
             cap = self.class_cap(f)
             if size <= cap:
                 raise RegistryError(
@@ -1038,24 +1189,22 @@ def display_order(res: Resolver, rep: Report) -> list[tuple[str, str]]:
 
 
 def render(res: Resolver, rep: Report, rows: list[tuple[str, str]], detail_all: bool,
-           print_held: bool) -> tuple[str, list[str]]:
+           print_held: bool, show_data: bool = True) -> tuple[str, list[str]]:
     """The report text and the names of the groups over cap."""
     cut_to: float = res.reg["cut_to"]
     pct = f"{cut_to:.0%}"
-    over: list[tuple[str, int, int, int]] = []
     lines: list[str] = []
     if print_held:
-        for name, _ in rows:
-            c, cap = rep.counted[name], rep.caps[name]
-            if c > cap:
-                over.append((name, c, cap, int(cap * cut_to)))
-        for name, c, _, _ in sorted(over, key=lambda t: -t[1]):
+        held_over = [(name, rep.counted[name]) for name, _ in rows
+                     if rep.counted[name] > rep.caps[name]]
+        for name, c in sorted(held_over, key=lambda t: -t[1]):
             if name in res.file_set:
                 lines.append(f'"{name}" = {c}')
             else:
                 lines.append(f"# not a file, give it a group cap with `approved`: {name} {c:,}")
-        return "".join(line + "\n" for line in lines), [t[0] for t in over]
+        return "".join(line + "\n" for line in lines), [name for name, _ in held_over]
 
+    over: list[tuple[str, int, int, int]] = []
     width = max((len(name) for name, _ in rows), default=5)
     lines.append(f"{'counted':>9} {'cap':>7} {pct:>7}  group")
     label_shown: str | None = None
@@ -1072,14 +1221,18 @@ def render(res: Resolver, rep: Report, rows: list[tuple[str, str]], detail_all: 
             state = f"above {pct} by {c - target:,}"
         else:
             state = "ok"
+        if name in res.held:
+            # A held cap is a size frozen at the registry's introduction, not a
+            # sanctioned one; the row is read far from the registry that says so.
+            state += " (held)"
         lines.append(f"{c:9,d} {cap:7,d} {target:7,d}  {name:<{width}} {state}")
-        for tokens, f, note in sorted(rep.detail[name], reverse=True):
+        for tokens, f, note in sorted(rep.detail[name], key=lambda d: (-d[0], d[1])):
             # A note says how the count was arrived at -- a one_of set paying its
             # largest member -- so it shows whether or not the group is over cap.
             if f != name and (note or c > cap or detail_all):
                 lines.append(f"{tokens:9,d}{'':20}{f}" + (f"  ({note})" if note else ""))
 
-    if rep.data:
+    if show_data and rep.data:
         lines.append("")
         lines.append("data, listed and not counted:")
         for dn, d in res.reg["data"].items():
@@ -1113,16 +1266,18 @@ def _build_parser() -> argparse.ArgumentParser:
                         "over-cap file, at its size. Exits 1 like the report whenever "
                         "a group is over cap.")
     p.add_argument("paths", nargs="*", metavar="path",
-                   help="Narrow the report to the groups under these paths, with "
-                        "per-file detail; `.` names every group.")
+                   help="Narrow the report to the groups under these paths and the "
+                        "groups counting the files under them, with per-file detail "
+                        "and no data table; `.` names every group.")
     return p
 
 
 def main(argv: list[str] | None = None, *, root: Path = ROOT,
          count: Callable[[str], int] | None = None,
          environ: Mapping[str, str] | None = None) -> int:
-    """Exit 0 within budget, 1 with a group over cap, 2 on a registry error; a path
-    naming no group is a usage error, SystemExit(2) from argparse."""
+    """Exit 0 within budget, 1 with a group over cap, 2 on a registry error or a
+    worktree that cannot be read; a path that names no group and holds no counted
+    file is a usage error, SystemExit(2) from argparse."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     environ = os.environ if environ is None else environ
@@ -1145,20 +1300,38 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
     except RegistryError as exc:
         print(f"{REGISTRY}: {exc}", file=sys.stderr)
         return 2
+    except subprocess.CalledProcessError:
+        print(f"doc-budget: error: {root} is not a git checkout", file=sys.stderr)
+        return 2
 
     if count is None:
         from claude_config.count_tokens import count_with, load_tokenizer
 
         count = partial(count_with, load_tokenizer())
 
-    rep = measure(root, res, count)
+    try:
+        rep = measure(root, res, count)
+    except FileNotFoundError as exc:
+        print(f"doc-budget: error: {exc.filename} is tracked but missing from the "
+              "worktree", file=sys.stderr)
+        return 2
     rows = display_order(res, rep)
+    # A path the registry does not name is still countable text: show the group
+    # paying for it, which is what an agent measuring its own edit is asking. A
+    # one_of set's detail line is its pattern, so its members come from `slots`.
+    def counts(n: str, w: str) -> bool:
+        return (under(w, n)
+                or any(under(w, f) for _, f, _ in rep.detail[n])
+                or any(under(w, f) for f in res.slots.get(n, ())))
+
     shown = [(n, label) for n, label in rows
-             if not want or any(w == "" or n == w or n.startswith(w + "/") for w in want)]
+             if not want or any(counts(n, w) for w in want)]
     if want and not shown:
-        parser.error(f"no group is named under {', '.join(want)}: group names are in "
-                     f"{REGISTRY}, and derived, one_of and residual groups are not paths")
-    text, over = render(res, rep, shown, detail_all=bool(want), print_held=args.print_held)
+        parser.error(f"nothing counted lies under {', '.join(want)}: group names are in "
+                     f"{REGISTRY}; derived, one_of and residual groups are not paths; and a "
+                     "[data] path is listed, not counted")
+    text, over = render(res, rep, shown, detail_all=bool(want), print_held=args.print_held,
+                        show_data=not want)
     sys.stdout.write(text)
     return 1 if over else 0
 
@@ -1184,6 +1357,8 @@ doc-budget: the resolver, report and exit codes, with the grammar under test
 Claude-Session: 834203fa-2993-42e8-a373-0f7dc84e995e
 EOF
 ```
+
+The two blocks above are the files as of 3e6dc1ac: the final review's fixes -- a named path finds the group counting it (44fdeba1, 3e6dc1ac for a one_of member), the validator's new refusals and exit 2 for an unreadable worktree (e5348a00), the gate's footer-only message (c44ae556) -- are folded in.
 
 ---
 
@@ -1642,8 +1817,10 @@ def test_the_block_stays_inside_its_token_budget(tmp_path: Path) -> None:
     real git snapshot -- branch, status and five commits -- because that is the
     one part of the block that varies with the repo, so a real one keeps the pin
     honest. About 500 tokens on this fixture when pinned, and about 580 for the
-    live hook on this repo; counted by the local tokenizer. Over: cut the block,
-    not the number (`conventions/documentation.md`, *Documentation budget*)."""
+    live hook on this repo; counted by the local tokenizer. The pin is that size
+    divided by 0.8, so 80% of it is where the text sits now and the first growth
+    past it pays a registry group's cut. Over: cut the block, not the number
+    (`conventions/documentation.md`, *Documentation budget*)."""
     from claude_config.count_tokens import _count_local
 
     repo = tmp_path / "repo"
@@ -1668,12 +1845,33 @@ Append to `tests/test_pre_output_record.py` after `test_the_reminder_prints_even
 def test_the_reminder_stays_inside_its_token_budget(session, capsys):
     """Printed at the end of every turn, and again after any further tool call.
     `doc-budget.toml` prices the `.md` tree; this is not `.md`, so it is pinned
-    here: 42 tokens when pinned, by the local tokenizer. Over: cut the reminder,
-    not the number (`conventions/documentation.md`, *Documentation budget*)."""
+    here: 42 tokens when pinned, by the local tokenizer, and the pin is that size
+    divided by 0.8 and rounded up, so 80% of it is where the text sits now and the
+    first growth past it pays a registry group's cut. Over: cut the reminder, not
+    the number (`conventions/documentation.md`, *Documentation budget*)."""
     from claude_config.count_tokens import _count_local
 
     assert record.main([json.dumps(PAYLOAD)]) == 0
-    assert _count_local(capsys.readouterr().out) <= 52
+    assert _count_local(capsys.readouterr().out) <= 53
+
+
+@pytest.mark.parametrize(
+    "argv, expected_in_stderr",
+    [
+        (["{not json"], "not valid JSON"),
+        (['["a list"]'], "expected an object"),
+        ([json.dumps({"turn": 1})], "summary"),
+        ([json.dumps({**PAYLOAD, "summary": "   "})], "summary"),
+        (['{"summary":', '"split by the shell"}'], "exactly one JSON argument"),
+    ],
+)
+def test_unusable_arguments_are_refused_loudly(session, capsys, argv, expected_in_stderr):
+    assert record.main(argv) == 1
+    assert expected_in_stderr in capsys.readouterr().err
+    assert not record.record_path(session).exists()
+
+
+# --- the "Done" push ------------------------------------------------------
 ```
 
 In `agent-tools/src/hook_subagent.rs`, inside `mod tests` after `asks_for_the_heading_the_parent_looks_for`, add:
@@ -1709,6 +1907,8 @@ Claude-Session: 834203fa-2993-42e8-a373-0f7dc84e995e
 EOF
 ```
 
+The two Python pins read as above since c44ae556 (the reminder's pin rounded up to 53 at 3e6dc1ac), stating the pin as today's size divided by 0.8 (500/625, 42/53). The Rust pin stays at 1,000 characters against 856 today -- not that rule; the user's call.
+
 ---
 
 ### Task 7: The policy text
@@ -1740,13 +1940,13 @@ Only consolidation satisfies the cap: merge duplicates, resolve the conflicts
 you find, delete what the code already says. Moving prose out of `.md` (into a
 comment, JSON, a script's `--help`, a pointer to an external source) is not a
 cut. Neither is loosening the registry: a `[data]` entry, a held size or a cap
-above the one the group would otherwise have needs the user's approval, and one
-an agent approves cannot take effect in the session that wrote it.
+above the one the group would otherwise have needs the user's approval; the tool
+checks only that the approving session is not the running one, so an entry an
+agent approves is inert in the session that wrote it.
 
 What survives is non-rederivable and changes an action — the test is whether
 not knowing it makes an agent do the wrong thing. Everything else goes,
 including good writing — git history keeps it.
-
 ```
 
 - [ ] **Step 2: Check the conventions group**
@@ -1764,6 +1964,8 @@ doc-budget: the policy, in the conventions every CLAUDE.md follows
 Claude-Session: 834203fa-2993-42e8-a373-0f7dc84e995e
 EOF
 ```
+
+The section reads as above since c44ae556, which reworded the approval sentence to say what the tool checks.
 
 ---
 
