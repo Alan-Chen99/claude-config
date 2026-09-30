@@ -1,10 +1,15 @@
 {
   "cleanupPeriodDays": 36500,
-  "model": "opus",
   "env": {
     "CLAUDE_CODE_FORK_SUBAGENT": "0",
     "TELEGRAM_HITL_STATE_DIR": "/home/alan/personal/telegram-hitl"
   },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeGitInstructions": false,
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -197,6 +202,7 @@
       }
     ]
   },
+  "enableArtifact": false,
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh"
@@ -226,18 +232,12 @@
     }
   },
   "outputStyle": "default",
-  "includeGitInstructions": false,
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
   "effortLevel": "high",
+  "autoCompactWindow": 400000,
   "showClearContextOnPlanAccept": true,
   "tui": "default",
   "autoMemoryEnabled": false,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
-  "theme": "dark",
-  "enableArtifact": false,
-  "autoCompactWindow": 400000
+  "theme": "dark"
 }
