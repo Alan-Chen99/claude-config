@@ -11,12 +11,13 @@ the directory you are about to touch.
 | File | What | When to read |
 | --- | --- | --- |
 | `README.md` | Public-facing: the fork's ideas with links to their evidence, upstream attribution, install and tests | First orientation; before pointing anyone at the repository |
-| `install.sh` | Links config into `~/.claude/`, `opencode/` into `~/.config/opencode`, units into `~/.config/systemd/user/`; builds `agent-tools` and the `claude.sh`/`kimi.sh`/`zai.sh` launchers into `~/.local/bin/`. Links, not copies: an edit in the canonical checkout is live with no re-install, a worktree's is live nowhere. Refuses to run from a worktree, or to replace a destination that is not already a symlink | Installing the config; deciding whether an edit needs deploying |
+| `install.sh` | Symlinks the config into `~/.claude/`, `~/.config/opencode`, `~/.config/systemd/user/` and `~/.local/bin/` — README, *Install*. Links, not copies: a canonical-checkout edit is live with no re-install, a worktree's is live nowhere; refuses a worktree, or a destination that is not already a symlink | Installing the config; deciding whether an edit needs deploying |
 | `settings.json` | Claude Code user settings: hooks, statusline, permissions, `env`. Keys documented elsewhere: git policy (`includeGitInstructions`, `attribution`) in `sys_prompt/CLAUDE.md`, `CLAUDE_CODE_FORK_SUBAGENT` in `docs/subagent-backgrounding.md`, `TELEGRAM_HITL_STATE_DIR` in `src/claude_config/CLAUDE.md`, `autoCompactWindow` in `docs/total-tokens-reminder-trial.md` | Modifying hooks, statusline, permissions, env |
 | `statusline.sh` | Status line wired up via `settings.json`; its open-tasks row is `agent-tools ps --format statusline` | Customizing the status line |
 | `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths after upstream sync | After an upstream sync |
 | `pyproject.toml` | Python project config, entry points | Adding dependencies, modifying build settings |
 | `.env` / `.env.example` | Unified config (NTFY URL, OpenRouter, Anthropic token-count) | Setting up secrets — see `.env.example` |
+| `doc-budget.toml` | Token caps for every tracked `.md`, by how the text reaches a context; `agent-tools doc-budget` measures | Adding or growing a doc; a group over cap |
 
 ## Subdirectories
 
@@ -32,10 +33,10 @@ the directory you are about to touch.
 | `prompt-tests/` | Runner-neutral prompt evaluation cases | Running or grading prompt evaluations |
 | `conventions/` | Documentation and code-quality standards; `documentation.md` governs every CLAUDE.md here | Writing docs, understanding coding rules |
 | `docs/` | Reference material on Claude Code's own behaviour, captured prompts, design records | Investigating cc behavior; after an upgrade |
-| `notes/` | Long-form investigation write-ups — measured evidence and root cause, one behaviour each. Dated records: never rewritten to match later changes. `ralph-loop3-writing-for-agents/` is an archive of finished audit reports instead, not citable and off-limits while writing another report — see its own `CLAUDE.md` | Before re-investigating a known failure mode; after one worth keeping |
+| `notes/` | Long-form investigation write-ups — measured evidence and root cause, one behaviour each. Dated records, never rewritten to match later changes; `ralph-loop3-writing-for-agents/` is a closed archive with rules in its own `CLAUDE.md` | Before re-investigating a known failure mode; after one worth keeping |
 | `plans/` | Plan storage | Reviewing or executing a plan |
 | `systemd/` | systemd **user** units, symlinked by `install.sh` and enabled by hand — `telegram-hitl.service` runs the Telegram proxy | Adding a long-running service; diagnosing one that is `failed` |
-| `.claude/` | Repo-local config; project skills `prompt-tests` and `update-claude-code` (post-upgrade runbook and what a release can break here); `skills/session-analysis-wip` is a relative link that invokes **this** checkout's `skills/session-analysis` — the plain `session-analysis` skill is always the installed copy from `/repos/claude-config` | Adding repo-local skills or hooks; after a Claude Code upgrade; invoking a skill you are editing from a worktree |
+| `.claude/` | Repo-local config; project skills `prompt-tests` and `update-claude-code`; `skills/session-analysis-wip` is a relative link that invokes **this** checkout's `skills/session-analysis` — the plain `session-analysis` skill is always the installed copy from `/repos/claude-config` | Adding repo-local skills or hooks; after a Claude Code upgrade; invoking a skill you are editing from a worktree |
 | `.github/` | GitHub workflows and config | Modifying CI/CD |
 
 ## Build and test
@@ -45,6 +46,7 @@ cd agent-tools && cargo build --release   # then: cargo test
 UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/$(basename $PWD) uv run pytest
 scripts/check-prompt-coupling.sh         # emitted strings vs the prompt
 scripts/check-prompt-rationale.sh        # every sys_prompt/CLAUDE.md section vs the prompt
+agent-tools doc-budget                   # every tracked .md against doc-budget.toml
 ```
 
 ## Agent Policy
@@ -57,3 +59,6 @@ scripts/check-prompt-rationale.sh        # every sys_prompt/CLAUDE.md section vs
   in the source tree, so host and container sessions don't fight over one `.venv`.
 - After a Claude Code upgrade, work through `.claude/skills/update-claude-code`: many files
   here are pinned to a cc version and go stale with no signal.
+- `agent-tools doc-budget` over cap: cut that group to 80% in the same change —
+  consolidation only; a group over when you arrived is debt to name, not pay in passing
+  (`conventions/documentation.md`, *Documentation budget*).
