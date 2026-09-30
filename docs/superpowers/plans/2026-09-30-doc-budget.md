@@ -1518,8 +1518,8 @@ Directly after the `Cmd::CountTokens { args } => { uv_run(...); }` arm in the di
 Run: `cd /root/claude-config-work/agent-tools && cargo build --release 2>&1 | tail -2 && cargo test --test doc_budget_test 2>&1 | tail -5`
 Expected: build ok; `test result: ok. 2 passed`.
 
-Run: `cd /root/claude-config-work && agent-tools/target/release/agent-tools doc-budget --print-held | wc -l`
-Expected: a count near 51 (the held files). Note: the installed `agent-tools` in `~/.local/bin` is the canonical checkout's build and does not know `doc-budget`; use the worktree's binary path above throughout this plan.
+Run: `cd /root/claude-config-work && CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget --print-held | wc -l`
+Expected: a count near 51 (the held files). Note: the installed `agent-tools` in `~/.local/bin` is the canonical checkout's build and does not know `doc-budget`; use the worktree's binary path above throughout this plan. That binary is a non-default build, so it refuses to run unless `CLAUDE_CONFIG_ROOT=/root/claude-config-work` asserts its root (root `CLAUDE.md`, Agent Policy) — every invocation below carries the prefix.
 
 - [ ] **Step 5: Commit**
 
@@ -1698,7 +1698,7 @@ including good writing — git history keeps it.
 
 - [ ] **Step 2: Check the conventions group**
 
-Run: `cd /root/claude-config-work && agent-tools/target/release/agent-tools doc-budget conventions | head -3`
+Run: `cd /root/claude-config-work && CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget conventions | head -3`
 Expected: `conventions` row, counted ≈ 24,0xx against 25,000, not OVER.
 
 - [ ] **Step 3: Commit**
@@ -1759,7 +1759,7 @@ Long-form investigation write-ups — measured evidence and root cause, one beha
 
 - [ ] **Step 3: Measure**
 
-Run: `cd /root/claude-config-work && agent-tools/target/release/agent-tools doc-budget CLAUDE.md`
+Run: `cd /root/claude-config-work && CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget CLAUDE.md`
 Expected: `CLAUDE.md` ≤ 1,500, state `above 80% by …` (not OVER). If OVER, also drop `(post-upgrade runbook and what a release can break here)` from the `.claude/` row — the Agent Policy bullet already says it — and re-measure; if still OVER, shorten the new bullet to `- \`agent-tools doc-budget\` over cap: cut that group to 80% in the same change (\`conventions/documentation.md\`, *Documentation budget*).` Do not add `CLAUDE.md` to `[held.files]`.
 
 - [ ] **Step 4: Commit**
@@ -1841,7 +1841,7 @@ Replace `` `plans/` (14) `` with `` `plans/` (15) `` on line 28 (this plan is th
 Run: `cd /root/claude-config-work && scripts/check-prompt-rationale.sh && scripts/check-prompt-coupling.sh 2>&1 | tail -2`
 Expected: both pass (the sys_prompt edit is outside the rationale region).
 
-Run: `agent-tools/target/release/agent-tools doc-budget docs/CLAUDE.md skills/CLAUDE.md | grep -v '^--'`
+Run: `CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget docs/CLAUDE.md skills/CLAUDE.md | grep -v '^--'`
 Expected: both ≤ 1,500.
 
 - [ ] **Step 7: Commit**
@@ -1870,7 +1870,7 @@ Run:
 
 ```bash
 cd /root/claude-config-work
-agent-tools/target/release/agent-tools doc-budget --print-held > /root/.claude/tmp/claude-0/-root-claude-config-work/834203fa-2993-42e8-a373-0f7dc84e995e/scratchpad/held.txt
+CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget --print-held > /root/.claude/tmp/claude-0/-root-claude-config-work/834203fa-2993-42e8-a373-0f7dc84e995e/scratchpad/held.txt
 grep -c '^"' /root/.claude/tmp/claude-0/-root-claude-config-work/834203fa-2993-42e8-a373-0f7dc84e995e/scratchpad/held.txt
 grep '^#' /root/.claude/tmp/claude-0/-root-claude-config-work/834203fa-2993-42e8-a373-0f7dc84e995e/scratchpad/held.txt
 ```
@@ -1900,7 +1900,7 @@ followed by the `"path" = n` lines from `held.txt`, in the order the tool printe
 
 - [ ] **Step 3: The gate**
 
-Run: `cd /root/claude-config-work && agent-tools/target/release/agent-tools doc-budget | tail -3; echo exit=$?`
+Run: `cd /root/claude-config-work && CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget | tail -3; echo exit=$?`
 Expected: no `OVER` anywhere, exit 0.
 
 Run: `PYTEST tests/test_doc_budget.py -q 2>&1 | tail -2`
@@ -1928,7 +1928,7 @@ cd /root/claude-config-work
 PYTEST -q 2>&1 | tail -3
 (cd agent-tools && cargo test 2>&1 | grep -E 'test result|FAILED' | sort | uniq -c)
 scripts/check-prompt-coupling.sh && scripts/check-prompt-rationale.sh
-agent-tools/target/release/agent-tools doc-budget >/dev/null; echo doc-budget exit=$?
+CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget >/dev/null; echo doc-budget exit=$?
 git status --short | wc -l
 ```
 
@@ -1936,5 +1936,5 @@ Expected: pytest all passed; every cargo `test result: ok`; both scripts pass; `
 
 - [ ] **Step 2: Spot-check the report by class**
 
-Run: `agent-tools/target/release/agent-tools doc-budget | grep '^--'`
+Run: `CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget | grep '^--'`
 Expected: the headers in this order — every request (2 groups), every request of an opencode session, every session, per invocation, per spawn, per spawn (agent bodies read them), every session touching the directory, on demand (one file at a time; a directory at a time; when invoked), not loaded since cbeb6721, on demand (infra).
