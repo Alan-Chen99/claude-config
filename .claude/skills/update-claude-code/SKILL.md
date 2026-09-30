@@ -7,84 +7,77 @@ description: Use when Claude Code has been upgraded and this repo must be re-che
 
 ## Overview
 
-Claude Code is a moving dependency this repo reads, imitates and cites. An upgrade
-breaks things **silently**: `serde` ignores unknown keys, pydantic models are
-`extra: "allow"`, `statusline.sh` defaults every missing field to `0`, and the one
-test that re-derives a constant from the decompiled source `skipif`s itself away when
-the decompile is absent. Nothing fails loudly. You have to go looking.
+Claude Code is a moving dependency this repo reads, imitates and cites, and an upgrade breaks
+things **silently**: `serde` ignores unknown keys, pydantic models are `extra: "allow"`,
+`statusline.sh` defaults every missing field to `0`, and the one test that re-derives a
+constant from the decompiled source `skipif`s itself away without the decompile.
 
-**Core principle: a check that cannot fail is not a check.** Before trusting any
-result below, know what it does *not* cover — each entry says so.
+**Core principle: a check that cannot fail is not a check.** Before trusting any result below,
+know what it does *not* cover — §2 says so for each.
 
 ## Add to this file as you build
 
-When you write anything that reads a Claude Code data shape, env var, hook field,
-settings key, tool name, log-record type, or source line, add it to §3 in the same
-change. A coupling nobody recorded is a coupling nobody re-checks; the inventory is
-the only reason the next upgrade is a runbook rather than an archaeology dig.
-
-Then re-check the line ranges §3 already cites into the file you just edited. Those
-citations point at this repo's own source, not at the decompile, so `citecheck.sh`
-never sees them and `check-prompt-coupling.sh` matches literal strings rather than
-line numbers — an edit above a cited line silently moves it and nothing complains.
+Anything you write that reads a Claude Code data shape, env var, hook field, settings key, tool
+name, log-record type or source line goes into §3 in the same change; a coupling nobody
+recorded is a coupling nobody re-checks. Then re-check the line ranges §3 already cites into
+the file you edited: same-repo citations are checked by nothing.
 
 ## 1. The runbook, in order
 
-Ordering is load-bearing — each step's reason is why it sits where it does.
+Ordering is load-bearing — steps 4, 7 and 8 read the tree step 2 builds, and run before it they
+pass vacuously.
 
 | # | Step | Command | Why here |
 |---|---|---|---|
 | 1 | Confirm the new version | `claude --version` | Everything below compares against it. |
-| 2 | Re-extract the decompile | in `/repos/claude-code-decompiled`: `npm run extract && npm run link && npm run typecheck` (`npm install` once first); then `bash .claude/skills/update-claude-code/skilldiff.sh` (`--update` to take the new text), then the loader read under §4, "Re-review the artifact construction" — the diff is the asset half only | Chunk hashes **and** line numbers rotate every build. Until this runs, step 7's citation check and `tests/test_model_visibility.py` both pass vacuously. `extract` empties `src/`, `assets/` and `native/` first, so modules the new binary dropped disappear on their own. The two skills vendored from `assets/` — `skills/artifact-design`, `skills/artifact-diagramming` — are found by `name:` frontmatter because asset filenames are hashes. `skilldiff.sh` re-reads the assets and only the assets: what the built-in delivers is the asset plus whatever its loader adds at load time, so a release that adds a dynamic section without touching the asset passes the diff and diverges the copies silently. The loader read in §4 is unconditional at every upgrade. |
-| 3 | Confirm the decompile matches | `grep -m1 -oP '(?<=VERSION: ")[^"]+' /repos/claude-code-decompiled/src/cli.js` | `src/cli.js` is the one stable filename across the 2.1.269 layout change; it carries `VERSION`/`BUILD_TIME`/`GIT_SHA`. Must equal step 1. |
-| 4 | Read upstream's own release notes | `.claude/skills/update-claude-code/changelog.py <previous version>` | Claude Code ships its notes inside the binary, and they name the *reason* behind a diff that nothing else here can: the `Agent` tool's schema change in 2.1.269 is "`CLAUDE_CODE_SUBAGENT_MODEL` became a default rather than an override" at 2.1.251. Read it before the checks, so the rest of the runbook is confirming a known list rather than reverse-engineering one. Needs step 2's tree. |
-| 5 | Re-sync the editable venv — **canonical checkout only** | from `/repos/claude-config`: `UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/claude-config uv sync --reinstall-package claude-config` | `check-env-context.sh` runs under this venv, so a stale install loads the old `drift.py`. `--reinstall-package` is required because the package version never bumps. **Run it from a worktree and it repoints the shared venv's editable install at that worktree** (`+ claude-config @ file:///root/claude-config-work2`), breaking every other session once the worktree is deleted — the same hazard as `install.sh`. A worktree has its own venv at `$HOME/.claude/venvs/<basename>`, selected by the `UV_PROJECT_ENVIRONMENT` that `.envrc` exports through direnv, so a worktree needs no step 5. |
-| 6 | Check, then re-pin, env-context | `./scripts/check-env-context.sh` → review the `+`/`-`/`~` diff → `./scripts/check-env-context.sh --update` | The diff is the single best summary of what changed in cc's own `# Environment` block. Re-pin only after reading it — `--update` overwrites the evidence. |
-| 7 | Resolve every source citation | `bash .claude/skills/update-claude-code/citecheck.sh` | 136 `chunk-*.js:LINE` citations live in tracked files; only 2 are re-derived by any test. Exit 0 = all resolve; 1 = the unresolved ones are named on stdout; 2 = no decompiled tree, i.e. step 2 was skipped. |
-| 8 | Rebase the upstream-derived prompts | `python3 scripts/check-prompt-upstream.py`, then the section-key diff it does not do | `sys_prompt/` replaces Claude Code's own system prompt wholesale and the env-context hook renders an environment block of its own — since the 2026-09-13 trim it carries only what cc's does not, and the stash caution is the one passage it still borrows — so passages copied from either go stale with no signal and nothing else in this list reads prose. The replacement is not total either: Anthropic's own wording still arrives through `messages[]`, which neither this script nor anything else here reads. The script needs step 2's tree and exits 2 without it. The procedure, the deliberate divergences and the per-release log are in `sys_prompt/CLAUDE.md`, "Rebasing on an upstream release" — that text governs; this row only says when to run it. |
+| 2 | Re-extract the decompile | in `/repos/claude-code-decompiled`: `npm run extract && npm run link && npm run typecheck` (`npm install` once first); then `bash .claude/skills/update-claude-code/skilldiff.sh` (`--update` to take the new text) | Chunk hashes **and** line numbers rotate every build; until this runs, step 7 and `tests/test_model_visibility.py` pass vacuously. `skilldiff.sh` compares the two skills vendored under `skills/` against the assets — the asset half only; the loader half is the §4 artifact entry, and it is unconditional. |
+| 3 | Confirm the decompile matches | `grep -m1 -oP '(?<=VERSION: ")[^"]+' /repos/claude-code-decompiled/src/cli.js` | Must equal step 1. `src/cli.js` is the one stable filename across the 2.1.269 layout change. |
+| 4 | Read upstream's own release notes | `.claude/skills/update-claude-code/changelog.py <previous version>` | The notes ship inside the binary and name the *reason* behind a diff nothing else here can; read first, the checks confirm a known list. Needs step 2's tree. |
+| 5 | Re-sync the editable venv — **canonical checkout only** | from `/repos/claude-config`: `UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/claude-config uv sync --reinstall-package claude-config` | `check-env-context.sh` runs under this venv, so a stale install loads the old `drift.py`; `--reinstall-package` because the package version never bumps. **From a worktree this repoints the shared venv at the worktree** and breaks every other session once it is deleted; a worktree has its own venv via `.envrc` and needs no step 5. |
+| 6 | Check, then re-pin, env-context | `./scripts/check-env-context.sh` → read the `+`/`-`/`~` diff → `./scripts/check-env-context.sh --update` | The diff is the best summary of what changed in cc's `# Environment` block. Re-pin only after reading it — `--update` overwrites the evidence. |
+| 7 | Resolve every source citation | `bash .claude/skills/update-claude-code/citecheck.sh` | Exit 0 = every `chunk-*.js:LINE` citation in tracked files resolves; 1 = the unresolved ones are named; 2 = no decompiled tree, i.e. step 2 was skipped. |
+| 8 | Rebase the upstream-derived prompts | `python3 scripts/check-prompt-upstream.py`, then the section-key diff it does not do | `sys_prompt/` replaces cc's system prompt wholesale, so passages copied from it go stale with no signal — and Anthropic's own wording still arrives through `messages[]`, which nothing here reads. Exits 2 without step 2's tree. Procedure, divergences, per-release log: `sys_prompt/CLAUDE.md`, "Rebasing on an upstream release". |
 | 9 | Rebuild and test | `cd agent-tools && cargo build --release && cargo test --release`; `uv run pytest tests/ -q`; `./scripts/check-prompt-coupling.sh` | |
 | 10 | Check the renderer against real logs | `ls -t /root/.claude/projects/*/*.jsonl \| head -8 \| uv run cc-render-coverage --quiet` | New record and attachment shapes land here first. |
-| 11 | Re-capture the system-prompt snapshots | see `docs/system-prompt-snapshot/README.md` "Regenerating" | Needs an authenticated `claude` — `CLAUDE_CODE_OAUTH_TOKEN`, which Claude Code strips from tool subprocesses, or an access token in `~/.claude/.credentials.json`, which comes and goes with login state — and any checkout's venv (`mitmdump` is a project dependency; `capture.py` starts its own proxy when 9160 is dead). Never run two `regenerate.py` in parallel — they share `capture-output/` and `~/.claude/requests-log/`. |
-| 12 | Read the capture in full | `git diff docs/system-prompt-snapshot` | Every configuration and every tool file, read through rather than skimmed — tool descriptions **and their input schemas** move between releases, and nothing else in this list reads them. The 2.1.269 pass compared `description` only and filed `Agent` as unchanged while its schema had moved. `docs/system-prompt-snapshot/README.md`, "Reading a capture as a diff", governs what that diff shows and what it structurally cannot; this row only says when. |
-| 13 | Re-derive what the fired checks were premises *for* | for each premise a check above falsified, `git grep` its wording across tracked files | Steps 6, 8 and 12 are the steps that falsify premises, and every remedy this runbook prescribes for them is conformance repair — re-pin, rebase, re-read the source so the mirror tracks. Repair leaves the artifacts built on the old premise standing, and reading one of them does not reveal it: a component's own rationale is the thing that expired. 2.1.269 moved the env block into `messages[]`; the finding was written into `env_context/__main__.py` on 2026-09-11 and three other files went on asserting that `--system-prompt-file` discards it, in four places — step 8's own why-clause in this table among them — until 2026-09-13. The same release moved the output style out of the system prompt, and three more files kept the old location. So: name every artifact resting on the premise, and re-derive or retire each. The case this list structurally cannot express is a mirror that now matches cc exactly — `check-env-context.sh` printing `OK` is also what full redundancy looks like. |
-| 14 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code — the fixes exist but nothing you run uses them. A worktree that runs `install.sh` breaks every other session. |
+| 11 | Re-capture the system-prompt snapshots | `docs/system-prompt-snapshot/README.md`, "How to re-capture" | Needs an authenticated `claude` (`CLAUDE_CODE_OAUTH_TOKEN`, which cc strips from tool subprocesses, or `~/.claude/.credentials.json`). Never two `regenerate.py` in parallel — they share `capture-output/` and `~/.claude/requests-log/`. |
+| 12 | Read the capture in full | `git diff docs/system-prompt-snapshot` | Every configuration and every tool file, descriptions **and input schemas** — the 2.1.269 pass compared descriptions only and filed `Agent` as unchanged while its schema had moved. What the diff structurally cannot show: the README, "Reading a capture as a diff". |
+| 13 | Re-derive what the fired checks were premises *for* | for each premise a check falsified, `git grep` its wording across tracked files | Steps 6, 8 and 12 falsify premises; their remedies repair conformance and leave every artifact built on the old premise standing. Name each and re-derive or retire it (2.1.269 moved the env block into `messages[]`; four places asserted the opposite for two more days). A mirror that now matches cc exactly also reads as `OK`. |
+| 14 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / `OK: 14 borrowed passages still match Claude Code 2.1.269` / no citecheck output / `OK: 2 vendored skill(s) match the extract` / `546 passed` / 15 cargo test binaries all `ok` /
-`prompt coupling OK` / `8 file(s) checked: clean`.
+binary` / `OK: 14 borrowed passages still match Claude Code 2.1.269` / no citecheck output /
+`OK: 2 vendored skill(s) match the extract` / `prompt coupling OK` / `8 file(s) checked: clean`.
 
-**Where to run each step.** Steps 5 and 14 repoint shared installs and belong in the
-canonical checkout `/repos/claude-config`. Everything else is worktree-safe and should
-be done in a worktree, because steps 2 (`skilldiff.sh --update`), 6 and 9 rewrite tracked files.
+**Where to run each step.** Steps 5 and 14 repoint shared installs and belong in
+`/repos/claude-config`. Everything else belongs in a worktree, because steps 2
+(`skilldiff.sh --update`), 6 and 9 rewrite tracked files.
 
-**When a check fails.** `check-env-context.sh` printing `+`/`-`/`~` lines means cc's own
-env block changed shape — read the diff against `src/claude_config/env_context/render.py`
-before `--update`, since the hook exists to mirror that block. `citecheck.sh` naming a
-citation means the decompile moved under it: re-find the cited code by a string marker
-(the technique `tests/test_model_visibility.py:192-200` uses — names and hashes rotate,
-marker strings survive) and rewrite the citation, rather than deleting it. A
-`cc-render-coverage` `missing_content` finding means a record shape the renderer does not
-model; `renderer_truncation` means a hardcoded cap ignoring `--tool-max`. A `pytest`
-failure in `test_denylist_still_matches_the_conversion_source` is the intended signal that
-a release changed which attachment arms return empty — re-derive the set, do not edit the
-assertion.
+**When a check fails.** `check-env-context.sh` printing `+`/`-`/`~` lines: read the diff
+against `src/claude_config/env_context/render.py` before `--update`. `citecheck.sh` naming a
+citation: re-find the code by a string marker (as `tests/test_model_visibility.py:192-200`
+does — names and hashes rotate, strings survive) and rewrite the citation rather than delete
+it; grepping for the old version string finds stale *references*, never a live code path whose
+input shape changed. `cc-render-coverage` `missing_content`: a record shape the renderer does
+not model; `renderer_truncation`: a hardcoded cap ignoring `--tool-max`. `pytest` failing in
+`test_denylist_still_matches_the_conversion_source`: a release changed which attachment arms
+return empty — re-derive the set, do not edit the assertion.
 
 ## 2. What each check does NOT cover
 
-This table is the point of the skill. A green run below still leaves all of this open.
+A green run leaves all of this open.
 
 | Check | Blind to |
 |---|---|
-| `check-env-context.sh` | Anything outside a ±1000-byte window around `Primary working directory: ` plus three whole-binary string counts. It sees the env block's *field set*, not behaviour — and not whether the mirror is still wanted: a clean match is its success condition and is equally what redundancy looks like, so cc delivering the same block itself reads as `OK`. |
-| `citecheck.sh` | Whether the cited line still says what the citing text claims. It proves the file exists and is long enough — nothing more. Line numbers shift; a resolving citation can point at unrelated code, which is how five same-repo citations were found stale on 2026-09-12 while every one of them resolved. It also sees only `chunk-*.js:LINE`: citations into this repo's own files are checked by nothing. A scan below 100 citations exits 2 rather than printing a clean run. |
-| `cc-render-coverage` | The default view's **selection**. It renders with `show_all` set and draws needles only from `assistant`/`user` records, so attachment/progress/system records contribute none. It cannot see a record being dropped. |
-| `pytest` | Every citation but two. `tests/test_model_visibility.py` re-derives `_NEVER_VISIBLE_ATTACHMENT_TYPES` and `_HOOK_STDOUT_VISIBLE_EVENTS` from the decompiled source by string marker — and both `skipif` when `/repos/claude-code-decompiled/src` is absent, so they report success by not running. |
-| `check-prompt-coupling.sh` | Claude Code entirely. It greps this repo's own files against each other. |
-| `check-prompt-upstream.py` | Everything upstream says that this repo never copied. It re-checks 15 borrowed passages, so a section a release adds — or reworded text this prompt does not carry — is invisible to it. Where a passage occurs more than once it reports that the count moved, not which copy moved. |
-| `changelog.py` | Anything upstream chose not to write down, and every release older than the window the binary carries — 15 entries in 2.1.269, reaching back to 2.1.247. The running version has no entry of its own, and a release with no user-facing notes has none either, so a gap in the sequence is not evidence of a truncated window. |
-| The capture diff (step 12) | Every setting in this repo's own `settings.json`. `capture.py:471` passes `--setting-sources project,local`, which drops `userSettings` (`rWn`, `chunk-3vd4nzwp.js:8440-8442`), and `install.sh` puts this file at `~/.claude/settings.json` — user scope. A capture therefore shows stock behaviour for every key here, which is deliberate (snapshots stay comparable) but means no capture can confirm a key still takes effect. The 18 deferred tools: a capture carries their names in a reminder and one `DeferredToolPlaceholder` entry, never their descriptions or schemas. And it is one environment on one day — most prompt sections sit behind a server-resolved flag, so a section absent from a capture is not a section the release removed. |
-| `skilldiff.sh` | Everything the built-in adds after reading the asset: the dataviz callout paragraph behind `tengu_cobalt_plinth_dataviz` (`src/chunk-s7akwrx2.js:455`), and under `CLAUDE_CODE_ARTIFACT_TOOLSET` a "Page contract" prefix plus one phrase swap (`nJn`, `src/chunk-qza9q751.js:220-253`) — so a copy can match the asset and still not say what the built-in says. Whether the built-in still exists: `NO ASSET` is what a rename and a removal both look like. And its own list — `VENDORED` in the script is fixed, so a third copied skill is checked by nothing until it is added. The half it cannot do is the unconditional loader read under §4, "Re-review the artifact construction". |
-| CI | Every check above. `.github/workflows/ci.yml` runs the whole Python suite and `cargo test` on every push, and nothing else: no workflow invokes `check-env-context.sh`, `citecheck.sh`, `check-prompt-coupling.sh`, `check-prompt-upstream.py` or the capture step, and the one pytest case that exercises the drift check for real (`test_hook_emits_the_envelope`) skips where no Claude Code is installed, so a runner never sees drift. |
+| `check-env-context.sh` | Anything outside a ±1000-byte window around `Primary working directory: `: the env block's *field set*, not behaviour — and not whether the mirror is still wanted, since cc delivering the same block itself also reads as `OK`. |
+| `citecheck.sh` | Whether the cited line still says what the citing text claims — it proves the file exists and is long enough; five same-repo citations were stale on 2026-09-12 while every one resolved. Citations into this repo's own files are checked by nothing; pinning by string, as `check-prompt-coupling.sh` does, is the only mechanism here with teeth. Below 100 citations it exits 2. |
+| `cc-render-coverage` | The default view's **selection**: it renders with `show_all` and draws needles only from `assistant`/`user` records, so it cannot see a record being dropped. |
+| `pytest` | Every citation but two. `tests/test_model_visibility.py` re-derives `_NEVER_VISIBLE_ATTACHMENT_TYPES` and `_HOOK_STDOUT_VISIBLE_EVENTS` by string marker — and both `skipif` without `/repos/claude-code-decompiled/src`, reporting success by not running. |
+| `check-prompt-coupling.sh` | Claude Code entirely; it greps this repo's files against each other. |
+| `check-prompt-upstream.py` | Everything upstream says that this repo never copied: 15 borrowed passages, so an added section is invisible. |
+| `changelog.py` | Anything upstream did not write down, and releases older than the binary's window (15 entries in 2.1.269, back to 2.1.247). |
+| The capture diff (step 12) | Every key in this repo's `settings.json`: `capture.py:471` passes `--setting-sources project,local`, which drops user settings (`rWn`, `chunk-3vd4nzwp.js:8440-8442`), and `install.sh` installs this file at user scope — a capture shows stock behaviour for every key here. Deferred tools appear as names plus one `DeferredToolPlaceholder`, never as descriptions or schemas. And it is one environment on one day: most prompt sections sit behind a server-resolved flag, so a section absent from a capture is not a section the release removed. |
+| `skilldiff.sh` | Everything the loader adds after reading the asset — the dataviz callout behind `tengu_cobalt_plinth_dataviz` (`src/chunk-s7akwrx2.js:455`), and under `CLAUDE_CODE_ARTIFACT_TOOLSET` a "Page contract" prefix and one phrase swap (`nJn`, `src/chunk-qza9q751.js:220-253`) — so a copy can match the asset and not say what the built-in says. `NO ASSET` is what rename and removal both look like; its `VENDORED` list is fixed. |
+| CI | Every check above: `ci.yml` runs pytest and `cargo test` and nothing else, and the one pytest case exercising the drift check for real skips where no Claude Code is installed. |
 
 ## 3. The coupling inventory — what an upgrade can break
 
@@ -92,45 +85,45 @@ This table is the point of the skill. A green run below still leaves all of this
 
 | Where | Reads | Failure mode |
 |---|---|---|
-| `agent-tools/src/hook_input.rs:13-35` | `session_id`, `tool_name`, `tool_input`, `tool_use_id`, `hook_event_name`, `tool_response` | A renamed field fails the parse; `hook_pre.rs:14-19` then allows passthrough and `hook_post.rs:46-51` returns `Ok(())`. Wrapping just stops happening. |
-| `agent-tools/src/hook_post.rs:118-172` | `backgroundTaskId`, `backgroundedByUser`, `backgroundedByTurnAbort`, `backgroundedToDeliverMessage`, `timedOutAfterMs`, `run_in_background` | A rename yields `Cause: not stated by the tool response` instead of an error. 2.1.269 already deleted `assistantAutoBackgrounded`; the replacement fields are what these are, and its Bash output schema (`src/chunk-dbb93264.js:215699-215703`) declares no other cause field. |
-| `agent-tools/src/hook_post.rs:22` | `REPORT_BUDGET = 9_000` | Justified by a 2.1.269 measurement that a **local command hook's** stdout escapes the 8,000-char/200-line `additionalContext` cap (the cap sits on `ego`, reached through `uje` from the cloud-session hook runner, `mcn`, `src/chunk-dbb93264.js:48303`, and the registered-callback answer path, `:49123`; a local command hook's stdout is parsed by `gwe`, `:227133`, which has no sanitizer). If a release routes local hooks through the sanitizer, reports get truncated to a stub. |
-| `agent-tools/src/hook_pre.rs:22`, `hook_post.rs:57` | tool names `Bash`, `Monitor` | A renamed or new shell tool is simply not wrapped. |
-| `agent-tools/src/paths.rs:66-105` | `CLAUDE_CODE_SESSION_ID` (read at `:105`) | A rename breaks bare `!` commands. |
-| `src/claude_config/pre_output/record.py` (writes the record), `ntfy_hook.py` `recorded_summary` (sends it), `ntfy_hook.py` `do_cancel` (clears it) | `CLAUDE_CODE_SESSION_ID`; the hook event name `UserPromptSubmit` | Two halves at opposite volumes. A renamed variable makes `record.py` exit 1 on the last command of every turn — deliberately loud, mirroring `paths.rs` — while the reading half just stops finding records and the ntfy "Done" push reverts to a generated summary that reads exactly as plausible as the real one. A renamed `UserPromptSubmit` is silent on both sides and worse: `do_cancel` stops clearing the record, and since a record that exists is taken to be this turn's, every "Done" after the first sends the **previous** turn's summary. Nothing automatic notices either — `tests/test_pre_output_record.py` sets the variable itself and calls `do_cancel` directly, so it passes under both renames. Check by reading a push against that session's own last `pre_output.record` argument. |
-| `skills/telegram-hitl/SKILL.md:30` (the `X-Session-Id` header, on the one call the skill shows), `:53` (the entering line's own text), `:65`, `:70` | `CLAUDE_CODE_SESSION_ID`; the tool names `Monitor` and `TaskStop` | A renamed variable sends an empty `X-Session-Id`, so the channel log records that a send happened but not who made it — the send still succeeds, so nothing surfaces it, and `senders()` counts it as unattributed without being able to say why. `:53` is the one place it shows: the same variable is the id the human is told to copy, so an entering line arrives with a blank where the handle belongs. `tests/test_telegram_hitl_skill.py:269` pins the variable's spelling in the skill's own prose and `:363` the name `TaskStop`; neither can see the thing it names go away. A renamed `Monitor` leaves the skill pointing an agent at a tool that no longer exists, for the one case — unsolicited input — it offers no other answer for. A renamed `TaskStop` (`:70`) does the same to the disarm step, and the listener then runs to its expiry: every message before that, and the expiry notice itself, wakes a session that has already said it stopped — the two wakes measured for the re-arm chain, now arriving where nothing is waiting for them. |
-| `src/claude_config/doc_budget.py` (`session_of`) | `CLAUDE_CODE_SESSION_ID` | The same-session gate on `approved`: an entry the running session approved is inert there. A renamed variable reads as unset, so the gate never fires — every approval counts as live and an agent's own `[data]` entry or held size takes effect in the session that wrote it — with a warning on stderr on every run, which nothing automatic reads: `tests/test_doc_budget.py` passes the variable in itself. |
-| `skills/session-analysis/SKILL.md` (`ocr()`/`ocrange()`), `skills/cc-history/SKILL.md:367`, `:376`, and the `$10.50` inside a quoted sample at `skills/opencode-subcommand/SKILL.md:315` | literal `$N` in skill body text | The Skill tool rewrites `$N` and `$ARGUMENTS` in a skill's text with the invocation's `args` before the model sees it, so invoking one of these **with args** silently hands the agent a mangled shell helper — `jq -r ".messages[$((only:-1))].parts[confirming]which"` from args `verification only: confirming which copy loads`. `$N` is the (N+1)-th whitespace-separated word ($0 is the first) and parses greedily past one digit, so 11+ words of args turn that `$10.50` into `<11th word>.50`; out-of-range `$N` and, with no args, every `$N` stay literal, and `$ARGUMENTS` renders empty (probed 2026-09-24, 2.1.269). No error anywhere, and nothing tests it. A release that changes the substitution rule changes which bodies break; `skills/session-analysis/CLAUDE.md` carries the invoke-with-no-args rule for the one skill whose helpers are meant to be run. |
-| `statusline.sh:5-19` | `.model.display_name`, `.context_window.*`, `.cost.total_cost_usd`, `.workspace.current_dir`, `.transcript_path`, `.session_id` | Every field defaults (`// 0`, `// "?"`, `// empty`). A rename shows zeros — except `.session_id` (`:19`), which is the key `agent-tools ps --format statusline` scopes to, so a rename there blanks the open-tasks row rather than zeroing it. 2.1.269 also supplies `prompt_cache` and `rate_limits.spend_limit`, which this script does not read. |
+| `agent-tools/src/hook_input.rs:13-35` | `session_id`, `tool_name`, `tool_input`, `tool_use_id`, `hook_event_name`, `tool_response` | A renamed field fails the parse; `hook_pre.rs:14-19` allows passthrough and `hook_post.rs:46-51` returns `Ok(())`. Wrapping just stops. |
+| `agent-tools/src/hook_post.rs:118-172` | `backgroundTaskId`, `backgroundedByUser`, `backgroundedByTurnAbort`, `backgroundedToDeliverMessage`, `timedOutAfterMs`, `run_in_background` | A rename yields `Cause: not stated by the tool response`. The Bash output schema (`src/chunk-dbb93264.js:215699-215703`) declares no other cause field. |
+| `agent-tools/src/hook_post.rs:22` | `REPORT_BUDGET = 9_000` | Rests on a 2.1.269 measurement that a **local command hook's** stdout escapes the 8,000-char/200-line `additionalContext` cap: the cap (`ego`) sits on the cloud-session and callback paths (`src/chunk-dbb93264.js:48303`, `:49123`), and local stdout is parsed by `gwe` (`:227133`) with no sanitizer. Routed through it, reports truncate to a stub. |
+| `agent-tools/src/hook_pre.rs:22`, `hook_post.rs:57` | tool names `Bash`, `Monitor` | A renamed or new shell tool is not wrapped. |
+| `agent-tools/src/paths.rs:66-105` | `CLAUDE_CODE_SESSION_ID` (`:105`) | A rename breaks bare `!` commands. |
+| `src/claude_config/pre_output/record.py` (writes), `ntfy_hook.py` `recorded_summary` (sends), `do_cancel` (clears) | `CLAUDE_CODE_SESSION_ID`; the hook event `UserPromptSubmit` | A renamed variable makes `record.py` exit 1 on every turn's last command (deliberately loud) while the reading half silently reverts the ntfy "Done" push to a generated summary. A renamed `UserPromptSubmit` is silent and worse: `do_cancel` stops clearing the record, so every "Done" after the first sends the **previous** turn's summary. `tests/test_pre_output_record.py` passes under both. Check a push against that session's last `pre_output.record` argument. |
+| `skills/telegram-hitl/SKILL.md:30` (`X-Session-Id` header), `:53` (the entering line), `:65`, `:70` | `CLAUDE_CODE_SESSION_ID`; the tool names `Monitor` and `TaskStop` | A renamed variable sends an empty `X-Session-Id` — the send succeeds, the log records no sender, and `:53` puts a blank where the handle the human is told to copy belongs. `tests/test_telegram_hitl_skill.py:273` pins the variable's spelling and `:359` the name `TaskStop`; neither sees the thing it names go away. A renamed `Monitor` or `TaskStop` points the arm or disarm step at a tool that no longer exists, and an undisarmed listener runs to expiry, waking a session that already said it stopped. |
+| `src/claude_config/doc_budget.py` (`session_of`) | `CLAUDE_CODE_SESSION_ID` | The same-session gate on `approved`: an entry the running session approved is inert there. A renamed variable reads as unset, so every approval counts as live — an agent's own `[data]` entry or held size takes effect in the session that wrote it — with only a stderr warning, which nothing automatic reads. |
+| `skills/session-analysis/SKILL.md` (`ocr()`/`ocrange()`), `skills/cc-history/SKILL.md:367`, `:376`, the `$10.50` at `skills/opencode-subcommand/SKILL.md:315` | literal `$N` in skill body text | The Skill tool rewrites `$N` and `$ARGUMENTS` with the invocation's `args` before the model sees the body (`$N` is the (N+1)-th word, greedy past one digit, literal when out of range or with no args; probed 2026-09-24, 2.1.269), so invoking one of these **with args** hands the agent a mangled shell helper, with no error and no test. `skills/session-analysis/CLAUDE.md` carries the invoke-with-no-args rule. |
+| `statusline.sh:5-19` | `.model.display_name`, `.context_window.*`, `.cost.total_cost_usd`, `.workspace.current_dir`, `.transcript_path`, `.session_id` | Every field defaults, so a rename shows zeros — except `.session_id` (`:19`), which `agent-tools ps --format statusline` scopes to, so a rename blanks the open-tasks row. |
 | `src/claude_config/cc_pretty/parse.py:28`, `:188-375` | record `type` values | `extra: "allow"`, so new fields are safe; a renamed record type becomes `UnknownRecord` and vanishes from the render. |
-| `settings.json:31-102` | `Notification` matchers `permission_prompt`, `idle_prompt`, `elicitation_dialog`, `elicitation_url_dialog`, `quota_auto_resume_fired`, `quota_auto_resume_stale`, `quota_auto_resume_disabled` | Matched as **unanchored regexes**, not literals (`src/chunk-dbb93264.js:227871`), so `permission_prompt` also catches `worker_permission_prompt` — which is wanted, a worker's prompt blocks the human the same way, and is recorded here because nothing in the file says so. The declared matcher set is 16 values — `VAr`'s 14 (`src/chunk-70hqkjxq.js:12`) plus `elicitation_complete` and `elicitation_response` (`src/chunk-c29sfp49.js:76`). Seven are selected, on one rule: notify when the session is blocked on the human or has stopped making progress by itself. Deliberately dropped: `auth_success` and `push_notification` (nothing to act on), `elicitation_complete`/`elicitation_response` (the answer already arrived), `computer_use_enter`/`exit` (unused here), and `agent_needs_input`/`agent_completed`, dropped on the premise that no subagent could background. That premise expired on 2026-09-16 with the `Agent` hook: a subagent backgrounds whenever the model omits `run_in_background` or passes `true`, and whether either matcher then fires is unverified — see §4. |
-| `sys_prompt/alan-default-next.md`, the `Default subagents to the foreground` bullet | the Agent tool's `run_in_background` input property, and `q4o`'s last term `!s && r !== !1` (`src/chunk-dbb93264.js:103955`) | Nothing enforces the foreground: the `PreToolUse` `Agent` hook that rewrote the parameter was removed on 2026-09-16, so the prompt asks and the model complies per call. A release that drops `run_in_background` from the Agent schema again — the gate is `rc() || Z8()`, `src/chunk-dbb93264.js:171779`, and `CLAUDE_CODE_FORK_SUBAGENT=0` is the only reason it is currently false — leaves the bullet asking for a parameter that does not exist, and every subagent backgrounds with no error anywhere. A release that only reworded the parameter's own `.describe()`, which recommends the opposite default, moves compliance while changing nothing here. Check: `prompt-tests/general/subagent-foreground-default`, whose `reference-solution.md` states the schema precondition and the mechanical signal. |
-| `settings.json` `SubagentStart`, `agent-tools/src/hook_subagent.rs` | the hook event name `SubagentStart`, and the output keys `hookSpecificOutput.hookEventName` / `additionalContext` | Every one of these fails silently. A renamed event leaves the hook unwired; a `hookEventName` that no longer matches makes Claude Code reject the whole output (`src/chunk-dbb93264.js:227189`); a renamed `additionalContext` drops the text. Measured on 2.1.269: the hook fires once per spawn for `Explore`, `general-purpose` and `Plan` alike and the text lands as a `hook_additional_context` attachment before the subagent's first turn — and **a hook that exits non-zero does not block the spawn**, so every failure mode above ends with a subagent that runs without its Required notes ask and nothing said anywhere. What would notice: nothing automatic. Check by reading one subagent transcript for the attachment. |
-| `settings.json:177-198` | `PostToolUseFailure` | A distinct event name. Folded back into `PostToolUse` and errored calls stop being delivery points. |
-| `sys_prompt/alan-default-next.md`, and any `agents/*.md` named after a built-in agent | passages copied verbatim from Claude Code's own system prompt | `--system-prompt-file` drops every upstream section, so a rule upstream reworded or added never arrives and the copy here keeps saying the old thing. `sys_prompt/CLAUDE.md` governs: procedure, deliberate divergences, per-release log. |
+| `settings.json:31-102` | `Notification` matchers `permission_prompt`, `idle_prompt`, `elicitation_dialog`, `elicitation_url_dialog`, `quota_auto_resume_fired`, `quota_auto_resume_stale`, `quota_auto_resume_disabled` | Matched as **unanchored regexes** (`src/chunk-dbb93264.js:227871`), so `permission_prompt` also catches `worker_permission_prompt` — wanted. Declared set: 16 (`VAr`, `src/chunk-70hqkjxq.js:12`, plus two elicitation names at `src/chunk-c29sfp49.js:76`). Selection rule: notify when the session is blocked on the human or has stopped making progress by itself; the nine dropped on it include `agent_needs_input`/`agent_completed`, left out on a premise that expired on 2026-09-16 (§4). |
+| `sys_prompt/alan-default-next.md`, the `Default subagents to the foreground` bullet | the Agent tool's `run_in_background` property, and `q4o`'s last term `!s && r !== !1` (`src/chunk-dbb93264.js:103955`) | Nothing enforces the foreground since the `PreToolUse` `Agent` hook was removed on 2026-09-16; the prompt asks per call. A release that drops `run_in_background` from the schema again — gate `rc() || Z8()`, `src/chunk-dbb93264.js:171779`, false today only because `CLAUDE_CODE_FORK_SUBAGENT=0` — leaves the bullet asking for a parameter that does not exist and every subagent backgrounds silently. Check: `prompt-tests/general/subagent-foreground-default`. |
+| `settings.json` `SubagentStart`, `agent-tools/src/hook_subagent.rs` | the hook event `SubagentStart`; output keys `hookSpecificOutput.hookEventName` / `additionalContext` | A renamed event leaves the hook unwired; a mismatched `hookEventName` makes cc reject the whole output (`src/chunk-dbb93264.js:227189`); a renamed `additionalContext` drops the text — and **a hook exiting non-zero does not block the spawn**, so each ends with a subagent running without its Required notes ask. Check by reading one subagent transcript for the `hook_additional_context` attachment before its first turn. |
+| `settings.json:177-198` | `PostToolUseFailure` | A distinct event name; folded back into `PostToolUse`, errored calls stop being delivery points. |
+| `sys_prompt/alan-default-next.md`, any `agents/*.md` named after a built-in agent | passages copied verbatim from cc's own system prompt | `--system-prompt-file` drops every upstream section, so a rule upstream reworded never arrives and the copy keeps saying the old thing. `sys_prompt/CLAUDE.md` governs. |
 | `scripts/claude.sh:17` | `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` | Without it an agent-view fork drops `--system-prompt-file` and silently runs the stock prompt. |
-| `scripts/intercept/proxy.py:32`, `:86-92` | the `x-claude-code-session-id` request header, and `sessionId`/`pid`/`cwd`/`kind`/`entrypoint` in `~/.claude/sessions/*.json` | A renamed header sends every capture to `requests-log/unknown/`; a renamed session-file field drops that key from the log's `session` block. Both are plain `.get()` misses — the capture still gets written, just anonymous. The row listed `startedAt` as a sixth field until 2026-09-13, when it turned out to be parsed and never read, so renaming it changed nothing and the assertion could not fail; the field is gone from `proxy.py` rather than from this row alone. |
-| `scripts/claude.sh:95`, `scripts/prompt-test-cc-leg2.sh:95` | the system prompt and tool definitions a conversation recorded on its first request | Since 2.1.267 a resume replays the record, not what the command line passes (`GWe`, `src/chunk-dbb93264.js:130178`; the record holds the tool definitions too, `Mos`, `:130134`, and `--system-prompt-snapshot off` bypasses both). It is on here: this repo's transcripts carry `prompt_snapshot` attachments holding `alan-default-next.md` verbatim. Measured on 2.1.269 through the proxy: a resume passing a different prompt file sent the first leg's text; with the flag it sent the new one. The leg-2 runner passes the flag; anywhere else, exercise a prompt edit in a fresh session. |
-| `settings.json` `includeGitInstructions: false`, `attribution.commit/pr: ""` | one gate, `q7()` (`chunk-dbb93264.js:69382`), that removes the Bash tool's `# Git` block, cc's `gitStatus` reminder and the attribution reminder | A release that renames the key, or stops gating the block by it, puts `Commit or push only when the user asks. If on the default branch, branch first.` back beside the `# Git` section of `sys_prompt/alan-default-next.md`, which then contradicts it. The capture cannot answer it: `capture.py:471` passes `--setting-sources project,local` and this file installs as *user* settings, so `tools/Bash.md` carries the block whether the gate holds or not — as the committed `opus-5/default/tools/Bash.md:21` does today. What does answer it: a live `claude.sh` session's own Bash description, and `prompt-tests/general/commit-own-changes`, whose runner applies the gate because `agent-tools claude` copies this file into `CLAUDE_CONFIG_DIR`. `sys_prompt/CLAUDE.md`, "`# Git`", governs. |
-| `scripts/kimi.sh:55-82`, `scripts/zai.sh:57-105` | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, the four `ANTHROPIC_DEFAULT_*_MODEL` tiers, `CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `API_TIMEOUT_MS`, and the `[1m]` model-name suffix | Every one degrades quietly, and both endpoints hide the model tiers: each returns 200 for any model string — `sonnet` answers *"Kimi, Moonshot AI"* on one and echoes the name back on the other — so a renamed tier variable is served anyway, at whatever window Claude Code sizes for the Anthropic name it fell back to. The `[1m]` suffix is the whole window story for the ids both launchers default to, and it is two couplings, not one: `Sz()` returns `1e6` for it before reading anything else (`if (Rc(e)) return 1e6;`, `src/chunk-5cs6j3p3.js:15251`, via `Df()`'s `return /\[1m\]/i.test(e);`, `:15155`), and `Gt()` strips it from the outbound model id (`return e.replace(/\[1m\]$/i, "");`, `src/chunk-4728jcqn.js:30`). A release that stops stripping it 400s every request at both endpoints, loudly. A release that changes what it resolves to, or `CLAUDE_CODE_DISABLE_1M_CONTEXT` arriving in the environment, drops a session to `Obe = 200000` (`var Obe = 200000,`, `:15143`) with nothing said — and `zai.sh` sets no `CLAUDE_CODE_MAX_CONTEXT_TOKENS` to catch it, because that variable is consulted only for an id without the suffix (`hz()`, `:15177`). `kimi.sh` does set it — measured, `k3-256k` reports 200,000 unset and 262,144 set — and the session just compacts early. `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is parsed by `tw()` (`src/chunk-dbb93264.js:129933`) and capped to `NVe = 1e6` (`src/chunk-70hqkjxq.js:21`); a release lowering that cap silently shortens both sessions. `API_TIMEOUT_MS` replaces a 600,000 ms default (`timeout: zOe(process.env.API_TIMEOUT_MS, 600000),`, `src/chunk-dbb93264.js:94782`); renamed, a long GLM turn starts timing out mid-response. A renamed `ANTHROPIC_AUTH_TOKEN` (`src/chunk-nc58v28h.js:252`) leaves the base URL pointing at the provider with no credential. Both scripts use that variable rather than `ANTHROPIC_API_KEY` because only the latter is gated on `customApiKeyResponses.approved` (`src/chunk-ve1cwn02.js:1451-1457`); a release extending that gate to `ANTHROPIC_AUTH_TOKEN` would put an approval in front of every non-Anthropic session. |
-| `settings.json:4-6` (`env`) | which settings scope may set which environment variable | 2.1.251 stopped a project-level `.claude/settings.json` `env` from setting `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_TMPDIR` or `TMPDIR`/`TMP`/`TEMP`. This file installs as *user* settings and sets only `CLAUDE_CODE_FORK_SUBAGENT`, so it is unaffected; a project-level copy adding one of those three would be ignored silently. |
-| `scripts/claude.sh` (the randomized draw), `prompt-tests/harness/budget-read-depth/`, `notes/total-tokens-reminder.md`, `docs/total-tokens-reminder-trial.md` | `CLAUDE_CODE_TOTAL_TOKENS_REMINDER`, `CLAUDE_CODE_TOTAL_TOKENS_REMINDER_BUDGET`, `CLAUDE_CODE_TOTAL_TOKENS_REMINDER_AFTER_USER_TURN`, the five mode names (`off`/`infinite`/`fixed`/`countdown`/`padded-countdown`, `src/chunk-dbb93264.js:68265`) and the per-user-turn re-anchor | The budget is read by `P.int()` (`src/chunk-hy0zy4c8.js:35-52`), which returns `undefined` for anything unparseable and **falls through** to merged settings, then org clientData, then GrowthBook, then `Qhn = 15000000`. So a renamed variable — or a typo in a value — silently yields a *control* arm wearing a treatment label: the case runs, every arm gets 15M, and the null result reads as "the setting does nothing". Nothing errors. The case is the repo's only consumer and its whole measurement is the difference between arms, so this fails the experiment rather than a build. Verify per session from the intercept, never from the env var: `grep -ho '<total_tokens>[^<]*</total_tokens>' ~/.claude/requests-log/<session>/*.json`. A release that changed which config layer wins, or the default, would also move every number in the note — which is a dated record of 2.1.269 and must not be re-pinned. A rename also ends the trial in silence: the launcher goes on exporting a variable nothing reads, every session becomes the GrowthBook default arm, and the transcripts still carry markers, so the arm labels stay *readable* while ceasing to mean anything. The check that fails is the trial's own gating one — arm labels must be ~50/50 across sessions — and it is stated in `docs/total-tokens-reminder-trial.md` rather than run by anything automatic. |
-| `agent-tools/src/hook_provenance.rs`, `settings.json` (`PostToolUse`/`PostToolUseFailure` matcher `""`, and `Stop`, each wired `|| true`), `scripts/claude.sh`/`kimi.sh`/`zai.sh` (`CLAUDE_SH_LAUNCHERS`), `src/claude_config/cc_pretty/render.py`'s `hook_success` arm, `docs/total-tokens-reminder-trial.md` "Arm recovery", `skills/session-analysis/SKILL.md` | the hook events `PostToolUse`, `PostToolUseFailure` and `Stop`, and the fact that a hook command reaches a shell (so `|| true` parses); the payload fields `session_id`, `agent_id`, `hook_event_name`, `cwd`; the `hook_success` attachment subtype and its `content`/`stdout` fields; and the conversion guard that makes a hook's plain stdout a write-only channel into the transcript — `case "hook_success": if (e.hookEvent !== "SessionStart" && … ) return [];` (`src/chunk-dbb93264.js:236003`) | **The failure that matters is the channel opening.** A release adding `PreToolUse` or `Stop` to that guard converts the block into a `<system-reminder>`, and the session under measurement then reads its own launcher source, its settings and its trial arm. `tests/test_model_visibility.py::test_hook_stdout_visible_events_still_match_the_conversion_source` re-derives the three names from the binary and fails on it — the one coupling in this row with teeth, and it `skipif`s away without step 2's decompiled tree. Everything else degrades quietly: a renamed event leaves the hook unwired, a renamed payload field makes the parse fail and the hook return silently, a renamed subtype or field empties the `jq` recipe and the `--show-all` body. Two measured properties the record rests on, both unguarded: `content` is replaced by a `<persisted-output>` stub naming a file beside the log past roughly 2 KB while `stdout` stays whole (204,016 bytes carried intact on 2.1.269, against a ~17 KB block), so a release capping `stdout` truncates the record silently; and `Stop` does not fire when a turn is aborted (`src/chunk-dbb93264.js:146157`), which is why the two tool events are wired beside it. `PreToolUse` is deliberately not among them: a `PreToolUse` hook exiting 2 denies the tool call (measured), and a binary predating the subcommand exits 2 from `clap` — a release that made `PostToolUse` or `Stop` exit codes blocking in the same way would reopen that. `content` is set from stdout at `:229570` and `:229622` and left empty on the JSON-output path at `:227306`, which is what makes a non-empty `content` mean "this hook wrote plain text"; a release merging those paths would start rendering every hook's JSON under `--show-all`. `CLAUDE_SH_LAUNCHERS` is this repo's own variable, not Claude Code's: a launcher added without the append line records nothing and reads as a bare `claude` session. |
-| `settings.json` `autoCompactWindow: 400000`, `docs/total-tokens-reminder-trial.md` | the settings key (`src/chunk-3vd4nzwp.js:4980`) and its validator `qc` (`:4783` — `.int().min(1e5).max(1e6).catch(void 0)`), `tw()`'s settings branch (`src/chunk-dbb93264.js:129933`), the hand-off that puts it on the turn's compaction gate — `A = n.options.autoCompactWindow` into `A_s`/`x_s` (`:159095`, `:159046`) — and the two reserves the threshold subtracts: `Math.min(Lje(model), x5n = 20000)` and a flat 13,000 (`:130008`, `:129838`, `:129806`) | Compaction fires at 367,000 instead of the model window's 967,000, and every way that can stop is silent. `.catch(void 0)` turns a renamed key or an out-of-range value into no setting at all; `CLAUDE_CODE_AUTO_COMPACT_WINDOW` in the environment wins over the key (`:129940`); `DISABLE_COMPACT`/`DISABLE_AUTO_COMPACT` make `Bp()` false and `WB` then passes `void 0` in place of the setting (`:130010`). Each ends with the session compacting at the model window again — which is also what a release moving either reserve looks like. The reminder trial's strata are defined by this number, so a silent revert mixes them: `docs/total-tokens-reminder-trial.md`, "The compaction clamp". |
-| `settings.json` `enableArtifact: false`, `notes/artifact-tool-roster-cost.md` | the settings key — `enableKey` of the gate object `yl` (`src/chunk-fqa6n2gt.js:9896`), resolved by `gl()` (`:9838`: any off-source wins, so no other settings file and no launcher re-enables it), read through `TI()` (`:9984`), which is the roster filter that keeps the `Artifact` tool (`.filter(m => m !== lr || TI())`, `src/chunk-4zcseazt.js:1354`) and the `isEnabled` of the built-in `artifact-design`/`artifact-diagramming` skills (`src/chunk-s7akwrx2.js:464`, `:483`); the `/config` Artifacts row (`src/chunk-ve1cwn02.js:753-776`), shown only while `Kze().userControllable` (`Grt()`, `src/chunk-fqa6n2gt.js:10113`) | Removes the tool — 20,496 of 34,177 tool tokens on 2.1.269 — and the three `artifact-*` skills from every session, prompt-test runs included (`agent-tools claude` copies this file). A renamed key is silent both ways: the gate stops seeing the off and the tool returns at full cost, and the capture cannot show it — `capture.py:471` passes `--setting-sources project,local`, so `opus-5/logged-in/tools/Artifact.md` is present whether the key holds or not; the only capture that lacks the tool, `logged-in-no-artifact`, gets there by the env var. The in-session path this key was chosen for — `/config` → Artifacts on → the next request carries the tool — rests on three source readings, none measured live: the write invalidates the settings store (`Fo`→`Pa()`, `src/chunk-2x9ed96k.js:3112`, `src/chunk-3vd4nzwp.js:43`), the roster is rebuilt per request (`MDr()`, `src/chunk-4zcseazt.js:1351-1354`, from `zkt()`, `src/chunk-dbb93264.js:159883`), and the prompt snapshot appends tools it has not recorded (`dwt()`, `src/chunk-dbb93264.js:150990`). The env var is not a substitute: `CLAUDE_CODE_DISABLE_ARTIFACT` in the process environment (any value, `0` included — `Rp()` tests `a[e]` raw, `:9884`) or in this file's `env` block sets `lockedAboveUser` and the row disappears. Each flip writes into this tracked file (user settings resolve to the `install.sh` symlink), so a session that turned the tool on leaves `git diff settings.json` dirty until it is turned off again. Check: a live session's `/config` shows an Artifacts row; a flip lands in `git diff settings.json`. |
-| `skills/artifact-design/SKILL.md`, `skills/artifact-diagramming/SKILL.md` | the asset bodies of the two built-in skills — 2.1.269's `assets/SKILL-31f6eba0.md` (decompressed from its `.zst`) and `assets/SKILL-nrz66j7x.md`, named by the loader chunks' `/$bunfs/root/` literals (`src/chunk-52y74t5k.js:12`, `src/chunk-w93cabjd.js:12`); the `when_to_use` frontmatter key (`src/chunk-20krfdjm.js:163`); the bundled-skill shadowing rule (`dze()`, `src/chunk-pmgcy9dx.js`: a `source: "bundled"` entry whose name a user skill already took is dropped) | Byte-for-byte copies, kept because `enableArtifact: false` removes the built-ins and `/workspace/CLAUDE.md` names `artifact-design`. A release that rewrites the asset leaves the copies saying the old thing and nothing fails — `skilldiff.sh` (step 2) catches that, and `--update` is the only way they change. A release that changes what the loader adds to the asset is caught by nothing: the copies stay byte-identical and stop matching what the built-in says — the loader read under §4 is the only cover, and it is unconditional. While `enableArtifact` is on the copies shadow the built-ins by name, silently, so the newer upstream text is never seen. The copies are the asset body alone: no dataviz callout, no split-mode page contract (see the `skilldiff.sh` row in §2). |
+| `scripts/intercept/proxy.py:32`, `:86-92` | the `x-claude-code-session-id` header; `sessionId`/`pid`/`cwd`/`kind`/`entrypoint` in `~/.claude/sessions/*.json` | Plain `.get()` misses: a renamed header sends every capture to `requests-log/unknown/`; a renamed session-file field drops that key from the log. |
+| `scripts/claude.sh:95`, `scripts/prompt-test-cc-leg2.sh:95` | the system prompt and tool definitions a conversation recorded on its first request | Since 2.1.267 a resume replays the record, not the command line (`GWe`, `src/chunk-dbb93264.js:130178`; `--system-prompt-snapshot off` bypasses it) — measured through the proxy: a resume with a different prompt file sent the first leg's text; with the flag, the new one. The leg-2 runner passes the flag; anywhere else, exercise a prompt edit in a fresh session. |
+| `settings.json` `includeGitInstructions: false`, `attribution.commit/pr: ""` | one gate, `q7()` (`chunk-dbb93264.js:69382`), removing the Bash tool's `# Git` block, cc's `gitStatus` reminder and the attribution reminder | A renamed key, or the block no longer gated by it, puts `Commit or push only when the user asks. If on the default branch, branch first.` back beside the `# Git` section of `sys_prompt/alan-default-next.md`, contradicting it. The capture cannot answer this (user settings dropped); a live `claude.sh` session's Bash description and `prompt-tests/general/commit-own-changes` can. `sys_prompt/CLAUDE.md`, "`# Git`", governs. |
+| `scripts/kimi.sh:55-82`, `scripts/zai.sh:57-105` | the `ANTHROPIC_*` endpoint, token and model-tier variables, `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, `API_TIMEOUT_MS`, the `[1m]` model-name suffix | Every one degrades quietly, and both endpoints return 200 for any model string, so a renamed tier variable is served anyway at whatever window cc sizes for the name it fell back to. The `[1m]` suffix is two couplings: `Sz()` returns `1e6` for it first (`if (Rc(e)) return 1e6;`, `src/chunk-5cs6j3p3.js:15251`) and `Gt()` strips it from the outbound id (`return e.replace(/\[1m\]$/i, "");`, `src/chunk-4728jcqn.js:30`) — stop stripping and every request 400s loudly; change what it resolves to and a `zai.sh` session drops to 200,000 silently (`kimi.sh` sets `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, consulted only for an id without the suffix). `ANTHROPIC_AUTH_TOKEN` rather than `ANTHROPIC_API_KEY` because only the latter is gated on `customApiKeyResponses.approved` (`src/chunk-ve1cwn02.js:1451-1457`). |
+| `settings.json:4-6` (`env`) | which settings scope may set which environment variable | 2.1.251 stopped project-level `env` from setting `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_TMPDIR`, `TMPDIR`/`TMP`/`TEMP`; this file installs as user settings, so a project-level copy adding one of those would be ignored silently. |
+| `scripts/claude.sh` (the randomized draw), `prompt-tests/harness/budget-read-depth/`, `notes/total-tokens-reminder.md`, `docs/total-tokens-reminder-trial.md` | `CLAUDE_CODE_TOTAL_TOKENS_REMINDER`, `_BUDGET`, `_AFTER_USER_TURN`, the five mode names (`src/chunk-dbb93264.js:68265`) | The budget is read by `P.int()` (`src/chunk-hy0zy4c8.js:35-52`), which returns `undefined` for anything unparseable and **falls through** to settings, org clientData, GrowthBook, then `Qhn = 15000000`: a renamed variable or a typo silently yields a control arm wearing a treatment label. Verify per session from the intercept, never from the env var: `grep -ho '<total_tokens>[^<]*</total_tokens>' ~/.claude/requests-log/<session>/*.json`. The check that fails is the trial's own gating one — arms ~50/50 across sessions — run by nothing. |
+| `agent-tools/src/hook_provenance.rs`, `settings.json` (`PostToolUse`/`PostToolUseFailure` matcher `""` and `Stop`, each wired `|| true`), the launchers' `CLAUDE_SH_LAUNCHERS`, `cc_pretty/render.py`'s `hook_success` arm, `docs/total-tokens-reminder-trial.md` "Arm recovery" | the three hook events and their payload fields; the `hook_success` attachment's `content`/`stdout`; the conversion guard making a hook's plain stdout write-only into the transcript — `case "hook_success": if (e.hookEvent !== "SessionStart" && … ) return [];` (`src/chunk-dbb93264.js:236003`) | **The failure that matters is the channel opening**: a release adding `PreToolUse` or `Stop` to that guard turns the block into a `<system-reminder>`, and the session under measurement reads its own launcher, settings and arm. `tests/test_model_visibility.py::test_hook_stdout_visible_events_still_match_the_conversion_source` fails on it — the one coupling here with teeth, and it `skipif`s without step 2's tree. Everything else degrades quietly: a renamed event is unwired, a renamed field a silent parse failure, a renamed subtype an empty `jq` recipe. Unguarded: `content` becomes a `<persisted-output>` stub past ~2 KB while `stdout` stays whole (204,016 bytes intact on 2.1.269); `Stop` does not fire on an aborted turn (`:146157`), which is why the two tool events are wired beside it. |
+| `settings.json` `autoCompactWindow: 400000`, `docs/total-tokens-reminder-trial.md` | the key (`src/chunk-3vd4nzwp.js:4980`), its validator `qc` (`:4783`, `.int().min(1e5).max(1e6).catch(void 0)`), `tw()` (`src/chunk-dbb93264.js:129933`), the two reserves the threshold subtracts (`x5n = 20000` and a flat 13,000, `:130008`, `:129806`) | Compaction fires at 367,000 instead of 967,000, and every way that stops is silent: `.catch(void 0)` makes a renamed key or out-of-range value no setting; `CLAUDE_CODE_AUTO_COMPACT_WINDOW` in the environment wins (`:129940`); `DISABLE_COMPACT`/`DISABLE_AUTO_COMPACT` pass `void 0` instead (`:130010`). Each looks like a release moving a reserve. The trial's strata are defined by this number: the trial doc, "The compaction clamp". |
+| `settings.json` `enableArtifact: false`, `notes/artifact-tool-roster-cost.md` | the key — `enableKey` of the gate `yl` (`src/chunk-fqa6n2gt.js:9896`), resolved off-wins by `gl()` (`:9838`), read by `TI()` (`:9984`) as the roster filter for `Artifact` (`src/chunk-4zcseazt.js:1354`) and the `isEnabled` of the built-in `artifact-*` skills (`src/chunk-s7akwrx2.js:464`, `:483`); the `/config` Artifacts row (`src/chunk-ve1cwn02.js:753-776`) | Removes the tool — 20,496 of 34,177 tool tokens on 2.1.269 — and the skills from every session, prompt-test runs included. A renamed key silently returns the tool at full cost, and no capture shows it. The in-session `/config` flip the key was chosen for rests on three source readings in the note, none driven live; `CLAUDE_CODE_DISABLE_ARTIFACT` anywhere in the environment hides the row. Check: a live session's `/config` shows the row; a flip lands in `git diff settings.json`. |
+| `skills/artifact-design/SKILL.md`, `skills/artifact-diagramming/SKILL.md` | the two built-in skills' asset bodies (2.1.269: `assets/SKILL-31f6eba0.md`, `assets/SKILL-nrz66j7x.md`, named by the loaders' `/$bunfs/root/` literals, `src/chunk-52y74t5k.js:12`, `src/chunk-w93cabjd.js:12`); the shadowing rule (`dze()`, `src/chunk-pmgcy9dx.js`: a bundled entry whose name a user skill took is dropped) | Byte-for-byte copies, kept because the key removes the built-ins and `/workspace/CLAUDE.md` names `artifact-design`. A rewritten asset is caught by `skilldiff.sh`; a changed loader by nothing — the copies stay byte-identical and stop matching the built-in, and the §4 read is the only cover. With the key on, the copies shadow the built-ins by name, silently. |
 
 ### 3.2 Mirrors of cc's own algorithms — re-read the source, don't just test
 
 `src/claude_config/env_context/` reimplements cc behaviour and must track it:
-`environment.py`: `resolve_shell` ≙ cc's `das()`, `_executable` ≙ `cbt()` (incl. the `--version` fallback that makes a bare `CLAUDE_CODE_SHELL=bash` resolve), `worktree_common_dir` ≙ `pP()`, `git_snapshot` ≙ `ADe()` (`chunk-dbb93264.js:69331-69369`: `--no-optional-locks status --short --ignore-submodules=dirty`, `log --oneline -n 5`, the 2000-character cap; it replaces the `gitStatus` reminder `includeGitInstructions: false` removes);
-`scratchpad.py:22-54` (path algorithm, incl. the 200-char slug limit past which cc appends a hash
-this module does not implement — it raises instead), `render.py:43-61` (`STASH_CAUTION` copied
-verbatim from cc's `KUt`, and the only passage the hook still borrows — pinned by
-`scripts/check-prompt-upstream.py`, since `check-env-context.sh` covers cc's field set, not this
-block's wording), `drift.py:42-46` (anchor and window constants tuned to the binary layout),
-`drift.py:187-208` (a timeout budget whose comment says to re-check the sum if any of the three
-numbers moves).
+`environment.py`: `resolve_shell` ≙ `das()`, `_executable` ≙ `cbt()` (incl. the `--version`
+fallback that makes a bare `CLAUDE_CODE_SHELL=bash` resolve), `worktree_common_dir` ≙ `pP()`,
+`git_snapshot` ≙ `ADe()` (`chunk-dbb93264.js:69331-69369`: `--no-optional-locks status --short
+--ignore-submodules=dirty`, `log --oneline -n 5`, the 2000-character cap); `scratchpad.py:22-54`
+(path algorithm; past the 200-char slug limit cc appends a hash and this module raises);
+`render.py:43-61` (`STASH_CAUTION`, copied verbatim from cc's `KUt`, pinned by
+`scripts/check-prompt-upstream.py`); `drift.py:42-46` and `:187-208` (anchor, window and timeout
+constants tuned to the binary layout).
 
 ### 3.2b Knobs that are unset here, and what each would do if set
 
@@ -139,156 +132,111 @@ Nothing here sets them; each would silently change behaviour a row above asserts
 
 | Unset knob | What setting it would do here |
 |---|---|
-| `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (2.1.257) | Applies one model to every subagent, ignoring per-spawn and agent-definition overrides — re-breaking what 2.1.251 fixed, and silently voiding every `model:` in `agents/*.md`. |
-| `CLAUDE_CODE_ENABLE_TODO_TOOLS` (2.1.268) | Restores the task-tracking tools (`TodoWrite`, `TaskCreate/Get/Update/List`), which are otherwise offered only to older models. |
-| `CLAUDE_CODE_DISABLE_1M_CONTEXT` | Makes `Rc()` false, so the `[1m]` suffix both provider launchers default to stops resolving to 1,000,000. A `zai.sh` session then falls all the way to the 200,000 default, since nothing else in that script states a window; a `kimi.sh` session lands on its `CLAUDE_CODE_MAX_CONTEXT_TOKENS` instead. Neither says anything. |
-| `CLAUDE_CODE_ARTIFACT_TOOLSET` (`c_()`, `src/chunk-fqa6n2gt.js:3761`; GrowthBook `tengu_cobalt_plinth_damson`) | Splits Artifact into an 8,734-token main tool (`publish`, `list`, `read`, `delete`, `open`, `pin`, `unpin`) plus three add-ons — `ArtifactComments`, `ArtifactData`, `ArtifactCheck` (`src/chunk-af3h90mb.js:414-435`) — that are `shouldDefer: !0` (`:330`) and reach the model only as deferred names; measured 2026-09-30, `notes/artifact-tool-roster-cost.md`. Any value enables it, `0` included: the latch takes the raw string (`a.CLAUDE_CODE_ARTIFACT_TOOLSET ?? …`). Undocumented and unreleased, so a later build may ship it by default, rename it, or drop it; it changes nothing while `enableArtifact` is off. |
+| `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (2.1.257) | One model for every subagent, ignoring per-spawn and agent-definition overrides — silently voiding every `model:` in `agents/*.md`. |
+| `CLAUDE_CODE_ENABLE_TODO_TOOLS` (2.1.268) | Restores the task-tracking tools (`TodoWrite`, `TaskCreate/Get/Update/List`), otherwise offered only to older models. |
+| `CLAUDE_CODE_DISABLE_1M_CONTEXT` | Makes `Rc()` false, so the `[1m]` suffix both provider launchers default to stops resolving to 1,000,000: `zai.sh` falls to 200,000, `kimi.sh` to its `CLAUDE_CODE_MAX_CONTEXT_TOKENS`. Neither says anything. |
+| `CLAUDE_CODE_ARTIFACT_TOOLSET` (`c_()`, `src/chunk-fqa6n2gt.js:3761`; GrowthBook `tengu_cobalt_plinth_damson`) | Splits Artifact into an 8,734-token main tool plus three deferred add-ons; measured in `notes/artifact-tool-roster-cost.md`. Any value enables it, `0` included. Undocumented and unreleased; inert while `enableArtifact` is off. |
 
 ### 3.3 Pins to re-pin vs. records to leave alone
 
-**Re-pin:** `docs/env-context-manifest.json` (version, 24 window literals, 3 required-literal counts)
-— via `--update`, which refuses to write a count of 0 because a zero is a permanently-passing
-assertion. The two vendored skills under `skills/` — via
-`.claude/skills/update-claude-code/skilldiff.sh --update`, never by hand.
+**Re-pin:** `docs/env-context-manifest.json` (version, 24 window literals, 3 required-literal
+counts) — via `--update`, which refuses to write a count of 0. The two vendored skills under
+`skills/` — via `skilldiff.sh --update`, never by hand.
 
-**Re-verify the claim, keep the label:** the version banners in `docs/system-prompt-anatomy*.md`,
-`docs/tool-token-limits.md`, `docs/background-sessions.md`, `docs/subagent-backgrounding.md`,
-`docs/system-prompt-snapshot/README.md`,
-`skills/cc-history/SKILL.md`, `output-styles/README.md`, `agent-tools/CLAUDE.md`,
-`docs/agent-tools-status-reference.md`, and the first-byte-watchdog window in
-`scripts/intercept/README.md`, "Pass-through streaming" — if that number moves, an
-intercepted session's turns start aborting at the new one.
+**Re-verify the claim, keep the label:** every version banner under `docs/`, `skills/cc-history`,
+`output-styles/README.md` and `agent-tools/CLAUDE.md`, and the first-byte-watchdog window in
+`scripts/intercept/README.md`, "Pass-through streaming".
 
-**Do NOT re-pin — these are dated records of an older build, and rewriting them destroys the
-evidence:** everything under `notes/` (each carries a staleness banner), `plans/`,
-`docs/superpowers/plans/` and `specs/`, the synthetic version strings in `tests/test_env_context.py`
-and `tests/test_model_visibility.py`, the captured artifacts under `docs/system-prompt-snapshot/**`
-(regenerated wholesale, never hand-edited).
+**Do NOT re-pin — dated records of an older build, and rewriting them destroys the evidence:**
+everything under `notes/`, `plans/`, `docs/superpowers/plans/` and `specs/`, the synthetic
+version strings in `tests/test_env_context.py` and `tests/test_model_visibility.py`, the captured
+artifacts under `docs/system-prompt-snapshot/**` (regenerated wholesale, never hand-edited).
 
 ### 3.4 Snapshot-capture mechanics that break on upgrade
 
-`docs/system-prompt-snapshot/capture.py`: the trust-dialog cursor reader (`:351-369` — the default
-already flipped once between 2.1.235 and 2.1.269), the main-request selector (`:596-606`), the
-`cc_is_subagent=true` billing-header marker (`:611-624`). `regenerate.py:261-266` excludes the
-`defer_loading` placeholder. `render_capture.py` derives `prompt.md` and `tools/` from each
-`request.json`, and `tests/test_snapshot_rendering.py` re-renders all 13 captures and fails when
-the tracked files drift from it — so a hand-edited capture is caught rather than read as evidence.
-Every character count and `system_tokens` figure in
-`README.md` and `what-the-model-gets.md` is derived from these files — re-derive them, don't
-adjust them by hand.
+`docs/system-prompt-snapshot/capture.py`: the trust-dialog cursor reader (`:351-369` — the
+default already flipped once between 2.1.235 and 2.1.269), the main-request selector
+(`:596-606`), the `cc_is_subagent=true` billing-header marker (`:611-624`).
+`regenerate.py:261-266` excludes the `defer_loading` placeholder. `render_capture.py` derives
+`prompt.md` and `tools/` from each `request.json`, and `tests/test_snapshot_rendering.py` fails
+when the tracked files drift from it. Every character count and `system_tokens` figure in
+`README.md` and `what-the-model-gets.md` is derived from these files — re-derive, don't adjust.
 
 ## 4. Still to check — as of 2026-09-12, Claude Code 2.1.269
 
-Open items with what would retire each. Delete an entry when it is closed; add one when you find a
-new gap rather than leaving it in a session transcript.
+Open items with what would retire each. Delete an entry when it is closed; add one when you find
+a new gap rather than leaving it in a session transcript.
 
 **Re-review the artifact construction from the ground up — at the next release, whatever the
 checks say** (added 2026-09-30, on 2.1.269). Three artifacts rest on premises a release can void
 without any check firing: `settings.json` `enableArtifact: false`; the vendored
 `skills/artifact-design` and `skills/artifact-diagramming` with `skilldiff.sh`; the §3.2b
-`CLAUDE_CODE_ARTIFACT_TOOLSET` row. The numbers are in `notes/artifact-tool-roster-cost.md`, a
-dated record. Each premise, with the string marker that re-finds its code (line numbers are
-2.1.269):
+`CLAUDE_CODE_ARTIFACT_TOOLSET` row. Numbers: `notes/artifact-tool-roster-cost.md`. Each premise,
+with the string marker that re-finds its code:
 
-- **No user knob defers a first-party tool.** `shouldDefer: !1` on the Artifact tool object
-  (`src/chunk-q5zwjg9j.js:13099`) and the deferral predicate whose body opens
-  `if (e.alwaysLoad === !0) return !1;` (`src/chunk-4zcseazt.js:1052`). A release that lets a
-  built-in defer — a settings key, `shouldDefer` reading config, anything — retires the key, the
-  copies and `skilldiff.sh` together: the whole construction exists only because the tool cannot
-  be deferred.
-- **The skills leave with the tool.** `isEnabled: TI` on the built-in skill registrations — grep
-  `dataviz-callout` to find the chunk (`src/chunk-s7akwrx2.js:464`, `:483`). Un-gated, the copies
-  have no reason to exist.
-- **The built-in's text is generated, not stored.** `skilldiff.sh` compares the asset; the model
-  gets the asset plus everything `getPromptForCommand` applies to it — on 2.1.269
+- **No user knob defers a first-party tool** — `shouldDefer: !1` on the Artifact tool object
+  (`src/chunk-q5zwjg9j.js:13099`); the deferral predicate opening `if (e.alwaysLoad === !0)
+  return !1;` (`src/chunk-4zcseazt.js:1052`). A release that lets a built-in defer retires the
+  key, the copies and `skilldiff.sh` together: the construction exists only because it cannot.
+- **The skills leave with the tool** — `isEnabled: TI` on the built-in registrations; grep
+  `dataviz-callout` for the chunk (`src/chunk-s7akwrx2.js:464`, `:483`).
+- **The built-in's text is generated, not stored** — the asset goes through
   `.trimStart().replace("<!-- dataviz-callout -->", jn)` and then `nJn`
-  (`src/chunk-s7akwrx2.js:472`; `nJn` at `src/chunk-qza9q751.js:245-253` prepends a page contract
-  under the toolset latch and swaps one phrase). Re-read that whole chain: a new placeholder, prefix
-  or substitution changes what the built-in says while the asset, and therefore the diff, stay
-  unchanged. The delivered text is also measurable — a session with the key flipped on loads the
-  built-in and the body lands in the transcript as the `user` record after the `Skill` call; the 22
-  such records on this machine carry neither the dataviz paragraph nor the comment, so here the
-  callout resolved to nothing.
-- **The off-wins gate and the `/config` row.** The `enableKey: "enableArtifact"` object
+  (`src/chunk-s7akwrx2.js:472`; `nJn` at `src/chunk-qza9q751.js:245-253`). Re-read that whole
+  chain: a new placeholder, prefix or substitution changes what the built-in says while the
+  asset, and therefore `skilldiff.sh`, stay unchanged. The delivered text is measurable — with
+  the key on, the body lands as the `user` record after the `Skill` call; the 22 such records
+  here carry neither the dataviz paragraph nor the comment.
+- **The off-wins gate and the `/config` row** — `enableKey: "enableArtifact"`
   (`src/chunk-fqa6n2gt.js:9896`), `gl()` (`:9838`), the Artifacts row
-  (`src/chunk-ve1cwn02.js:753`). Any of them moving moves the in-session toggle the key was
-  chosen for.
-- **The split.** `CLAUDE_CODE_ARTIFACT_TOOLSET` / `tengu_cobalt_plinth_damson`
+  (`src/chunk-ve1cwn02.js:753`). Any of them moving moves the in-session toggle.
+- **The split** — `CLAUDE_CODE_ARTIFACT_TOOLSET` / `tengu_cobalt_plinth_damson`
   (`src/chunk-fqa6n2gt.js:3761`). Shipped by default, the tool costs ~8.7K tokens when on and the
   §3.2b row is wrong; removed, it is dead.
 
-Retire this entry by re-deriving every premise on the new build and rewriting or deleting each
-artifact it no longer supports; leave the note as the record it is.
+Retire by re-deriving every premise on the new build and rewriting or deleting each artifact it
+no longer supports; leave the note as the record it is.
 
 **Pins never re-derived for this build**
-- `docs/env-context-manifest.json:3` → `notes/env-context-manifest.md` — byte offsets, four-anchor
-  count and the `Shell: PowerShell` probe describe 2.1.235 only.
+- `docs/env-context-manifest.json:3` → `notes/env-context-manifest.md` — byte offsets,
+  four-anchor count and the `Shell: PowerShell` probe describe 2.1.235 only.
 - `docs/system-prompt-snapshot/README.md` — the two **Not re-verified this round** blocks, under
   "Security-monitor calls" and "Interactive vs `-p` mode differences".
-- `docs/system-prompt-snapshot/builtin-output-styles/` — captured from v2.1.87, and 2.1.257's notes
-  name a `Proactive` built-in the directory has no file for, so the set is incomplete as well as
-  stale. Retire by re-capturing every built-in style.
+- `docs/system-prompt-snapshot/builtin-output-styles/` — captured from v2.1.87, and 2.1.257's
+  notes name a `Proactive` built-in the directory has no file for. Retire by re-capturing every
+  built-in style.
 
 **Captures not taken**
 - The one configuration this repo runs is uncaptured: `scripts/claude.sh` launches
   `--dangerously-skip-permissions`, every capture takes the default permission mode, and the
   bypass-permissions reminder a `claude.sh` session carries is in none of them. `regenerate.py`'s
-  `bypass-permissions` variant defines it; capturing it closes this. Which of `auto_mode`'s three texts a `claude.sh`
-  session reaches is no longer part of it — a live session log answers `e.bypass` directly (snapshot
-  README, "Removed: the `## Auto Mode Active` reminder"); what a capture still adds is the rest of
-  the request under that mode, beside a default-mode capture in one artifact. 2.1.257 adds a second
-  reason to take it: `defaultMode: "bypassPermissions"`
-  is now ignored from project settings, so the mode's only supported entry points are user settings
-  and `--permission-mode`.
-- No backgrounded-session capture for 2.1.269 (`regenerate.py`'s `VARIANTS` has no such key), and two
-  live checks dropped at a `/compact` boundary: whether the Auto Mode reminder fires for a
-  `capture.py` session, and `/feedback` from an interactively-logged-in session.
+  `bypass-permissions` variant defines it; capturing it closes this. 2.1.257 adds a reason:
+  `defaultMode: "bypassPermissions"` is ignored from project settings, so the mode's only entry
+  points are user settings and `--permission-mode`.
+- No backgrounded-session capture for 2.1.269, and two live checks never done: whether the Auto
+  Mode reminder fires for a `capture.py` session, and `/feedback` from a logged-in session.
 
-**Opened by the release-notes pass, 2026-09-12** — all 635 bullets of 2.1.247-2.1.268 read against §3.
-Each row is a claim in this repo that a bullet puts in doubt.
+**Opened by the release-notes pass, 2026-09-12** — all 635 bullets of 2.1.247-2.1.268 read
+against §3. Each row is a claim here that a bullet puts in doubt.
 
 | What to re-check | Why, and what retires it |
 |---|---|
-| `docs/agent-tools-status-reference.md` "The kill boundary" | 2.1.257 fixed background commands that detach via `setsid` surviving a **task stop** or **Claude Code exit** — the escape `agent-tools run --background` is built on. The task-stop half is measured there (the child survives). The exit half needs a human: start `agent-tools run --background sleep 900`, quit Claude Code, check whether the child is still running. |
-| `docs/tool-token-limits.md` | 2.1.261 added `bashOutputMaxChars` and `taskOutputMaxChars` (ceiling 128K) and 2.1.265 a 1 GB cap on tool results saved to disk; the file carries a 2.1.88 banner and knows neither. Retire on its next re-measurement. |
-| `src/claude_config/cc_pretty/` record handling | Three in-window shape changes: per-second subagent progress ticks now replace their predecessor rather than accumulating (2.1.251); async hook completion notices batch onto one line (2.1.257); nested background subagent results are saved into the **parent subagent's** transcript (2.1.259), which moves what a session-analysis pass finds. Retire by re-reading real logs for each. |
+| `docs/agent-tools-status-reference.md` "The kill boundary" | 2.1.257 fixed background commands that detach via `setsid` surviving a **task stop** or **Claude Code exit** — what `agent-tools run --background` is built on. The task-stop half is measured there; the exit half needs a human: start `agent-tools run --background sleep 900`, quit Claude Code, check whether the child survives. |
+| `docs/tool-token-limits.md` | 2.1.261 added `bashOutputMaxChars` and `taskOutputMaxChars` (ceiling 128K), 2.1.265 a 1 GB cap on tool results saved to disk; the file carries a 2.1.88 banner and knows neither. Retire on its next re-measurement. |
+| `src/claude_config/cc_pretty/` record handling | Three in-window shape changes: subagent progress ticks replace their predecessor (2.1.251); async hook completion notices batch onto one line (2.1.257); nested background subagent results land in the **parent subagent's** transcript (2.1.259). Retire by re-reading real logs. |
 
-**Opened by the 2026-09-16 removal of the `Agent` `PreToolUse` hook**
-- Whether the `Notification` matchers `agent_needs_input` and `agent_completed` fire now that a
-  subagent can background again. They were left out of `settings.json` because nothing could
-  background; that premise is gone. Retire by backgrounding a subagent deliberately in an
-  interactive session and watching whether `agent-tools ntfy-hook` is invoked. If they fire, decide
-  whether to configure them — the selection rule is "notify when the session is blocked on the human
-  or has stopped making progress by itself", which `agent_needs_input` meets.
+**Opened by the 2026-09-16 removal of the `Agent` `PreToolUse` hook** — whether the
+`Notification` matchers `agent_needs_input` and `agent_completed` fire now that a subagent can
+background again. Retire by backgrounding a subagent deliberately in an interactive session and
+watching whether `agent-tools ntfy-hook` is invoked; if they fire, `agent_needs_input` meets the
+selection rule.
 
-**Open design questions, not defects**
-- One passage `sys_prompt/alan-default-next.md` borrowed from upstream diverges with no recorded
-  reason and nothing else in the prompt covering it — the row marked **Not reviewed** under
-  "Deliberate divergences" in `sys_prompt/CLAUDE.md`. It predates the 2.1.235 baseline, so the
-  2.1.269 rebase neither caused nor closed it.
-- `cc-render-coverage` cannot see selection defects at all (§2). Extending it is what would have
-  caught the skeleton-renderer bug fixed on 2026-09-12.
-- Same-repo `file:line` citations still have no checker. `citecheck.sh` resolves only
-  `chunk-*.js:LINE`, and line-existence would not have caught the drift found on 2026-09-12 anyway:
-  every stale citation pointed at a real, non-blank line of unrelated code. Pinning by string, the
-  way `scripts/check-prompt-coupling.sh` does, is the only mechanism here that has teeth.
+**Open design questions, not defects**: the `sys_prompt/alan-default-next.md` passage marked
+**Not reviewed** under "Deliberate divergences" in `sys_prompt/CLAUDE.md` (predates 2.1.235);
+`cc-render-coverage` seeing no selection defects (§2).
 
-**Pre-existing, not upgrade-caused** (verified absent from the 2.1.235 capture too, so don't
-re-diagnose these as upgrade fallout)
-- `agents/*.md` and ~30 sites under `skills/scripts/` name `Grep`, `Glob`, `TodoWrite` and `Task`;
-  the live roster has none of them. `TodoWrite` is the one with a known cause and a one-setting fix:
-  2.1.268 gates the task-tracking tools to older models and `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`
-  restores them, so it is a settings decision. `Grep`, `Glob` and `Task` are text edits, and whether
-  the model reliably maps `Task`→`Agent` is untested.
-
-## Common mistakes
-
-| Mistake | What actually happens |
-|---|---|
-| Running the checks before re-extracting the decompile | `citecheck.sh` and the denylist test both pass without testing anything — a stale tree still has the files, and they are still long enough. `check-prompt-upstream.py` is the only one that refuses, by comparing `src/cli.js` against `claude --version`. |
-| Treating a green `cc-render-coverage` as "the renderer is fine" | It never looks at attachment records or at what the default view selects. |
-| Grepping for the old version string and calling it done | That finds stale *references*. It cannot find a live code path whose input shape changed underneath it — which is how the skeleton bug (§4) survived a full audit. |
-| Diffing the prompt captures and calling that the upstream delta | A capture is one environment on one day, and most prompt sections sit behind a server-resolved flag. `act_dont_rederive` vanished between the 2.1.235 and 2.1.269 captures while staying in both binaries. |
-| Re-pinning a `notes/` file to the new version | Destroys a dated record of the older build. Those files are evidence, not documentation. |
-| Fixing, committing, and stopping | Nothing you run changes until the merge to `/repos/claude-config` and a rebuild — the installed binary and the editable venv both resolve there, by design. |
-| Comparing tool `description`s and calling that the tool diff | An input schema moves on its own. `Agent` changed only in its schema in 2.1.269, and was written up as unchanged for exactly that reason. `tools/<Name>.md` renders description and schema into one file so both land in the same diff. |
+**Pre-existing, not upgrade-caused** (absent from the 2.1.235 capture too): `agents/*.md` and
+~30 sites under `skills/scripts/` name `Grep`, `Glob`, `TodoWrite` and `Task`, and the live
+roster has none of them. `TodoWrite` is a settings decision (`CLAUDE_CODE_ENABLE_TODO_TOOLS=1`,
+§3.2b); the others are text edits, and whether the model maps `Task`→`Agent` reliably is
+untested.
