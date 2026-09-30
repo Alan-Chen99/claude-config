@@ -414,6 +414,43 @@ def test_a_path_naming_no_group_is_a_usage_error(tmp_path, capsys):
     assert "no group is named under nothing-here" in capsys.readouterr().err
 
 
+def test_a_missing_registry_exits_2(tmp_path, capsys):
+    root = repo(tmp_path, {"x/a.md": w(5)})
+    (tmp_path / "doc-budget.toml").unlink()
+    code, _, err = run(root, capsys=capsys)
+    assert code == 2
+    assert "cannot read" in err
+
+
+def test_a_file_cap_above_the_default_is_gated_even_under_a_higher_class_cap(tmp_path, capsys):
+    """Rule 5 gates a cap above `default_cap` or above its class cap, whichever is lower."""
+    root = repo(tmp_path, {"a/CLAUDE.md": w(5)}, BASE + """
+[groups.claude-md]
+loaded = "every session"
+derived = "claude-md"
+cap = 500
+
+[groups."a/CLAUDE.md"]
+cap = 300
+""")
+    code, _, err = run(root, capsys=capsys)
+    assert code == 2
+    assert "above 100 without `approved`" in err
+
+
+def test_two_placeholder_groups_of_one_shape_do_not_cover_each_other(tmp_path, capsys):
+    """Each is a class of its own; neither is the other's parent, so no recursion."""
+    root = repo(tmp_path, {"skills/x/a.md": w(1)}, BASE + """
+[groups."skills/<a>"]
+loaded = "on demand"
+
+[groups."skills/<b>"]
+loaded = "on demand"
+""")
+    code, _, _ = run(root, capsys=capsys)
+    assert code == 0
+
+
 # --- the report -------------------------------------------------------------
 
 
@@ -649,9 +686,14 @@ def covering(name: str, f: str) -> str | None:
 
 
 def covers_dir(name: str, other: str) -> bool:
-    """Whether group `name` would cover group `other`'s name as a directory."""
+    """Whether group `name` would cover group `other`'s name as a directory.
+
+    A name carrying placeholders is covered only by a prefix of its own text,
+    so two patterns of one shape never cover each other."""
     if name == other:
         return False
+    if "<" in other:
+        return other.startswith(name + "/")
     rx = placeholder(name)
     if rx is not None and rx.fullmatch(other):
         return True
@@ -662,6 +704,8 @@ def load_registry(path: Path) -> dict:
     """The registry, checked for everything a resolver cannot recover from."""
     try:
         reg = tomllib.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise RegistryError(f"cannot read {path}: {exc}") from exc
     except tomllib.TOMLDecodeError as exc:
         raise RegistryError(f"not valid TOML: {exc}") from exc
     _keys(reg, TOP_KEYS, "top level")
@@ -799,7 +843,7 @@ class Resolver:
         its class's; otherwise the longest other path group covering the name,
         never above `default_cap`."""
         if n in self.file_set and (cls := derived_class(n)) in self.derived_groups:
-            return self.cap_of(self.derived_groups[cls])
+            return min(self.default_cap, self.cap_of(self.derived_groups[cls]))
         hits = [(len(m), placeholder(m) is None, m) for m in self.paths if covers_dir(m, n)]
         if not hits:
             return self.default_cap
@@ -970,10 +1014,11 @@ def render(res: Resolver, rep: Report, rows: list[tuple[str, str]], detail_all: 
         else:
             state = "ok"
         lines.append(f"{c:9,d} {cap:7,d} {target:7,d}  {name:<{width}} {state}")
-        if c > cap or detail_all:
-            for n, f, note in sorted(rep.detail[name], reverse=True):
-                if f != name:
-                    lines.append(f"{n:9,d}{'':20}{f}" + (f"  ({note})" if note else ""))
+        for n, f, note in sorted(rep.detail[name], reverse=True):
+            # A note says how the count was arrived at -- a one_of set paying its
+            # largest member -- so it shows whether or not the group is over cap.
+            if f != name and (note or c > cap or detail_all):
+                lines.append(f"{n:9,d}{'':20}{f}" + (f"  ({note})" if note else ""))
 
     if rep.data:
         lines.append("")
@@ -1062,7 +1107,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run the synthetic tests**
 
 Run: `PYTEST tests/test_doc_budget.py -q --deselect tests/test_doc_budget.py::test_the_registry_is_valid_and_the_tree_is_within_budget 2>&1 | tail -15`
-Expected: every synthetic test PASS. Fix the module, not the tests, for any failure.
+Expected: 30 passed, 1 deselected. Fix the module, not the tests, for any failure.
 
 The tree test fails until Task 3 writes the registry; that is expected here.
 
