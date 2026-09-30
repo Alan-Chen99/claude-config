@@ -26,6 +26,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = "doc-budget.toml"
@@ -137,7 +138,7 @@ def covers_dir(name: str, other: str) -> bool:
     return covering(name, other) is not None
 
 
-def load_registry(path: Path) -> dict:
+def load_registry(path: Path) -> dict[str, Any]:
     """The registry, checked for everything a resolver cannot recover from."""
     try:
         reg = tomllib.loads(path.read_text(encoding="utf-8"))
@@ -165,9 +166,10 @@ def load_registry(path: Path) -> dict:
         if "derived" in g and g["derived"] not in DERIVED:
             raise RegistryError(
                 f"group {name!r}: `derived` must be one of {', '.join(DERIVED)}")
-        if "one_of" in g and placeholder(g["one_of"]) is None:
+        if "one_of" in g and (not isinstance(g["one_of"], str) or placeholder(g["one_of"]) is None):
             raise RegistryError(
-                f"group {name!r}: one_of {g['one_of']!r} carries no <name> placeholder")
+                f"group {name!r}: one_of {g['one_of']!r} must be a string carrying "
+                "a <name> placeholder")
         _approved(g, f"group {name!r}")
     residuals = [n for n, g in groups.items() if g.get("residual")]
     if len(residuals) != 1:
@@ -197,7 +199,7 @@ def load_registry(path: Path) -> dict:
     return reg
 
 
-def _table(value: object, where: str) -> dict:
+def _table(value: object, where: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise RegistryError(f"{where}: must be a table, not {type(value).__name__}")
     return value
@@ -207,16 +209,17 @@ def _positive_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
-def _keys(table: dict, allowed: frozenset[str], where: str) -> None:
+def _keys(table: dict[str, Any], allowed: frozenset[str], where: str) -> None:
     unknown = sorted(set(table) - allowed)
     if unknown:
         raise RegistryError(f"{where}: unknown key {', '.join(unknown)}")
 
 
-def _approved(table: dict, where: str) -> None:
-    if "approved" in table and not APPROVED.fullmatch(str(table["approved"])):
+def _approved(table: dict[str, Any], where: str) -> None:
+    value = table.get("approved")
+    if "approved" in table and (not isinstance(value, str) or not APPROVED.fullmatch(value)):
         raise RegistryError(
-            f"{where}: `approved` {table['approved']!r} is not `<8 hex of session id>` "
+            f"{where}: `approved` {value!r} is not `<8 hex of session id>` "
             "for an agent's own session or `user:<8 hex>` for the session in which "
             "the user approved it")
 
@@ -224,7 +227,7 @@ def _approved(table: dict, where: str) -> None:
 class Resolver:
     """Which group each tracked file counts in, under one registry and session."""
 
-    def __init__(self, reg: dict, files: list[str], session: str) -> None:
+    def __init__(self, reg: dict[str, Any], files: list[str], session: str) -> None:
         self.reg = reg
         self.files = files
         self.session = session
@@ -248,7 +251,7 @@ class Resolver:
                     raise RegistryError(
                         f"group {n!r}: one_of {g['one_of']!r} matches no tracked file")
                 self.slots[n] = hits
-                self.claimed.update(dict.fromkeys(hits, n))
+                self.claimed.update({f: n for f in hits})
         held = self.reg.get("held")
         self.held: dict[str, int] = (
             dict(held["files"]) if held and self.live(held["approved"]) else {})

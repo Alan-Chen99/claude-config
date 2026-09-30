@@ -275,6 +275,8 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 'big'\n", "`cap` must be a positive integer"),
     (BASE + "\n[data.d]\npaths = 'x'\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "`paths` must be a non-empty list of strings"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 4\n[groups.\"x/a.md\"]\nloaded = 'a'\n", "inherits `default_cap` 100, above 4"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\none_of = 5\n", "must be a string carrying a <name> placeholder"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 12345678\n", "is not `<8 hex"),
 ])
 def test_a_registry_error_exits_2_and_says_what(tmp_path, capsys, registry, message):
     root = repo(tmp_path, {"x/a.md": w(5)}, registry)
@@ -427,5 +429,5 @@ def test_the_registry_is_valid_and_the_tree_is_within_budget(capsys):
     session is inert here too, so an agent's own loosening fails this in the
     session that wrote it and passes in CI -- that is the gate working."""
     code = doc_budget.main([], root=REPO)
-    out, _ = capsys.readouterr()
-    assert code == 0, out
+    out, err = capsys.readouterr()
+    assert code == 0, out + err
