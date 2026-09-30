@@ -13,7 +13,6 @@ real mitmdump to pin both halves of the fix, the relay and the capture.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import socket
@@ -26,17 +25,12 @@ from pathlib import Path
 
 import pytest
 
+from claude_config.cc_replay.proxy_module import load_proxy
+
 _PROXY = Path(__file__).resolve().parents[1] / "scripts" / "intercept" / "proxy.py"
 
 
-def _load_proxy():
-    spec = importlib.util.spec_from_file_location("intercept_proxy", _PROXY)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-proxy = _load_proxy()
+proxy = load_proxy()
 
 
 def _sse(*events: dict) -> str:
