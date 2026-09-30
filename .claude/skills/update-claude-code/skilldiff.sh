@@ -9,7 +9,8 @@
 # Matching the asset is not matching the built-in: the loader adds text at load
 # time (a dataviz callout behind a server flag; under CLAUDE_CODE_ARTIFACT_TOOLSET
 # a page-contract prefix and one phrase swap — `nJn`, src/chunk-qza9q751.js).
-# This checks the body the asset holds, nothing else.
+# This checks the body the asset holds, nothing else; the loader read that
+# covers the rest is unconditional at every upgrade (SKILL.md, section 4).
 set -uo pipefail
 A=${ASSETS:-/repos/claude-code-decompiled/assets}
 [ -d "$A" ] || { echo "decompiled assets not found: $A" >&2; exit 2; }
