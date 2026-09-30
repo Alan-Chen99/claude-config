@@ -1852,13 +1852,25 @@ Unlike the other pass-through subcommands, `--help` is forwarded to the Python p
 with
 
 ```
-`--help` is forwarded to the Python parser (`disable_help_flag`), as `doc-budget`'s is, because that help carries the backend warning; the pass-throughs machinery invokes keep clap's.
+`--help` is forwarded to the Python parser (`disable_help_flag`): this and `doc-budget` are the two pass-throughs a person types, and their Python help carries what clap's cannot — the backend warning here, the exit-status table there. The rest are machinery-invoked and keep clap's.
+```
+
+Also in that bullet, the recorded measurement predates the prompt's last cuts (taken at 387de84c, 2026-09-23; the prompt is 4,325 local tokens now) and the Step 3 text below sends readers here; replace
+
+```
+on `sys_prompt/alan-default-next.md`, Opus 5 and Sonnet 5 both report 10,002 and Opus 4.7 reports 10,007, while Haiku 4.5's older tokenizer reports 7,113, next door to Qwen3.8's 6,654.
+```
+
+with (the `--api` figures from `agent-tools count-tokens --api --model <id> --file sys_prompt/alan-default-next.md`, one call per model, from a checkout with `.env`)
+
+```
+on `sys_prompt/alan-default-next.md` (measured 2026-09-30), Opus 5 and Sonnet 5 both report 6,572 and Opus 4.7 reports 6,577, while Haiku 4.5's older tokenizer reports 4,691, next door to Qwen3.8's 4,325.
 ```
 
 Then insert, as a new bullet immediately before the line beginning `- \`agent-tools env-context\``:
 
 ```
-- `agent-tools doc-budget [--print-held] [path ...]` — every tracked `.md` against the caps in `doc-budget.toml` (wraps `python3 -m claude_config.doc_budget`). Groups follow the mechanism that loads a file, not its directory: the system prompt, the opencode agent set, the skill and agent `description:` fields, each `SKILL.md`, each agent body, each `CLAUDE.md`, and per-file caps under `docs/`, `notes/`, `plans/`; `[data]` paths are listed at the bottom and never counted. Exit 1 over cap, 2 on a registry error; `--print-held` emits a `[held.files]` line for every over-cap file. Counts with the local tokenizer, loaded once (`count_tokens.load_tokenizer`); `--help` is forwarded to Python like `count-tokens`. Policy in `conventions/documentation.md`, design in `docs/superpowers/specs/2026-09-29-doc-budget-design.md`.
+- `agent-tools doc-budget [--print-held] [path ...]` — every tracked `.md` against the caps in `doc-budget.toml` (wraps `python3 -m claude_config.doc_budget`). Groups follow the mechanism that loads a file, not its directory; the registry's header states the grammar. Exit 1 over cap, 2 on a registry error; `--print-held` emits a `[held.files]` line instead of the report, one per over-cap file. Counts with the local tokenizer, loaded once (`count_tokens.load_tokenizer`). Policy in `conventions/documentation.md`, design in `docs/superpowers/specs/2026-09-29-doc-budget-design.md`.
 ```
 
 - [ ] **Step 2: `src/claude_config/CLAUDE.md`**
@@ -1884,9 +1896,10 @@ agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
 with
 
 ````
-Measure before and after. `doc-budget.toml` caps the prompt at 4,400 local tokens
-(`agent-tools doc-budget sys_prompt/alan-default-next.md`); `--api` is the figure for
-context consumed:
+Measure before and after. `doc-budget.toml` caps the prompt at 4,400 local-tokenizer
+tokens (`agent-tools doc-budget sys_prompt/alan-default-next.md`, the figure CI gates);
+`--api` below is Claude context consumed, about 1.5x that and a different unit
+(`agent-tools/CLAUDE.md`, the `count-tokens` bullet):
 
 ```bash
 agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
@@ -1900,7 +1913,7 @@ In the §3.1 row that begins `| \`skills/telegram-hitl/SKILL.md:30\``, change th
 Then insert after that row:
 
 ```
-| `src/claude_config/doc_budget.py` (`session_of`) | `CLAUDE_CODE_SESSION_ID` | The same-session gate on `approved`: an entry the running session approved is inert there. A renamed variable reads as unset, so the gate goes inert everywhere — every approval counts as live and an agent's own `[data]` entry or held size takes effect in the session that wrote it — with a warning on stderr on every run, which nothing automatic reads: `tests/test_doc_budget.py` passes the variable in itself. |
+| `src/claude_config/doc_budget.py` (`session_of`) | `CLAUDE_CODE_SESSION_ID` | The same-session gate on `approved`: an entry the running session approved is inert there. A renamed variable reads as unset, so the gate never fires — every approval counts as live and an agent's own `[data]` entry or held size takes effect in the session that wrote it — with a warning on stderr on every run, which nothing automatic reads: `tests/test_doc_budget.py` passes the variable in itself. |
 ```
 
 - [ ] **Step 5: `README.md`**
@@ -1923,8 +1936,31 @@ with
 and insert, directly after the file-table row that begins `| [\`CLAUDE.md\`](CLAUDE.md) |`:
 
 ```
-| [`doc-budget.toml`](doc-budget.toml) | Token caps for every tracked `.md`, grouped by how the text reaches a context — the system prompt on every request, skill descriptions every session, a skill body per invocation; `agent-tools doc-budget` reports, [`tests/test_doc_budget.py`](tests/test_doc_budget.py) gates CI |
+| [`doc-budget.toml`](doc-budget.toml) | Token caps for every tracked `.md`, by how the text reaches a context; `agent-tools doc-budget` reports and CI gates |
 ```
+
+Also in `README.md`, under `## Install`: the root `CLAUDE.md` `install.sh` row defers to this section for the link destinations, and the section omits the systemd units (`install.sh:87-116` links `systemd/*.service` into `~/.config/systemd/user/`; enabling is left to a human). Replace the paragraph's opening sentence
+
+```
+Directory-level symlinks for `agents`, `conventions`, `output-styles` and
+`skills` into `~/.claude/`, `~/.config/opencode` → `opencode/`, file symlinks
+for `settings.json` and `statusline.sh`, an `agent-tools` build linked with
+the `scripts/claude.sh`, `scripts/kimi.sh` and `scripts/zai.sh` launchers into
+`~/.local/bin`, and the Python venv. Run it from the
+```
+
+with
+
+```
+Directory-level symlinks for `agents`, `conventions`, `output-styles` and
+`skills` into `~/.claude/`, `~/.config/opencode` → `opencode/`, file symlinks
+for `settings.json` and `statusline.sh`, the `systemd/` units into
+`~/.config/systemd/user/` (linked, enabled by hand), an `agent-tools` build
+linked with the `scripts/claude.sh`, `scripts/kimi.sh` and `scripts/zai.sh`
+launchers into `~/.local/bin`, and the Python venv. Run it from the
+```
+
+(the rest of the paragraph is unchanged).
 
 - [ ] **Step 6: `docs/CLAUDE.md`**
 
@@ -1948,6 +1984,8 @@ doc-budget: index rows for the subcommand, the module, the prompt's cap
 Claude-Session: 834203fa-2993-42e8-a373-0f7dc84e995e
 EOF
 ```
+
+Shipped as 1a7f4b68 and 59222b5c, then 7ff1faa6 for the locator; the second carries the review's fixes (the help rule stated per subcommand, the grammar deferred to the registry's header, the refreshed measurement, `--print-held` replacing the report, the shorter README row).
 
 ---
 
