@@ -326,3 +326,29 @@ def test_the_http_region_is_typed_and_reachable_by_header_name(tmp_path) -> None
     assert log.http.credential.length == 115
     assert log.http.response is not None
     assert log.http.response.status == 200
+
+
+def test_the_header_names_the_call_the_status_and_the_betas(tmp_path) -> None:
+    """A region no render shows is a region nobody reads."""
+    out = render(tmp_path, capture(http=HTTP))
+
+    assert "POST https://api.anthropic.com/v1/messages?beta=true" in out
+    assert "200" in out
+    assert "req_011CfYdgBnuh" in out
+    assert "claude-code-20250219,effort-2025-11-24" in out
+
+
+def test_show_http_dumps_every_header_and_the_default_does_not(tmp_path) -> None:
+    plain = render(tmp_path, capture(http=HTTP))
+    full = render(tmp_path, capture(http=HTTP), "--show-http")
+
+    assert "anthropic-ratelimit-unified-5h-utilization" not in plain
+    assert "anthropic-ratelimit-unified-5h-utilization" in full
+    assert "x-app" in full
+    assert "115 chars, not captured" in full
+
+
+def test_a_capture_with_no_http_region_renders_as_before(tmp_path) -> None:
+    out = render(tmp_path, capture())
+    assert "claude-test" in out
+    assert "POST" not in out

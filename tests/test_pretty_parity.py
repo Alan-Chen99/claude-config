@@ -32,9 +32,9 @@ FRONT_ENDS = {
     "opencode-pretty": opencode_main,
 }
 
-# Regions only an API payload has; the other two formats hold no system prompt
-# or tool schema to hide.
-INTERCEPT_ONLY = {"--no-system", "--no-tools"}
+# Regions only an API payload has; the other two formats hold no system prompt,
+# tool schema or HTTP envelope to show.
+INTERCEPT_ONLY = {"--no-system", "--no-tools", "--show-http"}
 OPENCODE_ONLY = {"--from-file"}
 
 

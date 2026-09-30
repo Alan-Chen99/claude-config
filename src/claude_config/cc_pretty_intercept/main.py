@@ -46,6 +46,11 @@ def main(argv: list[str] | None = None) -> None:
     region.add_argument(
         "--no-tools", action="store_true", help="Hide the tool definitions list",
     )
+    region.add_argument(
+        "--show-http",
+        action="store_true",
+        help="Dump every request and response header from the http region",
+    )
     args = parser.parse_args(argv)
 
     log = load_intercept(args.file)
@@ -71,7 +76,7 @@ def main(argv: list[str] | None = None) -> None:
         records=records,
         log_path=log_path,
         args=args,
-        header=header_lines(log, args.file),
+        header=header_lines(log, args.file, show_http=args.show_http),
         jq_paths=jq_paths,
         agent_chunk_prefix="-".join(
             x for x in ("cc-pretty-intercept", session, stem) if x
