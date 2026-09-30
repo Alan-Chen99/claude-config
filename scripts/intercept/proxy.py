@@ -251,6 +251,65 @@ def error_detail(raw: bytes | None) -> dict:
     return {"body": text[:ERROR_BODY_MAX]}
 
 
+# --- The HTTP envelope ---
+
+# Header names whose value is a credential. Dropped before an entry is built:
+# the log tree sits unencrypted under $HOME, and nothing needs the secret to
+# replay a call -- cc-replay resolves a fresh one at send time.
+CREDENTIAL_HEADERS = frozenset(
+    {"authorization", "x-api-key", "cookie", "proxy-authorization"}
+)
+
+
+def split_credentials(headers) -> tuple[list[list[str]], dict]:
+    """Headers as sent, minus the secrets, plus the shape of the slot.
+
+    Pairs rather than a mapping: `Headers.items(multi=True)` keeps a repeated
+    header and the order it was sent in, where `dict()` joins duplicates with
+    ", " and loses both.
+
+    The slot -- which header, which scheme, how many characters -- is what tells
+    a reader an OAuth bearer from an API key, and a replay where to put the
+    credential it resolves. The value itself is never written.
+    """
+    kept: list[list[str]] = []
+    credential: dict = {}
+    for name, value in headers.items(multi=True):
+        if name.lower() in CREDENTIAL_HEADERS:
+            if not credential:
+                scheme = value.split(" ", 1)[0] if " " in value else ""
+                credential = {"header": name, "scheme": scheme, "length": len(value)}
+            continue
+        kept.append([name, value])
+    return kept, credential
+
+
+def http_region(flow) -> dict:
+    """The call itself: everything about it the body cannot say.
+
+    `anthropic-beta` varies per request inside one session -- 8 entries measured
+    on an auxiliary call against 14 on the main one -- so no sibling capture,
+    model id or client version implies it. Without this region a capture is a
+    conversation, and a conversation cannot be put back on the wire.
+    """
+    request_headers, credential = split_credentials(flow.request.headers)
+    region: dict = {
+        "method": flow.request.method,
+        "url": flow.request.pretty_url,
+        "http_version": flow.request.http_version,
+        "request_headers": request_headers,
+    }
+    if credential:
+        region["credential"] = credential
+    if flow.response is not None:
+        region["response"] = {
+            "status": flow.response.status_code,
+            "reason": flow.response.reason,
+            "headers": [[k, v] for k, v in flow.response.headers.items(multi=True)],
+        }
+    return region
+
+
 # --- Logging ---
 
 _counters: dict[str, int] = {}
@@ -410,6 +469,7 @@ class InterceptAddon:
                     "duration_ms": duration_ms,
                     **({"session": session_meta} if session_meta else {}),
                     "streaming": streaming,
+                    "http": http_region(flow),
                     "error": {
                         "status": flow.response.status_code,
                         "statusText": flow.response.reason,
@@ -441,6 +501,7 @@ class InterceptAddon:
                 "duration_ms": duration_ms,
                 **({"session": session_meta} if session_meta else {}),
                 "streaming": streaming,
+                "http": http_region(flow),
                 "request": body,
                 "response": parsed,
             },

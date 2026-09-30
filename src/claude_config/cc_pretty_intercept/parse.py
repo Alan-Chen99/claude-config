@@ -94,6 +94,54 @@ class TransportError(_Base):
     body: str = ""
 
 
+class Credential(_Base):
+    """The credential slot, never its value — proxy.py drops the secret.
+
+    `length` and `scheme` are what separate an OAuth bearer from an API key
+    without recording either.
+    """
+    header: str = ""
+    scheme: str = ""
+    length: int = 0
+
+
+class HttpResponse(_Base):
+    status: int = 0
+    reason: str = ""
+    # Ordered pairs: a repeated header stays separable and send order survives.
+    headers: list[list[str]] = []
+
+
+class Http(_Base):
+    """The HTTP call around the body.
+
+    Absent from any capture written before the proxy recorded it, so every
+    reader treats it as optional rather than as an empty header set.
+    """
+    method: str = ""
+    url: str = ""
+    http_version: str = ""
+    request_headers: list[list[str]] = []
+    credential: Credential | None = None
+    response: HttpResponse | None = None
+
+    def header(self, name: str) -> str:
+        """First value for a request header, case-insensitively; "" if absent."""
+        wanted = name.lower()
+        for key, value in self.request_headers:
+            if key.lower() == wanted:
+                return value
+        return ""
+
+    def response_header(self, name: str) -> str:
+        """First value for a response header, case-insensitively; "" if absent."""
+        wanted = name.lower()
+        for key, value in self.response.headers if self.response else []:
+            if key.lower() == wanted:
+                return value
+        return ""
+
+
 class InterceptLog(_Base):
     timestamp: str = ""
     duration_ms: int = 0
@@ -102,6 +150,7 @@ class InterceptLog(_Base):
     request: Request
     response: Response | None = None
     error: TransportError | None = None
+    http: Http | None = None
 
 
 def load_intercept(path: str) -> InterceptLog:

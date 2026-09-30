@@ -27,7 +27,7 @@ and one-off probes.
 
 | Directory    | What                                                        | When to read                                      |
 | ------------ | ----------------------------------------------------------- | ------------------------------------------------- |
-| `intercept/` | MITM proxy that captures conversation-shaped API calls to `~/.claude/requests-log/` — only from sessions `claude.sh` launched while it was listening; its `README.md` carries the port, the CA setup, the streaming watchdog and the four things a capture cannot record | Capturing requests; diagnosing an intercepted session whose turns abort; judging what a missing capture means |
+| `intercept/` | MITM proxy that captures conversation-shaped API calls to `~/.claude/requests-log/` — only from sessions `claude.sh` launched while it was listening; its `README.md` carries the port, the CA setup, the `http` region a capture records the call in, the streaming watchdog and the five things a capture cannot record. `agent-tools cc-replay` re-sends one | Capturing requests; replaying one; diagnosing an intercepted session whose turns abort; judging what a missing capture means |
 
 ## Provider launchers — `kimi.sh` and `zai.sh`
 

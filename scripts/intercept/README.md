@@ -82,6 +82,14 @@ Sessions without an ID go to `~/.claude/requests-log/unknown/`.
     "pid": 12345
   },
   "streaming": true,
+  "http": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "http_version": "HTTP/1.1",
+    "request_headers": [["anthropic-beta", "claude-code-20250219,..."], ["x-app", "cli"]],
+    "credential": {"header": "Authorization", "scheme": "Bearer", "length": 115},
+    "response": {"status": 200, "reason": "OK", "headers": [["request-id", "req_..."]]}
+  },
   "request": { "model": "...", "messages": [...], "system": [...] },
   "response": {
     "id": "msg_...",
@@ -134,6 +142,34 @@ like a real empty turn. A stream nothing parses out of now raises instead.
 
 A non-streaming reply is stored verbatim; only the streamed path is
 reassembled.
+
+## The `http` region
+
+Everything about the call the body cannot say: the method, the URL with its query
+string, every request header as an ordered `[name, value]` pair, and the
+response's status and headers. Pairs rather than an object because
+`Headers.items(multi=True)` keeps a repeated header and the send order, where
+`dict()` joins duplicates with `, `.
+
+`anthropic-beta` is the reason the region exists. It varies per request inside
+one session — measured on cc 2.1.269, an auxiliary call carried 8 entries and the
+main call 14, the main one adding `claude-code-20250219`,
+`mid-conversation-system-2026-04-07`, `mid-conversation-tool-changes-2026-07-01`,
+`advanced-tool-use-2025-11-20`, `effort-2025-11-24`, `fallback-credit-2026-06-01`
+and `extended-cache-ttl-2025-04-11` — so no sibling capture, model id or client
+version implies it.
+
+`authorization`, `x-api-key`, `cookie` and `proxy-authorization` never reach
+disk. `credential` records the slot instead — which header, which scheme, how
+many characters — which is enough to tell an OAuth bearer from an API key and to
+know where a replay puts its own.
+
+`http.response.status` is set on every call, 200 included; the top-level
+`error.status` a failed call carries is unchanged.
+
+Captures written before 2026-09-30 have no `http` key. Their beta lists are
+unrecoverable, and `agent-tools cc-replay` refuses to re-send one as if it were
+faithful.
 
 ## What a capture does not record
 

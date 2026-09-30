@@ -13,7 +13,6 @@ real mitmdump to pin both halves of the fix, the relay and the capture.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import socket
@@ -26,17 +25,12 @@ from pathlib import Path
 
 import pytest
 
+from claude_config.cc_replay.proxy_module import load_proxy
+
 _PROXY = Path(__file__).resolve().parents[1] / "scripts" / "intercept" / "proxy.py"
 
 
-def _load_proxy():
-    spec = importlib.util.spec_from_file_location("intercept_proxy", _PROXY)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-proxy = _load_proxy()
+proxy = load_proxy()
 
 
 def _sse(*events: dict) -> str:
@@ -342,7 +336,12 @@ def proxy_process(tmp_path_factory) -> Iterator[tuple[int, Path]]:
     process.wait(timeout=15)
 
 
-def _post_through_proxy(proxy_port: int, origin_port: int, session_id: str) -> list[tuple[float, bytes]]:
+def _post_through_proxy(
+    proxy_port: int,
+    origin_port: int,
+    session_id: str,
+    extra_headers: tuple[tuple[str, str], ...] = (),
+) -> list[tuple[float, bytes]]:
     """POST a conversation-shaped body and timestamp every arrival.
 
     The Host header is what the addon filters on (mitmproxy's
@@ -352,12 +351,14 @@ def _post_through_proxy(proxy_port: int, origin_port: int, session_id: str) -> l
     body = json.dumps(
         {"model": "claude-stream-test", "messages": [{"role": "user", "content": "hi"}], "stream": True}
     ).encode()
+    extra = "".join(f"{name}: {value}\r\n" for name, value in extra_headers)
     request = (
-        f"POST http://127.0.0.1:{origin_port}/v1/messages HTTP/1.1\r\n"
+        f"POST http://127.0.0.1:{origin_port}/v1/messages?beta=true HTTP/1.1\r\n"
         f"Host: {proxy.TARGET_HOSTS[0]}\r\n"
         f"{proxy.SESSION_HEADER}: {session_id}\r\n"
         "Content-Type: application/json\r\n"
         f"Content-Length: {len(body)}\r\n"
+        f"{extra}"
         "Connection: close\r\n\r\n"
     ).encode() + body
 
@@ -470,3 +471,92 @@ def test_a_refused_call_is_logged_with_the_api_s_own_reason(error_origin, proxy_
         "message": "requires usage credits",
     }
     assert entry["request"]["model"] == "claude-stream-test"
+
+
+# --- The HTTP envelope ---
+#
+# anthropic-beta varies per request inside one session -- 8 entries measured on
+# an auxiliary call against 14 on the main one, cc 2.1.269 -- so nothing else on
+# disk implies it and a capture without it cannot be re-sent.
+
+
+def _capture_with_headers(proxy_port, origin_port, home, headers):
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, origin_port, session_id, headers)
+    log_file = home / ".claude" / "requests-log" / session_id / "0001.json"
+    deadline = time.monotonic() + 10
+    while not log_file.exists() and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert log_file.exists(), f"no capture written to {log_file}"
+    return json.loads(log_file.read_text())
+
+
+BETAS = "claude-code-20250219,oauth-2025-04-20,effort-2025-11-24"
+
+
+def test_the_beta_list_and_the_query_string_reach_the_capture(sse_origin, proxy_process) -> None:
+    proxy_port, home = proxy_process
+    entry = _capture_with_headers(
+        proxy_port, sse_origin, home,
+        (("anthropic-beta", BETAS), ("x-app", "cli"), ("anthropic-version", "2023-06-01")),
+    )
+
+    http = entry["http"]
+    assert http["method"] == "POST"
+    assert http["url"].endswith("/v1/messages?beta=true")
+    sent = {name.lower(): value for name, value in http["request_headers"]}
+    assert sent["anthropic-beta"] == BETAS
+    assert sent["x-app"] == "cli"
+    assert sent["anthropic-version"] == "2023-06-01"
+
+
+def test_the_credential_becomes_a_slot_description_and_not_a_value(sse_origin, proxy_process) -> None:
+    """94,820 captures sit unencrypted under $HOME; none needs the secret."""
+    proxy_port, home = proxy_process
+    entry = _capture_with_headers(
+        proxy_port, sse_origin, home,
+        (("Authorization", "Bearer sk-secret-token-value"), ("x-api-key", "also-secret")),
+    )
+
+    http = entry["http"]
+    names = {name.lower() for name, _ in http["request_headers"]}
+    assert "authorization" not in names
+    assert "x-api-key" not in names
+    assert http["credential"] == {
+        "header": "Authorization", "scheme": "Bearer", "length": len("Bearer sk-secret-token-value"),
+    }
+    assert "sk-secret-token-value" not in json.dumps(entry)
+
+
+def test_a_repeated_header_keeps_both_values_and_the_send_order(sse_origin, proxy_process) -> None:
+    """dict() would join these with ", "; pairs keep them separable."""
+    proxy_port, home = proxy_process
+    entry = _capture_with_headers(
+        proxy_port, sse_origin, home,
+        (("X-Repeat", "first"), ("X-Repeat", "second")),
+    )
+
+    repeats = [v for name, v in entry["http"]["request_headers"] if name.lower() == "x-repeat"]
+    assert repeats == ["first", "second"]
+
+
+def test_a_successful_call_records_its_status_and_response_headers(sse_origin, proxy_process) -> None:
+    """Only a non-200 recorded a status before; error.status was the sole record."""
+    proxy_port, home = proxy_process
+    entry = _capture_with_headers(proxy_port, sse_origin, home, ())
+
+    assert entry["http"]["response"]["status"] == 200
+    resp = {name.lower() for name, _ in entry["http"]["response"]["headers"]}
+    assert "content-type" in resp
+
+
+def test_a_refused_call_records_the_http_region_too(error_origin, proxy_process) -> None:
+    proxy_port, home = proxy_process
+    entry = _capture_with_headers(
+        proxy_port, error_origin, home, (("anthropic-beta", BETAS),),
+    )
+
+    assert entry["http"]["response"]["status"] == 429
+    assert entry["error"]["status"] == 429
+    sent = {name.lower(): value for name, value in entry["http"]["request_headers"]}
+    assert sent["anthropic-beta"] == BETAS

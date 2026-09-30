@@ -107,6 +107,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Re-send a captured API request, faithfully or with edits
+    #[command(name = "cc-replay")]
+    CcReplay {
+        /// Arguments forwarded to cc-replay
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Report content cc-pretty / cc-pretty-intercept fails to show at unbounded --tool-max
     #[command(name = "cc-render-coverage")]
     CcRenderCoverage {
@@ -760,6 +767,14 @@ fn main() {
                     &root,
                     None,
                     &["python3", "-m", "claude_config.cc_pretty_intercept.main"],
+                    &args,
+                );
+            }
+            Cmd::CcReplay { args } => {
+                uv_run(
+                    &root,
+                    None,
+                    &["python3", "-m", "claude_config.cc_replay.main"],
                     &args,
                 );
             }

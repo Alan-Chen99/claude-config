@@ -12,6 +12,7 @@ dependencies = [
   "pytest>=9.0.2",
   "hypothesis>=6.148.7",
   "anthropic>=0.49.0",
+  "httpx>=0.28.1",
   "tokenizers>=0.22.1",
   "python-dotenv>=1.0.0",
   "pygit2>=1.19.2",
@@ -21,6 +22,7 @@ dependencies = [
 [project.scripts]
 cc-pretty = "claude_config.cc_pretty.main:main"
 cc-pretty-intercept = "claude_config.cc_pretty_intercept.main:main"
+cc-replay = "claude_config.cc_replay.main:main"
 cc-render-coverage = "claude_config.cc_pretty.coverage:main"
 cc-workflow-extract = "claude_config.cc_workflow.extract:main"
 opencode-pretty = "claude_config.opencode_pretty.main:main"

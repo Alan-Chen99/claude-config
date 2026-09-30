@@ -280,3 +280,75 @@ def test_agent_mode_chunks_a_render_too_big_to_print(tmp_path, monkeypatch) -> N
     out = render(tmp_path, cap, "--agent")
     assert "Chunk files (read selectively):" in out
     assert "cc-pretty-intercept" in out
+
+
+# ── The http region ─────────────────────────────────────────────────────────
+
+HTTP = {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages?beta=true",
+    "http_version": "HTTP/1.1",
+    "request_headers": [
+        ["anthropic-beta", "claude-code-20250219,effort-2025-11-24"],
+        ["x-app", "cli"],
+    ],
+    "credential": {"header": "Authorization", "scheme": "Bearer", "length": 115},
+    "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [["request-id", "req_011CfYdgBnuh"], ["anthropic-ratelimit-unified-5h-utilization", "0.11"]],
+    },
+}
+
+
+def test_a_capture_without_an_http_region_still_loads(tmp_path) -> None:
+    """94,820 captures predate the region; absence is normal, not an error."""
+    from claude_config.cc_pretty_intercept.parse import load_intercept
+
+    path = tmp_path / "0001.json"
+    path.write_text(json.dumps(capture()))
+    assert load_intercept(str(path)).http is None
+
+
+def test_the_http_region_is_typed_and_reachable_by_header_name(tmp_path) -> None:
+    from claude_config.cc_pretty_intercept.parse import load_intercept
+
+    path = tmp_path / "0001.json"
+    path.write_text(json.dumps(capture(http=HTTP)))
+    log = load_intercept(str(path))
+
+    assert log.http is not None
+    assert log.http.method == "POST"
+    assert log.http.header("Anthropic-Beta") == "claude-code-20250219,effort-2025-11-24"
+    assert log.http.header("absent") == ""
+    assert log.http.response_header("Request-Id") == "req_011CfYdgBnuh"
+    assert log.http.credential is not None
+    assert log.http.credential.length == 115
+    assert log.http.response is not None
+    assert log.http.response.status == 200
+
+
+def test_the_header_names_the_call_the_status_and_the_betas(tmp_path) -> None:
+    """A region no render shows is a region nobody reads."""
+    out = render(tmp_path, capture(http=HTTP))
+
+    assert "POST https://api.anthropic.com/v1/messages?beta=true" in out
+    assert "200" in out
+    assert "req_011CfYdgBnuh" in out
+    assert "claude-code-20250219,effort-2025-11-24" in out
+
+
+def test_show_http_dumps_every_header_and_the_default_does_not(tmp_path) -> None:
+    plain = render(tmp_path, capture(http=HTTP))
+    full = render(tmp_path, capture(http=HTTP), "--show-http")
+
+    assert "anthropic-ratelimit-unified-5h-utilization" not in plain
+    assert "anthropic-ratelimit-unified-5h-utilization" in full
+    assert "x-app" in full
+    assert "115 chars, not captured" in full
+
+
+def test_a_capture_with_no_http_region_renders_as_before(tmp_path) -> None:
+    out = render(tmp_path, capture())
+    assert "claude-test" in out
+    assert "POST" not in out

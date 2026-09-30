@@ -166,11 +166,18 @@ def log_to_records(
     return records, jq_paths
 
 
-def header_lines(log: InterceptLog, path: str) -> list[str]:
+def header_lines(
+    log: InterceptLog, path: str, *, show_http: bool = False
+) -> list[str]:
     """The capture's front-matter: what the call was, not what it said.
 
     Plain strings — ``run_pipeline`` prints them above the legend, and the
     caller colors them.
+
+    The ``http`` region's call line and beta list are always shown. The beta
+    list decides what the API did with the body and varies per request inside
+    one session, so nobody would think to go looking for it until it had already
+    misled them. ``show_http`` adds every header.
     """
     parts = [f"intercept: {os.path.basename(path)}"]
     if log.request.model:
@@ -211,6 +218,36 @@ def header_lines(log: InterceptLog, path: str) -> list[str]:
         req.append("output_config")
     if req:
         lines.append(req)
+
+    if log.http:
+        call: list[str] = []
+        if log.http.method and log.http.url:
+            call.append(f"{log.http.method} {log.http.url}")
+        if log.http.response and log.http.response.status:
+            call.append(f"-> {log.http.response.status}")
+        rid = log.http.response_header("request-id")
+        if rid:
+            call.append(rid)
+        if call:
+            lines.append(call)
+
+        betas = log.http.header("anthropic-beta")
+        if betas:
+            lines.append([f"betas: {betas}"])
+
+        if show_http:
+            for label, pairs in (
+                ("req ", log.http.request_headers),
+                ("resp", log.http.response.headers if log.http.response else []),
+            ):
+                for name, value in pairs:
+                    lines.append([f"{label} {name}: {value}"])
+            cred = log.http.credential
+            if cred:
+                lines.append([
+                    f"req  {cred.header}: {cred.scheme} "
+                    f"<{cred.length} chars, not captured>"
+                ])
 
     return ["  ".join(group) for group in lines]
 
