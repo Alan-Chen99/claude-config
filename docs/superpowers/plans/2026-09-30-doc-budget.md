@@ -422,6 +422,15 @@ def test_a_path_naming_no_group_is_a_usage_error(tmp_path, capsys):
     assert "no group is named under nothing-here" in capsys.readouterr().err
 
 
+def test_a_path_outside_the_root_is_refused_before_the_registry_is_read(tmp_path, capsys):
+    root = repo(tmp_path, {"x/a.md": w(5)})
+    (tmp_path / "doc-budget.toml").unlink()
+    with pytest.raises(SystemExit) as exit_:
+        run(root, "/etc", capsys=capsys)
+    assert exit_.value.code == 2
+    assert "is outside" in capsys.readouterr().err
+
+
 def test_a_missing_registry_exits_2(tmp_path, capsys):
     root = repo(tmp_path, {"x/a.md": w(5)})
     (tmp_path / "doc-budget.toml").unlink()
@@ -1103,7 +1112,7 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Instead of the report, emit a [held.files] line for every "
                         "over-cap file, at its size. Exits 1 like the report whenever "
                         "a group is over cap.")
-    p.add_argument("paths", nargs="*",
+    p.add_argument("paths", nargs="*", metavar="path",
                    help="Narrow the report to the groups under these paths, with "
                         "per-file detail; `.` names every group.")
     return p
@@ -1121,12 +1130,6 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
     if not session:
         print("warning: CLAUDE_CODE_SESSION_ID unset, so the same-session gate is "
               "inactive and every approval counts as live", file=sys.stderr)
-    try:
-        reg = load_registry(root / REGISTRY)
-        res = Resolver(reg, tracked_md(root), session)
-    except RegistryError as exc:
-        print(f"{REGISTRY}: {exc}", file=sys.stderr)
-        return 2
 
     want: list[str] = []
     for a in args.paths:
@@ -1135,6 +1138,13 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
         except ValueError:
             parser.error(f"{a} is outside {root}")
         want.append("" if str(rel) == "." else rel.as_posix())
+
+    try:
+        reg = load_registry(root / REGISTRY)
+        res = Resolver(reg, tracked_md(root), session)
+    except RegistryError as exc:
+        print(f"{REGISTRY}: {exc}", file=sys.stderr)
+        return 2
 
     if count is None:
         from claude_config.count_tokens import count_with, load_tokenizer
@@ -1160,7 +1170,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run the synthetic tests**
 
 Run: `PYTEST tests/test_doc_budget.py -q --deselect tests/test_doc_budget.py::test_the_registry_is_valid_and_the_tree_is_within_budget 2>&1 | tail -15`
-Expected: 38 passed, 1 deselected. Fix the module, not the tests, for any failure.
+Expected: 39 passed, 1 deselected. Fix the module, not the tests, for any failure.
 
 The tree test fails until Task 3 writes the registry; that is expected here.
 
@@ -1454,7 +1464,10 @@ fn doc_budget_help_is_forwarded_to_python() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("--print-held"), "stdout missing --print-held: {stdout}");
+    assert!(
+        stdout.contains("--print-held"),
+        "stdout missing --print-held: {stdout}"
+    );
     // Only the Python parser's epilog carries the exit-status table; clap's
     // help would list the flag from the doc comment and stop there.
     assert!(
@@ -1464,15 +1477,36 @@ fn doc_budget_help_is_forwarded_to_python() {
 }
 
 #[test]
-fn doc_budget_forwards_the_modules_exit_code_and_stderr() {
-    // A path that names no group is the module's own usage error: exit 2 with
-    // its wording, which clap could not have produced.
-    let out = doc_budget(&["nothing-here-xyz"]);
-    assert_eq!(out.status.code(), Some(2), "stdout={}", String::from_utf8_lossy(&out.stdout));
-    let stderr = String::from_utf8_lossy(&out.stderr);
+fn doc_budget_forwards_flags_and_positionals_and_returns_the_modules_exit_code() {
+    // clap forwards everything here (`trailing_var_arg`, `allow_hyphen_values`,
+    // `disable_help_flag`), so any rejection at all proves argparse ran. Both
+    // rejections happen before the registry is read or a file is tokenized, so
+    // this stays a wiring test whatever `doc-budget.toml` says about the tree.
+    let flag = doc_budget(&["--no-such-flag"]);
+    assert_eq!(
+        flag.status.code(),
+        Some(2),
+        "stdout={}",
+        String::from_utf8_lossy(&flag.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&flag.stderr);
     assert!(
-        stderr.contains("no group is named under"),
-        "expected the module's usage error, got: {stderr}"
+        stderr.contains("unrecognized arguments: --no-such-flag")
+            && stderr.contains("usage: doc-budget"),
+        "expected argparse's rejection, got: {stderr}"
+    );
+
+    let outside = doc_budget(&["/etc"]);
+    assert_eq!(
+        outside.status.code(),
+        Some(2),
+        "stdout={}",
+        String::from_utf8_lossy(&outside.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&outside.stderr);
+    assert!(
+        stderr.contains("is outside"),
+        "expected the module's own usage error, got: {stderr}"
     );
 }
 ```
@@ -1511,6 +1545,13 @@ Directly after the `Cmd::CountTokens { args } => { uv_run(...); }` arm in the di
                     &args,
                 );
             }
+```
+
+Also correct the `CountTokens` doc comment two variants above, whose last sentence claimed that subcommand alone forwards `--help`: replace its final two lines with
+
+```rust
+    /// measure the same thing. Machinery invokes the other pass-throughs, so
+    /// they keep clap's help; this one and `doc-budget` a person types.
 ```
 
 - [ ] **Step 4: Build and run the tests**
