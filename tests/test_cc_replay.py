@@ -437,3 +437,64 @@ def test_a_non_streaming_request_is_stored_verbatim(tmp_path, origin) -> None:
     entry = json.loads(result.read_text())
     assert entry["streaming"] is False
     assert entry["response"]["id"] == "msg_plain"
+
+
+def test_an_env_credential_can_take_the_api_key_header_shape(monkeypatch) -> None:
+    """The two first-party credential shapes are not interchangeable.
+
+    An OAuth token authenticates as `Authorization: Bearer`; an API key
+    authenticates as `x-api-key`, unprefixed. Sending either on the other's
+    header is an authentication failure, so the override that names the variable
+    has to be able to name the header too.
+    """
+    monkeypatch.setenv("MY_KEY", "sk-ant-api03-xyz")
+
+    bearer = creds.resolve("https://api.anthropic.com/v1/messages", env_var="MY_KEY")
+    assert bearer is not None
+    assert (bearer.header, bearer.value) == ("Authorization", "Bearer sk-ant-api03-xyz")
+
+    key = creds.resolve(
+        "https://api.anthropic.com/v1/messages",
+        env_var="MY_KEY",
+        env_header="x-api-key",
+    )
+    assert key is not None
+    assert (key.header, key.value) == ("x-api-key", "sk-ant-api03-xyz")
+
+
+# A 429 has two unrelated causes with opposite remedies, and the body says
+# nothing: `{"type":"error","error":{"type":"rate_limit_error","message":"Error"}}`.
+# The response headers separate them, so the summary reads them out.
+
+from claude_config.cc_replay.main import rate_limit_note
+
+
+def test_a_quota_429_names_the_organization_and_the_api_key_remedy() -> None:
+    note = rate_limit_note(
+        429,
+        [
+            ["x-should-retry", "true"],
+            ["anthropic-organization-id", "29f2cf32-1268-49fe-8794-9032b532a49a"],
+        ],
+    )
+    assert note is not None
+    assert "29f2cf32-1268-49fe-8794-9032b532a49a" in note
+    assert "--credential-header x-api-key" in note
+
+
+def test_a_window_429_says_wait_instead_of_naming_a_credential() -> None:
+    note = rate_limit_note(
+        429,
+        [
+            ["anthropic-ratelimit-unified-5h-status", "rejected"],
+            ["anthropic-ratelimit-unified-reset", "2026-09-30T02:00:00Z"],
+        ],
+    )
+    assert note is not None
+    assert "2026-09-30T02:00:00Z" in note
+    assert "x-api-key" not in note
+
+
+def test_a_status_that_is_not_429_gets_no_note() -> None:
+    assert rate_limit_note(200, [["anthropic-organization-id", "x"]]) is None
+    assert rate_limit_note(400, []) is None

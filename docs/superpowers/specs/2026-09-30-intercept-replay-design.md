@@ -269,3 +269,11 @@ harness:
   record", are untouched.** A call that never produced a response still writes
   nothing, request half included. Recording the request half of a failed flow is a
   separate change to the `error` hook, not part of this one.
+- **A replay cannot reuse the captured call's credential, and here it cannot even
+  use the same kind.** A capture never stores one, by design. Beyond that, a Claude
+  Code OAuth token authenticates against the subscription organization, which holds
+  no API-tier quota on this machine: `/v1/messages` refuses it 429 with no
+  `anthropic-ratelimit-unified-*` header while interactive sessions in that same
+  organization keep succeeding, and no wait clears it. A faithful first-party replay
+  therefore needs an API key on `x-api-key`, whose organization accepts the whole
+  captured beta list. Measured in `notes/cc-replay-oauth-api-quota.md`.

@@ -1,9 +1,14 @@
 """Resolve a credential for a replay. A capture never carries one.
 
-Resolution is by host, and every resolution names its source. An API key and an
-OAuth bearer are not the same caller — whether a beta such as
-`claude-code-20250219` is gated to the OAuth path is unverified — so a replay
-that diverges from its capture has to be able to rule the credential in or out.
+Resolution is by host, and every resolution names its source, because the two
+first-party credentials are not the same caller. What separates them is the
+organization, not the request: an API key accepts a first-party capture's whole
+beta list, `claude-code-20250219` and `oauth-2025-04-20` included, so no beta is
+gated to the OAuth path. A Claude Code OAuth token authenticates against the
+subscription organization, which can hold no API-tier quota even while
+interactive sessions succeed there — `/v1/messages` then refuses it 429 with no
+`anthropic-ratelimit-unified-*` header, and no wait clears it. Naming the source
+is what lets a replay rule the credential in or out.
 """
 
 from __future__ import annotations
@@ -42,7 +47,8 @@ def _oauth() -> Credential | None:
             f"{OAUTH_STORE}: claudeAiOauth expired at {when}. A stale token comes "
             "back as a 401 that reads like an API fault, so it is refused here "
             "instead. Open an interactive Claude Code session to refresh it, or "
-            "pass --credential-env with an API key."
+            "pass --credential-env VAR --credential-header x-api-key with an "
+            "API key."
         )
     return Credential("Authorization", f"Bearer {token}", f"{OAUTH_STORE}:claudeAiOauth")
 
@@ -72,13 +78,23 @@ HOST_SOURCES: dict[str, tuple[Source, ...]] = {
 
 
 def resolve(
-    url: str, *, env_var: str | None = None, none: bool = False
+    url: str,
+    *,
+    env_var: str | None = None,
+    env_header: str = "Authorization",
+    none: bool = False,
 ) -> Credential | None:
-    """The credential to send to `url`, or None when explicitly asked for none."""
+    """The credential to send to `url`, or None when explicitly asked for none.
+
+    `env_header` selects which of the two first-party shapes `env_var` carries.
+    They are not interchangeable: an OAuth token authenticates as
+    `Authorization: Bearer`, an API key as `x-api-key` with no prefix, and each
+    on the other's header is a 401.
+    """
     if none:
         return None
     if env_var:
-        cred = _from_env(env_var, "Authorization")
+        cred = _from_env(env_var, env_header)
         if cred is None:
             raise RuntimeError(f"${env_var} is unset or empty")
         return cred
