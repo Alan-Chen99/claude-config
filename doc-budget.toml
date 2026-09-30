@@ -19,14 +19,14 @@
 # or `<name>` group shows under its parent's label, so it needs none.
 #
 # Over cap, cut that group to `cut_to` of cap (80% today) in the same change.
-# Caps at introduction sit at or just above today's size, so the first addition
-# to a group pays the cut; raising one is the user's call, not the cutting
+# A cap at or just above today's size is deliberate: the first addition to such
+# a group pays the cut, and raising a cap is the user's call, not the cutting
 # agent's.  Loosening -- a [data] entry, the [held] table, a cap above the one
 # the group would otherwise have -- carries `approved`: `<8 hex of session id>`
 # is an agent's own session and inert there; `user:<8 hex>` is the session in
-# which the user approved it and live at once.  `agent-tools cc-pretty <8 hex>
-# --skeleton` opens either.  Class caps and `default_cap` are policy the user
-# edits.
+# which the user approved it and live at once; either opens with
+# `agent-tools cc-pretty <8 hex> --skeleton`.  Class caps and `default_cap` are
+# policy the user edits.
 
 cut_to = 0.8
 default_cap = 15000
@@ -99,12 +99,11 @@ per_file = true
 cap = 4000
 
 [groups."docs/superpowers/specs"]
-loaded = "on demand, one file at a time"
 per_file = true
 cap = 4000
 
 # Ad-hoc working plans, read one at a time and each its own size, so each file
-# is its own group at the reference registry's cap; the writing-plans records
+# is its own group at 1,000; the writing-plans records
 # under docs/superpowers/plans are data below, not plans in this sense.
 [groups.plans]
 loaded = "on demand, one file at a time"
@@ -119,7 +118,6 @@ cap = 1000
 loaded = "on demand, when the skill is invoked"
 
 [groups."skills/prompt-engineer/references"]
-loaded = "on demand, one file at a time"
 per_file = true
 cap = 10000
 
@@ -128,6 +126,8 @@ cap = 10000
 [groups."skills/planner"]
 cap = 17808
 approved = "user:834203fa"
+
+# -- on demand, a directory at a time ---------------------------------------
 
 [groups.scripts]
 loaded = "on demand"
