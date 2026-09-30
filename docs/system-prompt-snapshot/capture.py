@@ -417,7 +417,12 @@ def spawn_claude(
     # settings.json since c70788a) swaps the subagent guidance from the `fork`
     # paragraph to the older Agent/Explore bullets. Dropping the prefix wholesale
     # rather than naming knobs keeps the next one from landing unnoticed.
-    # CLAUDE_CODE_OAUTH_TOKEN is the exception: it authenticates the child.
+    # CLAUDE_CODE_OAUTH_TOKEN is the exception, for two reasons: it authenticates
+    # the child, and it is itself the knob that keeps a capture MCP-free. A child
+    # falling back to ~/.claude/.credentials.json instead reaches the Chrome
+    # extension and every claude.ai connector -- 57 deferred tools against 18,
+    # plus two prompt sections -- so stripping it would silently make captures
+    # incomparable with every one committed here. See README, 'Credentials'.
     for _var in [k for k in env if k.startswith("CLAUDE_CODE_")]:
         if _var != "CLAUDE_CODE_OAUTH_TOKEN":
             del env[_var]

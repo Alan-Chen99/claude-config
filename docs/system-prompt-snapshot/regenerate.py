@@ -65,7 +65,8 @@ CUSTOM_PROMPT = "You are a custom assistant."
 TOOL_SEARCH_MESSAGE = (
     "Call the ToolSearch tool exactly once. Its query must be the literal text "
     "select: followed by every tool name from the deferred-tools system reminder, "
-    "comma-separated, no spaces, none omitted. Pass max_results 40. "
+    "comma-separated, no spaces, none omitted. Pass a max_results larger than "
+    "the number of names you found, so the roster cannot outgrow it. "
     "Then reply with exactly: done"
 )
 
@@ -131,7 +132,14 @@ VARIANTS: dict[str, dict] = {
 
 
 _DEFERRED_INTRO = "The following deferred tools"
-_TOOL_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# A tool name is a bare identifier, except an MCP one: `mcp__<server>__<tool>`
+# carries the server name verbatim, and a server name may contain hyphens
+# (`mcp__claude-in-chrome__navigate`). Rejecting the hyphen ends the listing at
+# the first such name. MCP names sort below the bare ones, so an opus-5 session
+# with Chrome and the claude.ai connectors records 21 of its 57 names -- and
+# check_deferred_loaded then verifies a capture against that truncated list,
+# passing one whose 22 Chrome tool schemas never loaded.
+_TOOL_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
 
 
 def extract_deferred_tools(data: dict) -> list[str]:

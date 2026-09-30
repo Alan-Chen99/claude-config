@@ -156,11 +156,43 @@ children carry `cc_is_subagent=true` and their own `cc_prompt_id`.
 
 ## Credentials
 
-The spawned child needs its own Claude credentials. Claude Code strips
-`CLAUDE_CODE_OAUTH_TOKEN` from tool subprocess environments, so a capture
-launched from inside a Claude Code session inherits none, and
-`~/.claude/.credentials.json` is empty when the session itself authenticates by
-env var. Export the token before running:
+The spawned child needs its own Claude credentials, from either of two sources:
+`CLAUDE_CODE_OAUTH_TOKEN` in the environment, or an access token in
+`~/.claude/.credentials.json`. Claude Code strips `CLAUDE_CODE_OAUTH_TOKEN` from
+tool subprocess environments, so a capture launched from inside a session
+inherits none and falls back to the credentials file — which is empty when the
+session itself authenticates by env var, and holds a token when someone logged
+in interactively.
+
+**Export the token even when the credentials file would do.** The two sources do
+not produce the same capture: which one the child authenticates with decides
+whether it reaches MCP at all. Two `claude-opus-5` `default` captures taken
+minutes apart on 2.1.269, identical in every flag and differing only in the
+variable:
+
+| | exported token | credentials-file login |
+|---|---|---|
+| `tools` array | 15 | 18 |
+| upfront tools | 14 | 14 (same names) |
+| deferred names | 18 | 57 |
+| — of those, Chrome | 0 | 22 |
+| — of those, MCP total | 0 | 36 |
+| `Claude in Chrome browser automation` prompt section | absent | present |
+| `MCP Server Instructions` | absent | present |
+| `ListMcpResourcesTool` and the two `ReadMcpResource*` | absent | present |
+| system tokens | 3,338 | 4,756 |
+
+The exported token reproduces the committed rosters exactly — same 14 upfront
+names, same 18 deferred names — so every capture here is an
+MCP-free capture, and a re-capture without the export is not comparable to one.
+That is a property of the credential, not of this machine's setup: the Chrome
+extension was already paired when the 2026-09-11 snapshot was taken (its tool
+names appear in intercepted sessions from 2026-08-22 on, 18 log files on
+2026-09-11 itself), and that snapshot still records none of them.
+
+Whether the mechanism is the connector list being tied to the claude.ai account
+session rather than to an API credential is not established here; only the
+effect is measured.
 
 ```bash
 set -a && . /workspace/.env && set +a   # or wherever the token lives
@@ -1034,10 +1066,14 @@ but not established here. Settling it needs one `claude -p` capture on
 ## How to re-capture
 
 ```bash
-# ANTHROPIC_TOKEN_COUNT_API_KEY must be in /repos/claude-config/.env
-# (loaded automatically by both scripts via claude_config.config.load()).
+# ANTHROPIC_TOKEN_COUNT_API_KEY must be in the checkout's own .env, which
+# claude_config.config.load() resolves relative to the package rather than to
+# /repos/claude-config -- so a worktree without its own .env loads nothing and
+# token counting dies on a KeyError. Export the key there instead.
 # See /repos/claude-config/.env.example for the full list of expected keys.
-# CLAUDE_CODE_OAUTH_TOKEN must be exported — see "Credentials" above.
+# CLAUDE_CODE_OAUTH_TOKEN must be exported even when ~/.claude/.credentials.json
+# holds a token: the credentials-file login reaches MCP and the exported token
+# does not, so the two produce different captures. See "Credentials" above.
 
 ./capture.py                                        # default prompt
 ./capture.py --system-prompt "Your custom prompt"
