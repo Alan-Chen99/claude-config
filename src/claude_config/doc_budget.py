@@ -489,6 +489,10 @@ def render(res: Resolver, rep: Report, rows: list[tuple[str, str]], detail_all: 
             state = f"above {pct} by {c - target:,}"
         else:
             state = "ok"
+        if name in res.held:
+            # A held cap is a size frozen at the registry's introduction, not a
+            # sanctioned one; the row is read far from the registry that says so.
+            state += " (held)"
         lines.append(f"{c:9,d} {cap:7,d} {target:7,d}  {name:<{width}} {state}")
         for tokens, f, note in sorted(rep.detail[name], reverse=True):
             # A note says how the count was arrived at -- a one_of set paying its

@@ -384,6 +384,27 @@ approved = "user:aaaaaaaa"
     assert "n/a.md 2 <= 4" in out
 
 
+def test_a_held_row_is_marked_held(tmp_path, capsys):
+    """A frozen size is not a sanctioned one: the row says so where it is read."""
+    root = repo(tmp_path, {"n/a.md": w(9), "n/b.md": w(3)}, BASE + """
+[groups.n]
+loaded = "on demand"
+per_file = true
+cap = 4
+
+[held]
+approved = "user:aaaaaaaa"
+[held.files]
+"n/a.md" = 9
+""")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 0, out
+    held = next(ln for ln in out.splitlines() if "n/a.md" in ln)
+    plain = next(ln for ln in out.splitlines() if "n/b.md" in ln)
+    assert held.endswith("above 80% by 2 (held)"), held
+    assert "(held)" not in plain, plain
+
+
 def test_groups_print_under_the_label_of_the_class_that_loads_them(tmp_path, capsys):
     """A held or literal file shows under its class, with its own cap."""
     root = repo(tmp_path, {"a/CLAUDE.md": w(1), "b/CLAUDE.md": w(30), "notes/x.md": w(1)}, BASE + """
