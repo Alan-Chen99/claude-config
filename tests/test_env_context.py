@@ -2101,8 +2101,10 @@ def test_the_block_stays_inside_its_token_budget(tmp_path: Path) -> None:
     real git snapshot -- branch, status and five commits -- because that is the
     one part of the block that varies with the repo, so a real one keeps the pin
     honest. About 500 tokens on this fixture when pinned, and about 580 for the
-    live hook on this repo; counted by the local tokenizer. Over: cut the block,
-    not the number (`conventions/documentation.md`, *Documentation budget*)."""
+    live hook on this repo; counted by the local tokenizer. The pin is that size
+    divided by 0.8, so 80% of it is where the text sits now and the first growth
+    past it pays a registry group's cut. Over: cut the block, not the number
+    (`conventions/documentation.md`, *Documentation budget*)."""
     from claude_config.count_tokens import _count_local
 
     repo = tmp_path / "repo"

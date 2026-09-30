@@ -48,8 +48,9 @@ Only consolidation satisfies the cap: merge duplicates, resolve the conflicts
 you find, delete what the code already says. Moving prose out of `.md` (into a
 comment, JSON, a script's `--help`, a pointer to an external source) is not a
 cut. Neither is loosening the registry: a `[data]` entry, a held size or a cap
-above the one the group would otherwise have needs the user's approval, and one
-an agent approves cannot take effect in the session that wrote it.
+above the one the group would otherwise have needs the user's approval; the tool
+checks only that the approving session is not the running one, so an entry an
+agent approves is inert in the session that wrote it.
 
 What survives is non-rederivable and changes an action — the test is whether
 not knowing it makes an agent do the wrong thing. Everything else goes,

@@ -550,7 +550,10 @@ def test_the_registry_is_valid_and_the_tree_is_within_budget(capsys):
     """The CI gate. Counted with the vendored tokenizer, the number
     `agent-tools count-tokens` reports. An entry approved by the running
     session is inert here too, so an agent's own loosening fails this in the
-    session that wrote it and passes in CI -- that is the gate working."""
+    session that wrote it and passes in CI -- that is the gate working. A red
+    gate shows stderr and the footer lines that name an over-cap group, so it
+    reads as `X is N against M. Cut to T` rather than as the whole report."""
     code = doc_budget.main([], root=REPO)
     out, err = capsys.readouterr()
-    assert code == 0, out + err
+    over = [ln for ln in out.splitlines() if " against " in ln and "Cut to" in ln]
+    assert code == 0, err + "\n".join(over)
