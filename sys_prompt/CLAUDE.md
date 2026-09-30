@@ -30,7 +30,9 @@ Detail that fails step 3 is not discarded — it moves here, to `docs/`, or to `
 states the rule; the file carries the reasoning. That split is what lets step 1 cut hard without
 losing anything.
 
-Measure before and after:
+Measure before and after. `doc-budget.toml` caps the prompt at 4,400 local tokens
+(`agent-tools doc-budget sys_prompt/alan-default-next.md`); `--api` is the figure for
+context consumed:
 
 ```bash
 agent-tools count-tokens --api --file sys_prompt/alan-default-next.md

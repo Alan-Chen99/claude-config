@@ -195,8 +195,9 @@ message logged and picked up by nobody. [`systemd/telegram-hitl.service`](system
 runs it, [`skills/telegram-hitl/`](skills/telegram-hitl/SKILL.md) carries the
 working rules and the Bot API traps beside the log reader agents arm as a
 script, and six test modules drive it against a fake Bot API on loopback —
-[the tests](tests/test_telegram_hitl_skill.py) execute that script;
-`doc-budget.toml` caps the skill at 1,000 tokens.
+[the tests](tests/test_telegram_hitl_skill.py) execute that script.
+`doc-budget.toml` caps the skill at 1,000 tokens, enforced by
+[`tests/test_doc_budget.py`](tests/test_doc_budget.py).
 
 ### Environment context with drift detection
 
@@ -286,6 +287,7 @@ neutral harness for the other harness's prompt: its default subject is
 | Path | What |
 | --- | --- |
 | [`CLAUDE.md`](CLAUDE.md) | The index: every directory, with when to read what; the detail sits in each directory's own `CLAUDE.md` |
+| [`doc-budget.toml`](doc-budget.toml) | Token caps for every tracked `.md`, grouped by how the text reaches a context — the system prompt on every request, skill descriptions every session, a skill body per invocation; `agent-tools doc-budget` reports, [`tests/test_doc_budget.py`](tests/test_doc_budget.py) gates CI |
 | [`agent-tools/`](agent-tools/) | Rust binary: the `run`/`ps` process wrapper and hooks, `cc-pretty`, `count-tokens`, `env-context`, launchers |
 | [`sys_prompt/`](sys_prompt/) | Replacement system prompts loaded by `scripts/claude.sh`, and the reasoning behind each line |
 | [`output-styles/`](output-styles/) | Output styles — the customisation surface that survives a background handoff |
@@ -320,9 +322,10 @@ git clone https://github.com/Alan-Chen99/claude-config ~/claude-config
 
 Directory-level symlinks for `agents`, `conventions`, `output-styles` and
 `skills` into `~/.claude/`, `~/.config/opencode` → `opencode/`, file symlinks
-for `settings.json` and `statusline.sh`, an `agent-tools` build linked with
-the `scripts/claude.sh`, `scripts/kimi.sh` and `scripts/zai.sh` launchers into
-`~/.local/bin`, and the Python venv. Run it from the
+for `settings.json` and `statusline.sh`, the `systemd/` units into
+`~/.config/systemd/user/` (linked, enabled by hand), an `agent-tools` build
+linked with the `scripts/claude.sh`, `scripts/kimi.sh` and `scripts/zai.sh`
+launchers into `~/.local/bin`, and the Python venv. Run it from the
 canonical checkout only: a worktree that installs its own build repoints
 `~/.local/bin` at the worktree and breaks every other session when the
 worktree is deleted.
