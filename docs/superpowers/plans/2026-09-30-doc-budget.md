@@ -2019,11 +2019,11 @@ Append to `doc-budget.toml`:
 #
 # At the size it had then, so CI is green on day one; the first addition to
 # any of these pays the 20% cut like any other over-cap group.  The report
-# names an entry whose file has fallen under its class cap so it can be
-# dropped.  [user:834203fa]
+# marks a held row `(held)` and names an entry whose file is back within its
+# class cap so it can be dropped.
 [held]
 approved = "user:834203fa"
-why = "Held at introduction, 2026-09-30; the first addition to any of these pays."
+why = "Frozen at the size each file had on 2026-09-30, so the cap lands on the next edit rather than on a tree-wide rewrite."
 
 [held.files]
 ```
@@ -2032,8 +2032,8 @@ followed by the `"path" = n` lines from `held.txt`, in the order the tool printe
 
 - [ ] **Step 3: The gate**
 
-Run: `cd /root/claude-config-work && CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget | tail -3; echo exit=$?`
-Expected: no `OVER` anywhere, exit 0.
+Run: `cd /root/claude-config-work && CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget > /dev/null; echo exit=$?`
+Expected: `exit=0` -- the tool's own status, unpiped (`| tail -3; echo exit=$?` reports `tail`'s); `OVER` appears nowhere in its report.
 
 Run: `PYTEST tests/test_doc_budget.py -q 2>&1 | tail -2`
 Expected: all PASS, the tree test included.
@@ -2048,6 +2048,58 @@ doc-budget: hold every file over its class cap at its introduction size
 Claude-Session: 834203fa-2993-42e8-a373-0f7dc84e995e
 EOF
 ```
+
+- [ ] **Step 5: The report marks a held row**
+
+A held row otherwise reads like any other cap -- `12,506  12,506  10,004  plans/refactor-coding-style-skill.md  above 80% by 2,502` beside a sibling capped at 1,000 -- and an agent that has never opened the registry reads the held size as sanctioned. In `render`, after the state text is chosen and before the row is appended:
+
+```python
+        else:
+            state = "ok"
+        if name in res.held:
+            # A held cap is a size frozen at the registry's introduction, not a
+            # sanctioned one; the row is read far from the registry that says so.
+            state += " (held)"
+        lines.append(f"{c:9,d} {cap:7,d} {target:7,d}  {name:<{width}} {state}")
+```
+
+Test first, in `tests/test_doc_budget.py` beside the other report tests:
+
+```python
+def test_a_held_row_is_marked_held(tmp_path, capsys):
+    """A frozen size is not a sanctioned one: the row says so where it is read."""
+    root = repo(tmp_path, {"n/a.md": w(9), "n/b.md": w(3)}, BASE + """
+[groups.n]
+loaded = "on demand"
+per_file = true
+cap = 4
+
+[held]
+approved = "user:aaaaaaaa"
+[held.files]
+"n/a.md" = 9
+""")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 0, out
+    held = next((ln for ln in out.splitlines() if "n/a.md" in ln), "")
+    plain = next(ln for ln in out.splitlines() if "n/b.md" in ln)
+    assert held.endswith("above 80% by 2 (held)"), held
+    assert "(held)" not in plain, plain
+```
+
+Run: `PYTEST tests/test_doc_budget.py -q 2>&1 | tail -2`
+Expected: all PASS (41). Then `CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget | grep -c '(held)'` prints 51.
+
+```bash
+git add src/claude_config/doc_budget.py tests/test_doc_budget.py
+git commit -q -F - <<'EOF'
+doc-budget: the report marks a held row
+
+Claude-Session: 834203fa-2993-42e8-a373-0f7dc84e995e
+EOF
+```
+
+Shipped as 6c360a36, then 544bb0d0 and 27b29704 (the header, `why` and test as they read above, after review) and 7181269a (the marker).
 
 ---
 
@@ -2066,7 +2118,9 @@ git status --short | wc -l
 
 Expected: pytest all passed; every cargo `test result: ok`; both scripts pass; `doc-budget exit=0`; `0` uncommitted files.
 
+Verified at 7181269a: 895 passed; 16 `test result: ok` lines, 320 tests, `doc_budget_test.rs` among them; both guards; exit 0; clean tree. The registry `why` and one test line changed at 27b29704; pytest and the gate re-run green there, the Rust side untouched.
+
 - [ ] **Step 2: Spot-check the report by class**
 
 Run: `CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget | grep '^--'`
-Expected: the headers in this order — every request (2 groups), every request of an opencode session, every session, per invocation, per spawn, per spawn (agent bodies read them), every session touching the directory, on demand (one file at a time; a directory at a time; when invoked), not loaded since cbeb6721, on demand (infra).
+Expected: the headers in this order — every request (2 groups), every request of an opencode session, every session, per invocation, per spawn, per spawn (agent bodies read them), every session touching the directory, on demand (one file at a time; when the skill is invoked; the bare `on demand`), not loaded since cbeb6721, on demand (infra).
