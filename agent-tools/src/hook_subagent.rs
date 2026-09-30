@@ -118,4 +118,12 @@ mod tests {
     fn asks_for_the_heading_the_parent_looks_for() {
         assert!(additional_context().contains("## Required notes"));
     }
+
+    /// Spent once per subagent spawn. `doc-budget.toml` prices the `.md`
+    /// tree; this block is not `.md`, so it is pinned here -- in characters,
+    /// since the Rust suite has no tokenizer. 856 when pinned.
+    #[test]
+    fn the_ask_stays_inside_its_size_budget() {
+        assert!(additional_context().chars().count() <= 1000);
+    }
 }

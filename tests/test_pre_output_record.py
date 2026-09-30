@@ -67,6 +67,16 @@ def test_the_reminder_prints_even_when_nothing_is_recorded(monkeypatch, capsys):
     assert "CLAUDE_CODE_SESSION_ID" in captured.err
 
 
+def test_the_reminder_stays_inside_its_token_budget(session, capsys):
+    """Printed on the last command of every turn. `doc-budget.toml` prices
+    the `.md` tree; this is not `.md`, so it is pinned here: 42 tokens when
+    pinned, by the local tokenizer."""
+    from claude_config.count_tokens import _count_local
+
+    record.main([json.dumps(PAYLOAD)])
+    assert _count_local(capsys.readouterr().out) <= 60
+
+
 @pytest.mark.parametrize(
     "argv, expected_in_stderr",
     [
