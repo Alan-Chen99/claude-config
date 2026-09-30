@@ -44,7 +44,7 @@ exit status:
   0  every group within its cap
   1  a group over cap: cut it to 80% of the cap in the same change
      (conventions/documentation.md, "Documentation budget")
-  2  registry error, or a path naming no group
+  2  registry error, or a path with nothing counted under it
 
 Counts are local-tokenizer tokens, what `agent-tools count-tokens` reports
 without --api; Claude context is about 1.5x on prose.
@@ -121,6 +121,11 @@ def covering(name: str, f: str) -> str | None:
         return name if f == name or f.startswith(name + "/") else None
     m = rx.match(f)
     return m.group(0) if m and f.startswith(m.group(0) + "/") else None
+
+
+def under(path: str, f: str) -> bool:
+    """Whether `f` is `path` or lies inside it; "" is the whole tree."""
+    return path == "" or f == path or f.startswith(path + "/")
 
 
 def covers_dir(name: str, other: str) -> bool:
@@ -455,7 +460,7 @@ def display_order(res: Resolver, rep: Report) -> list[tuple[str, str]]:
 
 
 def render(res: Resolver, rep: Report, rows: list[tuple[str, str]], detail_all: bool,
-           print_held: bool) -> tuple[str, list[str]]:
+           print_held: bool, show_data: bool = True) -> tuple[str, list[str]]:
     """The report text and the names of the groups over cap."""
     cut_to: float = res.reg["cut_to"]
     pct = f"{cut_to:.0%}"
@@ -500,7 +505,7 @@ def render(res: Resolver, rep: Report, rows: list[tuple[str, str]], detail_all: 
             if f != name and (note or c > cap or detail_all):
                 lines.append(f"{tokens:9,d}{'':20}{f}" + (f"  ({note})" if note else ""))
 
-    if rep.data:
+    if show_data and rep.data:
         lines.append("")
         lines.append("data, listed and not counted:")
         for dn, d in res.reg["data"].items():
@@ -534,8 +539,9 @@ def _build_parser() -> argparse.ArgumentParser:
                         "over-cap file, at its size. Exits 1 like the report whenever "
                         "a group is over cap.")
     p.add_argument("paths", nargs="*", metavar="path",
-                   help="Narrow the report to the groups under these paths, with "
-                        "per-file detail; `.` names every group.")
+                   help="Narrow the report to the groups under these paths and the "
+                        "groups counting the files under them, with per-file detail "
+                        "and no data table; `.` names every group.")
     return p
 
 
@@ -543,7 +549,8 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
          count: Callable[[str], int] | None = None,
          environ: Mapping[str, str] | None = None) -> int:
     """Exit 0 within budget, 1 with a group over cap, 2 on a registry error; a path
-    naming no group is a usage error, SystemExit(2) from argparse."""
+    that names no group and holds no counted file is a usage error, SystemExit(2)
+    from argparse."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     environ = os.environ if environ is None else environ
@@ -574,12 +581,17 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
 
     rep = measure(root, res, count)
     rows = display_order(res, rep)
+    # A path the registry does not name is still countable text: show the group
+    # paying for it, which is what an agent measuring its own edit is asking.
     shown = [(n, label) for n, label in rows
-             if not want or any(w == "" or n == w or n.startswith(w + "/") for w in want)]
+             if not want or any(under(w, n) or any(under(w, f) for _, f, _ in rep.detail[n])
+                                for w in want)]
     if want and not shown:
-        parser.error(f"no group is named under {', '.join(want)}: group names are in "
-                     f"{REGISTRY}, and derived, one_of and residual groups are not paths")
-    text, over = render(res, rep, shown, detail_all=bool(want), print_held=args.print_held)
+        parser.error(f"nothing counted lies under {', '.join(want)}: group names are in "
+                     f"{REGISTRY}; derived, one_of and residual groups are not paths; and a "
+                     "[data] path is listed, not counted")
+    text, over = render(res, rep, shown, detail_all=bool(want), print_held=args.print_held,
+                        show_data=not want)
     sys.stdout.write(text)
     return 1 if over else 0
 

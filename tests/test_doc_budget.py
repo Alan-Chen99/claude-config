@@ -285,12 +285,12 @@ def test_a_registry_error_exits_2_and_says_what(tmp_path, capsys, registry, mess
     assert message in err, err
 
 
-def test_a_path_naming_no_group_is_a_usage_error(tmp_path, capsys):
+def test_a_path_counting_nothing_is_a_usage_error(tmp_path, capsys):
     root = repo(tmp_path, {"x/a.md": w(5)})
     with pytest.raises(SystemExit) as exit_:
         run(root, str(tmp_path / "nothing-here"), capsys=capsys)
     assert exit_.value.code == 2
-    assert "no group is named under nothing-here" in capsys.readouterr().err
+    assert "nothing counted lies under nothing-here" in capsys.readouterr().err
 
 
 def test_a_path_outside_the_root_is_refused_before_the_registry_is_read(tmp_path, capsys):
@@ -436,6 +436,69 @@ def test_a_named_path_narrows_the_report_and_shows_its_files(tmp_path, capsys):
     assert code == 0
     assert "x/a.md" in out
     assert "y/b.md" not in out and "  y " not in out
+
+
+def test_a_named_file_narrows_to_the_group_that_counts_it(tmp_path, capsys):
+    """The policy says to measure a path; the answer is the group paying for it,
+    with every file it counts -- not a usage error because no group has that name."""
+    root = repo(tmp_path, {"x/a.md": w(5), "x/b.md": w(6), "y/c.md": w(7)},
+                BASE + "\n[groups.x]\nloaded = 'a'\n[groups.y]\nloaded = 'a'\n")
+    code, out, _ = run(root, str(tmp_path / "x" / "a.md"), capsys=capsys)
+    assert code == 0, out
+    assert row(11, 100, 80, "x") in out
+    assert f"{6:9,d}{'':20}x/b.md" in out
+    assert "y/c.md" not in out and "  y " not in out
+
+
+def test_a_subdirectory_narrows_to_its_covering_group_and_the_groups_under_it(tmp_path, capsys):
+    root = repo(tmp_path, {"x/sub/a.md": w(5), "x/sub/CLAUDE.md": w(3), "y/c.md": w(7)}, BASE + """
+[groups.claude-md]
+loaded = "every session touching the directory"
+derived = "claude-md"
+cap = 10
+
+[groups.x]
+loaded = "on demand"
+
+[groups.y]
+loaded = "on demand"
+""")
+    code, out, _ = run(root, str(tmp_path / "x" / "sub"), capsys=capsys)
+    assert code == 0, out
+    assert row(5, 100, 80, "x") in out                  # counts x/sub/a.md
+    assert row(3, 10, 8, "x/sub/CLAUDE.md") in out      # a group nested under the path
+    assert "y/c.md" not in out and "  y " not in out
+
+
+def test_a_data_path_is_a_usage_error_saying_data_is_not_counted(tmp_path, capsys):
+    root = repo(tmp_path, {"d/a.md": w(5), "k.md": w(1)}, BASE + """
+[data.dump]
+paths = ["d"]
+approved = "user:aaaaaaaa"
+why = "dump"
+""")
+    with pytest.raises(SystemExit) as exit_:
+        run(root, str(tmp_path / "d"), capsys=capsys)
+    assert exit_.value.code == 2
+    assert "a [data] path is listed, not counted" in capsys.readouterr().err
+
+
+def test_a_narrowed_report_leaves_out_the_data_table(tmp_path, capsys):
+    """Data totals are context for the whole tree and noise beside one path."""
+    root = repo(tmp_path, {"d/a.md": w(5), "x/b.md": w(1)}, BASE + """
+[groups.x]
+loaded = "on demand"
+
+[data.dump]
+paths = ["d"]
+approved = "user:aaaaaaaa"
+why = "dump"
+""")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 0 and "data, listed and not counted:" in out
+    code, out, _ = run(root, str(tmp_path / "x"), capsys=capsys)
+    assert code == 0, out
+    assert "data, listed and not counted:" not in out
 
 
 def test_data_totals_are_listed_at_the_bottom(tmp_path, capsys):
