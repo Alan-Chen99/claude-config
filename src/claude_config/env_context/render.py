@@ -22,7 +22,8 @@ Since 2.1.269 cc emits its own environment block even under
 what cc's does not. Dropped as duplicates on 2026-09-13: the working
 directory, the is-a-git-repo flag, the platform, the OS version and the model
 line, each of which cc states unconditionally inside the attachment its
-`p$t` gate delivers.
+`p$t` gate delivers; and the stash caution, which cc's own worktree block
+(`KUt`) carries, so the worktree line here names only the checkout path.
 
 The scratchpad section stays, and is the one deliberate duplicate. cc's own
 scratchpad bullet and cc's own `mkdir` of that directory sit behind the same
@@ -40,27 +41,6 @@ from pathlib import Path
 from typing import NotRequired, TypedDict
 
 from .environment import GitSnapshot
-
-# cc's own wording, `KUt`, chunk-dbb93264.js:29119, in full. Pinned by
-# `scripts/check-prompt-upstream.py`, which is what fails when cc rewords it:
-# `scripts/check-env-context.sh` pins only the first 182 characters, and the
-# clause that matters is past that. The second half
-# defines what "bare" means by naming the safe alternative (a tagged,
-# recoverable stash) — drop it and "never use bare `git stash`" has no
-# working definition of non-bare, and the obvious misreading (bare means no
-# arguments) reaches for `git stash push -m wip` then `git stash apply
-# stash@{0}`, exactly the index race this clause exists to prevent.
-STASH_CAUTION = (
-    "The git stash stack is shared with the main checkout and all other worktrees, "
-    "and other Claude sessions may push or pop it concurrently. Never use bare "
-    "`git stash` / `git stash pop` — you could pop another session's changes. "
-    "Prefer a temporary WIP commit to set work aside; if you must stash, use "
-    "`git stash push -u -m \"<unique-tag>\"`, immediately capture your entry's "
-    "SHA via `git stash list --format='%H %gs'`, restore with `git stash apply "
-    "<sha>` (not pop), and afterwards drop the entry, re-finding its current "
-    "`stash@{n}` by tag first."
-)
-
 
 class Facts(TypedDict):
     """The facts dict environment_section()/sections() consume.
@@ -120,7 +100,6 @@ def environment_section(facts: Facts) -> str:
                 "reading it is fine, but do not edit, commit, or build there."
             )
         )
-        items.append(STASH_CAUTION)
 
     # cc states the date and nothing else about the clock: `currentDate` is a
     # bare `Today's date is YYYY-MM-DD.` built from local-time getters

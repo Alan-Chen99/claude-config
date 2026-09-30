@@ -45,7 +45,7 @@ pass vacuously.
 | 14 | Merge and reinstall | merge to `/repos/claude-config`, then `install.sh` **there only** | Until the merge, `~/.local/bin/agent-tools` and `cc-pretty` still run the old code. A worktree that runs `install.sh` breaks every other session. |
 
 Expected clean output, as of 2.1.269: `OK: env-context field set matches the installed
-binary` / `OK: 14 borrowed passages still match Claude Code 2.1.269` / no citecheck output /
+binary` / `OK: 13 borrowed passages still match Claude Code 2.1.269` / no citecheck output /
 `OK: 2 vendored skill(s) match the extract` / `prompt coupling OK` / `8 file(s) checked: clean`.
 
 **Where to run each step.** Steps 5 and 14 repoint shared installs and belong in
@@ -73,7 +73,7 @@ A green run leaves all of this open.
 | `cc-render-coverage` | The default view's **selection**: it renders with `show_all` and draws needles only from `assistant`/`user` records, so it cannot see a record being dropped. |
 | `pytest` | Every citation but two. `tests/test_model_visibility.py` re-derives `_NEVER_VISIBLE_ATTACHMENT_TYPES` and `_HOOK_STDOUT_VISIBLE_EVENTS` by string marker — and both `skipif` without `/repos/claude-code-decompiled/src`, reporting success by not running. |
 | `check-prompt-coupling.sh` | Claude Code entirely; it greps this repo's files against each other. |
-| `check-prompt-upstream.py` | Everything upstream says that this repo never copied: 15 borrowed passages, so an added section is invisible. |
+| `check-prompt-upstream.py` | Everything upstream says that this repo never copied: 13 borrowed passages, so an added section is invisible. |
 | `changelog.py` | Anything upstream did not write down, and releases older than the binary's window (15 entries in 2.1.269, back to 2.1.247). |
 | The capture diff (step 12) | Every key in this repo's `settings.json`: `capture.py:471` passes `--setting-sources project,local`, which drops user settings (`rWn`, `chunk-3vd4nzwp.js:8440-8442`), and `install.sh` installs this file at user scope — a capture shows stock behaviour for every key here. Deferred tools appear as names plus one `DeferredToolPlaceholder`, never as descriptions or schemas. And it is one environment on one day: most prompt sections sit behind a server-resolved flag, so a section absent from a capture is not a section the release removed. |
 | `skilldiff.sh` | Everything the loader adds after reading the asset — the dataviz callout behind `tengu_cobalt_plinth_dataviz` (`src/chunk-s7akwrx2.js:455`), and under `CLAUDE_CODE_ARTIFACT_TOOLSET` a "Page contract" prefix and one phrase swap (`nJn`, `src/chunk-qza9q751.js:220-253`) — so a copy can match the asset and not say what the built-in says. `NO ASSET` is what rename and removal both look like; its `VENDORED` list is fixed. |
@@ -121,8 +121,7 @@ fallback that makes a bare `CLAUDE_CODE_SHELL=bash` resolve), `worktree_common_d
 `git_snapshot` ≙ `ADe()` (`chunk-dbb93264.js:69331-69369`: `--no-optional-locks status --short
 --ignore-submodules=dirty`, `log --oneline -n 5`, the 2000-character cap); `scratchpad.py:22-54`
 (path algorithm; past the 200-char slug limit cc appends a hash and this module raises);
-`render.py:43-61` (`STASH_CAUTION`, copied verbatim from cc's `KUt`, pinned by
-`scripts/check-prompt-upstream.py`); `drift.py:42-46` and `:187-208` (anchor, window and timeout
+`drift.py:42-46` and `:187-208` (anchor, window and timeout
 constants tuned to the binary layout).
 
 ### 3.2b Knobs that are unset here, and what each would do if set

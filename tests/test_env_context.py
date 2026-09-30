@@ -659,7 +659,7 @@ def test_clock_bullet_reads_ccs_date_line_for_the_agent() -> None:
 
 
 def test_the_block_states_nothing_cc_already_states() -> None:
-    """The five bullets dropped on 2026-09-13, kept out by name.
+    """The bullets cc states itself, kept out by name.
 
     Each is stated unconditionally in cc's own environment attachment, so
     re-emitting it gave the session two copies -- and for `Shell:`, two copies
@@ -674,6 +674,10 @@ def test_the_block_states_nothing_cc_already_states() -> None:
     assert "powered by the model" not in text
     # `Shell:` unqualified is cc's spelling; this block must not use it.
     assert " - Shell:" not in text
+    # cc's own worktree block carries the stash caution (`KUt`), so the
+    # supplement's worktree line names only the checkout path.
+    linked = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
+    assert "git stash" not in linked
 
 
 def test_worktree_lines_present_only_in_a_worktree() -> None:
@@ -684,7 +688,6 @@ def test_worktree_lines_present_only_in_a_worktree() -> None:
     # Not .../.git: the common-dir's trailing .git names the git directory,
     # not the checkout an agent should read or run commands in.
     assert " - The checkout this worktree belongs to is /repos/claude-config:" in linked
-    assert "git stash" in linked
 
 
 def test_worktree_line_names_bare_main_unchanged() -> None:
@@ -731,11 +734,11 @@ def test_full_text_matches_snapshot_when_fully_populated() -> None:
 
 
 def test_full_text_matches_snapshot_for_worktree() -> None:
-    """Companion to the snapshot above: pins the worktree and stash-caution
-    lines' exact wording and position in the bullet order.
+    """Companion to the snapshot above: pins the worktree line's exact
+    wording and position in the bullet order.
     """
     text = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
-    expected = '# Environment (supplement)\nFacts and rules Claude Code\'s own environment block does not carry:\n - The checkout this worktree belongs to is /repos/claude-config: reading it is fine, but do not edit, commit, or build there.\n - The git stash stack is shared with the main checkout and all other worktrees, and other Claude sessions may push or pop it concurrently. Never use bare `git stash` / `git stash pop` — you could pop another session\'s changes. Prefer a temporary WIP commit to set work aside; if you must stash, use `git stash push -u -m "<unique-tag>"`, immediately capture your entry\'s SHA via `git stash list --format=\'%H %gs\'`, restore with `git stash apply <sha>` (not pop), and afterwards drop the entry, re-finding its current `stash@{n}` by tag first.\n - Clock at session start: 2026-09-29T01:07:01-04:00 (America/New_York, EDT). Claude Code\'s `Today\'s date is` line is a local date in this zone carrying no zone or offset of its own, so it is not the UTC date whenever the two differ; `date -Iseconds` and `date -u` are authoritative for the current time.\n - Shell the Bash tool runs: /bin/bash\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
+    expected = '# Environment (supplement)\nFacts and rules Claude Code\'s own environment block does not carry:\n - The checkout this worktree belongs to is /repos/claude-config: reading it is fine, but do not edit, commit, or build there.\n - Clock at session start: 2026-09-29T01:07:01-04:00 (America/New_York, EDT). Claude Code\'s `Today\'s date is` line is a local date in this zone carrying no zone or offset of its own, so it is not the UTC date whenever the two differ; `date -Iseconds` and `date -u` are authoritative for the current time.\n - Shell the Bash tool runs: /bin/bash\n - Session ID: abc-123\n\n# Scratchpad Directory\n\nUse this directory for temporary files instead of `/tmp` or other system temp directories:\n`/root/.claude/tmp/claude-0/-root-claude-config-work/abc-123/scratchpad`\n\nOnly use `/tmp` if the user explicitly requests it.\n\nIt is session-specific, isolated from the project, and is normally the same directory your subagents are given.'
     assert text == expected
 
 
