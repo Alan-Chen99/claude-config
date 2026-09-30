@@ -21,7 +21,7 @@
 
 | File | Responsibility |
 | --- | --- |
-| `src/claude_config/count_tokens.py` | `load_tokenizer()` split out of `_count_local()`: digest check + one `Tokenizer` instance |
+| `src/claude_config/count_tokens.py` | `load_tokenizer()` split out of `_count_local()`: digest check + one `Tokenizer` instance; `count_with(tokenizer, text)` carries the no-BOS/EOS convention |
 | `src/claude_config/doc_budget.py` | Registry grammar and validation (`load_registry`), file→group placement (`Resolver`), counting (`measure`), display order and text (`display_order`, `render`), CLI (`main`) |
 | `doc-budget.toml` | The registry: header comment, groups by load class, `[data]`, `[held]` |
 | `tests/test_doc_budget.py` | Synthetic-repo tests of every rule and exit code; the real-tree gate |
@@ -553,6 +553,7 @@ import tomllib
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -1038,12 +1039,9 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
         want.append("" if str(rel) == "." else rel.as_posix())
 
     if count is None:
-        from claude_config.count_tokens import load_tokenizer
+        from claude_config.count_tokens import count_with, load_tokenizer
 
-        tokenizer = load_tokenizer()
-
-        def count(text: str) -> int:
-            return len(tokenizer.encode(text, add_special_tokens=False).ids)
+        count = partial(count_with, load_tokenizer())
 
     rep = measure(root, res, count)
     rows = display_order(res, rep)
