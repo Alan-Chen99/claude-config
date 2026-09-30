@@ -1,0 +1,186 @@
+# Doc budget: token caps for every tracked `.md`, grouped by how the text
+# reaches a context.  Design: docs/superpowers/specs/2026-09-29-doc-budget-design.md
+# Policy: conventions/documentation.md, "Documentation budget".
+# Measure: agent-tools doc-budget [--print-held] [path ...]
+#
+# Unit: local-tokenizer tokens (`agent-tools count-tokens` without `--api`),
+# the backend that runs offline, in CI and in worktrees.  Claude context is
+# about 1.5x this on prose; the backends never reconcile.
+#
+# A file's group, first match wins: a group named with its path ([held.files]
+# included); a [data] path covering it -- listed, never counted, except that a
+# README.md or CLAUDE.md counts wherever it is; its derived class; the longest
+# path group, a literal name over a placeholder on a tie; the residual.
+# `one_of` claims its files ahead of all of this and pays the largest member.
+# `per_file` makes each file its own group at the group's cap; `<name>` stands
+# for one path segment and makes each match its own group.  `cap` falls back
+# to `default_cap`.
+#
+# Over cap, cut that group to 80% of cap in the same change.  Loosening -- a
+# [data] entry, the [held] table, a cap above the default or above the class
+# cap -- carries `approved`: `<8 hex of session id>` is an agent's own session
+# and inert there; `user:<8 hex>` is the session in which the user approved it
+# and live at once.  `agent-tools cc-pretty <8 hex> --skeleton` opens either.
+# Class caps and `default_cap` are policy the user edits.
+
+cut_to = 0.8
+default_cap = 15000
+
+# -- every request ----------------------------------------------------------
+
+[groups."sys_prompt/alan-default-next.md"]
+loaded = "every request, every project"
+cap = 4400
+
+# One opencode agent body is loaded per session; the set pays its largest.
+[groups.opencode-prompt]
+loaded = "every request of an opencode session"
+one_of = "opencode/agents/<agent>.md"
+cap = 5200
+
+# -- every session ----------------------------------------------------------
+
+# The `description:` of every skill and agent, which the skills listing carries
+# into every session; counted here and again inside its file.
+[groups.descriptions]
+loaded = "every session, every project"
+derived = "descriptions"
+cap = 1200
+
+# -- per invocation, per spawn ---------------------------------------------
+
+# skills/<n>/SKILL.md and .claude/skills/<n>/SKILL.md, each its own group.
+[groups.skill-bodies]
+loaded = "per invocation"
+derived = "skill-bodies"
+cap = 3000
+
+# Reached 7,316 tokens unmeasured; held under its own cap since.
+[groups."skills/telegram-hitl/SKILL.md"]
+cap = 1000
+
+# agents/*.md, each its own group.
+[groups.agent-bodies]
+loaded = "per spawn"
+derived = "agent-bodies"
+cap = 3000
+
+# Agent bodies tell their agent to read these, so the set is spent per spawn.
+# [user:834203fa]
+[groups.conventions]
+loaded = "per spawn (agent bodies read them)"
+cap = 25000
+approved = "user:834203fa"
+
+# -- every session touching the directory -----------------------------------
+
+# Every CLAUDE.md, each its own group.
+[groups.claude-md]
+loaded = "every session touching the directory"
+derived = "claude-md"
+cap = 1500
+
+# -- on demand, one file at a time ------------------------------------------
+
+[groups.docs]
+loaded = "on demand, one file at a time"
+per_file = true
+cap = 5000
+
+[groups.notes]
+loaded = "on demand, one file at a time"
+per_file = true
+cap = 4000
+
+[groups."docs/superpowers/specs"]
+loaded = "on demand, one file at a time"
+per_file = true
+cap = 4000
+
+[groups.plans]
+loaded = "on demand, one file at a time"
+per_file = true
+cap = 1000
+
+# -- on demand, a directory at a time ---------------------------------------
+
+# Each skill's own docs, references and resources; its SKILL.md is a skill
+# body and its CLAUDE.md a claude-md.
+[groups."skills/<name>"]
+loaded = "on demand, when the skill is invoked"
+
+[groups."skills/prompt-engineer/references"]
+loaded = "on demand, one file at a time"
+per_file = true
+cap = 10000
+
+# INTENT.md is the skill's 11k design spec, read whole. [user:834203fa]
+[groups."skills/planner"]
+cap = 17808
+approved = "user:834203fa"
+
+[groups.scripts]
+loaded = "on demand"
+
+[groups.prompt-tests]
+loaded = "on demand"
+
+[groups.sys_prompt]
+loaded = "on demand"
+
+# settings.json has had `outputStyle: default` since cbeb6721, so nothing here
+# is loaded; the cap keeps the directory from growing unnoticed.
+[groups.output-styles]
+loaded = "not loaded since cbeb6721 (outputStyle: default)"
+cap = 11000
+
+# Everything else: root README.md, skills/README.md, .github/.  Residual, so a
+# new directory lands here and shows as infra debt, not nowhere.
+[groups.infra]
+loaded = "on demand"
+residual = true
+cap = 12000
+
+# -- data: listed in every report, never counted ----------------------------
+
+[data.snapshots]
+paths = ["docs/system-prompt-snapshot/<model>"]
+approved = "user:834203fa"
+why = "Regenerated captures of Claude Code's own prompt and skills; a cap cannot shrink what a capture returns."
+
+[data.papers]
+paths = ["skills/prompt-engineer/papers"]
+approved = "user:834203fa"
+why = "Papers converted by arxiv-to-md, read for their content; not guidance."
+
+[data.samples]
+paths = ["skills/alan-writing-style/samples"]
+approved = "user:834203fa"
+why = "Writing-style regression cases: the data the skill's checks run against."
+
+[data.vendored]
+paths = ["skills/playwright-cli"]
+approved = "user:834203fa"
+why = "Written by `playwright-cli install --skills`; never edited by hand."
+
+# prompt-tests/runs holds only its README.md, which counts as every index file
+# does, so it is not listed here.
+[data.fixtures]
+paths = ["prompt-tests/general/<case>/fixture"]
+approved = "user:834203fa"
+why = "Fixture trees loaded into prompt-test sessions, not into this repo's."
+
+[data.closed-investigations]
+paths = ["notes/compliance-check-failure-mode", "notes/ralph-loop3-writing-for-agents", "docs/prompt-trials"]
+approved = "user:834203fa"
+why = "Closed evidence sets and audit archives: dated, never rewritten, not read for guidance."
+
+[data.plans]
+paths = ["docs/superpowers/plans"]
+approved = "user:834203fa"
+why = "The writing-plans format carries complete code per step and does not fit a cap; each plan is read once, by its executor."
+
+[data.transcripts]
+paths = ["skills/prompt-engineer-v2/test-requests.md"]
+approved = "user:834203fa"
+why = "A transcript of test requests, kept verbatim."
