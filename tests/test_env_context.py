@@ -2095,25 +2095,27 @@ def test_git_status_section_omitted_without_a_snapshot() -> None:
 
 
 def test_the_block_stays_inside_its_token_budget(tmp_path: Path) -> None:
-    """The block is spent once per session in every project. `doc-budget.toml`
-    prices the `.md` tree; hook stdout is not `.md`, so it is pinned beside its
-    renderer. Rendered with a real git snapshot -- branch, status and five
-    commits -- because that section is most of the block. About 500 tokens on
-    this fixture when pinned, and about 580 for the live hook on this repo;
-    counted by the local tokenizer."""
+    """The block is spent at every session start in every project, and again on
+    resume, /clear and compact. `doc-budget.toml` prices the `.md` tree; hook
+    stdout is not `.md`, so it is pinned beside its renderer. Rendered with a
+    real git snapshot -- branch, status and five commits -- because that is the
+    one part of the block that varies with the repo, so a real one keeps the pin
+    honest. About 500 tokens on this fixture when pinned, and about 580 for the
+    live hook on this repo; counted by the local tokenizer. Over: cut the block,
+    not the number (`conventions/documentation.md`, *Documentation budget*)."""
     from claude_config.count_tokens import _count_local
 
     repo = tmp_path / "repo"
     _init_repo(repo)
     for i in range(5):
         (repo / f"f{i}.txt").write_text("x")
-        subprocess.run(["git", "add", "."], cwd=repo, check=True)
+        subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
         subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m",
-                        f"a commit subject of ordinary length number {i}"], cwd=repo, check=True)
+                        f"a commit subject of ordinary length number {i}"], cwd=repo, check=True,
+                        capture_output=True, text=True)
     (repo / "dirty.txt").write_text("y")
     text = render.sections(_facts(
         worktree_common_dir="/repos/claude-config/.git",
-        drift_note=None,
         git_snapshot=environment.git_snapshot(str(repo)),
     ))
-    assert _count_local(text) <= 700
+    assert _count_local(text) <= 625

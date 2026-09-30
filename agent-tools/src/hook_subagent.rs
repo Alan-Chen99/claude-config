@@ -121,7 +121,9 @@ mod tests {
 
     /// Spent once per subagent spawn. `doc-budget.toml` prices the `.md`
     /// tree; this block is not `.md`, so it is pinned here -- in characters,
-    /// since the Rust suite has no tokenizer. 856 when pinned.
+    /// since the Rust suite has no tokenizer. 856 when pinned. Over: cut the
+    /// ask, not the number (`conventions/documentation.md`, *Documentation
+    /// budget*).
     #[test]
     fn the_ask_stays_inside_its_size_budget() {
         assert!(additional_context().chars().count() <= 1000);

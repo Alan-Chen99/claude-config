@@ -17,6 +17,10 @@
 # to `default_cap`.
 # `loaded` is the report's section header; a group nested under a `per_file`
 # or `<name>` group shows under its parent's label, so it needs none.
+# Hook stdout is not `.md` and is pinned beside its renderer under the same
+# rule: the env-context block (tests/test_env_context.py), the
+# pre_output.record reminder (tests/test_pre_output_record.py) and the
+# SubagentStart ask (agent-tools/src/hook_subagent.rs).
 #
 # Over cap, cut that group to `cut_to` of cap (80% today) in the same change.
 # A cap at or just above today's size is deliberate: the first addition to such

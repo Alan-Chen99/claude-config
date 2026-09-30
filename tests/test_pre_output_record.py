@@ -68,13 +68,14 @@ def test_the_reminder_prints_even_when_nothing_is_recorded(monkeypatch, capsys):
 
 
 def test_the_reminder_stays_inside_its_token_budget(session, capsys):
-    """Printed on the last command of every turn. `doc-budget.toml` prices
-    the `.md` tree; this is not `.md`, so it is pinned here: 42 tokens when
-    pinned, by the local tokenizer."""
+    """Printed at the end of every turn, and again after any further tool call.
+    `doc-budget.toml` prices the `.md` tree; this is not `.md`, so it is pinned
+    here: 42 tokens when pinned, by the local tokenizer. Over: cut the reminder,
+    not the number (`conventions/documentation.md`, *Documentation budget*)."""
     from claude_config.count_tokens import _count_local
 
-    record.main([json.dumps(PAYLOAD)])
-    assert _count_local(capsys.readouterr().out) <= 60
+    assert record.main([json.dumps(PAYLOAD)]) == 0
+    assert _count_local(capsys.readouterr().out) <= 52
 
 
 @pytest.mark.parametrize(
