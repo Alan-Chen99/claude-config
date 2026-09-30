@@ -67,11 +67,12 @@ Monitor(command="python3 <skill dir>/listen.py 61 <scratchpad>/seen",
 ```
 
 Arm it as you create the topic, not later. Thirty minutes is the cap, so re-arm
-first thing in each expiry turn. Waiting is ending the turn — not a loop, not
-`agent-tools run --background`. `channel down` is past the blip the script
-forgives: fix the channel. React 👍 once you have read an answer
-(`setMessageReaction`, `reaction: [{"type":"emoji","emoji":"👍"}]`); an
-unreacted answer reads as unread.
+first thing in each expiry turn until you say you stop; then `TaskStop` it.
+Waiting is ending the turn — not a loop, not `agent-tools run --background`.
+`channel down` is past the blip the script forgives: fix the channel. React 👍
+to each answer you read (`setMessageReaction`,
+`reaction: [{"type":"emoji","emoji":"👍"}]`); an unreacted answer reads as
+unread.
 
 ## Traps
 

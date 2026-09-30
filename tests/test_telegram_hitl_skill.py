@@ -349,3 +349,11 @@ def test_every_call_the_skill_shows_names_its_caller() -> None:
     assert blocks
     for block in blocks:
         assert "X-Session-Id: $CLAUDE_CODE_SESSION_ID" in block, block
+
+
+def test_the_skill_disarms_the_listener_it_arms() -> None:
+    """A monitor outlives the turn that armed it and the re-arm rule chains
+    them, so a session that stops without `TaskStop` is woken by the next
+    message and by every expiry after it. The tool name is the pin: an agent
+    with no name for the disarm step has only the arm step to copy."""
+    assert "TaskStop" in SKILL.read_text()
