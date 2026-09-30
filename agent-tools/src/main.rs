@@ -233,6 +233,17 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Every tracked .md against the caps in doc-budget.toml:
+    /// agent-tools doc-budget [--print-held] [path ...]
+    ///
+    /// `disable_help_flag` for the same reason as count-tokens: the Python
+    /// help carries the exit-status table and the unit a person needs.
+    #[command(name = "doc-budget", disable_help_flag = true)]
+    DocBudget {
+        /// Arguments forwarded to claude_config.doc_budget
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// List tasks for this session. JSON by default, with a settled
     /// capture's detail withheld unless asked for: most captures in a long
     /// session are already finished, and printing all of them costs far more
@@ -815,6 +826,14 @@ fn main() {
                     &root,
                     None,
                     &["python3", "-m", "claude_config.count_tokens"],
+                    &args,
+                );
+            }
+            Cmd::DocBudget { args } => {
+                uv_run(
+                    &root,
+                    None,
+                    &["python3", "-m", "claude_config.doc_budget"],
                     &args,
                 );
             }
