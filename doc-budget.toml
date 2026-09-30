@@ -203,11 +203,11 @@ why = "A transcript of test requests, kept verbatim."
 #
 # At the size it had then, so CI is green on day one; the first addition to
 # any of these pays the 20% cut like any other over-cap group.  The report
-# names an entry whose file has fallen under its class cap so it can be
-# dropped.  [user:834203fa]
+# marks a held row `(held)` and names an entry whose file is back within its
+# class cap so it can be dropped.
 [held]
 approved = "user:834203fa"
-why = "Held at introduction, 2026-09-30; the first addition to any of these pays."
+why = "Every file over its class cap when the registry was introduced, 2026-09-30, frozen at that size: the cap lands on the next edit, not on a tree-wide rewrite."
 
 [held.files]
 "docs/system-prompt-snapshot/README.md" = 19757
