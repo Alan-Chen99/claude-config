@@ -100,9 +100,11 @@ against 1,322) take the lean/full split. The other 16 are byte-identical across
 the two, so the remaining models would add little.
 
 Variants: `default`, `custom-output-style`, `system-prompt`, `system-prompt-file`,
-`append`, `tool-search-loaded`, `subagent`. This snapshot captures the original
+`append`, `tool-search-loaded`, `logged-in`, `logged-in-no-artifact`, `subagent`.
+This snapshot captures the original
 six for sonnet-5 plus `tool-search-loaded`, `default` for opus-4-7, `default`
-plus `system-prompt-file` and `tool-search-loaded` for opus-5, and
+plus `system-prompt-file`, `tool-search-loaded`, `logged-in` and
+`logged-in-no-artifact` for opus-5, and
 `default` only for fable-5 and opus-4-8 — both added after an account
 entitlement upgrade partway through this snapshot's capture session, opus-4-8
 specifically to test whether fable's prompt was an oddity of the Fable
@@ -116,6 +118,34 @@ reminder that a `claude.sh` session demonstrably carries appears in no file
 here (see "Removed: the `## Auto Mode Active` reminder"). `regenerate.py`
 defines a `bypass-permissions` variant for it, not yet captured, so that
 directory is absent rather than empty.
+
+### The two `logged-in` variants
+
+Every other variant here exports `CLAUDE_CODE_OAUTH_TOKEN` and is MCP-free.
+These two drop it (`capture.py --capture-no-oauth-token`) so the child falls back
+to `~/.claude/.credentials.json`, which is the condition under which it reaches
+the Chrome extension and the claude.ai connectors — 57 deferred names against
+18, 22 of them Chrome. Captured for opus-5 `default` only; the point is the
+credential, and one model shows it.
+
+`logged-in-no-artifact` adds `CLAUDE_CODE_DISABLE_ARTIFACT=1` (via
+`--capture-child-env`, which is how a variant names a `CLAUDE_CODE_*` knob it
+wants after the wholesale strip). Measured against `logged-in`, holding the
+credential fixed:
+
+| | `logged-in` | `logged-in-no-artifact` |
+|---|---|---|
+| upfront tools | 14 | 13 (`Artifact` gone) |
+| tool tokens | 33,465 | 13,255 |
+| deferred names | 57 | 57 (unchanged) |
+| `artifact-design`, `artifact-capabilities`, `artifact-diagramming` skills | listed | absent |
+
+So the knob is worth 20,210 tool tokens — 60% of the roster — and reaches past
+the tool to the three built-in skills gated on it, while leaving the deferred
+roster alone. The claude.ai Claude Docs connector still names the tool in its
+instructions, but already branches on its absence ("`open` it with your Artifact
+tool (none → start your next message with the link, once)"), so nothing there
+dangles.
 
 ### Built-in skill captures
 

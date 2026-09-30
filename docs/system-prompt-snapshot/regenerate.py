@@ -117,6 +117,31 @@ VARIANTS: dict[str, dict] = {
         "requires_variant": "default",
         "timeout": 900,
     },
+    # The credential the child authenticates with decides whether it reaches MCP,
+    # so the same flags give two different prompts. Every other variant here takes
+    # the exported token and is MCP-free; these two take the
+    # ~/.claude/.credentials.json login instead and carry the Chrome extension and
+    # the claude.ai connectors. See README, "Credentials".
+    "logged-in": {
+        "claude_args": [],
+        "capture_flags": [
+            "--capture-output-style", "default",
+            "--capture-no-oauth-token",
+        ],
+    },
+    # Artifact alone is 20,496 of the default capture's 30,283 tool tokens, and it
+    # is the description that moves most between captures. Paired with `logged-in`
+    # rather than with `default` so the diff against it holds the credential fixed
+    # and shows what the knob reaches -- the tool, and whatever the claude.ai
+    # connector guidance says about artifacts.
+    "logged-in-no-artifact": {
+        "claude_args": [],
+        "capture_flags": [
+            "--capture-output-style", "default",
+            "--capture-no-oauth-token",
+            "--capture-child-env", "CLAUDE_CODE_DISABLE_ARTIFACT=1",
+        ],
+    },
     # --- subagent capture ---
     "subagent": {
         "claude_args": [],

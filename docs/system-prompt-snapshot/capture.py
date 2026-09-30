@@ -403,6 +403,8 @@ def spawn_claude(
     message: str | None = None,
     reply_timeout_s: int = 30,
     seed_git_origin: bool = False,
+    no_oauth_token: bool = False,
+    child_env: dict[str, str] | None = None,
 ) -> int:
     env = os.environ.copy()
     # A capture inherits none of the capturing session's own Claude Code
@@ -427,6 +429,17 @@ def spawn_claude(
         if _var != "CLAUDE_CODE_OAUTH_TOKEN":
             del env[_var]
     env.pop("CLAUDECODE", None)
+    # Dropping the token too sends the child to ~/.claude/.credentials.json, the
+    # condition under which it reaches MCP. Dropped here rather than left to
+    # whether the operator happens to have exported one, so the variant captures
+    # the same thing from any shell; the guard below still refuses to spawn when
+    # that leaves no credential at all.
+    if no_oauth_token:
+        env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+    # Knobs a variant sets deliberately, applied after the wholesale strip so
+    # each one is named by the variant that wants it rather than inherited.
+    for _k, _v in (child_env or {}).items():
+        env[_k] = _v
     # Claude Code strips CLAUDE_CODE_OAUTH_TOKEN from tool subprocess
     # environments, so a capture launched from inside a session inherits no
     # credentials. Without them the child renders "Not logged in" and issues
@@ -612,6 +625,28 @@ def main() -> None:
             print(f"ERROR: unknown --capture-select {select!r}", file=sys.stderr)
             sys.exit(1)
 
+    no_oauth_token = "--capture-no-oauth-token" in extra_args
+    if no_oauth_token:
+        extra_args.remove("--capture-no-oauth-token")
+
+    # NAME=VALUE, repeatable. Restricted to CLAUDE_CODE_* because that is the
+    # prefix the child's environment is otherwise stripped of; anything else
+    # already reaches the child and does not need a flag.
+    child_env: dict[str, str] = {}
+    while "--capture-child-env" in extra_args:
+        idx = extra_args.index("--capture-child-env")
+        assignment = extra_args[idx + 1]
+        extra_args = extra_args[:idx] + extra_args[idx + 2:]
+        name, _, value = assignment.partition("=")
+        if not _ or not name.startswith("CLAUDE_CODE_"):
+            print(
+                f"ERROR: --capture-child-env wants CLAUDE_CODE_NAME=VALUE, got "
+                f"{assignment!r}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        child_env[name] = value
+
     reply_timeout_s = 30
     if "--capture-reply-timeout" in extra_args:
         idx = extra_args.index("--capture-reply-timeout")
@@ -642,6 +677,8 @@ def main() -> None:
         subagents=subagents,
         message=message,
         reply_timeout_s=reply_timeout_s,
+        no_oauth_token=no_oauth_token,
+        child_env=child_env,
     )
 
     log_files = find_new_proxy_logs(start_time, child_pid)
