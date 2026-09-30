@@ -1352,10 +1352,12 @@ paths = ["skills/playwright-cli"]
 approved = "user:834203fa"
 why = "Written by `playwright-cli install --skills`; never edited by hand."
 
+# prompt-tests/runs holds only its README.md, which counts as every index file
+# does, so it is not listed here.
 [data.fixtures]
-paths = ["prompt-tests/general/<case>/fixture", "prompt-tests/runs"]
+paths = ["prompt-tests/general/<case>/fixture"]
 approved = "user:834203fa"
-why = "Fixture trees and captured runs loaded into prompt-test sessions, not into this repo's."
+why = "Fixture trees loaded into prompt-test sessions, not into this repo's."
 
 [data.closed-investigations]
 paths = ["notes/compliance-check-failure-mode", "notes/ralph-loop3-writing-for-agents", "docs/prompt-trials"]
