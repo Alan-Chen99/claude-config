@@ -120,9 +120,14 @@ def covering(name: str, f: str) -> str | None:
 
 
 def covers_dir(name: str, other: str) -> bool:
-    """Whether group `name` would cover group `other`'s name as a directory."""
+    """Whether group `name` would cover group `other`'s name as a directory.
+
+    A name carrying placeholders is covered only by a prefix of its own text,
+    so two patterns of one shape never cover each other."""
     if name == other:
         return False
+    if "<" in other:
+        return other.startswith(name + "/")
     rx = placeholder(name)
     if rx is not None and rx.fullmatch(other):
         return True
@@ -133,6 +138,8 @@ def load_registry(path: Path) -> dict:
     """The registry, checked for everything a resolver cannot recover from."""
     try:
         reg = tomllib.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise RegistryError(f"cannot read {path}: {exc}") from exc
     except tomllib.TOMLDecodeError as exc:
         raise RegistryError(f"not valid TOML: {exc}") from exc
     _keys(reg, TOP_KEYS, "top level")
@@ -270,7 +277,7 @@ class Resolver:
         its class's; otherwise the longest other path group covering the name,
         never above `default_cap`."""
         if n in self.file_set and (cls := derived_class(n)) in self.derived_groups:
-            return self.cap_of(self.derived_groups[cls])
+            return min(self.default_cap, self.cap_of(self.derived_groups[cls]))
         hits = [(len(m), placeholder(m) is None, m) for m in self.paths if covers_dir(m, n)]
         if not hits:
             return self.default_cap

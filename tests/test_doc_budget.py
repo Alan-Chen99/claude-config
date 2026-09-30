@@ -285,6 +285,43 @@ def test_a_path_naming_no_group_is_a_usage_error(tmp_path, capsys):
     assert "no group is named under nothing-here" in capsys.readouterr().err
 
 
+def test_a_missing_registry_exits_2(tmp_path, capsys):
+    root = repo(tmp_path, {"x/a.md": w(5)})
+    (tmp_path / "doc-budget.toml").unlink()
+    code, _, err = run(root, capsys=capsys)
+    assert code == 2
+    assert "cannot read" in err
+
+
+def test_a_file_cap_above_the_default_is_gated_even_under_a_higher_class_cap(tmp_path, capsys):
+    """Rule 5 gates a cap above `default_cap` or above its class cap, whichever is lower."""
+    root = repo(tmp_path, {"a/CLAUDE.md": w(5)}, BASE + """
+[groups.claude-md]
+loaded = "every session"
+derived = "claude-md"
+cap = 500
+
+[groups."a/CLAUDE.md"]
+cap = 300
+""")
+    code, _, err = run(root, capsys=capsys)
+    assert code == 2
+    assert "above 100 without `approved`" in err
+
+
+def test_two_placeholder_groups_of_one_shape_do_not_cover_each_other(tmp_path, capsys):
+    """Each is a class of its own; neither is the other's parent, so no recursion."""
+    root = repo(tmp_path, {"skills/x/a.md": w(1)}, BASE + """
+[groups."skills/<a>"]
+loaded = "on demand"
+
+[groups."skills/<b>"]
+loaded = "on demand"
+""")
+    code, _, _ = run(root, capsys=capsys)
+    assert code == 0
+
+
 # --- the report -------------------------------------------------------------
 
 
