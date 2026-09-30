@@ -123,3 +123,93 @@ def test_a_synthesized_url_picks_its_host_off_the_model_id(tmp_path, model, host
     extract(write_capture(tmp_path, cap), out)
 
     assert json.loads((out / "http.json").read_text())["url"] == f"https://{host}/v1/messages?beta=true"
+
+
+# ── Credentials ─────────────────────────────────────────────────────────────
+#
+# A capture never carries one. Every resolution names its source, because an
+# API key and an OAuth bearer are not the same caller: whether a beta such as
+# claude-code-20250219 is gated to the OAuth path is unverified, so a replay
+# that diverges from its capture must be able to rule the credential in or out.
+
+import time as _time
+
+from claude_config.cc_replay import credentials as creds
+
+
+def _store(tmp_path, token="oauth-token-value", expires_in=3600.0):
+    path = tmp_path / ".credentials.json"
+    path.write_text(json.dumps({
+        "claudeAiOauth": {
+            "accessToken": token,
+            "expiresAt": int((_time.time() + expires_in) * 1000),
+        }
+    }))
+    return path
+
+
+def test_the_first_party_host_resolves_the_oauth_store_first(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(creds, "OAUTH_STORE", _store(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "an-api-key")
+
+    cred = creds.resolve("https://api.anthropic.com/v1/messages?beta=true")
+    assert cred is not None
+    assert cred.header == "Authorization"
+    assert cred.value == "Bearer oauth-token-value"
+    assert "claudeAiOauth" in cred.source
+
+
+def test_an_api_key_fills_in_when_the_store_has_no_token(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(creds, "OAUTH_STORE", tmp_path / "absent.json")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "an-api-key")
+
+    cred = creds.resolve("https://api.anthropic.com/v1/messages")
+    assert cred is not None
+    assert (cred.header, cred.value) == ("x-api-key", "an-api-key")
+    assert cred.source == "$ANTHROPIC_API_KEY"
+
+
+def test_an_expired_oauth_token_is_refused_by_name(tmp_path, monkeypatch) -> None:
+    """A 401 from a stale token reads as an API fault; this does not."""
+    monkeypatch.setattr(creds, "OAUTH_STORE", _store(tmp_path, expires_in=-60.0))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="expired"):
+        creds.resolve("https://api.anthropic.com/v1/messages")
+
+
+@pytest.mark.parametrize(
+    ("host", "var"),
+    [("api.kimi.ai", "KIMI_API_KEY"), ("api.z.ai", "ZAI_API_KEY")],
+)
+def test_each_provider_host_reads_its_own_key(monkeypatch, host, var) -> None:
+    monkeypatch.setenv(var, "provider-key")
+    cred = creds.resolve(f"https://{host}/v1/messages")
+    assert cred is not None
+    assert (cred.header, cred.value, cred.source) == ("Authorization", "Bearer provider-key", f"${var}")
+
+
+def test_an_unknown_host_is_refused_rather_than_sent_uncredentialed() -> None:
+    with pytest.raises(RuntimeError, match="127.0.0.1"):
+        creds.resolve("http://127.0.0.1:8080/v1/messages")
+
+
+def test_no_credential_and_an_explicit_env_var_both_override_the_table(monkeypatch) -> None:
+    assert creds.resolve("http://127.0.0.1:8080/v1/messages", none=True) is None
+
+    monkeypatch.setenv("MY_TOKEN", "t")
+    cred = creds.resolve("http://127.0.0.1:8080/v1/messages", env_var="MY_TOKEN")
+    assert cred is not None
+    assert cred.value == "Bearer t"
+
+    monkeypatch.delenv("MY_TOKEN")
+    with pytest.raises(RuntimeError, match="MY_TOKEN"):
+        creds.resolve("http://127.0.0.1:8080/v1/messages", env_var="MY_TOKEN")
+
+
+def test_every_source_coming_up_empty_names_what_was_tried(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(creds, "OAUTH_STORE", tmp_path / "absent.json")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match=r"ANTHROPIC_API_KEY"):
+        creds.resolve("https://api.anthropic.com/v1/messages")
