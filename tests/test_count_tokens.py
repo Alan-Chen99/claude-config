@@ -122,3 +122,14 @@ def test_corrupted_tokenizer_fails_loudly(tmp_path: Path, monkeypatch: pytest.Mo
     )
     assert result.returncode != 0
     assert "does not match its recorded digest" in result.stderr
+
+
+def test_load_tokenizer_returns_one_instance_that_counts_like_the_cli() -> None:
+    """A tree-wide census loads the 12.8 MB tokenizer once and encodes hundreds
+    of files with it; the number it reports must be the CLI's number."""
+    from claude_config.count_tokens import _count_local, load_tokenizer
+
+    tokenizer = load_tokenizer()
+    text = "The quick brown fox jumps over the lazy dog."
+    assert len(tokenizer.encode(text, add_special_tokens=False).ids) == 10
+    assert _count_local(text) == 10

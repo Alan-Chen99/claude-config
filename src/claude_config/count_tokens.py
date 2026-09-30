@@ -100,12 +100,13 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _count_local(text: str) -> int:
-    """Token count from the vendored tokenizer, verified against its checksum.
+def load_tokenizer():
+    """The vendored tokenizer, verified against its checksum.
 
     A tokenizer file that has been swapped or truncated would keep producing
     plausible counts, so the digest recorded at vendoring time is checked on
-    every run rather than trusted.
+    every load rather than trusted. Loading costs ~0.4 s, so a caller counting
+    many texts holds the instance and encodes with it directly.
     """
     from tokenizers import Tokenizer
 
@@ -122,8 +123,12 @@ def _count_local(text: str) -> int:
             f"{provenance['revision']}."
         )
 
-    tokenizer = Tokenizer.from_str(blob.decode("utf-8"))
-    return len(tokenizer.encode(text, add_special_tokens=False).ids)
+    return Tokenizer.from_str(blob.decode("utf-8"))
+
+
+def _count_local(text: str) -> int:
+    """Token count of one text from the vendored tokenizer."""
+    return len(load_tokenizer().encode(text, add_special_tokens=False).ids)
 
 
 def _count_api(text: str, model: str) -> int:
