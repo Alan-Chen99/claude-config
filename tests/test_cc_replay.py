@@ -213,3 +213,227 @@ def test_every_source_coming_up_empty_names_what_was_tried(tmp_path, monkeypatch
 
     with pytest.raises(RuntimeError, match=r"ANTHROPIC_API_KEY"):
         creds.resolve("https://api.anthropic.com/v1/messages")
+
+
+# ── Sending ─────────────────────────────────────────────────────────────────
+
+import socket
+import threading
+
+from claude_config.cc_replay.send import DEVIATIONS, outgoing_headers, send
+
+SEEN: list[list[str]] = []
+
+_EVENTS = (
+    {"type": "message_start", "message": {"id": "msg_replay", "model": "claude-replayed",
+                                          "role": "assistant", "usage": {"input_tokens": 5}}},
+    {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+    {"type": "content_block_delta", "index": 0,
+     "delta": {"type": "text_delta", "text": "replayed"}},
+    {"type": "message_delta", "delta": {"stop_reason": "end_turn"}, "usage": {"output_tokens": 2}},
+)
+
+
+def _serve(conn: socket.socket, status: bytes, payload: bytes | None) -> None:
+    buf = b""
+    while b"\r\n\r\n" not in buf:
+        received = conn.recv(65536)
+        if not received:
+            conn.close()
+            return
+        buf += received
+    head, _, rest = buf.partition(b"\r\n\r\n")
+    lines = head.decode().split("\r\n")
+    SEEN.append(lines)
+    length = next(
+        (int(line.split(":", 1)[1]) for line in lines
+         if line.lower().startswith("content-length:")), 0
+    )
+    while len(rest) < length:
+        rest += conn.recv(65536)
+
+    if payload is not None:
+        conn.sendall(
+            status + b"Content-Type: application/json\r\n"
+            b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(payload) + payload
+        )
+    else:
+        conn.sendall(
+            status + b"Content-Type: text/event-stream\r\n"
+            b"Transfer-Encoding: chunked\r\nCache-Control: no-cache\r\n"
+            b"request-id: req_replayed\r\n\r\n"
+        )
+        for event in _EVENTS:
+            chunk = f"data: {json.dumps(event)}\n\n".encode()
+            conn.sendall(b"%x\r\n" % len(chunk) + chunk + b"\r\n")
+        conn.sendall(b"0\r\n\r\n")
+    conn.close()
+
+
+@pytest.fixture
+def origin():
+    """A local origin answering with SSE, or with whatever `respond_with` sets."""
+    state: dict = {"status": b"HTTP/1.1 200 OK\r\n", "payload": None}
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(8)
+
+    def accept_loop() -> None:
+        while True:
+            try:
+                conn, _ = listener.accept()
+            except OSError:
+                return
+            threading.Thread(
+                target=_serve, args=(conn, state["status"], state["payload"]), daemon=True
+            ).start()
+
+    threading.Thread(target=accept_loop, daemon=True).start()
+    SEEN.clear()
+    yield listener.getsockname()[1], state
+    listener.close()
+
+
+def test_the_five_deviating_headers_deviate_and_nothing_else_changes() -> None:
+    sent = outgoing_headers(HTTP["request_headers"])
+    names = [name.lower() for name, _ in sent]
+
+    assert "content-length" not in names
+    assert "host" not in names
+    assert "connection" not in names
+    values = dict(sent)
+    assert values["X-Stainless-Retry-Count"] == "0"
+    assert values["x-client-request-id"] != "7fa860c6-4611-456e-b4ed-415f87619442"
+    # Everything else, casing and order intact.
+    assert [name for name, _ in sent] == [
+        "Accept", "anthropic-beta", "x-client-request-id",
+        "X-Stainless-Retry-Count", "X-Claude-Code-Session-Id",
+    ]
+    assert values["anthropic-beta"] == "claude-code-20250219,effort-2025-11-24"
+    # The session id reached Anthropic on the original call.
+    assert values["X-Claude-Code-Session-Id"] == "ea529de9-61c3-422b-8868-b008a66ded9d"
+    assert set(DEVIATIONS) == {
+        "x-client-request-id", "x-stainless-retry-count",
+        "content-length", "host", "connection",
+    }
+
+
+def test_a_send_round_trips_and_the_result_renders_as_a_capture(tmp_path, origin) -> None:
+    from claude_config.cc_pretty_intercept.main import main as render_main
+
+    port, _ = origin
+    out = tmp_path / "w1"
+    extract(write_capture(tmp_path, capture()), out)
+
+    result = send(out, url=f"http://127.0.0.1:{port}/v1/messages?beta=true",
+                  credential=None)
+
+    entry = json.loads(result.read_text())
+    assert entry["response"]["id"] == "msg_replay"
+    assert entry["response"]["content"] == [{"type": "text", "text": "replayed"}]
+    assert entry["http"]["response"]["status"] == 200
+    assert entry["replay"]["headers_source"] == "captured"
+    assert entry["replay"]["source"].endswith("0007.json")
+    assert set(entry["replay"]["deviations"]) == set(DEVIATIONS)
+    # The raw stream, kept because comparing streams is what a faithful
+    # re-send is for.
+    assert "data: " in result.with_suffix(".sse").read_text()
+
+    # The result is a capture, so the capture front-end renders it.
+    render_main([str(result), "--show-http"])
+
+
+def test_the_origin_receives_the_captured_betas_and_a_fresh_request_id(tmp_path, origin) -> None:
+    port, _ = origin
+    out = tmp_path / "w1"
+    extract(write_capture(tmp_path, capture()), out)
+    send(out, url=f"http://127.0.0.1:{port}/v1/messages", credential=None)
+
+    received = {
+        line.split(":", 1)[0].lower(): line.split(":", 1)[1].strip()
+        for line in SEEN[0][1:] if ":" in line
+    }
+    assert received["anthropic-beta"] == "claude-code-20250219,effort-2025-11-24"
+    assert received["x-stainless-retry-count"] == "0"
+    assert received["x-client-request-id"] != "7fa860c6-4611-456e-b4ed-415f87619442"
+
+
+def test_a_second_send_does_not_overwrite_the_first_result(tmp_path, origin) -> None:
+    port, _ = origin
+    out = tmp_path / "w1"
+    extract(write_capture(tmp_path, capture()), out)
+
+    first = send(out, url=f"http://127.0.0.1:{port}/v1/messages", credential=None)
+    second = send(out, url=f"http://127.0.0.1:{port}/v1/messages", credential=None)
+
+    assert first.name == "result-0001.json"
+    assert second.name == "result-0002.json"
+
+
+def test_a_refused_replay_records_the_api_s_own_reason(tmp_path, origin) -> None:
+    port, state = origin
+    state["status"] = b"HTTP/1.1 429 Too Many Requests\r\n"
+    state["payload"] = json.dumps(
+        {"type": "error", "error": {"type": "rate_limit_error", "message": "slow down"}}
+    ).encode()
+
+    out = tmp_path / "w1"
+    extract(write_capture(tmp_path, capture()), out)
+    result = send(out, url=f"http://127.0.0.1:{port}/v1/messages", credential=None)
+
+    entry = json.loads(result.read_text())
+    assert "response" not in entry
+    assert entry["error"] == {
+        "status": 429, "statusText": "Too Many Requests",
+        "type": "rate_limit_error", "message": "slow down",
+    }
+
+
+def test_send_refuses_synthesized_headers_until_told_to_accept_them(tmp_path, origin) -> None:
+    """A re-send missing the original betas is a different call."""
+    port, _ = origin
+    cap = capture()
+    del cap["http"]
+    out = tmp_path / "old"
+    extract(write_capture(tmp_path, cap), out)
+
+    with pytest.raises(RuntimeError, match="synthesized"):
+        send(out, url=f"http://127.0.0.1:{port}/v1/messages", credential=None)
+
+    result = send(out, url=f"http://127.0.0.1:{port}/v1/messages", credential=None,
+                  accept_synthesized=True)
+    assert json.loads(result.read_text())["replay"]["headers_source"] == "synthesized"
+
+
+def test_the_credential_is_sent_but_never_written_to_the_result(tmp_path, origin) -> None:
+    port, _ = origin
+    out = tmp_path / "w1"
+    extract(write_capture(tmp_path, capture()), out)
+
+    result = send(
+        out, url=f"http://127.0.0.1:{port}/v1/messages",
+        credential=creds.Credential("Authorization", "Bearer super-secret", "$TEST"),
+    )
+
+    received = {line.split(":", 1)[0].lower() for line in SEEN[0][1:] if ":" in line}
+    assert "authorization" in received
+    assert "super-secret" not in result.read_text()
+    assert json.loads(result.read_text())["replay"]["credential"] == "$TEST"
+
+
+def test_a_non_streaming_request_is_stored_verbatim(tmp_path, origin) -> None:
+    port, state = origin
+    state["payload"] = json.dumps(
+        {"id": "msg_plain", "model": "m", "content": [{"type": "text", "text": "plain"}]}
+    ).encode()
+
+    cap = capture()
+    cap["request"]["stream"] = False
+    out = tmp_path / "w1"
+    extract(write_capture(tmp_path, cap), out)
+    result = send(out, url=f"http://127.0.0.1:{port}/v1/messages", credential=None)
+
+    entry = json.loads(result.read_text())
+    assert entry["streaming"] is False
+    assert entry["response"]["id"] == "msg_plain"
