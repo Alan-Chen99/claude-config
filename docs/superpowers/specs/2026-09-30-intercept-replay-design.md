@@ -57,9 +57,9 @@ future capture is roughly +2.5 KB each, +0.6%.
   "method": "POST",
   "url": "https://api.anthropic.com/v1/messages?beta=true",
   "http_version": "HTTP/1.1",
-  "request_headers": { "anthropic-beta": "...", "x-app": "cli", ... },
+  "request_headers": [["anthropic-beta", "..."], ["x-app", "cli"]],
   "credential": { "header": "Authorization", "scheme": "Bearer", "length": 115 },
-  "response": { "status": 200, "reason": "OK", "headers": { ... } }
+  "response": { "status": 200, "reason": "OK", "headers": [["request-id", "req_..."]] }
 }
 ```
 
@@ -114,7 +114,7 @@ the request body size and the model. `--dry-run` prints that and stops.
   "source": "/root/.claude/requests-log/<session>/0007.json",
   "sent_at": "2026-09-30T...",
   "headers_source": "captured",
-  "deviations": ["x-client-request-id", "x-stainless-retry-count", "content-length", "host"]
+  "deviations": ["x-client-request-id", "x-stainless-retry-count", "content-length", "host", "connection"]
 }
 ```
 
@@ -129,7 +129,7 @@ result's `http.response.headers`, so what it cost is on the record.
 
 ### Which headers are not repeated verbatim
 
-Four, each because repeating it would assert something false:
+Five, each because repeating it would assert something false or because the client owns it:
 
 | Header | Sent instead | Why |
 | --- | --- | --- |
@@ -137,6 +137,7 @@ Four, each because repeating it would assert something false:
 | `X-Stainless-Retry-Count` | `0` | This send is not a retry of anything |
 | `Content-Length` | Recomputed from `request.json` | The body is meant to be edited |
 | `Host` | Set by the client from the URL | Sending both leaves two sources of truth for one destination |
+| `Connection` | Set by the client | httpx manages connection reuse; measured, it sends `keep-alive` regardless |
 
 `X-Claude-Code-Session-Id` **is** repeated. It reached Anthropic on the original
 call, so a faithful re-send carries it. `send` does not route through
@@ -147,6 +148,13 @@ them. `Accept-Encoding` included: `brotli` and `zstandard` are both importable i
 `~/.claude/venvs/claude-config`, so `httpx` 0.28.1 decodes the `gzip, deflate, br,
 zstd` Claude Code asks for. The stored `.sse` is the decoded text — the same bytes
 the proxy's `get_content()` hands its reassembler — not the wire encoding.
+
+Measured 2026-09-30 against a local chunked-SSE origin that echoes what it received:
+httpx forwarded all eight captured headers with their casing and order intact, added
+only `Connection`, set `Host` and `Content-Length`, spoke HTTP/1.1, and delivered the
+origin's three events as three arrivals at 0.085s / 0.384s / 0.685s against its 0.3s
+emit gaps. Verbatim forwarding and streaming are properties of the client, so they
+were checked on the client rather than assumed from its documentation.
 
 ### Credential resolution
 
@@ -161,6 +169,12 @@ By host, first hit wins, and `send` always names the one it used:
 
 A `claudeAiOauth` entry whose `expiresAt` has passed is refused by name rather
 than sent and left to fail as a 401. `--credential-env VAR` overrides the table.
+
+A host outside the table is **refused by name**, not sent uncredentialed. `--url URL`
+retargets a replay — at another endpoint, or at a local origin under test — and
+`--no-credential` is the explicit opt-out for a destination that needs none. Sending
+a first-party body somewhere else is a deliberate act and reads like one on the
+command line.
 
 The OAuth store is home-rooted, so `cc-replay` works from a worktree, which has no
 `.env` and therefore no `ANTHROPIC_TOKEN_COUNT_API_KEY` either.
@@ -238,7 +252,7 @@ harness:
 - a synthesized `http.json` is refused without the flag and accepted with it
 - credential resolution picks by host, names its source, and refuses an expired
   `claudeAiOauth`
-- the four deviating headers deviate and every other header does not
+- the five deviating headers deviate and every other header does not, casing and order intact
 - `extract` refuses a non-empty directory without `--force`
 
 ## What this does not do
