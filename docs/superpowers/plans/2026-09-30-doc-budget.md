@@ -1879,7 +1879,9 @@ agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
 
 - [ ] **Step 4: `.claude/skills/update-claude-code/SKILL.md`**
 
-Insert after the §3.1 row that begins `| \`skills/telegram-hitl/SKILL.md:30\``:
+In the §3.1 row that begins `| \`skills/telegram-hitl/SKILL.md:30\``, change the citation `tests/test_telegram_hitl_skill.py:269` to `tests/test_telegram_hitl_skill.py:267` — Task 5 removed two import lines above that test, and `def test_the_skill_names_the_session_variable_that_exists` now sits on line 267 (confirm with `sed -n 267p tests/test_telegram_hitl_skill.py`).
+
+Then insert after that row:
 
 ```
 | `src/claude_config/doc_budget.py` (`session_of`) | `CLAUDE_CODE_SESSION_ID` | The same-session gate on `approved`: an entry the running session approved is inert there. A renamed variable reads as unset, so the gate goes inert everywhere — every approval counts as live and an agent's own `[data]` entry or held size takes effect in the session that wrote it — with a warning on stderr on every run, which nothing automatic reads: `tests/test_doc_budget.py` passes the variable in itself. |
