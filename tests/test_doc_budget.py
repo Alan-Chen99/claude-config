@@ -399,7 +399,7 @@ approved = "user:aaaaaaaa"
 """)
     code, out, _ = run(root, capsys=capsys)
     assert code == 0, out
-    held = next(ln for ln in out.splitlines() if "n/a.md" in ln)
+    held = next((ln for ln in out.splitlines() if "n/a.md" in ln), "")
     plain = next(ln for ln in out.splitlines() if "n/b.md" in ln)
     assert held.endswith("above 80% by 2 (held)"), held
     assert "(held)" not in plain, plain

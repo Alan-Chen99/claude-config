@@ -207,7 +207,7 @@ why = "A transcript of test requests, kept verbatim."
 # class cap so it can be dropped.
 [held]
 approved = "user:834203fa"
-why = "Every file over its class cap when the registry was introduced, 2026-09-30, frozen at that size: the cap lands on the next edit, not on a tree-wide rewrite."
+why = "Frozen at the size each file had on 2026-09-30, so the cap lands on the next edit rather than on a tree-wide rewrite."
 
 [held.files]
 "docs/system-prompt-snapshot/README.md" = 19757
