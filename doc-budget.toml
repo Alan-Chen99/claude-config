@@ -15,13 +15,18 @@
 # `per_file` makes each file its own group at the group's cap; `<name>` stands
 # for one path segment and makes each match its own group.  `cap` falls back
 # to `default_cap`.
+# `loaded` is the report's section header; a group nested under a `per_file`
+# or `<name>` group shows under its parent's label, so it needs none.
 #
-# Over cap, cut that group to 80% of cap in the same change.  Loosening -- a
-# [data] entry, the [held] table, a cap above the default or above the class
-# cap -- carries `approved`: `<8 hex of session id>` is an agent's own session
-# and inert there; `user:<8 hex>` is the session in which the user approved it
-# and live at once.  `agent-tools cc-pretty <8 hex> --skeleton` opens either.
-# Class caps and `default_cap` are policy the user edits.
+# Over cap, cut that group to `cut_to` of cap (80% today) in the same change.
+# Caps at introduction sit at or just above today's size, so the first addition
+# to a group pays the cut; raising one is the user's call, not the cutting
+# agent's.  Loosening -- a [data] entry, the [held] table, a cap above the one
+# the group would otherwise have -- carries `approved`: `<8 hex of session id>`
+# is an agent's own session and inert there; `user:<8 hex>` is the session in
+# which the user approved it and live at once.  `agent-tools cc-pretty <8 hex>
+# --skeleton` opens either.  Class caps and `default_cap` are policy the user
+# edits.
 
 cut_to = 0.8
 default_cap = 15000
@@ -47,7 +52,7 @@ loaded = "every session, every project"
 derived = "descriptions"
 cap = 1200
 
-# -- per invocation, per spawn ---------------------------------------------
+# -- per invocation, per spawn ----------------------------------------------
 
 # skills/<n>/SKILL.md and .claude/skills/<n>/SKILL.md, each its own group.
 [groups.skill-bodies]
@@ -55,7 +60,8 @@ loaded = "per invocation"
 derived = "skill-bodies"
 cap = 3000
 
-# Reached 7,316 tokens unmeasured; held under its own cap since.
+# Grew to 7,316 before anything measured it, so it carries a cap of its own;
+# 1,000 stands until the skill's job changes.
 [groups."skills/telegram-hitl/SKILL.md"]
 cap = 1000
 
@@ -65,8 +71,8 @@ loaded = "per spawn"
 derived = "agent-bodies"
 cap = 3000
 
-# Agent bodies tell their agent to read these, so the set is spent per spawn.
-# [user:834203fa]
+# Agent bodies tell their agent to read these, so the set is spent per spawn;
+# the cap sits just above today's size and the next growth past it pays the cut.
 [groups.conventions]
 loaded = "per spawn (agent bodies read them)"
 cap = 25000
@@ -97,12 +103,15 @@ loaded = "on demand, one file at a time"
 per_file = true
 cap = 4000
 
+# Ad-hoc working plans, read one at a time and each its own size, so each file
+# is its own group at the reference registry's cap; the writing-plans records
+# under docs/superpowers/plans are data below, not plans in this sense.
 [groups.plans]
 loaded = "on demand, one file at a time"
 per_file = true
 cap = 1000
 
-# -- on demand, a directory at a time ---------------------------------------
+# -- on demand, a skill's own docs ------------------------------------------
 
 # Each skill's own docs, references and resources; its SKILL.md is a skill
 # body and its CLAUDE.md a claude-md.
@@ -114,7 +123,8 @@ loaded = "on demand, one file at a time"
 per_file = true
 cap = 10000
 
-# INTENT.md is the skill's 11k design spec, read whole. [user:834203fa]
+# INTENT.md is the skill's 11k design spec, read whole; the cap is today's size,
+# so the next addition pays the 20% cut.
 [groups."skills/planner"]
 cap = 17808
 approved = "user:834203fa"
@@ -134,10 +144,10 @@ loaded = "on demand"
 loaded = "not loaded since cbeb6721 (outputStyle: default)"
 cap = 11000
 
-# Everything else: root README.md, skills/README.md, .github/.  Residual, so a
-# new directory lands here and shows as infra debt, not nowhere.
+# Everything else: root README.md and skills/README.md.  Residual, so a new
+# directory lands here and shows as infra debt, not nowhere.
 [groups.infra]
-loaded = "on demand"
+loaded = "on demand, the residual"
 residual = true
 cap = 12000
 
@@ -173,9 +183,9 @@ why = "Fixture trees loaded into prompt-test sessions, not into this repo's."
 [data.closed-investigations]
 paths = ["notes/compliance-check-failure-mode", "notes/ralph-loop3-writing-for-agents", "docs/prompt-trials"]
 approved = "user:834203fa"
-why = "Closed evidence sets and audit archives: dated, never rewritten, not read for guidance."
+why = "Closed evidence sets and audit archives, dated and never rewritten; a directory returns to counting when reopened for new evidence. Directories only: notes/compliance-check-failure-mode.md beside the first counts."
 
-[data.plans]
+[data.superpowers-plans]
 paths = ["docs/superpowers/plans"]
 approved = "user:834203fa"
 why = "The writing-plans format carries complete code per step and does not fit a cap; each plan is read once, by its executor."
