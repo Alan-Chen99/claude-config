@@ -404,6 +404,8 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 'big'\n", "`cap` must be a positive integer"),
     (BASE + "\n[data.d]\npaths = 'x'\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "`paths` must be a non-empty list of strings"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 4\n[groups.\"x/a.md\"]\nloaded = 'a'\n", "inherits `default_cap` 100, above 4"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\none_of = 5\n", "must be a string carrying a <name> placeholder"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 12345678\n", "is not `<8 hex"),
 ])
 def test_a_registry_error_exits_2_and_says_what(tmp_path, capsys, registry, message):
     root = repo(tmp_path, {"x/a.md": w(5)}, registry)
@@ -556,8 +558,8 @@ def test_the_registry_is_valid_and_the_tree_is_within_budget(capsys):
     session is inert here too, so an agent's own loosening fails this in the
     session that wrote it and passes in CI -- that is the gate working."""
     code = doc_budget.main([], root=REPO)
-    out, _ = capsys.readouterr()
-    assert code == 0, out
+    out, err = capsys.readouterr()
+    assert code == 0, out + err
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -598,6 +600,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = "doc-budget.toml"
@@ -709,7 +712,7 @@ def covers_dir(name: str, other: str) -> bool:
     return covering(name, other) is not None
 
 
-def load_registry(path: Path) -> dict:
+def load_registry(path: Path) -> dict[str, Any]:
     """The registry, checked for everything a resolver cannot recover from."""
     try:
         reg = tomllib.loads(path.read_text(encoding="utf-8"))
@@ -737,9 +740,10 @@ def load_registry(path: Path) -> dict:
         if "derived" in g and g["derived"] not in DERIVED:
             raise RegistryError(
                 f"group {name!r}: `derived` must be one of {', '.join(DERIVED)}")
-        if "one_of" in g and placeholder(g["one_of"]) is None:
+        if "one_of" in g and (not isinstance(g["one_of"], str) or placeholder(g["one_of"]) is None):
             raise RegistryError(
-                f"group {name!r}: one_of {g['one_of']!r} carries no <name> placeholder")
+                f"group {name!r}: one_of {g['one_of']!r} must be a string carrying "
+                "a <name> placeholder")
         _approved(g, f"group {name!r}")
     residuals = [n for n, g in groups.items() if g.get("residual")]
     if len(residuals) != 1:
@@ -769,7 +773,7 @@ def load_registry(path: Path) -> dict:
     return reg
 
 
-def _table(value: object, where: str) -> dict:
+def _table(value: object, where: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise RegistryError(f"{where}: must be a table, not {type(value).__name__}")
     return value
@@ -779,16 +783,17 @@ def _positive_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
-def _keys(table: dict, allowed: frozenset[str], where: str) -> None:
+def _keys(table: dict[str, Any], allowed: frozenset[str], where: str) -> None:
     unknown = sorted(set(table) - allowed)
     if unknown:
         raise RegistryError(f"{where}: unknown key {', '.join(unknown)}")
 
 
-def _approved(table: dict, where: str) -> None:
-    if "approved" in table and not APPROVED.fullmatch(str(table["approved"])):
+def _approved(table: dict[str, Any], where: str) -> None:
+    value = table.get("approved")
+    if "approved" in table and (not isinstance(value, str) or not APPROVED.fullmatch(value)):
         raise RegistryError(
-            f"{where}: `approved` {table['approved']!r} is not `<8 hex of session id>` "
+            f"{where}: `approved` {value!r} is not `<8 hex of session id>` "
             "for an agent's own session or `user:<8 hex>` for the session in which "
             "the user approved it")
 
@@ -796,7 +801,7 @@ def _approved(table: dict, where: str) -> None:
 class Resolver:
     """Which group each tracked file counts in, under one registry and session."""
 
-    def __init__(self, reg: dict, files: list[str], session: str) -> None:
+    def __init__(self, reg: dict[str, Any], files: list[str], session: str) -> None:
         self.reg = reg
         self.files = files
         self.session = session
@@ -820,7 +825,7 @@ class Resolver:
                     raise RegistryError(
                         f"group {n!r}: one_of {g['one_of']!r} matches no tracked file")
                 self.slots[n] = hits
-                self.claimed.update(dict.fromkeys(hits, n))
+                self.claimed.update({f: n for f in hits})
         held = self.reg.get("held")
         self.held: dict[str, int] = (
             dict(held["files"]) if held and self.live(held["approved"]) else {})
@@ -1155,7 +1160,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run the synthetic tests**
 
 Run: `PYTEST tests/test_doc_budget.py -q --deselect tests/test_doc_budget.py::test_the_registry_is_valid_and_the_tree_is_within_budget 2>&1 | tail -15`
-Expected: 36 passed, 1 deselected. Fix the module, not the tests, for any failure.
+Expected: 38 passed, 1 deselected. Fix the module, not the tests, for any failure.
 
 The tree test fails until Task 3 writes the registry; that is expected here.
 
