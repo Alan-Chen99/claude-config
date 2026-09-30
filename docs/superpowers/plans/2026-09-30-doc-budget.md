@@ -1769,7 +1769,7 @@ EOF
 
 ### Task 8: Root `CLAUDE.md` — row, command, policy pointer, kept under its cap
 
-Root `CLAUDE.md` is 1,444 tokens against the `claude-md` cap of 1,500. The three additions below are ~110 tokens, so two rows are consolidated against text that already lives elsewhere; the file must end ≤ 1,500 and is not held.
+Root `CLAUDE.md` is 1,444 tokens against the `claude-md` cap of 1,500. The three additions below are 116 tokens, so two rows are consolidated against text that already lives elsewhere and one parenthetical goes (the consolidations alone leave the file at 1,513); the file ends at 1,496 and is not held.
 
 **Files:**
 - Modify: `CLAUDE.md`
@@ -1779,7 +1779,7 @@ Root `CLAUDE.md` is 1,444 tokens against the `claude-md` cap of 1,500. The three
 In the Files table, after the `.env` / `.env.example` row, add:
 
 ```
-| `doc-budget.toml` | Token caps for every tracked `.md`, by how the text reaches a context; `agent-tools doc-budget` measures | Adding or growing a doc; a group over cap |
+| `doc-budget.toml` | Token caps for every tracked `.md`, by how the text reaches a context | Adding or growing a doc; a group over cap |
 ```
 
 In `## Build and test`, after the `scripts/check-prompt-rationale.sh` line, add:
@@ -1791,17 +1791,17 @@ agent-tools doc-budget                   # every tracked .md against doc-budget.
 In `## Agent Policy`, append the bullet:
 
 ```
-- `agent-tools doc-budget` over cap: cut that group to 80% in the same change —
+- `agent-tools doc-budget` over cap: cut that group to 80% of cap in the same change —
   consolidation only; a group over when you arrived is debt to name, not pay in passing
   (`conventions/documentation.md`, *Documentation budget*).
 ```
 
-- [ ] **Step 2: Consolidate two rows against their other homes**
+- [ ] **Step 2: Consolidate two rows against their other homes, and drop one aside**
 
-Replace the `install.sh` row's What cell (README's *Install* section carries the same list) with:
+Replace the `install.sh` row's What cell (README's *Install* section carries the list — the systemd units once Task 9 adds them; `install.sh:120-132` builds `agent-tools`, so "builds" stays) with:
 
 ```
-Symlinks the config into `~/.claude/`, `~/.config/opencode`, `~/.config/systemd/user/` and `~/.local/bin/` — README, *Install*. Links, not copies: a canonical-checkout edit is live with no re-install, a worktree's is live nowhere; refuses a worktree, or a destination that is not already a symlink
+Builds and symlinks the config into `~/.claude/`, `~/.config/opencode`, `~/.config/systemd/user/` and `~/.local/bin/` (`README.md`, *Install*). Links, not copies: a canonical-checkout edit is live with no re-install, a worktree's is live nowhere; refuses a worktree, or a destination that is not already a symlink
 ```
 
 Replace the `notes/` row's What cell (the archive's own `CLAUDE.md` carries its rules) with:
@@ -1810,10 +1810,12 @@ Replace the `notes/` row's What cell (the archive's own `CLAUDE.md` carries its 
 Long-form investigation write-ups — measured evidence and root cause, one behaviour each. Dated records, never rewritten to match later changes; `ralph-loop3-writing-for-agents/` is a closed archive with rules in its own `CLAUDE.md`
 ```
 
+In the `.claude/` row, delete ` (post-upgrade runbook and what a release can break here)` — the skill's own description and the Agent Policy bullet above it already say it.
+
 - [ ] **Step 3: Measure**
 
 Run: `cd /root/claude-config-work && CLAUDE_CONFIG_ROOT=/root/claude-config-work agent-tools/target/release/agent-tools doc-budget CLAUDE.md`
-Expected: `CLAUDE.md` ≤ 1,500, state `above 80% by …` (not OVER). If OVER, also drop `(post-upgrade runbook and what a release can break here)` from the `.claude/` row — the Agent Policy bullet already says it — and re-measure; if still OVER, shorten the new bullet to `- \`agent-tools doc-budget\` over cap: cut that group to 80% in the same change (\`conventions/documentation.md\`, *Documentation budget*).` Do not add `CLAUDE.md` to `[held.files]`.
+Expected: `1,496   1,500   1,200  CLAUDE.md above 80% by 296` (not OVER). If OVER, shorten the new bullet to `- \`agent-tools doc-budget\` over cap: cut that group to 80% of cap in the same change (\`conventions/documentation.md\`, *Documentation budget*).` and re-measure. Do not add `CLAUDE.md` to `[held.files]`.
 
 - [ ] **Step 4: Commit**
 
@@ -1825,6 +1827,8 @@ doc-budget: root index names the registry, the command and the rule
 Claude-Session: 834203fa-2993-42e8-a373-0f7dc84e995e
 EOF
 ```
+
+Shipped as 8311a15f and 752b891d; the second carries the review's fixes (the build step, `of cap`, the backticked citation, the command named once in the table).
 
 ---
 
