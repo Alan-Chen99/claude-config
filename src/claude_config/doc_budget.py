@@ -597,10 +597,15 @@ def main(argv: list[str] | None = None, *, root: Path = ROOT,
         return 2
     rows = display_order(res, rep)
     # A path the registry does not name is still countable text: show the group
-    # paying for it, which is what an agent measuring its own edit is asking.
+    # paying for it, which is what an agent measuring its own edit is asking. A
+    # one_of set's detail line is its pattern, so its members come from `slots`.
+    def counts(n: str, w: str) -> bool:
+        return (under(w, n)
+                or any(under(w, f) for _, f, _ in rep.detail[n])
+                or any(under(w, f) for f in res.slots.get(n, ())))
+
     shown = [(n, label) for n, label in rows
-             if not want or any(under(w, n) or any(under(w, f) for _, f, _ in rep.detail[n])
-                                for w in want)]
+             if not want or any(counts(n, w) for w in want)]
     if want and not shown:
         parser.error(f"nothing counted lies under {', '.join(want)}: group names are in "
                      f"{REGISTRY}; derived, one_of and residual groups are not paths; and a "

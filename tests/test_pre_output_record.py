@@ -71,13 +71,13 @@ def test_the_reminder_stays_inside_its_token_budget(session, capsys):
     """Printed at the end of every turn, and again after any further tool call.
     `doc-budget.toml` prices the `.md` tree; this is not `.md`, so it is pinned
     here: 42 tokens when pinned, by the local tokenizer, and the pin is that size
-    divided by 0.8, so 80% of it is where the text sits now and the first growth
-    past it pays a registry group's cut. Over: cut the reminder, not the number
-    (`conventions/documentation.md`, *Documentation budget*)."""
+    divided by 0.8 and rounded up, so 80% of it is where the text sits now and the
+    first growth past it pays a registry group's cut. Over: cut the reminder, not
+    the number (`conventions/documentation.md`, *Documentation budget*)."""
     from claude_config.count_tokens import _count_local
 
     assert record.main([json.dumps(PAYLOAD)]) == 0
-    assert _count_local(capsys.readouterr().out) <= 52
+    assert _count_local(capsys.readouterr().out) <= 53
 
 
 @pytest.mark.parametrize(

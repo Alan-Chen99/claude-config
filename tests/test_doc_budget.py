@@ -500,6 +500,26 @@ loaded = "on demand"
     assert "y/c.md" not in out and "  y " not in out
 
 
+def test_a_one_of_member_narrows_to_the_set_that_pays_for_it(tmp_path, capsys):
+    """A member is never a row of its own -- the set is -- so the path has to
+    reach the set; the row's detail line is the pattern, not the member."""
+    root = repo(tmp_path, {
+        "oc/agents/big.md": w(9),
+        "oc/agents/small.md": w(2),
+        "k.md": w(1),
+    }, BASE + """
+[groups.oc-prompt]
+loaded = "every request of an opencode session"
+one_of = "oc/agents/<agent>.md"
+cap = 10
+""")
+    code, out, _ = run(root, str(tmp_path / "oc" / "agents" / "small.md"), capsys=capsys)
+    assert code == 0, out
+    assert row(9, 10, 8, "oc-prompt") in out
+    assert "(largest of big 9, small 2)" in out
+    assert "  infra " not in out
+
+
 def test_a_data_path_is_a_usage_error_saying_data_is_not_counted(tmp_path, capsys):
     root = repo(tmp_path, {"d/a.md": w(5), "k.md": w(1)}, BASE + """
 [data.dump]
