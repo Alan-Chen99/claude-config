@@ -261,7 +261,7 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
 @pytest.mark.parametrize(("registry", "message"), [
     (BASE + "\n[groups.x]\nloaded = 'a'\ncup = 3\n", "unknown key cup"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\n", "above 100 without `approved`"),
-    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 'nobody'\n", "`approved`"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 200\napproved = 'nobody'\n", "is not `<8 hex"),
     (BASE + "\n[data.d]\npaths = ['nowhere']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "covers no tracked file"),
     (BASE + "\n[groups.nowhere]\nloaded = 'a'\n", "covers no tracked file"),
     (BASE + "\n[held]\napproved = 'user:aaaaaaaa'\n[held.files]\n'gone.md' = 9\n", "not a tracked .md file"),
@@ -269,6 +269,12 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
     (BASE + "\n[data.d]\npaths = ['x']\nwhy = 'w'\n", "missing `approved`"),
     ("cut_to = 0.8\ndefault_cap = 100\n[groups.x]\nloaded = 'a'\n", "exactly one group must set `residual`"),
     (BASE + "\n[groups.y]\nloaded = 'a'\nderived = 'sideways'\n", "`derived` must be one of"),
+    ("cut_to = 2\ndefault_cap = 100\n[groups.infra]\nloaded = 'a'\nresidual = true\n", "`cut_to` must be a number in (0, 1]"),
+    ("cut_to = 0.8\ndefault_cap = 'x'\n[groups.infra]\nloaded = 'a'\nresidual = true\n", "`default_cap` must be a positive integer"),
+    ("cut_to = 0.8\ndefault_cap = 100\ngroups = 3\n", "groups: must be a table"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 'big'\n", "`cap` must be a positive integer"),
+    (BASE + "\n[data.d]\npaths = 'x'\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "`paths` must be a non-empty list of strings"),
+    (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 4\n[groups.\"x/a.md\"]\nloaded = 'a'\n", "inherits `default_cap` 100, above 4"),
 ])
 def test_a_registry_error_exits_2_and_says_what(tmp_path, capsys, registry, message):
     root = repo(tmp_path, {"x/a.md": w(5)}, registry)
