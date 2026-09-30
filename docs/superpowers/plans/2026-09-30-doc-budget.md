@@ -1216,6 +1216,10 @@ Create `doc-budget.toml` at the repo root:
 # to `default_cap`.
 # `loaded` is the report's section header; a group nested under a `per_file`
 # or `<name>` group shows under its parent's label, so it needs none.
+# Hook stdout is not `.md` and is pinned beside its renderer under the same
+# rule: the env-context block (tests/test_env_context.py), the
+# pre_output.record reminder (tests/test_pre_output_record.py) and the
+# SubagentStart ask (agent-tools/src/hook_subagent.rs).
 #
 # Over cap, cut that group to `cut_to` of cap (80% today) in the same change.
 # A cap at or just above today's size is deliberate: the first addition to such
@@ -1632,41 +1636,44 @@ Append to `tests/test_env_context.py`:
 
 ```python
 def test_the_block_stays_inside_its_token_budget(tmp_path: Path) -> None:
-    """The block is spent once per session in every project. `doc-budget.toml`
-    prices the `.md` tree; hook stdout is not `.md`, so it is pinned beside its
-    renderer. Rendered with a real git snapshot -- branch, status and five
-    commits -- because that section is most of the block. About 500 tokens on
-    this fixture when pinned, and about 580 for the live hook on this repo;
-    counted by the local tokenizer."""
+    """The block is spent at every session start in every project, and again on
+    resume, /clear and compact. `doc-budget.toml` prices the `.md` tree; hook
+    stdout is not `.md`, so it is pinned beside its renderer. Rendered with a
+    real git snapshot -- branch, status and five commits -- because that is the
+    one part of the block that varies with the repo, so a real one keeps the pin
+    honest. About 500 tokens on this fixture when pinned, and about 580 for the
+    live hook on this repo; counted by the local tokenizer. Over: cut the block,
+    not the number (`conventions/documentation.md`, *Documentation budget*)."""
     from claude_config.count_tokens import _count_local
 
     repo = tmp_path / "repo"
     _init_repo(repo)
     for i in range(5):
         (repo / f"f{i}.txt").write_text("x")
-        subprocess.run(["git", "add", "."], cwd=repo, check=True)
+        subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
         subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m",
-                        f"a commit subject of ordinary length number {i}"], cwd=repo, check=True)
+                        f"a commit subject of ordinary length number {i}"], cwd=repo, check=True,
+                        capture_output=True, text=True)
     (repo / "dirty.txt").write_text("y")
     text = render.sections(_facts(
         worktree_common_dir="/repos/claude-config/.git",
-        drift_note=None,
         git_snapshot=environment.git_snapshot(str(repo)),
     ))
-    assert _count_local(text) <= 700
+    assert _count_local(text) <= 625
 ```
 
 Append to `tests/test_pre_output_record.py` after `test_the_reminder_prints_even_when_nothing_is_recorded`:
 
 ```python
 def test_the_reminder_stays_inside_its_token_budget(session, capsys):
-    """Printed on the last command of every turn. `doc-budget.toml` prices
-    the `.md` tree; this is not `.md`, so it is pinned here: 42 tokens when
-    pinned, by the local tokenizer."""
+    """Printed at the end of every turn, and again after any further tool call.
+    `doc-budget.toml` prices the `.md` tree; this is not `.md`, so it is pinned
+    here: 42 tokens when pinned, by the local tokenizer. Over: cut the reminder,
+    not the number (`conventions/documentation.md`, *Documentation budget*)."""
     from claude_config.count_tokens import _count_local
 
-    record.main([json.dumps(PAYLOAD)])
-    assert _count_local(capsys.readouterr().out) <= 60
+    assert record.main([json.dumps(PAYLOAD)]) == 0
+    assert _count_local(capsys.readouterr().out) <= 52
 ```
 
 In `agent-tools/src/hook_subagent.rs`, inside `mod tests` after `asks_for_the_heading_the_parent_looks_for`, add:
@@ -1674,7 +1681,9 @@ In `agent-tools/src/hook_subagent.rs`, inside `mod tests` after `asks_for_the_he
 ```rust
     /// Spent once per subagent spawn. `doc-budget.toml` prices the `.md`
     /// tree; this block is not `.md`, so it is pinned here -- in characters,
-    /// since the Rust suite has no tokenizer. 856 when pinned.
+    /// since the Rust suite has no tokenizer. 856 when pinned. Over: cut the
+    /// ask, not the number (`conventions/documentation.md`, *Documentation
+    /// budget*).
     #[test]
     fn the_ask_stays_inside_its_size_budget() {
         assert!(additional_context().chars().count() <= 1000);
