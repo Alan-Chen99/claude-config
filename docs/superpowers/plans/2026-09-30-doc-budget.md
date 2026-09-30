@@ -1635,8 +1635,9 @@ def test_the_block_stays_inside_its_token_budget(tmp_path: Path) -> None:
     """The block is spent once per session in every project. `doc-budget.toml`
     prices the `.md` tree; hook stdout is not `.md`, so it is pinned beside its
     renderer. Rendered with a real git snapshot -- branch, status and five
-    commits -- because that section is most of the block. 615 tokens on this
-    repo when pinned; counted by the local tokenizer."""
+    commits -- because that section is most of the block. About 500 tokens on
+    this fixture when pinned, and about 580 for the live hook on this repo;
+    counted by the local tokenizer."""
     from claude_config.count_tokens import _count_local
 
     repo = tmp_path / "repo"
