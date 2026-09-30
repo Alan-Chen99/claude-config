@@ -124,12 +124,12 @@ def test_corrupted_tokenizer_fails_loudly(tmp_path: Path, monkeypatch: pytest.Mo
     assert "does not match its recorded digest" in result.stderr
 
 
-def test_load_tokenizer_returns_one_instance_that_counts_like_the_cli() -> None:
-    """A tree-wide census loads the 12.8 MB tokenizer once and encodes hundreds
-    of files with it; the number it reports must be the CLI's number."""
-    from claude_config.count_tokens import _count_local, load_tokenizer
+def test_a_held_tokenizer_counts_the_same_as_the_cli() -> None:
+    """A tree-wide census holds one instance and counts with `count_with`;
+    the number it gets must be the one `agent-tools count-tokens` prints."""
+    from claude_config.count_tokens import count_with, load_tokenizer
 
-    tokenizer = load_tokenizer()
     text = "The quick brown fox jumps over the lazy dog."
-    assert len(tokenizer.encode(text, add_special_tokens=False).ids) == 10
-    assert _count_local(text) == 10
+    result = _run(text)
+    assert result.returncode == 0, result.stderr
+    assert count_with(load_tokenizer(), text) == int(result.stdout.strip())

@@ -24,6 +24,10 @@ import hashlib
 import json
 import sys
 from importlib import resources
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tokenizers import Tokenizer
 
 # The API path exists to reproduce and extend measurements already recorded
 # against it, so its default model stays where those were taken.
@@ -100,12 +104,12 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def load_tokenizer():
+def load_tokenizer() -> Tokenizer:
     """The vendored tokenizer, verified against its checksum.
 
     A tokenizer file that has been swapped or truncated would keep producing
     plausible counts, so the digest recorded at vendoring time is checked on
-    every load rather than trusted. Loading costs ~0.4 s, so a caller counting
+    every load rather than trusted. Loading costs ~0.3 s, so a caller counting
     many texts holds the instance and encodes with it directly.
     """
     from tokenizers import Tokenizer
@@ -126,9 +130,14 @@ def load_tokenizer():
     return Tokenizer.from_str(blob.decode("utf-8"))
 
 
+def count_with(tokenizer: Tokenizer, text: str) -> int:
+    """Tokens of one text under the local backend's convention: no BOS/EOS."""
+    return len(tokenizer.encode(text, add_special_tokens=False).ids)
+
+
 def _count_local(text: str) -> int:
     """Token count of one text from the vendored tokenizer."""
-    return len(load_tokenizer().encode(text, add_special_tokens=False).ids)
+    return count_with(load_tokenizer(), text)
 
 
 def _count_api(text: str, model: str) -> int:
