@@ -4,7 +4,8 @@
     "CLAUDE_CODE_FORK_SUBAGENT": "0",
     "TELEGRAM_HITL_STATE_DIR": "/home/alan/personal/telegram-hitl",
     "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
-    "CLAUDE_CODE_ENABLE_CFC": "false"
+    "CLAUDE_CODE_ENABLE_CFC": "false",
+    "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP": "1000"
   },
   "attribution": {
     "commit": "",
@@ -169,7 +170,7 @@
           {
             "type": "command",
             "command": "python3 ~/.claude/skills/telegram-hitl/listen.py stop-hook",
-            "timeout": 60
+            "timeout": 86400
           }
         ]
       }

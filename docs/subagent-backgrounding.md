@@ -98,7 +98,8 @@ the turn ending is the process ending, with one exception:
 
 A `Stop` hook sees the running tasks (`background_tasks[]`, each with its `command`) and,
 unattended (`CLAUDE_CODE_SESSION_ATTENDED=0`), can block the turn end with
-`{"decision": "block", "reason": …}` — at every stop if it chooses; `stop_hook_active` only
-reports that it already did (2.1.269: four stops, three blocks, four turns).
-`skills/telegram-hitl/listen.py stop-hook` uses both
+`{"decision": "block", "reason": …}` at every stop — `stop_hook_active` is advisory — up to
+`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` consecutive blocks (default 8); and holds the process while
+it runs, up to its settings `timeout` (any positive seconds; a kill there is no decision). `skills/telegram-hitl/listen.py
+stop-hook` uses both
 to hold a waiting iteration and to stop a forgotten listener from holding one.

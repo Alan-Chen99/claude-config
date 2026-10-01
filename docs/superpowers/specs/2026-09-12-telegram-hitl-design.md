@@ -230,16 +230,16 @@ or to a session that ended. The reaction is an act the agent already owes
 after reading, so the human and the listener agree on what is unread; re-arms, resumed sessions and a loop's next iteration carry no
 state.
 
-Both modes run under `Monitor`, the one harness task that holds a `claude -p`
-process past its turn (a background Bash task is killed with it —
-`notes/print-mode-task-lifetime.md`): the open-ended listener, armed at topic
-creation to hear corrections, and `--wait`, which exits on the first delivery
-(1 on `channel down`) and declares the wait in `waits/<session id>`. A `Stop`
-hook, unattended sessions only, blocks the turn end when a listener is armed
-with no wait declared (once: the process would sit on the monitor) or a
-declared wait's listener is gone (every stop: the exit would advance a loop
-past the human, and ending again is a default, not a decision — `stop-waiting`
-is). Matrix: `skills/telegram-hitl/README.md`.
+The listener runs under `Monitor`, the one harness task that holds a `claude
+-p` process past its turn (a background Bash task is killed with it —
+`notes/print-mode-task-lifetime.md`), armed at topic creation to hear
+corrections. A wait with nothing else pending belongs to the
+`Stop` hook: `--wait` declares it in `waits/<session id>` and returns, the
+session ends its turn, and the hook — unattended sessions only — polls the log
+and blocks the stop with the human's message as its reason. Nothing runs while
+the human has not answered, and ending again cannot end the wait: a default, not a decision — `stop-waiting` is. A listener armed
+with no wait declared is blocked once: the process would sit on the monitor.
+Matrix: `skills/telegram-hitl/README.md`.
 
 **Why not a blocking wait endpoint on the proxy.** Waits are measured in hours:
 a long-poll would need the proxy's uptime to exceed the wait, and a restart
@@ -446,8 +446,8 @@ lost, so they are enumerated here as the skill's scope:
   `migrate_to_chat_id` is the forwarding pointer.
 - Reading a file that is being appended to needs care in Python, which yields
   partial final lines where a shell `read` loop does not.
-- Printed is not received, and only a `Monitor` holds a `claude -p` process,
-  ten minutes at a time.
+- Printed is not received; what holds a `claude -p` process is a `Monitor` or
+  a running hook.
 
 ## Deliberately excluded
 

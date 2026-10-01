@@ -2,7 +2,7 @@
 list the forum's topics, or guard a session's stop.
 
     python3 listen.py <thread_id>            # under Monitor: every message for you
-    python3 listen.py <thread_id> --wait     # under Monitor: the first delivery, then exit
+    python3 listen.py <thread_id> --wait     # unattended: declare a wait, then end the turn
     python3 listen.py topics
     python3 listen.py stop-waiting           # withdraw this session's declared wait
     python3 listen.py stop-hook              # Claude Code Stop hook; payload on stdin
@@ -19,37 +19,40 @@ kept by the printer moves past messages nobody read. The reaction is the act
 the skill asks for after reading, logged by the proxy like every other call,
 so the human and the listener agree on what is unread.
 
-`--wait` is the single-shot wait. It declares the wait in
-`$TELEGRAM_HITL_STATE_DIR/waits/<session id>`, exits 0 after the first pass
-that delivered a message and 1 when the channel is down, and withdraws the
-declaration on either: a session that was told has nothing left to wait for.
-Killed first — the monitor expired, or TaskStop — it leaves the declaration in
-place for the stop hook to read.
-
-`stop-hook` is a Claude Code `Stop` hook and acts only in an unattended
+`--wait` declares a wait in `$TELEGRAM_HITL_STATE_DIR/waits/<session id>` and
+returns at once; the session then ends its turn. It is for an unattended
 session (`CLAUDE_CODE_SESSION_ATTENDED=0`, as `claude -p` runs), where a turn
-end is a process exit unless a monitor holds it. A listener armed with no wait
-declared is blocked once, both ways out in the reason: the process would sit
-on the monitor instead of ending, and the second stop is the session's answer.
-A wait declared with no `--wait` listener armed is blocked at every stop,
-because ending again is what a model does when it has no better idea, and
-this exit would advance a loop past a human who was told to answer: the
-reason names the re-arm and `stop-waiting`, the declaration counts the nudges,
-the hook sleeps before each nudge after the first (1 s doubling to 30 s, so a
-session that never acts costs a turn every half minute rather than every
-second) and at the third tells the topic. `stop-waiting` withdraws the
-declaration: the one end of a wait the session chooses.
+end is a process exit — and where the `stop-hook` below is what holds the
+process instead. Attended, the hook is inert and the listener under `Monitor`
+is the wait, so `--wait` refuses.
+
+`stop-hook` is a Claude Code `Stop` hook, inert when attended. With a wait
+declared it does the waiting itself: it polls the log exactly as the listener
+does, and when a message for the session arrives it blocks the stop with the
+message as its reason — the model is re-invoked holding the answer, and the
+declaration goes, since the session has been told. Nothing runs while the
+human has not answered, no monitor has to be re-armed, and no cooperation
+from the model is needed to stay: the hook is the wait. Two things end a
+hold early, each as a block that keeps the declaration: a channel still down
+after `DOWN_GRACE`, and the hook's own `HOLD` — Claude Code kills a hook at
+its settings timeout and reads the kill as no decision, which would exit the
+process, so the hook returns first and the next turn end resumes it. With no
+wait declared and a listener armed, the hook blocks once, both ways out in
+the reason: the process would sit on the monitor instead of ending, and the
+second stop is the session's answer. `stop-waiting` withdraws a declaration:
+the one end of a wait the session chooses.
 """
 
-import http.client
 import json
 import os
 import pathlib
 import re
-import socket
 import sys
 import time
 from datetime import UTC, datetime
+
+HOLD = 23 * 3600        # a holding hook returns before this; settings.json allows it 24 h
+DOWN_GRACE = 600        # a channel down this long is reported, not waited on
 
 
 def records(path):
@@ -163,9 +166,10 @@ def inbound_state(records, failing_for=180.0):
     return state
 
 
-def listen(path, thread_id, poll=2.0, once=False):
+def listen(path, thread_id, poll=2.0, once=False, deadline=None):
     """Lines to print, forever — or with `once`, until a pass has delivered a
-    message or found the channel down. One line, one notification.
+    message or found the channel down, or `time.monotonic()` passes
+    `deadline`. One line, one notification.
 
     `seen` is the highest `update_id` scanned in this run — an `update_id` and
     not a message id, because the reply catchment reaches other chats and
@@ -217,9 +221,11 @@ def listen(path, thread_id, poll=2.0, once=False):
             seen = record["update"]["update_id"]
         health = inbound_state(found)
         if health != state:
-            state = health
             yield "channel " + health
-        if once and (delivered or state != "up"):
+            state = health
+        if once and (delivered or health != "up"):
+            return
+        if deadline is not None and time.monotonic() >= deadline:
             return
         time.sleep(poll)
 
@@ -283,45 +289,25 @@ def senders(records):
     return found
 
 
-def warn(state, session, thread):
-    """Tell the topic its session has stopped re-arming — a push, since the loop
-    it holds is the human's to fix now. The hold does not depend on it: a
-    failure is said on stderr and nothing more."""
-    text = (f"⚠ ▸ {session} is not re-arming its wait here: held and nudged until it "
-            f"re-arms or runs stop-waiting. Check the loop.")
-    try:
-        chat_id = int((state / "chat_id").read_text().strip())
-        connection = http.client.HTTPConnection("localhost", timeout=10)
-        connection.sock = socket.socket(socket.AF_UNIX)
-        connection.sock.settimeout(10)
-        connection.sock.connect(str(state / "proxy.sock"))
-        connection.request("POST", "/sendMessage",
-                           json.dumps({"chat_id": chat_id, "message_thread_id": int(thread),
-                                       "text": text}),
-                           {"Content-Type": "application/json", "X-Session-Id": session})
-        status = connection.getresponse().status
-    except (OSError, ValueError) as error:
-        print(f"telegram-hitl: warning not sent ({error}); the hold stands", file=sys.stderr)
-        return
-    if status != 200:
-        print(f"telegram-hitl: warning not sent (HTTP {status}); the hold stands", file=sys.stderr)
-
-
 def stop_hook(payload):
-    """Decide a Stop: nothing, or one `{"decision": "block", "reason"}` line.
+    """Decide a Stop: nothing, or one `{"decision": "block", "reason"}` line —
+    after doing the waiting, when a wait is declared.
 
     Only an unattended session, where the turn ending is the process ending
-    unless a monitor holds it. An attended session ends turns with a listener
+    unless something holds it. An attended session ends turns with a listener
     armed as a matter of course, and a machine without the channel has nothing
     to guard — both are left alone.
 
-    The listeners are read off `background_tasks`, which carries each task's
-    command as Claude Code rewrote it; `listen.py <thread>` survives the
-    wrapping, and `--wait` is what tells a declared wait's listener from one
-    armed to hear corrections while working. A forgotten listener is named
-    once (`stop_hook_active` is the second stop); a declared wait with no
-    `--wait` listener is held at every stop — Claude Code re-invokes the model
-    on each block whatever `stop_hook_active` says (measured 2026-10-01).
+    A declaration outranks everything: the hook polls the log until a message
+    for the session arrives and hands it over as the reason (declaration
+    withdrawn), reports a channel still down after `DOWN_GRACE` (declaration
+    kept), or returns just inside `HOLD` to be resumed (declaration kept).
+    Claude Code re-invokes the model on every block and honours a block
+    whatever `stop_hook_active` says, but counts consecutive blocks against
+    `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` — set in settings.json, since each block
+    here is one human answer or 23 hours. The listeners are read off
+    `background_tasks`, which carries each task's command as Claude Code
+    rewrote it; `listen.py <thread>` survives the wrapping.
     """
     if os.environ.get("CLAUDE_CODE_SESSION_ATTENDED") != "0" or "TELEGRAM_HITL_STATE_DIR" not in os.environ:
         return
@@ -330,30 +316,37 @@ def stop_hook(payload):
     armed = [task for task in payload.get("background_tasks") or []
              if task.get("status", "running") == "running"
              and re.search(r"listen\.py \d+", task.get("command") or "")]
-    waiting = [task for task in armed if "--wait" in task["command"]]
     here = pathlib.Path(__file__).resolve()
-    if declared.exists() and not waiting:
-        thread, *count = declared.read_text().split()
-        nudge = int(count[0]) + 1 if count else 1
-        declared.write_text(f"{thread}\n{nudge}\n")
-        if nudge > 1:
-            time.sleep(min(30, 2 ** (nudge - 2)))
-        if nudge == 3:
-            warn(state, payload["session_id"], thread)
-        reason = (f"telegram-hitl: this session declared a wait on topic {thread} and its "
-                  f"listener is gone (expired, or stopped); the wait holds until you act "
-                  f"(nudge {nudge}). To keep waiting, re-arm it under Monitor (timeout_ms "
-                  f"1800000): python3 {here} {thread} --wait. To stop waiting on purpose: "
-                  f"python3 {here} stop-waiting, then end.")
-    elif armed and not declared.exists():
-        if payload.get("stop_hook_active"):
-            return
+    if declared.exists():
+        thread = int(declared.read_text().split()[0])
+        started = time.monotonic()
+        while True:
+            lines = list(listen(state / "channel.jsonl", thread, once=True, deadline=started + HOLD))
+            delivered = [line for line in lines if line.startswith("message ")]
+            down = [line for line in lines if line.startswith("channel down")]
+            if delivered or not down or time.monotonic() - started >= min(DOWN_GRACE, HOLD):
+                break
+            time.sleep(30)                 # down: give the proxy its restart before reporting
+        if delivered:
+            declared.unlink()
+            reason = ("telegram-hitl: " + "\n".join(delivered) +
+                      f"\nReact 👍 to each message you read. To wait for the next one: "
+                      f"python3 {here} {thread} --wait, then end the turn.")
+        elif down:
+            reason = (f"telegram-hitl: {down[-1]} — the wait on topic {thread} holds. Fix the "
+                      f"channel, then end the turn to resume waiting; python3 {here} stop-waiting "
+                      f"gives the wait up.")
+        else:
+            reason = (f"telegram-hitl: still waiting on topic {thread}, nothing arrived in "
+                      f"{HOLD // 3600} h. End the turn to keep waiting; python3 {here} stop-waiting "
+                      f"gives the wait up.")
+    elif armed and not payload.get("stop_hook_active"):
         task = armed[0]
         thread = re.search(r"listen\.py (\d+)", task["command"]).group(1)
         reason = (f"telegram-hitl: the listener on topic {thread} (task {task['id']}) is armed "
                   f"and no wait is declared, so this session cannot end while it runs. "
-                  f"TaskStop {task['id']} to end, or arm python3 {here} {thread} --wait under "
-                  f"Monitor to stay and wait for the human.")
+                  f"TaskStop {task['id']} to end, or declare a wait — python3 {here} {thread} "
+                  f"--wait — to stay and wait for the human.")
     else:
         return
     print(json.dumps({"decision": "block", "reason": reason}))
@@ -386,22 +379,24 @@ def main(argv):
         return
     if len(argv) not in (1, 2) or argv[1:] not in ([], ["--wait"]):
         sys.exit(__doc__)
-    thread, once = int(argv[0]), argv[1:] == ["--wait"]
-    declaration = None
-    if once:
+    thread = int(argv[0])
+    if argv[1:] == ["--wait"]:
+        if os.environ.get("CLAUDE_CODE_SESSION_ATTENDED") != "0":
+            sys.exit("--wait is for an unattended session (claude -p), whose Stop hook holds the "
+                     "process; attended, arm the listener under Monitor and keep working")
         session = os.environ.get("CLAUDE_CODE_SESSION_ID")
         if not session:
             sys.exit("--wait needs CLAUDE_CODE_SESSION_ID: the declaration is keyed by the "
                      "session the stop hook will hold to it")
         declaration = log.parent / "waits" / session
         declaration.parent.mkdir(exist_ok=True)
-        declaration.write_text(str(thread))
-    last = None
-    for line in listen(log, thread, once=once):
+        declaration.write_text(f"{thread}\n")
+        print(f"wait declared on topic {thread}: end the turn; the answer arrives as Stop hook "
+              f"feedback")
+        return
+    for line in listen(log, thread):
         print(line, flush=True)        # Python buffers otherwise, and a buffered
-        last = line                    # line is a notification that never arrives
-    declaration.unlink()
-    sys.exit(1 if last.startswith("channel down") else 0)
+                                       # line is a notification that never arrives
 
 
 if __name__ == "__main__":

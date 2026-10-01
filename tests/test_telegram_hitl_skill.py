@@ -301,57 +301,31 @@ def test_the_topics_command_lists_the_forum_and_who_has_sent_in_each_topic(tmp_p
     assert out == "6\talpha\ts1 s2  +1 unattributed\n9\tbeta\ts1\n"
 
 
-def test_wait_mode_delivers_the_first_unhandled_message_and_exits(tmp_path) -> None:
-    """`--wait` is the single-shot wait: one monitor, one delivery, and the
-    completion notice says it ended well. The declaration it made for the stop
-    hook is withdrawn on the way out, because the session has been told."""
-    (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
-        {"kind": "proxy", "event": "started"},
-        {"kind": "inbound", "update": {"update_id": 40, "message": {
-            "message_id": 7, "message_thread_id": 6, "is_topic_message": True,
-            "chat": {"id": -100}, "text": "old"}}},
-    ]))
+def test_wait_mode_declares_and_returns_at_once(tmp_path) -> None:
+    """Unattended, the wait is the Stop hook's to hold: `--wait` leaves the
+    declaration it will read and returns, so the session can end its turn."""
+    (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
 
-    process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
+    process = _cli(tmp_path, "6", "--wait",
+                   env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1", CLAUDE_CODE_SESSION_ATTENDED="0"))
     out, _ = process.communicate(timeout=20)
 
     assert process.returncode == 0
-    assert out == "message 7 in chat -100: old\nchannel up\n"
-    assert not (tmp_path / "waits" / "s1").exists()
+    assert "topic 6" in out and "end the turn" in out
+    assert (tmp_path / "waits" / "s1").read_text().split() == ["6"]
 
 
-def test_wait_mode_keeps_its_declaration_until_something_is_delivered(tmp_path) -> None:
-    """Killed before delivering — the monitor expired, or a TaskStop — the
-    declaration stays, which is what lets the stop hook tell a wait whose
-    listener is gone from a wait that ended."""
+def test_wait_mode_refuses_an_attended_session(tmp_path) -> None:
+    """Attended, the hook is inert and a declaration would hold nothing; the
+    listener under Monitor is the wait there, and the refusal says so."""
     (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
-    marker = tmp_path / "waits" / "s1"
 
     process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
-    try:
-        assert process.stdout.readline() == "channel up\n"
-        assert marker.read_text() == "6"
-    finally:
-        process.terminate()
-        process.wait(timeout=10)
+    _, err = process.communicate(timeout=20)
 
-    assert marker.exists()
-
-
-def test_wait_mode_ends_on_a_dead_channel(tmp_path) -> None:
-    """Waiting on a channel that cannot deliver is the failure the design
-    exists to prevent, so the wait ends and the exit code says why."""
-    (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
-        {"kind": "proxy", "event": "started"},
-        {"kind": "proxy", "event": "stopped", "reason": "SIGTERM"},
-    ]))
-
-    process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
-    out, _ = process.communicate(timeout=20)
-
-    assert process.returncode == 1
-    assert out == "channel down: SIGTERM\n"
-    assert not (tmp_path / "waits" / "s1").exists()
+    assert process.returncode != 0
+    assert "Monitor" in err
+    assert not (tmp_path / "waits").exists()
 
 
 def test_wait_mode_refuses_to_run_without_a_session(tmp_path) -> None:
@@ -359,7 +333,7 @@ def test_wait_mode_refuses_to_run_without_a_session(tmp_path) -> None:
     the session that made it."""
     (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
 
-    process = _cli(tmp_path, "6", "--wait")
+    process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0"))
     _, err = process.communicate(timeout=20)
 
     assert process.returncode != 0
@@ -398,7 +372,6 @@ _LISTENING = {"id": "b1", "type": "shell", "status": "running", "description": "
               "command": "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; "
                          "export AGENT_TOOLS_PARENT_DIR='/x'; "
                          "python3 /root/.claude/skills/telegram-hitl/listen.py 6"}
-_WAITING = {**_LISTENING, "id": "b2", "command": _LISTENING["command"] + " --wait"}
 
 
 def _stop(tmp_path: Path, *tasks: dict, active: bool = False, **env: str) -> tuple[int, str]:
@@ -444,101 +417,80 @@ def test_the_stop_hook_blocks_an_undeclared_wait_once(tmp_path) -> None:
     assert _stop(tmp_path, _LISTENING, active=True, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
 
 
-def test_a_declared_wait_holds_until_it_is_re_armed_or_withdrawn(tmp_path) -> None:
-    """The monitor expired and nothing re-armed it: ending now exits the
-    process and advances a loop that was told to wait. Ending again is what a
-    model does when it has no better idea, so it cannot be the way out: every
-    stop is blocked, naming the re-arm and the withdrawal, and the declaration
-    counts the nudges."""
+def _hold(tmp_path: Path, namespace: dict, monkeypatch, capsys, *records: dict,
+          on_sleep=None, step: float = 2.0, tasks: list | None = None) -> tuple[str, Path]:
+    """One in-process Stop hook call on a declared wait, with the clock faked:
+    every sleep advances it by `step` seconds and runs `on_sleep`. Returns the
+    hook's stdout and the declaration path."""
+    path = tmp_path / "channel.jsonl"
+    path.write_text("".join(json.dumps(record) + "\n" for record in records))
     marker = tmp_path / "waits" / "s1"
     marker.parent.mkdir()
-    marker.write_text("6")
+    marker.write_text("6\n")
+    now = [0.0]
 
-    code, out = _stop(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0")
+    def sleep(seconds: float) -> None:
+        now[0] += step
+        if on_sleep is not None:
+            on_sleep()
 
-    assert code == 0
+    monkeypatch.setattr(namespace["time"], "sleep", sleep)
+    monkeypatch.setattr(namespace["time"], "monotonic", lambda: now[0])
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ATTENDED", "0")
+    monkeypatch.setenv("TELEGRAM_HITL_STATE_DIR", str(tmp_path))
+    namespace["stop_hook"]({"session_id": "s1", "hook_event_name": "Stop", "stop_hook_active": False,
+                            "background_tasks": tasks or []})
+    return capsys.readouterr().out, marker
+
+
+def test_the_stop_hook_holds_a_declared_wait_and_brings_the_answer(tmp_path, monkeypatch, capsys) -> None:
+    """The process is held by the hook, not by the model: nothing runs while
+    the human has not answered, and the answer arrives as the hook's reason.
+    The declaration goes with the delivery — the session has been told."""
+    namespace = _script()
+    path = tmp_path / "channel.jsonl"
+
+    def arrive() -> None:
+        with path.open("a") as handle:
+            handle.write(json.dumps({"kind": "inbound", "update": {"update_id": 40, "message": {
+                "message_id": 7, "message_thread_id": 6, "is_topic_message": True,
+                "chat": {"id": -100}, "text": "ship it"}}}) + "\n")
+
+    out, marker = _hold(tmp_path, namespace, monkeypatch, capsys,
+                        {"kind": "proxy", "event": "started"}, on_sleep=arrive)
+
     reason = _blocked(out)
-    assert "listen.py 6 --wait" in reason and "stop-waiting" in reason
-
-    code, out = _stop(tmp_path, active=True, CLAUDE_CODE_SESSION_ATTENDED="0")
-
-    assert code == 0
-    assert "listen.py 6 --wait" in _blocked(out)
-    assert marker.read_text().split() == ["6", "2"]
+    assert "message 7 in chat -100: ship it" in reason
+    assert "👍" in reason and "listen.py 6 --wait" in reason
+    assert not marker.exists()
 
 
-def _proxy(tmp_path: Path) -> list[tuple[str, dict, dict]]:
-    """A stand-in for the proxy on `proxy.sock`: records every request as
-    (path, headers, body) and answers each as Telegram would."""
-    import socketserver
-    from http.server import BaseHTTPRequestHandler
-    seen: list[tuple[str, dict, dict]] = []
+def test_the_stop_hook_reports_a_dead_channel_and_keeps_the_wait(tmp_path, monkeypatch, capsys) -> None:
+    """A channel that cannot deliver is reported, not waited on forever — after
+    a grace that outlasts a proxy restart — and the wait stays declared, so a
+    fixed channel resumes it on the next turn end."""
+    namespace = _script()
 
-    class Handler(BaseHTTPRequestHandler):
-        def do_POST(self) -> None:
-            body = self.rfile.read(int(self.headers["Content-Length"]))
-            seen.append((self.path, dict(self.headers), json.loads(body)))
-            reply = json.dumps({"ok": True, "result": {"message_id": 1}}).encode()
-            self.send_response(200)
-            self.send_header("Content-Length", str(len(reply)))
-            self.end_headers()
-            self.wfile.write(reply)
+    out, marker = _hold(tmp_path, namespace, monkeypatch, capsys,
+                        {"kind": "proxy", "event": "started"},
+                        {"kind": "proxy", "event": "stopped", "reason": "SIGTERM"}, step=60.0)
 
-        def log_message(self, *_: object) -> None:
-            pass
-
-    server = socketserver.ThreadingUnixStreamServer(str(tmp_path / "proxy.sock"), Handler)
-    import threading
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    (tmp_path / "chat_id").write_text("-100")
-    return seen
+    reason = _blocked(out)
+    assert "channel down: SIGTERM" in reason and "stop-waiting" in reason
+    assert marker.exists()
 
 
-def test_the_third_nudge_warns_the_topic_and_keeps_holding(tmp_path) -> None:
-    """Two nudges ignored is a session that will not re-arm by itself: the
-    human is told in the topic — a push, since the loop is now theirs to fix —
-    and the hold goes on."""
-    seen = _proxy(tmp_path)
-    marker = tmp_path / "waits" / "s1"
-    marker.parent.mkdir()
-    marker.write_text("6\n2\n")
+def test_the_stop_hook_renews_its_hold_before_its_own_deadline(tmp_path, monkeypatch, capsys) -> None:
+    """Claude Code kills a hook at its settings timeout and reads that as no
+    decision — an exit. The hook returns first, with a reason that keeps the
+    wait, and the next turn end resumes it."""
+    namespace = _script()
 
-    code, out = _stop(tmp_path, active=True, CLAUDE_CODE_SESSION_ATTENDED="0")
+    out, marker = _hold(tmp_path, namespace, monkeypatch, capsys,
+                        {"kind": "proxy", "event": "started"}, step=3600.0)
 
-    assert code == 0
-    assert "listen.py 6 --wait" in _blocked(out)
-    assert marker.read_text().split() == ["6", "3"]
-    assert [(path, headers["X-Session-Id"], body["message_thread_id"]) for path, headers, body in seen] \
-        == [("/sendMessage", "s1", 6)]
-    assert "s1" in seen[0][2]["text"]
-
-
-def test_a_warning_that_cannot_be_sent_does_not_break_the_hold(tmp_path) -> None:
-    """No proxy, no chat id: the warning is the hold's courtesy, not its
-    condition. It says so on stderr and blocks all the same."""
-    marker = tmp_path / "waits" / "s1"
-    marker.parent.mkdir()
-    marker.write_text("6\n2\n")
-    payload = {"session_id": "s1", "hook_event_name": "Stop", "stop_hook_active": True,
-               "background_tasks": []}
-
-    process = _cli(tmp_path, "stop-hook", stdin=True,
-                   env=_env(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0"))
-    out, err = process.communicate(json.dumps(payload), timeout=20)
-
-    assert process.returncode == 0
-    assert "listen.py 6 --wait" in _blocked(out)
-    assert "not sent" in err
-
-
-def test_the_stop_hook_lets_a_declared_wait_with_its_listener_armed_end_the_turn(tmp_path) -> None:
-    """The deliberate wait: the turn ends, the monitor holds the process, and
-    the declaration stays for the expiry the hook may yet have to catch."""
-    marker = tmp_path / "waits" / "s1"
-    marker.parent.mkdir()
-    marker.write_text("6")
-
-    assert _stop(tmp_path, _WAITING, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
+    reason = _blocked(out)
+    assert "still waiting" in reason and "topic 6" in reason
     assert marker.exists()
 
 
@@ -549,7 +501,10 @@ def test_the_stop_hook_is_wired_in_settings() -> None:
     hooks = [hook for group in settings["hooks"]["Stop"] for hook in group["hooks"]
              if hook["command"].endswith("telegram-hitl/listen.py stop-hook")]
     assert len(hooks) == 1
-    assert hooks[0]["timeout"] >= 45       # the hold sleeps up to 30 s before a nudge, then sends
+    assert hooks[0]["timeout"] > _script()["HOLD"]    # the hook returns before Claude Code kills it
+    # every answer the hook brings is one consecutive block; the default cap of 8 would
+    # end a -p session at its ninth, silently (2.1.269, `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? 8`)
+    assert int(settings["env"]["CLAUDE_CODE_STOP_HOOK_BLOCK_CAP"]) >= 1000
 
 
 def test_the_skill_names_the_session_variable_that_exists() -> None:

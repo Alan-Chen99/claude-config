@@ -65,12 +65,12 @@ Monitor(command="python3 <skill dir>/listen.py 61",
 
 Arm it as you create the topic. Monitors expire (30 min; 10 under `-p`):
 re-arm first thing in each expiry turn until you say you stop, then `TaskStop`
-it. Waiting is ending the turn; under `-p` only a Monitor holds the process. `channel down` is past the blip the script forgives: fix the channel.
+it. `channel down` is past the blip the script forgives: fix the channel.
 
-To wait with nothing else pending, arm `listen.py 61 --wait`: one delivery,
-then exit (1 on `channel down`); stop it on purpose with `TaskStop` and
-`listen.py stop-waiting`. Unattended, a Stop hook holds you to both rules; do
-what its reason says.
+Under `claude -p`, waiting is ending the turn: run `listen.py 61 --wait`,
+end, and the Stop hook holds the process and brings the answer as its feedback
+(then `--wait` again for the next); `listen.py stop-waiting` withdraws. A
+listener left armed at a turn end is named once; do what the hook says.
 
 ## Traps
 
