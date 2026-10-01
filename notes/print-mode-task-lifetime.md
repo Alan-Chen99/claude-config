@@ -50,12 +50,11 @@ It fired once per turn (three times in the monitor run). Payload keys: `session_
 
 Environment: `CLAUDE_CODE_SESSION_ATTENDED=0` and `CLAUDE_CODE_ENTRYPOINT=sdk-cli`,
 against `1` and `cli` in an interactive session. A fourth run under `script -qec`
-(a PTY, as ralph provides one) reported the same `0` / `sdk-cli`: the values follow
-`-p`, not the terminal.
+(a PTY, as ralph provides) reported the same: the values follow `-p`, not the terminal.
 
 A hook printing `{"decision": "block", "reason": "…"}` re-invoked the model with a
 user message `Stop hook feedback:\n<reason>`; the next stop's payload carried
-`stop_hook_active: true`. Exit 0, stdout JSON — no exit-2 path was needed.
+`stop_hook_active: true`.
 
 ## Monitor under `-p`: ten minutes, not thirty
 
@@ -97,7 +96,9 @@ maximum (`src/chunk-3vd4nzwp.js:3135`; `Stop` defaults to 120 s,
 (`src/chunk-4qwmcbkw.js:171-184`, `:307`), so `settings.json` gives it 24 h and the hook
 returns inside 23 to be resumed. Each answer is one consecutive block, so `settings.json`
 raises the cap to 1000. Measured: a `-p` session that ran `--wait` and ended was held by
-its hook child from 18:38 with no turn spent.
+its hook child for nine minutes with no turn spent; the human's reply, logged at
+18:47:20, came back as the block reason, the model answered it and the process exited 0
+at 18:47:23 with the declaration withdrawn.
 
 ## What killed the probe: the memory-pressure reaper
 
@@ -116,5 +117,4 @@ loop is idle and no agent task is active. The re-run was detached with
 a `-p` process; its `stop-hook` reads `background_tasks[].command` for `listen.py`
 acts only when `CLAUDE_CODE_SESSION_ATTENDED=0`, names a forgotten listener
 once and, with a wait declared, is the wait. `skills/telegram-hitl/README.md`
-has the resulting matrix; `docs/subagent-backgrounding.md` carries the one-table
-summary.
+has the matrix; `docs/subagent-backgrounding.md` the one-table summary.
