@@ -65,11 +65,10 @@ Monitor(command="python3 <skill dir>/listen.py 61",
         description="topic 61", timeout_ms=1800000)
 ```
 
-Arm it as you create the topic. Thirty minutes is the cap, so re-arm first
-thing in each expiry turn until you say you stop; then `TaskStop` it.
-Waiting is ending the turn: a background Bash task dies with it under
-`claude -p`; only a Monitor holds the process. `channel down` is past the blip
-the script forgives: fix the channel.
+Arm it as you create the topic. Monitors expire (30 min; 10 under `-p`):
+re-arm first thing in each expiry turn until you say you stop, then `TaskStop`
+it. Waiting is ending the turn; under `claude -p` only a Monitor holds the
+process. `channel down` is past the blip the script forgives: fix the channel.
 
 To wait with nothing else pending, arm `listen.py 61 --wait`: one delivery,
 then exit (1 on `channel down`). Unattended, a Stop hook enforces both rules;

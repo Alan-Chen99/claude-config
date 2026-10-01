@@ -62,6 +62,41 @@ A hook printing `{"decision": "block", "reason": "…"}` re-invoked the model wi
 user message `Stop hook feedback:\n<reason>`; the next stop's payload carried
 `stop_hook_active: true`. Exit 0, stdout JSON — no exit-2 path was needed.
 
+## Monitor under `-p`: ten minutes, not thirty
+
+Measured in the deliberate-wait run (same flags, a `--settings` Stop hook, a prompt arming
+`listen.py 66 --wait` with `timeout_ms: 1800000`): three monitors expired at 17:11:12,
+17:21:17 and 17:31:20 EDT — 600 s after each arm — each delivering `[Monitor expired
+after 10m with 1 event delivered. Re-arm it if you still need the watch.]`. The
+interactive session's listener, armed the same way, ran past eleven minutes. In the
+decompile, `nmr()` returns `Math.min(timeout_ms, Uye())` under the flag
+`tengu_breezy_crescent`, and `Uye()` is 600000 when `Ave()` —
+`launchOptions.singleShotPrintSession()` — and 1800000 otherwise
+(`src/chunk-r2x48y8w.js:18-46`, `src/chunk-g85a3dc1.js:4414`); the deadline is the
+monitor's lifetime, not an idle timer. The tool's own `timeout_ms` description moves with
+it: "Deadlines above 600000ms are capped to 600000ms" (`src/chunk-ffj047jw.js:397`). The
+flag is server-resolved, so the measurement, not the build, is the evidence.
+
+The same run exercised the guard: the first expiry's turn ended without a re-arm and the
+Stop hook blocked once (`this session declared a wait on topic 66 and its listener is
+gone`); the model re-armed, and at the next two expiries re-armed inside the expiry turn.
+Each re-arm's `channel up` turn ended with a declared wait and a `--wait` listener armed —
+allowed.
+
+## What killed the probe: the memory-pressure reaper
+
+The run was a background Bash task of an interactive session and was killed at 30 m 39 s
+(exit 143) with `stopped because the system is running low on memory`. `R0r`
+(`src/chunk-dbb93264.js:213002-213012`) registers a `memoryPressure` listener for every
+background shell of an interactive session (`!ke()`, unless
+`CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP` is set) that kills the task when it is still
+running and unreported, the user's last interaction (`nm()`,
+`userPresence.lastInteractionTime()`) is 30 minutes old (`XWs`), the main loop is idle
+and no agent task is active (`xM`). The host had 14 of 20 GB of swap in use. The re-run
+was detached with `agent-tools run --background`, which the task registry never sees. The
+`waits/<session id>` declaration the killed `-p` session left behind was removed by hand;
+the README's state table names the case.
+
 ## What this settled
 
 `skills/telegram-hitl/listen.py --wait` runs under `Monitor` because nothing else holds

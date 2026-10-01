@@ -94,7 +94,7 @@ the turn ending is the process ending, with one exception:
 | Running at turn end | `-p` does |
 | --- | --- |
 | Bash `run_in_background` | kills it (`task_updated status: killed`) and exits |
-| `Monitor` | stays up: each event and the completion re-invoke the model — one `result` per turn on `stream-json`, one object at exit on `json` — and the process exits after the turn that follows the monitor's end, or its 30-minute expiry if nothing re-arms it |
+| `Monitor` | stays up: each event and the completion re-invoke the model — one `result` per turn on `stream-json`, one object at exit on `json` — and the process exits after the turn that follows the monitor's end, or its expiry if nothing re-arms it — `timeout_ms` is clamped to 10 minutes under `-p`, 30 interactive (`notes/print-mode-task-lifetime.md`, which also records the interactive side's memory-pressure reaper) |
 
 A `Stop` hook sees the running tasks (`background_tasks[]`, each with its `command`) and,
 unattended (`CLAUDE_CODE_SESSION_ATTENDED=0`), can block the turn end once with

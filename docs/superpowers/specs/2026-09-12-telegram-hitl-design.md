@@ -448,7 +448,7 @@ lost, so they are enumerated here as the skill's scope:
 - Reading a file that is being appended to needs care in Python, which yields
   partial final lines where a shell `read` loop does not.
 - Printed is not received, and only a `Monitor` holds a `claude -p` process,
-  thirty minutes at a time.
+  ten minutes at a time.
 
 ## Deliberately excluded
 

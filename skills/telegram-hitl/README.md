@@ -36,13 +36,14 @@ A loop driver that starts one `claude -p` per iteration (ralph:
 `/workspace/ralph/build.yml`) sees an iteration end exactly when the process
 exits, so the first block is what keeps an iteration from hanging on a
 forgotten listener and the second is what keeps it from advancing past a human
-who was asked to answer. The driver's inactivity timeout must exceed the wait.
+who was asked to answer. The driver's inactivity timeout must exceed the wait,
+which under `-p` costs one re-arm turn every ten minutes.
 
 ## State in `$TELEGRAM_HITL_STATE_DIR`
 
 | Path | Written by | Meaning |
 | --- | --- | --- |
-| `waits/<session id>` | `listen.py --wait` at start; removed when it exits on its own, or by the stop hook on the second stop | The session declared a wait on the topic named inside. Survives a SIGTERM (expiry, `TaskStop`) on purpose. |
+| `waits/<session id>` | `listen.py --wait` at start; removed when it exits on its own, or by the stop hook on the second stop | The session declared a wait on the topic named inside. Survives a SIGTERM (expiry, `TaskStop`) on purpose; a process killed outright (driver timeout, a reaper) leaves it behind, and only that session's own stop hook reads it — inert for every other session, and a resume of that session is told once to re-arm. |
 
 Everything else there belongs to the proxy (`src/claude_config/CLAUDE.md`).
 
@@ -57,8 +58,12 @@ scripts' shape are in `notes/print-mode-task-lifetime.md`.
   re-invoke the model, and the process exits after the turn that follows the
   monitor's end. `--output-format json` prints one result at exit;
   `stream-json` prints one per turn.
-- Every monitor expires at 30 minutes (`timeout_ms` cap). An expiry nobody
-  re-arms exits a `-p` process.
+- Every monitor expires: `timeout_ms` is clamped to 30 minutes, and to **10
+  minutes under `-p`** — `Math.min(timeout_ms, 600000)` when the session is a
+  single-shot print session, behind the server-resolved flag
+  `tengu_breezy_crescent` (`src/chunk-r2x48y8w.js:22-46`); measured as three
+  expiries 600 s apart, lifetime not idle. An expiry nobody re-arms exits a
+  `-p` process, so an unattended wait costs one re-arm turn per ten minutes.
 - The `Stop` payload carries `background_tasks[]` (`id`, `status`,
   `description`, `command`), `stop_hook_active`, `last_assistant_message`,
   `session_id`; the hook's environment has `CLAUDE_CODE_SESSION_ATTENDED=0`
