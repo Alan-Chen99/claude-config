@@ -4,6 +4,7 @@ list the forum's topics, or guard a session's stop.
     python3 listen.py <thread_id>            # under Monitor: every message for you
     python3 listen.py <thread_id> --wait     # under Monitor: the first delivery, then exit
     python3 listen.py topics
+    python3 listen.py stop-waiting           # withdraw this session's declared wait
     python3 listen.py stop-hook              # Claude Code Stop hook; payload on stdin
 
 The listener prints `message <id> in chat <chat>[, reply to <your id>]: <text>`
@@ -27,18 +28,25 @@ place for the stop hook to read.
 
 `stop-hook` is a Claude Code `Stop` hook and acts only in an unattended
 session (`CLAUDE_CODE_SESSION_ATTENDED=0`, as `claude -p` runs), where a turn
-end is a process exit unless a monitor holds it. It blocks the stop once, with
-the way out in its reason, when a listener is armed and no wait is declared
-(the process would sit on the monitor instead of ending) or a wait is declared
-and its `--wait` listener is gone (the process would exit past a human who was
-told to answer). On the second stop (`stop_hook_active`) it lets the session
-go and drops a declaration no listener serves.
+end is a process exit unless a monitor holds it. A listener armed with no wait
+declared is blocked once, both ways out in the reason: the process would sit
+on the monitor instead of ending, and the second stop is the session's answer.
+A wait declared with no `--wait` listener armed is blocked at every stop,
+because ending again is what a model does when it has no better idea, and
+this exit would advance a loop past a human who was told to answer: the
+reason names the re-arm and `stop-waiting`, the declaration counts the nudges,
+the hook sleeps before each nudge after the first (1 s doubling to 30 s, so a
+session that never acts costs a turn every half minute rather than every
+second) and at the third tells the topic. `stop-waiting` withdraws the
+declaration: the one end of a wait the session chooses.
 """
 
+import http.client
 import json
 import os
 import pathlib
 import re
+import socket
 import sys
 import time
 from datetime import UTC, datetime
@@ -275,40 +283,71 @@ def senders(records):
     return found
 
 
+def warn(state, session, thread):
+    """Tell the topic its session has stopped re-arming — a push, since the loop
+    it holds is the human's to fix now. The hold does not depend on it: a
+    failure is said on stderr and nothing more."""
+    text = (f"⚠ ▸ {session} is not re-arming its wait here: held and nudged until it "
+            f"re-arms or runs stop-waiting. Check the loop.")
+    try:
+        chat_id = int((state / "chat_id").read_text().strip())
+        connection = http.client.HTTPConnection("localhost", timeout=10)
+        connection.sock = socket.socket(socket.AF_UNIX)
+        connection.sock.settimeout(10)
+        connection.sock.connect(str(state / "proxy.sock"))
+        connection.request("POST", "/sendMessage",
+                           json.dumps({"chat_id": chat_id, "message_thread_id": int(thread),
+                                       "text": text}),
+                           {"Content-Type": "application/json", "X-Session-Id": session})
+        status = connection.getresponse().status
+    except (OSError, ValueError) as error:
+        print(f"telegram-hitl: warning not sent ({error}); the hold stands", file=sys.stderr)
+        return
+    if status != 200:
+        print(f"telegram-hitl: warning not sent (HTTP {status}); the hold stands", file=sys.stderr)
+
+
 def stop_hook(payload):
     """Decide a Stop: nothing, or one `{"decision": "block", "reason"}` line.
 
     Only an unattended session, where the turn ending is the process ending
     unless a monitor holds it. An attended session ends turns with a listener
     armed as a matter of course, and a machine without the channel has nothing
-    to guard — both are left alone, as is a session the hook already told once
-    (`stop_hook_active`): the second stop is its answer, and a declaration no
-    listener serves goes with it.
+    to guard — both are left alone.
 
     The listeners are read off `background_tasks`, which carries each task's
     command as Claude Code rewrote it; `listen.py <thread>` survives the
     wrapping, and `--wait` is what tells a declared wait's listener from one
-    armed to hear corrections while working.
+    armed to hear corrections while working. A forgotten listener is named
+    once (`stop_hook_active` is the second stop); a declared wait with no
+    `--wait` listener is held at every stop — Claude Code re-invokes the model
+    on each block whatever `stop_hook_active` says (measured 2026-10-01).
     """
     if os.environ.get("CLAUDE_CODE_SESSION_ATTENDED") != "0" or "TELEGRAM_HITL_STATE_DIR" not in os.environ:
         return
-    declared = pathlib.Path(os.environ["TELEGRAM_HITL_STATE_DIR"]) / "waits" / payload["session_id"]
+    state = pathlib.Path(os.environ["TELEGRAM_HITL_STATE_DIR"])
+    declared = state / "waits" / payload["session_id"]
     armed = [task for task in payload.get("background_tasks") or []
              if task.get("status", "running") == "running"
              and re.search(r"listen\.py \d+", task.get("command") or "")]
     waiting = [task for task in armed if "--wait" in task["command"]]
-    if payload.get("stop_hook_active"):
-        if not waiting and declared.exists():
-            declared.unlink()
-        return
     here = pathlib.Path(__file__).resolve()
     if declared.exists() and not waiting:
-        thread = declared.read_text().strip()
+        thread, *count = declared.read_text().split()
+        nudge = int(count[0]) + 1 if count else 1
+        declared.write_text(f"{thread}\n{nudge}\n")
+        if nudge > 1:
+            time.sleep(min(30, 2 ** (nudge - 2)))
+        if nudge == 3:
+            warn(state, payload["session_id"], thread)
         reason = (f"telegram-hitl: this session declared a wait on topic {thread} and its "
-                  f"listener is gone (expired, or stopped). To keep waiting, re-arm it under "
-                  f"Monitor (timeout_ms 1800000): python3 {here} {thread} --wait. To stop "
-                  f"waiting, end again.")
+                  f"listener is gone (expired, or stopped); the wait holds until you act "
+                  f"(nudge {nudge}). To keep waiting, re-arm it under Monitor (timeout_ms "
+                  f"1800000): python3 {here} {thread} --wait. To stop waiting on purpose: "
+                  f"python3 {here} stop-waiting, then end.")
     elif armed and not declared.exists():
+        if payload.get("stop_hook_active"):
+            return
         task = armed[0]
         thread = re.search(r"listen\.py (\d+)", task["command"]).group(1)
         reason = (f"telegram-hitl: the listener on topic {thread} (task {task['id']}) is armed "
@@ -332,6 +371,18 @@ def main(argv):
             who = been.get(thread, {"sessions": [], "unattributed": 0})
             tail = f"  +{who['unattributed']} unattributed" if who["unattributed"] else ""
             print(f"{thread}\t{name}\t{' '.join(who['sessions'])}{tail}")
+        return
+    if argv == ["stop-waiting"]:
+        session = os.environ.get("CLAUDE_CODE_SESSION_ID")
+        if not session:
+            sys.exit("stop-waiting needs CLAUDE_CODE_SESSION_ID: the declaration is keyed by it")
+        declaration = log.parent / "waits" / session
+        if not declaration.exists():
+            print("no wait declared")
+            return
+        thread = declaration.read_text().split()[0]
+        declaration.unlink()
+        print(f"wait on topic {thread} withdrawn")
         return
     if len(argv) not in (1, 2) or argv[1:] not in ([], ["--wait"]):
         sys.exit(__doc__)

@@ -32,9 +32,8 @@ curl -s --unix-socket "$STATE/proxy.sock" http://localhost/sendMessage \
 
 `X-Session-Id` on every call, the id whole — the log's only record of who
 called. No client shows message ids: never cite one in `text`; reply —
-`"reply_parameters": {"message_id": 64, "quote": "<exact substring>"}` (ids:
-listener lines, send responses; inexact → `QUOTE_TEXT_INVALID`). One open
-question per message.
+`"reply_parameters": {"message_id": 64, "quote": "<exact substring>"}`
+(inexact → `QUOTE_TEXT_INVALID`). One open question per message.
 
 Refused: `403` `getUpdates`/`setWebhook`/`deleteWebhook`, `400` non-alphanumeric
 method, `411` chunked body, `502` Telegram unreachable; nothing is retried.
@@ -43,8 +42,7 @@ method, `411` chunked body, `502` Telegram unreachable; nothing is retried.
 
 `message_thread_id` addresses a forum topic. **Make your own, named for the
 work, at its first real question** (`createForumTopic` `{"chat_id", "name"}` →
-`result.message_thread_id`) **and read it whole**: everything typed there is for
-you. Two sessions in one topic take each other's answers — join one only to
+`result.message_thread_id`) **and read it whole**. Two sessions in one topic take each other's answers — join one only to
 continue its work, then act only on replies to you. `listen.py topics` lists
 them and their senders.
 
@@ -67,12 +65,12 @@ Monitor(command="python3 <skill dir>/listen.py 61",
 
 Arm it as you create the topic. Monitors expire (30 min; 10 under `-p`):
 re-arm first thing in each expiry turn until you say you stop, then `TaskStop`
-it. Waiting is ending the turn; under `claude -p` only a Monitor holds the
-process. `channel down` is past the blip the script forgives: fix the channel.
+it. Waiting is ending the turn; under `-p` only a Monitor holds the process. `channel down` is past the blip the script forgives: fix the channel.
 
 To wait with nothing else pending, arm `listen.py 61 --wait`: one delivery,
-then exit (1 on `channel down`). Unattended, a Stop hook enforces both rules;
-do what its reason says.
+then exit (1 on `channel down`); stop it on purpose with `TaskStop` and
+`listen.py stop-waiting`. Unattended, a Stop hook holds you to both rules; do
+what its reason says.
 
 ## Traps
 

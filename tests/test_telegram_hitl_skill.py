@@ -367,6 +367,33 @@ def test_wait_mode_refuses_to_run_without_a_session(tmp_path) -> None:
     assert not (tmp_path / "waits").exists()
 
 
+def test_stop_waiting_withdraws_the_declaration(tmp_path) -> None:
+    """Stopping a declared wait on purpose is an act, not an absence: the
+    declaration goes when the session says so, and only then."""
+    marker = tmp_path / "waits" / "s1"
+    marker.parent.mkdir()
+    marker.write_text("6\n2\n")
+
+    process = _cli(tmp_path, "stop-waiting", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
+    out, _ = process.communicate(timeout=20)
+
+    assert process.returncode == 0
+    assert "6" in out
+    assert not marker.exists()
+
+    process = _cli(tmp_path, "stop-waiting", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
+    out, _ = process.communicate(timeout=20)
+
+    assert process.returncode == 0
+    assert "no wait" in out
+
+    process = _cli(tmp_path, "stop-waiting")
+    _, err = process.communicate(timeout=20)
+
+    assert process.returncode != 0
+    assert "CLAUDE_CODE_SESSION_ID" in err
+
+
 _LISTENING = {"id": "b1", "type": "shell", "status": "running", "description": "topic 6",
               "command": "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; "
                          "export AGENT_TOOLS_PARENT_DIR='/x'; "
@@ -417,10 +444,12 @@ def test_the_stop_hook_blocks_an_undeclared_wait_once(tmp_path) -> None:
     assert _stop(tmp_path, _LISTENING, active=True, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
 
 
-def test_the_stop_hook_blocks_a_declared_wait_whose_listener_is_gone(tmp_path) -> None:
+def test_a_declared_wait_holds_until_it_is_re_armed_or_withdrawn(tmp_path) -> None:
     """The monitor expired and nothing re-armed it: ending now exits the
-    process and advances a loop that was told to wait. The second stop ends
-    the wait, and the stale declaration with it."""
+    process and advances a loop that was told to wait. Ending again is what a
+    model does when it has no better idea, so it cannot be the way out: every
+    stop is blocked, naming the re-arm and the withdrawal, and the declaration
+    counts the nudges."""
     marker = tmp_path / "waits" / "s1"
     marker.parent.mkdir()
     marker.write_text("6")
@@ -428,10 +457,78 @@ def test_the_stop_hook_blocks_a_declared_wait_whose_listener_is_gone(tmp_path) -
     code, out = _stop(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0")
 
     assert code == 0
-    assert "listen.py 6 --wait" in _blocked(out)
+    reason = _blocked(out)
+    assert "listen.py 6 --wait" in reason and "stop-waiting" in reason
 
-    assert _stop(tmp_path, active=True, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
-    assert not marker.exists()
+    code, out = _stop(tmp_path, active=True, CLAUDE_CODE_SESSION_ATTENDED="0")
+
+    assert code == 0
+    assert "listen.py 6 --wait" in _blocked(out)
+    assert marker.read_text().split() == ["6", "2"]
+
+
+def _proxy(tmp_path: Path) -> list[tuple[str, dict, dict]]:
+    """A stand-in for the proxy on `proxy.sock`: records every request as
+    (path, headers, body) and answers each as Telegram would."""
+    import socketserver
+    from http.server import BaseHTTPRequestHandler
+    seen: list[tuple[str, dict, dict]] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            body = self.rfile.read(int(self.headers["Content-Length"]))
+            seen.append((self.path, dict(self.headers), json.loads(body)))
+            reply = json.dumps({"ok": True, "result": {"message_id": 1}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(reply)))
+            self.end_headers()
+            self.wfile.write(reply)
+
+        def log_message(self, *_: object) -> None:
+            pass
+
+    server = socketserver.ThreadingUnixStreamServer(str(tmp_path / "proxy.sock"), Handler)
+    import threading
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    (tmp_path / "chat_id").write_text("-100")
+    return seen
+
+
+def test_the_third_nudge_warns_the_topic_and_keeps_holding(tmp_path) -> None:
+    """Two nudges ignored is a session that will not re-arm by itself: the
+    human is told in the topic — a push, since the loop is now theirs to fix —
+    and the hold goes on."""
+    seen = _proxy(tmp_path)
+    marker = tmp_path / "waits" / "s1"
+    marker.parent.mkdir()
+    marker.write_text("6\n2\n")
+
+    code, out = _stop(tmp_path, active=True, CLAUDE_CODE_SESSION_ATTENDED="0")
+
+    assert code == 0
+    assert "listen.py 6 --wait" in _blocked(out)
+    assert marker.read_text().split() == ["6", "3"]
+    assert [(path, headers["X-Session-Id"], body["message_thread_id"]) for path, headers, body in seen] \
+        == [("/sendMessage", "s1", 6)]
+    assert "s1" in seen[0][2]["text"]
+
+
+def test_a_warning_that_cannot_be_sent_does_not_break_the_hold(tmp_path) -> None:
+    """No proxy, no chat id: the warning is the hold's courtesy, not its
+    condition. It says so on stderr and blocks all the same."""
+    marker = tmp_path / "waits" / "s1"
+    marker.parent.mkdir()
+    marker.write_text("6\n2\n")
+    payload = {"session_id": "s1", "hook_event_name": "Stop", "stop_hook_active": True,
+               "background_tasks": []}
+
+    process = _cli(tmp_path, "stop-hook", stdin=True,
+                   env=_env(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0"))
+    out, err = process.communicate(json.dumps(payload), timeout=20)
+
+    assert process.returncode == 0
+    assert "listen.py 6 --wait" in _blocked(out)
+    assert "not sent" in err
 
 
 def test_the_stop_hook_lets_a_declared_wait_with_its_listener_armed_end_the_turn(tmp_path) -> None:
@@ -449,8 +546,10 @@ def test_the_stop_hook_is_wired_in_settings() -> None:
     """A hook that is not registered guards nothing; the registration is the
     only link between the script and the stop it is meant to see."""
     settings = json.loads((SKILL_DIR.parents[1] / "settings.json").read_text())
-    commands = [hook["command"] for group in settings["hooks"]["Stop"] for hook in group["hooks"]]
-    assert any(command.endswith("telegram-hitl/listen.py stop-hook") for command in commands)
+    hooks = [hook for group in settings["hooks"]["Stop"] for hook in group["hooks"]
+             if hook["command"].endswith("telegram-hitl/listen.py stop-hook")]
+    assert len(hooks) == 1
+    assert hooks[0]["timeout"] >= 45       # the hold sleeps up to 30 s before a nudge, then sends
 
 
 def test_the_skill_names_the_session_variable_that_exists() -> None:
@@ -545,6 +644,7 @@ def test_the_skill_names_the_wait_mode() -> None:
     the human; a skill that does not name it leaves the chain of monitors as
     the only thing to copy."""
     assert "--wait" in SKILL.read_text()
+    assert "stop-waiting" in SKILL.read_text()
 
 
 def test_the_skill_disarms_the_listener_it_arms() -> None:

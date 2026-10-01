@@ -77,11 +77,22 @@ monitor's lifetime, not an idle timer. The tool's own `timeout_ms` description m
 it: "Deadlines above 600000ms are capped to 600000ms" (`src/chunk-ffj047jw.js:397`). The
 flag is server-resolved, so the measurement, not the build, is the evidence.
 
-The same run exercised the guard: the first expiry's turn ended without a re-arm and the
-Stop hook blocked once (`this session declared a wait on topic 66 and its listener is
-gone`); the model re-armed, and at the next two expiries re-armed inside the expiry turn.
-Each re-arm's `channel up` turn ended with a declared wait and a `--wait` listener armed —
-allowed.
+## Ending again is not a decision
+
+The guard first blocked a declared-wait stop once and let the second stop through as
+the session's answer. Two runs of the same prompt: in the first, the model re-armed
+after the block; in the second (18:53 EDT), it replied "The monitor has expired after
+10 minutes. Waiting for your instructions on whether to re-arm it or proceed", ended
+again, and the process exited 0 — the accidental advance the guard existed to prevent,
+reached through the guard's own way out. The prompt's "never call any other tool"
+leaned on it, but the shape is general: ending the turn is what a model does by
+default, so it cannot carry the meaning "stop waiting". A probe with a hook that
+blocked three times in a row (`probe-p/reblock.py`) showed Claude Code re-invoking
+the model on every block — four stops, four turns, `stop_hook_active: true` from the
+second on — so a hold can last as long as the hook chooses. The hook now holds a
+declared wait at every stop, sleeps before each nudge after the first (1 s doubling to
+30 s) and warns the topic at the third; `listen.py stop-waiting` is the only end a
+session chooses.
 
 ## What killed the probe: the memory-pressure reaper
 
@@ -101,7 +112,7 @@ the README's state table names the case.
 
 `skills/telegram-hitl/listen.py --wait` runs under `Monitor` because nothing else holds
 a `-p` process; its `stop-hook` reads `background_tasks[].command` for `listen.py`
-and `--wait`, acts only when `CLAUDE_CODE_SESSION_ATTENDED=0`, and blocks at most once
-per stop (the `stop_hook_active` stop always passes). `skills/telegram-hitl/README.md`
+and `--wait`, acts only when `CLAUDE_CODE_SESSION_ATTENDED=0`, names a forgotten
+listener once and holds a declared wait at every stop. `skills/telegram-hitl/README.md`
 has the resulting matrix; `docs/subagent-backgrounding.md` carries the one-table
 summary.

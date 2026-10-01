@@ -97,6 +97,8 @@ the turn ending is the process ending, with one exception:
 | `Monitor` | stays up: each event and the completion re-invoke the model — one `result` per turn on `stream-json`, one object at exit on `json` — and the process exits after the turn that follows the monitor's end, or its expiry if nothing re-arms it — `timeout_ms` is clamped to 10 minutes under `-p`, 30 interactive (`notes/print-mode-task-lifetime.md`, which also records the interactive side's memory-pressure reaper) |
 
 A `Stop` hook sees the running tasks (`background_tasks[]`, each with its `command`) and,
-unattended (`CLAUDE_CODE_SESSION_ATTENDED=0`), can block the turn end once with
-`{"decision": "block", "reason": …}`; `skills/telegram-hitl/listen.py stop-hook` uses both
+unattended (`CLAUDE_CODE_SESSION_ATTENDED=0`), can block the turn end with
+`{"decision": "block", "reason": …}` — at every stop if it chooses; `stop_hook_active` only
+reports that it already did (2.1.269: four stops, three blocks, four turns).
+`skills/telegram-hitl/listen.py stop-hook` uses both
 to hold a waiting iteration and to stop a forgotten listener from holding one.

@@ -169,7 +169,7 @@
           {
             "type": "command",
             "command": "python3 ~/.claude/skills/telegram-hitl/listen.py stop-hook",
-            "timeout": 5
+            "timeout": 60
           }
         ]
       }

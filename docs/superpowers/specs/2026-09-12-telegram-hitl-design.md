@@ -216,20 +216,18 @@ keeping such calls out of the drain rather than merely wrapping them in a
 
 Reactability is type-specific and unpredictable: `new_chat_members` accepted a
 reaction while both migration service messages returned `MESSAGE_ID_INVALID`.
-Agent scripts that react will meet this, and should — a script crashing on it is
-loud, local, and harms nothing else.
+Agent scripts that react will meet this; crashing on it is loud, local and
+harmless.
 
 ### Reading and waiting
 
-Reading is at-least-once, and the acknowledgement is the reaction. The listener
-(`skills/telegram-hitl/listen.py`) announces every message in the session's
+Reading is at-least-once, and the acknowledgement is the reaction. The listener announces every message in the session's
 topic, or replying to one of its sends, that no logged `setMessageReaction`
 names — at every arm, until one does. The printer's own position is never the
 acknowledgement, because printed is not received: the harness batches and
 truncates lines, suppresses bursts, and a notification is lost to compaction
 or to a session that ended. The reaction is an act the agent already owes
-after reading, logged like every call, so the human and the listener agree on
-what is unread; re-arms, resumed sessions and a loop's next iteration carry no
+after reading, so the human and the listener agree on what is unread; re-arms, resumed sessions and a loop's next iteration carry no
 state.
 
 Both modes run under `Monitor`, the one harness task that holds a `claude -p`
@@ -237,10 +235,11 @@ process past its turn (a background Bash task is killed with it —
 `notes/print-mode-task-lifetime.md`): the open-ended listener, armed at topic
 creation to hear corrections, and `--wait`, which exits on the first delivery
 (1 on `channel down`) and declares the wait in `waits/<session id>`. A `Stop`
-hook, unattended sessions only, blocks the turn end once when a listener is
-armed with no wait declared or a declared wait's listener is gone — the process
-would otherwise sit on the monitor, or exit past the human. Matrix:
-`skills/telegram-hitl/README.md`.
+hook, unattended sessions only, blocks the turn end when a listener is armed
+with no wait declared (once: the process would sit on the monitor) or a
+declared wait's listener is gone (every stop: the exit would advance a loop
+past the human, and ending again is a default, not a decision — `stop-waiting`
+is). Matrix: `skills/telegram-hitl/README.md`.
 
 **Why not a blocking wait endpoint on the proxy.** Waits are measured in hours:
 a long-poll would need the proxy's uptime to exceed the wait, and a restart
