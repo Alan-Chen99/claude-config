@@ -58,3 +58,10 @@ agent-tools doc-budget
 - `agent-tools doc-budget` over cap: cut that group to 80% of cap in the same change,
   consolidation only; a group over when you arrived is debt to name, not pay in passing
   (`conventions/documentation.md`).
+- A `[held.files]` row in `doc-budget.toml` falls due with the next task on what its file
+  is about — for a `CLAUDE.md` or `SKILL.md` its directory, a task on any part of which
+  counts; for an agent body that agent; for a doc, note, spec or plan the subproject,
+  subcommand or behaviour it records; a tree-wide sweep is about none — whether or not
+  the task edits the file: drop the row and, over the class cap, cut to 80% of it or ask
+  the user for a cap. `agent-tools doc-budget <dir>` lists the rows under a directory;
+  read the table for the rest (`conventions/documentation.md`).

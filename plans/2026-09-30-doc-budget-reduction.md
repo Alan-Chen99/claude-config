@@ -25,11 +25,11 @@ decisions.
 | 14 | Body → reference | Moving a SKILL.md or CLAUDE.md body's reference material into an on-demand `.md` is a cut |
 | 15 | `plans/` | Closed plans are deleted, not edited |
 | 16 | Snapshot README row | 19,757 → 15,516, its size after 694cdec6 |
+| 17 | A held row (2026-10-01) | Falls due with the next task on what its file is about (a tree-wide sweep is about none), whether or not the task edits the file: the row dropped, the file cut to 80% of its class cap or given a cap by the user. Spec rows included: a file that may be deleted may be cut |
 
-Cut queue, by how the text reaches a context: `descriptions` (12 `description:`
+Cut queue, by how the text reaches a context, any row falling due earlier when
+its subject comes up (17): `descriptions` (12 `description:`
 lines) → opencode `alan-default-ids` → `agent-tools/CLAUDE.md` 17,107,
 `skills/alan-writing-style/CLAUDE.md` 10,977, `sys_prompt/CLAUDE.md` 9,952 → the
-three agent bodies → skill bodies by size → `conventions` → docs and notes as
-touched → one `plans/` deletion pass → `skills/planner/INTENT.md`, `output-styles`,
-`infra`. Spec rows are not a queue: a shipped spec is not edited again, so its row
-stands until the spec is edited or deleted.
+three agent bodies → skill bodies by size → `conventions` → docs, notes and specs
+→ one `plans/` deletion pass → `skills/planner/INTENT.md`, `output-styles`, `infra`.

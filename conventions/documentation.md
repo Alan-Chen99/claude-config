@@ -37,14 +37,24 @@ context — every request, every session, per invocation, per spawn, on demand �
 unless a `[data]` entry there declares it not guidance, though a `README.md` or
 `CLAUDE.md` counts wherever it is; design in
 `docs/superpowers/specs/2026-09-29-doc-budget-design.md`. Measure with
-`agent-tools doc-budget [path]`: local-tokenizer tokens, what `count-tokens`
-reports without `--api`.
+`agent-tools doc-budget [path]`, or from a worktree, where the binary measures
+its compile-time root, `uv run python -m claude_config.doc_budget [path]`:
+local-tokenizer tokens, what `count-tokens` reports without `--api`.
 
 **Over cap, cut that group to 80% of cap in the same change** — the agent that
 crossed the line pays. A group already over when you arrived is debt: say so,
-and pay it when the task is about its docs rather than in passing. Cutting a
-held file lowers its `[held.files]` row to the new size or drops it: the tool
-does not ratchet, and a row left standing is headroom the file regrows into.
+and pay it when the task is about its docs rather than in passing. A
+`[held.files]` row is the exception: it falls due with the next task on what
+its file is about — for a `CLAUDE.md` or `SKILL.md`, its directory, and a task
+on any part of it counts; for an agent body, that agent; for a doc, note, spec
+or plan, the subproject, subcommand or behaviour it records; a sweep across the
+tree is about none of them — whether or not the task edits the file: drop the
+row and, over the class cap, cut the file to 80% of it or ask the user for a
+cap of its own. `agent-tools doc-budget <dir>` lists the rows under a
+directory; read the table for the rest. An addition in passing puts the file
+over its row, which is its cap: cut to 80% of the row, then lower it to the
+new size, or drop it when that size is within the class cap — the tool does
+not ratchet, and a row left standing is headroom the file regrows into.
 
 Only consolidation satisfies the cap: merge duplicates, resolve the conflicts
 you find, delete what the code already says. Moving a body's reference material

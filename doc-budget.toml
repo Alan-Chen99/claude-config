@@ -230,14 +230,20 @@ why = "A transcript of test requests, kept verbatim."
 # -- held: every file over its class cap ------------------------------------
 #
 # At the size it had when its class cap was set, so CI is green the day a cap
-# comes down; the first addition to any of these pays the 20% cut like any
-# other over-cap group.  A cut lowers the row to the new size or drops it: the
+# comes down.  A row falls due with the next task on what its file is about --
+# its directory for a CLAUDE.md or SKILL.md, any part of it; its agent for an
+# agent body; the subproject, subcommand or behaviour it records for a doc,
+# note, spec or plan; a tree-wide sweep is about none -- whether or not that
+# task edits the file: drop the row and, over the class cap, cut the file to
+# 80% of it or ask the user for a cap of its own.  An addition in passing puts
+# the file over its row, which is its cap: cut to 80% of the row, then lower
+# it to the new size or drop it when that size is within the class cap; the
 # tool does not ratchet, so a row left standing is headroom the file regrows
 # into.  The report marks a held row `(held)` and names an entry whose file is
 # back within its class cap so it can be dropped.
 [held]
 approved = "user:aff43b00"
-why = "Frozen at the size each file had when its class cap was set, both on 2026-09-30 -- the registry's introduction (user:834203fa) and the reduction (plans/2026-09-30-doc-budget-reduction.md) -- so the cap lands on the next edit rather than on a tree-wide rewrite."
+why = "Frozen at the size each file had when its class cap was set, both on 2026-09-30 -- the registry's introduction (user:834203fa) and the reduction (plans/2026-09-30-doc-budget-reduction.md) -- so the cap lands on the next task on each file's subject rather than on a tree-wide rewrite."
 
 [held.files]
 "agent-tools/CLAUDE.md" = 17107
@@ -294,7 +300,6 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "docs/superpowers/specs/2026-08-20-session-analysis-two-mode-revision-design.md" = 2884
 "notes/workers-bullet-hint-in-fact-position/probe-statement-form-2026-09-15.md" = 2812
 "notes/reasoning-extraction-refusals.md" = 2779
-"docs/superpowers/specs/2026-09-29-doc-budget-design.md" = 2621
 "docs/superpowers/specs/2026-05-17-unified-config-design.md" = 2617
 "docs/superpowers/specs/2026-09-22-alan-writing-style-design.md" = 2541
 "docs/superpowers/specs/2026-09-07-count-tokens-local-default-design.md" = 2478
