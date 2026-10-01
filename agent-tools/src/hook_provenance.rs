@@ -544,6 +544,18 @@ mod tests {
         assert!(!env.contains_key("AGENT_TOOLS_PARENT_DIR"));
     }
 
+    /// The launchers' own bookkeeping reaches the record through the `CLAUDE`
+    /// prefix and is named nowhere in the recording code, so narrowing that
+    /// prefix would silently stop recording which configuration a session ran
+    /// and whether the launcher drew it. `scripts/claude.sh` is the writer.
+    #[test]
+    fn launcher_bookkeeping_reaches_the_record() {
+        for name in ["CLAUDE_SH_LAUNCHERS", "CLAUDE_SH_TOKENS_REMINDER_SOURCE"] {
+            assert!(is_recorded_name(name), "{name} must reach the record");
+            assert!(!is_secret_name(name), "{name} must keep its value");
+        }
+    }
+
     #[test]
     fn json_redaction_reaches_a_nested_env_block() {
         let (out, changed) = redact_json(

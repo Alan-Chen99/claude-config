@@ -36,7 +36,7 @@ instrument for the response.
 | Unit | one interactive `claude.sh` session |
 | Assignment | `$RANDOM % 2` at launch, independent per session |
 | Arms | `off` (no marker at all) vs `padded-countdown` (the shipped default, ~15,000,000, re-anchored each user turn) |
-| Scope | interactive only — `[ -t 0 ]` excludes `-p` runs, so prompt-test cases are untouched |
+| Scope | interactive only — `[ -t 0 ]` excludes `-p` runs, so no prompt-test case draws an arm |
 | Blinding | impossible; the marker is in the model's context. The draw is untraced so the arm is at least not printed to the terminal at session start |
 | Duration | open-ended. Sessions accumulate; there is no completion date |
 
@@ -45,9 +45,10 @@ variable unset, so a server-side GrowthBook flip cannot redefine it mid-trial.
 
 ## Arm recovery
 
-Two independent readings, and they answer different questions. The delivered
-treatment is read off the markers; the configuration that produced it is read
-off a provenance record the session writes for itself.
+Three independent readings, and they answer different questions. The delivered
+treatment is read off the markers; the configuration that produced it, and whether
+this launcher drew that configuration or inherited it, are read off a provenance
+record the session writes for itself.
 
 **What was delivered.** Claude Code writes the marker into the session
 transcript as `attachment` records, so the count separates the two arms:
@@ -91,6 +92,22 @@ that the draw is still happening at all: a session with no provenance record and
 no marker is not an `off` session, it is an unlabelled one. The record dates from
 2026-09-29, so sessions before that carry only the marker count and the
 `off`/`padded-countdown` inference it supports.
+
+**Whether the launcher drew it.** The snapshot is taken after `exec`, where a value
+this launcher drew and a value the caller exported are the same variable, so the
+configuration reading alone cannot separate a randomized session from a hand-set
+one. `scripts/claude.sh` labels the path it took, in a variable the same block
+records:
+
+| `CLAUDE_SH_TOKENS_REMINDER_SOURCE` | Means |
+| --- | --- |
+| `draw` | randomized at launch; the session is in the trial |
+| `caller` | the environment already carried a value, so the arm was chosen rather than drawn — excluded |
+| `skipped-not-interactive` | no tty, no draw, variable left unset: a `-p` run, which Claude Code then configures for itself |
+
+Absent on sessions launched before 2026-09-30, and that is not a fourth state: the
+launcher's own text is embedded in the same record, so whether the file that ran
+could have set it is readable there.
 
 ## Gating check, before any outcome is read
 
@@ -150,6 +167,9 @@ needs the most. That tension is the reason this list is not resolved here.
 
 - Either attachment kill switch set (see Arm recovery) — those sessions are
   unlabelable.
+- `CLAUDE_SH_TOKENS_REMINDER_SOURCE=caller` (see Arm recovery) — the arm was
+  chosen rather than drawn, so the session carries a treatment with no assignment
+  behind it.
 - A Claude Code release renaming `CLAUDE_CODE_TOTAL_TOKENS_REMINDER` or changing
   which config layer wins. Silent; caught only by the 50/50 gating check.
 - `autoCompactWindow` changing again. It does not touch the reminder — the
@@ -159,6 +179,11 @@ needs the most. That tension is the reason this list is not resolved here.
   clamp" below.
 - Any session where the user knew the arm and said so. The draw is untraced, but
   the marker is visible in context and a session can discover its own arm.
+  Excluded so far: `4a3c0e33-070b-4408-9bd1-e572bf4888a4` (2026-09-30, `off`, read
+  its own provenance record while answering a question about the launcher).
+  Grepping transcripts for the variable name does not find the others: every
+  provenance record embeds the launcher's text, so every transcript contains the
+  name — search `assistant` and `user` records only.
 
 ## The compaction clamp
 

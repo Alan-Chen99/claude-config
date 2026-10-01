@@ -76,16 +76,27 @@ fi
 # The draw is untraced because `set -x` would otherwise print the arm to the
 # terminal at every session start, and one candidate outcome is how often the
 # user redirects the session. Blinding is impossible -- the marker is in the
-# context -- but an arm announced in the first line of scrollback is worse.
+# context -- but an arm announced in the first line of scrollback is worse. The
+# guard below still traces a value the caller supplied: that is the caller's own
+# value, and such a session is out of the trial anyway.
 #
-# Two records label the arm, and only one of them needs the marker: cc writes the
-# marker into the transcript as `attachment` records, which an `off` session
-# leaves none of, and `agent-tools hook-provenance` snapshots the variable itself
-# into the same transcript whoever set it -- so a value supplied by the caller is
-# recorded exactly like a drawn one, and is not distinguishable from it there.
+# Three readings label a session, each answering a different question. cc's
+# `attachment` records carry the marker: what was *delivered*, and an `off` session
+# leaves none. `agent-tools hook-provenance` snapshots the environment into the
+# transcript: what was *configured*. Neither can say whether this launcher drew
+# that configuration or inherited it, because the snapshot is taken after the
+# `exec` below, where a drawn value and a caller's value are the same variable --
+# CLAUDE_SH_TOKENS_REMINDER_SOURCE is that third reading. It is set on every path,
+# so its absence is a launcher older than it rather than a session nobody drew for,
+# and it reaches the record through the `CLAUDE` prefix in hook_provenance.rs,
+# pinned there by a test rather than by a name in the recording code.
 # Protocol, candidate outcomes and invalidation conditions:
 # docs/total-tokens-reminder-trial.md
-if [ -t 0 ] && [ -z "${CLAUDE_CODE_TOTAL_TOKENS_REMINDER:-}" ]; then
+if [ -n "${CLAUDE_CODE_TOTAL_TOKENS_REMINDER:-}" ]; then
+	export CLAUDE_SH_TOKENS_REMINDER_SOURCE=caller
+elif [ ! -t 0 ]; then
+	export CLAUDE_SH_TOKENS_REMINDER_SOURCE=skipped-not-interactive
+else
 	set +x
 	if [ $((RANDOM % 2)) -eq 0 ]; then
 		export CLAUDE_CODE_TOTAL_TOKENS_REMINDER=off
@@ -93,6 +104,7 @@ if [ -t 0 ] && [ -z "${CLAUDE_CODE_TOTAL_TOKENS_REMINDER:-}" ]; then
 		export CLAUDE_CODE_TOTAL_TOKENS_REMINDER=padded-countdown
 	fi
 	set -x
+	export CLAUDE_SH_TOKENS_REMINDER_SOURCE=draw
 fi
 
 exec claude --dangerously-skip-permissions \
