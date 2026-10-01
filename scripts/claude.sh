@@ -78,9 +78,13 @@ fi
 # user redirects the session. Blinding is impossible -- the marker is in the
 # context -- but an arm announced in the first line of scrollback is worse.
 #
-# No bookkeeping records the arm: cc writes the marker into the transcript as
-# `attachment` records, so `off` is the arm that leaves none. Protocol, candidate
-# outcomes and invalidation conditions: docs/total-tokens-reminder-trial.md
+# Two records label the arm, and only one of them needs the marker: cc writes the
+# marker into the transcript as `attachment` records, which an `off` session
+# leaves none of, and `agent-tools hook-provenance` snapshots the variable itself
+# into the same transcript whoever set it -- so a value supplied by the caller is
+# recorded exactly like a drawn one, and is not distinguishable from it there.
+# Protocol, candidate outcomes and invalidation conditions:
+# docs/total-tokens-reminder-trial.md
 if [ -t 0 ] && [ -z "${CLAUDE_CODE_TOTAL_TOKENS_REMINDER:-}" ]; then
 	set +x
 	if [ $((RANDOM % 2)) -eq 0 ]; then
