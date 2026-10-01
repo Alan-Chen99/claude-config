@@ -84,3 +84,20 @@ coarser is unmeasured; only wholesale replacement was tried. A small edit inside
 otherwise intact Claude Code system prompt may well pass. Anyone who needs that
 answer can get it in two sends from a fresh capture, and should extend the table
 above rather than re-deriving the gate.
+
+## The gate is not Opus-shaped, but it looks it
+
+Re-measured 2026-10-01, cc 2.1.269. With `system` replaced by one line,
+`claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-7` and `claude-sonnet-5` all
+return the headerless 429 — and `claude-haiku-4-5-20251001` returns 200 for a
+body carrying **no `system` at all**. A haiku control therefore "proves" the
+credential works while every Opus id refuses, which reads as a model or quota
+gate and is neither; restoring the capture's `system` block returns 200 on
+opus-5 and opus-4-8 in the same minute. Adding `metadata.user_id` and
+`fallbacks: "default"` individually moves nothing while `system` stays replaced.
+
+A replay also borrows a different credential than the capture used — the on-disk
+tokens are 108-char `sk-ant-oat01-…`, a live request carries a 115-char bearer
+refreshed in memory and never written back (`http.credential.length` records
+which) — but it clears the gate on a faithful body, so that is a footnote and
+not a fourth variable.
