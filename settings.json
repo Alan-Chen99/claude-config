@@ -6,13 +6,18 @@
     "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
     "CLAUDE_CODE_ENABLE_CFC": "false"
   },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeGitInstructions": false,
   "permissions": {
     "deny": [
       "ReportFindings",
       "ScheduleWakeup"
     ]
   },
-  "feedbackDrafts": "off",
+  "model": "opus",
   "skillOverrides": {
     "dataviz": "name-only",
     "claude-api": "name-only",
@@ -45,12 +50,6 @@
     "prompt-engineer": "name-only",
     "refactor": "name-only"
   },
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
-  "includeGitInstructions": false,
-  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -273,6 +272,7 @@
     }
   },
   "outputStyle": "default",
+  "feedbackDrafts": "off",
   "effortLevel": "high",
   "autoCompactWindow": 400000,
   "showClearContextOnPlanAccept": true,
