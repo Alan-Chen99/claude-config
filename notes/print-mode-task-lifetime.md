@@ -113,8 +113,8 @@ loop is idle and no agent task is active. The re-run was detached with
 
 ## What this settled
 
-`skills/telegram-hitl/listen.py --wait` runs under `Monitor` because nothing else holds
-a `-p` process; its `stop-hook` reads `background_tasks[].command` for `listen.py`
-acts only when `CLAUDE_CODE_SESSION_ATTENDED=0`, names a forgotten listener
-once and, with a wait declared, is the wait. `skills/telegram-hitl/README.md`
-has the matrix; `docs/subagent-backgrounding.md` the one-table summary.
+`skills/telegram-hitl/listen.py --wait` declares the wait and returns; the session ends
+its turn and its `stop-hook`, acting only when `CLAUDE_CODE_SESSION_ATTENDED=0`, is the
+wait. With no declaration it reads `background_tasks[].command` for `listen.py` and
+names a forgotten listener once. `skills/telegram-hitl/README.md` has the matrix;
+`docs/subagent-backgrounding.md` the one-table summary.
