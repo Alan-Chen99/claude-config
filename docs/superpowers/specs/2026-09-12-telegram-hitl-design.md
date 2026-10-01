@@ -18,12 +18,11 @@ options each fail on a different axis:
   keeps a PID file and SIGTERMs the incumbent poller on startup, so a second
   session evicts the first.
 - **The third-party `telegram-bot-skill` plugin** resolves its PID file
-  cwd-relative (`src/daemon.ts:15`, `resolve('.bridge.pid')`), so one daemon per
-  directory — which, given the 409 behaviour below, means concurrent daemons
-  silently stealing each other's update stream. It maps chat to exactly one
-  session (`src/store/store.ts:19`, `sessions: Record<string, string>`), keeps no
-  durable message log, and never calls `setMessageReaction` despite defining it
-  (`src/telegram/api.ts:87`).
+  cwd-relative (`src/daemon.ts:15`), so one daemon per directory — which, given
+  the 409 behaviour below, means concurrent daemons silently stealing each
+  other's update stream. It maps chat to exactly one session
+  (`src/store/store.ts:19`), keeps no durable message log, and never calls
+  `setMessageReaction` despite defining it (`src/telegram/api.ts:87`).
 - **Claude Code's own channel plumbing** carries no session identifier, so one
   connection owns the channel.
 
@@ -54,8 +53,7 @@ So inbound and outbound have opposite requirements, and the architecture should
 reflect that rather than treating "Telegram access" as one thing.
 
 **Acknowledgement via reactions works, with a restricted alphabet.**
-`setMessageReaction` succeeded on a real inbound user message (verified live:
-`INBOUND mid=50 reply_to=49 text='Hello' | react_ok=True`). The emoji set is
+`setMessageReaction` succeeded on a real inbound user message. The emoji set is
 fixed: 👀 👍 🙏 🤔 🔥 ⚡ are accepted; ✅ and 📝 return `REACTION_INVALID`. The
 conventional "received" checkmark is specifically unavailable. An empty reaction
 array clears.
@@ -147,10 +145,6 @@ itself the finding: at human-in-the-loop volumes it should not happen, so pacing
 it would hide a defect rather than fix one. The agent that hit the limit is the
 only party with the context to decide whether to back off, restructure, or stop.
 
-This also retires limits as a design question. An unknown ceiling that announces
-itself at runtime, to a party equipped to interpret it, is not something the
-design needs to know in advance.
-
 ### The log
 
 A single append-only JSONL file carrying inbound updates, outbound calls with
@@ -169,11 +163,6 @@ failure shape this design keeps running into. With the channel's own faults in
 the same stream, a watcher can distinguish *no answer yet* from *the channel is
 down*, and act differently. The human gains the same visibility, from the same
 file, without being told separately.
-
-It also means propagation and durability are not in tension. An error still
-reaches the caller verbatim, per "Limits are diagnosed, not absorbed"; logging it
-additionally means the fault survives a script that crashed before reading it, or
-an agent that never looked.
 
 One constraint follows: log error *transitions*, not occurrences. A stolen stream
 makes every subsequent poll fail, and recording each one at poll rate would bury
@@ -232,26 +221,32 @@ loud, local, and harms nothing else.
 
 ### Reading and waiting
 
-Two distinct needs, which want different mechanisms.
+Reading is at-least-once, and the acknowledgement is the reaction. The listener
+(`skills/telegram-hitl/listen.py`) announces every message in the session's
+topic, or replying to one of its sends, that no logged `setMessageReaction`
+names — at every arm, until one does. The printer's own position is never the
+acknowledgement, because printed is not received: the harness batches and
+truncates lines, suppresses bursts, and a notification is lost to compaction
+or to a session that ended. The reaction is an act the agent already owes
+after reading, logged like every call, so the human and the listener agree on
+what is unread; re-arms, resumed sessions and a loop's next iteration carry no
+state.
 
-**Waiting for an answer to a question just asked** is a single-shot condition:
-watch the log until the answer appears, then stop. This is a backgrounded loop
-that exits on match, producing exactly one notification.
+Both modes run under `Monitor`, the one harness task that holds a `claude -p`
+process past its turn (a background Bash task is killed with it —
+`notes/print-mode-task-lifetime.md`): the open-ended listener, armed at topic
+creation to hear corrections, and `--wait`, which exits on the first delivery
+(1 on `channel down`) and declares the wait in `waits/<session id>`. A `Stop`
+hook, unattended sessions only, blocks the turn end once when a listener is
+armed with no wait declared or a declared wait's listener is gone — the process
+would otherwise sit on the monitor, or exit past the human. Matrix:
+`skills/telegram-hitl/README.md`.
 
-**Hearing unsolicited input mid-run** — a correction, a stop, a change of
-direction — is an open-ended stream of occurrences, which is what a persistent
-monitor is for.
-
-**Why not a blocking wait endpoint on the proxy.** Waits here are measured in
-hours. A long-poll would require the proxy's uptime to *exceed the wait*, which is
-a far stronger demand than "the drain eventually catches up", and a restart
-mid-wait would break every waiter simultaneously. Worse, the failure is
-indistinguishable from a human who has not answered yet — the session simply keeps
-waiting. Against the log, a restart is invisible: the file persists, the watcher
-keeps watching, the drain resumes and appends.
-
-A blocking endpoint would also put a query bug in the same process as the
-exclusive drain, where it could take the channel down.
+**Why not a blocking wait endpoint on the proxy.** Waits are measured in hours:
+a long-poll would need the proxy's uptime to exceed the wait, and a restart
+mid-wait would break every waiter, indistinguishably from a human who has not
+answered. Against the log a restart is invisible, and a query bug stays out of
+the process holding the exclusive drain.
 
 ## Threading and topic policy
 
@@ -430,10 +425,9 @@ one where a session can read answers it has no way to acknowledge.
 
 ## The skill
 
-The second component is a skill, because the first deliberately knows nothing.
-Since the proxy neither interprets updates nor smooths over errors, everything an
-agent needs to work the channel correctly is knowledge, not API surface — and
-knowledge has to live somewhere a fresh session will read.
+The second component is a skill, because the first deliberately knows nothing:
+everything an agent needs to work the channel correctly is knowledge, not API
+surface, and knowledge has to live somewhere a fresh session will read.
 
 It carries the working rules (how to pick or create a topic, how to wait, when to
 react) and the Bot API traps that cost real time to find. Those traps are not
@@ -453,12 +447,13 @@ lost, so they are enumerated here as the skill's scope:
   `migrate_to_chat_id` is the forwarding pointer.
 - Reading a file that is being appended to needs care in Python, which yields
   partial final lines where a shell `read` loop does not.
+- Printed is not received, and only a `Monitor` holds a `claude -p` process,
+  thirty minutes at a time.
 
 ## Deliberately excluded
 
-- **Exactly-once claiming of answers.** A question belongs to one session, keyed
-  by its thread and message. A session re-reading the same answer is desirable
-  idempotency, not a fault, so the machinery that would prevent it is unnecessary.
+- **Exactly-once claiming of answers.** Re-reading an answer is desirable
+  idempotency, not a fault; delivery is at-least-once by design.
 - **A separate question ledger.** Inbound records already carry the question they
   answer.
 - **Token pooling.** Hold time approximates session lifetime, so exhaustion is the
@@ -485,8 +480,7 @@ unverified.** BotFather's Threaded mode was not located, `has_topics_enabled` is
 Since the layouts are the same code path and the supergroup one works, this
 blocks nothing.
 
-Topic caps and rate limits are deliberately *not* listed here. Fifteen
-consecutive `createForumTopic` calls and fifteen `deleteForumTopic` calls showed
-no throttling and no `retry_after`, but that bounds nothing — the burst was kept
-small on purpose. It does not need bounding: per "Limits are diagnosed, not
-absorbed", a ceiling that announces itself at runtime is not a gap in the design.
+Topic caps and rate limits are deliberately *not* listed: fifteen consecutive
+`createForumTopic` and `deleteForumTopic` calls met no throttling, which bounds
+nothing, and per "Limits are diagnosed, not absorbed" a ceiling that announces
+itself at runtime is not a gap in the design.

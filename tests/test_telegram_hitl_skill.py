@@ -21,10 +21,24 @@ def _script() -> dict:
     return runpy.run_path(str(SCRIPT))
 
 
-def _cli(tmp_path: Path, *args: str) -> subprocess.Popen:
+def _env(tmp_path: Path, state: bool = True, **extra: str) -> dict:
+    """The script's environment: this process's own, minus what a Claude Code
+    session running the suite would otherwise leak in, plus the channel under
+    test. `state=False` is a machine where the channel is not configured."""
+    env = {key: value for key, value in os.environ.items()
+           if key not in ("CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_SESSION_ATTENDED",
+                          "TELEGRAM_HITL_STATE_DIR")}
+    if state:
+        env["TELEGRAM_HITL_STATE_DIR"] = str(tmp_path)
+    return env | extra
+
+
+def _cli(tmp_path: Path, *args: str, env: dict | None = None,
+         stdin: bool = False) -> subprocess.Popen:
     return subprocess.Popen([sys.executable, str(SCRIPT), *args],
-                            stdout=subprocess.PIPE, text=True,
-                            env=os.environ | {"TELEGRAM_HITL_STATE_DIR": str(tmp_path)})
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                            stdin=subprocess.PIPE if stdin else None,
+                            env=env if env is not None else _env(tmp_path))
 
 
 class _Slept(Exception):
@@ -157,17 +171,22 @@ def test_the_inbound_state_distinguishes_a_dead_channel_from_a_quiet_one() -> No
                                    "signature": "forward:URLError"}]) == "up"
 
 
-def test_the_listener_announces_each_message_once_and_says_what_the_channel_is(
-    tmp_path, monkeypatch,
-) -> None:
-    """A monitor's command restarts from nothing at every re-arm, so the
-    watermark on disk is the whole of the listener's memory. Replaying a topic
-    is a notification flood; advancing past a message is a lost answer.
+def test_the_listener_announces_what_nobody_has_reacted_to(tmp_path, monkeypatch) -> None:
+    """A monitor's command restarts from nothing at every arm, and the log is
+    the only memory it has. A message a session reacted to is handled; one
+    nobody reacted to is announced again at every arm until someone does.
+    Replaying a handled message wastes a notification; skipping an unhandled
+    one loses an answer — and the reaction is the act the skill already asks
+    for after reading, so the human and the listener agree on what is unread.
     """
     namespace = _script()
-    monkeypatch.setattr(namespace["time"], "sleep", lambda _: (_ for _ in ()).throw(_Slept()))
     path = tmp_path / "channel.jsonl"
-    path.write_text("".join(json.dumps(record) + "\n" for record in [
+
+    def append(*records: dict) -> None:
+        with path.open("a") as handle:
+            handle.writelines(json.dumps(record) + "\n" for record in records)
+
+    append(
         {"kind": "proxy", "event": "started"},
         # the service message that opened the topic: its id is the thread id
         {"kind": "inbound", "update": {"update_id": 10, "message": {
@@ -182,29 +201,80 @@ def test_the_listener_announces_each_message_once_and_says_what_the_channel_is(
         {"kind": "inbound", "update": {"update_id": 11, "message": {
             "message_id": 52, "message_thread_id": 6, "is_topic_message": True,
             "chat": {"id": -100}, "text": "ship it,\nand bump\tthe version"}}},
-        # a reply from the bot's DM: low message id, own update_id sequence
+        # a reply from the bot's DM: low message id, its own chat
         {"kind": "inbound", "update": {"update_id": 12, "message": {
             "message_id": 4, "chat": {"id": 4242}, "text": "one more thing",
             "reply_to_message": {"message_id": 51}}}},
+        # the session read 52 and said so the way the skill asks
+        {"kind": "outbound", "method": "setMessageReaction", "session": "s1",
+         "params": {"chat_id": -100, "message_id": 52,
+                    "reaction": [{"type": "emoji", "emoji": "👍"}]},
+         "response": {"ok": True, "result": True}},
+    )
+
+    announced = []
+
+    def nap(_: float) -> None:
+        if len(announced) != 2:        # the second pass is the last
+            raise _Slept()
+        append(                        # between the passes: 4 is read, 53 arrives
+            {"kind": "outbound", "method": "setMessageReaction", "session": "s1",
+             "params": {"chat_id": "4242", "message_id": "4",
+                        "reaction": [{"type": "emoji", "emoji": "👍"}]},
+             "response": {"ok": True, "result": True}},
+            {"kind": "inbound", "update": {"update_id": 13, "message": {
+                "message_id": 53, "message_thread_id": 6, "is_topic_message": True,
+                "chat": {"id": -100}, "text": "and the changelog"}}},
+        )
+
+    monkeypatch.setattr(namespace["time"], "sleep", nap)
+    with pytest.raises(_Slept):
+        for line in namespace["listen"](path, 6):
+            announced.append(line)
+
+    # the topic's own service message is not an announcement, the handled
+    # message is not either, the DM reply is and says so, and a message arrives
+    # as one line however the human typed it, carrying the ids a reaction needs;
+    # the second pass of the same run announces only what arrived since
+    assert announced == ["message 4 in chat 4242, reply to 51: one more thing",
+                         "channel up",
+                         "message 53 in chat -100: and the changelog"]
+
+    # a fresh arm replays what is still unhandled and reports the channel
+    monkeypatch.setattr(namespace["time"], "sleep", lambda _: (_ for _ in ()).throw(_Slept()))
+    fresh = []
+    with pytest.raises(_Slept):
+        for line in namespace["listen"](path, 6):
+            fresh.append(line)
+    assert fresh == ["message 53 in chat -100: and the changelog", "channel up"]
+
+
+def test_a_refused_reaction_still_counts_as_handled(tmp_path, monkeypatch) -> None:
+    """Reactability is type-specific: a service message in the topic answers
+    MESSAGE_ID_INVALID, and a message nothing can react to would otherwise be
+    announced at every arm forever. The attempt is the session saying it has
+    read the message; Telegram's answer to it is not."""
+    namespace = _script()
+    monkeypatch.setattr(namespace["time"], "sleep", lambda _: (_ for _ in ()).throw(_Slept()))
+    path = tmp_path / "channel.jsonl"
+    path.write_text("".join(json.dumps(record) + "\n" for record in [
+        {"kind": "proxy", "event": "started"},
+        {"kind": "inbound", "update": {"update_id": 20, "message": {
+            "message_id": 9, "message_thread_id": 6, "is_topic_message": True,
+            "chat": {"id": -100}, "pinned_message": {"message_id": 8}}}},
+        {"kind": "outbound", "method": "setMessageReaction", "session": "s1",
+         "params": {"chat_id": -100, "message_id": 9,
+                    "reaction": [{"type": "emoji", "emoji": "👍"}]},
+         "response": {"ok": False, "error_code": 400,
+                      "description": "Bad Request: MESSAGE_ID_INVALID"}},
     ]))
 
-    def one_pass(seen: int) -> list:
-        announced = []
-        with pytest.raises(_Slept):
-            for line, mark in namespace["listen"](path, 6, seen):
-                announced.append((line, mark))
-        return announced
+    announced = []
+    with pytest.raises(_Slept):
+        for line in namespace["listen"](path, 6):
+            announced.append(line)
 
-    first = one_pass(0)
-
-    # the topic's own service message is not an announcement, the DM reply is
-    # and says so, and a message arrives as one line however the human typed
-    # it, carrying the ids a reaction or a reply needs
-    assert first == [("message 52 in chat -100: ship it, and bump the version", 11),
-                     ("message 4 in chat 4242, reply to 51: one more thing", 12),
-                     ("channel up", 12)]
-    # the re-arm reports the channel it armed against and nothing else
-    assert one_pass(first[-1][1]) == [("channel up", 12)]
+    assert announced == ["channel up"]
 
 
 def test_the_topics_command_lists_the_forum_and_who_has_sent_in_each_topic(tmp_path) -> None:
@@ -231,37 +301,156 @@ def test_the_topics_command_lists_the_forum_and_who_has_sent_in_each_topic(tmp_p
     assert out == "6\talpha\ts1 s2  +1 unattributed\n9\tbeta\ts1\n"
 
 
-def test_from_now_seeds_an_absent_watermark_and_leaves_an_existing_one_alone(tmp_path) -> None:
-    """A joined topic's history is not a notification stream; a re-arm
-    carrying the same flag must not move the watermark the last arm left; and
-    an agent that touches the file first has not asked to start anywhere."""
+def test_wait_mode_delivers_the_first_unhandled_message_and_exits(tmp_path) -> None:
+    """`--wait` is the single-shot wait: one monitor, one delivery, and the
+    completion notice says it ended well. The declaration it made for the stop
+    hook is withdrawn on the way out, because the session has been told."""
     (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
         {"kind": "proxy", "event": "started"},
         {"kind": "inbound", "update": {"update_id": 40, "message": {
             "message_id": 7, "message_thread_id": 6, "is_topic_message": True,
             "chat": {"id": -100}, "text": "old"}}},
     ]))
-    mark = tmp_path / "seen"
 
-    process = _cli(tmp_path, "6", str(mark), "--from-now")
+    process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
+    out, _ = process.communicate(timeout=20)
+
+    assert process.returncode == 0
+    assert out == "message 7 in chat -100: old\nchannel up\n"
+    assert not (tmp_path / "waits" / "s1").exists()
+
+
+def test_wait_mode_keeps_its_declaration_until_something_is_delivered(tmp_path) -> None:
+    """Killed before delivering — the monitor expired, or a TaskStop — the
+    declaration stays, which is what lets the stop hook tell a wait whose
+    listener is gone from a wait that ended."""
+    (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
+    marker = tmp_path / "waits" / "s1"
+
+    process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
     try:
-        first = process.stdout.readline()
+        assert process.stdout.readline() == "channel up\n"
+        assert marker.read_text() == "6"
     finally:
-        process.kill()
-        process.wait()
-    assert first == "channel up\n"
-    assert mark.read_text() == "40"
+        process.terminate()
+        process.wait(timeout=10)
 
-    # an existing watermark wins over the flag; a touched, empty one means 0
-    for existing in ("39", ""):
-        mark.write_text(existing)
-        process = _cli(tmp_path, "6", str(mark), "--from-now")
-        try:
-            first = process.stdout.readline()
-        finally:
-            process.kill()
-            process.wait()
-        assert first == "message 7 in chat -100: old\n", existing
+    assert marker.exists()
+
+
+def test_wait_mode_ends_on_a_dead_channel(tmp_path) -> None:
+    """Waiting on a channel that cannot deliver is the failure the design
+    exists to prevent, so the wait ends and the exit code says why."""
+    (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
+        {"kind": "proxy", "event": "started"},
+        {"kind": "proxy", "event": "stopped", "reason": "SIGTERM"},
+    ]))
+
+    process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
+    out, _ = process.communicate(timeout=20)
+
+    assert process.returncode == 1
+    assert out == "channel down: SIGTERM\n"
+    assert not (tmp_path / "waits" / "s1").exists()
+
+
+def test_wait_mode_refuses_to_run_without_a_session(tmp_path) -> None:
+    """A wait nobody can be held to is not a wait: the declaration is keyed by
+    the session that made it."""
+    (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
+
+    process = _cli(tmp_path, "6", "--wait")
+    _, err = process.communicate(timeout=20)
+
+    assert process.returncode != 0
+    assert "CLAUDE_CODE_SESSION_ID" in err
+    assert not (tmp_path / "waits").exists()
+
+
+_LISTENING = {"id": "b1", "type": "shell", "status": "running", "description": "topic 6",
+              "command": "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; "
+                         "export AGENT_TOOLS_PARENT_DIR='/x'; "
+                         "python3 /root/.claude/skills/telegram-hitl/listen.py 6"}
+_WAITING = {**_LISTENING, "id": "b2", "command": _LISTENING["command"] + " --wait"}
+
+
+def _stop(tmp_path: Path, *tasks: dict, active: bool = False, **env: str) -> tuple[int, str]:
+    """One Stop hook call: exit code and stdout, for the payload Claude Code
+    sends (`session_id`, `stop_hook_active`, `background_tasks`)."""
+    payload = {"session_id": "s1", "hook_event_name": "Stop", "stop_hook_active": active,
+               "background_tasks": list(tasks)}
+    state = env.pop("state", "on") != "off"
+    process = _cli(tmp_path, "stop-hook", stdin=True, env=_env(tmp_path, state=state, **env))
+    out, _ = process.communicate(json.dumps(payload), timeout=20)
+    return process.returncode, out
+
+
+def _blocked(out: str) -> str:
+    decision = json.loads(out)
+    assert decision["decision"] == "block"
+    return decision["reason"]
+
+
+def test_the_stop_hook_is_inert_where_a_turn_end_is_not_a_session_end(tmp_path) -> None:
+    """Interactive sessions end turns with a listener armed as a matter of
+    course, and a machine without the channel has nothing to guard."""
+    assert _stop(tmp_path, _LISTENING, CLAUDE_CODE_SESSION_ATTENDED="1") == (0, "")
+    assert _stop(tmp_path, _LISTENING) == (0, "")                       # unset: attended
+    assert _stop(tmp_path, _LISTENING, state="off",
+                 CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")              # no channel here
+
+
+def test_the_stop_hook_lets_a_session_with_nothing_armed_end(tmp_path) -> None:
+    assert _stop(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
+
+
+def test_the_stop_hook_blocks_an_undeclared_wait_once(tmp_path) -> None:
+    """A listener armed and no wait declared is the accident: under `-p` the
+    process stays up for the monitor and the loop never advances. Named once,
+    with both ways out; the second stop is the session's answer."""
+    code, out = _stop(tmp_path, _LISTENING, CLAUDE_CODE_SESSION_ATTENDED="0")
+
+    assert code == 0
+    reason = _blocked(out)
+    assert "TaskStop" in reason and "b1" in reason and "listen.py 6 --wait" in reason
+
+    assert _stop(tmp_path, _LISTENING, active=True, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
+
+
+def test_the_stop_hook_blocks_a_declared_wait_whose_listener_is_gone(tmp_path) -> None:
+    """The monitor expired and nothing re-armed it: ending now exits the
+    process and advances a loop that was told to wait. The second stop ends
+    the wait, and the stale declaration with it."""
+    marker = tmp_path / "waits" / "s1"
+    marker.parent.mkdir()
+    marker.write_text("6")
+
+    code, out = _stop(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0")
+
+    assert code == 0
+    assert "listen.py 6 --wait" in _blocked(out)
+
+    assert _stop(tmp_path, active=True, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
+    assert not marker.exists()
+
+
+def test_the_stop_hook_lets_a_declared_wait_with_its_listener_armed_end_the_turn(tmp_path) -> None:
+    """The deliberate wait: the turn ends, the monitor holds the process, and
+    the declaration stays for the expiry the hook may yet have to catch."""
+    marker = tmp_path / "waits" / "s1"
+    marker.parent.mkdir()
+    marker.write_text("6")
+
+    assert _stop(tmp_path, _WAITING, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
+    assert marker.exists()
+
+
+def test_the_stop_hook_is_wired_in_settings() -> None:
+    """A hook that is not registered guards nothing; the registration is the
+    only link between the script and the stop it is meant to see."""
+    settings = json.loads((SKILL_DIR.parents[1] / "settings.json").read_text())
+    commands = [hook["command"] for group in settings["hooks"]["Stop"] for hook in group["hooks"]]
+    assert any(command.endswith("telegram-hitl/listen.py stop-hook") for command in commands)
 
 
 def test_the_skill_names_the_session_variable_that_exists() -> None:
@@ -349,6 +538,13 @@ def test_every_call_the_skill_shows_names_its_caller() -> None:
     assert blocks
     for block in blocks:
         assert "X-Session-Id: $CLAUDE_CODE_SESSION_ID" in block, block
+
+
+def test_the_skill_names_the_wait_mode() -> None:
+    """The single-shot wait is the only way to hold an unattended session on
+    the human; a skill that does not name it leaves the chain of monitors as
+    the only thing to copy."""
+    assert "--wait" in SKILL.read_text()
 
 
 def test_the_skill_disarms_the_listener_it_arms() -> None:

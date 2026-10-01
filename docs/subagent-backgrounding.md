@@ -85,3 +85,18 @@ The Agent tool's own description, and the `run_in_background` property's descrip
 both recommend backgrounding by default. That is now accurate rather than false, so
 `sys_prompt/alan-default-next.md` overrides the recommendation instead of contradicting a fact
 — and the conflict is decided per call, by the model.
+
+## Print mode: what outlives a turn
+
+Measured 2026-10-01 on 2.1.269 (`notes/print-mode-task-lifetime.md`). Under `claude -p`
+the turn ending is the process ending, with one exception:
+
+| Running at turn end | `-p` does |
+| --- | --- |
+| Bash `run_in_background` | kills it (`task_updated status: killed`) and exits |
+| `Monitor` | stays up: each event and the completion re-invoke the model — one `result` per turn on `stream-json`, one object at exit on `json` — and the process exits after the turn that follows the monitor's end, or its 30-minute expiry if nothing re-arms it |
+
+A `Stop` hook sees the running tasks (`background_tasks[]`, each with its `command`) and,
+unattended (`CLAUDE_CODE_SESSION_ATTENDED=0`), can block the turn end once with
+`{"decision": "block", "reason": …}`; `skills/telegram-hitl/listen.py stop-hook` uses both
+to hold a waiting iteration and to stop a forgotten listener from holding one.

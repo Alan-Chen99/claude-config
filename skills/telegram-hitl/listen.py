@@ -1,22 +1,44 @@
-"""Read the telegram-hitl channel log: listen in a topic, or list the forum's topics.
+"""Read the telegram-hitl channel log: listen in a topic, wait for one delivery,
+list the forum's topics, or guard a session's stop.
 
-    python3 listen.py <thread_id> <watermark-file> [--from-now]
+    python3 listen.py <thread_id>            # under Monitor: every message for you
+    python3 listen.py <thread_id> --wait     # under Monitor: the first delivery, then exit
     python3 listen.py topics
+    python3 listen.py stop-hook              # Claude Code Stop hook; payload on stdin
 
 The listener prints `message <id> in chat <chat>[, reply to <your id>]: <text>`
 per human message meant for you and `channel up` / `channel down: <cause>`
-whenever the channel's state changes, forever; arm it under a `Monitor`. The
-watermark file is its whole memory across re-arms, since a monitor's command
-starts from nothing every time it is armed. Absent, the topic's history is heard
-first; `--from-now` seeds an absent file at the log's current position instead,
-for a topic being joined rather than opened, and never moves one that exists.
-The watermark is written after the line is printed, so a kill between the two
-repeats one message rather than losing it.
+whenever the channel's state changes. Its only memory across arms is the log:
+a message some session has reacted to is handled, and one nobody has reacted
+to is announced again at every arm until someone does. A monitor's command
+starts from nothing every time it is armed, and printed is not received — the
+harness truncates and batches lines, drops events past its rate, and a
+notification is lost to compaction or to a session that ended — so a watermark
+kept by the printer moves past messages nobody read. The reaction is the act
+the skill asks for after reading, logged by the proxy like every other call,
+so the human and the listener agree on what is unread.
+
+`--wait` is the single-shot wait. It declares the wait in
+`$TELEGRAM_HITL_STATE_DIR/waits/<session id>`, exits 0 after the first pass
+that delivered a message and 1 when the channel is down, and withdraws the
+declaration on either: a session that was told has nothing left to wait for.
+Killed first — the monitor expired, or TaskStop — it leaves the declaration in
+place for the stop hook to read.
+
+`stop-hook` is a Claude Code `Stop` hook and acts only in an unattended
+session (`CLAUDE_CODE_SESSION_ATTENDED=0`, as `claude -p` runs), where a turn
+end is a process exit unless a monitor holds it. It blocks the stop once, with
+the way out in its reason, when a listener is armed and no wait is declared
+(the process would sit on the monitor instead of ending) or a wait is declared
+and its `--wait` listener is gone (the process would exit past a human who was
+told to answer). On the second stop (`stop_hook_active`) it lets the session
+go and drops a declaration no listener serves.
 """
 
 import json
 import os
 import pathlib
+import re
 import sys
 import time
 from datetime import UTC, datetime
@@ -67,8 +89,7 @@ def inbox(records, thread_id, after_message_id, my_message_ids=()):
     `after_message_id` is the last message already dealt with. Pass the thread
     id to mean the whole topic: a topic's id is the id of the service message
     that opened it, so nothing in it sorts lower. Later and higher are the same
-    thing within one chat, because the ids come from one per-chat counter —
-    which is also why this is not the watermark `listen` keeps.
+    thing within one chat, because the ids come from one per-chat counter.
     """
     mine = set(my_message_ids)
     for record in records:
@@ -81,6 +102,25 @@ def inbox(records, thread_id, after_message_id, my_message_ids=()):
         answered = (message.get("reply_to_message") or {}).get("message_id")
         if in_my_topic or (answered is not None and answered in mine):
             yield message
+
+
+def reacted(records):
+    """`(chat id, message id)` of every message some session has reacted to.
+
+    Any logged `setMessageReaction` naming the message counts, whatever
+    Telegram answered: the attempt is the session saying it has read the
+    message, and a service message that answers `MESSAGE_ID_INVALID` would
+    otherwise be announced at every arm forever. Ids compare as strings because
+    a caller may send either form and Telegram accepts both.
+    """
+    found = set()
+    for record in records:
+        if record["kind"] != "outbound" or record["method"].lower() != "setmessagereaction":
+            continue
+        params = record["params"] if isinstance(record["params"], dict) else {}
+        if "chat_id" in params and "message_id" in params:
+            found.add((str(params["chat_id"]), str(params["message_id"])))
+    return found
 
 
 def inbound_state(records, failing_for=180.0):
@@ -115,14 +155,15 @@ def inbound_state(records, failing_for=180.0):
     return state
 
 
-def listen(path, thread_id, seen, poll=2.0):
-    """`(line, seen)` to print and persist, forever. One line, one notification.
+def listen(path, thread_id, poll=2.0, once=False):
+    """Lines to print, forever — or with `once`, until a pass has delivered a
+    message or found the channel down. One line, one notification.
 
-    `seen` is the highest `update_id` already announced — an `update_id` and
+    `seen` is the highest `update_id` scanned in this run — an `update_id` and
     not a message id, because the reply catchment reaches other chats and
     message ids are per-chat: a DM's are a separate low-numbered sequence that
-    would sort under the group's and be announced forever. `update_id` is one
-    sequence for the whole bot.
+    would sort under the group's. It starts at zero on every arm, since the log
+    is the memory: what the first pass leaves out is what `reacted` names.
 
     Your own message ids come from the log rather than from the caller. Every
     `sendMessage` into your topic is yours — the same premise as reading the
@@ -138,7 +179,7 @@ def listen(path, thread_id, seen, poll=2.0):
     same way whether the answer is still coming or the drain died an hour
     ago, so every arm reports the channel state in its first pass.
     """
-    state = None
+    seen, state = 0, None
     while True:
         found = list(records(path))
         mine = {record["response"]["result"]["message_id"] for record in found
@@ -147,25 +188,31 @@ def listen(path, thread_id, seen, poll=2.0):
                 and isinstance(record["response"], dict) and record["response"].get("ok")
                 and isinstance(record["params"], dict)
                 and record["params"].get("message_thread_id") == thread_id}
+        handled = reacted(found)
+        delivered = False
         for record in found:
             if record["kind"] != "inbound" or record["update"]["update_id"] <= seen:
                 continue
-            update_id = record["update"]["update_id"]
             # one record at a time, so the filter stays the inbox above
             for message in inbox([record], thread_id, thread_id, mine):
+                chat = (message.get("chat") or {}).get("id")
+                if (str(chat), str(message.get("message_id"))) in handled:
+                    continue
                 # Whitespace collapsed: one notification per message, not one
                 # per line of it. The log keeps what the human actually typed.
                 text = " ".join((message.get("text") or "").split())
-                chat = (message.get("chat") or {}).get("id")
                 answered = (message.get("reply_to_message") or {}).get("message_id")
                 tag = f", reply to {answered}" if answered in mine else ""
                 yield (f"message {message.get('message_id')} in chat {chat}{tag}: "
-                       f"{text or '<non-text message>'}"), update_id
-            seen = update_id
+                       f"{text or '<non-text message>'}")
+                delivered = True
+            seen = record["update"]["update_id"]
         health = inbound_state(found)
         if health != state:
             state = health
-            yield "channel " + health, seen
+            yield "channel " + health
+        if once and (delivered or state != "up"):
+            return
         time.sleep(poll)
 
 
@@ -228,7 +275,55 @@ def senders(records):
     return found
 
 
+def stop_hook(payload):
+    """Decide a Stop: nothing, or one `{"decision": "block", "reason"}` line.
+
+    Only an unattended session, where the turn ending is the process ending
+    unless a monitor holds it. An attended session ends turns with a listener
+    armed as a matter of course, and a machine without the channel has nothing
+    to guard — both are left alone, as is a session the hook already told once
+    (`stop_hook_active`): the second stop is its answer, and a declaration no
+    listener serves goes with it.
+
+    The listeners are read off `background_tasks`, which carries each task's
+    command as Claude Code rewrote it; `listen.py <thread>` survives the
+    wrapping, and `--wait` is what tells a declared wait's listener from one
+    armed to hear corrections while working.
+    """
+    if os.environ.get("CLAUDE_CODE_SESSION_ATTENDED") != "0" or "TELEGRAM_HITL_STATE_DIR" not in os.environ:
+        return
+    declared = pathlib.Path(os.environ["TELEGRAM_HITL_STATE_DIR"]) / "waits" / payload["session_id"]
+    armed = [task for task in payload.get("background_tasks") or []
+             if task.get("status", "running") == "running"
+             and re.search(r"listen\.py \d+", task.get("command") or "")]
+    waiting = [task for task in armed if "--wait" in task["command"]]
+    if payload.get("stop_hook_active"):
+        if not waiting and declared.exists():
+            declared.unlink()
+        return
+    here = pathlib.Path(__file__).resolve()
+    if declared.exists() and not waiting:
+        thread = declared.read_text().strip()
+        reason = (f"telegram-hitl: this session declared a wait on topic {thread} and its "
+                  f"listener is gone (expired, or stopped). To keep waiting, re-arm it under "
+                  f"Monitor (timeout_ms 1800000): python3 {here} {thread} --wait. To stop "
+                  f"waiting, end again.")
+    elif armed and not declared.exists():
+        task = armed[0]
+        thread = re.search(r"listen\.py (\d+)", task["command"]).group(1)
+        reason = (f"telegram-hitl: the listener on topic {thread} (task {task['id']}) is armed "
+                  f"and no wait is declared, so this session cannot end while it runs. "
+                  f"TaskStop {task['id']} to end, or arm python3 {here} {thread} --wait under "
+                  f"Monitor to stay and wait for the human.")
+    else:
+        return
+    print(json.dumps({"decision": "block", "reason": reason}))
+
+
 def main(argv):
+    if argv == ["stop-hook"]:
+        stop_hook(json.load(sys.stdin))
+        return
     log = pathlib.Path(os.environ["TELEGRAM_HITL_STATE_DIR"]) / "channel.jsonl"
     if argv == ["topics"]:
         found = list(records(log))
@@ -238,16 +333,24 @@ def main(argv):
             tail = f"  +{who['unattributed']} unattributed" if who["unattributed"] else ""
             print(f"{thread}\t{name}\t{' '.join(who['sessions'])}{tail}")
         return
-    if len(argv) not in (2, 3) or argv[2:] not in ([], ["--from-now"]):
+    if len(argv) not in (1, 2) or argv[1:] not in ([], ["--wait"]):
         sys.exit(__doc__)
-    thread, mark = int(argv[0]), pathlib.Path(argv[1])
-    if argv[2:] == ["--from-now"] and not mark.exists():
-        mark.write_text(str(max((record["update"]["update_id"] for record in records(log)
-                                 if record["kind"] == "inbound"), default=0)))
-    seen = int(mark.read_text() or 0) if mark.exists() else 0
-    for line, seen in listen(log, thread, seen):
+    thread, once = int(argv[0]), argv[1:] == ["--wait"]
+    declaration = None
+    if once:
+        session = os.environ.get("CLAUDE_CODE_SESSION_ID")
+        if not session:
+            sys.exit("--wait needs CLAUDE_CODE_SESSION_ID: the declaration is keyed by the "
+                     "session the stop hook will hold to it")
+        declaration = log.parent / "waits" / session
+        declaration.parent.mkdir(exist_ok=True)
+        declaration.write_text(str(thread))
+    last = None
+    for line in listen(log, thread, once=once):
         print(line, flush=True)        # Python buffers otherwise, and a buffered
-        mark.write_text(str(seen))     # line is a notification that never arrives
+        last = line                    # line is a notification that never arrives
+    declaration.unlink()
+    sys.exit(1 if last.startswith("channel down") else 0)
 
 
 if __name__ == "__main__":

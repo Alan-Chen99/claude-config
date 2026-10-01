@@ -163,6 +163,15 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/skills/telegram-hitl/listen.py stop-hook",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
