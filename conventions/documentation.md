@@ -42,15 +42,21 @@ reports without `--api`.
 
 **Over cap, cut that group to 80% of cap in the same change** — the agent that
 crossed the line pays. A group already over when you arrived is debt: say so,
-and pay it when the task is about its docs rather than in passing.
+and pay it when the task is about its docs rather than in passing. Cutting a
+held file lowers its `[held.files]` row to the new size or drops it: the tool
+does not ratchet, and a row left standing is headroom the file regrows into.
 
 Only consolidation satisfies the cap: merge duplicates, resolve the conflicts
-you find, delete what the code already says. Moving prose out of `.md` (into a
-comment, JSON, a script's `--help`, a pointer to an external source) is not a
-cut. Neither is loosening the registry: a `[data]` entry, a held size or a cap
-above the one the group would otherwise have needs the user's approval; the tool
-checks only that the approving session is not the running one, so an entry an
-agent approves is inert in the session that wrote it.
+you find, delete what the code already says. Moving a body's reference material
+into an on-demand `.md` under the group that loads it later (a skill's
+`references/`, a `docs/` file) is a cut — it stays counted, under the mechanism
+that pays for it. Moving prose out of `.md` (into a comment, JSON, a script's
+`--help`, a pointer to an external source) is not a cut. Neither is loosening
+the registry: a `[data]` entry, a held size or a cap above the one the group
+would otherwise have needs the user's approval, asked for at cut time with what
+the 80% target would lose, never ahead of it; the tool checks only that the
+approving session is not the running one, so an entry an agent approves is
+inert in the session that wrote it.
 
 What survives is non-rederivable and changes an action — the test is whether
 not knowing it makes an agent do the wrong thing. Everything else goes,

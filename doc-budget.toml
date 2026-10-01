@@ -31,9 +31,12 @@
 # which the user approved it and live at once; either opens with
 # `agent-tools cc-pretty <8 hex> --skeleton`.  Class caps and `default_cap` are
 # policy the user edits.
+# `# target N` on a group the resolver cannot hold (a named file, a one_of set,
+# a directory) is the cap its next cut lowers it to: the cut lands at 80% of N
+# and deletes the line.  Decisions: plans/2026-09-30-doc-budget-reduction.md.
 
 cut_to = 0.8
-default_cap = 15000
+default_cap = 12000
 
 # -- every request ----------------------------------------------------------
 
@@ -42,6 +45,7 @@ loaded = "every request, every project"
 cap = 4400
 
 # One opencode agent body is loaded per session; the set pays its largest.
+# target 4,400: the cc prompt's cap, for the same job.
 [groups.opencode-prompt]
 loaded = "every request of an opencode session"
 one_of = "opencode/agents/<agent>.md"
@@ -51,6 +55,8 @@ cap = 5200
 
 # The `description:` of every skill and agent, which the skills listing carries
 # into every session; counted here and again inside its file.
+# target 900: a trigger needs the when; six descriptions run 74-116 tokens and
+# carry the how.
 [groups.descriptions]
 loaded = "every session, every project"
 derived = "descriptions"
@@ -58,25 +64,31 @@ cap = 1200
 
 # -- per invocation, per spawn ----------------------------------------------
 
-# skills/<n>/SKILL.md and .claude/skills/<n>/SKILL.md, each its own group.
+# skills/<n>/SKILL.md and .claude/skills/<n>/SKILL.md, each its own group.  The
+# body is the workflow (long-bash does its job in 1,051); what it refers to
+# lives under skills/<name>, loaded on demand.
 [groups.skill-bodies]
 loaded = "per invocation"
 derived = "skill-bodies"
-cap = 3000
+cap = 2000
 
 # Grew to 7,316 before anything measured it, so it carries a cap of its own;
 # 1,000 stands until the skill's job changes.
 [groups."skills/telegram-hitl/SKILL.md"]
 cap = 1000
 
-# agents/*.md, each its own group.
+# agents/*.md, each its own group; a spawn is an invocation, so the skill-body
+# cap.  The three held bodies share one precedence table and one
+# Missing-documentation block verbatim.
 [groups.agent-bodies]
 loaded = "per spawn"
 derived = "agent-bodies"
-cap = 3000
+cap = 2000
 
 # Agent bodies tell their agent to read these, so the set is spent per spawn;
 # the cap sits just above today's size and the next growth past it pays the cut.
+# target 20,000: code-quality/README.md beside code-quality/CLAUDE.md is two
+# indexes; 04, 07 and 08 overlap; documentation.md is half examples.
 [groups.conventions]
 loaded = "per spawn (agent bodies read them)"
 cap = 25000
@@ -92,19 +104,24 @@ cap = 1500
 
 # -- on demand, one file at a time ------------------------------------------
 
+# docs, notes and specs: 2,000 for a new file, read whole when read at all.
+# Nothing is raised above it: an over-size file holds below, and a raise is
+# asked for at cut time with what the 80% target would lose -- the three
+# most-read docs are each pointed at for one section and Read whole, so size
+# there is what the reader pays, not what it needs.
 [groups.docs]
 loaded = "on demand, one file at a time"
 per_file = true
-cap = 5000
+cap = 2000
 
 [groups.notes]
 loaded = "on demand, one file at a time"
 per_file = true
-cap = 4000
+cap = 2000
 
 [groups."docs/superpowers/specs"]
 per_file = true
-cap = 4000
+cap = 2000
 
 # Ad-hoc working plans, read one at a time and each its own size, so each file
 # is its own group at 1,000; the writing-plans records
@@ -121,12 +138,14 @@ cap = 1000
 [groups."skills/<name>"]
 loaded = "on demand, when the skill is invoked"
 
+# One reference per topic, read one at a time.
 [groups."skills/prompt-engineer/references"]
 per_file = true
-cap = 10000
+cap = 8000
 
 # INTENT.md is the skill's 11k design spec, read whole; the cap is today's size,
 # so the next addition pays the 20% cut.
+# target 12,000 (default_cap): INTENT.md is a spec, and a spec is 2,000 elsewhere.
 [groups."skills/planner"]
 cap = 17808
 approved = "user:834203fa"
@@ -144,12 +163,16 @@ loaded = "on demand"
 
 # settings.json has had `outputStyle: default` since cbeb6721, so nothing here
 # is loaded; the cap keeps the directory from growing unnoticed.
+# target 7,000: alan-default.md is the superseded twin of alan-default-next.md;
+# the README's Reference half is snapshot material.
 [groups.output-styles]
 loaded = "not loaded since cbeb6721 (outputStyle: default)"
 cap = 11000
 
 # Everything else: root README.md and skills/README.md.  Residual, so a new
 # directory lands here and shows as infra debt, not nowhere.
+# target 9,000: skills/README.md is the scripts' layout convention, mostly
+# template; the public README stays.
 [groups.infra]
 loaded = "on demand, the residual"
 residual = true
@@ -204,19 +227,21 @@ paths = ["skills/prompt-engineer-v2/test-requests.md"]
 approved = "user:834203fa"
 why = "A transcript of test requests, kept verbatim."
 
-# -- held: every file over its class cap when the registry was introduced ---
+# -- held: every file over its class cap ------------------------------------
 #
-# At the size it had then, so CI is green on day one; the first addition to
-# any of these pays the 20% cut like any other over-cap group.  The report
-# marks a held row `(held)` and names an entry whose file is back within its
-# class cap so it can be dropped.
+# At the size it had when its class cap was set, so CI is green the day a cap
+# comes down; the first addition to any of these pays the 20% cut like any
+# other over-cap group.  A cut lowers the row to the new size or drops it: the
+# tool does not ratchet, so a row left standing is headroom the file regrows
+# into.  The report marks a held row `(held)` and names an entry whose file is
+# back within its class cap so it can be dropped.
 [held]
-approved = "user:834203fa"
-why = "Frozen at the size each file had on 2026-09-30, so the cap lands on the next edit rather than on a tree-wide rewrite."
+approved = "user:aff43b00"
+why = "Frozen at the size each file had when its class cap was set, both on 2026-09-30 -- the registry's introduction (user:834203fa) and the reduction (plans/2026-09-30-doc-budget-reduction.md) -- so the cap lands on the next edit rather than on a tree-wide rewrite."
 
 [held.files]
-"docs/system-prompt-snapshot/README.md" = 19757
 "agent-tools/CLAUDE.md" = 17107
+"docs/system-prompt-snapshot/README.md" = 15516
 "notes/compliance-check-failure-mode.md" = 13796
 "docs/opencode-system-prompt/alan-default-commentary.md" = 12725
 "plans/refactor-coding-style-skill.md" = 12506
@@ -226,6 +251,7 @@ why = "Frozen at the size each file had on 2026-09-30, so the cap lands on the n
 "skills/cc-history/SKILL.md" = 11426
 "skills/alan-writing-style/CLAUDE.md" = 10977
 "sys_prompt/CLAUDE.md" = 9998
+"skills/prompt-engineer/references/correctness/sampling.md" = 9783
 "plans/fix-style-skill-problems.md" = 8909
 "docs/system-prompt-snapshot/what-the-model-gets.md" = 8432
 "notes/planner-verification-reporting-analysis.md" = 8304
@@ -243,21 +269,43 @@ why = "Frozen at the size each file had on 2026-09-30, so the cap lands on the n
 "skills/session-analysis/SKILL.md" = 5739
 "plans/deterministic-qr-gates-plan.md" = 5607
 "docs/superpowers/specs/2026-08-24-agent-tools-run-observability-design.md" = 5466
+"docs/agent-tools-status-reference.md" = 4815
 "docs/superpowers/specs/2026-05-17-agent-tools-run-design.md" = 4641
 "docs/superpowers/specs/2026-06-01-prompt-tests-restructure-design.md" = 4573
 "notes/env-context-manifest.md" = 4467
 "notes/subagent-backgrounding-overrides-run-in-background.md" = 4341
 "notes/total-tokens-reminder.md" = 4047
+"docs/background-sessions.md" = 3983
+"docs/superpowers/specs/2026-09-30-intercept-replay-design.md" = 3916
 "agents/quality-reviewer.md" = 3766
+"docs/system-prompt-anatomy.md" = 3510
 "agents/developer.md" = 3374
+"docs/superpowers/specs/2026-08-12-session-analysis-skeleton-design.md" = 3347
 "plans/rebase-to-48bc8ed.md" = 3324
 "scripts/CLAUDE.md" = 3317
 "skills/auto-memory/SKILL.md" = 3248
+"docs/superpowers/specs/2026-08-26-agent-tools-run-design.md" = 3079
 "plans/alan-coding-style-gap-analysis-v2.md" = 3065
 "skills/alan-writing-style/SKILL.md" = 3021
 "plans/fuzzy-chasing-steele.md" = 3000
+"agents/debugger.md" = 2956
+"docs/total-tokens-reminder-trial.md" = 2950
+"skills/git-surgery/SKILL.md" = 2947
+"docs/superpowers/specs/2026-08-20-session-analysis-two-mode-revision-design.md" = 2884
+"notes/workers-bullet-hint-in-fact-position/probe-statement-form-2026-09-15.md" = 2812
+"notes/reasoning-extraction-refusals.md" = 2779
+"docs/superpowers/specs/2026-09-29-doc-budget-design.md" = 2621
+"docs/superpowers/specs/2026-05-17-unified-config-design.md" = 2617
+"docs/superpowers/specs/2026-09-22-alan-writing-style-design.md" = 2541
+"docs/superpowers/specs/2026-09-07-count-tokens-local-default-design.md" = 2478
+"docs/superpowers/specs/2026-09-23-make-public-design.md" = 2437
+"docs/opencode-system-prompt/build-self-reported.md" = 2411
 "plans/bug-report-doconly-CORRECTED.md" = 2373
+"notes/artifact-tool-roster-cost.md" = 2244
+"notes/prompt-test-grading-projection/judgement-l3r7-presence-phase1.md" = 2205
+"skills/prompt-engineer-v2/SKILL.md" = 2129
 "plans/pset3-timeout-policy-violation.md" = 2092
+"skills/notes/SKILL.md" = 2025
 "plans/planner-skill-bugs.md" = 1824
 "plans/bug-report-doconly-loop-upstream.md" = 1808
 "src/claude_config/CLAUDE.md" = 1746
