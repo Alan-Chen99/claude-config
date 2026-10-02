@@ -91,3 +91,9 @@ shapes in `notes/print-mode-task-lifetime.md` and
   within 200 ms, a line is cut at 500 characters and a batch at 3,000, more
   than 10 events in 2 s are suppressed, pending events flush before the expiry
   kill. This is why printed is not received.
+- A `-p` session's tool subprocesses see `CLAUDE_CODE_SESSION_ATTENDED=0` and
+  `CLAUDE_CODE_ENTRYPOINT=sdk-cli`, against `1` and `cli` interactive — the
+  `-p` test `SKILL.md` names. Measured 2026-10-01 for a `Stop` hook (the first
+  note) and for a Bash call: `echo $CLAUDE_CODE_SESSION_ATTENDED` under
+  `claude -p --model haiku` printed `0`, and `1` in the interactive session
+  that launched it.

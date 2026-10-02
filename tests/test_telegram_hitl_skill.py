@@ -23,24 +23,11 @@ def _script() -> dict:
     return runpy.run_path(str(SCRIPT))
 
 
-def _env(tmp_path: Path, state: bool = True, **extra: str) -> dict:
-    """The script's environment: this process's own, minus what a Claude Code
-    session running the suite would otherwise leak in, plus the channel under
-    test. `state=False` is a machine where the channel is not configured."""
-    env = {key: value for key, value in os.environ.items()
-           if key not in ("CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_SESSION_ATTENDED",
-                          "TELEGRAM_HITL_STATE_DIR")}
-    if state:
-        env["TELEGRAM_HITL_STATE_DIR"] = str(tmp_path)
-    return env | extra
-
-
-def _cli(tmp_path: Path, *args: str, env: dict | None = None,
-         stdin: bool = False) -> subprocess.Popen:
+def _cli(tmp_path: Path, *args: str) -> subprocess.Popen:
+    """The script as a process, reading the channel under test."""
     return subprocess.Popen([sys.executable, str(SCRIPT), *args],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                            stdin=subprocess.PIPE if stdin else None,
-                            env=env if env is not None else _env(tmp_path))
+                            env=os.environ | {"TELEGRAM_HITL_STATE_DIR": str(tmp_path)})
 
 
 class _Slept(Exception):

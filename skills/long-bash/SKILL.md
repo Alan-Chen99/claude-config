@@ -5,9 +5,10 @@ description: Use when a bash command will or did outrun the Bash tool's timeout 
 
 # Long-running bash commands
 
-A foreground Bash call that outruns its `timeout` (default 120000 ms, max
-600000 ms, silently clamped) is moved to the background and hands back a task
-id instead of its output. Nothing is lost — the output file keeps every byte —
+A foreground Bash call that outruns its `timeout` (default 120000 ms; the
+ceiling `BASH_MAX_TIMEOUT_MS` is 2³¹−1 in `settings.json`, raised for
+`skills/telegram-hitl`'s wait on a human, not for jobs) is moved to the
+background and hands back a task id instead of its output. Nothing is lost — the output file keeps every byte —
 but you spent the whole window arriving where backgrounding would have put you
 at once. So when the duration is unclear, background it: a fast command costs
 one extra notification, a slow one costs the window.
