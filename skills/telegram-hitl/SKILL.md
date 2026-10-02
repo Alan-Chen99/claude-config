@@ -20,8 +20,7 @@ notification. The unnotified lines below are not priced.
 
 ## Sending
 
-Any Bot API method, minus `https://api.telegram.org/bot<token>`; `localhost`
-is a placeholder.
+Any Bot API method, path only; `localhost` is a placeholder.
 
 ```bash
 STATE=$TELEGRAM_HITL_STATE_DIR
@@ -52,25 +51,30 @@ when you stop**, same handle, both with `"disable_notification": true`.
 
 ## Listening
 
-`listen.py` beside this file prints `message <id> in chat <chat>[, reply to
+`listen.py` prints `message <id> in chat <chat>[, reply to
 <your id>]: <text>` per human message for you and `channel up` / `channel down:
 <cause>`. Its memory is the log: **react 👍 to each message you read**
 (`setMessageReaction`, `reaction: [{"type":"emoji","emoji":"👍"}]`); an
-unreacted one is replayed at every arm and reads as unread.
+unreacted one is replayed at every run and reads as unread.
 
 ```
 Monitor(command="python3 <skill dir>/listen.py 61",
         description="topic 61", timeout_ms=1800000)
 ```
 
-Arm it as you create the topic. Monitors expire (30 min; 10 under `-p`):
-re-arm first thing in each expiry turn until you say you stop, then `TaskStop`
-it. `channel down` is past the blip the script forgives: fix the channel.
+Arm it as you create the topic. Monitors expire (30 min): re-arm first thing in each expiry turn until you say you stop, then
+`TaskStop` it. `channel down`: fix the channel.
 
-Under `claude -p`, waiting is ending the turn: run `listen.py 61 --wait`,
-end, and the Stop hook holds the process and brings the answer as its feedback
-(then `--wait` again for the next); `listen.py stop-waiting` withdraws. A
-listener left armed at a turn end is named once; do what the hook says.
+With nothing to do but wait, block on the answer:
+
+```
+Bash(command="python3 <skill dir>/listen.py 61 --wait", timeout=2147483647)
+```
+
+It returns the next message(s); exit 1: `channel down`. Under `claude -p` it
+is the only wait (a turn end ends the process; monitor events during it are
+lost): arm none there, and `listen.py 61 --peek` between steps reads what is
+unreacted.
 
 ## Traps
 

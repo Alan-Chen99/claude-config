@@ -230,16 +230,15 @@ or to a session that ended. The reaction is an act the agent already owes
 after reading, so the human and the listener agree on what is unread; re-arms, resumed sessions and a loop's next iteration carry no
 state.
 
-The listener runs under `Monitor`, the one harness task that holds a `claude
--p` process past its turn (a background Bash task is killed with it —
-`notes/print-mode-task-lifetime.md`), armed at topic creation to hear
-corrections. A wait with nothing else pending belongs to the
-`Stop` hook: `--wait` declares it in `waits/<session id>` and returns, the
-session ends its turn, and the hook — unattended sessions only — polls the log
-and blocks the stop with the human's message as its reason. Nothing runs while
-the human has not answered, and ending again cannot end the wait: a default, not a decision — `stop-waiting` is. A listener armed
-with no wait declared is blocked once: the process would sit on the monitor.
-Matrix: `skills/telegram-hitl/README.md`.
+Listening while working runs under `Monitor`, armed at topic creation,
+interactive only. A wait with nothing else pending is one foreground Bash
+call: `listen.py <thread> --wait` polls the log and returns what is unreacted
+as its output (exit 1 on `channel down`), under `timeout=2147483647`, which
+`BASH_MAX_TIMEOUT_MS` in `settings.json` `env` lets through. The call holds a `claude -p` process, no model turn spent; under
+`-p` nothing else is armed — monitor events during a foreground call are
+dropped at the turn end — and `--peek` reads what is unreacted between steps. Measurements and the design replaced:
+`notes/foreground-wait-under-print-mode.md`; guarantees:
+`skills/telegram-hitl/README.md`.
 
 **Why not a blocking wait endpoint on the proxy.** Waits are measured in hours:
 a long-poll would need the proxy's uptime to exceed the wait, and a restart
@@ -446,8 +445,8 @@ lost, so they are enumerated here as the skill's scope:
   `migrate_to_chat_id` is the forwarding pointer.
 - Reading a file that is being appended to needs care in Python, which yields
   partial final lines where a shell `read` loop does not.
-- Printed is not received; what holds a `claude -p` process is a `Monitor` or
-  a running hook.
+- Printed is not received; a `claude -p` process is held by a foreground call
+  or a `Monitor`, never by a background task.
 
 ## Deliberately excluded
 

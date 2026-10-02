@@ -3,9 +3,11 @@ the skill states in prose are pinned by string, because agents copy the page."""
 
 import json
 import os
+import re
 import runpy
 import subprocess
 import sys
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -301,210 +303,81 @@ def test_the_topics_command_lists_the_forum_and_who_has_sent_in_each_topic(tmp_p
     assert out == "6\talpha\ts1 s2  +1 unattributed\n9\tbeta\ts1\n"
 
 
-def test_wait_mode_declares_and_returns_at_once(tmp_path) -> None:
-    """Unattended, the wait is the Stop hook's to hold: `--wait` leaves the
-    declaration it will read and returns, so the session can end its turn."""
-    (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
+def test_wait_mode_returns_with_what_is_unreacted(tmp_path) -> None:
+    """The wait is one foreground call: it returns with the messages nobody has
+    reacted to as its output and exits 0 — the answer is the tool result."""
+    (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
+        {"kind": "proxy", "event": "started"},
+        {"kind": "inbound", "update": {"update_id": 30, "message": {
+            "message_id": 52, "message_thread_id": 6, "is_topic_message": True,
+            "chat": {"id": -100}, "text": "ship it"}}},
+    ]))
 
-    process = _cli(tmp_path, "6", "--wait",
-                   env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1", CLAUDE_CODE_SESSION_ATTENDED="0"))
+    process = _cli(tmp_path, "6", "--wait")
     out, _ = process.communicate(timeout=20)
 
     assert process.returncode == 0
-    assert "topic 6" in out and "end the turn" in out
-    assert (tmp_path / "waits" / "s1").read_text().split() == ["6"]
+    assert out == "message 52 in chat -100: ship it\nchannel up\n"
 
 
-def test_wait_mode_refuses_an_attended_session(tmp_path) -> None:
-    """Attended, the hook is inert and a declaration would hold nothing; the
-    listener under Monitor is the wait there, and the refusal says so."""
-    (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
-
-    process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
-    _, err = process.communicate(timeout=20)
-
-    assert process.returncode != 0
-    assert "Monitor" in err
-    assert not (tmp_path / "waits").exists()
-
-
-def test_wait_mode_refuses_to_run_without_a_session(tmp_path) -> None:
-    """A wait nobody can be held to is not a wait: the declaration is keyed by
-    the session that made it."""
-    (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
-
-    process = _cli(tmp_path, "6", "--wait", env=_env(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0"))
-    _, err = process.communicate(timeout=20)
-
-    assert process.returncode != 0
-    assert "CLAUDE_CODE_SESSION_ID" in err
-    assert not (tmp_path / "waits").exists()
-
-
-def test_stop_waiting_withdraws_the_declaration(tmp_path) -> None:
-    """Stopping a declared wait on purpose is an act, not an absence: the
-    declaration goes when the session says so, and only then."""
-    marker = tmp_path / "waits" / "s1"
-    marker.parent.mkdir()
-    marker.write_text("6\n2\n")
-
-    process = _cli(tmp_path, "stop-waiting", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
-    out, _ = process.communicate(timeout=20)
-
-    assert process.returncode == 0
-    assert "6" in out
-    assert not marker.exists()
-
-    process = _cli(tmp_path, "stop-waiting", env=_env(tmp_path, CLAUDE_CODE_SESSION_ID="s1"))
-    out, _ = process.communicate(timeout=20)
-
-    assert process.returncode == 0
-    assert "no wait" in out
-
-    process = _cli(tmp_path, "stop-waiting")
-    _, err = process.communicate(timeout=20)
-
-    assert process.returncode != 0
-    assert "CLAUDE_CODE_SESSION_ID" in err
-
-
-_LISTENING = {"id": "b1", "type": "shell", "status": "running", "description": "topic 6",
-              "command": "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; "
-                         "export AGENT_TOOLS_PARENT_DIR='/x'; "
-                         "python3 /root/.claude/skills/telegram-hitl/listen.py 6"}
-
-
-def _stop(tmp_path: Path, *tasks: dict, active: bool = False, **env: str) -> tuple[int, str]:
-    """One Stop hook call: exit code and stdout, for the payload Claude Code
-    sends (`session_id`, `stop_hook_active`, `background_tasks`)."""
-    payload = {"session_id": "s1", "hook_event_name": "Stop", "stop_hook_active": active,
-               "background_tasks": list(tasks)}
-    state = env.pop("state", "on") != "off"
-    process = _cli(tmp_path, "stop-hook", stdin=True, env=_env(tmp_path, state=state, **env))
-    out, _ = process.communicate(json.dumps(payload), timeout=20)
-    return process.returncode, out
-
-
-def _blocked(out: str) -> str:
-    decision = json.loads(out)
-    assert decision["decision"] == "block"
-    return decision["reason"]
-
-
-def test_the_stop_hook_is_inert_where_a_turn_end_is_not_a_session_end(tmp_path) -> None:
-    """Interactive sessions end turns with a listener armed as a matter of
-    course, and a machine without the channel has nothing to guard."""
-    assert _stop(tmp_path, _LISTENING, CLAUDE_CODE_SESSION_ATTENDED="1") == (0, "")
-    assert _stop(tmp_path, _LISTENING) == (0, "")                       # unset: attended
-    assert _stop(tmp_path, _LISTENING, state="off",
-                 CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")              # no channel here
-
-
-def test_the_stop_hook_lets_a_session_with_nothing_armed_end(tmp_path) -> None:
-    assert _stop(tmp_path, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
-
-
-def test_the_stop_hook_blocks_an_undeclared_wait_once(tmp_path) -> None:
-    """A listener armed and no wait declared is the accident: under `-p` the
-    process stays up for the monitor and the loop never advances. Named once,
-    with both ways out; the second stop is the session's answer."""
-    code, out = _stop(tmp_path, _LISTENING, CLAUDE_CODE_SESSION_ATTENDED="0")
-
-    assert code == 0
-    reason = _blocked(out)
-    assert "TaskStop" in reason and "b1" in reason and "listen.py 6 --wait" in reason
-
-    assert _stop(tmp_path, _LISTENING, active=True, CLAUDE_CODE_SESSION_ATTENDED="0") == (0, "")
-
-
-def _hold(tmp_path: Path, namespace: dict, monkeypatch, capsys, *records: dict,
-          on_sleep=None, step: float = 2.0, tasks: list | None = None) -> tuple[str, Path]:
-    """One in-process Stop hook call on a declared wait, with the clock faked:
-    every sleep advances it by `step` seconds and runs `on_sleep`. Returns the
-    hook's stdout and the declaration path."""
+def test_wait_mode_keeps_waiting_until_a_message_arrives(tmp_path) -> None:
+    """Nothing unreacted yet is not an answer: the call stays in the foreground,
+    holding the turn, and returns on the pass that delivers."""
     path = tmp_path / "channel.jsonl"
-    path.write_text("".join(json.dumps(record) + "\n" for record in records))
-    marker = tmp_path / "waits" / "s1"
-    marker.parent.mkdir()
-    marker.write_text("6\n")
-    now = [0.0]
+    path.write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
 
-    def sleep(seconds: float) -> None:
-        now[0] += step
-        if on_sleep is not None:
-            on_sleep()
+    process = _cli(tmp_path, "6", "--wait")
+    time.sleep(0.5)
+    assert process.poll() is None                       # still waiting
+    with path.open("a") as handle:
+        handle.write(json.dumps({"kind": "inbound", "update": {"update_id": 40, "message": {
+            "message_id": 7, "message_thread_id": 6, "is_topic_message": True,
+            "chat": {"id": -100}, "text": "ship it"}}}) + "\n")
+    out, _ = process.communicate(timeout=20)
 
-    monkeypatch.setattr(namespace["time"], "sleep", sleep)
-    monkeypatch.setattr(namespace["time"], "monotonic", lambda: now[0])
-    monkeypatch.setenv("CLAUDE_CODE_SESSION_ATTENDED", "0")
-    monkeypatch.setenv("TELEGRAM_HITL_STATE_DIR", str(tmp_path))
-    namespace["stop_hook"]({"session_id": "s1", "hook_event_name": "Stop", "stop_hook_active": False,
-                            "background_tasks": tasks or []})
-    return capsys.readouterr().out, marker
+    assert process.returncode == 0
+    assert out == "channel up\nmessage 7 in chat -100: ship it\n"
 
 
-def test_the_stop_hook_holds_a_declared_wait_and_brings_the_answer(tmp_path, monkeypatch, capsys) -> None:
-    """The process is held by the hook, not by the model: nothing runs while
-    the human has not answered, and the answer arrives as the hook's reason.
-    The declaration goes with the delivery — the session has been told."""
-    namespace = _script()
-    path = tmp_path / "channel.jsonl"
+def test_wait_mode_exits_1_on_a_dead_channel(tmp_path) -> None:
+    """A channel that cannot deliver is reported, not waited on: the exit code
+    says so and the output names the cause."""
+    (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
+        {"kind": "proxy", "event": "started"},
+        {"kind": "proxy", "event": "stopped", "reason": "SIGTERM"},
+    ]))
 
-    def arrive() -> None:
-        with path.open("a") as handle:
-            handle.write(json.dumps({"kind": "inbound", "update": {"update_id": 40, "message": {
-                "message_id": 7, "message_thread_id": 6, "is_topic_message": True,
-                "chat": {"id": -100}, "text": "ship it"}}}) + "\n")
+    process = _cli(tmp_path, "6", "--wait")
+    out, _ = process.communicate(timeout=20)
 
-    out, marker = _hold(tmp_path, namespace, monkeypatch, capsys,
-                        {"kind": "proxy", "event": "started"}, on_sleep=arrive)
-
-    reason = _blocked(out)
-    assert "message 7 in chat -100: ship it" in reason
-    assert "👍" in reason and "listen.py 6 --wait" in reason
-    assert not marker.exists()
+    assert process.returncode == 1
+    assert out == "channel down: SIGTERM\n"
 
 
-def test_the_stop_hook_reports_a_dead_channel_and_keeps_the_wait(tmp_path, monkeypatch, capsys) -> None:
-    """A channel that cannot deliver is reported, not waited on forever — after
-    a grace that outlasts a proxy restart — and the wait stays declared, so a
-    fixed channel resumes it on the next turn end."""
-    namespace = _script()
+def test_peek_reads_once_and_returns(tmp_path) -> None:
+    """Between steps, with no monitor armed: one pass over the log, what is
+    unreacted printed, and the call returns whether or not anything was."""
+    (tmp_path / "channel.jsonl").write_text(json.dumps({"kind": "proxy", "event": "started"}) + "\n")
 
-    out, marker = _hold(tmp_path, namespace, monkeypatch, capsys,
-                        {"kind": "proxy", "event": "started"},
-                        {"kind": "proxy", "event": "stopped", "reason": "SIGTERM"}, step=60.0)
+    process = _cli(tmp_path, "6", "--peek")
+    out, _ = process.communicate(timeout=20)
 
-    reason = _blocked(out)
-    assert "channel down: SIGTERM" in reason and "stop-waiting" in reason
-    assert marker.exists()
+    assert process.returncode == 0
+    assert out == "channel up\n"
 
 
-def test_the_stop_hook_renews_its_hold_before_its_own_deadline(tmp_path, monkeypatch, capsys) -> None:
-    """Claude Code kills a hook at its settings timeout and reads that as no
-    decision — an exit. The hook returns first, with a reason that keeps the
-    wait, and the next turn end resumes it."""
-    namespace = _script()
-
-    out, marker = _hold(tmp_path, namespace, monkeypatch, capsys,
-                        {"kind": "proxy", "event": "started"}, step=3600.0)
-
-    reason = _blocked(out)
-    assert "still waiting" in reason and "topic 6" in reason
-    assert marker.exists()
-
-
-def test_the_stop_hook_is_wired_in_settings() -> None:
-    """A hook that is not registered guards nothing; the registration is the
-    only link between the script and the stop it is meant to see."""
+def test_settings_let_the_wait_call_outlast_the_bash_cap() -> None:
+    """The skill's wait is a Bash call with a timeout above the tool's default
+    ceiling of ten minutes; the ceiling moves only through `BASH_MAX_TIMEOUT_MS`
+    in settings `env` — and a Stop hook holding the wait is a design this file
+    no longer has."""
     settings = json.loads((SKILL_DIR.parents[1] / "settings.json").read_text())
-    hooks = [hook for group in settings["hooks"]["Stop"] for hook in group["hooks"]
-             if hook["command"].endswith("telegram-hitl/listen.py stop-hook")]
-    assert len(hooks) == 1
-    assert hooks[0]["timeout"] > _script()["HOLD"]    # the hook returns before Claude Code kills it
-    # every answer the hook brings is one consecutive block; the default cap of 8 would
-    # end a -p session at its ninth, silently (2.1.269, `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? 8`)
-    assert int(settings["env"]["CLAUDE_CODE_STOP_HOOK_BLOCK_CAP"]) >= 1000
+    asked = re.search(r"timeout=(\d+)", SKILL.read_text())
+    assert asked, "the skill shows no timeout on its wait call"
+    assert int(asked.group(1)) <= int(settings["env"].get("BASH_MAX_TIMEOUT_MS", "0")) <= 2**31 - 1
+    assert "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP" not in settings["env"]
+    assert not [hook for group in settings["hooks"].get("Stop", []) for hook in group["hooks"]
+                if "listen.py" in hook["command"]]
 
 
 def test_the_skill_names_the_session_variable_that_exists() -> None:
@@ -595,11 +468,11 @@ def test_every_call_the_skill_shows_names_its_caller() -> None:
 
 
 def test_the_skill_names_the_wait_mode() -> None:
-    """The single-shot wait is the only way to hold an unattended session on
-    the human; a skill that does not name it leaves the chain of monitors as
-    the only thing to copy."""
+    """The foreground wait is the only way to hold an unattended session on
+    the human, and the peek the only listening a `-p` session has; a skill that
+    does not name them leaves the chain of monitors as the only thing to copy."""
     assert "--wait" in SKILL.read_text()
-    assert "stop-waiting" in SKILL.read_text()
+    assert "--peek" in SKILL.read_text()
 
 
 def test_the_skill_disarms_the_listener_it_arms() -> None:
