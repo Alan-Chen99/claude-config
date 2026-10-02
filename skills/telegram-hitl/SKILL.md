@@ -5,11 +5,10 @@ description: Use when a session needs a human decision it cannot make alone - as
 
 # Telegram human-in-the-loop
 
-Bot API calls go to a local proxy; answers come out of one append-only log.
-`$TELEGRAM_HITL_STATE_DIR` holds `proxy.sock`, `channel.jsonl`, `chat_id`,
-shared by all sessions. Unset: not configured here; never guess it — a second
-`getUpdates` drain evicts the first. Proxy: the `telegram-hitl` systemd user
-unit — this repo's `src/claude_config/CLAUDE.md`.
+Bot API calls go to a local proxy; answers are read from its log.
+`$TELEGRAM_HITL_STATE_DIR` holds `proxy.sock`, `channel.jsonl`, `chat_id`.
+Unset: not configured here; never guess it — a second `getUpdates` drain
+evicts the first. Proxy: `systemd --user` unit `telegram-hitl`.
 
 ## Whether to send
 
@@ -21,8 +20,7 @@ notification. The unnotified lines below are not priced.
 
 ## Sending
 
-Any Bot API method, minus `https://api.telegram.org/bot<token>`; `localhost` is
-a placeholder curl requires.
+Any Bot API method, path only; `localhost` is a placeholder.
 
 ```bash
 STATE=$TELEGRAM_HITL_STATE_DIR
@@ -33,9 +31,8 @@ curl -s --unix-socket "$STATE/proxy.sock" http://localhost/sendMessage \
 
 `X-Session-Id` on every call, the id whole — the log's only record of who
 called. No client shows message ids: never cite one in `text`; reply —
-`"reply_parameters": {"message_id": 64, "quote": "<exact substring>"}` (ids:
-listener lines, send responses; inexact → `QUOTE_TEXT_INVALID`). One open
-question per message.
+`"reply_parameters": {"message_id": 64, "quote": "<exact substring>"}`
+(inexact → `QUOTE_TEXT_INVALID`). One open question per message.
 
 Refused: `403` `getUpdates`/`setWebhook`/`deleteWebhook`, `400` non-alphanumeric
 method, `411` chunked body, `502` Telegram unreachable; nothing is retried.
@@ -44,35 +41,40 @@ method, `411` chunked body, `502` Telegram unreachable; nothing is retried.
 
 `message_thread_id` addresses a forum topic. **Make your own, named for the
 work, at its first real question** (`createForumTopic` `{"chat_id", "name"}` →
-`result.message_thread_id`) **and read it whole**: everything typed there is for
-you. Two sessions in one topic take each other's answers — join one only to
-continue its work, then act only on lines marked as replies to you. `python3
-<skill dir>/listen.py topics` lists them and their senders.
+`result.message_thread_id`) **and read it whole**. Two sessions in one topic take each other's answers — join one only to
+continue its work, then act only on replies to you. `listen.py topics` lists
+them and their senders.
 
 Your messages all arrive from the same bot, so **name yourself as you arm the
 listener** — `▸ $CLAUDE_CODE_SESSION_ID · $PWD`, what you are doing — and **say
-when you stop**, same handle, both with `"disable_notification": true`; else the
-human types into a topic nobody reads.
+when you stop**, same handle, both with `"disable_notification": true`.
 
 ## Listening
 
-`listen.py` beside this file prints `message <id> in chat <chat>[, reply to
+`listen.py` prints `message <id> in chat <chat>[, reply to
 <your id>]: <text>` per human message for you and `channel up` / `channel down:
-<cause>`; the watermark file is its memory across re-arms (`--from-now` skips a
-joined topic's history).
+<cause>`. Its memory is the log: **react 👍 to each message you read**
+(`setMessageReaction`, `reaction: [{"type":"emoji","emoji":"👍"}]`); an
+unreacted one is replayed at every run and reads as unread.
 
 ```
-Monitor(command="python3 <skill dir>/listen.py 61 <scratchpad>/seen",
+Monitor(command="python3 <skill dir>/listen.py 61",
         description="topic 61", timeout_ms=1800000)
 ```
 
-Arm it as you create the topic, not later. Thirty minutes is the cap, so re-arm
-first thing in each expiry turn until you say you stop; then `TaskStop` it.
-Waiting is ending the turn — not a loop, not `agent-tools run --background`.
-`channel down` is past the blip the script forgives: fix the channel. React 👍
-to each answer you read (`setMessageReaction`,
-`reaction: [{"type":"emoji","emoji":"👍"}]`); an unreacted answer reads as
-unread.
+Arm it as you create the topic. Monitors expire (30 min): re-arm first thing in each expiry turn until you say you stop, then
+`TaskStop` it. `channel down`: fix the channel.
+
+With nothing to do but wait, block on the answer:
+
+```
+Bash(command="python3 <skill dir>/listen.py 61 --wait", timeout=2147483647)
+```
+
+It returns the next message(s); exit 1: `channel down`. Under `claude -p` it
+is the only wait (a turn end ends the process; monitor events during it are
+lost): arm none there, and `listen.py 61 --peek` between steps reads what is
+unreacted.
 
 ## Traps
 

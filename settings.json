@@ -4,7 +4,8 @@
     "CLAUDE_CODE_FORK_SUBAGENT": "0",
     "TELEGRAM_HITL_STATE_DIR": "/home/alan/personal/telegram-hitl",
     "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
-    "CLAUDE_CODE_ENABLE_CFC": "false"
+    "CLAUDE_CODE_ENABLE_CFC": "false",
+    "BASH_MAX_TIMEOUT_MS": "2147483647"
   },
   "attribution": {
     "commit": "",
