@@ -226,21 +226,10 @@ enum Cmd {
     /// `disable_help_flag` forwards --help to the Python parser, whose help
     /// carries the flag list and the warning that the two backends do not
     /// measure the same thing. Machinery invokes the other pass-throughs, so
-    /// they keep clap's help; this one and `doc-budget` a person types.
+    /// they keep clap's help; this one a person types.
     #[command(name = "count-tokens", disable_help_flag = true)]
     CountTokens {
         /// Arguments forwarded to claude_config.count_tokens
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    /// Every tracked .md against the caps in doc-budget.toml:
-    /// agent-tools doc-budget [--print-held] [path ...]
-    ///
-    /// `disable_help_flag` for the same reason as count-tokens: the Python
-    /// help carries the exit-status table and the unit a person needs.
-    #[command(name = "doc-budget", disable_help_flag = true)]
-    DocBudget {
-        /// Arguments forwarded to claude_config.doc_budget
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
@@ -826,14 +815,6 @@ fn main() {
                     &root,
                     None,
                     &["python3", "-m", "claude_config.count_tokens"],
-                    &args,
-                );
-            }
-            Cmd::DocBudget { args } => {
-                uv_run(
-                    &root,
-                    None,
-                    &["python3", "-m", "claude_config.doc_budget"],
                     &args,
                 );
             }

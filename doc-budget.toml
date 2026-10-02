@@ -1,7 +1,7 @@
 # Doc budget: token caps for every tracked `.md`, grouped by how the text
 # reaches a context.  Design: docs/superpowers/specs/2026-09-29-doc-budget-design.md
 # Policy: conventions/documentation.md, "Documentation budget".
-# Measure: agent-tools doc-budget [--print-held] [path ...]
+# Measure: uv run doc-budget [--print-held] [path ...]
 #
 # Unit: local-tokenizer tokens (`agent-tools count-tokens` without `--api`),
 # the backend that runs offline, in CI and in worktrees.  Claude context is
@@ -246,7 +246,7 @@ approved = "user:aff43b00"
 why = "Frozen at the size each file had when its class cap was set, both on 2026-09-30 -- the registry's introduction (user:834203fa) and the reduction (plans/2026-09-30-doc-budget-reduction.md) -- so the cap lands on the next task on each file's subject rather than on a tree-wide rewrite."
 
 [held.files]
-"agent-tools/CLAUDE.md" = 17107
+"agent-tools/CLAUDE.md" = 16942
 "docs/system-prompt-snapshot/README.md" = 15516
 "notes/compliance-check-failure-mode.md" = 13796
 "docs/opencode-system-prompt/alan-default-commentary.md" = 12725
@@ -313,7 +313,6 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "skills/notes/SKILL.md" = 2025
 "plans/planner-skill-bugs.md" = 1824
 "plans/bug-report-doconly-loop-upstream.md" = 1808
-"src/claude_config/CLAUDE.md" = 1746
 "plans/tranquil-wandering-mochi.md" = 1697
 "plans/bug-report-keyerror-upstream.md" = 1189
 "plans/wrap-task-bash-state-experiment.md" = 1182

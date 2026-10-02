@@ -1,6 +1,9 @@
-"""agent-tools doc-budget: every tracked `.md` against the caps in `doc-budget.toml`.
+"""doc-budget: every tracked `.md` against the caps in `doc-budget.toml`.
 
-    agent-tools doc-budget [--print-held] [path ...]
+    uv run doc-budget [--print-held] [path ...]
+
+`ROOT` is the checkout this module is imported from, so `uv run` in a worktree,
+with the worktree's own venv, measures that worktree.
 
 Every tracked `.md` counts against exactly one group unless a `[data]` entry
 covers it -- and a README.md or CLAUDE.md counts wherever it is. Groups follow

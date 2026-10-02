@@ -25,6 +25,7 @@ cc-pretty-intercept = "claude_config.cc_pretty_intercept.main:main"
 cc-replay = "claude_config.cc_replay.main:main"
 cc-render-coverage = "claude_config.cc_pretty.coverage:main"
 cc-workflow-extract = "claude_config.cc_workflow.extract:main"
+doc-budget = "claude_config.doc_budget:main"
 opencode-pretty = "claude_config.opencode_pretty.main:main"
 
 [tool.uv]

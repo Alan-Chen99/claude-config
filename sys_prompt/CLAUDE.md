@@ -31,7 +31,7 @@ states the rule; the file carries the reasoning. That split is what lets step 1 
 losing anything.
 
 Measure before and after. `doc-budget.toml` caps the prompt at 4,400 local-tokenizer
-tokens (`agent-tools doc-budget sys_prompt/alan-default-next.md`, the figure CI gates);
+tokens (`uv run doc-budget sys_prompt/alan-default-next.md`, the figure CI gates);
 `--api` below is Claude context consumed, about 1.5x that and a different unit
 (`agent-tools/CLAUDE.md`, the `count-tokens` bullet):
 

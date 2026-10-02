@@ -40,11 +40,12 @@ for the directory you are about to touch.
 ## Build and test
 
 ```bash
-cd agent-tools && cargo build --release && cargo test
-UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/$(basename $PWD) uv run pytest
+(cd agent-tools && cargo build --release && cargo test)
+export UV_PROJECT_ENVIRONMENT=$HOME/.claude/venvs/$(basename $PWD)
+uv run pytest
+uv run doc-budget
 scripts/check-prompt-coupling.sh
 scripts/check-prompt-rationale.sh
-agent-tools doc-budget
 ```
 
 ## Agent Policy
@@ -55,7 +56,7 @@ agent-tools doc-budget
   source tree.
 - After a Claude Code upgrade, work through `.claude/skills/update-claude-code`: many files here
   are pinned to a cc version and go stale silently.
-- `agent-tools doc-budget` over cap: cut that group to 80% of cap in the same change,
+- `uv run doc-budget` over cap: cut that group to 80% of cap in the same change,
   consolidation only; a group over when you arrived is debt to name, not pay in passing
   (`conventions/documentation.md`).
 - A `[held.files]` row in `doc-budget.toml` falls due with the next task on what its file
@@ -63,5 +64,5 @@ agent-tools doc-budget
   counts; for an agent body that agent; for a doc, note, spec or plan the subproject,
   subcommand or behaviour it records; a tree-wide sweep is about none — whether or not
   the task edits the file: drop the row and, over the class cap, cut to 80% of it or ask
-  the user for a cap. `agent-tools doc-budget <dir>` lists the rows under a directory;
+  the user for a cap. `uv run doc-budget <dir>` lists the rows under a directory;
   read the table for the rest (`conventions/documentation.md`).
