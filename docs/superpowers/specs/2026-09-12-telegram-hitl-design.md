@@ -221,23 +221,25 @@ harmless.
 
 ### Reading and waiting
 
-Reading is at-least-once, and the acknowledgement is the reaction. The listener announces every message in the session's
-topic, or replying to one of its sends, that no logged `setMessageReaction`
-names — at every arm, until one does. The printer's own position is never the
-acknowledgement, because printed is not received: the harness batches and
-truncates lines, suppresses bursts, and a notification is lost to compaction
-or to a session that ended. The reaction is an act the agent already owes
-after reading, so the human and the listener agree on what is unread; re-arms, resumed sessions and a loop's next iteration carry no
-state.
+Reading is at-least-once, and the acknowledgement is the reaction. The listener
+announces every message in the session's topic, or replying to one of its sends,
+that no logged `setMessageReaction` names — at every arm, until one does. The
+printer's own position is never the acknowledgement, because printed is not
+received: the harness batches and truncates lines, suppresses bursts, and a
+notification is lost to compaction or to a session that ended. The reaction is
+an act the agent already owes after reading, so the human and the listener agree
+on what is unread; re-arms, resumed sessions and a loop's next iteration carry
+no state.
 
 Listening while working runs under `Monitor`, armed at topic creation,
-interactive only. A wait with nothing else pending is one foreground Bash
-call: `listen.py <thread> --wait` polls the log and returns what is unreacted
-as its output (exit 1 on `channel down`), under `timeout=2147483647`, which
-`BASH_MAX_TIMEOUT_MS` in `settings.json` `env` lets through. The call holds a `claude -p` process, no model turn spent; under
-`-p` nothing else is armed — monitor events during a foreground call are
-dropped at the turn end — and `--peek` reads what is unreacted between steps. Measurements and the design replaced:
-`notes/foreground-wait-under-print-mode.md`; guarantees:
+interactive only. A wait with nothing else pending is one foreground Bash call:
+`listen.py <thread> --wait` polls the log and returns what is unreacted as its
+output (exit 1 on `channel down`), under `timeout=2147483647`, which
+`BASH_MAX_TIMEOUT_MS` in `settings.json` `env` lets through. The call holds a
+`claude -p` process, no model turn spent; under `-p` nothing else is armed —
+monitor events during a foreground call are dropped at the turn end — and
+`--peek` reads what is unreacted between steps. Measurements and the design
+replaced: `notes/foreground-wait-under-print-mode.md`; guarantees:
 `skills/telegram-hitl/README.md`.
 
 **Why not a blocking wait endpoint on the proxy.** Waits are measured in hours:

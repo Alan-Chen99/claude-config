@@ -10,8 +10,8 @@ Status is injected as `additionalContext` by hooks on three events, and only tho
 `PostToolUse`, `PostToolUseFailure`, and `UserPromptSubmit` (`settings.json`). There is no
 timer and no `Stop`-event injection. An agent is therefore never woken: a status change
 becomes visible on its next tool result or on the user's next turn, whichever comes first.
-Nothing here blocks, so a job that outlives a single Bash call (max 600000 ms) needs some
-other way to be waited on. The default is the harness's own: `run_in_background: true` on an
+Nothing here blocks, so a job that outlives a single Bash call needs some other way to
+be waited on. The default is the harness's own: `run_in_background: true` on an
 ordinary wrapped command, which re-invokes the agent when the wrapper exits — at
 `final(<code>)`, not at the child's exit (Passthrough, point 7). Where the harness is not the
 one waiting, `--background` prints its wrapper pid and `timeout <s> tail --pid=<n> -f

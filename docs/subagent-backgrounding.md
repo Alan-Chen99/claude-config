@@ -19,13 +19,14 @@ call backgrounds unless `run_in_background` is literally `false`**; omitting it 
 exactly as `true` would. The price is the `fork` subagent type.
 
 So `sys_prompt/alan-default-next.md` tells the agent to pass `run_in_background: false` on
-every Agent call, and nothing enforces it: a call that omits the parameter is
-backgrounded and reads in the transcript like any other. A `PreToolUse` hook on `Agent`
-rewrote the parameter until 2026-09-16 and was removed so the model decides per call —
-measured that day: 3 of 3 calls backgrounded with the prompt still describing the hook,
-9 of 9 passed `false` once the bullet was an instruction. The Agent tool's description
-recommends backgrounding by default, accurately; the prompt overrides a recommendation. `prompt-tests/general/subagent-foreground-default` is the standing check; run it
-after any change to that bullet, to the tool description, or to this gate.
+every Agent call, and nothing enforces it: a call that omits the parameter is backgrounded
+and reads in the transcript like any other. A `PreToolUse` hook on `Agent` rewrote the
+parameter until 2026-09-16 and was removed so the model decides per call — measured that
+day: 3 of 3 calls backgrounded with the prompt still describing the hook, 9 of 9 passed
+`false` once the bullet was an instruction. The Agent tool's description recommends
+backgrounding by default, accurately; the prompt overrides a recommendation.
+`prompt-tests/general/subagent-foreground-default` is the standing check; run it after any
+change to that bullet, to the tool description, or to this gate.
 
 Neither the gate nor the prompt reaches an agent definition's own `background: true`, or
 `isolation: "remote"`, outside the background-tasks guard entirely; no agent in `agents/`
@@ -51,9 +52,10 @@ fails to hold. Measured, one interactive session each:
 MCP auto-background (`src/chunk-jtrs4f58.js:255`), the Ctrl+B affordance
 (`src/chunk-qxhez8yz.js:99`, keybinding `:32`), observer agents (`Zfe`,
 `src/chunk-dbb93264.js:74088`) and forked skills (`y9t`, `src/chunk-dbb93264.js:173976`)
-all open on the same `rc()` background-tasks check and return under the current setting. Skills are not opt-in as the 2.1.235 note has it: `background` defaults to true
-for any skill declaring `context: fork`, and `background: false` is the opt-out that keeps
-the caller waiting (`src/chunk-dbb93264.js:54434`). `CLAUDE_AUTO_BACKGROUND_TASKS`, unset
+all open on the same `rc()` background-tasks check and return under the current setting.
+Skills are not opt-in as the 2.1.235 note has it: `background` defaults to true for any
+skill declaring `context: fork`, and `background: false` is the opt-out that keeps the
+caller waiting (`src/chunk-dbb93264.js:54434`). `CLAUDE_AUTO_BACKGROUND_TASKS`, unset
 here, moves a foreground subagent to the background after its interval under either
 setting (`iTs`, `src/chunk-dbb93264.js:171747`, wired at `:172571`).
 

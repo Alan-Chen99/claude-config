@@ -41,9 +41,9 @@ method, `411` chunked body, `502` Telegram unreachable; nothing is retried.
 
 `message_thread_id` addresses a forum topic. **Make your own, named for the
 work, at its first real question** (`createForumTopic` `{"chat_id", "name"}` →
-`result.message_thread_id`) **and read it whole**. Two sessions in one topic take each other's answers — join one only to
-continue its work, then act only on replies to you. `listen.py topics` lists
-them and their senders.
+`result.message_thread_id`) **and read it whole**. Two sessions in one topic
+take each other's answers — join one only to continue its work, then act only
+on replies to you. `listen.py topics` lists them and their senders.
 
 Your messages all arrive from the same bot, so **name yourself as you arm the
 listener** — `▸ $CLAUDE_CODE_SESSION_ID · $PWD`, what you are doing — and **say
@@ -62,8 +62,8 @@ Monitor(command="python3 <skill dir>/listen.py 61",
         description="topic 61", timeout_ms=1800000)
 ```
 
-Arm it as you create the topic. Monitors expire (30 min): re-arm first thing in each expiry turn until you say you stop, then
-`TaskStop` it. `channel down`: fix the channel.
+Arm it as you create the topic; re-arm first thing at each expiry (30 min)
+until you say you stop, then `TaskStop` it. `channel down`: fix the channel.
 
 With nothing to do but wait, block on the answer:
 
@@ -71,10 +71,10 @@ With nothing to do but wait, block on the answer:
 Bash(command="python3 <skill dir>/listen.py 61 --wait", timeout=2147483647)
 ```
 
-It returns the next message(s); exit 1: `channel down`. Under `claude -p` it
-is the only wait (a turn end ends the process; monitor events during it are
-lost): arm none there, and `listen.py 61 --peek` between steps reads what is
-unreacted.
+It returns the next message(s); exit 1: `channel down`. Under `claude -p`
+(`$CLAUDE_CODE_SESSION_ATTENDED` is `0`) a turn end ends the process and
+monitor events are lost: arm no listener, wait only this way, and read with
+`listen.py 61 --peek` between steps.
 
 ## Traps
 

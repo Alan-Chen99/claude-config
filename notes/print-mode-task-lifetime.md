@@ -72,17 +72,17 @@ flag is server-resolved, so the measurement, not the build, is the evidence.
 
 ## Ending again is not a decision
 
-The guard first blocked a declared-wait stop once and let the second stop through as
-the session's answer. Two runs of the same prompt: in the first, the model re-armed
-after the block; in the second, it replied "The monitor has expired after
-10 minutes. Waiting for your instructions on whether to re-arm it or proceed", ended
-again, and the process exited 0 — the accidental advance the guard existed to prevent. The prompt's "never call any other tool"
-leaned on it, but the shape is general: ending the turn is what a model does by
-default, so it cannot carry the meaning "stop waiting". A probe with a hook that
-blocked three times in a row (`probe-p/reblock.py`) showed Claude Code re-invoking
-the model on every block — four stops, four turns, `stop_hook_active: true` from the
-second on. A hold built as a chain of such nudges (1 s doubling to 30 s) ended at its
-ninth block: Claude Code caps consecutive Stop-hook blocks at
+The guard first blocked a declared-wait stop once and let the second stop through as the
+session's answer. Two runs of the same prompt: in the first, the model re-armed after the
+block; in the second, it replied "The monitor has expired after 10 minutes. Waiting for
+your instructions on whether to re-arm it or proceed", ended again, and the process exited
+0 — the accidental advance the guard existed to prevent. The prompt's "never call any
+other tool" leaned on it, but the shape is general: ending the turn is what a model does
+by default, so it cannot carry the meaning "stop waiting". A probe with a hook that
+blocked three times in a row (`probe-p/reblock.py`) showed Claude Code re-invoking the
+model on every block — four stops, four turns, `stop_hook_active: true` from the second
+on. A hold built as a chain of such nudges (1 s doubling to 30 s) ended at its ninth
+block: Claude Code caps consecutive Stop-hook blocks at
 `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? 8` (`src/chunk-dbb93264.js:154114`) and then ends the
 turn with a warning the `stream-json` stream does not carry — a silent exit, declaration
 still on disk. Settings `env` reaches the check: a cap of 2 let two blocks through.
@@ -116,5 +116,5 @@ loop is idle and no agent task is active. The re-run was detached with
 `skills/telegram-hitl/listen.py --wait` declares the wait and returns; the session ends
 its turn and its `stop-hook`, acting only when `CLAUDE_CODE_SESSION_ATTENDED=0`, is the
 wait. With no declaration it reads `background_tasks[].command` for `listen.py` and
-names a forgotten listener once. `skills/telegram-hitl/README.md` has the matrix;
-`docs/subagent-backgrounding.md` the one-table summary.
+names a forgotten listener once. Superseded the same day: the foreground wait,
+`notes/foreground-wait-under-print-mode.md`; `listen.py` has no `stop-hook` mode.
