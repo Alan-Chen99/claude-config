@@ -46,7 +46,7 @@ def capture(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     except ImportError as exc:  # pragma: no cover - depends on the environment
         pytest.skip(f"capture.py dependencies unavailable: {exc}")
     monkeypatch.setattr(module, "count_tokens", lambda *a, **k: 0)
-    monkeypatch.setattr(module, "_baseline", lambda model: 0)
+    monkeypatch.setattr(module, "baseline_tokens", lambda model: 0)
     return module
 
 

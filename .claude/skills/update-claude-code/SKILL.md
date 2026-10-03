@@ -76,7 +76,7 @@ A green run leaves all of this open.
 | `settings-order.py` | Which keys belong in `settings.json` and what they are set to — it checks the order and the byte format, nothing else. It reads the schema *literal*, not what cc actually writes, so a release that changes the **writer** (stops stringifying the validated object, or normalizes before it) leaves the derived order right and the file still churning. Keys the literal does not list — unknown to this build, or contributed by the runtime `...Ks(e)` spread — it refuses to place rather than check, exit 1. |
 | `check-prompt-upstream.py` | Everything upstream says that this repo never copied: 13 borrowed passages, so an added section is invisible. |
 | `changelog.py` | Anything upstream did not write down, and releases older than the binary's window (15 entries in 2.1.269, back to 2.1.247). |
-| The capture diff (step 12) | Every key in this repo's `settings.json`: `capture.py:471` passes `--setting-sources project,local`, which drops user settings (`rWn`, `chunk-3vd4nzwp.js:8440-8442`), and `install.sh` installs this file at user scope — a capture shows stock behaviour for every key here. Deferred tools appear as names plus one `DeferredToolPlaceholder`, never as descriptions or schemas. And it is one environment on one day: most prompt sections sit behind a server-resolved flag, so a section absent from a capture is not a section the release removed. |
+| The capture diff (step 12) | Every key in this repo's `settings.json`: `capture.py:597` passes `--setting-sources project,local`, which drops user settings (`rWn`, `chunk-3vd4nzwp.js:8440-8442`), and `install.sh` installs this file at user scope — a capture shows stock behaviour for every key here. Deferred tools appear as names plus one `DeferredToolPlaceholder`, never as descriptions or schemas, outside the two `tool-search-loaded` variants. And it is one environment on one day: most prompt sections sit behind a server-resolved flag, so a section absent from a capture is not a section the release removed. |
 | `skilldiff.sh` | Everything the loader adds after reading the asset — the dataviz callout behind `tengu_cobalt_plinth_dataviz` (`src/chunk-s7akwrx2.js:455`), and under `CLAUDE_CODE_ARTIFACT_TOOLSET` a "Page contract" prefix and one phrase swap (`nJn`, `src/chunk-qza9q751.js:220-253`) — so a copy can match the asset and not say what the built-in says. `NO ASSET` is what rename and removal both look like; its `VENDORED` list is fixed. |
 | CI | Every check above: `ci.yml` runs pytest and `cargo test` and nothing else, and the one pytest case exercising the drift check for real skips where no Claude Code is installed. |
 
@@ -159,10 +159,12 @@ artifacts under `docs/system-prompt-snapshot/**` (regenerated wholesale, never h
 
 ### 3.4 Snapshot-capture mechanics that break on upgrade
 
-`docs/system-prompt-snapshot/capture.py`: the trust-dialog cursor reader (`:351-369` — the
+`docs/system-prompt-snapshot/capture.py`: the trust-dialog cursor reader (`:413-431` — the
 default already flipped once between 2.1.235 and 2.1.269), the main-request selector
-(`:596-606`), the `cc_is_subagent=true` billing-header marker (`:611-624`).
-`regenerate.py:261-266` excludes the `defer_loading` placeholder. `render_capture.py` derives
+(`:771-784`), the `cc_is_subagent=true` billing-header marker (`:789-802`), and the child-env
+strip (`:476-500`), whose second half names the knobs that carry no `CLAUDE_CODE_` prefix —
+`ENABLE_CLAUDEAI_MCP_SERVERS`, `ENABLE_TOOL_SEARCH`, `ANTHROPIC_BASE_URL` and the two
+`ANTHROPIC_*` tokens. `regenerate.py:383-390` excludes the `defer_loading` placeholder. `render_capture.py` derives
 `prompt.md` and `tools/` from each `request.json`, and `tests/test_snapshot_rendering.py` fails
 when the tracked files drift from it. Every character count and `system_tokens` figure in
 `README.md` and `what-the-model-gets.md` is derived from these files — re-derive, don't adjust.

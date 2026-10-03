@@ -46,10 +46,10 @@ from pathlib import Path
 for _k in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
     os.environ.pop(_k, None)
 
-import anthropic
 from claude_config.config import load as _load_env
 
 import render_capture
+from capture import baseline_tokens, count_tokens
 
 _load_env()
 
@@ -142,6 +142,34 @@ VARIANTS: dict[str, dict] = {
             "--capture-child-env", "CLAUDE_CODE_DISABLE_ARTIFACT=1",
         ],
     },
+    # The only place a Chrome or claude.ai connector tool's description and
+    # schema exist. Both sets are MCP, and `mY()` defers every MCP tool
+    # unconditionally -- its `zye()` is `return !1`
+    # (`src/chunk-4zcseazt.js:461`, `:1051-1056`) -- so `logged-in` records 57
+    # names and not one definition. Reaching them needs the credentials-file
+    # login as well as the ToolSearch call: `Aet()` refuses Chrome outright
+    # when the OAuth token carries only `user:inference`, which is what an
+    # exported CLAUDE_CODE_OAUTH_TOKEN session gets ("env-var and setup-token
+    # sessions default to user:inference only",
+    # `src/chunk-dbb93264.js:221118`). `--chrome` is passed because `Aet()`
+    # reads the flag ahead of both CLAUDE_CODE_ENABLE_CFC and the
+    # `claudeInChromeDefaultEnabled` setting, and that setting lives in
+    # ~/.claude.json, which `--setting-sources project,local` does not filter:
+    # without the flag this variant's Chrome roster is a property of the
+    # operator's machine rather than of the command line.
+    "logged-in-tool-search-loaded": {
+        "claude_args": ["--chrome"],
+        "capture_flags": [
+            "--capture-output-style", "default",
+            "--capture-no-oauth-token",
+            "--capture-select", "max-tools",
+            "--capture-reply-timeout", "120",
+            "--capture-message", TOOL_SEARCH_MESSAGE,
+        ],
+        "requires_variant": "logged-in",
+        # ~95 tools and 4 blocks, one count_tokens call each, after a 120s pty.
+        "timeout": 1800,
+    },
     # --- subagent capture ---
     "subagent": {
         "claude_args": [],
@@ -201,26 +229,31 @@ def extract_deferred_tools(data: dict) -> list[str]:
     return names
 
 
-def check_deferred_loaded(out_dir: Path, tools: list[dict]) -> list[str]:
-    """Deferred tool names the sibling `default` capture lists but this one lacks.
+def check_deferred_loaded(
+    out_dir: Path, tools: list[dict], sibling_variant: str
+) -> list[str]:
+    """Deferred tool names the sibling capture lists but this one lacks.
 
     A ToolSearch call can come back short without erroring: under
     `--setting-sources local` the reminder advertises 18 names and the result
     carries 17, EndConversation silently absent. Nothing in the captured request
-    says so, so the roster is compared against the one the default capture
-    recorded from the reminder.
+    says so, so the roster is compared against the one the sibling capture
+    recorded from the reminder. Which sibling is the variant's own
+    `requires_variant`: a load taken on the credentials-file login has 57 names
+    to account for and `default` knows only its 18, so verifying against the
+    wrong sibling passes a capture whose 22 Chrome schemas never arrived.
     """
-    sibling = out_dir.parent / "default" / "summary.json"
+    sibling = out_dir.parent / sibling_variant / "summary.json"
     if not sibling.exists():
         raise RuntimeError(
-            f"tool-search-loaded needs {sibling} to know which tools should have "
-            "loaded; capture the `default` variant for this model first."
+            f"this variant needs {sibling} to know which tools should have "
+            f"loaded; capture `{sibling_variant}` for this model first."
         )
     expected = json.loads(sibling.read_text()).get("tools_deferred", [])
     if not expected:
         raise RuntimeError(
             f"{sibling} lists no deferred tools, so there is nothing to verify "
-            "against; re-capture `default`."
+            f"against; re-capture `{sibling_variant}`."
         )
     present = {t.get("name") for t in tools}
     return [n for n in expected if n not in present]
@@ -298,8 +331,11 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
 
     # Verified before anything is written, so a short load leaves the committed
     # capture untouched rather than replacing it with a partial roster.
-    if variant.get("requires_variant") == "default":
-        missing = check_deferred_loaded(out_dir, data.get("tools", []))
+    sibling_variant = variant.get("requires_variant")
+    if sibling_variant:
+        missing = check_deferred_loaded(
+            out_dir, data.get("tools", []), sibling_variant
+        )
         if missing:
             print(
                 f"  FAILED: ToolSearch did not load {len(missing)} deferred "
@@ -335,33 +371,13 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
     tools = data.get("tools", [])
     req_model = req_model_id
 
-    def _strip_cc(obj):
-        if isinstance(obj, dict):
-            return {k: _strip_cc(v) for k, v in obj.items() if k != "cache_control"}
-        elif isinstance(obj, list):
-            return [_strip_cc(x) for x in obj]
-        return obj
-
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_TOKEN_COUNT_API_KEY"])
-    _base_msg = [{"role": "user", "content": "x"}]
-    base_tokens = client.messages.count_tokens(
-        model=req_model, messages=_base_msg
-    ).input_tokens
-
-    sys_tokens = client.messages.count_tokens(
-        model=req_model, messages=_base_msg, system=_strip_cc(data.get("system", []))
-    ).input_tokens - base_tokens
-
+    system = data.get("system", [])
+    sys_tokens = count_tokens(req_model, system=system) - baseline_tokens(req_model)
     tools_tokens = 0
     if tools:
-        r_no_tools = client.messages.count_tokens(
-            model=req_model, messages=_base_msg, system=_strip_cc(data.get("system", []))
-        ).input_tokens
-        r_with_tools = client.messages.count_tokens(
-            model=req_model, messages=_base_msg,
-            system=_strip_cc(data.get("system", [])), tools=_strip_cc(tools)
-        ).input_tokens
-        tools_tokens = r_with_tools - r_no_tools
+        tools_tokens = count_tokens(
+            req_model, system=system, tools=tools
+        ) - count_tokens(req_model, system=system)
 
     deferred = extract_deferred_tools(data)
     # Since 2.1.235 `tools` also carries a single DeferredToolPlaceholder entry

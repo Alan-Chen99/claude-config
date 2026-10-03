@@ -32,6 +32,7 @@ Prerequisites:
         cd scripts/intercept && python3 run-proxy.py
 """
 
+import functools
 import hashlib
 import json
 import os
@@ -65,6 +66,7 @@ for _k in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
     os.environ.pop(_k, None)
 # Proxy writes per-session: ~/.claude/requests-log/{session_id}/NNNN.json
 PROXY_LOG_BASE = Path.home() / ".claude" / "requests-log"
+CREDENTIALS_FILE = Path.home() / ".claude" / ".credentials.json"
 _LOG_FILE_RE = re.compile(r"^\d+\.json$")
 _BILLING_HEADER_RE = re.compile(r"^x-anthropic-billing-header:.*$", re.MULTILINE)
 
@@ -135,14 +137,69 @@ def _strip_defer_loading(tool: dict) -> dict:
     return {k: v for k, v in tool.items() if k != "defer_loading"}
 
 
+# A bare request: no system, no tools. Every figure written here is a
+# difference against what this costs.
+_BASELINE_MESSAGES = [{"role": "user", "content": "x"}]
+
+
+@functools.cache
+def _counter(model: str) -> tuple[anthropic.Anthropic, int]:
+    """A count_tokens client whose credential `model` accepts, and its baseline.
+
+    Two credentials reach this endpoint and return identical counts -- checked
+    against every committed opus-5 summary.json on 2026-10-02, system and tools
+    figures both exact. The API key is tried first because it is the credential
+    a machine with no interactive login has. The claude.ai access token follows,
+    because an API-key account at a zero credit balance fails count_tokens with
+    a 400 naming billing, and nothing else here would say why a capture stopped.
+
+    The probe is the baseline measurement itself, so establishing the credential
+    costs no extra request. Which credential answered is printed: the counts are
+    part of the artifact, so what measured them is not left unsaid.
+    """
+    attempts: list[tuple[str, dict[str, str]]] = []
+    api_key = os.environ.get("ANTHROPIC_TOKEN_COUNT_API_KEY")
+    if api_key:
+        attempts.append(("ANTHROPIC_TOKEN_COUNT_API_KEY", {"api_key": api_key}))
+    try:
+        oauth = json.loads(CREDENTIALS_FILE.read_text())["claudeAiOauth"]["accessToken"]
+    except (OSError, json.JSONDecodeError, KeyError):
+        oauth = None
+    if oauth:
+        attempts.append((f"{CREDENTIALS_FILE} (claude.ai OAuth)", {"auth_token": oauth}))
+    if not attempts:
+        raise RuntimeError(
+            "No credential for the count_tokens endpoint: set "
+            "ANTHROPIC_TOKEN_COUNT_API_KEY, or log in so "
+            f"{CREDENTIALS_FILE} holds an access token."
+        )
+
+    rejections = []
+    for label, client_kwargs in attempts:
+        client = anthropic.Anthropic(**client_kwargs)
+        try:
+            baseline = client.messages.count_tokens(
+                model=model, messages=_BASELINE_MESSAGES
+            ).input_tokens
+        except anthropic.APIStatusError as exc:
+            rejections.append(f"{label}: {exc}")
+            continue
+        print(f"Counting {model} tokens with {label}", file=sys.stderr)
+        return client, baseline
+    raise RuntimeError(
+        f"Every count_tokens credential was rejected for {model}:\n  "
+        + "\n  ".join(rejections)
+    )
+
+
 def count_tokens(model: str, *, system=None, tools=None) -> int:
     """Count tokens via the Anthropic API (free endpoint).
 
     Returns the token count for the given system blocks and/or tools.
     Uses a minimal dummy message; the returned count is for the full request.
     """
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_TOKEN_COUNT_API_KEY"])
-    kwargs = {"model": model, "messages": [{"role": "user", "content": "x"}]}
+    client, _ = _counter(model)
+    kwargs = {"model": model, "messages": _BASELINE_MESSAGES}
     if system is not None:
         kwargs["system"] = _strip_cache_control(system)
     if tools is not None:
@@ -150,15 +207,8 @@ def count_tokens(model: str, *, system=None, tools=None) -> int:
     return client.messages.count_tokens(**kwargs).input_tokens
 
 
-# Baseline tokens for a minimal request (just message "x", no system/tools).
-# Computed once per model and cached.
-_baseline_cache: dict[str, int] = {}
-
-
-def _baseline(model: str) -> int:
-    if model not in _baseline_cache:
-        _baseline_cache[model] = count_tokens(model)
-    return _baseline_cache[model]
+def baseline_tokens(model: str) -> int:
+    return _counter(model)[1]
 
 
 # --- Proxy log reading ---
@@ -272,7 +322,7 @@ def find_all_requests_proxy(
         is_subagent = "cc_is_subagent=true" in content
         model = req.get("model", "claude-opus-4-6")
         sys_blocks = req.get("system", [])
-        sys_tokens = count_tokens(model, system=sys_blocks) - _baseline(model)
+        sys_tokens = count_tokens(model, system=sys_blocks) - baseline_tokens(model)
         results.append((req_path, sys_tokens, n_tools, is_subagent))
     return results
 
@@ -294,7 +344,7 @@ def extract_request(req_path: Path, out_dir: Path, file_prefix: str = "") -> dic
     (out_dir / f"{file_prefix}request.json").write_text(json.dumps(req, indent=2))
 
     model = req.get("model", "claude-opus-4-6")
-    base = _baseline(model)
+    base = baseline_tokens(model)
     sys_blocks = req.get("system", [])
     tools = req.get("tools", [])
 
@@ -329,8 +379,6 @@ def extract_request(req_path: Path, out_dir: Path, file_prefix: str = "") -> dic
 
     return summary
 
-
-CREDENTIALS_FILE = Path.home() / ".claude" / ".credentials.json"
 
 # Rendered by the child when it starts unauthenticated.
 AUTH_FAILURE_MARKERS = ("Not logged in", "Login expired", "Please run /login")
@@ -429,6 +477,27 @@ def spawn_claude(
         if _var != "CLAUDE_CODE_OAUTH_TOKEN":
             del env[_var]
     env.pop("CLAUDECODE", None)
+    # Five more knobs cc reads that carry no CLAUDE_CODE_ prefix, so the strip
+    # above cannot reach them -- and each decides what a capture records.
+    # ENABLE_CLAUDEAI_MCP_SERVERS=false, which this repo's settings.json has
+    # exported into every tool subprocess since 56168fdf, drops the 36
+    # claude.ai connector tools: the committed `logged-in` capture was taken
+    # hours before that commit and carries them, so inheriting the variable
+    # makes a re-capture differ from it for a reason no release caused.
+    # ENABLE_TOOL_SEARCH off ends deferral, so every definition arrives upfront
+    # and no variant's roster means what its name says. ANTHROPIC_BASE_URL and
+    # the two tokens (the kimi.sh and zai.sh launchers export all three) send
+    # the child to another provider, or make it an API-key session -- which has
+    # no OAuth scope and therefore no Chrome at all. Named one at a time
+    # because, unlike the block above, there is no prefix to drop wholesale.
+    for _var in (
+        "ENABLE_CLAUDEAI_MCP_SERVERS",
+        "ENABLE_TOOL_SEARCH",
+        "ANTHROPIC_BASE_URL",
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+    ):
+        env.pop(_var, None)
     # Dropping the token too sends the child to ~/.claude/.credentials.json, the
     # condition under which it reaches MCP. Dropped here rather than left to
     # whether the operator happens to have exported one, so the variant captures

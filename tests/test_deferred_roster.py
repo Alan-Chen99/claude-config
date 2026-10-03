@@ -91,15 +91,48 @@ def test_the_query_asks_for_a_max_results_the_roster_cannot_outgrow(
 
 
 def test_a_tool_that_did_not_load_is_reported(regen: ModuleType, tmp_path: Path) -> None:
-    default = tmp_path / "opus-5" / "default"
-    default.mkdir(parents=True)
-    (default / "summary.json").write_text(json.dumps({"tools_deferred": EXPECTED}))
+    sibling = tmp_path / "opus-5" / "logged-in"
+    sibling.mkdir(parents=True)
+    (sibling / "summary.json").write_text(json.dumps({"tools_deferred": EXPECTED}))
 
     loaded = [{"name": n} for n in EXPECTED if n != "mcp__claude-in-chrome__browser_batch"]
-    missing = regen.check_deferred_loaded(tmp_path / "opus-5" / "tool-search-loaded", loaded)
+    missing = regen.check_deferred_loaded(
+        tmp_path / "opus-5" / "logged-in-tool-search-loaded", loaded, "logged-in"
+    )
     assert missing == ["mcp__claude-in-chrome__browser_batch"]
 
 
-def test_a_missing_default_capture_is_an_error(regen: ModuleType, tmp_path: Path) -> None:
-    with pytest.raises(RuntimeError, match="capture the `default` variant"):
-        regen.check_deferred_loaded(tmp_path / "opus-5" / "tool-search-loaded", [])
+def test_a_missing_sibling_capture_names_the_variant_to_run(
+    regen: ModuleType, tmp_path: Path
+) -> None:
+    with pytest.raises(RuntimeError, match="capture `logged-in` for this model"):
+        regen.check_deferred_loaded(
+            tmp_path / "opus-5" / "logged-in-tool-search-loaded", [], "logged-in"
+        )
+
+
+def test_every_load_is_verified_against_a_sibling_that_sees_the_same_tools(
+    regen: ModuleType,
+) -> None:
+    """A load's sibling must be the variant whose credential it shares.
+
+    `default` exports CLAUDE_CODE_OAUTH_TOKEN and reaches 18 deferred names; a
+    load taken on the credentials-file login has 91. Verified against `default`,
+    a capture whose 22 Chrome schemas never arrived passes -- the whole roster it
+    was asked about is accounted for. So the sibling is declared per variant, and
+    it has to name one that exists.
+    """
+    declared = {
+        name: v["requires_variant"]
+        for name, v in regen.VARIANTS.items()
+        if v.get("requires_variant")
+    }
+    assert declared == {
+        "tool-search-loaded": "default",
+        "logged-in-tool-search-loaded": "logged-in",
+    }
+    for name, sibling in declared.items():
+        assert sibling in regen.VARIANTS, f"{name} names a sibling that is not a variant"
+        assert "--capture-no-oauth-token" in regen.VARIANTS[name]["capture_flags"] or (
+            "--capture-no-oauth-token" not in regen.VARIANTS[sibling]["capture_flags"]
+        ), f"{name} and {sibling} do not share a credential"

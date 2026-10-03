@@ -7,8 +7,8 @@ v2.1.269. Source: `sonnet-5/default/request.json`, `opus-5/default/request.json`
 `opus-4-7/default/request.json`, `fable-5/default/request.json`,
 `opus-4-8/default/request.json`. Capture uses `--setting-sources
 project,local` to isolate from user settings. See README.md for capture
-mechanics, the per-block character methodology, and everything flagged there
-as not re-verified this round (backgrounding, `-p` mode, the
+mechanics and everything flagged there as not re-verified this round, and
+`notes/cc-2.1.269-system-block-sizes.md` for the per-block character methodology (backgrounding, `-p` mode, the
 security-monitor calls).
 
 **No two of these five models receive the same prompt**, and the "compressed
@@ -20,7 +20,7 @@ three have identical text. Opus-5 and fable-5 happen to share a
 byte-identical block 2 — confirmed by string equality, not just length — but
 opus-4-8's block 2 differs from both by one bullet, and all three have
 distinct block 3 content. "The compressed prompt" is not one object; see
-README.md, "The prompt split is per model id, not per model family," for the
+`notes/cc-2.1.269-prompt-split-per-model-id.md` for the
 full comparison and the two source-traced (one solved, one open) mechanisms
 behind it. Every section below is given per model where they differ, same as
 the 2.1.235 version of this document.
@@ -29,7 +29,7 @@ Sizes below are **characters**, measured directly from the `request.json`
 files in this worktree. The 2.1.235 version of this document used
 `count_tokens`-measured tokens per block and per tool; that backend requires
 `ANTHROPIC_TOKEN_COUNT_API_KEY`, which is not available from this worktree
-(see README.md's token-count note), so this revision was re-derived in
+(see `notes/cc-2.1.269-system-block-sizes.md`), so this revision was re-derived in
 characters instead of carrying the old token figures forward. Whole-request
 **token** totals (`system_tokens`, `tools_total_tokens`) are still exact,
 taken from each variant's `summary.json` at capture time.
@@ -60,7 +60,7 @@ Byte-identical across sonnet, opus-5, and opus-4-7, and unchanged from
 **Byte-for-byte unchanged from 2.1.235** in the `default` variant — confirmed by
 `git diff` producing no hunk anywhere in this block. It is not constant across
 variants: with an output style active the opening sentence changes and the block
-measures 10,631 chars (README, "System prompt structure"). Reproduced here
+measures 10,631 chars (`notes/cc-2.1.269-system-block-sizes.md`). Reproduced here
 because the 2.1.235 version of this document only summarized it:
 
 ```
@@ -95,7 +95,7 @@ tool calls}
 
 Nothing changed 2.1.235 -> 2.1.269 in this block, for either model on this
 branch (opus-4-7's copy differs from sonnet's only in fixed, pre-existing
-ways — see the per-branch table in README.md — and is likewise unchanged
+ways — see the per-branch table in `notes/cc-2.1.269-system-block-sizes.md` — and is likewise unchanged
 since 2.1.235).
 
 ## system[2] — opus, fable, and opus-4-8 (1,210 / 1,210 / 1,152 chars, cached 1h global)
@@ -130,8 +130,8 @@ Which wording a model gets is **not established** — traced to a function,
 `yyn(n, "lean")`, gated by a condition `hyn(e)` whose obvious explanation (a
 `mid_conv_system` registry capability) was checked directly and disproved:
 sonnet-5, opus-5, fable-5, and opus-4-8 all declare that capability, yet only
-opus-5 gets the first wording. See README.md for the exact source citation,
-`hyn`'s real (untraced) condition, and why this is stated as an open question
+opus-5 gets the first wording. See `notes/cc-2.1.269-prompt-split-per-model-id.md` for the
+exact source citation, `hyn`'s real (untraced) condition, and why this is stated as an open question
 rather than a guess.
 
 Same gap as 2.1.235: no opus equivalent of `# Doing tasks`, `# Executing
@@ -190,8 +190,8 @@ This section's structural findings come from `custom-output-style`
 missing both `SendFeedback` and `EndConversation`, and its own system[3] read
 233 characters shorter (16,895) for lacking the `EndConversation` paragraph
 below. A same-version re-capture ~1h45m later came back with both tools and
-the canonical 17,128. See README.md, "The upfront tool roster is not a pure
-function of version and model id," for the full account — it's a real,
+the canonical 17,128. See `notes/cc-2.1.269-upfront-roster-flag-flicker.md`
+for the full account — it's a real,
 kept finding, just not one that belongs to this block's structure.
 
 ### What left this block (2.1.235 -> 2.1.269)
@@ -205,7 +205,8 @@ Diffed directly against the 2.1.235 capture, not summarized:
   "enough information" — zero matches in any of the three models. But the
   2.1.269 decompile shows the line is still built by the same
   feature-flag-gated code as 2.1.235 (`tengu_cedar_lantern`, defaulting to
-  on in both versions — see README.md for the exact citation), so this reads
+  on in both versions — see `notes/cc-2.1.269-block3-relocation.md` for the
+  exact citation), so this reads
   as the flag currently resolving off for this account, not a 2.1.269
   removal.
 - **Relocated into a new system-reminder in `messages[]`** (see below): the
@@ -216,8 +217,8 @@ Diffed directly against the 2.1.235 capture, not summarized:
   assembly code** (unlike the paragraph above, which is only flag-suppressed):
   the entire `# Scratchpad Directory` section. Its content lives in the
   relocated `# Environment` reminder now, but 2.1.235's dedicated
-  `scratchpad` list entry has no 2.1.269 counterpart at all — see README.md
-  for the citation.
+  `scratchpad` list entry has no 2.1.269 counterpart at all — see
+  `notes/cc-2.1.269-block3-relocation.md` for the citation.
 
 What's left under `# Environment` in the cached block is only the three
 bullets that don't vary by session — the model-id roster, Claude Code's
@@ -340,8 +341,8 @@ three-way branch that exactly reproduces all three observed outcomes.
 `fable-5`'s model registry declares a `fable_5_mitigations` capability that
 one of those four functions, `sce`, reads directly. **Not established**:
 which of the four is actually true for `claude-fable-5`, or whether opus-5
-and opus-4-8 fail all four or just `sce`. See README.md, "The prompt split is
-per model id, not per model family," for the full citation, and for
+and opus-4-8 fail all four or just `sce`. See `notes/cc-2.1.269-prompt-split-per-model-id.md`
+for the full citation, and for
 `opus-4-8/default`'s own system[3] — a fourth, shorter arrangement, neither
 opus-5's nor fable-5's.
 
@@ -356,7 +357,7 @@ the same too. What's missing is `# Delivering work` and `# Corrections` —
 and unlike fable-5, nothing replaces them; that guidance is simply absent
 for opus-4-8, not folded into another section. `# Context management`
 carries only the summarization notice, same as everyone else's currently
-does (see README.md, "What moved out of block 3," for the
+does (see `notes/cc-2.1.269-block3-relocation.md` for the
 act-when-you-have-enough-information paragraph's own separate,
 flag-gated absence).
 
@@ -369,8 +370,8 @@ each read 13, missing `SendFeedback`; a re-capture of each came back at 14,
 matching every other capture in the batch. This isn't unattributed noise —
 it's a remote GrowthBook flag, `tengu_juniper_relay`, defaulting to off and
 occasionally resolving that way even with a correct value cached on disk;
-see README.md, "The upfront tool roster is not a pure function of version
-and model id," for the mechanism and its citations.)
+see `notes/cc-2.1.269-upfront-roster-flag-flicker.md`
+for the mechanism and its citations.)
 
 | Tool | Sonnet chars | Opus chars | Same text both models? | Changed since 2.1.235? |
 |---|---|---|---|---|
@@ -434,44 +435,12 @@ consistent with the capture.)
 ## Tools — deferred (18, unchanged from 2.1.235)
 
 Named in a system-reminder, schemas not loaded *in this request*. Their
-descriptions and schemas are captured in `<model-id>/tool-search-loaded/tools/`:
-one `ToolSearch` call makes the server expand the roster from 15 tools to 33,
-and the request after it carries every definition.
-
-Only 2 of the 18 take the per-model lean/full split that shortens `Bash` from
-10,078 characters on sonnet-5 to 1,315 on opus-5 — `WebFetch` (676 on opus-5
-against 1,909 on sonnet-5) and `WebSearch` (312 against 1,322). The other 16,
-`Monitor` and `EndConversation` among them, are byte-identical across the two
-models, compared definition by definition from the captures themselves.
-
-```
-CronCreate, CronDelete, CronList, DesignSync, EndConversation, EnterPlanMode,
-EnterWorktree, ExitPlanMode, ExitWorktree, Monitor, NotebookEdit,
-PushNotification, RemoteTrigger, SendMessage, TaskOutput, TaskStop, WebFetch,
-WebSearch
-```
-
-**Unchanged from 2.1.235** — same 18 names for the 5-family (opus-4-7 gets 21:
-this list minus `EndConversation`, plus `TaskCreate`/`TaskGet`/`TaskList`/
-`TaskUpdate`), checked by set difference, not just count. The entire
-"one more upfront tool" story this version is `SendFeedback`; nothing moved
-between the upfront and deferred lists, and nothing was added to or dropped
-from the deferred list itself.
-
-Opus-4-7's missing `EndConversation` is not a bare per-model quirk: its gate
-checks the model version against a per-family minimum
-(`[["opus",[4,8]],["sonnet",[5]],["fable",[5]],["mythos",[5]]]`) before it
-ever looks at the feature flag that governs the tool for everyone else.
-`claude-opus-4-7` parses to `[4,7]`, which never clears `opus`'s `[4,8]`
-floor, so it's excluded deterministically, independent of any flag state —
-see README.md, "The upfront tool roster is not a pure function of version
-and model id," for the citation.
-
-The Bash tool description still says `NEVER use the TaskCreate or Agent
-tools` (commit example) and `DO NOT use the TaskCreate or Agent tools` (PR
-example), verbatim, confirmed by grep against the 2.1.269 capture — a
-reference to a tool that exists in neither list on the 5-family models, and
-still exists (deferred) on opus-4-7.
+descriptions and schemas are captured in `<model-id>/tool-search-loaded/tools/`
+(and, for the Chrome and connector tools a `default` session never even names,
+in `<model-id>/logged-in-tool-search-loaded/tools/`). The 18 names, what the
+lean/full split does to `WebFetch` and `WebSearch`, why opus-4-7 is the one
+model without `EndConversation`, and the `Bash` description's two surviving
+references to `TaskCreate`: `notes/cc-2.1.269-tool-roster-delta.md`.
 
 ## messages structure (two new reminders, one removed)
 
@@ -499,7 +468,8 @@ system[3] now opens `messages[1]` instead; and **`## Auto Mode Active` is
 gone** — checked case-insensitively across all 13 `request.json` files in this
 batch (the 11 top-level captures plus both `sonnet-5/subagent` children),
 versus present in eight of eight comparable 2.1.235 captures.
-See README.md for what this document could and couldn't establish about why.
+See `notes/cc-2.1.269-messages-and-reminders.md` for what
+this document could and couldn't establish about why.
 
 A bare `Today's date is <date>.` line (no `# currentDate` header, no
 surrounding "as you answer the user's questions" preamble) is now its own
@@ -529,8 +499,8 @@ messages-array char count with 17 subtracted once:
 Grew by roughly 1,600-2,150 chars across all three — a constant per-row
 offset, so the canary-length correction above doesn't change this: the new
 Attribution and Environment/identity reminders outweigh the removed Auto Mode
-reminder and the small skill/agent-roster wording changes (see README.md for
-the itemized list). Its size still tracks the user's installed skills and
+reminder and the small skill/agent-roster wording changes (see `notes/cc-2.1.269-messages-and-reminders.md`
+for the itemized list). Its size still tracks the user's installed skills and
 agents, so it's still not comparable across machines.
 
 ## API parameters
@@ -563,19 +533,7 @@ agents, so it's still not comparable across machines.
 }
 ```
 
-`output_config.effort` was already per-request in 2.1.235, not the flat "max"
-the 2.1.235 version of this document reported — checking each individual
-2.1.235 capture shows opus-4-7 was already `xhigh`, opus-5 was already
-`high`, and sonnet-5's own captures already split between `max` and `high`
-depending on which variant. That's a correction to the old doc, not a
-2.1.269 change. What this batch actually shows: opus-4-7 and opus-5 read the
-same effort level as in 2.1.235, and all eight `claude-sonnet-5` requests this
-round (6 variants + 2 subagent children) read `high` (no `max` observed) —
-plausibly still adaptive/per-request rather than newly fixed, since a
-same-day batch is exactly the sample that looked
-stable in 2.1.235 too.
-
-`thread: {"type": "create"}` is new in every request checked (all three
-models, every variant). This document has no evidence for what other `type`
-values exist or what a non-`"create"` thread looks like — no capture in this
-batch is a follow-up turn on an existing thread.
+`output_config.effort` was already per-request in 2.1.235, `thread` is new in
+every request checked, and `fallbacks` left opus-5: the per-version table, the
+correction to the 2.1.235 document's flat `"max"`, and the billing-header
+fields are `notes/cc-2.1.269-request-parameters.md`.

@@ -123,6 +123,22 @@ cap = 2000
 per_file = true
 cap = 2000
 
+# The capture subproject's two oversized docs, cut on 2026-10-02 from 15,516 and
+# 8,432 and capped at what the cut reached, so the next addition to either pays
+# the 20%.  README.md is the procedure for 10 variants, 5 model ids and 3
+# credentials, plus the traps a re-capture hits; what-the-model-gets.md is the
+# per-model walkthrough and the only place the per-tool character table lives.
+# What came out was the 2.1.269 release analysis, moved whole to eight
+# notes/cc-2.1.269-*.md records rather than deleted -- it is cited measurement,
+# and the class cap of 2,000 would have meant deleting it.
+[groups."docs/system-prompt-snapshot/README.md"]
+cap = 7300
+approved = "user:4d6ec7ec"
+
+[groups."docs/system-prompt-snapshot/what-the-model-gets.md"]
+cap = 7882
+approved = "user:4d6ec7ec"
+
 # Ad-hoc working plans, read one at a time and each its own size, so each file
 # is its own group at 1,000; the writing-plans records
 # under docs/superpowers/plans are data below, not plans in this sense.
@@ -247,7 +263,6 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 
 [held.files]
 "agent-tools/CLAUDE.md" = 16942
-"docs/system-prompt-snapshot/README.md" = 15516
 "notes/compliance-check-failure-mode.md" = 13796
 "docs/opencode-system-prompt/alan-default-commentary.md" = 12725
 "plans/refactor-coding-style-skill.md" = 12506
@@ -259,7 +274,6 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "sys_prompt/CLAUDE.md" = 9998
 "skills/prompt-engineer/references/correctness/sampling.md" = 9783
 "plans/fix-style-skill-problems.md" = 8909
-"docs/system-prompt-snapshot/what-the-model-gets.md" = 8432
 "notes/planner-verification-reporting-analysis.md" = 8304
 "notes/workers-bullet-hint-in-fact-position.md" = 8266
 "docs/system-prompt-anatomy-source-verified.md" = 8032
