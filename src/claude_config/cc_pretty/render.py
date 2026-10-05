@@ -397,14 +397,29 @@ def binary_filename(lineno: int, block_idx: int, sub_idx: int | None,
 def attachment_payload(rec: Any) -> tuple[str, str]:
     """An attachment's text and the jq leaf it lives under.
 
-    Two places hold it. `.attachment.content` is the original field; since
+    Three places hold it. `.attachment.content` is the original field; since
     2.1.269 most subtypes leave it empty and put the text Claude Code actually
     sent — the `<system-reminder>` verbatim — in the record-level `rendered`
     array instead. A reader given the wrong leaf extracts nothing, so the leaf
     travels with the text rather than being assumed by the caller.
 
-    Returns `("", "")` when neither holds anything.
+    A `queued_command` is read from `.attachment.prompt` ahead of both, because
+    there the two differ in kind rather than in availability: `prompt` is what
+    the user typed mid-run, and `rendered` is that text under cc's own framing
+    (`The user sent a new message while you were working:` and a paragraph
+    explaining itself) — a median 132 tokens of it, 35 at the least. Reading the
+    framing puts boilerplate in the preview and charges it to the size.
+    All 1,187 records on this machine carry a prompt; 593 carry nothing else.
+
+    Returns `("", "")` when none of the three holds anything.
     """
+    prompt = rec.attachment.prompt
+    if rec.attachment.type == "queued_command" and prompt:
+        if isinstance(prompt, list):
+            return ("\n".join(b.get("text", "") for b in prompt
+                              if isinstance(b, dict) and b.get("type") == "text"),
+                    ".attachment.prompt[].text")
+        return str(prompt), ".attachment.prompt"
     body = rec.attachment.content
     text = "\n\n".join(str(x) for x in body) if isinstance(body, list) else str(body or "")
     if text:
@@ -463,7 +478,7 @@ def legend_lines(log_path: str) -> list[str]:
         "# refs @L<n>[i] = line n, .message.content[i] (i=0 omitted) · "
         "leafs: thinking .thinking · text .text · ▶ .input · ◀ result .content · "
         "◀ context .text · user .message.content · "
-        "attach .attachment.content or .rendered[].content",
+        "attach .attachment.content, .rendered[].content or .attachment.prompt",
         f"# recover: sed -n '<n>p' {log_path} | jq -r '<path>'",
     ]
 
@@ -1188,10 +1203,10 @@ def render_skeleton(
     The skeleton is a block map: every line names its ref, approx size, and
     jq leaf so a reader can plan ~10k-token batches and extract exactly those
     blocks with one jq/sed command (see skills/session-analysis).
-    Bookkeeping records (progress, snapshots, queue ops, ...) are skipped;
-    --show-all surfaces model-invisible attachments/system lines (attachments
-    without text content are skipped — there is no .attachment.content to
-    extract).
+    Bookkeeping records (progress, snapshots, last-prompt, permission-mode) are
+    skipped; --show-all surfaces model-invisible attachments, system lines and
+    the queue enqueues (attachments holding no text anywhere are skipped — there
+    is nothing to extract).
     """
     oc = _is_opencode_path(log_path)
     ic = _is_intercept_path(log_path)
@@ -1338,10 +1353,19 @@ def render_skeleton(
             text, leaf = attachment_payload(rec)
             if not text:
                 continue  # nothing extractable anywhere — no skeleton line
+            # A queued_command carries what the user typed, not context about
+            # it, so it reads as the user turn it is and a reader scanning for
+            # what the human said finds it. `commandMode` is the split cc itself
+            # acts on: a typed prompt is delivered unflagged, a
+            # task-notification as `isMeta` (`chunk-dbb93264.js:235803-235808`).
+            if rec.attachment.type == "queued_command":
+                label = f"user:{rec.attachment.commandMode or 'queued'}"
+            else:
+                label = f"attach:{rec.attachment.type}"
             # Size measures what the leaf yields, since that is what the reader
             # is budgeting to extract; the preview drops the wrapper, since
             # that is what the reader is reading the row to tell apart.
-            emit(fmt_ref(lineno), f"attach:{rec.attachment.type}",
+            emit(fmt_ref(lineno), label,
                  f"{_tok(text)}~tok",
                  leaf,
                  f'"{_preview(unwrap_system_reminder(text))}"')
@@ -1357,8 +1381,22 @@ def render_skeleton(
                  f"{_tok(content)}~tok" if content else "",
                  sys_leaf if content else "",
                  f'"{_preview(content)}"' if content else "")
-        # Progress / snapshots / queue ops / last-prompt / permission-mode:
-        # bookkeeping — intentionally no skeleton lines.
+
+        elif isinstance(rec, QueueOperationRecord):
+            # Reached under --show-all only: is_model_visible refuses every
+            # queue op, and rightly — a delivered item is read as the
+            # queued_command attachment above, not as this. What the row adds
+            # there is the item that never became one: a draft the user popped
+            # back into the editor to reword, or a queue the session ended on.
+            # `enqueue` is where the text enters. `dequeue` carries none at all,
+            # and every `remove`/`popAll` that carries any restates an earlier
+            # enqueue (1,088 of 1,088 over the logs here, 2026-10-04), so rowing
+            # them doubles the text without adding a block to extract.
+            if rec.operation == "enqueue" and rec.content:
+                emit(fmt_ref(lineno), "queue:enqueue", f"{_tok(rec.content)}~tok",
+                     ".content", f'"{_preview(rec.content)}"')
+        # Progress / snapshots / last-prompt / permission-mode: bookkeeping
+        # with no text to extract — intentionally no skeleton lines.
 
     tail = len(records)
     if tail in rewind_markers:

@@ -334,8 +334,11 @@ class AttachmentData(_Base):
     displayPath: str = ""
     path: str = ""
     snippet: str = ""
-    # queued_command
-    prompt: str = ""
+    # queued_command.  A prompt carrying a pasted image is a list of content
+    # blocks rather than a string (`chunk-dbb93264.js:235829`,
+    # `if (Array.isArray(e.prompt))`); typed as str alone, such a record fails
+    # validation and parse_all drops it, taking the user's message with it.
+    prompt: str | list[dict[str, Any]] = ""
     commandMode: str = ""
     renderedByBatchHead: bool = False
 

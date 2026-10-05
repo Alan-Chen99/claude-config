@@ -616,6 +616,133 @@ def test_skeleton_still_omits_an_attachment_with_no_payload_anywhere() -> None:
     assert "attach:mystery" not in _skeleton(rec)
 
 
+# ─── A message the user typed while the agent was running ────────────────────
+# It never becomes a `user` record. Claude Code queues it, logs the wait as
+# `queue-operation`, and delivers it as a `queued_command` attachment whose text
+# is at `.attachment.prompt` — a field neither of the other two payload leaves
+# reaches. The lifecycle below is the one real logs carry.
+
+
+def _queue_session(tmp_path) -> object:
+    """A session carrying each shape a queued message reaches cc-pretty in."""
+    jsonl = tmp_path / "queued.jsonl"
+    records = [
+        {"type": "user", "uuid": "u0", "message": {"role": "user", "content": "start"}},
+        {"type": "assistant", "uuid": "a0", "message": {
+            "role": "assistant", "model": "claude-opus-5", "content": [
+                {"type": "tool_use", "id": "toolu_1", "name": "Bash",
+                 "input": {"command": "sleep 60"}}]}},
+        {"type": "user", "uuid": "u1", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "toolu_1", "content": "done"}]}},
+        # Typed mid-run, then popped back into the editor to reword: enqueued,
+        # never delivered, and carried by no other record in the log.
+        {"type": "queue-operation", "operation": "enqueue",
+         "content": "wait, use the other flag"},
+        {"type": "queue-operation", "operation": "popAll",
+         "content": "wait, use the other flag"},
+        # The reworded one, delivered. `remove` ends its wait and restates it.
+        {"type": "queue-operation", "operation": "enqueue",
+         "content": "wait, use --porcelain instead"},
+        {"type": "queue-operation", "operation": "remove",
+         "content": "wait, use --porcelain instead"},
+        {"type": "attachment", "uuid": "q0", "attachment": {
+            "type": "queued_command", "commandMode": "prompt",
+            "prompt": "wait, use --porcelain instead"}},
+        # Same delivery, 2.1.269 shape: `rendered` holds the prompt under cc's
+        # own framing, which says the same thing on every such record.
+        {"type": "attachment", "uuid": "q1", "attachment": {
+            "type": "queued_command", "commandMode": "prompt",
+            "prompt": "and commit when it passes"},
+         "rendered": [{"content":
+                       "<system-reminder>\nThe user sent a new message while "
+                       "you were working:\nand commit when it passes\n"
+                       "</system-reminder>"}]},
+        # A pasted image makes `prompt` a block list (chunk-dbb93264.js:235801).
+        {"type": "attachment", "uuid": "q2", "attachment": {
+            "type": "queued_command", "commandMode": "prompt", "prompt": [
+                {"type": "text", "text": "this screenshot shows the bug"},
+                {"type": "image", "source": _image_source()}]}},
+        # The other mode off the same queue: a background job reporting.
+        {"type": "attachment", "uuid": "q3", "attachment": {
+            "type": "queued_command", "commandMode": "task-notification",
+            "prompt": "<task-notification>\n<status>completed</status>\n"
+                      "</task-notification>"}},
+        {"type": "assistant", "uuid": "a1", "message": {
+            "role": "assistant", "model": "claude-opus-5",
+            "content": [{"type": "text", "text": "switching to --porcelain"}]}},
+    ]
+    jsonl.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    return jsonl
+
+
+def _row(out: str, needle: str) -> str:
+    rows = [line for line in out.splitlines() if needle in line]
+    assert len(rows) == 1, f"{needle}: expected one row, got {rows}"
+    return rows[0]
+
+
+def test_the_skeleton_rows_a_message_the_user_typed_mid_run(tmp_path) -> None:
+    """The delivered prompt is a user turn, and a skeleton is how a reader finds
+    one. Sourced from `.attachment.content` or `rendered` alone it has no
+    payload, so it got no row at all — the whole message invisible.
+    """
+    out = _render(_queue_session(tmp_path), "--skeleton")
+    row = _row(out, "wait, use --porcelain instead")
+    assert "user:prompt" in row
+    # The leaf has to name where the text is, or extraction from the skeleton
+    # lands on an empty field.
+    assert ".attachment.prompt" in row
+
+
+def test_a_queued_prompt_previews_the_user_not_the_framing(tmp_path) -> None:
+    """`rendered` wraps the prompt in `The user sent a new message while you
+    were working:` plus a paragraph — a median 132 tokens, the same on every
+    such record. Read from there, every row previews the boilerplate and charges
+    it to the size column a reader budgets by.
+    """
+    row = _row(_render(_queue_session(tmp_path), "--skeleton"),
+               "and commit when it passes")
+    assert ".attachment.prompt" in row
+    assert "The user sent a new message" not in row
+
+
+def test_a_queued_prompt_carrying_an_image_still_reaches_the_skeleton(tmp_path) -> None:
+    """A pasted image makes `prompt` a block list. Typed as a string alone it
+    fails validation and parse_all drops the record, user's message included.
+    """
+    row = _row(_render(_queue_session(tmp_path), "--skeleton"),
+               "this screenshot shows the bug")
+    assert "user:prompt" in row
+    assert ".attachment.prompt[].text" in row
+
+
+def test_a_task_notification_off_the_queue_is_labelled_by_its_mode(tmp_path) -> None:
+    row = _row(_render(_queue_session(tmp_path), "--skeleton"), "task-notification>")
+    assert "user:task-notification" in row
+
+
+def test_an_undelivered_draft_is_held_back_until_show_all(tmp_path) -> None:
+    """A draft the user popped back to reword never reached the model, so the
+    default view — what the model saw — must not show it as a turn. Its
+    `queue-operation` is the log's only copy, so --show-all must.
+    """
+    session = _queue_session(tmp_path)
+    assert "use the other flag" not in _render(session, "--skeleton")
+    row = _row(_render(session, "--skeleton", "--show-all"), "use the other flag")
+    assert "queue:enqueue" in row
+    assert ".content" in row
+
+
+def test_the_skeleton_rows_a_queued_message_once(tmp_path) -> None:
+    """`enqueue` introduces the text; the `remove` that ends its wait restates
+    it, as does every dequeue and popAll. Rowing those doubles the text without
+    adding a block to extract.
+    """
+    out = _render(_queue_session(tmp_path), "--skeleton", "--show-all")
+    assert out.count("wait, use --porcelain instead") == 2  # enqueue + delivery
+    assert "queue:remove" not in out
+
+
 # ─── Binary payloads: image and document blocks ──────────────────────────────
 # A base64 payload is the one content in a log that is worthless on screen and
 # ruinous in a context window: 43k chars of `iVBORw0KGg…` per screenshot. The
