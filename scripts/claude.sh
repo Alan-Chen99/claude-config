@@ -51,7 +51,7 @@ if (exec 3<>"/dev/tcp/${PROXY_HOST}/${PROXY_PORT}") 2>/dev/null; then
 	export NODE_EXTRA_CA_CERTS=~/.mitmproxy/mitmproxy-ca-cert.pem
 	export NODE_OPTIONS="--use-env-proxy"
 else
-	echo "claude.sh: WARNING: nothing listening on ${PROXY_HOST}:${PROXY_PORT}; HTTPS_PROXY unset, requests are NOT intercepted. Start it with: python3 ${REPO_DIR}/scripts/intercept/run-proxy.py" >&2
+	echo "claude.sh: WARNING: nothing listening on ${PROXY_HOST}:${PROXY_PORT}; HTTPS_PROXY unset, requests are NOT intercepted. Start it with: systemctl --user start claude-intercept.service, or without a user manager: ${HOME}/.claude/venvs/claude-config/bin/python ${REPO_DIR}/scripts/intercept/run-proxy.py" >&2
 fi
 
 # One randomized draw per interactive session for the total_tokens reminder,

@@ -1,0 +1,31 @@
+[Unit]
+Description=claude-intercept: MITM proxy on 127.0.0.1:9160 capturing Claude Code API calls to ~/.claude/requests-log
+Documentation=file:///home/alan/repos/claude-config/scripts/intercept/README.md
+
+# Five failed starts inside two minutes leave the unit in `failed`, where
+# `systemctl --user status` and the journal show the cause. A permanent fault —
+# no venv, port 9160 already taken — would otherwise restart every second
+# forever.
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=exec
+Environment=PYTHONUNBUFFERED=1
+
+# The command docker/entrypoint.sh (personal monorepo) runs inside the dev
+# containers, which have no user manager. The interpreter is the canonical venv
+# install.sh provisions; the addon is named under the canonical clone because
+# systemd has no specifier for the directory a symlinked unit really lives in.
+ExecStart=%h/.claude/venvs/claude-config/bin/mitmdump -s %h/repos/claude-config/scripts/intercept/proxy.py -p 9160 --listen-host 127.0.0.1 -q
+
+# scripts/claude.sh binds HTTPS_PROXY at launch, so a session started while this
+# was listening sends every API call here for its whole life, and each call
+# fails with ECONNREFUSED while the proxy is down. Hence the one-second restart,
+# and why stopping the unit cuts off every such session still running.
+Restart=always
+RestartSec=1
+SyslogIdentifier=claude-intercept
+
+[Install]
+WantedBy=default.target

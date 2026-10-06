@@ -154,12 +154,15 @@ done
 # Provision the canonical Python venv (mitmproxy + claude_config package).
 #
 # HIDDEN PATH DEPENDENCY — read before changing:
-#   docker/entrypoint.sh (in the personal monorepo) starts mitmdump from a
-#   hardcoded glob "${HOME}/.claude/venvs/claude-config*/bin/mitmdump". If the
-#   canonical venv does not exist at exactly that name, nothing listens on
-#   127.0.0.1:9160. scripts/claude.sh probes that port and skips HTTPS_PROXY
-#   when it is dead, so sessions still run — they run unintercepted, with a
-#   warning on stderr and no request logs under ~/.claude/requests-log.
+#   Two launchers start mitmdump out of this venv by a hardcoded path:
+#   docker/entrypoint.sh (in the personal monorepo) through the glob
+#   "${HOME}/.claude/venvs/claude-config*/bin/mitmdump", and, on a host,
+#   systemd/claude-intercept.service through
+#   %h/.claude/venvs/claude-config/bin/mitmdump. If the canonical venv does not
+#   exist at exactly that name, nothing listens on 127.0.0.1:9160.
+#   scripts/claude.sh probes that port and skips HTTPS_PROXY when it is dead,
+#   so sessions still run — they run unintercepted, with a warning on stderr
+#   and no request logs under ~/.claude/requests-log.
 #
 # WHY UV_PROJECT_ENVIRONMENT IS PINNED HERE (not derived):
 #   .envrc derives the venv name from `basename "$PWD"`, so running `uv sync`
@@ -171,13 +174,16 @@ done
 # LEAKAGE STILL TO WATCH:
 #   1. $HOME differs between host and container. The container's ~/.claude is
 #      bind-mounted from /home/alan/personal/docker_home/.claude on the host.
-#      A host-side `install.sh` does NOT provision the container's venv. This
-#      step must run inside the dev container.
+#      A host-side `install.sh` provisions only the host's venv, the one
+#      claude-intercept.service runs; the container's venv needs this step run
+#      inside the dev container.
 #   2. If a worktree's direnv triggers `uv sync` later, it will create a
 #      sibling venv (e.g. claude-config-work). Harmless — entrypoint.sh's glob
 #      prefers the canonical name alphabetically — but it does consume disk.
 #   3. Renaming the canonical clone path away from "claude-config" breaks the
-#      entrypoint glob. If you rename, update entrypoint.sh in lockstep.
+#      entrypoint glob, and moving the clone off ~/repos/claude-config breaks
+#      systemd/claude-intercept.service, which names the addon there. If you
+#      rename or move it, update both in lockstep.
 if [ -f "${REPO_DIR}/pyproject.toml" ]; then
     if command -v uv >/dev/null 2>&1; then
         VENV_DIR="${CLAUDE_DIR}/venvs/claude-config"

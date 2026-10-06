@@ -24,6 +24,26 @@ mitmdump -s proxy.py -p 9160 --listen-host 127.0.0.1
 
 On first run, mitmproxy generates a CA cert at `~/.mitmproxy/mitmproxy-ca-cert.pem`.
 
+### As a systemd user service
+
+[`systemd/claude-intercept.service`](../../systemd/claude-intercept.service)
+runs that `mitmdump` command out of the canonical venv
+(`~/.claude/venvs/claude-config`) on a machine with a systemd user manager.
+`install.sh` links the unit; enabling it is by hand:
+
+```bash
+systemctl --user enable --now claude-intercept.service
+```
+
+The dev containers have no user manager, so their `docker/entrypoint.sh` starts
+the same command. Each listener writes under its own `$HOME`, so a host-side
+service and a container write separate `requests-log` trees.
+
+Stopping the service cuts off every session `scripts/claude.sh` launched while
+it was listening. `HTTPS_PROXY` is bound at launch, so such a session's API
+calls fail with ECONNREFUSED until the proxy is back. The unit restarts the
+proxy one second after any exit systemd did not request.
+
 ### With Node.js Claude CLI
 
 Node.js `fetch` (undici) requires `--use-env-proxy` to honor `HTTPS_PROXY`:
@@ -37,7 +57,10 @@ claude
 
 ### With native Claude binary
 
-Add the CA to the system certificate store:
+The native binary honors `NODE_EXTRA_CA_CERTS` as well: on 2.1.289 it
+completed TLS through the proxy with the CA supplied only that way, which is
+all `scripts/claude.sh` sets. The system store is the alternative for a
+launcher that sets nothing. Add the CA to it:
 
 ```bash
 # Linux
