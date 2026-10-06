@@ -13,9 +13,8 @@
 Executes a bash command and returns its output.
 
 - Working directory persists between calls, but prefer absolute paths — `cd` in a compound command can trigger a permission prompt. Shell state (env vars, functions) does not persist; the shell is initialized from the user's profile.
-- IMPORTANT: Avoid using this tool to run `cat`, `head`, `tail`, `sed`, `awk`, or `echo` commands, unless explicitly instructed or after you have verified that a dedicated tool cannot accomplish your task. Instead, use the appropriate dedicated tool as this will provide a much better experience for the user.
 - Command output is displayed to you, not reliably to the user.
-- `timeout` is in milliseconds: default 120000, max 600000.
+- `timeout` is in milliseconds: default 120000, max 2147483647 for a foreground command.
 - `run_in_background` runs the command detached: it keeps running across turns and re-invokes you when it exits. No `&` needed. Foreground `sleep` is blocked; use Monitor with an until-loop to wait on a condition.
 
 # Git
@@ -36,7 +35,7 @@ Executes a bash command and returns its output.
       "type": "string"
     },
     "timeout": {
-      "description": "Optional timeout in milliseconds (max 600000)",
+      "description": "Optional timeout in milliseconds (max 2147483647 for a foreground command)",
       "type": "number"
     },
     "description": {

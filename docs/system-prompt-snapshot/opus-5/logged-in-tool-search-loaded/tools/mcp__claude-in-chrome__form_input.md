@@ -34,6 +34,10 @@ Set values in form elements using element reference ID from the read_page tool. 
     "tabId": {
       "type": "number",
       "description": "Tab ID to set form value in. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID."
+    },
+    "action_summary": {
+      "type": "string",
+      "description": "A few words saying what this form fill does on the page and to what, for example 'Sets the delivery date to 29 September'. State the effect only, and accurately: no reasons, nothing about what you were asked or allowed to do, no passwords or other secrets."
     }
   },
   "required": [

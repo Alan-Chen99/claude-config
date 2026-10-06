@@ -121,6 +121,10 @@ Use a mouse and keyboard to interact with a web browser, and take screenshots. I
     "save_to_disk": {
       "type": "boolean",
       "description": "For screenshot/zoom actions: save the image to disk so it can be attached to a message for the user. Returns the saved path in the tool result. Only set this when you intend to share the image — screenshots you're just looking at don't need saving."
+    },
+    "action_summary": {
+      "type": "string",
+      "description": "A few words saying what this action does on the page and to what, for example 'Sends the drafted reply to pat@example.com' or 'Opens the Filters menu'. Set it on every left_click, right_click, double_click, triple_click, left_click_drag, key and type action. State the effect only, and accurately: no reasons, nothing about what you were asked or allowed to do, no passwords or other secrets."
     }
   },
   "required": [

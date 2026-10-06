@@ -1,7 +1,7 @@
 {
   "model": "claude-sonnet-5",
   "system_blocks": 3,
-  "system_tokens": 116,
+  "system_tokens": 279,
   "tools_upfront": [
     "Agent",
     "Artifact",
@@ -23,6 +23,8 @@
     "DeferredToolPlaceholder"
   ],
   "tools_deferred": [
+    "ArtifactComments",
+    "ArtifactData",
     "CronCreate",
     "CronDelete",
     "CronList",
@@ -37,13 +39,15 @@
     "PushNotification",
     "RemoteTrigger",
     "SendMessage",
-    "TaskOutput",
     "TaskStop",
     "WebFetch",
     "WebSearch"
   ],
-  "tools_deferred_count": 18,
-  "tools_total_tokens": 35834,
+  "tools_deferred_count": 19,
+  "tools_deferred_loaded": [],
+  "tools_deferred_loaded_count": 0,
+  "tools_server": [],
+  "tools_total_tokens": 30269,
   "has_output_style": false,
   "has_doing_tasks": false,
   "subagent_count": 0

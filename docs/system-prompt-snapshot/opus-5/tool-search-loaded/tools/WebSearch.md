@@ -13,7 +13,7 @@
 
 Search the web. Returns result blocks with titles and URLs. US-only.
 
-- The current month is September 2026 — use this when searching for recent information.
+- The current month is (provided in the conversation below) — use this when searching for recent information.
 - `allowed_domains` / `blocked_domains` filter results.
 - After answering from results, end with a "Sources:" list of the URLs you used as markdown links.
 
@@ -42,10 +42,19 @@ Search the web. Returns result blocks with titles and URLs. US-only.
       "items": {
         "type": "string"
       }
+    },
+    "mode": {
+      "description": "\"standard\": the normal web search: quick and cheap; right for straightforward lookups (reference facts, official pages, documentation, well-known people, places and topics) and simple follow-up lookups. \"extended\": a thorough, fresh search at several times the cost and latency.",
+      "type": "string",
+      "enum": [
+        "standard",
+        "extended"
+      ]
     }
   },
   "required": [
-    "query"
+    "query",
+    "mode"
   ],
   "additionalProperties": false
 }

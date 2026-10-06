@@ -11,7 +11,7 @@
 
 ## description
 
-Read and update the user's claude.ai/design design-system projects through their claude.ai login (or, for sessions without one, a dedicated design authorization from /design-login). Use this together with the /design-sync skill to keep a local component library in sync with a Claude Design project — incrementally, one component at a time, never as a wholesale replace.
+Read and update the user's claude.ai/design design-system projects through their claude.ai login (or, for sessions without one, a dedicated design authorization from /design-login). Use this only with the /design-sync skill, which the user starts, to keep a local component library in sync with one of those projects — incrementally, one component at a time, never as a wholesale replace. Never use it to make a design, deck or prototype: those are made from a Slides or Design Artifact type with the Artifact tool.
 
 The tool dispatches on `method`:
 

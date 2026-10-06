@@ -44,7 +44,7 @@ The canonical multi-stage pattern — pipeline by default, each dimension verifi
 
 Before writing a script, load the `workflow-authoring` skill — the workflow authoring reference: script API and gotchas, resume, the **Ultracode** section, quality patterns, worked examples.
 
-This session has the default workflow size guideline: medium — keep workflows under 15 agents. This is a guideline, not a hard limit — follow it unless the user's prompt calls for a different scale. The user can raise or remove it with "Dynamic workflow size" in /config.
+This session has the default workflow size guideline: medium — keep workflows under 10 agents. This is a guideline, not a hard limit — follow it unless the user's prompt calls for a different scale. The user can raise or remove it with "Dynamic workflow size" in /config.
 
 ## input_schema
 

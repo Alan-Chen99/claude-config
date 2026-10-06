@@ -1,5 +1,5 @@
 {
-  "version": "x-anthropic-billing-header: cc_version=2.1.269.415; cc_entrypoint=cli; cch=74320; cc_is_subagent=true; cc_prompt_id=4ba1049b-9dad-48d2-81ce-b74c3d089d48;",
+  "version": "x-anthropic-billing-header: cc_version=2.1.289.0c1; cc_entrypoint=cli; cch=b15ed; cc_is_subagent=true; cc_prompt_id=54df6372-895f-441c-8d45-f93ad3486abb;",
   "model": "claude-sonnet-5",
   "block_count": 3,
   "total_tokens": 1204,
@@ -7,7 +7,7 @@
     {
       "index": 0,
       "tokens": 92,
-      "preview": "x-anthropic-billing-header: cc_version=2.1.269.415; cc_entrypoint=cli; cch=74320; cc_is_subagent=true; cc_prompt_id=4ba1049b-9dad-48d2-81ce-b74c3d089d48;"
+      "preview": "x-anthropic-billing-header: cc_version=2.1.289.0c1; cc_entrypoint=cli; cch=b15ed; cc_is_subagent=true; cc_prompt_id=54df6372-895f-441c-8d45-f93ad3486abb;"
     },
     {
       "index": 1,
@@ -24,15 +24,18 @@
     "Bash",
     "Read",
     "Skill",
+    "ToolSearch",
     "DeferredToolPlaceholder",
-    "ToolSearch"
+    "SubagentHandback"
   ],
   "tool_tokens": {
-    "Bash": 4481,
+    "Bash": 4504,
     "Read": 1260,
     "Skill": 977,
+    "ToolSearch": 889,
     "DeferredToolPlaceholder": 432,
-    "ToolSearch": 889
+    "SubagentHandback": 643
   },
+  "tools_server": {},
   "source_request": "0005-request.json"
 }

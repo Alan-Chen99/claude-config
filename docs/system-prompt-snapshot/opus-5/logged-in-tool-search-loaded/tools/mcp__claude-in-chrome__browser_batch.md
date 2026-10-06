@@ -31,7 +31,7 @@ Execute a sequence of browser tool calls in ONE round trip. Each item is {name, 
           },
           "input": {
             "type": "object",
-            "description": "That tool's input — same shape you'd pass when calling it directly."
+            "description": "That tool's input — same shape you'd pass when calling it directly. For computer items whose action is left_click, right_click, double_click, triple_click, left_click_drag, key or type, and for form_input items, include action_summary in the item's input, as you would when calling that tool directly."
           }
         },
         "required": [

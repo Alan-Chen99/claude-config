@@ -1,7 +1,7 @@
 {
   "model": "claude-opus-4-7",
   "system_blocks": 4,
-  "system_tokens": 8702,
+  "system_tokens": 9120,
   "tools_upfront": [
     "Agent",
     "Artifact",
@@ -23,6 +23,8 @@
     "DeferredToolPlaceholder"
   ],
   "tools_deferred": [
+    "ArtifactComments",
+    "ArtifactData",
     "CronCreate",
     "CronDelete",
     "CronList",
@@ -39,14 +41,16 @@
     "TaskCreate",
     "TaskGet",
     "TaskList",
-    "TaskOutput",
     "TaskStop",
     "TaskUpdate",
     "WebFetch",
     "WebSearch"
   ],
-  "tools_deferred_count": 21,
-  "tools_total_tokens": 36155,
+  "tools_deferred_count": 22,
+  "tools_deferred_loaded": [],
+  "tools_deferred_loaded_count": 0,
+  "tools_server": [],
+  "tools_total_tokens": 30590,
   "has_output_style": false,
   "has_doing_tasks": true,
   "subagent_count": 0

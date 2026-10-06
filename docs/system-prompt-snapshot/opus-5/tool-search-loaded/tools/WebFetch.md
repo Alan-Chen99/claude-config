@@ -13,7 +13,7 @@
 
 Fetches a URL, converts the page to markdown, and answers `prompt` against it using a small fast model.
 
-- Fails on authenticated/private URLs — use an authenticated MCP tool or `gh` for those instead. Exception: claude.ai artifact links (claude.ai/artifact/{id} or claude.ai/code/artifact/{uuid}) ARE fetchable via your claude.ai login — use WebFetch, not curl (curl gets the SPA shell or a Cloudflare 403).
+- Fails on authenticated/private URLs — use an authenticated MCP tool or `gh` for those instead. claude.ai artifact links (claude.ai/artifact/{id} or claude.ai/code/artifact/{uuid}) are published artifacts: read them with the Artifact tool (action "read"), not WebFetch or curl.
 - Fails on localhost and other hostnames without a dot; for a local server, use curl via Bash.
 - HTTP is upgraded to HTTPS. Cross-host redirects are returned to you rather than followed; call again with the redirect URL.
 - Responses are cached for 15 minutes per URL.

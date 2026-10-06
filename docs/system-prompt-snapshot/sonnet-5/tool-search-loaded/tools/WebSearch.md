@@ -35,7 +35,7 @@ Usage notes:
   - Web search is only available in the US
 
 IMPORTANT - Use the correct year in search queries:
-  - The current month is September 2026. You MUST use this year when searching for recent information, documentation, or current events.
+  - The current month is (provided in the conversation below). You MUST use this year when searching for recent information, documentation, or current events.
   - Example: If the user asks for "latest React docs", search for "React documentation" with the current year, NOT last year
 
 
@@ -64,10 +64,19 @@ IMPORTANT - Use the correct year in search queries:
       "items": {
         "type": "string"
       }
+    },
+    "mode": {
+      "description": "\"standard\": the normal web search: quick and cheap; right for straightforward lookups (reference facts, official pages, documentation, well-known people, places and topics) and simple follow-up lookups. \"extended\": a thorough, fresh search at several times the cost and latency.",
+      "type": "string",
+      "enum": [
+        "standard",
+        "extended"
+      ]
     }
   },
   "required": [
-    "query"
+    "query",
+    "mode"
   ],
   "additionalProperties": false
 }
