@@ -266,7 +266,9 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "notes/compliance-check-failure-mode.md" = 13796
 "docs/opencode-system-prompt/alan-default-commentary.md" = 12725
 "plans/refactor-coding-style-skill.md" = 12506
-".claude/skills/update-claude-code/SKILL.md" = 12450
+# 22,500 is the user's cap for the 2.1.289 upgrade round only (2026-10-05): the next
+# upgrade re-asks it rather than inheriting it.
+".claude/skills/update-claude-code/SKILL.md" = 22500
 "notes/agent-tools-run-stress-findings.md" = 12249
 "plans/alan-coding-style-v2-fixes.md" = 12016
 "skills/cc-history/SKILL.md" = 7810
