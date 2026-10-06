@@ -14,14 +14,29 @@ at once. ANCHOR identifies the binary: a file containing cc's env-block
 opening sentence is cc and not the wrapper script PATH resolves to.
 WINDOW_ANCHOR locates the fields: the window is scanned around it, not
 around ANCHOR. They were the same string through 2.1.235, where the bundler
-happened to lay the opening sentence down beside the field templates. In
-2.1.269 it does not -- the sentence and the templates are ~420 KB apart in
-the same string-table region -- so a window on ANCHOR sees markdown-parser
-regexes and HTTP/2 error strings and not one env field. The field templates
-still cluster with each other, because one function (`AWr`,
-chunk-dbb93264.js:29195) emits all of them, so the first of those templates
-is the durable place to stand; the opening sentence's adjacency to them was
-only ever a bundler coincidence.
+happened to lay the opening sentence down beside the field templates. Since
+2.1.269 it does not -- on 2.1.289 the sentence and the templates are 324 KB
+apart in the same string-table region -- so a window on ANCHOR sees
+markdown-parser regexes and HTTP/2 error strings and not one env field.
+
+What this check is worth, re-derived on 2.1.289: less than the 2.1.269 pass
+assumed, and the limit is now measured rather than inferred. That pass
+reasoned that the field templates cluster because one function emits all of
+them (`sEn`, chunk-wgfrtm7w.js:4662). They do in the *source* copy the binary
+also embeds, 104 MB further on, but the string table is a deduplicated pool
+in emission order, not source order: on 2.1.289 the window holds the primary
+directory, the git-repo flag, both `Additional working directories
+added:`/`removed:` lines, the scratchpad-withdrawn sentence and
+`scratchpadDirectory`, while `Platform: `, `Shell: `, `OS Version: `,
+`Scratchpad directory: ` and the model lines moved out to a neighbourhood of
+transcript-writer field names and telemetry error kinds. Widening is not the
+fix -- the templates that left are 7 to 21 bytes and sit hundreds of
+kilobytes away -- and a window on the source copy would churn on every build,
+since minified identifiers surround it. So the window is a partial witness
+over the field set, kept because it is cheap and because a failure makes
+someone read the block; the 2.1.289 upgrade proved the gap by letting cc's
+one genuinely new field, `githubCli` (9 bytes, under PRINTABLE's floor), pass
+unremarked. render.py, not this file, is where a new field gets its reading.
 """
 
 from __future__ import annotations
@@ -120,7 +135,7 @@ def _has_anchor(path: Path) -> bool:
     """Whether `path` contains ANCHOR, without reading the whole file.
 
     PATH's `claude` is normally a small wrapper script, but on a non-Nix
-    install it can be the ~220 MB binary itself; mmap lets this check avoid
+    install it can be the ~250 MB binary itself; mmap lets this check avoid
     loading that into memory before the cache (consulted afterwards, in
     `compare()`) even gets a say. mmap refuses a zero-length file, so an
     empty file is treated as anchor-less directly rather than raising.
@@ -138,9 +153,12 @@ def literals_in(data: bytes, source: str) -> list[str]:
     WINDOW_ANCHOR rather than ANCHOR, and +/-1000 rather than the -3000/+1500
     those two constants carried while they were one anchor: at the field
     cluster the useful span is short, and widening it only pulls in the
-    neighbouring output-style, language and HTTP/2 strings, which churn on
-    releases that leave the env block alone. 1000 each way covers every
-    field template `AWr` emits plus the model lines that follow them.
+    neighbouring strings, which churn on releases that leave the env block
+    alone -- 2.1.269's neighbours were output-style, language and HTTP/2
+    text, 2.1.289's are transcript-writer field names and telemetry error
+    kinds, and both sets moved while the env block barely did. How much of
+    the field set 1000 each way still reaches is the module docstring's
+    subject; it was all of it on 2.1.269 and is six strings on 2.1.289.
     """
     index = data.find(WINDOW_ANCHOR)
     if index < 0:
@@ -186,13 +204,17 @@ def installed_version(binary: Path) -> str:
 
     The budget this shares with the SessionStart hook's own 30 s timeout
     (settings.json) and environment._git's 2 s (called up to five times per run):
-    measured cold -- binary dropped from page cache, as happens on the
-    first session after every Claude Code upgrade -- `claude --version`
-    took 3.365 s and a from-disk compare() (the read plus the
+    measured on 2.1.269 cold -- binary dropped from page cache, as happens
+    on the first session after every Claude Code upgrade -- `claude
+    --version` took 3.365 s and a from-disk compare() (the read plus the
     required_literals count passes) took 0.75 s; both comfortably clear
     their old, tighter caps (the version call's old 2 s cap, in particular,
-    is why this number moved). Worst case, every capped call spends its
-    full budget rather than actually finishing: 5x2 s git + 10 s version +
+    is why this number moved). The 2.1.289 binary is 12% larger, so the cold
+    figures scale with it; re-measuring them needs a page-cache drop this
+    container cannot do (/proc/sys/vm/drop_caches is read-only), and warm
+    they are 0.011 s and 0.58 s, two orders off their caps. Worst case,
+    every capped call spends its full budget rather than actually finishing:
+    5x2 s git + 10 s version +
     ~2 s for a slower-than-measured cold read/scan + ~1 s of uncapped misc
     work (platform/shell/os_version, scratchpad mkdir, cache stat, JSON
     parsing) totals roughly 23 s against the 30 s outer timeout --
@@ -224,8 +246,9 @@ def installed_version(binary: Path) -> str:
 def compare(binary: Path, manifest: Path, version: str) -> Comparison:
     """Diff the installed binary against the pinned manifest.
 
-    The binary is ~220 MB (331 MB at 2.1.235), so it is read once and both
-    checks run over the same bytes. `window_literals` catches fields cc adds near the anchor.
+    The binary is 246 MB (220 MB at 2.1.269, 331 MB at 2.1.235), so it is
+    read once and both checks run over the same bytes. `window_literals`
+    catches fields cc adds near the anchor.
     `required_literals` catches a rename or removal of templates the
     window cannot see: two under its 12-character floor, and one carrying a
     non-ASCII character, which the string table holds as UTF-16 where the

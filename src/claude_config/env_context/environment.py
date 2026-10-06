@@ -1,10 +1,13 @@
 """Machine facts for the env block.
 
 Claude Code's own env block reports `$SHELL`, falling back to the literal
-string `unknown` (`vWr()`, chunk-dbb93264.js:29150). That is not the shell it
-runs commands with: the Bash tool resolves one independently (`das()`,
-chunk-dbb93264.js:134358) and exports it. `resolve_shell` mirrors the Bash
-tool, so the reported shell is the one Bash tool commands execute under.
+string `unknown` (`ZTn()`, chunk-wgfrtm7w.js:4589, whose win32 arm now reads
+`PowerShell (primary); ${vGn}.` from the fragment at :4548). That is not the
+shell it runs commands with: the Bash tool resolves one independently
+(`UXn()`, chunk-wgfrtm7w.js:37080, which logs
+`is not a valid bash/zsh path, falling back to detection`) and exports it.
+`resolve_shell` mirrors the Bash tool, so the reported shell is the one Bash
+tool commands execute under.
 """
 
 from __future__ import annotations
@@ -120,8 +123,9 @@ def clock_line() -> str:
 
 
 def _executable(path: str) -> bool:
-    """Whether `path` names something runnable, mirroring `cbt()`,
-    chunk-dbb93264.js:134345.
+    """Whether `path` names something runnable, mirroring `HAe()`,
+    chunk-wgfrtm7w.js:37067 -- an `X_OK` access check, then the candidate run
+    with `["--version"]` under `timeout: 1000`.
 
     The access check answers for a real path; cc falls back to running the
     candidate with `--version` when it fails, which is what makes a bare
@@ -145,8 +149,9 @@ def resolve_shell(
     search_dirs: Sequence[str] | None = None,
     found: Callable[[str], str | None] = shutil.which,
 ) -> str:
-    """Return the shell the Bash tool will run, mirroring `das()`,
-    chunk-dbb93264.js:134358.
+    """Return the shell the Bash tool will run, mirroring `UXn()`,
+    chunk-wgfrtm7w.js:37080 (search dirs
+    `["/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"]` at :37087).
 
     `found` looks up a shell name on PATH, defaulting to shutil.which. Tests
     pass a stub (e.g. `lambda _: None`) to keep the real PATH out of the result.
@@ -215,9 +220,11 @@ def worktree_common_dir(cwd: str) -> str | None:
     Asking git directly is what covers a worktree made by hand. Through
     2.1.235 that was the whole point: cc emitted its worktree warnings only
     for worktrees it had created itself. 2.1.269 broadened its own test to
-    `pP()` (chunk-arxpc433.js:1653) -- git-common-dir differs from git-dir,
-    the same question this asks -- so the two now agree on which directories
-    count, and this no longer covers a case cc misses.
+    `pP()`, now `Lz()` (chunk-s5xz0z8j.js:1976) -- git root's `.git` is a
+    `gitdir:` pointer whose `commondir` resolves elsewhere (`Me()`, :1888,
+    reached through `Es()`, :1928), which is the same question this asks of
+    git -- so the two agree on which directories count, and this no longer
+    covers a case cc misses.
     """
     result = _git(
         ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"], cwd
@@ -239,8 +246,10 @@ class GitSnapshot(TypedDict):
     recent_commits: str
 
 
-# cc caps its own status output at 2000 characters (`oat`,
-# chunk-dbb93264.js:69331, applied at :69364); the marker is this hook's own.
+# cc caps its own status output at 2000 characters (`Lxe`,
+# chunk-wgfrtm7w.js:29903, applied at :29939 with the message
+# `... (truncated because it exceeds 2k characters`); the marker is this
+# hook's own.
 STATUS_CAP = 2000
 STATUS_TRUNCATED = "\n[status truncated at 2000 characters]"
 
@@ -249,22 +258,31 @@ def git_snapshot(cwd: str) -> GitSnapshot | None:
     """Branch, `status --short` and the last five commits, or None outside a repo.
 
     cc sends the same facts as its `gitStatus` reminder, but that reminder
-    shares one gate with the Bash tool's `# Git` block -- `q7()`,
-    chunk-dbb93264.js:69382: `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, else the
+    shares one gate with the Bash tool's `# Git` block -- `pDt()`,
+    chunk-wgfrtm7w.js:29957: `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, else the
     `includeGitInstructions` setting -- and settings.json turns that gate off
     so `sys_prompt/` is the only git policy the agent receives. A `-p`
     session never carried the reminder at all. This is the copy that survives
     both, and it re-fires with the hook on resume, `/clear` and compact where
-    cc's is taken once. The git flags mirror cc's builder (`ADe`,
-    chunk-dbb93264.js:69333; the status flags are the `nPo` array at :69332,
-    the log call at :69350, and the literal `This is the git status at the
-    start of the conversation` at :69369): `--no-optional-locks` so a
+    cc's is taken once. The git flags mirror cc's builder (`ZGn`,
+    chunk-wgfrtm7w.js:29905; the status flags are the `azn` array at :29904,
+    the log call at :29923, and the literal `This is the git status at the
+    start of the conversation` at :29944): `--no-optional-locks` so a
     snapshot never takes the index lock from a concurrent session,
     `--ignore-submodules=dirty`,
     five commits, the 2000-character cap. What it leaves out of cc's block:
     `Git user` (claude.sh sets the author through the environment, and the
     config name cc prints is not who the commits are by) and the main-branch
     line (a PR aid; nothing here opens PRs).
+
+    cc's own copy is a `session_context` attachment field, never part of the
+    `# Environment` block (the field list `gan` is
+    `["userEmail", "attachedProject", "gitStatus", "perforceMode"]`,
+    chunk-wgfrtm7w.js:5010). 2.1.281 moved the git reads off the first frame,
+    which only changed *when* they run: the prefetch (`_Ce`, :29994) warms a
+    promise the prompt-context build awaits (chunk-xy34qwnq.js:1329), so the
+    section still rides the first request wherever `ZOr()` (:29986,
+    `!CLAUDE_CODE_REMOTE && pDt()`) allows it -- which here it does not.
     """
     branch = _git(["branch", "--show-current"], cwd)
     if branch is None or branch.returncode != 0:

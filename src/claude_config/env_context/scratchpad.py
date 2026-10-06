@@ -1,14 +1,16 @@
 """The session scratchpad directory.
 
 Claude Code names this directory to the model in its `# Environment` block
-(`src/chunk-dbb93264.js:29193`) and, separately, in the worker-tools context
-(`src/chunk-4zcseazt.js:1377`). It computes the path in `AH()`
-(`src/chunk-tnzzwz8r.js:13393`) as `join(WR(), <session id>, "scratchpad")`,
-caching `null` when that throws. Computing is not creating: creation is a
-separate function (`wWe`, `:13405`) gated on `NA()` (`:13367`), which is the
-remote `tengu_scratch` gate -- default off -- or artifact-tool eligibility, so
-an unauthenticated session can get no directory at all. This module creates it
-rather than assuming it exists, at the same mode 0700 cc uses.
+(`BQe`, `src/chunk-wgfrtm7w.js:4659`) and, separately, in the worker-tools
+context (`src/chunk-yjwkmg1y.js:123`). It computes the path in `Xv()`
+(`src/chunk-8wf3pk41.js:8064`) as `join(LC(), <session id>, "scratchpad")`
+(`:8070`; `LC()` is `src/chunk-898k2gs2.js:2241`), caching `null` when that
+throws. Computing is not creating: creation is a separate function (`Loe`,
+`src/chunk-8wf3pk41.js:8076`, `mode: 448`) gated on `Xw()` (`:8038`), which is
+the remote `tengu_scratch` gate -- default off -- or artifact-tool
+eligibility, so an unauthenticated session can get no directory at all. This
+module creates it rather than assuming it exists, at the same mode 0700 cc
+uses.
 """
 
 from __future__ import annotations
@@ -19,20 +21,21 @@ import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
-# `N6`, src/chunk-jaqbht4s.js:676. Past this cc appends a hash suffix (`lT`, :684).
+# `Nie`, src/chunk-v0mb4zbj.js:691. Past this cc appends a hash suffix
+# (`cP`, :698, over the `k()` replacement at :695).
 SLUG_LIMIT = 200
 
 _NON_ALPHANUMERIC = re.compile(r"[^a-zA-Z0-9]")
 
 
 def tmp_root(env: Mapping[str, str] | None = None) -> str:
-    """Mirrors `AS()`, src/chunk-tht8x923.js:19."""
+    """Mirrors `Xb()`, src/chunk-xf67zbm8.js:112."""
     env = os.environ if env is None else env
     return env.get("CLAUDE_CODE_TMPDIR") or tempfile.gettempdir()
 
 
 def project_slug(cwd: str) -> str:
-    """Mirrors `k()`/`lT()`, src/chunk-jaqbht4s.js:680-688.
+    """Mirrors `k()`/`cP()`, src/chunk-v0mb4zbj.js:695-702.
 
     Past SLUG_LIMIT cc appends `-<hash>` using a hash this module does not
     implement. Raising beats emitting a path cc does not use.
@@ -100,7 +103,7 @@ def scratchpad_path(
     """The path ensure() creates -- the only place that computes it.
 
     Not pure: realpaths the `claude-<uid>` directory before descending
-    further, mirroring `Id()` (src/chunk-tnzzwz8r.js:12739), even though this
+    further, mirroring `Pp()` (src/chunk-898k2gs2.js:2219), even though this
     function creates nothing itself. A pure version would silently
     disagree with both cc and ensure() whenever the tmp root -- or
     `claude-<uid>` itself -- is a symlink (e.g. macOS, where TMPDIR sits
@@ -135,8 +138,8 @@ def ensure(
     is created -- uid_dir.mkdir() used to run first, leaving claude-<uid>
     behind after a rejected cwd. uid_dir and the final scratchpad dir are
     both unconditionally chmod'd to 0700 after mkdir, matching cc's own
-    repair (`cne`, src/chunk-tht8x923.js:25, whose check at :57 is
-    `if ((o.mode & 511) !== 448) E(n, 448)`) -- mkdir's mode argument is only requested at
+    repair (`pEe`, src/chunk-xf67zbm8.js:119, whose check at :152 is
+    `if ((o.mode & 511) !== 448) L(i, 448)`) -- mkdir's mode argument is only requested at
     creation and left alone for a directory that already existed, so
     without the explicit chmod a pre-existing, loosely-permissioned
     uid_dir would stay that way. The intermediate slug and session
@@ -151,8 +154,10 @@ def ensure(
     guard catches it, but worth stating rather than discovering. And the
     chmod follows a symlinked uid_dir, so a pre-existing
     `claude-<uid> -> elsewhere` leaves `elsewhere` at 0700, slightly
-    widening the symlink-following surface cc closes with O_NOFOLLOW in
-    `JIt`, which this module deliberately does not mirror.
+    widening the symlink-following surface cc closes with the
+    `O_RDONLY | O_DIRECTORY | O_NOFOLLOW` open at
+    src/chunk-xf67zbm8.js:126, which this module deliberately does not
+    mirror.
     """
     env, cwd, uid = _resolve_inputs(env, cwd, uid)
     final = scratchpad_path(env=env, cwd=cwd, session_id=session_id, uid=uid)

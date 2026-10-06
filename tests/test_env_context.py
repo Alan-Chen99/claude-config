@@ -661,10 +661,13 @@ def test_clock_bullet_reads_ccs_date_line_for_the_agent() -> None:
 def test_the_block_states_nothing_cc_already_states() -> None:
     """The bullets cc states itself, kept out by name.
 
-    Each is stated unconditionally in cc's own environment attachment, so
-    re-emitting it gave the session two copies -- and for `Shell:`, two copies
-    that disagree. Asserting absence is the only way to notice one creeping
-    back, since nothing else here would fail if it did.
+    Each is stated in cc's own environment attachment, so re-emitting it gave
+    the session two copies -- and for `Shell:`, two copies that disagree.
+    Asserting absence is the only way to notice one creeping back, since
+    nothing else here would fail if it did. "Unconditionally" was true of
+    2.1.269; since 2.1.289 each line is conditional on its snapshot field,
+    with the omitting path unreachable in that build -- render.py's docstring
+    carries the derivation.
     """
     text = render.sections(_facts())
     assert "Primary working directory" not in text
@@ -674,8 +677,9 @@ def test_the_block_states_nothing_cc_already_states() -> None:
     assert "powered by the model" not in text
     # `Shell:` unqualified is cc's spelling; this block must not use it.
     assert " - Shell:" not in text
-    # cc's own worktree block carries the stash caution (`KUt`), so the
-    # supplement's worktree line names only the checkout path.
+    # cc's own worktree block carries the stash caution (`OQe`,
+    # chunk-wgfrtm7w.js:4552), so the supplement's worktree line names only
+    # the checkout path.
     linked = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
     assert "git stash" not in linked
 

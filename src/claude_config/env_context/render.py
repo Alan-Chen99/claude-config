@@ -1,35 +1,56 @@
 """Assembling the prompt sections from collected facts.
 
-Bullets use the ` - ` prefix Claude Code's own formatter emits (`RT`,
-chunk-dbb93264.js:29113), so the bullet formatting matches the block cc
+Bullets use the ` - ` prefix Claude Code's own formatter emits (`Rm`,
+src/chunk-wgfrtm7w.js:4545), so the bullet formatting matches the block cc
 produces in sessions that use its default prompt. The content itself
-deliberately diverges from cc's own env block (`AWr`,
-chunk-dbb93264.js:29195) in four places: `Shell` reports the shell the Bash
-tool actually runs, where cc reports `$SHELL` or the literal `unknown`;
-`Session ID` has no cc equivalent; the worktree line names the checkout
-path, where cc's own version names none; and the clock line puts an offset and
-a zone on a date cc states bare.
+deliberately diverges from cc's own env block (`sEn`,
+src/chunk-wgfrtm7w.js:4662, the `Primary working directory: ` template array
+at :4665) in four places: `Shell` reports the shell the Bash tool actually
+runs, where cc reports `$SHELL` or the literal `unknown`; `Session ID` has no
+cc equivalent; the worktree line names the checkout path, where cc's own
+version names none; and the clock line puts an offset and a zone on a date cc
+states bare.
 
 The reason once given for that third divergence -- that cc's line describes
 only a worktree it created and owns -- stopped being true in 2.1.269, which
-sets `isWorktree` from `pP()` (chunk-arxpc433.js:1653), the same
-common-dir-differs-from-git-dir test `environment.worktree_common_dir` uses,
-and so speaks about hand-made worktrees too. The divergence survives the
-correction: cc's wording still names no path.
+sets `isWorktree` from `pP()`, now `Lz()`
+(src/chunk-s5xz0z8j.js:1976, in the file whose `git root prime: findGitRoot
+already holds a different answer for the start path` warning sits at :1965),
+the same common-dir-differs-from-git-dir test
+`environment.worktree_common_dir` uses, and so speaks about hand-made
+worktrees too. The divergence survives the correction: cc's wording still
+names no path.
 
 Since 2.1.269 cc emits its own environment block even under
 --system-prompt-file, so this block no longer mirrors it -- it carries only
 what cc's does not. Dropped as duplicates on 2026-09-13: the working
 directory, the is-a-git-repo flag, the platform, the OS version and the model
-line, each of which cc states unconditionally inside the attachment its
-`p$t` gate delivers; and the stash caution, which cc's own worktree block
-(`KUt`) carries, so the worktree line here names only the checkout path.
+line, each of which cc states inside the attachment its `cKe` gate delivers;
+and the stash caution, which cc's own worktree block (`OQe`,
+src/chunk-wgfrtm7w.js:4552) carries, so the worktree line here names only the
+checkout path.
+
+2.1.289 re-derivation: that trim still holds, and cc dropped nothing this
+block leans on it for. Two shape changes, neither of which gives a bullet
+back. First, `workingDirectory`, `shell` and `osVersion` became optional in
+the snapshot schema (`PSe`, src/chunk-wgfrtm7w.js:4558-4568) and each line is
+now conditional, with the whole working-directory group -- primary directory,
+both worktree lines, the git-repo flag -- omitted together when the directory
+is absent and replaced by `YTn` (:4555). The only producer of such a snapshot
+is `x8()` (:4635) behind `launchOptions.toolsMachine()`, and nothing in this
+build ever calls `replaceToolsMachine` (chunk-zcjzet3s.js:3315), so the
+omitting path is unreachable here and the five dropped facts still arrive
+unconditionally in practice. Second, cc *added* a bullet this hook has no
+counterpart for: a `githubCli` field (`CSe`, :4533) whose text opens
+``gh` here is Claude Code's built-in GitHub client`, set only where the agent
+proxy arms a `gh` stand-in (chunk-7ek9gdg7.js:2105). Nothing to drop, nothing
+to add back.
 
 The scratchpad section stays, and is the one deliberate duplicate. cc's own
 scratchpad bullet and cc's own `mkdir` of that directory sit behind the same
-server-resolved gate -- `NA()` (`src/chunk-tnzzwz8r.js:13367`) is
-`tengu_scratch` or `isArtifactToolEligible()`, and `CWr()`
-(`src/chunk-dbb93264.js:29188`) returns early without it -- so cc's bullet can
+server-resolved gate -- `Xw()` (`src/chunk-8wf3pk41.js:8038`) is
+`tengu_scratch` or `isArtifactToolEligible()`, and `oEn()`
+(`src/chunk-wgfrtm7w.js:4655`) returns early without it -- so cc's bullet can
 disappear with no change to the binary, which is the one thing
 `scripts/check-env-context.sh` watches. A gate flip would otherwise leave the
 session with no scratchpad instruction at all.
@@ -103,12 +124,15 @@ def environment_section(facts: Facts) -> str:
 
     # cc states the date and nothing else about the clock: `currentDate` is a
     # bare `Today's date is YYYY-MM-DD.` built from local-time getters
-    # (`s0n()`, chunk-4zcseazt.js:206, reached from `currentDate` at
-    # chunk-dbb93264.js:69507), and no offset, zone or time of day accompanies
-    # it anywhere in the context. A local date alone does not say which day it
-    # is in UTC -- west of Greenwich the two differ for the last hours of every
-    # evening -- so the offset is the fact that makes cc's line readable, and
-    # the zone name is what makes the next transition predictable.
+    # (`Lqr()`, chunk-329679e2.js:39, reached from `currentDate` at
+    # chunk-wgfrtm7w.js:30108), and no offset, zone or time of day accompanies
+    # it anywhere in the context. 2.1.289 adds a zone-aware branch ahead of
+    # those getters, but the session store it reads has no writer anywhere in
+    # the binary, so the date is still the process's local one. A local date
+    # alone does not say which day it is in UTC -- west of Greenwich the two
+    # differ for the last hours of every evening -- so the offset is the fact
+    # that makes cc's line readable, and the zone name is what makes the next
+    # transition predictable.
     items.append(
         (
             f"Clock at session start: {facts['clock']}. Claude Code's "
@@ -122,7 +146,10 @@ def environment_section(facts: Facts) -> str:
     # Labelled, not `Shell:`, because cc's block carries a `Shell:` line of its
     # own reporting a different quantity -- measured in a live session on
     # 2026-09-13, cc said `unknown` where this says `/bin/bash`. Two bullets
-    # spelled the same way and disagreeing is worse than either alone.
+    # spelled the same way and disagreeing is worse than either alone. Since
+    # 2.1.289 cc's line is conditional, so a snapshot without a shell would
+    # leave this one unopposed rather than contradicted -- the distinct label
+    # costs nothing there and still earns its keep everywhere else.
     items.append(f"Shell the Bash tool runs: {facts['shell']}")
     items.append(f"Session ID: {facts['session_id']}")
 

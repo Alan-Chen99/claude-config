@@ -11,30 +11,39 @@ remove (`sys_prompt/CLAUDE.md`, "Git"); a -p session never carried the
 reminder anyway. `environment.git_snapshot` is the replacement, and it
 re-fires with this hook on resume, /clear and compact.
 
-That premise is half gone as of 2.1.269, and the hook has not yet been
-changed to match -- this paragraph records the finding, not a decision.
-2.1.269 moved the machine facts out of the system prompt and into an
-`environment` attachment (`JUt`, chunk-dbb93264.js:29201), delivered in a
-system-reminder user message and gated only on CLAUDE_CODE_SIMPLE and on
-bare/isolated forks (`p$t`, chunk-dbb93264.js:223650) -- not on the system
-prompt being custom. So a --system-prompt-file session now receives cc's own
-env block, verified in this repo's own session logs: the attachment appears
-in every session started after the upgrade and in none of the 1255 before
-it. What --system-prompt-file still discards is the `# Environment`
-*system-prompt* section, which in 2.1.269 holds only the model-family, CLI
-availability and fast-mode lines (`BRo`, chunk-dbb93264.js:69251), plus the
-separate model/knowledge-cutoff attachment text.
+That premise is half gone since 2.1.269, which moved the machine facts out
+of the system prompt and into an `environment` attachment (`UQe`,
+chunk-wgfrtm7w.js:4669, opening with `ASe`/`zTn` = `# Environment` and
+`You have been invoked in the following environment: ` at :4549-4550),
+delivered in a system-reminder user message and gated only on
+CLAUDE_CODE_SIMPLE and on bare/isolated forks (`cKe`,
+chunk-wgfrtm7w.js:136318: `!oIe() && !e.bareFork && !e.isolatedContext`,
+`oIe()` being `a.CLAUDE_CODE_SIMPLE` at chunk-898k2gs2.js:263) -- not on the
+system prompt being custom. So a --system-prompt-file session receives cc's
+own env block, verified in this repo's own session logs: the attachment
+appears in every session started after the upgrade and in none of the 1255
+before it. render.py was trimmed to match on 2026-09-13 and the 2.1.289
+re-derivation confirms the trim; the block goes to **both** destinations
+with disjoint content, and what --system-prompt-file still discards is only
+the `# Environment` *system-prompt* section -- the model-family, CLI
+availability and fast-mode lines (`_go`, chunk-wgfrtm7w.js:59144, whose
+model-family sentence `Omo()` is at :58783), plus the separate
+model/knowledge-cutoff attachment text (chunk-wgfrtm7w.js:4870-4873). That
+section is registered under the key `env_info_static` when the caller passes
+`excludeDynamicSections` and `env_info_simple` otherwise
+(chunk-wgfrtm7w.js:59100); the same flag is `_go`'s own argument, and the
+only thing it changes is dropping the /fast bullet, so the two keys name one
+section with and without one line -- no machine fact rides on either.
 
-What this hook still supplies that cc does not: the shell the Bash tool
-actually runs (cc reports `unknown` here), the session id, the worktree's
-main-checkout path, and the drift note. The rest of what it renders is now a
-second copy of a block cc already sent. Whether to trim this to its unique
-bullets or drop it is an open decision.
+What this hook supplies that cc does not: the shell the Bash tool actually
+runs (cc reports `unknown` here), the session id, the worktree's
+main-checkout path, the clock's offset and zone, and the drift note.
 
 Emitting the JSON envelope is not optional. Plain stdout from a SessionStart
 hook is injected as `SessionStart hook success: <text>`
-(chunk-dbb93264.js:236006); only hookSpecificOutput.additionalContext is
-injected verbatim (chunk-dbb93264.js:227210). A crash here is safer than it looks: cc
+(chunk-wgfrtm7w.js:168530); only hookSpecificOutput.additionalContext is
+injected verbatim (chunk-wgfrtm7w.js:93182, the `case "SessionStart"` arm of
+the hook-output normalizer). A crash here is safer than it looks: cc
 classifies a non-zero hook exit as `non_blocking_error`, which shows stderr
 to the *user* but maps to `[]` for the model, so failing loudly tells the
 human without polluting the prompt.
@@ -117,9 +126,11 @@ def scratchpad_or_none(
     Suppressed entirely in a background session. cc names `$CLAUDE_JOB_DIR/tmp`
     as the temp directory there instead of the session scratchpad, so emitting
     ours would give that session two conflicting temp-directory instructions.
-    (2.1.269 has no `# Scratchpad Directory` section for cc to drop any more --
-    the scratchpad is a bullet inside the `# Environment` block.) Hooks come from settings.json and fire
-    regardless of which prompt the session runs, so this gate has to live here.
+    (Since 2.1.269 there is no `# Scratchpad Directory` section for cc to drop
+    any more -- the scratchpad is a bullet inside the `# Environment` block, and
+    2.1.289 still has no such header anywhere in the binary.) Hooks come from
+    settings.json and fire regardless of which prompt the session runs, so this
+    gate has to live here.
 
     A cwd whose slug exceeds cc's 200-character limit, a read-only tmp root and
     a `claude-<uid>` owned by another user all raise here. cc survives the
