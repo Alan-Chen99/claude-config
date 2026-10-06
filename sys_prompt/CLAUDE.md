@@ -162,18 +162,18 @@ the rest byte-identical; all thirteen pins resolve.
 **Which body, which model.** The `lean_prompt` capability on the catalog row decides (`Qr`/`dV`,
 found by `"lean_prompt"`), and the legacy list it falls through to —
 `sonnet`, `haiku`, `claude-3-`, opus 4.0–4.7 — is unchanged. Opus 5, Opus 5.5, Sonnet 5.5 and
-Fable 5.1 all declare it: the catalog gained `claude-opus-5-5` and `claude-sonnet-5-5` this window,
-and Sonnet changed branch with it. `fable_identity` stays `null`
+Fable 5.1 all declare it (the catalog gained `claude-opus-5-5` and `claude-sonnet-5-5` this window,
+moving Sonnet's branch). `fable_identity` stays `null`
 for every Opus and Sonnet id. `"model": "opus"` is now `claude-opus-5-5` (`ln()`, found by
 `e.opus55`), so **this prompt is loaded for Opus 5.5**, not Opus 5.
 
 | Upstream change | Done |
 | --- | --- |
-| `action_caution` lost `. If what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding`; clause and gate are both gone from the tree | **Adopted by deletion** — the divergence row that held it as unreviewed is dropped. The `care/confirm-first` pin passed throughout: it stops at `look at the target`, where the clause was interpolated. |
-| new `# Harness` bullet on `<pasted-text>` tags | **Not adopted**: growthbook `tengu_virtual_pancake`, coded default false, so a preview. Revisit if it ships on. |
-| `willow_tern`'s `# Writing for the user` | **Still not adopted**, and the gate now resolves (`gqo`, found by `tengu_willow_tern`): on for a `fable_5_1_prompt_bundle` model, off without `opus_5_prompt_bundle`, growthbook `tengu_willow_tern` (default false) otherwise — so Opus 5.5 cannot receive it at all. |
-| a cloud-session bullet in `# Session-specific guidance`; a shortened fast-mode bullet in `# Environment`; 2.1.286's `Always run …/verify… right before the commit command`; 2.1.284's fix for a session told to use an absent `SendMessage` | Nothing, each for its own reason: gated on a cloud session; never carried; a sentence inside the Bash `# Git` block, behind the same gate (see "`# Git`"); that tool's own description, arriving and leaving with the tool. |
-| `--system-prompt` and `--system-prompt-file` now combine, file text first (`Sr`, the joiner beside the `--system-prompt-file` read), where 2.1.269 rejected the pair | Nothing: `claude.sh` passes the file alone, so the flag still replaces every section but the identity block. 2.1.275 made `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__` meaningful *inside* a `--system-prompt` — the text above it caches globally — unused here. |
+| `action_caution` lost `. If what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding`; clause and gate are both gone from the tree | **Adopted by deletion** — its divergence row is dropped. The `care/confirm-first` pin passed throughout: it stops at `look at the target`, where the clause was interpolated. |
+| new `# Harness` bullet on `<pasted_content>` tags | **Not adopted**: growthbook `tengu_virtual_pancake`, coded default false — yet served **on** in every stock capture of 2026-10-06, as was `tengu_ochre_wren`'s opening line (`NMt`, found by `using your own judgment along the way`). Both are flag-on branches where this prompt carries the flag-off text; adopting the bullet (~80 tokens, 57 of headroom in `alan-default-next.md`) is the user's call. |
+| `willow_tern`'s `# Writing for the user` | **Still not adopted**, and the gate now resolves (`gqo`, found by `tengu_willow_tern`): on for a `fable_5_1_prompt_bundle` model, off without `opus_5_prompt_bundle`, growthbook `tengu_willow_tern` (default false) otherwise — so Opus 5.5 cannot receive it. |
+| a cloud-session bullet in `# Session-specific guidance`; a shortened fast-mode bullet in `# Environment`; 2.1.286's `Always run …/verify… right before the commit command`; 2.1.284's fix for a session told to use an absent `SendMessage` | Nothing: gated on a cloud session; never carried; inside the Bash `# Git` block behind the same gate (see "`# Git`"); the tool's own description, arriving and leaving with it. |
+| `--system-prompt` and `--system-prompt-file` now combine, file text first (`Sr`, the joiner beside the `--system-prompt-file` read), where 2.1.269 rejected the pair | Nothing: `claude.sh` passes the file alone, so the flag still replaces every section but the identity block. |
 | the environment block the env-context hook complements: `workingDirectory`, `shell` and `osVersion` became optional in the snapshot schema, and a `githubCli` bullet was added | Nothing; it closes the 2.1.269 entry's deferred decision: `render.py` was trimmed to cc's complement on 2026-09-13, and cc has since added no line the hook renders and dropped none it leans on (the only producer of a snapshot missing those fields sits behind `launchOptions.toolsMachine()`, which nothing calls). `env_context/render.py` holds the derivation. |
 | `heron_brook`, `brook_heron`, `delivering_work_max`, `overcorrection`; the legacy body `alan-default.md` copies | Nothing. The first four take their text from client data or GrowthBook keyed by model — served, not shipped. The legacy body survives as six named blocks, byte-identical, still unpinned. |
 
@@ -184,9 +184,8 @@ every section present in both builds compared, and all thirteen pins resolved ag
 release dropped `language`, `output_style` and `scratchpad` as sections and moved the environment
 block into a `messages[]` attachment; it added `opus5_reduced_delegation` (the divergence row
 above), `willow_tern` and `brook_heron`. Nothing was adopted, because nothing this prompt borrows
-moved. Two findings outlive the entry: `output_style` was handled in 60edda3, and the scratchpad
-became a bullet inside the environment attachment, which left `agent-tools env-context` duplicating
-it; the hook's future was deferred here and closed in the entry above.
+moved. Two findings outlive the entry: `output_style` (60edda3), and the scratchpad bullet inside
+the environment attachment that left `agent-tools env-context` duplicating it — closed above.
 
 ## Why the prompt says what it says
 

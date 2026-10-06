@@ -68,7 +68,8 @@ https://docs.anthropic.com/en/docs/claude-code/output-styles
 
 ### Where the style is delivered
 
-**As of 2.1.269 the style is not in the system prompt at all.** It arrives in
+**As of 2.1.269 the style is not in the system prompt at all** (re-verified on the
+2.1.289 `sonnet-5/custom-output-style` capture: `Explanatory` is in no `system[]` block). It arrives in
 `messages[]` as a `role: "system"` message, inside its own `<system-reminder>`
 pair, alongside the deferred-tool, agent-type, skill and environment reminders:
 
