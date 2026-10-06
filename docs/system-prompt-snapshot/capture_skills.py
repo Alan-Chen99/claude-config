@@ -321,6 +321,16 @@ def main() -> None:
     manifest.setdefault("skills", {})
     manifest["model"] = model
 
+    # The manifest is merged, not rewritten, so a partial run keeps every other
+    # entry; a full-roster run is the authority on the set, and a skill the
+    # release dropped loses its entry and body here rather than surviving
+    # forever.
+    if not wanted:
+        for stale in sorted(set(manifest["skills"]) - set(names)):
+            del manifest["skills"][stale]
+            (OUT_DIR / f"{stale}.md").unlink(missing_ok=True)
+            print(f"pruned {stale}: no longer in the roster", flush=True)
+
     failures = []
     for n, name in enumerate(names, 1):
         print(f"[{n}/{len(names)}] {name}", flush=True)

@@ -1,6 +1,6 @@
-# Built-in skill bodies — claude-cli 2.1.269
+# Built-in skill bodies — claude-cli 2.1.289
 
-512,397 characters of instruction the model can be handed, none of which a
+533,266 characters of instruction the model can be handed, none of which a
 `default` capture records. That capture carries each skill's *name and
 description* — they ride in the same reminder block as the agent-type listing —
 and the body only on invocation. The body is the part that changes between
@@ -14,10 +14,10 @@ captured.
 ## Not per model
 
 Stored once rather than under each model directory, because the bodies do not
-vary by model: `workflow-authoring`, `code-review`, `design` and `loop` were
-captured on both opus-5 and sonnet-5 and came back byte-identical (same
+vary by model: `workflow-authoring`, `code-review` and `loop` were captured
+on both opus-5 and sonnet-5 (2.1.269) and came back byte-identical (same
 sha256). This is the opposite of tool *descriptions*, some of which do vary —
-`WebFetch` is 676 characters on opus-5 and 1,909 on sonnet-5 — which is why
+`WebFetch` is 651 characters on opus-5 and 1,841 on sonnet-5 — which is why
 `tool-search-loaded` is captured per model and this directory is not.
 
 `manifest.json` records the model each body was captured on.
@@ -26,26 +26,26 @@ sha256). This is the opposite of tool *descriptions*, some of which do vary —
 
 | skill | chars | route | shape |
 |---|---:|---|---|
-| `update-config` | 260,942 | slash | body |
-| `claude-api` | 88,344 | slash | body |
-| `design` | 55,398 | slash | body |
+| `update-config` | 288,012 | slash | body |
+| `claude-api` | 100,907 | slash | body |
+| `artifact-design` | 31,691 | skill | body |
+| `artifact-capabilities` | 20,461 | slash | body |
 | `workflow-authoring` | 16,966 | slash | body |
-| `artifact-design` | 16,627 | skill | body |
-| `keybindings-help` | 13,946 | skill | body |
-| `artifact-capabilities` | 13,278 | slash | body |
-| `security-review` | 10,763 | slash | body |
-| `loop` | 7,865 | slash | body |
+| `keybindings-help` | 14,924 | skill | body |
+| `security-review` | 10,753 | slash | body |
+| `plugin-authoring` | 8,237 | slash | body |
+| `loop` | 8,122 | slash | body |
 | `fewer-permission-prompts` | 7,523 | slash | body |
 | `dataviz` | 7,036 | slash | body |
+| `code-review` | 6,497 | slash | body |
 | `artifact-diagramming` | 3,619 | slash | body |
 | `run` | 3,250 | slash | body |
 | `simplify` | 2,817 | slash | body |
 | `init` | 2,312 | slash | body |
-| `code-review` | 1,572 | slash | body |
 | `schedule` | 139 | slash | **stub** |
 
 `update-config` is not a typo: its body is the settings.json schema, and it is
-half of everything in this table.
+more than half of everything in this table.
 
 `schedule` is the one skill with no body here. It answers *"We're having trouble
 connecting with your remote claude.ai account to set up a scheduled task"* — a
@@ -76,10 +76,9 @@ yields a plausible-looking stub rather than an error:
 - **Interactive, not `-p`.** Print mode carries a smaller tool roster, and the
   skills gated on the `Artifact` tool become unreachable — `artifact-design`,
   `artifact-diagramming` and `artifact-capabilities` all answer "Unknown
-  command" there. `design` returns a 169-character *"only manages agent access"*
-  stub in `-p` and its full 55,398-character body interactively.
-- **`--setting-sources project,local`.** With `local` alone `design` and
-  `code-review` degrade to stubs.
+  command" there.
+- **`--setting-sources project,local`.** With `local` alone `code-review`
+  degrades to a stub.
 - **A repo with a resolvable `origin/HEAD`.** `/security-review` interpolates
   `` !`git diff origin/HEAD...` `` into its own prompt and injects *nothing* when
   that command fails, so a bare `git init` captures it as empty. `capture.py`
@@ -92,7 +91,7 @@ A skill shipping resource files is extracted to
 `<tmp>/bundled-skills/<version>/<random hex>/<name>` and told that absolute path,
 which differs on every capture. `capture_skills._normalize` rewrites it to
 `<bundled-skills-dir>`; `manifest.json` flags the five bodies that needed it
-(`artifact-capabilities`, `claude-api`, `dataviz`, `design`, `run`).
+(`artifact-capabilities`, `claude-api`, `dataviz`, `plugin-authoring`, `run`).
 `tests/test_builtin_skills.py` fails if an un-normalized path reaches a
 committed file.
 
