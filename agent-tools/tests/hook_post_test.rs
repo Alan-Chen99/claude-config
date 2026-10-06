@@ -154,7 +154,8 @@ fn explicit_run_in_background_is_not_reported_as_timeout() {
     // Regression (main b279c25): when tool_input.run_in_background == true,
     // the Bash tool returns a backgroundTaskId immediately and sets none of
     // the cause fields its output schema declares
-    // (`src/chunk-dbb93264.js:215694-215699`). The post-hook must recognize
+    // (`src/chunk-wgfrtm7w.js:162653-162657`, marker
+    // `backgroundedToDeliverMessage`). The post-hook must recognize
     // this as an intentional background, not a timeout.
     let home = tempfile::tempdir().unwrap();
     let (status, stdout, stderr) = run_post(
@@ -236,7 +237,8 @@ fn the_backgrounding_notice_names_a_skill_that_exists() {
 #[test]
 fn each_cause_field_the_tool_declares_gets_its_own_label() {
     // One arm per field in the Bash tool's output schema
-    // (`src/chunk-dbb93264.js:215694-215699`). Before 2.1.269 the schema
+    // (`src/chunk-wgfrtm7w.js:162653-162657`, marker
+    // `backgroundedToDeliverMessage`). Before 2.1.269 the schema
     // instead carried `assistantAutoBackgrounded`; the two turn-abort and
     // deliver-message fields that replaced it fell through to the timeout arm,
     // which reported a cause that had not happened.

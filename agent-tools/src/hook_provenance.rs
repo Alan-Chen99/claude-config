@@ -17,7 +17,8 @@
 //! `SessionStart`, `UserPromptSubmit` and `UserPromptExpansion` the record also
 //! gains a `rendered` array turning it into a `<system-reminder>`, and for
 //! every other event `rendered` is absent — the conversion arm returns nothing
-//! (`chunk-dbb93264.js:236003`). Every event but those three is therefore a
+//! (`chunk-wgfrtm7w.js:168526`, marker `hook success: `). Every event but those
+//! three is therefore a
 //! write-only channel into the transcript, which is what this wants: a reader
 //! can find the configuration, and the session under measurement never sees it.
 //!
@@ -26,7 +27,8 @@
 //!
 //! Wired on `PostToolUse`, `PostToolUseFailure` and `Stop`, because no one of
 //! them covers a session: `Stop` does not fire when a turn is interrupted
-//! (`chunk-dbb93264.js:146157`), the two tool events never fire in a session
+//! (`chunk-xy34qwnq.js:2709`, marker `Stop hook cancelled (abort or stream
+//! teardown)`), the two tool events never fire in a session
 //! that calls no tool, and a failed call reaches only the second of them.
 //! Whichever arrives first writes the record; the sentinel makes every later
 //! invocation a stat and an exit.

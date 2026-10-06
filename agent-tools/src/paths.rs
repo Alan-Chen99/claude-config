@@ -62,7 +62,10 @@ pub fn parent_dir_from_env() -> Result<PathBuf> {
 ///
 /// Neither variable set fails, naming both routes: no hook ran to set the
 /// first, and the second — which every Claude Code shell carries whether or
-/// not a hook ran — is absent too.
+/// not a hook ran — is absent too. One builder supplies that environment to
+/// tool subprocesses and to hook commands alike (`jUe`,
+/// `src/chunk-gppff98a.js:14645`, marker `CLAUDE_CODE_SESSION_ID: e.sessionId`),
+/// so a rename would take both at once.
 fn scope_from(
     parent_dir: Option<&str>,
     session_id: Option<&str>,

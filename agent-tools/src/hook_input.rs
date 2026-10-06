@@ -6,8 +6,17 @@ use serde::Deserialize;
 /// replacement (queryHelpers.ts), so anything we don't echo back is silently
 /// dropped from the executed tool call.
 ///
-/// The real payload carries more keys than these (`cwd`, among others); serde
-/// ignores what is not declared, so only the fields something reads are listed.
+/// The real payload carries more keys than these; serde ignores what is not
+/// declared, so only the fields something reads are listed. What the runtime
+/// builds is one base object shared by every event — `session_id`,
+/// `transcript_path`, `cwd`, `scratchpad_dir`, `prompt_id`, `permission_mode`,
+/// `agent_id`, `agent_type`, `effort` (`rd`, `src/chunk-wgfrtm7w.js:92957`,
+/// marker `scratchpad_dir:`; the same names are listed as reserved at
+/// `src/chunk-q6wr75ng.js:958`) — and then the event's own fields
+/// (`src/chunk-ps4gchhg.js:6821-6853`, marker
+/// `hook_event_name: R("PreToolUse")`). Across 2.1.270–2.1.289 that shape
+/// gained exactly one field, the optional `mcp_server` on the five tool
+/// events, so nothing declared below moved.
 #[derive(Debug, Deserialize)]
 pub struct PreToolUseInput {
     pub session_id: String,
@@ -31,6 +40,11 @@ pub struct PostToolUseInput {
     pub tool_name: String,
     pub tool_input: serde_json::Value,
     pub tool_use_id: String,
+    /// `PostToolUse` only: the failure event carries `error` and
+    /// `is_interrupt` in its place, so this defaults to `Null` there rather
+    /// than failing the parse. `bg_notice` reads the backgrounding cause out
+    /// of it, which is why an errored Bash call never produces a notice — a
+    /// call that failed has no background task to name.
     #[serde(default)]
     pub tool_response: serde_json::Value,
 }
