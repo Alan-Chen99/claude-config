@@ -16,14 +16,14 @@ export IS_SANDBOX=1
 # closes every path that would otherwise run on the stock prompt.
 export CLAUDE_CODE_DISABLE_AGENT_VIEW=1
 
-# cc roots its scratchpad at CLAUDE_CODE_TMPDIR (AS(), chunk-tht8x923.js:19),
+# cc roots its scratchpad at CLAUDE_CODE_TMPDIR (Xb(), chunk-xf67zbm8.js:112),
 # for the main agent and for subagents alike, so redirecting it here is the only
 # way both get one directory. The root follows $HOME rather than naming /tmp,
 # because /tmp is container overlay and is lost on a rebuild while this
 # container's home is a host bind mount.
 # The same variable also roots plugin dirs, skill zips and the IPC socket dir;
-# cc falls back to /tmp for the socket when the path is too long (jxr(),
-# chunk-g92e0w45.js:567).
+# cc falls back to /tmp for the socket when the path is too long (drs(),
+# chunk-b6pg9xzw.js:542, found by "cc-socks").
 export CLAUDE_CODE_TMPDIR="$HOME/.claude/tmp"
 
 # readlink -f resolves the ~/.local/bin/claude.sh symlink, so the prompt loaded
@@ -71,7 +71,8 @@ fi
 # every prompt-test case would silently acquire a randomized env var.
 #
 # padded-countdown is named rather than left unset so a GrowthBook flip cannot
-# redefine the treatment arm mid-trial (xAo(), src/chunk-dbb93264.js:68301).
+# redefine the treatment arm mid-trial (Smo(), src/chunk-wgfrtm7w.js:58519, found
+# by tengu_lapis_anchor).
 #
 # The draw is untraced because `set -x` would otherwise print the arm to the
 # terminal at every session start, and one candidate outcome is how often the

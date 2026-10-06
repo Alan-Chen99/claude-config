@@ -111,8 +111,8 @@ Every other variant exports `CLAUDE_CODE_OAUTH_TOKEN` and is MCP-free. These thr
 `~/.claude/.credentials.json`, the condition under which it reaches the Chrome extension and the
 claude.ai connectors.
 
-The mechanism is an OAuth scope check, not a preference. `Aet()`
-(`src/chunk-dbb93264.js:221116-221127`) returns false before it looks at any flag or setting
+The mechanism is an OAuth scope check, not a preference. `WFt()`
+(`src/chunk-gppff98a.js:16875-16887`) returns false before it looks at any flag or setting
 when the token's scopes are rejected by `/api/oauth/validate`, and its own log line says which
 tokens those are: *"needs user:profile, user:office, or user:ccr_inference; env-var and
 setup-token sessions default to user:inference only"*. An exported `CLAUDE_CODE_OAUTH_TOKEN`
@@ -127,11 +127,11 @@ the three `artifact-*` skills listed against absent, the 57 deferred names uncha
 `notes/artifact-tool-roster-cost.md`.
 
 `logged-in-tool-search-loaded` is where the Chrome and connector tools' descriptions and
-schemas live, and the only place they do. Both sets are MCP, and `mY()`
-(`src/chunk-4zcseazt.js:1051-1056`) defers every MCP tool unconditionally — the `zye()` it
-consults is `return !1` (`:461`) — so `logged-in` records their names and not one definition.
+schemas live, and the only place they do. Both sets are MCP, and the deferral predicate
+(`h()`, `src/chunk-sspbjbr8.js:52-57`) defers every MCP tool unconditionally — `if (e.isMcp
+=== !0) return !0;` (`:53`) — so `logged-in` records their names and not one definition.
 The variant adds `--chrome` and the `tool-search-loaded` machinery to the `logged-in`
-credential: `Aet()` reads the flag ahead of both `CLAUDE_CODE_ENABLE_CFC` and the
+credential: `WFt()` reads the flag ahead of both `CLAUDE_CODE_ENABLE_CFC` and the
 `claudeInChromeDefaultEnabled` setting, and that setting lives in `~/.claude.json`, which
 `--setting-sources project,local` does not filter — so without the flag the variant's Chrome
 roster would be a property of the operator's machine. Captured 2026-10-02: 13 upfront, 94
@@ -270,7 +270,7 @@ delegate — and an override displaces none of it (`sonnet-5/system-prompt/promp
 ### Background sessions do not inherit the flag
 
 **The argv exclusion still holds; the measurements below were not retaken.** The forked-argv
-list is now at `src/chunk-4zmskew4.js:630`, and it carries `--resume`, `--fork-session`,
+list is now at `src/chunk-8w9chsdq.js:767`, and it carries `--resume`, `--fork-session`,
 `--reply-on-resume`, `--add-dir`, `--allowed-tools`, `--disallowed-tools`, `--model`,
 `--effort`, `--permission-mode`, `--agent`, `--agents`, `--name` and `--append-system-prompt`
 — and neither `--system-prompt` nor `--system-prompt-file`. So a custom prompt is still replaced

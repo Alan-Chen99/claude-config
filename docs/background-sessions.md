@@ -1,245 +1,205 @@
 # Background Sessions (agent view / FleetView)
 
-Verified against claude-cli **2.1.269**: the decompiled binary at
-`/repos/claude-code-decompiled`, plus one live check of the disable knob
-(`claude agents --json` with and without `CLAUDE_CODE_DISABLE_AGENT_VIEW`).
-Citations are `src/chunk-<hash>.js:<line>` in that decompile. Chunk hashes
-rotate every build and minified names are **per-file** in this layout, so a
-citation is the `<file>:<line>` pair, not the name — re-resolve by grepping the
+Verified against claude-cli **2.1.289** in the decompile at
+`/repos/claude-code-decompiled`, plus one live check of the disable knob under
+2.1.269. Citations are `src/chunk-<hash>.js:<line>` there; hashes rotate every
+build and minified names are **per-file**, so the address is the `<file>:<line>`
+pair, never the name — `uTe` is the job-dir writer at `chunk-8w9chsdq.js:2715`
+and something unrelated at `chunk-1tp2r683.js:20`. Re-resolve by grepping the
 string literal the behaviour touches.
 
 ## What happens
 
 Backgrounding does not detach the process you are looking at. Claude Code
 allocates a **new session UUID**, writes a job directory, dispatches a **fork**
-to the background daemon which resumes the transcript, and turns the TUI you
-were using into the agents view (FleetView). Two processes exist afterwards; the
-fork is the one talking to the model.
+to the background daemon which resumes the transcript, and turns the TUI into
+the agents view (FleetView). Two processes exist afterwards; the fork is the one
+talking to the model. `Your conversation moved to the background — enter opens
+it · …` (`chunk-qpmwhzhg.js:4303`) marks the handoff;
+`Backgrounding after the current tool finishes…` (`chunk-8w9chsdq.js:3292`)
+marks it armed and waiting; `Cannot open agents — …` is a refusal.
 
-Strings that mark the transition:
-
-| String | Where |
-|---|---|
-| `Backgrounding after the current tool finishes…` | armed, waiting for the running tool (`chunk-4zmskew4.js:2880`) |
-| `Your conversation moved to the background — enter opens it · esc returns to it · ctrl+c twice quits` | FleetView header after the handoff (`chunk-qhf4rxgg.js:4117`) |
-| `Cannot open agents — …` | a refusal (see below) |
-
-Code path: `onLeftArrow` (`chunk-4zmskew4.js:2676`, a method of the
-`BackgroundGesture` class at `:2557`) → the private dispatcher at `:2642` →
-`oZe` (`:2342`, writes the job dir and `adopt.json`) → `uDe` (`:533`, builds the
-respawn argv) → `BU` (`chunk-bd56htwt.js:1952`, writes `state.json` and hands
-the dispatch payload to the daemon).
-
-Beware: `oZe` and `uDe` also name unrelated functions in other chunks
-(`chunk-dbb93264.js:213223` is a different `oZe`). Only the file:line is an
-address.
+Code path: `onLeftArrow` (`chunk-8w9chsdq.js:3122`, a method of the
+background-gesture class at `:2920`) → the private dispatcher at `:3088` → the
+job-dir and `adopt.json` writer at `:2715` → the respawn-argv builder at `:640`
+→ the daemon dispatch that writes `state.json` (`chunk-z8mpz8q0.js:1679`).
 
 ## Trigger
 
-The entry points visible in the decompile:
+1. **← on an empty prompt**, double-tapped. Installed only when
+   `leftArrowOpensAgents !== !1` (`chunk-8w9chsdq.js:36784`) and the handoff is
+   otherwise available (`pTe`, `:3418`); the first press only arms the hint
+   `Press ← again to open agents` (`:3446`). The gesture machine
+   (`chunk-cs4k7trs.js:631`) rejects a burst keypress as not-solo, and
+   `tengu_left_arrow_editing_guard` (default true) suppresses it for 2 s after
+   typing.
+2. **A click on a job chip**: `requestAttach(jobId)`
+   (`chunk-6e603rz2.js:5911` → `chunk-8w9chsdq.js:2965`) defers to
+   `onAttachRequest` (`:3057`), which runs the same path with an
+   `autoOpenJobId` and its own confirm states (`attach-arm`/`attach-absorb`).
+3. **`/background`** (alias `/bg`, `chunk-mzewvd4b.js:11`), reaching the same
+   argv builder with `via: 'command'` (`chunk-8w9chsdq.js:1018`) — same spawn,
+   none of the `onLeftArrow` guards. `/fork` (`chunk-xxdv43p0.js:490`) reaches
+   it with `keepParent: true`: a different operation, the parent stays alive,
+   and it carries strictly more (below).
 
-1. **← on an empty prompt**, double-tapped. The route is only installed when
-   `oe().leftArrowOpensAgents !== !1` (`chunk-4zmskew4.js:38768`) and the
-   handoff is otherwise available (`rZe`, `:3006`); the first press only arms
-   the hint `Press ← again to open agents` (`:3034`). The gesture state machine
-   (`chunk-rt3e7bzt.js:768`) rejects a burst keypress as not-solo, and
-   `tengu_left_arrow_editing_guard` (default true) additionally suppresses it
-   for 2 s after typing.
-2. **A mouse click on a job chip** in the transcript, which calls
-   `requestAttach(jobId)` (`chunk-rjc4dqgx.js:6568` → `chunk-4zmskew4.js:2601`);
-   that defers to `onAttachRequest` (`:2611`), which runs the same `onLeftArrow`
-   path with an `autoOpenJobId`. The chip click has its own confirm states
-   (`attach-arm` / `attach-absorb`) in the gesture machine.
-3. **`/background`** (alias `/bg`, `chunk-jv5pe7gg.js:11`), which reaches the
-   same `uDe` with `via: 'command'` (`chunk-4zmskew4.js:867`) — same spawn, no
-   `onLeftArrow` guards.
+`defaultToAgentsView` (global config, `src/cli.js:527`, off by default at
+`chunk-s71n76sd.js:1055`) is **not** a handoff — it makes a fresh `claude` open
+the agent view instead of a REPL, moving no existing conversation.
 
-`defaultToAgentsView` (global config, `src/cli.js:426`) is new and is **not** a
-handoff: it makes a fresh `claude` open the agent view instead of a REPL, so no
-existing conversation is moved. It is off by default (`?? !1`,
-`chunk-ve1cwn02.js:1030`).
+No timer, idle watcher or automatic handoff path exists in the 2.1.289 source,
+which does not settle it: under 2.1.235 six background jobs came out of one
+interactive session in an hour, three from one prompt, with no deliberate ←
+press reported. Unreproduced since, and the launcher disables the agent view, so
+it cannot recur here. Treat the trigger as **not reproduced**; the consequences
+below hold regardless of what fires it.
 
-No timer, idle watcher, or automatic handoff path was found in the 2.1.269
-source. That does not fully settle it: under 2.1.235, six background jobs were
-created from one interactive session in an hour, three from a single user
-prompt, and the operator reported firing it without a deliberate ← press. That
-has not been re-observed under 2.1.269 — this repo's launcher disables the agent
-view, so it cannot recur here. Treat the trigger as **not yet reproduced**; the
-consequences below hold regardless of what fires it.
+## Modes and refusals
 
-`/fork` (`chunk-j5mf4j6r.js:375`) reaches the same `uDe` with `keepParent: true`.
-It is a different operation — the parent session stays alive — and it carries
-strictly more (see below).
+`p(isLoading, betweenCalls)` (`chunk-77xk2vqe.js:22`, reached through `d` at
+`:26` / `Kat` at `:185`) picks the mode. `idle-fork` backgrounds at once.
+`defer-then-fork`, with a tool running, prints `Backgrounding after the current
+tool finishes…` and arms a timer capped by `tengu_defer_cap_ms` (default
+10,000 ms, `chunk-8w9chsdq.js:3239`), converting to `abort-then-fork` and
+aborting anyway if the tool outlives the cap. `abort-then-fork`, with text
+streaming, flushes, keeps the trailing ≤16 KB of partial assistant text as a
+`prefill` (`:2782`) and aborts. The cap will not fire while commands are
+queued, while unconfirmed background tasks would be abandoned, or while
+restartable subagents are running — the last prints `Still backgrounding after
+the current tool — waiting for N running subagent(s)…`
+(`chunk-77xk2vqe.js:122`).
 
-## Modes
-
-`p(isLoading, betweenCalls)` (`chunk-40sazthj.js:20`, reached through `f` at
-`:24` / `ZYe` at `:183`) picks the handoff mode:
-
-| Condition | `via` | Behavior |
-|---|---|---|
-| Not loading | `idle-fork` | Backgrounds immediately |
-| Loading, a tool is running | `defer-then-fork` | Prints `Backgrounding after the current tool finishes…`, arms a timer capped by `tengu_defer_cap_ms` (default 10,000 ms, `chunk-4zmskew4.js:2827`). If the tool is still running at the cap, it converts to `abort-then-fork` and aborts anyway |
-| Loading, text streaming | `abort-then-fork` | Flushes, keeps the trailing ≤16 KB of partial assistant text as a `prefill` (`chunk-4zmskew4.js:2402`), aborts the request |
-
-The defer cap refuses to fire while commands are queued, while unconfirmed
-background tasks would be abandoned, or while restartable subagents are running
-— the last case prints `Still backgrounding after the current tool — waiting for
-N running subagent(s)…` (`chunk-40sazthj.js:120`).
-
-## Refusals
-
-Two layers block the handoff, both emitting `tengu_left_arrow_blocked`:
-
-- `f`/`ZYe` (`chunk-40sazthj.js:24`, `:183`) refuse when the agent view is
-  disabled (`fleet-disabled`), the workspace is remote, or session persistence
-  is disabled.
-- `onLeftArrow` (`chunk-4zmskew4.js:2700`–`2730`, `:2802`) refuses when session
-  persistence is disabled, the model ended the conversation, queued commands
-  would be lost, the input holds unsent draft text, or a foregrounded task is
-  running.
-
-Backgrounding is also cancelled when an Artifact comment monitor starts after
-the ← press, which asks for a fresh confirmation.
+Two layers block the handoff, both emitting `tengu_left_arrow_blocked`.
+`d`/`Kat` (`chunk-77xk2vqe.js:26`, `:185`) refuse — as telemetry only, with no
+message in the transcript (`chunk-8w9chsdq.js:3192`) — when the agent view is
+disabled (`fleet-disabled`), the workspace is remote, session persistence is
+disabled, or an external load is in flight. The gesture class's own precheck
+(`chunk-8w9chsdq.js:3015`–`3046`) refuses *with* a message when session
+persistence is disabled, the session started with `--project-config-root` (a
+background copy would not get the flag, so it would read the working folder's
+hooks and settings), the model ended the conversation, queued commands would be
+lost, or the input holds unsent draft text. A handoff is also cancelled when an
+Artifact comment monitor starts after the ← press, which asks for fresh
+confirmation (`:3167`). Entering the agents view additionally needs **workspace
+trust**: an untrusted directory gets the trust dialog, which a non-interactive
+run cannot answer (`src/cli.js:730`–`733`, decision at
+`chunk-aa2a9a2y.js:314`).
 
 ## What crosses the handoff
 
-The child's argv is **built from scratch** at `chunk-4zmskew4.js:630` — it is
-not the parent's `process.argv` filtered. It contains, in order:
+The child's argv is **built from scratch** at `chunk-8w9chsdq.js:767` — not the
+parent's `process.argv` filtered. In order: `--resume <transcript>`
+`--fork-session`; `--reply-on-resume` when the handoff happens mid-turn; the
+REPL config argv with `--add-dir` re-derived from the CLI-sourced working
+directories (`xBo`, `chunk-qy0nwv2z.js:850`); `--allowed-tools` /
+`--disallowed-tools` for rules that came from the CLI; `--model`, `--effort`,
+`--permission-mode` from the current session; `--agent`, `--agents`,
+`--append-system-prompt`, `--system-prompt-snapshot` **for `/fork` only** (they
+read a launch-options snapshot the background path replaces with `{}`);
+`--name <name>` for background only (the auto-generated worker name); and
+`-- <prompt>` when a prompt was supplied.
 
-| Token | Source |
-|---|---|
-| `--resume <transcript>` `--fork-session` | the flushed transcript |
-| `--reply-on-resume` | only when the handoff happens mid-turn |
-| the REPL config argv (see below) | `iz()`, `chunk-g85a3dc1.js:4151` |
-| `--add-dir <dir>` | each directory added during the session |
-| `--allowed-tools` / `--disallowed-tools` | rules that came from the CLI |
-| `--model`, `--effort`, `--permission-mode` | current session values |
-| `--agent`, `--agents`, `--append-system-prompt`, `--system-prompt-snapshot` | **`/fork` only** — these read `s5()`, which the background path replaces with `{}` |
-| `--name <name>` | background only (the auto-generated worker name) |
-| `-- <prompt>` | only when a prompt was supplied |
-
-The "REPL config argv" is itself a reconstruction, fixed once at startup
-(`chunk-td159npe.js:12826`) from exactly: `--settings`, `--plugin-dir`,
-`--plugin-dir-no-mcp`, `--add-dir`, `--mcp-config`, `--strict-mcp-config`,
-`--restricted` (`Y0e`, `chunk-3rxqsxhr.js:78`), plus `--fallback-model`,
+The REPL config argv is itself a reconstruction, fixed once at startup
+(`chunk-8h3wkqrn.js:4546`) from exactly `--settings`, `--managed-settings`,
+`--plugin-dir`, `--plugin-dir-no-mcp`, `--add-dir`, `--mcp-config`,
+`--setting-sources`, `--strict-mcp-config`, `--restricted`
+(`chunk-jp9ee6k0.js:89`), plus `--fallback-model`,
 `--allow-dangerously-skip-permissions`, `--disable-slash-commands`,
-`--channels`, and `--watch-artifact`/`--watch-artifact-no-autoreact`.
+`--channels` and `--watch-artifact`/`--watch-artifact-no-autoreact`.
+`--setting-sources` and `--managed-settings` are in it so a restricted parent's
+background children inherit the restriction.
 
-**`--system-prompt` and `--system-prompt-file` appear in neither list.** There
-is no code path that carries them across the handoff. `--append-system-prompt`
-survives only for `/fork`. Also carried, by mechanisms other than argv:
-
-- Process environment. The daemon builds the child env from its own
-  `process.env` and overlays the job record's `env`
-  (`chunk-3r0v8nsp.js:595`–`630`), so `HTTPS_PROXY`, `NODE_EXTRA_CA_CERTS`,
-  `IS_SANDBOX` and `GIT_AUTHOR_*` reach the fork as long as the daemon
-  inherited them. A block list is stripped on the way (`:627`).
-- In-flight agents, shells, cron and Artifact monitors, via `adopt.json`.
-- Trailing partial assistant text as `prefill` (abort-then-fork only).
-- `settings.json` config, including `outputStyle` — read from disk, so nothing
-  has to carry it.
+**`--system-prompt` and `--system-prompt-file` appear in neither list**, and no
+code path carries them across; `--append-system-prompt` survives only for
+`/fork`. What crosses by other mechanisms: the process environment, which the
+daemon builds from its own `process.env` overlaid with the job record's `env`
+and less a block list (`chunk-3yp13v0t.js:610`–`648`, strip at `:644`), so
+`HTTPS_PROXY`, `NODE_EXTRA_CA_CERTS`, `IS_SANDBOX` and `GIT_AUTHOR_*` reach the
+fork if the daemon inherited them; session-scoped `--add-dir` entries on that
+same channel as `CLAUDE_RELAUNCH_SESSION_ADD_DIRS` (`chunk-qy0nwv2z.js:865`,
+read and unset at `chunk-8h3wkqrn.js:1561`); in-flight agents, shells, cron and
+Artifact monitors via `adopt.json`; the trailing partial assistant text as
+`prefill` (abort-then-fork only); and `settings.json` config including
+`outputStyle`, read from disk, with no `--output-style` flag that could fail to
+carry it.
 
 The dropped custom system prompt is the consequence that bites: a session
 launched with `--system-prompt-file` runs the **default** prompt after
-backgrounding, with no warning. See
-`docs/system-prompt-snapshot/README.md` § "Background sessions do not inherit
-the flag" for the measured before/after. Only settings-based configuration —
-notably an output style — is durable across the handoff.
+backgrounding, with no warning — `docs/system-prompt-snapshot/README.md`
+§ "Background sessions do not inherit the flag" has the measured before/after.
+Only settings-based configuration, notably an output style, is durable.
 
 ## Job directory
 
-`~/.claude/jobs/<short>/` (`chunk-5cs6j3p3.js:21096`) holds the fork's state:
+`~/.claude/jobs/<short>/` (`chunk-g83p48tw.js:17113`) holds `state.json` —
+`state`, `intent`, `name`, `sessionId`, `cwd`, `bgIsolation`,
+`interactiveLineage`, `respawnFlags` (schema `chunk-qy0nwv2z.js:1054`–`1071`,
+name at `:1133`, written at `chunk-z8mpz8q0.js:1778`) — plus `timeline.jsonl`,
+one record per status update carrying the tool descriptions the session reports
+(`chunk-s5xz0z8j.js:500`); `adopt.json`, the hand-off payload of carried
+agents/shells/cron and any `prefill`; and `tmp/`, the fork's scratch directory.
 
-| File | What |
-|---|---|
-| `state.json` | `state`, `intent`, `name`, `sessionId`, `cwd`, `bgIsolation`, `interactiveLineage`, and `respawnFlags` (`chunk-hntxq6bb.js:1175`, written at `chunk-bd56htwt.js:2041`) |
-| `timeline.jsonl` | one record per status update — the tool descriptions the session reports (`chunk-arxpc433.js:354`) |
-| `adopt.json` | hand-off payload: carried agents/shells/cron plus any `prefill` |
-| `tmp/` | the fork's scratch directory |
-
-`respawnFlags` is the spawn argv above, minus the session-identity tokens
-(`--resume`, `--session-id`, `--fork-session`, `--continue`; `Tmt`,
-`chunk-bd56htwt.js:3319`) and filtered to an allowlist (`Hae`,
-`chunk-hntxq6bb.js:58`, which warns `[jobs] stripped non-allowlisted
-respawnFlags token(s)…` on anything it drops). The daemon uses the dispatch
-record's `launch.flagArgs` for the first launch and re-reads `state.json`'s
-`respawnFlags` for every later respawn attempt (`chunk-3r0v8nsp.js:588`,
-`:1659`), so `respawnFlags` is the authoritative record of what a respawn will
-use. Value still on disk in `~/.claude/jobs/` from a session this repo's
-launcher started with `--system-prompt-file` (captured under 2.1.235; the
-2.1.269 construction above reproduces it, modulo an added `--effort <level>`
-when the session has one):
-
-```json
-["--reply-on-resume", "--permission-mode", "bypassPermissions", "--model", "opus"]
-```
-
-Note that `--dangerously-skip-permissions` reaches the fork only as
-`--permission-mode bypassPermissions`; the separate
-`--allow-dangerously-skip-permissions` flag is the one that is passed through
-verbatim (`chunk-td159npe.js:12350`).
+`respawnFlags` is the spawn argv above minus the session-identity tokens
+(`--resume`, `--session-id`, `--fork-session`, `--continue`;
+`chunk-z8mpz8q0.js:3132`), filtered to an allowlist (`chunk-qcke7yeh.js:49`,
+warning `[jobs] stripped non-allowlisted respawnFlags token(s)…` at `:70` on
+anything it drops). The daemon launches first from the dispatch record's
+`launch.flagArgs` (`chunk-3yp13v0t.js:603`) and re-reads `state.json`'s
+`respawnFlags` for every later respawn (`:1718`), so `respawnFlags` is the
+authoritative record of what a respawn will use. One such value still on disk,
+from a session this repo's launcher started with `--system-prompt-file`
+(captured under 2.1.235; the 2.1.289 construction reproduces it, modulo an added
+`--effort <level>`):
+`["--reply-on-resume", "--permission-mode", "bypassPermissions", "--model", "opus"]`.
+`--dangerously-skip-permissions` reaches the fork only as `--permission-mode
+bypassPermissions`; the separate `--allow-dangerously-skip-permissions` is the
+one passed through verbatim (`chunk-8h3wkqrn.js:4028`).
 
 ## Detecting a backgrounded session from inside it
 
-```bash
-echo "$CLAUDE_JOB_DIR"              # set only in a background session
-echo "$CLAUDE_CODE_SESSION_KIND"    # bg
-echo "$CLAUDE_BG_BACKEND"           # daemon
-echo "$CLAUDE_BG_SOURCE"            # slash | shell | fleet | spare | respawn
-tr '\0' '\n' < /proc/$CLAUDE_PID/cmdline | grep -c system-prompt-file   # 0 after a handoff
-```
-
-The four markers are set by the daemon at `chunk-3r0v8nsp.js:612`–`615`;
-`CLAUDE_PID` is the CLI's own pid, exported into every tool shell
-(`chunk-dbb93264.js:33701`).
+The daemon sets four markers at `chunk-3yp13v0t.js:627`–`630`:
+`CLAUDE_JOB_DIR` (set in no other kind of session),
+`CLAUDE_CODE_SESSION_KIND=bg`, `CLAUDE_BG_BACKEND=daemon`, and
+`CLAUDE_BG_SOURCE` (`slash` | `shell` | `fleet` | `spare` | `respawn`). The
+handoff also shows in the process: `tr '\0' '\n' < /proc/$CLAUDE_PID/cmdline |
+grep -c system-prompt-file` is 0 afterwards, `CLAUDE_PID` being the CLI's own
+pid, exported into every tool shell (`chunk-gppff98a.js:14651`).
 
 `CLAUDE_CODE_CHILD_SESSION` is **not** a background marker, contrary to earlier
-notes here. Claude Code sets it to `1` in every child process it spawns
-(`chunk-dbb93264.js:33699`), so it is `1` in an ordinary foreground session's
-Bash tool too — confirmed by reading it from a foreground session. In the
-background session's own environment it is in fact deleted before exec
-(`chunk-3r0v8nsp.js:627`, list at `chunk-jhr9qt1t.js:17`).
+notes here: cc sets it to `1` in every child it spawns
+(`chunk-gppff98a.js:14649`), so it is `1` in an ordinary foreground session's
+Bash tool too — confirmed by reading it from one — and in a background session's
+own environment it is deleted before exec (`chunk-3yp13v0t.js:644`, list at
+`chunk-ehfay437.js:25`).
 
 ## Disabling
 
-| Knob | Where | Effect |
-|---|---|---|
-| `"leftArrowOpensAgents": false` | `~/.claude.json` (top level) | Disables only the ← gesture. `/background`, `claude agents`, `--bg` still work |
-| `"disableAgentView": true` | `settings.json` | Disables the whole agent view: `claude agents`, `--bg`, `/background`, the on-demand daemon, and therefore the ← gesture |
-| `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` | environment | Same as `disableAgentView` |
+`"leftArrowOpensAgents": false` in `~/.claude.json` (top level) disables only
+the ← gesture; `/background`, `claude agents` and `--bg` still work.
+`"disableAgentView": true` in `settings.json`, or
+`CLAUDE_CODE_DISABLE_AGENT_VIEW=1` in the environment, disables the whole agent
+view. Both are read by one function (`chunk-9esqbgh0.js:19`–`23`): the env var
+at `:20`, the setting at `:21`. Everything downstream asks `dS()` (`:24`),
+exported as `isAgentsFleetEnabled`. That single gate covers:
 
-Both knobs are read by one function (`chunk-vmx517s1.js:19`–`23`): the env var
-at `:20`, the setting at `:21`. Everything downstream asks `bb()` (`:24`), which
-is exported as `isAgentsFleetEnabled`. That single gate covers:
+- `claude agents`, `--bg`/`--background` and `claude logs|attach|stop|kill|respawn|rm`, refused at `src/cli.js:419`–`421` with `'<cmd>' is disabled by CLAUDE_CODE_DISABLE_AGENT_VIEW.` and exit 1 (`chunk-9esqbgh0.js:70`);
+- the `/background` and `/bg` slash commands, registered only when `dS()` is true (`chunk-wgfrtm7w.js:132840`) — with the knob set they do not exist;
+- the ← gesture, via the `fleet-disabled` refusal (`chunk-77xk2vqe.js:37`);
+- `claude --resume <id>` and the resume picker *opening* a session already running in the background instead of resuming it, any prompt delivered to it as a message (`chunk-5fp26zze.js:64`–`74`, gate `tengu_resume_open_live_bg`, default true, entry `chunk-ya33qr7x.js:3609`). With the knob set that resume is refused outright and the advice is `claude attach <jobId>`, which the same knob disables.
 
-- `claude agents`, `--bg`/`--background`, and `claude logs|attach|stop|kill|respawn|rm`, refused at `src/cli.js:317`–`320` with `'<cmd>' is disabled by CLAUDE_CODE_DISABLE_AGENT_VIEW.` and exit 1;
-- the `/background` and `/bg` slash commands, which are only registered when `bb()` is true (`chunk-dbb93264.js:221905`) — with the knob set they do not exist;
-- the ← gesture, via the `fleet-disabled` refusal (`chunk-40sazthj.js:33`).
+Live check on 2.1.269: `CLAUDE_CODE_DISABLE_AGENT_VIEW=1 claude agents --json`
+printed `'claude agents --json' is disabled by CLAUDE_CODE_DISABLE_AGENT_VIEW.`;
+unset, it printed the job array.
 
-Live check on 2.1.269:
-
-```console
-$ CLAUDE_CODE_DISABLE_AGENT_VIEW=1 claude agents --json
-'claude agents --json' is disabled by CLAUDE_CODE_DISABLE_AGENT_VIEW.
-$ env -u CLAUDE_CODE_DISABLE_AGENT_VIEW claude agents --json
-[ { "pid": …, "kind": "interactive", … } ]
-```
-
-`leftArrowOpensAgents` is read as `oe().leftArrowOpensAgents !== !1`
-(`chunk-4zmskew4.js:38768`), so an absent key means enabled. It is a
+`leftArrowOpensAgents` is read as `leftArrowOpensAgents !== !1`
+(`chunk-8w9chsdq.js:36784`), so an absent key means enabled. It is a
 global-config key — `~/.claude.json` under `$CLAUDE_CONFIG_DIR || ~`, listed at
-`chunk-5cs6j3p3.js:25662`. The `/config` dialog exposes it as the toggle
-**`← opens agents`** (`chunk-ve1cwn02.js:1043`), alongside the newer
-**`Open agents view by default`** (`defaultToAgentsView`). There is no
-`claude config set -g` in 2.1.269 — that subcommand does not exist; edit the
+`chunk-g83p48tw.js:21419` — and `/config` exposes it as the toggle
+**`← opens agents`** (`chunk-s71n76sd.js:1068`), beside **`Open agents view by
+default`** (`defaultToAgentsView`). There is no `claude config set -g`; edit the
 file or use `/config`.
 
 For a launcher that depends on `--system-prompt-file`, `disableAgentView` is the
-correct knob: it also closes `/background`, the other path that drops the flag.
-This repo's launcher, `scripts/claude.sh`, sets it:
-
-```bash
-# in scripts/claude.sh, before exec claude
-export CLAUDE_CODE_DISABLE_AGENT_VIEW=1
-```
+right knob: it also closes `/background`, the other path that drops the flag.
+`scripts/claude.sh` exports `CLAUDE_CODE_DISABLE_AGENT_VIEW=1` before
+`exec claude`.

@@ -29,7 +29,10 @@ of the one `setTimeout` the harness arms, and leaves the default at 120 s for
 every other command; the skill's call passes that value, and the test pins it
 under the env value. At the deadline the command is auto-backgrounded, which
 under `-p` is killed at the turn end — a silent advance, which is why the
-ceiling is 24.8 days rather than a day.
+ceiling is 24.8 days rather than a day. A command that reaches the background
+by any route runs there under a second deadline — 30 minutes by default, at
+most `max(2 h, BASH_MAX_TIMEOUT_MS)` — which the same env value raises to the
+same 24.8 days, and which applies only to an unattended session.
 
 Nothing else is armed under `-p` while a call waits. A `Monitor` event that
 fires during a foreground call is queued, and a `-p` process with nothing
@@ -54,46 +57,82 @@ Everything there belongs to the proxy (`src/claude_config/CLAUDE.md`).
 
 ## Harness facts the design rests on
 
-Claude Code 2.1.269, measured 2026-10-01 unless marked; evidence and the probe
-shapes in `notes/print-mode-task-lifetime.md` and
+Measured 2026-10-01 on Claude Code 2.1.269 unless marked; source read in
+**2.1.289**; evidence and the probe shapes in
+`notes/print-mode-task-lifetime.md` and
 `notes/foreground-wait-under-print-mode.md`.
 
 - A Bash `run_in_background` task is **killed** when a `-p` turn ends
-  (`task_updated status: killed`), in the shutdown sequence. A background wait
-  cannot hold an iteration.
+  (`task_updated status: killed`), in the wind-down that runs once input is
+  closed and nothing is queued (`src/chunk-mgxpmmsq.js:1911`, `:1935`). A
+  background wait cannot hold an iteration.
 - A foreground Bash call **holds** a `-p` process until it returns — 150 s and
   661 s measured, zero model turns, `tool_progress` every 30 s — bounded only
-  by its `timeout`.
+  by its `timeout`. The wind-down runs between turns, so it never sees one.
 - The `timeout` is clamped to `Math.min(timeout || BASH_DEFAULT_TIMEOUT_MS,
-  max(600000, BASH_MAX_TIMEOUT_MS), remote constraints)`
-  (`src/chunk-dbb93264.js:216540`, `:96813-96829`); the schema caps nothing
-  (`:215648`); settings `env` reaches it (661 s through the default, 150 s
-  through an explicit 3,600,000 with only the max raised). One `setTimeout`
-  carries the value (`:28333`): 2,147,483,647 ran, and 9,999,999,999 did not
-  fire early in 61 s — the 32-bit bound is the one to trust. At the deadline the
-  command is backgrounded when allowed, else killed as `Command timed out
-  after …` (`:28277-28278`, `:28360`).
+  run_in_background ? max(2 h, BASH_MAX_TIMEOUT_MS) : max(600000,
+  BASH_MAX_TIMEOUT_MS), a served call's wall cap, remote constraints)`
+  (`src/chunk-wgfrtm7w.js:163560`, readers at `src/chunk-t5fdy639.js:606-628`);
+  the schema coerces a numeric string and caps nothing
+  (`src/chunk-wgfrtm7w.js:162601`); settings `env` reaches it (661 s through the
+  default, 150 s through an explicit 3,600,000 with only the max raised). One
+  `setTimeout` carries the value (`src/chunk-wgfrtm7w.js:3489`): 2,147,483,647
+  ran, and 9,999,999,999 did not fire early in 61 s — the 32-bit bound is the
+  one to trust. At the deadline the command is backgrounded when allowed, else
+  killed as `Command timed out after …` (`src/chunk-wgfrtm7w.js:3434`, `:3517`).
+- A command running **in** the background has a deadline of its own,
+  `Math.min(timeout ?? max(30 min, BASH_DEFAULT_TIMEOUT_MS), max(2 h,
+  BASH_MAX_TIMEOUT_MS))` capped at 2³¹−1, after which it is stopped with
+  `stopped after reaching its background time limit`
+  (`src/chunk-gppff98a.js:36004-36008`, armed at
+  `src/chunk-wgfrtm7w.js:159823-159824`). It is armed only in an **unattended**
+  session — non-interactive and neither a desktop nor a VS Code entrypoint
+  (`src/chunk-17315fks.js:271`) — so it is exactly the `-p` case, and the
+  settings `env` value raises it to the same 24.8 days. An auto-backgrounded
+  call gets the 30-minute default instead of its own `timeout`
+  (`src/chunk-wgfrtm7w.js:37899`).
 - A `Monitor` **holds** a `-p` process: each event and the completion re-invoke
-  the model, one `result` per turn on `stream-json`; `timeout_ms` is clamped to
-  10 minutes under `-p` (30 interactive) behind the server flag
-  `tengu_breezy_crescent` (`src/chunk-r2x48y8w.js:22-46`), so unattended
-  listening costs a re-arm turn per ten minutes and a listener nobody re-arms
-  exits the process.
+  the model, one `result` per turn on `stream-json`; `timeout_ms` defaults to
+  5 minutes, is refused above 1 hour, and is capped at 10 minutes under `-p`
+  (30 otherwise) — the server flag `tengu_breezy_crescent` defaults to on and
+  a diskless session forces it, so the cap and the re-arm notice are the
+  behaviour to plan for and the `persistent` option is absent from the schema
+  (`src/chunk-5g752enf.js:23-29`, `src/chunk-93mkz49v.js:402`, `:446`). So
+  unattended listening costs a re-arm turn per ten minutes and a listener
+  nobody re-arms exits the process.
+- The hold is itself bounded: once `-p` input is closed and nothing is queued,
+  a session with only background tasks and armed monitors left is terminated
+  after `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS`, default 600,000 ms, with
+  `Background tasks still running after Ns; terminating.` on stderr
+  (`src/chunk-mgxpmmsq.js:1874`, `:2033`; `0` waits indefinitely).
 - Notifications queued while a tool call runs are delivered only if the process
   is still alive at the next turn boundary; under `-p` with nothing running,
-  they are dropped.
+  they are dropped — the queue is in memory, and no teardown path delivers it.
 - A `Stop` hook holds a process for as long as it runs (its `timeout` has no
   maximum; SIGKILL at the deadline reads as no decision) and can block a turn
   end up to `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` consecutive times (default 8).
   The wait that used this, and why it was replaced the same day, is in the
   notes.
 - Monitor stdout handling (read in the decompile, not measured): lines batch
-  within 200 ms, a line is cut at 500 characters and a batch at 3,000, more
-  than 10 events in 2 s are suppressed, pending events flush before the expiry
-  kill. This is why printed is not received.
+  within 200 ms, a line is cut at 500 characters and a batch at 3,000
+  (`src/chunk-6mbr5tgm.js:538-541`); a token bucket of 10 refilling one per 2 s
+  suppresses the rest (`src/chunk-jzxf7dqr.js:11-12`) and 30 s of unbroken
+  suppression stops the monitor outright (`src/chunk-6mbr5tgm.js:481-494`);
+  pending events flush before the expiry kill
+  (`src/chunk-93mkz49v.js:532-538`); and a script's last events are merged into
+  the body of its exit notice rather than sent as one of their own
+  (`src/chunk-6mbr5tgm.js:510-526`). This is why printed is not received.
+- The memory-pressure reaper cannot touch a `-p` wait: it is registered only
+  for a background shell of an **interactive** session, and then only fires at
+  critical pressure with the session 30 minutes idle, no turn running and no
+  delegated agent (`src/chunk-wgfrtm7w.js:159827-159845`,
+  `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP` turns it off).
 - A `-p` session's tool subprocesses see `CLAUDE_CODE_SESSION_ATTENDED=0` and
   `CLAUDE_CODE_ENTRYPOINT=sdk-cli`, against `1` and `cli` interactive — the
   `-p` test `SKILL.md` names. Measured 2026-10-01 for a `Stop` hook (the first
   note) and for a Bash call: `echo $CLAUDE_CODE_SESSION_ATTENDED` under
   `claude -p --model haiku` printed `0`, and `1` in the interactive session
-  that launched it.
+  that launched it. The variable is written from a separate predicate
+  (`src/chunk-gppff98a.js:14650`, `src/chunk-17315fks.js:238`) from the one the
+  background deadline reads, and the two agree only by coincidence under `-p`:
+  the flag is a sound `-p` test for the skill, not a reading of that deadline.

@@ -173,10 +173,12 @@ needs the most. That tension is the reason this list is not resolved here.
 - A Claude Code release renaming `CLAUDE_CODE_TOTAL_TOKENS_REMINDER` or changing
   which config layer wins. Silent; caught only by the 50/50 gating check.
 - `autoCompactWindow` changing again. It does not touch the reminder — the
-  reminder reads `vp()` or the configured budget, never `tw().window` — but it
+  reminder reads `vf()` or the configured budget, never `Nw().window` — but it
   does change compaction frequency, which outcomes 2, 3 and 4 depend on, so every
   change opens another stratum. One change is already on record: "The compaction
-  clamp" below.
+  clamp" below. 2.1.288's classifier-overflow compaction counts the same
+  (`src/chunk-wgfrtm7w.js:76561`), and `--dangerously-skip-permissions` is what
+  keeps it out of a `claude.sh` session.
 - Any session where the user knew the arm and said so. The draw is untraced, but
   the marker is visible in context and a session can discover its own arm.
   Excluded so far: `4a3c0e33-070b-4408-9bd1-e572bf4888a4` (2026-09-30, `off`, read
@@ -187,34 +189,34 @@ needs the most. That tension is the reason this list is not resolved here.
 
 ## The compaction clamp
 
-`settings.json` sets `autoCompactWindow: 400000`, committed 2026-09-25 — after the
-draw went live, so it splits the sessions rather than preceding them. It reaches a
-session once the canonical checkout carries it, since `~/.claude/settings.json`
-resolves there.
+`settings.json` sets `autoCompactWindow: 400000`, committed 2026-09-25 — after
+the draw went live, so it splits the sessions rather than preceding them, and it
+reaches a session through `~/.claude/settings.json`, which resolves into the
+canonical checkout.
 
-Auto-compaction then fires at **367,000** context tokens against 967,000 before it.
-`WCe(model, n)` is `UWe(WB(model, n), …)` (`src/chunk-dbb93264.js:130075`); `WB`
-subtracts `Math.min(Lje(model), x5n)` — `min(64000, 20000)` for Opus 5, whose
-window is 1e6 (`:130008`, `:129838`, `src/chunk-4728jcqn.js:567-576`) — and `UWe`
-subtracts a flat 13,000 (`:129806`). The 0.2 buffer fraction `CWe` belongs to the
-precompute path, not this one. The value reaches the turn as
-`A = n.options.autoCompactWindow`, which is what the compaction gate compares
-against (`:159095`, `:159046`), so this is the live threshold and not a display
-figure. The clamp only lowers: `tw()` returns `Math.min(modelWindow, n)`
-(`:129933`), so the real window still bounds a request.
+Auto-compaction then fires at **367,000** context tokens against 967,000 before
+it; re-derived on 2.1.289 and unmoved. `TCe(model, n)` is `dK(OK(model, n), …)`
+(`src/chunk-wgfrtm7w.js:43998`); `OK` subtracts `Math.min(maxOutputTokens, tTt)`
+— `min(64000, 20000)` for Opus 5, whose window is 1e6 (`:43931`,
+`src/chunk-jepmcrwm.js:585-593`) — and `dK` subtracts a flat 13,000 (`:43763`).
+The 0.2 buffer fraction belongs to the precompute path, not this one. The gate
+compares against that threshold directly, off `n.options.autoCompactWindow`
+(`:77742`, `:77790`), so it is live and not a display figure. The clamp only
+lowers — `Nw()` returns `Math.min(modelWindow, n)` (`:43849`) — and it reads
+2.1.288's server-supplied window only after the settings key (`:43869` before
+`:43875`), so that value does not displace this one.
 
-**A covariate of this trial, not a second treatment.** Outcomes 2, 3 and 4 are
-counted per compaction, so the clamp moves their denominator: sessions before it
-are one stratum and sessions after it another, with the arms randomized inside
-each. It cannot move the treatment. `padded-countdown` emits `wDe() −
-cumulativeUsed`, and `cumulativeUsed` carries rolled-over tokens across every
-compaction (`:68278`; the rollover call is `src/chunk-507qqpv8.js:75`), so the
-sequence of numbers the marker displays is the same at either window. `countdown`
-would move — its subtrahend is the current message list — but no arm draws it.
+**A covariate, not a second treatment.** Outcomes 2–4 are counted per
+compaction, so the clamp moves their denominator: before it is one stratum,
+after it another, arms randomized inside each. The treatment cannot move.
+`padded-countdown` emits `Uie() − cumulativeUsed`, which carries rolled-over
+tokens across every compaction (`:138238`, `:58461`; the rollover call is
+`src/chunk-hmg8c715.js:84`), so its numbers run the same at either window.
+`countdown` would move — its subtrahend is the current message list — but no
+arm draws it.
 
-The boundary is recoverable from the transcripts rather than from the date above: a
-session's first compaction sits near 367k after the clamp and near 967k before it.
-
-**The split buys yield.** 967,000 ÷ 367,000 — a long session compacts about 2.6
-times as often, so each randomized session supplies more of the events outcomes
-2–4 count than an unclamped one did.
+**The split buys yield, and dates itself.** 967,000 ÷ 367,000: a long session
+compacts about 2.6 times as often, so each randomized session supplies more of
+the events outcomes 2–4 count — and its first compaction sits near 367k after
+the clamp, near 967k before it, which recovers the boundary without the commit
+date.

@@ -90,7 +90,7 @@ The documentation approach lets the LLM compose queries on demand rather than le
 A single regex used to be enough, when `python3 -m skills.{name}.{module}` was the only way a
 skill got run. It no longer is, and the old regex silently under-counts rather than failing:
 
-1. **The `Skill` tool.** Claude Code 2.1.269 has a first-class `Skill` tool, input
+1. **The `Skill` tool.** Claude Code 2.1.289 has a first-class `Skill` tool, input
    `{skill, args?}`. It leaves a `tool_use` block, not a shell command, so no command-line
    regex sees it at all.
 2. **`agent-tools skill {name}.{module}`.** This repo's own convention for custom skills
@@ -135,7 +135,7 @@ The four fields worth summing:
 
 Total billable input = `input_tokens + cache_creation_input_tokens` (cache reads are cheaper).
 
-They are not the whole object. A 2.1.269 assistant entry's `usage` carries eleven keys:
+They are not the whole object. A 2.1.289 assistant entry's `usage` carries eleven keys:
 the four above plus `cache_creation` (a `{ephemeral_5m_input_tokens,
 ephemeral_1h_input_tokens}` breakdown), `service_tier`, `inference_geo`, `iterations`,
 `output_tokens_details`, `server_tool_use` and `speed`. Read `keys` before assuming a shape;

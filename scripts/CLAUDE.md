@@ -58,16 +58,15 @@ endpoints answer to any model string — `sonnet` and `claude-opus-4-5` both
 return 200 and echo the name back — so a tier left unmapped does not fail, it
 quietly takes whatever window Claude Code sizes for that Anthropic name.
 
-`[1m]` is Claude Code syntax rather than part of an id. cc strips it before the
-request (`Gt()`, `/\[1m\]$/i`) and both APIs reject it unstripped — Kimi with
-*"Please set model id as `k3`"*, Z.ai with 400 `[1211][Unknown Model, please
-check the model code.]`. It is also the whole window story for an id carrying
-it: `Sz()` returns exactly 1,000,000 for the `[1m]` form and short-circuits
-ahead of `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, which is therefore consulted only for
-an id without the suffix. Such an id otherwise lands on cc's 200,000 fallback
-for a name it does not recognize — measured, `k3-256k` reported a 200,000-token
-window with the variable unset, 62,144 short of what it serves — so each
-launcher refuses one unless told its size.
+`[1m]` is Claude Code syntax rather than part of an id. cc strips it from the
+request body (`Hn()`, `/\[(1|2)m\]/gi`, `src/chunk-namb4g5x.js:31`) and both
+APIs reject it unstripped — Kimi with *"Please set model id as `k3`"*, Z.ai with
+400 `[1211][Unknown Model, please check the model code.]`. It also decides the
+window: `vv()` returns 1,000,000 for the `[1m]` form ahead of
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS`, which is consulted only for an id without the
+suffix. Such an id otherwise lands on cc's 200,000 fallback for an unrecognised
+name — measured: `k3-256k` reported 200,000 with the variable unset, 62,144
+short of what it serves — so each launcher refuses one unless told its size.
 
 ### `kimi.sh` — Moonshot
 
@@ -147,18 +146,16 @@ fail every request with ECONNREFUSED. The listener itself comes from the canonic
 provisioned by `install.sh`; see the HIDDEN PATH DEPENDENCY note there.
 
 It also exports `CLAUDE_CODE_TMPDIR="$HOME/.claude/tmp"`. Claude Code roots its
-per-session scratchpad there (`AS()`, `src/chunk-tht8x923.js:19`), for the main
-agent and for subagents alike, so redirecting the root is the only way both
-agree on one directory —
-under `$HOME` rather than `/tmp` because `/tmp` is container overlay and is lost
-on a rebuild, while this container's home is a host bind mount. The same
-variable also roots plugin session directories, skill and plugin zip staging,
-the IPC socket directory, and entries in the sandbox write allowlist. The
-socket actually roots at `XDG_RUNTIME_DIR` when that is set, falling back to
-this variable only when it is not (`jxr()`, `src/chunk-g92e0w45.js:567`), and either
-way falls back further to `/tmp` when the resulting path exceeds the `sun_path`
-limit.
+per-session scratchpad there (`Xb()`, `src/chunk-xf67zbm8.js:112`, found by
+`CLAUDE_CODE_TMPDIR`), for the main agent and for subagents alike, so redirecting
+the root is the only way both agree on one directory — under `$HOME` rather than
+`/tmp` because `/tmp` is container overlay and is lost on a rebuild, while this
+container's home is a host bind mount. The same variable also roots plugin session
+directories, skill and plugin zip staging, the IPC socket directory, and entries in
+the sandbox write allowlist. The socket roots at `XDG_RUNTIME_DIR` when that is set
+and falls back to this variable only when it is not (`drs()`,
+`src/chunk-b6pg9xzw.js:542`, found by `"cc-socks"`), then further to `/tmp` when the
+path exceeds the `sun_path` limit.
 
-Scratch is persistent, so nothing reclaims it automatically.
-`prune-scratch.sh` reports and, with `--apply`, deletes empty session
-scratchpads.
+Scratch is persistent, so nothing reclaims it automatically; `prune-scratch.sh`
+does, with `--apply`.

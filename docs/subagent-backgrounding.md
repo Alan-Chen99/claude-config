@@ -1,6 +1,6 @@
 # Subagent backgrounding: which knob, and what each costs
 
-Verified against claude-cli **2.1.269**; citations are `src/chunk-<hash>.js:<line>` in
+Verified against claude-cli **2.1.289**; citations are `src/chunk-<hash>.js:<line>` in
 `/repos/claude-code-decompiled`. The 2.1.235 investigation that found the regression is
 `notes/subagent-backgrounding-overrides-run-in-background.md`; the prompt side of the
 arrangement is `sys_prompt/CLAUDE.md`, "Subagents: `run_in_background: false` on every
@@ -10,13 +10,15 @@ Agent call".
 
 `settings.json` `env` sets `CLAUDE_CODE_FORK_SUBAGENT=0`, and that is the whole harness
 side: the gate only decides whether the model gets a say, and keeping subagents in the
-foreground is the prompt's job. The Agent tool backgrounds on a disjunction (`q4o`,
-`src/chunk-dbb93264.js:103955-103969`); with fork subagents on, two of its terms are out
-of reach — `forceAsync` is `Z8() && !callerIsInProcessTeammate` (`:172000`), and the input
-schema drops `run_in_background` outright (`rc() || Z8()`, `:171779`). `=0` clears
-`forceAsync` and puts the parameter back, leaving the last term, `!s && r !== !1`: **the
-call backgrounds unless `run_in_background` is literally `false`**; omitting it backgrounds
-exactly as `true` would. The price is the `fork` subagent type.
+foreground is the prompt's job. The Agent tool backgrounds on a disjunction
+(`src/chunk-845w7yx9.js:227-243`); with fork subagents on, two of its terms are out of
+reach — `forceAsync` is the fork gate minus an in-process-teammate or headless-subagent
+caller (`:691`), and the input schema drops `run_in_background` outright
+(`der() || Wne()`, `:406`). `=0` clears `forceAsync` and puts the parameter back, leaving
+the last term, `!h && p !== !1`: **the call backgrounds unless `run_in_background` is
+literally `false`**; omitting it backgrounds exactly as `true` would. The price is the
+`fork` subagent type. `h` is that same test; its headless-subagent half is what keeps a
+`-p` subagent's own Agent call in the foreground, reachable only with the gate on.
 
 So `sys_prompt/alan-default-next.md` tells the agent to pass `run_in_background: false` on
 every Agent call, and nothing enforces it: a call that omits the parameter is backgrounded
@@ -34,10 +36,10 @@ declares either.
 
 ## The alternative: `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`
 
-The only setting that makes the foreground a guarantee (bar a remote-isolation launch,
-async regardless), with no help from the model and `fork` kept; it costs the whole
-background-task facility. Reach for it if the prompt rule
-fails to hold. Measured, one interactive session each:
+The only setting that makes the foreground a guarantee — bar a remote-isolation launch,
+async regardless, and a plugin's background-launch rule, which can answer over it — with
+no help from the model and `fork` kept; it costs the whole background-task facility. Reach
+for it if the prompt rule fails to hold. Measured, one interactive session each:
 
 | | `DISABLE_BACKGROUND_TASKS=1` | `FORK_SUBAGENT=0` |
 | --- | --- | --- |
@@ -49,15 +51,17 @@ fails to hold. Measured, one interactive session each:
 
 ## Paths that ship but are not exercised here
 
-MCP auto-background (`src/chunk-jtrs4f58.js:255`), the Ctrl+B affordance
-(`src/chunk-qxhez8yz.js:99`, keybinding `:32`), observer agents (`Zfe`,
-`src/chunk-dbb93264.js:74088`) and forked skills (`y9t`, `src/chunk-dbb93264.js:173976`)
-all open on the same `rc()` background-tasks check and return under the current setting.
-Skills are not opt-in as the 2.1.235 note has it: `background` defaults to true for any
-skill declaring `context: fork`, and `background: false` is the opt-out that keeps the
-caller waiting (`src/chunk-dbb93264.js:54434`). `CLAUDE_AUTO_BACKGROUND_TASKS`, unset
+MCP auto-background (`src/chunk-rkpajbmn.js:324`), the Ctrl+B affordance
+(`src/chunk-1r3smv21.js:139`, keybinding `:34`), observer agents
+(`src/chunk-909q38pa.js:26`) and forked skills (`src/chunk-st999tz2.js:35`) open on three
+sibling background-tasks checks (`src/chunk-eps276jq.js:14`, `:17`, `:21` — the second is
+the one the Agent schema asks), each bottoming out in the same `backgroundTasksDisabled`,
+`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS` and `--bare`, so all four return under the current
+setting. Skills are not opt-in as the 2.1.235 note has it: `background` defaults to true
+for any skill declaring `context: fork`, and `background: false` is the opt-out that keeps
+the caller waiting (`src/chunk-wgfrtm7w.js:17128`). `CLAUDE_AUTO_BACKGROUND_TASKS`, unset
 here, moves a foreground subagent to the background after its interval under either
-setting (`iTs`, `src/chunk-dbb93264.js:171747`, wired at `:172571`).
+setting (`$o`, `src/chunk-845w7yx9.js:374`, wired at `:1362`).
 
 ## Print mode: what outlives a turn
 
@@ -69,7 +73,7 @@ Under `claude -p` the turn ending is the process ending, with two exceptions:
 | --- | --- |
 | Bash `run_in_background` | kills it (`task_updated status: killed`) and exits |
 | a foreground Bash call | holds the process until it returns, up to its `timeout` — 10 min unless `BASH_MAX_TIMEOUT_MS` in settings `env` raises it (2,147,483,647 is the timer's bound); a `Monitor` event fired meanwhile is dropped when the turn ends with nothing running |
-| `Monitor` | stays up: each event and the completion re-invoke the model, and the process exits after the turn that follows the monitor's end, or its expiry if nothing re-arms it — `timeout_ms` is clamped to 10 minutes under `-p`, 30 interactive |
+| `Monitor` | stays up: each event and the completion re-invoke the model, and the process exits after the turn that follows the monitor's end, or its expiry if nothing re-arms it — `timeout_ms` defaults to 5 min, is refused above an hour, and is clamped to 10 min under `-p`, 30 interactive, with no `persistent` escape in the schema. The hold ends after `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS` (600,000 ms) of idling with only background work left |
 
 A `Stop` hook, unattended (`CLAUDE_CODE_SESSION_ATTENDED=0`), sees `background_tasks[]`
 with each `command` and can block the turn end (`{"decision": "block"}`; `stop_hook_active`

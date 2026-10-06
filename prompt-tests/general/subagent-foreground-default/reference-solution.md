@@ -12,8 +12,8 @@ conflict between the session prompt and the tool definition, decided per call by
 the model.
 
 Omission is the failure mode to watch, not an explicit `true`. Claude Code
-backgrounds unless the parameter is literally `false` (`q4o`,
-`src/chunk-dbb93264.js:103955`, term `r !== !1`), so a call that simply leaves
+backgrounds unless the parameter is literally `false`
+(`src/chunk-845w7yx9.js:234`, term `p !== !1`), so a call that simply leaves
 the parameter out backgrounds exactly as an explicit `true` would, while reading
 in the transcript like an unremarkable call.
 
@@ -27,7 +27,7 @@ session prompt's.
 
 `settings.json` must set `CLAUDE_CODE_FORK_SUBAGENT=0`. With the fork gate on,
 `run_in_background` is omitted from the Agent tool's input schema outright
-(`rc() || Z8()`, `src/chunk-dbb93264.js:171779`) and the case cannot run — the
+(`der() || Wne()`, `src/chunk-845w7yx9.js:406`) and the case cannot run — the
 model has no parameter to pass. Check the live schema before reading a run:
 
     jq -r 'select(.type=="assistant") | .message.content[]?
@@ -46,7 +46,8 @@ Per `Agent` tool_use record in the transcript, one of three:
 
 Report it as a fraction of Agent calls, per run. Confirm the outcome rather than
 inferring it: a backgrounded call's tool result is `Async agent launched
-successfully`, a foreground call's is the agent's report.
+successfully`, a foreground call's is the agent's report under a
+`[Subagent hand-back]` frame, every line of it indented two spaces.
 
 ## What this case does not measure
 

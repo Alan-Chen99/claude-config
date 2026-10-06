@@ -61,7 +61,7 @@ listed …`, and `… N more changed, omitted for size …`.
 foreground command moved to the background when it outruns its `timeout`; the notice's
 `Cause:` field separates those two from a user's Ctrl+B, a turn abort, and a background
 taken so a queued message could reach the model — one response field per cause
-(`src/chunk-dbb93264.js:215694-215699`), and the notice says the cause is unstated rather
+(`src/chunk-wgfrtm7w.js:162653-162657`), and the notice says the cause is unstated rather
 than naming one when no field is set. Besides the cause and the task id `TaskStop` takes,
 the notice names the `long-bash` skill, which carries the protocol for waiting on the
 command without polling; `hook_post_test::the_backgrounding_notice_names_a_skill_that_exists`
@@ -70,11 +70,11 @@ reads that name back out of the emitted text and resolves it against `skills/`, 
 a `// PROMPT-COUPLED` marker.
 
 Upstream refuses to background one command shape — one whose first statement's first
-word is `sleep` (`yzs`, `src/chunk-dbb93264.js:215729`,
-gating the `onTimeout` handler at `:216563`, against the one-entry list at `:215644`) —
+word is `sleep` (`nRr`, `src/chunk-wgfrtm7w.js:162691`,
+gating the `onTimeout` handler at `:163583`, against the one-entry list at `:162597`) —
 killing it at its timeout instead, with no notice emitted. That guard cannot fire here:
 `hook_pre.rs` rewrites every Bash command to begin `unset …; export
-AGENT_TOOLS_PARENT_DIR=…;`, so the first statement `yzs` reads is never `sleep`. Measured
+AGENT_TOOLS_PARENT_DIR=…;`, so the first statement `nRr` reads is never `sleep`. Measured
 2026-09-21 on 2.1.269, all with `timeout: 3000` and all returning a `backgroundTaskId` with
 `timedOutAfterMs: 3000`: `sleep 20`, `sleep 20; echo done`, and `echo start; sleep 25` —
 the last of which the guard never covered anyway. The foreground `sleep ≥ 25 s` block is

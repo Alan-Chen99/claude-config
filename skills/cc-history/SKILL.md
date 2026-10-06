@@ -35,10 +35,10 @@ PROJECT_DIR="$HOME/.claude/projects/$(echo "$PWD" | sed 's|[^a-zA-Z0-9]|-|g')"
 
 Encoding rule: **every character outside `[a-zA-Z0-9]` becomes `-`** — slashes, dots,
 underscores and spaces alike (`e.replace(/[^a-zA-Z0-9]/g, "-")`,
-`src/chunk-jaqbht4s.js:681`). An encoded name longer than 200 characters is cut to 200 and
-given a `-<base36 hash>` suffix (`src/chunk-jaqbht4s.js:684`; the limit `N6 = 200` is at
-`:677`, the hash at `:678`). The result is joined under `<config dir>/projects/`
-(`src/chunk-8jke7x2v.js:20` and `:46`).
+`src/chunk-v0mb4zbj.js:696`). An encoded name longer than 200 characters is cut to 200 and
+given a `-<base36 hash>` suffix (`src/chunk-v0mb4zbj.js:701`; the limit `Nie = 200` is at
+`:691`, the hash at `:693`). The result is joined under `<config dir>/projects/`
+(`src/chunk-acw83f1p.js:20` and `:46`, literal `i(we(), "projects")`).
 
 Examples (all three are directory names present under `~/.claude/projects/`):
 
@@ -52,80 +52,23 @@ preceded by `/`, and it still becomes `-`; so does an underscore, which is why
 
 ## Message Types
 
-Transcript entries (each JSONL line). The roster below is the binary's own: a type ->
-retention-class map at `src/chunk-dbb93264.js:237396-237435`, read by the transcript loader
-at `:237586-237605`. It is the only exhaustive enumeration of entry types in 2.1.269. A type
-missing from it is not rejected — the lookup falls through to `accumulate`
-(`src/chunk-dbb93264.js:237436`).
+Every JSONL line is one transcript entry, discriminated by `.type`. Four types are the
+conversation (`user`, `assistant`, `system`, `attachment`); the other thirty-six are session
+metadata the compaction planner retains by class. `record-types.md` has the binary's own roster
+with each type's retention class, fields, source citation and whether it occurs on this machine —
+read it before writing a recipe keyed on a type, and before concluding a type is gone.
 
-**Retention** is what the loader's compaction planner does with the entry: `transcript` is
-the conversation itself; `accumulate` entries are all kept; `last-wins` keeps only the newest
-per session (per `leafUuid` for `summary` — `src/chunk-dbb93264.js:237581`);
-`boundary-cleared` entries are the ones no branch re-adds, so they do not survive past the
-last compact boundary.
-
-**Seen** records whether the type actually occurs in `~/.claude/projects/` on this machine
-(2,591 logs / 372,949 lines; `find ~/.claude/projects -name '*.jsonl' -print0 | xargs -0 cat
-| jq -r 'select(type=="object") | .type' | sort | uniq -c | sort -rn`). A `no` means the
-feature has not been used here — it is not evidence the type is gone. Two values that survey
-turns up, `started` and `result`, are not transcript entries at all: they come from a
-Workflow tool journal, `{session}/subagents/workflows/wf_<id>/journal.jsonl`, which is a
-different file format that happens to share the `.jsonl` extension. Scope the survey to
-`{project}/*.jsonl` and `{session}/subagents/agent-*.jsonl` to exclude it.
-
-| Type                                            | Retention        | Seen | Description                                                                                |
-| ----------------------------------------------- | ---------------- | ---- | ------------------------------------------------------------------------------------------ |
-| `user`                                          | transcript       | yes  | User input or tool_result (1 content block per entry)                                      |
-| `assistant`                                     | transcript       | yes  | Model response (1 content block per entry, normalized)                                     |
-| `system`                                        | transcript       | yes  | System messages. `subtype` observed: `turn_duration`, `stop_hook_summary`, `local_command`, `compact_boundary`, `informational`, `away_summary`, `model_consent_fallback`, `agents_killed` |
-| `attachment`                                    | transcript       | yes  | Injected context — system-reminders, hook output, skill listings. See "Attachments" below  |
-| `progress`                                      | boundary-cleared | no   | Streaming tool progress. `data.type` is `bash_progress` / `agent_progress` / `hook_progress` per `src/claude_config/cc_pretty/parse.py` |
-| `file-history-snapshot`                         | boundary-cleared | yes  | File state snapshot (no top-level `timestamp` field)                                       |
-| `file-history-delta`                            | boundary-cleared | yes  | Incremental backup against a snapshot; carries `snapshotMessageId`, `trackingPath`, `backup` (`src/chunk-dbb93264.js:240877`) |
-| `last-prompt`                                   | boundary-cleared | yes  | Last user prompt (for resume picker)                                                       |
-| `continued-in`                                  | boundary-cleared | no   | Names the session this one continued into, via `continuedInSessionId` (`src/chunk-hfnv88ms.js:96`) |
-| `marble-origami-commit`                         | boundary-cleared | no   | Context collapse commit                                                                    |
-| `marble-origami-snapshot`                       | boundary-cleared | no   | Context collapse staged state                                                              |
-| `marble-origami-reset`                          | boundary-cleared | no   | Context collapse reset                                                                     |
-| `content-replacement`                           | accumulate       | no   | Large content block replacement records                                                    |
-| `fork-context-ref`                              | accumulate       | yes  | Written into a `fork` subagent's own file: `agentId`, `contextLength`, `parentSessionId`, `parentLastUuid` (`src/chunk-dbb93264.js:240418`) |
-| `frame-link`                                    | accumulate       | yes  | Artifact frame link; carries `artifactCount` (`src/chunk-dbb93264.js:239436`)              |
-| `artifact-comment-monitor`                      | accumulate       | no   | Artifact comment watch record                                                              |
-| `summary`                                       | last-wins        | no   | Conversation summary (for resume). Keyed by `leafUuid`, not `sessionId`                    |
-| `custom-title`                                  | last-wins        | yes  | User-set session title                                                                     |
-| `ai-title`                                      | last-wins        | yes  | AI-generated session title                                                                 |
-| `ended-by-model`                                | last-wins        | no   | Session ended by the model (`src/chunk-dbb93264.js:242653`)                                |
-| `tag`                                           | last-wins        | no   | Session tag (searchable in /resume)                                                        |
-| `relocated`                                     | last-wins        | no   | Session cwd was relocated; carries `relocatedCwd` (`src/chunk-36a8cme1.js:399`)            |
-| `agent-name` / `agent-color` / `agent-setting`  | last-wins        | first two | Subagent display metadata                                                             |
-| `pr-link`                                       | last-wins        | no   | GitHub PR linked to session: `prNumber`, `prUrl`, `prRepository`, `timestamp` (`src/chunk-dbb93264.js:239428`) |
-| `artifact-autoreact-ledger`                     | last-wins        | no   | Artifact auto-reply ledger; the loader repairs torn writes of it (`src/chunk-dbb93264.js:237606`, `:237619`, `:237626`) |
-| `bridge-session`                                | last-wins        | yes  | Bridged session: `bridgeSessionId`, `lastSequenceNum` (`src/chunk-dbb93264.js:239443`)     |
-| `history-suppression`                           | last-wins        | no   | History suppressed, with `cause` (`src/chunk-jaqbht4s.js:1267`)                            |
-| `attribution-snapshot`                          | last-wins        | no   | Attribution snapshot. Written through the same torn-write-tolerant path as the ledger (line-prefix buffer at `src/chunk-jaqbht4s.js:1073`), and exempted from boundary pruning at `src/chunk-dbb93264.js:237698` |
-| `mode`                                          | last-wins        | yes  | Session mode. Only `normal` observed here; `coordinator` is the documented other value     |
-| `permission-mode`                               | last-wins        | yes  | Session permission mode. Observed: `bypassPermissions`, `default`, `auto`, `acceptEdits`   |
-| `isolation-latch`                               | last-wins        | no   | Session isolation `side` (`src/chunk-dbb93264.js:239411`)                                  |
-| `atis-latch`                                    | last-wins        | yes  | Latched `atis` value, the `x-cc-atis` request header (`src/chunk-5cs6j3p3.js:24911`)       |
-| `worktree-state`                                | last-wins        | no   | Worktree enter/exit state                                                                  |
-| `cost-state`                                    | last-wins        | yes  | Running totals: `totalCostUSD`, API/tool durations, lines added (`src/chunk-dbb93264.js:70446`) |
-| `queue-operation`                               | last-wins        | yes  | Background task notifications OR user message queue ops                                    |
-| `observer-ref`                                  | last-wins        | no   | Observer agent reference (`src/chunk-dbb93264.js:240431`)                                  |
-
-Two types earlier revisions of this file listed are **gone in 2.1.269**:
-
-- `speculation-accept` (and its `timeSavedMs` field) — 0 occurrences in the decompiled
-  source, 0 in any log on disk. Any recipe keyed on it returns empty.
-- `task-summary` — absent from the retention map and from every log on disk. Its one
-  remaining occurrence in the binary, `src/chunk-rjc4dqgx.js:9383`, is a React `key` prop,
-  not an entry type.
+```bash
+# Which types a log actually holds
+jq -r 'select(type=="object") | .type' file.jsonl | sort | uniq -c | sort -rn
+```
 
 ### Attachments
 
 `attachment` entries are a separate stream from `user`/`assistant`, and they are where
 injected context lives — system-reminders included. A reader who treats the three
 conversational types as the whole transcript silently drops them; they are the single most
-numerous non-conversational type here (71,932 of 372,949 lines). The payload is
+numerous non-conversational type here (202,192 of 758,257 lines). The payload is
 `.attachment`, discriminated by `.attachment.type`. This repo's own parser models the
 subtypes at `src/claude_config/cc_pretty/parse.py` (`AttachmentData`, `AttachmentRecord`).
 
@@ -138,13 +81,20 @@ jq -r 'select(.type=="attachment" and .attachment.type=="hook_additional_context
   .attachment.content | tostring' file.jsonl
 ```
 
-Subtypes observed here, most frequent first: `hook_success`, `total_tokens_reminder`,
-`hook_additional_context`, `deferred_tools_delta`, `skill_listing`, `agent_listing_delta`,
-`auto_mode`, `prompt_snapshot`, `queued_command`, `environment`, `command_permissions`,
-`date`, `session_context`, `remote_session_change`, `model`, `instructions`,
-`edited_text_file`, `date_change`, `nested_memory`, `file`. The field carrying the text
-varies by subtype (`text` for `total_tokens_reminder`, `content` for
-`hook_additional_context`), so inspect `keys` before assuming one.
+Subtypes observed here, most frequent first (measured 2026-10-05): `hook_success`,
+`total_tokens_reminder`, `output_style`, `hook_additional_context`,
+`bash_output_audience_note`, `deferred_tools_delta`, `environment`,
+`batching_reminder_sent`, `prompt_snapshot`, `skill_listing`, `date`,
+`agent_listing_delta`, `session_context`, `model`, `auto_mode`, `instructions`,
+`queued_command`, `task_reminder`, `command_permissions`, `nested_memory`,
+`edited_text_file`, `silent_turn_reminder`, `mcp_instructions_delta`,
+`deferred_tools_record`, `remote_session_change`, `file`, `compact_file_reference`,
+`invoked_skills`, `read_truncation_notice`, `date_change`, `ultrathink_effort`,
+`hook_blocking_error`, `task_status`, `advisor_tool`, `hook_non_blocking_error`. The field
+carrying the text varies by subtype (`text` for `total_tokens_reminder`, `content` for
+`hook_additional_context`), so inspect `keys` before assuming one. The roster is open: fifteen
+of the subtypes above are ones an earlier revision of this list did not have, so re-run the
+survey rather than trusting the list.
 
 ## Message Structure
 
@@ -246,8 +196,9 @@ A skill reaches a log by one of three routes, and no single pattern catches all 
 | `agent-tools skill`  | `tool_use` block, `name == "Bash"`, in `.input.command` | `agent-tools skill <skill_name>.<module>` |
 | `python3 -m skills.` | same, `.input.command`                              | `python3 -m skills.<skill_name>.<module>`    |
 
-The `Skill` tool is first-class in 2.1.269 — description at `src/chunk-dbb93264.js:222327`,
-input schema `{skill, args?}` at `src/chunk-dbb93264.js:174508-174510`. The two bash routes
+The `Skill` tool is first-class in 2.1.289 — description at `src/chunk-wgfrtm7w.js:133343`,
+input schema `{skill, args?}` at `src/chunk-qec902z2.js:594-597` (literal `The name of a skill
+from the available-skills list`). The two bash routes
 are this repo's own convention (`skills/CLAUDE.md`): custom skills go through `agent-tools`,
 upstream skills through the direct `python3 -m` call. Both use underscores in the module
 path, while `Skill` tool names use hyphens — `decision_critic` and `decision-critic` are the
@@ -414,7 +365,7 @@ extract_branch "$TARGET" "$FILE" | jq 'select(.type=="user") | .message.content'
 ## Timing and Concurrency
 
 **Citations in this file.** A bare `src/chunk-<hash>.js:<line>` is
-`/repos/claude-code-decompiled/src/`, the 2.1.269 decompile, and is current. Anything
+`/repos/claude-code-decompiled/src/`, the 2.1.289 decompile, and is current. Anything
 prefixed `claude-code-src/` is `/repos/claude-code-src/`, the **v2.1.88** sourcemap leak —
 readable TypeScript, four-plus versions stale, kept only where it names a shape the
 decompile does not. Never carry a `claude-code-src/` line number forward as current; chunk
@@ -434,9 +385,10 @@ Most transcript entries have a `timestamp` field (ISO 8601 string, e.g. `"2025-0
 Present on, as measured over every log on disk
 (`jq -r 'select(type=="object") | "\(.type)\t\(.timestamp != null)"'`): `user`,
 `assistant`, `system`, `attachment`, `queue-operation`, `file-history-delta`, `frame-link`.
-The binary also stamps one onto `pr-link` (`src/chunk-dbb93264.js:239433`), `continued-in`
-(`src/chunk-hfnv88ms.js:97`) and `observer-ref` (`src/chunk-dbb93264.js:240433`) — none of
-which occur here, so that is a source reading, not a measurement.
+The binary also stamps one onto `pr-link` (`src/chunk-wgfrtm7w.js:172375`), `frame-link`
+(`:172381`), `memory-mode` (`:172345`), `ended-by-model` (`:175786`), `continued-in`
+(`src/chunk-bfmr5z4y.js:147`) and `observer-ref` (`src/chunk-wgfrtm7w.js:173495`) — only
+`frame-link` occurs here, so the rest is a source reading, not a measurement.
 
 **Not present on**: `file-history-snapshot`, `last-prompt`, `ai-title`, `mode`,
 `permission-mode`, `atis-latch`, `cost-state` — every one measured at zero out of thousands
@@ -445,7 +397,8 @@ approximation, or read the nested `.snapshot.timestamp`.
 
 Additional timing fields outside the JSONL transcript: SDK `result` messages carry
 `duration_ms` and `duration_api_ms`, plus optional `ttft_ms`, `ttft_stream_ms` and
-`time_to_request_ms` (`src/chunk-5cs6j3p3.js:17676-17685`). These are stream-json output, not
+`time_to_request_ms` (`src/chunk-ps4gchhg.js:7634-7638`, literal `time_to_request_ms`; four
+more `@internal` timing fields follow it). These are stream-json output, not
 transcript entries — do not expect them in a `.jsonl` under `~/.claude/projects/`. An earlier
 revision listed `task-summary` here as well; that entry type no longer exists (see "Message
 Types").
@@ -496,25 +449,28 @@ jq -s '[.[] | select(.type=="assistant") |
 ### Parallel Subagents
 
 Subagent conversations are stored in `{session}/subagents/agent-{agentId}.jsonl`
-(`src/chunk-8jke7x2v.js:61` builds the directory, `:66` the filename) with a companion
+(`src/chunk-acw83f1p.js:67` builds the directory, `:72` the filename) with a companion
 `.meta.json`. Each JSONL entry has `isSidechain: true` and an `agentId` field matching the
 filename.
 
 The `.meta.json` is richer than `{agentType, description}`. It is written by
-`src/chunk-dbb93264.js:238224` (the file write at `:238238` and `:238245`), and the record
-mirrored alongside it at `:238247-238317` enumerates the writable fields: `agentType`,
+`src/chunk-wgfrtm7w.js:171031` (literal `persistAgentMetadata: storage write failed`; the file
+write at `:171044` and `:171052`), and the record mirrored alongside it at `:171055-171123`
+enumerates the writable fields: `agentType`,
 `isFork`, `isBuiltIn`, `worktreePath`, `worktreeBranch`, `cwd`, `spawnMode`, `description`,
 `workflowPhase`, `name`, `toolUseId`, `parentAgentId`, `stoppedByUser`, `spawnDepth`,
 `requestShape`, `requestNonInteractive`, `taskKind`, `teamName`, `color`, `planModeRequired`,
 `customAgentType`, `model`, `permissionMode`. Every one is conditional — each is spread in
-only when defined — so shapes vary widely. Key sets observed across 1,275 files on disk, most
-common first:
+only when defined — so shapes vary widely. Key sets observed across 2,354 files on disk, most
+common first (measured 2026-10-05):
 
 ```
-{agentType, description, spawnDepth, toolUseId}
-{agentType, description, parentAgentId, spawnDepth, toolUseId}
-{agentType, description, model, spawnDepth, toolUseId}
 {agentType, description}                                        # older sessions
+{agentType, description, model, requestNonInteractive, requestShape, spawnDepth, toolUseId}
+{agentType, description, spawnDepth, toolUseId}
+{agentType, description, requestNonInteractive, requestShape, spawnDepth, toolUseId}
+{agentType, description, parentAgentId, spawnDepth, toolUseId}
+{agentType, description, model, requestNonInteractive, requestShape, spawnDepth, workflowPhase}
 ```
 
 `toolUseId` is the one that matters — see "Correlation" below. `parentAgentId` appears when a
@@ -555,145 +511,13 @@ jq -c 'select(.type=="queue-operation" and .operation=="enqueue" and
 
 ### Background Commands
 
-When `run_in_background: true` is set on a Bash tool call, the command starts and the tool returns immediately. The tool result `content` string contains:
-
-```
-Command running in background with ID: {backgroundTaskId}. Output is being written to: {outputPath}
-```
-
-That is one of **four** sentences 2.1.269 can write here — a command can reach the background
-without ever being asked to. See "Telling the Background Causes Apart" below; the other three
-word the ID differently enough to break a naive parse.
-
-The Bash output schema (`src/chunk-dbb93264.js:215693-215730`) carries these
-background-related fields:
-
-| Field                             | Type    | Meaning                                                                        |
-| --------------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `backgroundTaskId`                | string  | Present whenever the command was backgrounded, however it got there            |
-| `backgroundedByUser`              | boolean | The user pressed Ctrl+B                                                        |
-| `backgroundedByTurnAbort`         | boolean | `@internal` — a plugin's turn abort moved the running command to the background |
-| `backgroundedToDeliverMessage`    | boolean | `@internal` — moved aside so a message queued for the model could reach it     |
-| `timedOutAfterMs`                 | number  | Set when the command hit its timeout and was auto-backgrounded; the timeout in ms |
-| `backgroundEndsWithFinalResponse` | boolean | The command is owned by a synchronous subagent and dies at that agent's final response |
-| `backgroundCwdHint`               | string  | Note that a backgrounded `cd`/`pushd`/`popd`/`chdir` did not change session cwd |
-
-`assistantAutoBackgrounded` is **gone** — 0 occurrences in 2.1.269. It survives only in the
-v2.1.88 tree at `claude-code-src/src/tools/BashTool/BashTool.tsx:287`.
-
-In the JSONL transcript these land in two places: the `toolUseResult` object on the `user`
-entry carries the raw fields, and the `tool_result` block's `content` string carries the
-human-readable message.
-
-```bash
-# Raw background fields, straight off toolUseResult
-jq -c 'select(.type=="user" and (.toolUseResult|type=="object") and
-  .toolUseResult.backgroundTaskId != null) |
-  {id: .toolUseResult.backgroundTaskId, byUser: .toolUseResult.backgroundedByUser,
-   turnAbort: .toolUseResult.backgroundedByTurnAbort,
-   deliver: .toolUseResult.backgroundedToDeliverMessage,
-   timedOutMs: .toolUseResult.timedOutAfterMs}' file.jsonl
-```
-
-```bash
-# Find all backgrounded Bash commands
-jq -c 'select(.type=="user") | .message.content[]? |
-  select(.type=="tool_result" and (.content | test("background")))' file.jsonl
-
-# Extract background task IDs (all four message shapes)
-jq -r 'select(.type=="user") | .message.content[]? |
-  select(.type=="tool_result") | (.content | tostring) |
-  capture("(?:with|\\() ?ID: (?<id>[A-Za-z0-9_-]+)") | .id' file.jsonl
-```
-
-### Telling the Background Causes Apart
-
-In 2.1.269 the tool_result `content` string **names the cause**. One builder writes all four
-variants (`src/chunk-dbb93264.js:135046-135057`), choosing by a ternary chain in this
-precedence order:
-
-| Cause                              | Field set on `toolUseResult`   | Leading sentence of the tool_result content                                                                            |
-| ---------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| User pressed Ctrl+B                | `backgroundedByUser`           | `Command was manually backgrounded by user with ID: {id}. Output is being written to: {path}.`                            |
-| Queued message needed to get through | `backgroundedToDeliverMessage` | `Command was moved to the background (ID: {id}) so that a message that arrived while it was running can reach you; it was not interrupted. Output is being written to: {path}.` |
-| Hit its `timeout`                  | `timedOutAfterMs`              | `Command did not complete within its {N}s timeout and was moved to the background (ID: {id}). Output is being written to: {path}.` |
-| Everything else                    | — (only `backgroundTaskId`)    | `Command running in background with ID: {id}. Output is being written to: {path}.`                                        |
-
-`{N}` is `Math.max(1, Math.round(timedOutAfterMs / 1000))`, so the seconds figure is rounded
-and floored at 1 — recover the exact value from `toolUseResult.timedOutAfterMs`, not from the
-string.
-
-Two consequences for anyone carrying forward an older reading of this file:
-
-- **Timeout auto-background is no longer indistinguishable from an explicit
-  `run_in_background: true`.** They were the same sentence in v2.1.88; they are different
-  sentences now, and the timeout case additionally sets `timedOutAfterMs`. The
-  cross-reference dance — collect `tool_use` ids that lacked `run_in_background`, then look
-  for backgrounded results among them — is no longer needed.
-- **The fourth row is a catch-all, not "explicit only."** `backgroundedByTurnAbort` is a real
-  schema field (`src/chunk-dbb93264.js:215701`) but the message builder has no branch for it,
-  so a turn-abort background produces the same sentence as an explicit
-  `run_in_background: true`. Check the field, not the string, to separate those two.
-
-A command backgrounded at its timeout comes back with `backgroundTaskId` and
-`timedOutAfterMs` and **no** cause flag — measured on disk, e.g.
-`{"backgroundTaskId":"bzaayu0oe","timedOutAfterMs":3000}` alongside
-`Command did not complete within its 3s timeout ...`. Its `toolUseResult` keys are
-`backgroundTaskId`, `backgroundCwdHint`, `interrupted`, `isImage`, `noOutputExpected`,
-`stderr`, `stdout`, `timedOutAfterMs`, sometimes plus `backgroundEndsWithFinalResponse`.
-
-**Which cause flags actually reach the transcript is only partly settled.** Measured over
-every log on this machine: `timedOutAfterMs` appears on `toolUseResult` 35 times and
-`backgroundEndsWithFinalResponse` 16 times. `backgroundedByUser`,
-`backgroundedByTurnAbort` and `backgroundedToDeliverMessage` appear **zero** times — but so
-do the events themselves. Counting only tool_result strings that *begin* with each sentence,
-this corpus holds 769 explicit backgrounds and 40 timeouts, and **no** Ctrl+B, turn-abort or
-deliver-message background at all. So their absence from `toolUseResult` is untested here,
-not disproven: the schema declares them (`src/chunk-dbb93264.js:215700-215702`) and this
-corpus cannot say whether they survive to disk. Until someone captures one, treat the
-`content` string as the reliable signal for those three causes and `timedOutAfterMs` as the
-reliable signal for timeout — which is how the two recipes below are ordered.
-
-That same count is a warning about method. All 54 raw string matches for "manually
-backgrounded by user" in this corpus sit inside *other* sessions' text, captured as tool
-output by sessions that were analysing logs. A `grep` for a message shape finds discussion of
-it as readily as an instance of it; anchoring on `startswith` over a `tool_result` block, as
-above, is what separates the two.
-
-```bash
-# Classify every backgrounded Bash result by cause
-jq -r 'select(.type=="user" and (.toolUseResult|type=="object") and
-  .toolUseResult.backgroundTaskId != null) |
-  (if .toolUseResult.backgroundedByUser then "user-ctrl-b"
-   elif .toolUseResult.backgroundedToDeliverMessage then "deliver-message"
-   elif .toolUseResult.timedOutAfterMs then "timeout:\(.toolUseResult.timedOutAfterMs)ms"
-   elif .toolUseResult.backgroundedByTurnAbort then "turn-abort"
-   else "explicit-or-unknown" end)' file.jsonl | sort | uniq -c | sort -rn
-
-# String-only fallback, for logs where toolUseResult was not captured
-jq -r 'select(.type=="user") | .message.content[]? |
-  select(.type=="tool_result") | (.content | tostring) |
-  select(test("background")) |
-  if test("manually backgrounded by user") then "user-ctrl-b"
-  elif test("so that a message that arrived") then "deliver-message"
-  elif test("did not complete within its") then "timeout"
-  else "explicit-or-turn-abort" end' file.jsonl | sort | uniq -c
-```
-
-The same four causes are reported a second time as a structured `trigger` enum at
-`src/chunk-dbb93264.js:216494`, and its precedence differs: `user`, `turn_abort`,
-`deliver_message`, then timeout — turn-abort ranks second there and has no branch at all in
-the message builder. That path feeds telemetry, not the transcript; the transcript carries
-the prose above and the `toolUseResult` fields.
-
-**Removed in 2.1.269: the assistant-mode blocking budget.** Earlier revisions of this file
-documented a 15-second `KAIROS` assistant-mode timer that auto-backgrounded blocking commands
-with a distinctive `Command exceeded the assistant-mode blocking budget (15s)` result string,
-and gave a `test("assistant-mode blocking budget")` recipe for finding it. None of it exists
-any more: `KAIROS`, `assistantAutoBackgrounded`, and `assistant-mode blocking budget` are each
-0 occurrences across all 1,677 chunks. The recipe returns empty on every log. It lives on only
-in the v2.1.88 tree, at `claude-code-src/src/tools/BashTool/BashTool.tsx:973-983`. If you meet
-that string in an old log, it is a v2.1.88-era session.
+When `run_in_background: true` is set on a Bash tool call, the command starts and the tool returns
+immediately, and the `tool_result` content opens `Command running in background with ID: {id}.
+Output is being written to: {path}.` That is one of **four** sentences 2.1.289 can write there — a
+command can reach the background without ever being asked to, and two of the other three word the
+ID differently enough to break a naive parse. The causes, the `toolUseResult` fields that carry
+them, the classification recipes and what this machine's corpus can and cannot settle are in
+`background-commands.md`.
 
 ### Queue Operations
 
@@ -734,15 +558,22 @@ jq -c --arg t "toolu_01RtsuZUajp1KogNP5FLJ5iq" \
    {name, desc: .input.description, subagent_type: .input.subagent_type}' "$SESSION_FILE"
 ```
 
-633 of the 641 `.meta.json` files written here since 2026-08-15 carry `toolUseId`; the eight
-that do not are agents with no spawning tool call. Older files predating the field have only
-`{agentType, description}`.
+1,558 of the 1,720 `.meta.json` files written here since 2026-08-15 carry `toolUseId`; of the
+162 that do not, 151 carry `workflowPhase` instead — a workflow-phase agent has no spawning
+`Agent` tool call. Older files predating the field have only `{agentType, description}`.
 
-**The tool is named `Agent`, not `Task`.** A `Task` tool has not existed for some time; in
-2.1.269 the only `"Task"` literals left are UI labels for the Ctrl+B background affordance
-(`src/chunk-qxhez8yz.js:37`, `:50`, `:60`) and one backward-compatible alias check that
-accepts either name (`src/chunk-5cs6j3p3.js:23139`). Correlation recipes keyed on
-`.name=="Task"` return nothing.
+**In the transcript the tool is named `Agent`, not `Task`.** `"Task"` survives in 2.1.289 as a
+name constant (`src/chunk-qws8heqd.js:17`, beside `ht = "Agent"` at `:11`), as keybinding-context
+labels for the Ctrl+B background affordance (`src/chunk-1r3smv21.js:39`, `:52`;
+`src/chunk-f4qx496g.js:189`, literal `task:background`), in the permission-rule name list
+(`src/chunk-c06bg8hw.js:33555`, literal `BUILTIN_TOOL_NAMES`), and in alias checks that accept
+either name (`src/chunk-g83p48tw.js:18211`, literal `e !== "Agent" && e !== "Task"`). One of
+those matters when you read exported sessions rather than JSONL: SDK and
+`--output-format stream-json` output renames `Agent` to `Task` on the way out
+(`src/chunk-43jbw5qg.js:64`, applied to the `init` message's `tools` at `:141` and to a
+permission request's `tool_name` at `src/chunk-mgxpmmsq.js:8725`) — pre-existing, not new in
+this build. Inside a `.jsonl` under `~/.claude/projects/` the name is always `Agent`, so
+correlation recipes keyed on `.name=="Task"` return nothing there.
 
 Fallbacks, when `toolUseId` is absent:
 

@@ -1,138 +1,54 @@
-# Tool Token Limits and Truncation Behavior
+# Tool token limits and truncation behaviour
 
-Source: `/repos/claude-code-src/`, the sourcemap-leaked tree pinned to cc **2.1.88**.
-Nothing here has been re-derived against a later version, so treat every figure as
-2.1.88's until someone re-measures it; `/repos/claude-code-decompiled` (2.1.269) is
-where that would come from.
+Read off the decompiled binary at `/repos/claude-code-decompiled`, Claude Code
+**2.1.289**. Citations are `src/chunk-<hash>.js:<line>` there and expire at the next
+re-extraction (`.claude/skills/update-claude-code`). Every figure is a constant in the
+source, not a measurement.
 
-## Token Counting Mechanism
+## How tokens are counted
 
-Claude Code uses a **two-tier hybrid approach** — no local tokenizer (no tiktoken):
+Two tiers, no local tokenizer: the Anthropic API's `countTokens` is the measurement
+(`src/chunk-c06bg8hw.js:42613`), and a character ratio is the estimate that decides
+whether to call it — 4 characters per token, 2 for `json`/`jsonl`/`jsonc`
+(`src/chunk-898k2gs2.js:4192-4206`). The same ratio of 4 converts the token caps below
+into byte caps (`src/chunk-qtae7z5t.js:27`).
 
-1. **Primary: Anthropic API `countTokens` endpoint** — calls `anthropic.beta.messages.countTokens()`
-2. **Fallback: Character-based estimation** — `roughTokenCountEstimationForFileType()`:
-   - Default: **4 characters per token**
-   - JSON/JSONL/JSONC: **2 characters per token** (denser due to structural punctuation)
+## Per-tool caps
 
-Key file: `src/services/tokenEstimation.ts`
+A tool result over its **persist threshold** is written to the session's
+`tool-results` directory and the model gets a preview plus the path; the threshold is
+the tool's `maxResultSizeChars`, raised or lowered per tool by the
+`tengu_velvet_ibis` payload up to the tool's own ceiling
+(`src/chunk-wjjn7eps.js:33-39`).
 
----
+| Tool | Cap | Over it |
+| --- | --- | --- |
+| Read | 256 KiB on the file (`src/chunk-etfth4ht.js:192`), 25,000 output tokens (`src/chunk-kkahyxqn.js:15`) | Throws `MaxFileReadTokenExceededError`; the model must pass `offset`/`limit`. An estimate at or under 25% of the limit skips the API call; over 128 bytes per allowed token it throws without one (`src/chunk-wgfrtm7w.js:38960-38967`) |
+| Bash | 30,000 chars inline, `bashOutputMaxChars` or `BASH_MAX_OUTPUT_LENGTH` moving it (`src/chunk-1y80m7e8.js:26-41`); 2²⁵ chars in the stream accumulator (`src/chunk-f4y6hk8a.js:157`) | Head truncation keeping the beginning, `... [N lines truncated] ...` (`src/chunk-wgfrtm7w.js:37867-37879`), then persistence. The accumulator end-truncates: `... [output truncated - NKB removed]` |
+| Grep | 250 entries by default, `head_limit: 0` for none (`src/chunk-wgfrtm7w.js:39940`); persist at 20,000 chars (`:39979`) | `[Showing results with pagination = limit: N, offset: M]`; a content line over 500 chars becomes `[Omitted long matching line]` (`:40471`) |
+| Glob | 100 files; persist at 100,000 chars (`src/chunk-wgfrtm7w.js:39764`) | `truncated: true` and a note naming the total when it is known (`:39739-39745`) |
+| Edit | 1 GiB editable file size (`src/chunk-wgfrtm7w.js:155630`); persist at 100,000 chars | `File is too large to edit`, before any read |
+| Write, Agent | persist at 100,000 chars (`src/chunk-wgfrtm7w.js:31821`, `src/chunk-qws8heqd.js:18`) | — |
+| WebFetch | 1 MiB of HTML before conversion (`src/chunk-wgfrtm7w.js:56493`), 100,000 chars of markdown after (`src/chunk-1y80m7e8.js:251`); persist at 50,000 chars and outside the aggregate budget (`src/chunk-wgfrtm7w.js:57009-57010`) | `[Content truncated due to length...]` |
+| MCP tool | 2,048 chars per tool description and per server instruction block, `CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH` moving it (`src/chunk-wgfrtm7w.js:62466`, `src/chunk-bfmr5z4y.js:25`) | Truncated |
 
-## Per-Tool Limits
+## Session-wide caps
 
-### Read Tool
+| Constant | Value | What it bounds |
+| --- | --- | --- |
+| `src/chunk-qtae7z5t.js:23` | 50,000 chars | Default persist threshold where a tool names none |
+| `src/chunk-qtae7z5t.js:28` | 400,000 bytes | One tool result, derived from 100,000 tokens at 4 bytes each |
+| `src/chunk-qtae7z5t.js:29` | 200,000 chars | All tool results in one message; the largest blocks persist first until under it (`src/chunk-wjjn7eps.js:411-436`) |
+| `src/chunk-qtae7z5t.js:31` | 1 GiB | A persisted tool result on disk |
+| `src/chunk-eebrsra2.js:57` | 5 GiB | One background task's output file; past it the file carries `[output truncated: exceeded 5GB disk cap]` |
+| `src/chunk-eebrsra2.js:59` | 64 MiB | A persisted output's own byte limit, under which the saved file may end mid-structure |
 
-| Limit | Default | Gate | On Overflow |
-|-------|---------|------|-------------|
-| maxSizeBytes | 256 KB | total file size (stat, pre-read) | throws error |
-| maxTokens | 25,000 | output content tokens (post-read) | throws error |
+## Knobs
 
-**Token validation logic** (`src/tools/FileReadTool/FileReadTool.ts`):
-1. Estimate tokens via character ratio
-2. If estimate <= 25% of limit → pass immediately (no API call)
-3. If estimate > 25% → call `countTokensWithAPI()` for precise count
-4. If over limit → throw `MaxFileReadTokenExceededError`
-
-**Does NOT truncate.** Throws an error; user must use `offset`/`limit` params. Rationale: error is ~100 bytes vs ~25K tokens of truncated content.
-
-Env var: `CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS`
-
-### Bash Tool
-
-| Layer | Limit | Type | Message |
-|-------|-------|------|---------|
-| Stream accumulator | 2^25 chars (~33.5 MB) | end truncation | `... [output truncated - ${KB}KB removed]` |
-| Output formatting | 30,000 chars (default) | head truncation (keeps beginning) | `... [${N} lines truncated] ...` |
-| Tool result persistence | 30,000 chars | persists to disk | model gets preview + file path |
-
-Configurable: `BASH_MAX_OUTPUT_LENGTH` env var (range: 30,000–150,000 chars)
-
-Key files: `src/utils/shell/outputLimits.ts`, `src/tools/BashTool/utils.ts`
-
-### Grep Tool
-
-- **Default head_limit:** 250 results (when unspecified)
-- **Persist threshold:** 20,000 characters
-- **Truncation message:** `[Showing results with pagination = limit: {N}, offset: {M}]`
-- Supports pagination via `offset` parameter
-- Pass `head_limit=0` for unlimited (not recommended)
-
-### Glob Tool
-
-- **Default file limit:** 100 files
-- **Persist threshold:** 100,000 characters
-- **Truncation message:** `(Results are truncated. Consider using a more specific path or pattern.)`
-- Returns `truncated: boolean` in output
-
-### Edit Tool
-
-- **MAX_EDIT_FILE_SIZE:** 1 GiB (V8/Bun string length limit guard)
-- **Persist threshold:** 100,000 characters
-- Throws error pre-validation if file too large
-
-### Write Tool
-
-- **Persist threshold:** 100,000 characters
-- No explicit file size limit for writing
-
-### WebFetch Tool
-
-- **MAX_MARKDOWN_LENGTH:** 100,000 characters
-- **Truncation message:** `[Content truncated due to length...]`
-
-### Agent Tool
-
-- **Persist threshold:** 100,000 characters
-- No explicit per-agent token budget; managed at session level
-
----
-
-## System-Wide Limits
-
-From `src/constants/toolLimits.ts`:
-
-| Constant | Value | Purpose |
-|----------|-------|---------|
-| DEFAULT_MAX_RESULT_SIZE_CHARS | 50,000 | Per-tool default before persistence |
-| MAX_TOOL_RESULT_TOKENS | 100,000 | Absolute cap per tool result |
-| MAX_TOOL_RESULT_BYTES | 400,000 | Derived from token limit (4 bytes/token) |
-| MAX_TOOL_RESULTS_PER_MESSAGE_CHARS | 200,000 | Aggregate across all tool results in one turn |
-
-When a tool result exceeds its `maxResultSizeChars`, it is persisted to disk and the model receives a preview with the file path. When aggregate results in one message exceed 200K chars, largest blocks are persisted first until under budget.
-
----
-
-## Truncation Communication Patterns
-
-| Tool | Strategy | Model sees |
-|------|----------|-----------|
-| Read | Error (no truncation) | Error message with token count and limit |
-| Bash | Head truncation + persistence | Truncated output or preview + disk path |
-| Grep | Pagination | Truncation note + `offset`/`limit` for next page |
-| Glob | Truncation flag | Warning message suggesting narrower pattern |
-| WebFetch | Tail truncation | `[Content truncated due to length...]` |
-| Edit | Error (pre-validation) | Error with file size info |
-
----
-
-## Environment Variables
-
-| Env Var | Tool | Default | Max |
-|---------|------|---------|-----|
-| `CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS` | Read | 25,000 | — |
-| `BASH_MAX_OUTPUT_LENGTH` | Bash | 30,000 | 150,000 |
-| `BASH_MAX_TIMEOUT_MS` | Bash | 10 min | — |
-
----
-
-## Key Source Files
-
-- `src/services/tokenEstimation.ts` — token counting (API + estimation)
-- `src/tools/FileReadTool/limits.ts` — Read tool limit config
-- `src/tools/FileReadTool/FileReadTool.ts` — Read tool enforcement
-- `src/tools/BashTool/utils.ts` — Bash output formatting/truncation
-- `src/utils/shell/outputLimits.ts` — Bash output limit constants
-- `src/utils/stringUtils.ts` — `EndTruncatingAccumulator` class
-- `src/constants/toolLimits.ts` — system-wide tool result limits
-- `src/tools/GrepTool/GrepTool.ts` — Grep pagination logic
-- `src/tools/GlobTool/GlobTool.ts` — Glob truncation logic
+| Knob | Where | Default | Bounds |
+| --- | --- | --- | --- |
+| `bashOutputMaxChars` | `settings.json` | 30,000 | clamped to 4,000–128,000; also replaces `BASH_MAX_OUTPUT_LENGTH` |
+| `BASH_MAX_OUTPUT_LENGTH` | env | 30,000 | capped at 150,000; sizes the read-back window only |
+| `CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS` | env | 25,000 | any positive value |
+| `CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH` | env | 2,048 | any value |
+| `taskOutputMaxChars`, `TASK_MAX_OUTPUT_LENGTH` | `settings.json`, env | — | **Inert.** The `TaskOutput` tool is gone; a background task's output file is read with `Read` (`src/chunk-q75vj0vh.js:5959`) |

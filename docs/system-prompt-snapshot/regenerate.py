@@ -9,18 +9,20 @@ releases can be read -- see that module for why the split falls where it does.
 
 The directory is named for the model id the captured request actually carried,
 minus its `claude-` prefix, not for the alias passed to `--model`. Aliases are
-repointed as models ship -- `opus` meant claude-opus-4-6 in the 2.1.143 capture
-and claude-opus-5 in this one -- so an alias-named directory silently changes
-meaning between captures while its path stays put.
+repointed as models ship -- `opus` meant claude-opus-4-6 in the 2.1.143 capture,
+claude-opus-5 in the 2.1.269 one and claude-opus-5-5 in this one -- so an
+alias-named directory silently changes meaning between captures while its path
+stays put.
 
 Which system prompt a capture receives follows from the model's registry entry.
-2.1.269 serves the compressed `# Harness` prompt to every model whose entry
-declares the `lean_prompt` capability -- claude-opus-5, claude-opus-4-8,
-claude-fable-5, claude-fable-5-1, claude-mythos-5-1 -- and the older
-multi-section one to everything else, including every sonnet, every haiku and
-claude-opus-4-7. The gate is `Ij()` (chunk-tnzzwz8r.js:6593), consumed as `d` in
-`ow()` (chunk-dbb93264.js:69199), which picks `ORo()` over the multi-section
-builders. The same switch shortens every tool description, via `$A()`.
+2.1.289 serves the compressed `# Harness` prompt to every model whose entry
+declares the `lean_prompt` capability -- claude-sonnet-5-5, claude-opus-4-8,
+claude-opus-5, claude-opus-5-5, claude-fable-5, claude-fable-5-1,
+claude-mythos-5-1 (the baked-in catalog, `src/chunk-jepmcrwm.js`) -- and the
+older multi-section one to everything else, including claude-sonnet-5, every
+haiku and claude-opus-4-7. The gate is `Qr()`/`dV()` (chunk-898k2gs2.js:266-277,
+found by `"lean_prompt"`), consumed as `g` in `jMt()` (chunk-wgfrtm7w.js:59085),
+which picks the single `# Harness` builder over the multi-section ones.
 Capturing both prompts therefore requires two model ids, not a flag.
 
 Usage:
@@ -143,15 +145,15 @@ VARIANTS: dict[str, dict] = {
         ],
     },
     # The only place a Chrome or claude.ai connector tool's description and
-    # schema exist. Both sets are MCP, and `mY()` defers every MCP tool
-    # unconditionally -- its `zye()` is `return !1`
-    # (`src/chunk-4zcseazt.js:461`, `:1051-1056`) -- so `logged-in` records 57
+    # schema exist. Both sets are MCP, and the deferral predicate defers every
+    # MCP tool unconditionally -- `if (e.isMcp === !0) return !0;`
+    # (`h()`, `src/chunk-sspbjbr8.js:53`) -- so `logged-in` records 57
     # names and not one definition. Reaching them needs the credentials-file
-    # login as well as the ToolSearch call: `Aet()` refuses Chrome outright
+    # login as well as the ToolSearch call: `WFt()` refuses Chrome outright
     # when the OAuth token carries only `user:inference`, which is what an
     # exported CLAUDE_CODE_OAUTH_TOKEN session gets ("env-var and setup-token
     # sessions default to user:inference only",
-    # `src/chunk-dbb93264.js:221118`). `--chrome` is passed because `Aet()`
+    # `src/chunk-gppff98a.js:16877`). `--chrome` is passed because `WFt()`
     # reads the flag ahead of both CLAUDE_CODE_ENABLE_CFC and the
     # `claudeInChromeDefaultEnabled` setting, and that setting lives in
     # ~/.claude.json, which `--setting-sources project,local` does not filter:

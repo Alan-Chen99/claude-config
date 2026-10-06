@@ -33,9 +33,9 @@ the answer and is now named.
 ## Measured 2026-09-21 against Claude Code 2.1.269
 
 - A foreground command that outruns its `timeout` is auto-backgrounded, **including one
-  whose first statement is `sleep`**. Upstream `yzs` (`chunk-dbb93264.js:215729`, gating
-  the `onTimeout` handler at `:216563`) refuses to background a command whose first
-  statement's first word is in `pzs = ["sleep"]` — but `agent-tools`'s own PreToolUse
+  whose first statement is `sleep`**. Upstream `nRr` (`chunk-wgfrtm7w.js:162691`, gating
+  the `onTimeout` handler at `:163583`) refuses to background a command whose first
+  statement's first word is in `QEr = ["sleep"]` — but `agent-tools`'s own PreToolUse
   hook prepends `unset …; export AGENT_TOOLS_PARENT_DIR=…;` to every Bash command
   (`agent-tools/src/hook_pre.rs:50`), so the first statement is never `sleep` here and
   the guard cannot fire. The foreground `sleep ≥ 25 s` block still fires because it runs
