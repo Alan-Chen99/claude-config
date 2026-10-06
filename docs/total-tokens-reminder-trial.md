@@ -1,222 +1,147 @@
 # The `total_tokens` reminder trial
 
-Pre-registered 2026-09-25, Claude Code **2.1.269**, before any randomized session
-existed. `scripts/claude.sh` draws one arm per interactive session:
+Pre-registered 2026-09-25 on Claude Code **2.1.269**, before any randomized
+session. `scripts/claude.sh` draws one arm per interactive session:
 `CLAUDE_CODE_TOTAL_TOKENS_REMINDER` = `off` or `padded-countdown`, 50/50.
 
-Written in advance so the outcome cannot be chosen by looking at which one
-separated. **No outcome is designated primary here.** The list below is frozen;
-one entry gets promoted to primary before the first look at randomized data, and
-that promotion is the only decision this document defers.
+Written in advance so the outcome cannot be chosen after the fact; **no outcome
+is primary yet** — one entry of the frozen list below is promoted before the
+first look at randomized data.
 
 ## What it tests, and why the fixture cannot
 
-`notes/total-tokens-reminder.md` measured the marker's *proximate* effect on a
-single-turn case: with a binding budget the model read a third as much, capped
-reads at 40 lines instead of 80–100, and got the answer wrong. At the shipped
-value it did none of that — `off` and 15M were indistinguishable.
-
-That null does not transfer to real work, for two reasons recorded in the note's
-limitations:
-
-- **Ceiling.** All four `off`/15M runs reached the cause. Their agreement bounds a
-  difference in reading depth, not a difference in how work turns out.
-- **No compounding.** A real effect would most plausibly take the form of a
-  marginal economy per turn accumulating across turns and compactions — less read
-  now, context missing later, rework after that. One user turn on one file is the
-  one shape that cannot show it.
-
-This trial is the instrument for the consequence, where the fixture is the
-instrument for the response.
+`notes/total-tokens-reminder.md` measured the marker's *proximate* effect on one
+turn: a binding budget cut reading by two thirds and got the answer wrong; at the
+shipped value `off` and 15M were indistinguishable — a null that cannot transfer,
+since every run reached the cause (a ceiling) and one turn cannot show a per-turn
+economy compounding across turns and compactions into missing context and
+rework. The fixture measures the response, this trial the consequence.
 
 ## Design
 
 | | |
 | --- | --- |
 | Unit | one interactive `claude.sh` session |
-| Assignment | `$RANDOM % 2` at launch, independent per session |
-| Arms | `off` (no marker at all) vs `padded-countdown` (the shipped default, ~15,000,000, re-anchored each user turn) |
-| Scope | interactive only — `[ -t 0 ]` excludes `-p` runs, so no prompt-test case draws an arm |
-| Blinding | impossible; the marker is in the model's context. The draw is untraced so the arm is at least not printed to the terminal at session start |
-| Duration | open-ended. Sessions accumulate; there is no completion date |
-
-The treatment arm names `padded-countdown` explicitly rather than leaving the
-variable unset, so a server-side GrowthBook flip cannot redefine it mid-trial.
+| Assignment | `$RANDOM % 2` at launch, per session |
+| Arms | `off` (no marker) vs `padded-countdown` (the shipped default, ~15,000,000, re-anchored each user turn), named explicitly so a GrowthBook flip cannot redefine it |
+| Scope | interactive only — `[ -t 0 ]` excludes `-p` runs and so every prompt-test case |
+| Blinding | impossible — the marker is in context; the draw is untraced, so the arm is at least not printed at launch |
 
 ## Arm recovery
 
-Three independent readings, and they answer different questions. The delivered
-treatment is read off the markers; the configuration that produced it, and whether
-this launcher drew that configuration or inherited it, are read off a provenance
-record the session writes for itself.
+**What was delivered.** Claude Code writes the marker into the transcript as
+`attachment` records, so `grep -c '<total_tokens>' /root/.claude/projects/*/*.jsonl`
+separates the arms: zero is `off`.
 
-**What was delivered.** Claude Code writes the marker into the session
-transcript as `attachment` records, so the count separates the two arms:
-
-```bash
-python3 - <<'EOF'
-import glob, re
-for f in glob.glob("/root/.claude/projects/*/*.jsonl"):
-    n = len(re.findall(r"<total_tokens>", open(f).read()))
-    print(("padded-countdown" if n else "off"), n, f)
-EOF
-```
-
-**One confound.** Absence of markers is the `off` label, but it is also what
-`CLAUDE_CODE_DISABLE_ATTACHMENTS` or `CLAUDE_CODE_SIMPLE` produce — both
-short-circuit the attachment set and the static block alike. Neither is set on
-this machine today. If either is ever set, sessions from that period are
-unlabelable and must be dropped rather than counted as `off`.
+**One confound.** No markers is also what `CLAUDE_CODE_DISABLE_ATTACHMENTS` or
+`CLAUDE_CODE_SIMPLE` produce; neither is set here today, and sessions from a
+period where one is are unlabelable — dropped, not `off`.
 
 **What was configured.** `agent-tools hook-provenance` writes the launch
-configuration into the same JSONL, out of the model's context — the launcher
-chain verbatim, every `CLAUDE_CODE_*` variable in force, and every settings file
-that could have been read:
+configuration into the same JSONL, out of the model's context: the launcher
+chain verbatim, every `CLAUDE_CODE_*` variable in force, every settings file
+readable:
 
 ```bash
 jq -r 'select(.attachment.type=="hook_success") | .attachment.stdout
        | select(startswith("<launch-provenance"))' <session>.jsonl
 ```
 
-That is the reading a marker count cannot give. A count says which arm the
-session ran; it does not say which set of arms the draw was over, and with two
-arms that difference is invisible because the answer can only be one of two
-things. A third arm ends that: `off` still leaves no markers, but two treatment
-arms both leave markers, and separating them means knowing the budget each was
-meant to emit — which lives in the launcher and nowhere else. The launcher's own
-text is in the record, so the arm set is recoverable from the session even when
-the file it came from was uncommitted at the time and has since been rewritten.
+The count says which arm ran, not which arm *set* the draw was over; with a
+third arm only the launcher's text, embedded here, tells the treatments apart.
+`grep -L '<launch-provenance'` also checks the draw still happens — no record
+and no marker is unlabelled, not `off`. Records begin 2026-09-29.
 
-`grep -L '<launch-provenance' ` over the randomized sessions is also the check
-that the draw is still happening at all: a session with no provenance record and
-no marker is not an `off` session, it is an unlabelled one. The record dates from
-2026-09-29, so sessions before that carry only the marker count and the
-`off`/`padded-countdown` inference it supports.
-
-**Whether the launcher drew it.** The snapshot is taken after `exec`, where a value
-this launcher drew and a value the caller exported are the same variable, so the
-configuration reading alone cannot separate a randomized session from a hand-set
-one. `scripts/claude.sh` labels the path it took, in a variable the same block
-records:
+**Whether the launcher drew it.** After `exec` a drawn value and a
+caller-exported one are the same variable, so `scripts/claude.sh` labels the
+path it took, in the same block:
 
 | `CLAUDE_SH_TOKENS_REMINDER_SOURCE` | Means |
 | --- | --- |
 | `draw` | randomized at launch; the session is in the trial |
-| `caller` | the environment already carried a value, so the arm was chosen rather than drawn — excluded |
-| `skipped-not-interactive` | no tty, no draw, variable left unset: a `-p` run, which Claude Code then configures for itself |
+| `caller` | the environment already carried a value — chosen, not drawn; excluded |
+| `skipped-not-interactive` | no tty, no draw, variable unset: a `-p` run, which Claude Code configures for itself |
 
-Absent on sessions launched before 2026-09-30, and that is not a fourth state: the
-launcher's own text is embedded in the same record, so whether the file that ran
-could have set it is readable there.
+Absent before 2026-09-30, when the embedded launcher text answers instead.
 
-## Gating check, before any outcome is read
+## Gating checks, before any outcome is read
 
-**Do the read bounds move at all?** In the fixture, a binding budget moved the
-widest `head`/`tail` cap from 80–100 lines to 40. If the shipped 15M value moves
-nothing in real sessions either, then the treatment is inert and a null on any
-downstream outcome says nothing about the mechanism — it is the ceiling problem
-again, one level up.
+**Do the read bounds move at all?** The fixture's binding budget moved the
+widest `head`/`tail` cap from 80–100 lines to 40. Extract the per-arm
+distribution of `head -N` / `tail -N` / `sed -n 'A,Bp'` / Read `limit` values
+first; arms indistinguishable there mean "treatment not delivered", not a null.
 
-So: extract the distribution of `head -N` / `tail -N` / `sed -n 'A,Bp'` / Read
-`limit` values per arm first. If the arms are indistinguishable on this, report
-the trial as "treatment not delivered" rather than as evidence the reminder does
-not matter.
-
-Second gating check: arm labels should land near 50/50. A large imbalance means
-the draw stopped happening — the most likely cause being a Claude Code release
-renaming the variable, which fails silently (see `.claude/skills/update-claude-code`).
+**Do the labels land near 50/50?** A large imbalance means the draw stopped —
+most likely a Claude Code release renaming the variable, silently
+(`.claude/skills/update-claude-code`).
 
 ## Frozen candidate outcomes
 
-Each entry names how it is extracted and the weakness that could make it
-useless. None is primary yet.
-
 | # | Outcome | Extraction | Known weakness |
 | --- | --- | --- | --- |
-| 1 | **User-correction rate** — share of user turns that redirect rather than advance | classify each user message in the transcript; needs a classifier, and the grader must not know the arm | classification noise; the closest thing to "how it ended up" and the least mechanical |
-| 2 | **Re-reads after a compaction** — a file read again in the same session after a compaction boundary | `tool_use` paths against compaction records, both in the JSONL | the most direct signal of the hypothesized mechanism, and mechanical; may simply be rare |
-| 3 | **Tokens to completion** per session | sum `usage` across assistant records | confounded by task size; interpretable only within a length stratum |
-| 4 | **Compactions per session** | count compaction records | driven by session length more than by behaviour |
-| 5 | **Tool calls per user turn** | count `tool_use` blocks between user messages | proximate, not an outcome; include as context for the others |
-| 6 | **Session ended abandoned or handed off** | last assistant message shape, plus whether a new session resumes the topic | noisy, and the judgment is the analyst's |
-| 7 | **Distinct files touched per session** | `tool_use` paths | a proxy for breadth of context actually gathered; confounded by task |
+| 1 | **User-correction rate** — user turns that redirect rather than advance | classify each user message, grader blind to the arm | classification noise; closest to the question, least mechanical |
+| 2 | **Re-reads after a compaction** | `tool_use` paths against compaction records | the most direct signal of the mechanism; may be rare |
+| 3 | **Tokens to completion** per session | sum `usage` across assistant records | confounded by task size; read within a stratum |
+| 4 | **Compactions per session** | count compaction records | driven by session length |
+| 5 | **Tool calls per user turn** | `tool_use` blocks between user messages | proximate; context for the others |
+| 6 | **Session ended abandoned or handed off** | last assistant message; whether a later session resumes | noisy; the analyst's judgment |
+| 7 | **Distinct files touched per session** | `tool_use` paths | breadth of context; confounded by task |
 
-Outcome 2 is the one that tests the mechanism rather than a correlate of it, and
-it needs no judgment. Outcome 1 is the one that answers the question as asked and
-needs the most. That tension is the reason this list is not resolved here.
+Outcome 2 tests the mechanism without judgment; outcome 1 answers the question
+asked and needs the most.
 
 ## Analysis rules, fixed now
 
-- **Stratify by session size** before comparing anything: under 50k, 50–200k, and
-  over 200k of cumulative context. The hypothesis concerns long sessions; short
-  ones are noise and will dominate the counts.
-- **Promote one outcome to primary before the first look.** Everything else
-  examined is exploratory and gets reported as such, including the ones that
-  showed nothing.
-- **Report every outcome examined.** Seven candidates examined post hoc and one
-  reported is a false-positive rate near 40%, not 5%.
-- **Compute power before the first look, not after.** 1,571 un-randomized
-  transcripts already sit under `/root/.claude/projects` (oldest 2026-04-22;
-  `cleanupPeriodDays` is 36500, so nothing expires). They cannot serve as a
-  control arm, but they can validate each extractor and give the variance, which
-  is what says how many sessions any given outcome needs.
-- A result that survives none of this is reported as inconclusive. "Underpowered"
-  is the expected outcome and is worth recording as such.
+- **Stratify by session size** first (under 50k, 50–200k, over 200k cumulative
+  context): the hypothesis concerns long sessions; short ones dominate the counts.
+- **Promote one outcome to primary before the first look**; the rest is
+  exploratory and reported as such, nulls included — seven examined post hoc,
+  one reported, is a false-positive rate near 40%, not 5%.
+- **Compute power before the first look.** 1,571 un-randomized transcripts under
+  `/root/.claude/projects` (oldest 2026-04-22; `cleanupPeriodDays` 36500) are no
+  control arm but validate each extractor and give the variance.
+- A result that survives none of this is inconclusive; "underpowered" is the
+  expected outcome, worth recording.
 
 ## What invalidates a session, or the trial
 
-- Either attachment kill switch set (see Arm recovery) — those sessions are
-  unlabelable.
-- `CLAUDE_SH_TOKENS_REMINDER_SOURCE=caller` (see Arm recovery) — the arm was
-  chosen rather than drawn, so the session carries a treatment with no assignment
-  behind it.
+- Either attachment kill switch set (Arm recovery): unlabelable.
+- `CLAUDE_SH_TOKENS_REMINDER_SOURCE=caller`: a treatment with no assignment.
 - A Claude Code release renaming `CLAUDE_CODE_TOTAL_TOKENS_REMINDER` or changing
-  which config layer wins. Silent; caught only by the 50/50 gating check.
-- `autoCompactWindow` changing again. It does not touch the reminder — the
-  reminder reads `vf()` or the configured budget, never `Nw().window` — but it
-  does change compaction frequency, which outcomes 2, 3 and 4 depend on, so every
-  change opens another stratum. One change is already on record: "The compaction
-  clamp" below. 2.1.288's classifier-overflow compaction counts the same
-  (`src/chunk-wgfrtm7w.js:76561`), and `--dangerously-skip-permissions` is what
-  keeps it out of a `claude.sh` session.
-- Any session where the user knew the arm and said so. The draw is untraced, but
-  the marker is visible in context and a session can discover its own arm.
-  Excluded so far: `4a3c0e33-070b-4408-9bd1-e572bf4888a4` (2026-09-30, `off`, read
-  its own provenance record while answering a question about the launcher).
-  Grepping transcripts for the variable name does not find the others: every
-  provenance record embeds the launcher's text, so every transcript contains the
-  name — search `assistant` and `user` records only.
+  which config layer wins. Silent; caught only by the 50/50 check.
+- `autoCompactWindow` changing again: it never reaches the reminder (`vf()` or
+  the configured budget, not `Nw().window`) but moves compaction frequency, which
+  outcomes 2–4 count, so each change opens a stratum — one is on record below.
+  2.1.288's classifier-overflow compaction counts the same
+  (`src/chunk-wgfrtm7w.js:76561`); `--dangerously-skip-permissions` keeps it out.
+- Any session where the user knew the arm and said so. Excluded so far:
+  `4a3c0e33-070b-4408-9bd1-e572bf4888a4` (2026-09-30, `off`, read its own
+  provenance record). Every record embeds the launcher's text, so grep
+  `assistant` and `user` records only.
 
 ## The compaction clamp
 
 `settings.json` sets `autoCompactWindow: 400000`, committed 2026-09-25 — after
-the draw went live, so it splits the sessions rather than preceding them, and it
-reaches a session through `~/.claude/settings.json`, which resolves into the
-canonical checkout.
+the draw went live, so it splits the sessions — and reaches a session through
+the `~/.claude/settings.json` symlink into the canonical checkout.
 
 Auto-compaction then fires at **367,000** context tokens against 967,000 before
-it; re-derived on 2.1.289 and unmoved. `TCe(model, n)` is `dK(OK(model, n), …)`
-(`src/chunk-wgfrtm7w.js:43998`); `OK` subtracts `Math.min(maxOutputTokens, tTt)`
-— `min(64000, 20000)` for Opus 5, whose window is 1e6 (`:43931`,
-`src/chunk-jepmcrwm.js:585-593`) — and `dK` subtracts a flat 13,000 (`:43763`).
-The 0.2 buffer fraction belongs to the precompute path, not this one. The gate
-compares against that threshold directly, off `n.options.autoCompactWindow`
-(`:77742`, `:77790`), so it is live and not a display figure. The clamp only
-lowers — `Nw()` returns `Math.min(modelWindow, n)` (`:43849`) — and it reads
-2.1.288's server-supplied window only after the settings key (`:43869` before
-`:43875`), so that value does not displace this one.
+— the window less `min(maxOutputTokens, 20000)` less a flat 13,000 (`TCe` →
+`OK` → `dK`, `src/chunk-wgfrtm7w.js:43998`, `:43931`, `:43763`; Opus 5's window
+1e6 at `src/chunk-jepmcrwm.js:585-593`), compared live off
+`n.options.autoCompactWindow` (`:77742`, `:77790`). Re-derived on 2.1.289 and
+unmoved. The clamp only lowers — `Nw()` returns `Math.min(modelWindow, n)`
+(`:43849`) — and 2.1.288's server-supplied window is read only after the
+settings key (`:43869` before `:43875`), so it does not displace this one.
 
 **A covariate, not a second treatment.** Outcomes 2–4 are counted per
-compaction, so the clamp moves their denominator: before it is one stratum,
-after it another, arms randomized inside each. The treatment cannot move.
+compaction, so the clamp moves their denominator: one stratum before, another
+after, arms randomized inside each. The treatment cannot move:
 `padded-countdown` emits `Uie() − cumulativeUsed`, which carries rolled-over
-tokens across every compaction (`:138238`, `:58461`; the rollover call is
-`src/chunk-hmg8c715.js:84`), so its numbers run the same at either window.
-`countdown` would move — its subtrahend is the current message list — but no
-arm draws it.
-
-**The split buys yield, and dates itself.** 967,000 ÷ 367,000: a long session
-compacts about 2.6 times as often, so each randomized session supplies more of
-the events outcomes 2–4 count — and its first compaction sits near 367k after
-the clamp, near 967k before it, which recovers the boundary without the commit
-date.
+tokens across every compaction (`:138238`, `:58461`; rollover
+`src/chunk-hmg8c715.js:84`), so it reads the same at either window; `countdown`,
+whose subtrahend is the current message list, would move — no arm draws it.
+The split buys yield and dates itself: at 367,000 a long session compacts about
+2.6× as often, so each session supplies more of the events outcomes 2–4 count,
+and a first compaction near 367k rather than 967k recovers the boundary without
+the commit date.
