@@ -6,11 +6,14 @@
 # `--update` replaces each tracked copy with the extract's text instead — the
 # only sanctioned way to change them.
 #
-# Matching the asset is not matching the built-in: the loader adds text at load
-# time (a dataviz callout behind a server flag; under CLAUDE_CODE_ARTIFACT_TOOLSET
-# a page-contract prefix and one phrase swap — `nJn`, src/chunk-qza9q751.js).
-# This checks the body the asset holds, nothing else; the loader read that
-# covers the rest is unconditional at every upgrade (SKILL.md, section 4).
+# Matching the asset is not matching the built-in, and only for artifact-design:
+# its loader splices a dataviz callout into the asset's `<!-- dataviz-callout -->`
+# line behind a server flag, then under CLAUDE_CODE_ARTIFACT_TOOLSET prefixes a
+# page contract and swaps one phrase (`Est`, src/chunk-h86mqzg4.js:59, calling
+# `RTo`, src/chunk-sye9h7es.js:259). artifact-diagramming is loaded verbatim, so
+# its copy does say what the built-in says. This checks the body the asset holds,
+# nothing else; the loader read that covers the rest is unconditional at every
+# upgrade (SKILL.md, section 4).
 set -uo pipefail
 A=${ASSETS:-/repos/claude-code-decompiled/assets}
 [ -d "$A" ] || { echo "decompiled assets not found: $A" >&2; exit 2; }

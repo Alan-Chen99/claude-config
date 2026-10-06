@@ -34,7 +34,7 @@ def _module() -> ModuleType:
 
 
 def test_settings_json_is_byte_identical_to_what_claude_code_would_write() -> None:
-    """`JSON.stringify(U, null, 2) + "\\n"` (`chunk-2x9ed96k.js:3096`).
+    """`JSON.stringify(k, null, 2) + "\\n"` (`src/chunk-3z4drmxy.js:3721`).
 
     Independent of the key order and of any decompile: two-space indent,
     non-ASCII left unescaped, exactly one trailing newline. Drift in any of
@@ -57,9 +57,10 @@ def test_settings_json_key_order_matches_the_live_settings_schema() -> None:
 
     unplaceable = [key for key in keys if key not in rank]
     assert not unplaceable, (
-        f"not in the 2.1.269 settings schema: {unplaceable}. Either the key is "
-        "gone from this build, or it comes from the runtime `...Ks(e)` spread — "
-        "read the position cc wrote out of the file rather than deriving it."
+        f"not in the settings schema literal of the tree under {DECOMPILED}: "
+        f"{unplaceable}. Either the key is gone from this build, or it comes "
+        "from the runtime feature-gate spread — read the position cc wrote out "
+        "of the file rather than deriving it."
     )
     assert keys == sorted(keys, key=lambda key: rank[key])
 
@@ -83,7 +84,14 @@ def test_the_derived_order_is_the_whole_schema() -> None:
 def test_a_collapsed_extraction_exits_two_rather_than_returning_a_short_list(
     tmp_path: Path,
 ) -> None:
-    """No tree, no anchor, and an unterminated schema are all exit 2."""
+    """No tree, no anchor, a stray anchor and an unterminated schema: exit 2.
+
+    The close brace is `  };`, which a nested literal could also reach, so the
+    scan is bounded by shape: the anchor has to be the first entry of a
+    builder's `return {` and the brace has to be followed by that function's
+    own `}`. Both halves are checked here because an anchor that drifts out of
+    that shape otherwise yields a plausible short list.
+    """
     module = _module()
 
     with pytest.raises(SystemExit) as absent:
@@ -95,7 +103,15 @@ def test_a_collapsed_extraction_exits_two_rather_than_returning_a_short_list(
         module.derive_order(tmp_path)
     assert anchorless.value.code == 2
 
-    (tmp_path / "chunk-bbbb.js").write_text(module.ANCHOR + "\n    theme: o(),\n")
+    unopened = module.ANCHOR + "\n    theme: () => o(),\n" + module.CLOSE + "\n}\n"
+    (tmp_path / "chunk-bbbb.js").write_text(unopened)
+    with pytest.raises(SystemExit) as no_open:
+        module.derive_order(tmp_path)
+    assert no_open.value.code == 2
+
+    (tmp_path / "chunk-bbbb.js").write_text(
+        module.OPEN + "\n" + module.ANCHOR + "\n    theme: () => o(),\n"
+    )
     with pytest.raises(SystemExit) as unclosed:
         module.derive_order(tmp_path)
     assert unclosed.value.code == 2
