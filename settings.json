@@ -1,5 +1,7 @@
 {
   "cleanupPeriodDays": 36500,
+  "syncClaudeAiSkills": false,
+  "syncClaudeAiPlugins": false,
   "env": {
     "CLAUDE_CODE_FORK_SUBAGENT": "0",
     "TELEGRAM_HITL_STATE_DIR": "/home/alan/personal/telegram-hitl",
@@ -76,7 +78,7 @@
     ],
     "Notification": [
       {
-        "matcher": "permission_prompt",
+        "matcher": "permission_prompt|worker_permission_prompt",
         "hooks": [
           {
             "type": "command",
