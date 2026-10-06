@@ -1,20 +1,20 @@
 # sys_prompt/
 
-Full replacement system prompts loaded via `--system-prompt-file` by `scripts/claude.sh`.
-Background and forked sessions do not inherit them — read `docs/background-sessions.md` before editing.
+Full replacement system prompts, loaded via `--system-prompt-file` by `scripts/claude.sh`.
+Background and forked sessions do not inherit them — read `docs/background-sessions.md` first.
 
 ## Files
 
 | File                   | What                                                  | When to read |
 | ---------------------- | ----------------------------------------------------- | ------------ |
-| `alan-default.md`      | Known-good production prompt; forked from Claude Code's non-lean prompt body | -            |
-| `alan-default-next.md` | Active development prompt, the one `claude.sh` loads; forked from the lean body Opus 5 receives | -            |
+| `alan-default.md`      | Known-good production prompt; forked from the legacy prompt body | -            |
+| `alan-default-next.md` | Active development prompt, the one `claude.sh` loads; forked from the lean body | -            |
 
 ## Keep it concise
 
-Every token here is spent on every request of every session and displaces the user's work from the
-context window. A line the model would honour unprompted, or that restates a neighbour, costs context
-and buys nothing.
+Every token here is spent on every request of every session, displacing the user's work from the
+context window: a line the model would honour unprompted, or that restates a neighbour, buys
+nothing.
 
 After any edit:
 
@@ -24,15 +24,12 @@ After any edit:
 
 Three words can be enough — ``Prefer `model: haiku`.`` is a complete rule. Anything that dates the
 line goes in this file rather than the prompt: version numbers, issue links, dates, measurements,
-and the reasoning that justified the line in the first place.
+and the reasoning that justified the line. Detail that fails step 3 is not discarded — it moves
+here, to `docs/`, or to `notes/`. The prompt states the rule; the file carries the reasoning, and
+that split is what lets step 1 cut hard without losing anything.
 
-Detail that fails step 3 is not discarded — it moves here, to `docs/`, or to `notes/`. The prompt
-states the rule; the file carries the reasoning. That split is what lets step 1 cut hard without
-losing anything.
-
-Measure before and after. `doc-budget.toml` caps the prompt at 4,400 local-tokenizer
-tokens (`uv run doc-budget sys_prompt/alan-default-next.md`, the figure CI gates);
-`--api` below is Claude context consumed, about 1.5x that and a different unit
+Measure before and after. `uv run doc-budget sys_prompt/alan-default-next.md` is the figure CI
+gates; `--api` below is Claude context consumed, about 1.5x that and a different unit
 (`agent-tools/CLAUDE.md`, the `count-tokens` bullet):
 
 ```bash
@@ -42,58 +39,53 @@ agent-tools count-tokens --api --file sys_prompt/alan-default-next.md
 ## What travels with an edit
 
 When editing the prompt in response to a failing case, the goal is to repair the invariant the
-case probes, not to make the case pass. A test case is one sample of the invariant's input
-space; treating it as the spec narrows the prompt to that sample. `skills/prompt-engineer-v2/`
-carries the general hints, "No overfitting to the case at hand" and "Overfitting review by a
-fresh subagent" in `SKILL.md`, "Implicit-guidance justification" and "Recognition before
-enforcement" in `experiments.md`, and "Every change is a regression risk" for the behavioural
-half. Two further things travel with an edit that no case exercises and that review tends to
-read as wording: the force it is written at, and whatever it permits.
+case probes, not to make the case pass: a case is one sample of the invariant's input space, and
+treating it as the spec narrows the prompt to that sample. `skills/prompt-engineer-v2/` carries
+the general hints — "No overfitting to the case at hand", "Overfitting review by a fresh
+subagent", "Implicit-guidance justification", "Recognition before enforcement", "Every change is
+a regression risk". Two further things travel with an edit that no case exercises and that review
+tends to read as wording.
 
-**Force.** How widely an imperative binds is itself a claim — that the failure is frequent
-enough, and costly enough, to be worth the compliance cost everywhere the imperative now
-reaches. Two observed incidents support a caution: this happens, watch for it. Reading them as
-support for a requirement needs something two incidents do not contain, a rate and a cost. For
-an evidential claim the quantity that outruns the evidence is its confidence; for an
-instruction it is its scope.
+**Force.** How widely an imperative binds is itself a claim: that the failure is frequent and
+costly enough to be worth the compliance cost everywhere the imperative now reaches. Two
+incidents support a caution — this happens, watch for it — and a requirement needs what two
+incidents do not contain, a rate and a cost. What outruns the evidence is an instruction's
+scope, where for an evidential claim it is confidence.
 
-**Exceptions.** Before writing one, answer how much of the forbidden space it readmits —
-breadth is a property of the exception's extension, not of how narrow its wording sounds. The
-costs are asymmetric: over-applying a prohibition yields a duller artifact, while
-over-applying a permission skips the work and ships a wrong answer. The exception is the half
-that repays the closer reading.
+**Exceptions.** Answer how much of the forbidden space one readmits before writing it: breadth
+is a property of its extension, not of how narrow its wording sounds. The costs are asymmetric —
+over-applying a prohibition yields a duller artifact, over-applying a permission skips the work
+and ships a wrong answer — so the exception is the half that repays the closer reading.
 
-**Why step 2 above is a deletion and not a merge.** An addition restating a rule the file
-already carries is not a second caution; it is a second, differently worded statement of the
-same rule, and nothing then says which governs.
+**Why step 2 above is a deletion and not a merge.** An addition restating a rule the file already
+carries is not a second caution but a second, differently worded statement of the same rule, and
+nothing then says which governs.
 
 ## Rebasing on an upstream release
 
 These files replace Claude Code's own system prompt rather than adding to it.
 `--system-prompt-file` keeps one block — `You are Claude Code, Anthropic's official CLI for
 Claude.` — and drops every other section, which
-`docs/system-prompt-snapshot/opus-5/system-prompt-file/prompt.md` shows in full. The passages
-here that read like upstream's are copies taken once, and upstream rewrites its prose between
-releases, so a copy goes stale with no signal at all.
+`docs/system-prompt-snapshot/opus-5/system-prompt-file/prompt.md` shows in full. The passages here
+that read like upstream's are copies taken once, and upstream rewrites its prose between releases,
+so a copy goes stale with no signal.
 
 The replacement covers one channel of two. Anthropic-authored wording still reaches a
-`claude.sh` session through `messages[]`, which the flag does not touch, and the same capture
-shows it: the CLAUDE.md wrapper with its "these instructions OVERRIDE any default behavior"
-line (`messages[0] content[0]`), the `userEmail` rule (`content[1]`), the git/PR Attribution
-reminder (`content[2]`), and one `messages[1] system` block carrying `# Environment`, the
-model-identity line, the deferred-tool listing, the agent-type roster and every skill
-description — several of which are behavioural rules, not facts. A rebase that reads only the
-system prompt reads half of what the model is told. Nothing here pins that half:
-`scripts/check-prompt-upstream.py` covers passages borrowed from the system prompt, and a
-reminder upstream rewords lands unreviewed.
+`claude.sh` session through `messages[]`, which the flag does not touch: the CLAUDE.md wrapper and
+its "these instructions OVERRIDE any default behavior" line, the `userEmail` rule, the attribution
+reminder, and a `role: "system"` block carrying `# Environment`, the model-identity line, the
+deferred-tool listing, the agent-type roster and every skill description — several of them
+behavioural rules, not facts, and all enumerated in
+`notes/cc-2.1.269-messages-and-reminders.md`. A rebase that reads only the system prompt reads
+half of what the model is told, and nothing pins that half, so a reminder upstream rewords lands
+unreviewed.
 
-A `/compact` turn runs under this prompt, not the stock one. 2.1.247's notes fix that for
-`--agent` sessions and say nothing about `--system-prompt-file`, so it was an open question
-until measured: the compaction request captured through the proxy on 2026-09-13 carries a
-`system[2]` of 24,613 characters, byte-identical to `alan-default-next.md` after stripping, the
-same as every ordinary turn in that session. Every rule here therefore applies to the summary
-turn as well — which matters, because a summary written under the stock prompt would silently
-drop all of them and the summary is what the next context window is built from.
+A `/compact` turn runs under this prompt, not the stock one — measured through the proxy, where
+the compaction request's prompt block is `alan-default-next.md` byte for byte. 2.1.247's notes fix
+that for `--agent` sessions and say nothing about `--system-prompt-file`, which is why it had to
+be measured. Every rule here therefore applies to the summary turn, which matters because a
+summary written under the stock prompt would drop all of them and the summary is what the next
+context window is built from.
 
 A release therefore needs a rebase rather than a diff: for each thing upstream changed, adopt it,
 adapt it, or keep diverging on purpose — and write down which, because the next reader cannot tell
@@ -102,30 +94,30 @@ a considered divergence from an unnoticed one.
 ### Reading both sides
 
 `/repos/claude-code-decompiled` is a git repository and each re-extraction is one commit, so the
-previous release's prompt text survives only in that history — `npm run extract` empties `src/`
-first.
+previous release's prompt text survives only in that history: `npm run extract` empties `src/`.
 
 ```bash
 git -C /repos/claude-code-decompiled log --oneline -- src/       # "re-extract from Claude Code <version>"
 git -C /repos/claude-code-decompiled grep -n '# Harness' <old-sha> -- src/
 ```
 
-Claude Code ships two prompt bodies and picks per model; Opus 5 gets the lean one, whose entire
-body is the single builder containing `# Harness`. The function that calls that builder holds the
-ordered list of every other section, each tagged with a key — `"context_management"`,
-`"act_dont_rederive"`, `"session_guidance"`. Identifiers are regenerated every build and the keys
-are not, so diff the key list first and the section bodies second.
+Claude Code ships two prompt bodies and picks per model id: the lean one, whose entire body is the
+single builder containing `# Harness`, goes to every id whose catalog row declares the
+`lean_prompt` capability. The function calling that builder holds the ordered list of every other
+section, each tagged with a key — `"context_management"`, `"act_dont_rederive"`,
+`"session_guidance"`. Identifiers are regenerated every build and the keys are not, so diff the
+keys first and the bodies second, comparing each decoded string rather than its source line: a
+renamed identifier or a re-quoted literal is not a change.
 
-Read that list rather than grepping it. Keys reach the assembler three ways: as a bare string
-literal, as a variable (`Jb(dRo, …)` with `dRo = "fable_identity"`), and inside a ternary
+Read that list rather than grepping it. Keys reach it three ways: as a bare string
+literal, as a variable (`Wf(Hmo, …)` with `Hmo = "fable_identity"`), and inside a ternary
 (`excludeDynamicSections ? "env_info_static" : "env_info_simple"`). A scan for quoted strings
 reports the last two kinds as removed when they are not.
 
 `docs/system-prompt-snapshot/` answers a different question: what one environment received on one
-day. Most sections sit behind a growthbook flag or an env var resolved server-side per request, so
-**a section can be in the binary and missing from the capture**. `act_dont_rederive` is in both the
-2.1.235 and 2.1.269 binaries but only the 2.1.235 capture — the flag flipped, the release did not
-drop it. Captures show where to look; the source decides.
+day. Most sections sit behind a growthbook flag or a server-resolved key, so **a section can be in
+the binary and missing from the capture** — `act_dont_rederive` is in both the 2.1.235 and 2.1.269
+binaries and only the 2.1.235 capture. Captures show where to look; the source decides.
 
 ### Checking what was borrowed
 
@@ -133,11 +125,10 @@ drop it. Captures show where to look; the source decides.
 python3 scripts/check-prompt-upstream.py
 ```
 
-It pins every passage `alan-default-next.md` and the env-context hook (`src/claude_config/env_context/`)
-took from upstream, and requires each verbatim on both sides, as many times as recorded — the two
-prompt bodies are separate literals, so a passage in both can move in one. A failing pin is a
-decision, not an edit to the script: adopt upstream's wording, or record a divergence below. It is
-silent about upstream text this prompt never carried; new sections come from the key diff above.
+Its docstring carries the semantics; the rule is that a failing pin is a decision, not an edit to
+the script — adopt upstream's wording, or record a divergence below. One blind spot the docstring
+does not state: a pin cut short of a `${…}` interpolation cannot see what the interpolation held,
+so a clause upstream drops from inside a pinned passage is the key diff's to catch.
 
 ### When `agents/` joins this
 
@@ -145,49 +136,57 @@ An agent definition file is a whole system prompt for its subagent, and Claude C
 into a map keyed by name where user and project definitions overwrite built-ins. A file in `agents/`
 named after a built-in — `Explore`, `general-purpose`, `Plan`, `claude-code-guide`,
 `statusline-setup` — therefore replaces Anthropic's prompt for that agent, and that copy needs
-rebasing exactly like this one. The six files in `agents/` today are all new names, so none is
-upstream-coupled and `check-prompt-upstream.py` pins nothing from them. Adding a shadow is what
-changes that.
+rebasing exactly like this one. Every file in `agents/` today is a new name, so none is
+upstream-coupled; adding a shadow is what changes that.
 
 ### Deliberate divergences
 
-Upstream still ships each of these and this prompt does not. Left alone unless the stated condition
-changes.
+Upstream still ships each of these and this prompt does not. Left alone unless the stated
+condition changes.
 
 | Upstream text | Why it is not here |
 | --- | --- |
-| `Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it` — live for Opus 5 since 2.1.269 | This repo delegates by design: `# Session-specific guidance` says when to spawn one, and keeps the report in the launching call's own result. Upstream's own exception would cover it regardless, since the asking here is done by CLAUDE.md and by skills. |
-| `The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results.` | Upstream serves this `# Harness` bullet in two variants and picks per model. In the 2.1.269 captures Opus 5 and Fable 5 get the wording above; Opus 4.8 gets the wording this prompt carries. Both ship in one build, so this is a live alternative rather than stale text — but the model `claude.sh` runs is served the other one, and nothing records why this side was taken. |
-| `Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.` — closes the action-caution paragraph | `# Error Propagation` and `# Epistemic Integrity` say it at length. |
-| `If what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding` — follows `look at the target` | **Not reviewed.** It predates the 2.1.235 baseline and no entry explains it. Nothing else in the prompt says what to do when the look turns up a surprise; `# Executing actions with care` covers only the pattern-matched case. Decide it at the next edit to that section. |
+| `Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it` — live since 2.1.269 | This repo delegates by design: `# Session-specific guidance` says when to spawn one, and keeps the report in the launching call's own result. Upstream's own exception would cover it regardless, since the asking here is done by CLAUDE.md and by skills — and on 2.1.289 the model `claude.sh` runs is not served it at all: the `opus5_reduced_delegation` gate needs `opus_5_prompt_bundle`, declared only by `claude-opus-5`. |
+| `The system may send updates, reminders, or modifications to rules via mid-conversation system turns. These are system-controlled, unlike function results.` | Upstream serves this `# Harness` bullet in two variants and picks per model: the wording above for anything whose catalog row declares `mid_conv_system`, excluding `claude-sonnet-5` and `claude-opus-4-8`, which get the wording this prompt carries. Both ship in one build, so this is a live alternative rather than stale text — but the model `claude.sh` runs is served the other one, and nothing records why this side was taken. |
+| `Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.` — closes the action-caution paragraph | `# Error Propagation` and `# Epistemic Integrity` both say it. |
 
 ### Rebase log
 
-One entry per release reviewed. The next rebase starts from the last entry, so entries stay.
+One entry per release reviewed; the next rebase starts from the last, so entries stay.
 
-#### 2.1.235 → 2.1.269, reviewed 2026-09-12 — no prompt text changed
+#### 2.1.269 → 2.1.289, reviewed 2026-10-05 — one borrowed clause dropped upstream
 
-Both prompt files reviewed, against a 2.1.235 tree extracted beside the installed one
-(`git -C /repos/claude-code-decompiled archive 56801e78 src`). Section keys were diffed, then every
-section present in both builds had its text compared, not only the sections these files borrow —
-a key list shows what a release added and removed, never what it rewrote in place.
+Against a 2.1.269 tree (`archive 8606fb66 src`). Same 23 keys in the same order; four bodies moved,
+the rest byte-identical; all thirteen pins resolve.
 
-All thirteen pins in `scripts/check-prompt-upstream.py` resolve against both trees. Of the sections
-this prompt does not borrow, `bg-session`, `focus_mode`, `brief` and `subagent_steer_delegation`
-differ only in renamed identifiers and in the quote style the decompiler emits, so compare the
-decoded string rather than the source line.
+**Which body, which model.** The `lean_prompt` capability on the catalog row decides (`Qr`/`dV`,
+found by `"lean_prompt"`), and the legacy list it falls through to —
+`sonnet`, `haiku`, `claude-3-`, opus 4.0–4.7 — is unchanged. Opus 5, Opus 5.5, Sonnet 5.5 and
+Fable 5.1 all declare it: the catalog gained `claude-opus-5-5` and `claude-sonnet-5-5` this window,
+and Sonnet changed branch with it. `fable_identity` stays `null`
+for every Opus and Sonnet id. `"model": "opus"` is now `claude-opus-5-5` (`ln()`, found by
+`e.opus55`), so **this prompt is loaded for Opus 5.5**, not Opus 5.
 
 | Upstream change | Done |
 | --- | --- |
-| `language`, `output_style` and `scratchpad` dropped as system-prompt sections | Nothing; none was carried here. `output_style` was handled in 60edda3. The scratchpad is now a bullet inside the environment attachment, which is what leaves `agent-tools env-context` duplicating it. |
-| the environment block left the system prompt for a `messages[]` attachment, leaving three bullets behind | Nothing; never carried here. |
-| `fable_identity` gained a Fable 5.1 variant | Nothing; this prompt is loaded for Opus 5. |
-| new `opus5_reduced_delegation` section, replacing two 2.1.235 lines that rode the `heron_brook` fallback and loosening them to admit CLAUDE.md and skills | Deliberate divergence, above. |
-| new `willow_tern` section, `# Writing for the user`: a ten-rule contract for the final message | **Not adopted.** It is off by default for Opus 5, so it is a preview rather than shipped guidance, and it contradicts `## Response template`, which requires headers on every response where the new text bans them under about 500 words. Revisit if it ships on by default. |
-| new `brook_heron` section, whose text arrives from client data or growthbook keyed by model | Nothing to rebase — served, not shipped. Recorded so that unfamiliar text in a future capture is recognised instead of hunted for in the binary. |
-| everything `alan-default-next.md` borrows: the five `# Harness` bullets, the action-caution paragraph, `# Context management`, three `# Session-specific guidance` bullets | Byte-identical across the two builds. Now pinned by `scripts/check-prompt-upstream.py` instead of re-read by hand. |
-| the environment block, which the env-context hook re-emits: its facts left the system prompt for the attachment, it gained a scratchpad bullet, and the model and knowledge-cutoff lines left it | Nothing, and that is a deferred decision rather than a finished one — a `--system-prompt-file` session now receives Claude Code's own copy as well, so most of what the hook renders is a second copy. `env_context/__main__.py` holds the finding. Its two borrowed sentences are unchanged and now pinned. |
-| the legacy prompt body, which `alan-default.md` is the copy of | Nothing. The four removals above hit that branch too, and its six prose sections are unchanged between the 2.1.235 and 2.1.269 sonnet captures. Unpinned: nothing loads this file unless a prompt-test runner is given it explicitly. |
+| `action_caution` lost `. If what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding`; clause and gate are both gone from the tree | **Adopted by deletion** — the divergence row that held it as unreviewed is dropped. The `care/confirm-first` pin passed throughout: it stops at `look at the target`, where the clause was interpolated. |
+| new `# Harness` bullet on `<pasted-text>` tags | **Not adopted**: growthbook `tengu_virtual_pancake`, coded default false, so a preview. Revisit if it ships on. |
+| `willow_tern`'s `# Writing for the user` | **Still not adopted**, and the gate now resolves (`gqo`, found by `tengu_willow_tern`): on for a `fable_5_1_prompt_bundle` model, off without `opus_5_prompt_bundle`, growthbook `tengu_willow_tern` (default false) otherwise — so Opus 5.5 cannot receive it at all. |
+| a cloud-session bullet in `# Session-specific guidance`; a shortened fast-mode bullet in `# Environment`; 2.1.286's `Always run …/verify… right before the commit command`; 2.1.284's fix for a session told to use an absent `SendMessage` | Nothing, each for its own reason: gated on a cloud session; never carried; a sentence inside the Bash `# Git` block, behind the same gate (see "`# Git`"); that tool's own description, arriving and leaving with the tool. |
+| `--system-prompt` and `--system-prompt-file` now combine, file text first (`Sr`, the joiner beside the `--system-prompt-file` read), where 2.1.269 rejected the pair | Nothing: `claude.sh` passes the file alone, so the flag still replaces every section but the identity block. 2.1.275 made `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__` meaningful *inside* a `--system-prompt` — the text above it caches globally — unused here. |
+| the environment block the env-context hook complements: `workingDirectory`, `shell` and `osVersion` became optional in the snapshot schema, and a `githubCli` bullet was added | Nothing; it closes the 2.1.269 entry's deferred decision: `render.py` was trimmed to cc's complement on 2026-09-13, and cc has since added no line the hook renders and dropped none it leans on (the only producer of a snapshot missing those fields sits behind `launchOptions.toolsMachine()`, which nothing calls). `env_context/render.py` holds the derivation. |
+| `heron_brook`, `brook_heron`, `delivering_work_max`, `overcorrection`; the legacy body `alan-default.md` copies | Nothing. The first four take their text from client data or GrowthBook keyed by model — served, not shipped. The legacy body survives as six named blocks, byte-identical, still unpinned. |
+
+#### 2.1.235 → 2.1.269, reviewed 2026-09-12 — no prompt text changed
+
+Both prompt files reviewed against a 2.1.235 tree (`archive 56801e78 src`); keys diffed, then
+every section present in both builds compared, and all thirteen pins resolved against both. The
+release dropped `language`, `output_style` and `scratchpad` as sections and moved the environment
+block into a `messages[]` attachment; it added `opus5_reduced_delegation` (the divergence row
+above), `willow_tern` and `brook_heron`. Nothing was adopted, because nothing this prompt borrows
+moved. Two findings outlive the entry: `output_style` was handled in 60edda3, and the scratchpad
+became a bullet inside the environment attachment, which left `agent-tools env-context` duplicating
+it; the hook's future was deferred here and closed in the entry above.
 
 ## Why the prompt says what it says
 
@@ -221,9 +220,10 @@ tool surface overflowed Haiku's prompt limit and killed every spawn. That failur
 MCP install; a session without one keeps Haiku's headroom, and Explore is scoped to locating code
 rather than reviewing it. `Prefer` carries the escape hatch, so the prompt spells none out: pass
 `sonnet` or `opus` when a search is genuinely hard. Haiku also drops the session's inherited
-`effort` setting, which the API rejects for that model. Per-call rather than a user-defined
-`Explore` agent shadowing the built-in: `omitClaudeMd` is set only on built-in definitions and is
-never read from frontmatter, so a shadow re-attaches the whole CLAUDE.md hierarchy to every spawn.
+`effort` setting, which the API rejects for that model. Per-call rather than an `Explore` agent
+shadowing the built-in, because the shadow would have to re-declare everything the built-in sets;
+since 2.1.271 that is possible — `omitClaudeMd` is now agent frontmatter, where it used to be
+readable only on built-in definitions — but the per-call form needs no upkeep.
 `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (2.1.257, unset here) would override every per-spawn `model`
 and turn this line into text the harness discards; `CLAUDE_CODE_SUBAGENT_MODEL` would not, since
 2.1.251 made it a default an explicit `model` beats. Retire this if the built-in default returns
@@ -332,19 +332,16 @@ The subagent half repairs a dangling reference rather than betting on a rate: th
 example cites an item "reported by subagent qr-3" while nothing ever asked a subagent for one.
 No file this repo installs can do the asking — an Agent call inherits neither a
 `--system-prompt-file` prompt nor an output style, and `Explore` and `Plan` set `omitClaudeMd`,
-so CLAUDE.md does not reach the two agent types dispatched most. The `SubagentStart` hook does:
-measured on 2.1.269, one `additionalContext` reached `Explore`, `general-purpose` and `Plan`
-alike, landing in the subagent's messages before its first turn. So the ask belongs to the hook
-and the prompt keeps only the half no hook can do — folding what returns into the parent's own
-block. This is not the arrangement `docs/subagent-backgrounding.md` records backing out of: that
-hook overrode a parameter the model had chosen, where this one overrides no decision and spends
-none of the parent's attention. All six definitions in `agents/` carry a notes slot so the ask
-does not contradict the ones that constrain their output. What is measured is delivery, not
-compliance: in the one end-to-end run, a `haiku` `Explore` agent given a `wc -l` question received
-the ask in full and returned no block, and the 214 tokens it costs bought nothing on that call.
-That is within a best-effort block's own terms — there was nothing to report — but it is also the
-whole of the evidence, so treat a non-trivial subagent task and a non-`haiku` model as the
-measurement still owed. Retire it with the rest of the block.
+so CLAUDE.md does not reach the two agent types dispatched most. The `SubagentStart` hook does,
+landing in the subagent's messages before its first turn, so the ask belongs to the hook and the
+prompt keeps only the half no hook can do — folding what returns into the parent's own block.
+Unlike the arrangement `docs/subagent-backgrounding.md` records backing out of, this hook
+overrides no decision the model made and spends none of the parent's attention, and every
+definition in `agents/` carries a notes slot so the ask does not contradict the ones that
+constrain their output. What is measured is delivery, not compliance: the one end-to-end run gave
+a `haiku` `Explore` agent a `wc -l` question, which received the ask in full and returned no
+block — within a best-effort block's own terms, and the whole of the evidence, so a non-trivial
+task on a non-`haiku` model is the measurement still owed. Retire it with the rest of the block.
 
 ### `# Doing tasks` carries no docs order
 
@@ -387,7 +384,10 @@ nothing loads the first.
 
 The section is the only git policy a `claude.sh` session receives, because `settings.json` turns
 the other one off. `includeGitInstructions: false` removes the Bash tool description's `# Git`
-block and, off the same gate, cc's `gitStatus` reminder (`q7()`, `chunk-dbb93264.js:69382`).
+block and, off the same gate, cc's `gitStatus` reminder (`pDt()`, `chunk-wgfrtm7w.js:29957`, found
+by `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`). 2.1.286's `Always run `/verify`… right before the
+`commit` command (never for docs or tests)` is a sentence inside that block, not a section of its
+own, so it goes with it and no `verify` skill is asked for here.
 `attribution.commit` and `.pr` set to `""` remove the attribution reminder by a documented key;
 the first key removes it too, but that is observed rather than documented, so both are set.
 
@@ -399,12 +399,12 @@ the first key removes it too, but that is observed rather than documented, so bo
 | If on the default branch, branch first | Dropped. With the line gone the probes never saw the agent consider a branch. |
 | End commit messages with the attribution lines from the reminder | `Claude-Session: <session id>`. The id resolves to the transcript — `claude --resume <id>` finds it in any project on the machine — where a JSONL path would not: it moves with `CLAUDE_CONFIG_DIR` and dies with a container rebuild. |
 
-The author is set by `scripts/claude.sh` (`GIT_AUTHOR_*`), so the prompt is silent about it. It is
-silent about subagents too: the setting is session-wide, so a subagent that commits has no policy
-but its parent's prompt. The snapshot is not lost — `agent-tools env-context` renders its own
-`# Git status at session start` (`environment.git_snapshot`), and re-fires on resume, `/clear` and compact where cc's was sent
-once. The clone sentence is the old `# Coding` line with `/tmp` replaced by the scratchpad; no run
-exercises it.
+The author is set by `scripts/claude.sh` (`GIT_AUTHOR_*`), so the prompt is silent about it, and
+about subagents: the setting is session-wide, so a subagent that commits has no policy but its
+parent's prompt. The snapshot is not lost — `agent-tools env-context` renders its own `# Git status
+at session start` (`environment.git_snapshot`) and re-fires on resume, `/clear` and compact where
+cc's was sent once. The clone sentence is the old `# Coding` line with `/tmp` replaced by the
+scratchpad; no run exercises it.
 
 With no section and the tool block present the agent does not commit — *"you didn't ask for a
 commit"* — so the section is what produces the commit at all. Four clauses of a longer draft were
@@ -415,26 +415,26 @@ with an `origin/main` may pull toward a branch.
 
 Retire or re-test when a release renames `includeGitInstructions` or stops gating the Bash block
 by it, which puts the tool note back beside this section to contradict it. No capture will show
-that: `capture.py` passes `--setting-sources project,local` and `settings.json` installs as user
-settings, so `tools/Bash.md` carries the block either way. Read a live session's own Bash
-description instead; `prompt-tests/general/commit-own-changes` shows whether the agent still
-commits. The trailer rule reads the hook's `Session ID:` line, which is unique to the hook —
-cc's own block never states the id, only embedding it in the scratchpad path; retire that clause
-if the line goes, since `CLAUDE_CODE_SESSION_ID` would still carry the id but no text would say so.
+that — it drops user settings, so `tools/Bash.md` carries the block either way; read a live
+session's own Bash description instead, and `prompt-tests/general/commit-own-changes` for whether
+the agent still commits. The trailer rule reads the hook's `Session ID:` line, unique to the hook
+because cc's own block only embeds the id in the scratchpad path; retire that clause if the line
+goes, since `CLAUDE_CODE_SESSION_ID` would still carry the id but no text would say so.
 
 ### Subagents: `run_in_background: false` on every Agent call
 
 Until 2026-09-16 a `PreToolUse` hook rewrote the parameter on every call and the bullet stated the
 foreground as a fact about the session. The user asked for a prompt rule instead, so the model now
 decides per call and nothing checks it. `CLAUDE_CODE_FORK_SUBAGENT=0` in `settings.json` is the
-precondition, not a second enforcement: with the fork gate on, `run_in_background` is omitted from
-the Agent tool's input schema outright and the rule would be unfollowable. The gate's source
-reading and the alternative settings are in `docs/subagent-backgrounding.md`.
+precondition, not a second enforcement: with the fork gate on, `run_in_background` leaves the Agent
+tool's input schema outright and the rule would be unfollowable. `docs/subagent-backgrounding.md`
+carries the gate's source reading and the alternative settings.
 
 - **`false`, not omission.** Claude Code backgrounds unless the parameter is literally `false`
-  (`q4o`'s last term `!s && r !== !1`, `src/chunk-dbb93264.js:103955`). Omission is the failure
-  mode and it is invisible — which is why the old bullet, stating the foreground as a fact,
-  produced omission in every trial while the session read as normal.
+  (`wo`'s last term `!h && p !== !1`, `src/chunk-845w7yx9.js:234`, found by
+  `callerIsInProcessTeammate`). Omission is the failure mode and it is invisible — which is why
+  the old bullet, stating the foreground as a fact, produced omission in every trial while the
+  session read as normal.
 - **Concurrency is not a reason to background.** Several Agent calls in one assistant message run
   concurrently in the foreground, so the strongest legitimate pull toward backgrounding does not
   hold, in exactly the case that needs several agents at once.
@@ -444,33 +444,28 @@ reading and the alternative settings are in `docs/subagent-backgrounding.md`.
 - **`Default` carries the escape hatch**, so the prompt spells out no exception.
 
 Dropped and not replaced: "never report an agent as still running and never wait for a
-notification that the launching call already answered". Both were true only while nothing could
-background. `prompt-tests/general/subagent-foreground-default` is the check and the only thing
-standing between this rule and silent decay. **Unverified, decide at the next edit:** no passing
-trial's reasoning weighed the tool description against the prompt, so the override clause has no
-measured behaviour behind it — removing it and re-running the case is what would tell it from text
-the first clause already covers. Retire this if `settings.json` moves to
+notification that the launching call already answered" — both were true only while nothing could
+background. `prompt-tests/general/subagent-foreground-default` is the only thing standing between
+this rule and silent decay. The override clause rests on no trial that weighed the tool
+description against the prompt, so removing it and re-running the case is what would tell it from
+text the first clause already covers. Retire this if `settings.json` moves to
 `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which forces the foreground with no help from the model.
 
 ### Backgrounding a wrapped command: `run_in_background: true` by default, `--background` by exception
 
 The prompt names one default — `run_in_background: true` on an ordinary `agent-tools run` — and
 gates `agent-tools run --background` behind one trigger: the job must survive the call being
-killed. This is a preference the user stated on 2026-09-14 about this bullet; no measurement
-forced it, so it can be revisited by asking. What supports it: a detached run gives up the task id
-and the harness's completion notification and delivers only `final(<code>)` on the status channel,
-which arrives on the next tool result rather than waking the agent — so the default path is the
-one that reports, and the flag is what you pay for surviving a kill. Both sides are in the prompt
-already, which is why no reason for the ordering is. Before the edit the bullet described
-`--background` at twice the length with no trigger and no cost stated in contrast; length and
-final position were doing the recommending, and that is what changed, not the facts.
-`docs/agent-tools-status-reference.md` was reconciled in the same change — it named `--background`
-as the form to reach for whenever a job outlives its call, and it is the prompt's exhaustive half,
-so an agent that reads it gets whichever default it states. `skills/telegram-hitl/SKILL.md` came
-under the same gate; its proxy kept `--background` and said why, until the 2026-09-28 cut to a
-1000-token budget dropped the by-hand proxy start altogether — the systemd unit starts it. The `TaskStop` half of the
-trigger is measured on both sides in that doc, "The kill boundary". Retire or revisit this if
-`--background` gains a completion notification of its own.
+killed. This is a preference the user stated about this bullet; no measurement forced it, so it
+can be revisited by asking. What supports it: a detached run gives up the task id and the
+harness's completion notification and delivers only `final(<code>)` on the status channel, which
+arrives on the next tool result rather than waking the agent — so the default path is the one that
+reports, and the flag is what you pay for surviving a kill. Both sides are in the prompt already,
+which is why no reason for the ordering is; before the edit `--background` was described at twice
+the length with no trigger and no cost stated in contrast, so length and final position were doing
+the recommending. `docs/agent-tools-status-reference.md` is the prompt's exhaustive half and was
+reconciled in the same change, since an agent that reads it gets whichever default it states; its
+"The kill boundary" measures the `TaskStop` half of the trigger on both sides. Retire or revisit
+this if `--background` gains a completion notification of its own.
 
 ### `[continue]` waives review, not confirmation
 
@@ -490,14 +485,14 @@ carve-out's licence, and that an unread plan's status reaches the next reader's 
 ### `listed without a description`
 
 Sixteen repo skills carry the description `use only if invoked by user or workflow`, and
-`skillOverrides` in `settings.json` lists them, and four bundled skills, `name-only`
-(`plans/2026-09-30-session-start-token-cuts.md`, #6, #9, #10), so the description that carried
-the rule no longer reaches the model; this sentence states it once for the set. Retire it when
-cc's `name-only` rendering states the rule itself, or when the overrides go.
+`skillOverrides` in `settings.json` lists them and four bundled skills as `name-only`
+(`plans/2026-09-30-session-start-token-cuts.md`, #6, #9, #10), so the description that carried the
+rule no longer reaches the model and this sentence states it once for the set. Retire it when cc's
+`name-only` rendering states the rule itself, or when the overrides go.
 
 ## Ledger: wordings measured and not shipped
 
-A row is a wording no longer under consideration, kept only so a later round does not re-run it
+A row is a wording no longer under consideration, kept so a later round does not re-run it
 believing it new. Its probe is restorable; its run is in the commit that measured it.
 
 | Wording | Why it is not in the prompt | Probe |
