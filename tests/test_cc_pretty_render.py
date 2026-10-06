@@ -15,9 +15,11 @@ from claude_config.cc_pretty.parse import (
     AttachmentData,
     AttachmentRecord,
     Message,
+    SystemRecord,
     ToolResultBlock,
     Usage,
     UserRecord,
+    parse_record,
 )
 from claude_config.cc_pretty.render import (
     C,
@@ -657,7 +659,7 @@ def _queue_session(tmp_path) -> object:
                        "<system-reminder>\nThe user sent a new message while "
                        "you were working:\nand commit when it passes\n"
                        "</system-reminder>"}]},
-        # A pasted image makes `prompt` a block list (chunk-dbb93264.js:235801).
+        # A pasted image makes `prompt` a block list (chunk-wgfrtm7w.js:168334).
         {"type": "attachment", "uuid": "q2", "attachment": {
             "type": "queued_command", "commandMode": "prompt", "prompt": [
                 {"type": "text", "text": "this screenshot shows the bug"},
@@ -953,8 +955,9 @@ def test_long_hook_stdout_is_truncated_with_a_recovery_recipe() -> None:
 
 
 def test_a_persisted_output_stub_is_not_what_the_reader_gets() -> None:
-    """Past roughly 2 KB Claude Code swaps `content` for a stub naming a file
-    beside the log; `stdout` keeps the text itself."""
+    """Past 10,000 chars Claude Code swaps `content` for a stub naming a file
+    beside the log and holding a 2,000-char preview; `stdout` keeps the text
+    itself (2.1.289 threshold `HXo = 1e4`, chunk-qtae7z5t.js:32)."""
     r = Renderer("/tmp/log.jsonl", tool_output_max=200, tool_input_max=200)
     out = r.render_attachment(
         _hook_success(
@@ -986,3 +989,159 @@ def test_hook_stdout_reaches_the_reader_only_under_show_all(tmp_path) -> None:
     }) + "\n")
     assert "launch-provenance" not in _run_cli(jsonl).stdout
     assert "launch-provenance" in _run_cli(jsonl, "--show-all").stdout
+
+
+# ─── System records that say something (2.1.289 subtype set) ────────────────
+#
+# Claude Code declares one constructor per transcript system subtype at
+# chunk-wgfrtm7w.js:168850-169035. Most put their whole payload in `content`;
+# memory_saved, api_error and the model-switch family each use fields of their
+# own. A bare `[subtype]` label names the record while hiding the sentence it
+# exists for, so each shape below is pinned to the text it carries.
+
+
+def _system(subtype: str, **fields) -> SystemRecord:
+    return SystemRecord(type="system", subtype=subtype, **fields)
+
+
+def _render_sys(rec: SystemRecord, maxlen: int = 400) -> str:
+    return Renderer("/tmp/log.jsonl", tool_output_max=maxlen,
+                    tool_input_max=200).render_system(rec, ts="00:00:00", lineno=5)
+
+
+def test_an_informational_banner_prints_what_it_said() -> None:
+    out = _render_sys(_system(
+        "informational",
+        content="A hook blocked the turn from ending 3 consecutive times "
+                "— overriding and ending turn.",
+        level="warning",
+    ))
+    assert "informational" in out
+    assert "blocked the turn from ending 3 consecutive times" in out
+
+
+def test_a_loop_wakeup_entry_prints_its_notice() -> None:
+    """`scheduled_task_fire` is the transcript's loop-wakeup entry."""
+    out = _render_sys(_system(
+        "scheduled_task_fire", content="Claude resuming /loop wakeup (Jun 4 7:09am)",
+    ))
+    assert "Claude resuming /loop wakeup" in out
+
+
+def test_memory_saved_names_the_files_it_wrote() -> None:
+    out = _render_sys(_system(
+        "memory_saved", writtenPaths=["/p/memory/a.md", "/p/memory/b.md"],
+    ))
+    assert "/p/memory/a.md" in out
+    assert "/p/memory/b.md" in out
+
+
+def test_claude_codes_own_api_error_prints_the_sentence_a_human_reads() -> None:
+    out = _render_sys(_system(
+        "api_error",
+        level="error",
+        error={"message": "Connection error.",
+               "formatted": "Connection refused — a firewall or proxy may be blocking it"},
+        retryAttempt=2, maxRetries=10, source="request_retry",
+    ))
+    assert "Connection refused" in out
+    assert "retry 2/10" in out
+
+
+def test_an_intercept_capture_api_error_still_renders_as_a_region() -> None:
+    """The capture and Claude Code share the `api_error` subtype and nothing
+    else: the capture puts its text in `content` and leaves `error` unset."""
+    rec = SystemRecord(
+        type="system", subtype="api_error",
+        content="[invalid_request_error] prompt is too long",
+        detail="invalid_request_error", content_leaf="",
+    )
+    out = _render_sys(rec)
+    assert "┌ API error" in out
+    assert "invalid_request_error" in out
+    assert "prompt is too long" in out
+
+
+def test_a_refusal_record_carries_its_category_and_explanation() -> None:
+    out = _render_sys(_system(
+        "model_refusal_no_fallback",
+        content="", level="warning", originalModel="claude-opus-5",
+        apiRefusalCategory="reasoning_extraction",
+        apiRefusalExplanation="This request was blocked as it seems to violate ...",
+    ))
+    assert "reasoning_extraction" in out
+    assert "claude-opus-5" in out
+
+
+def test_a_blocked_turn_says_so_on_the_stop_hook_summary() -> None:
+    """The count alone reads as a quiet turn; the block lives in the two hook
+    output lists and `preventedContinuation`."""
+    out = _render_sys(_system(
+        "stop_hook_summary",
+        hookCount=2,
+        hookInfos=[{"command": "agent-tools hook-provenance", "durationMs": 12}],
+        hookErrors=["Stop hook denied continuation: report not written"],
+        hookAdditionalContext=["[agent-tools] run status: 1 run still live"],
+        preventedContinuation=True,
+        stopReason="report not written",
+    ))
+    assert "hooks: 2 ran" in out
+    assert "turn blocked" in out
+    assert "Stop hook denied continuation" in out
+    assert "run status: 1 run still live" in out
+
+
+def test_a_turn_duration_record_keeps_its_one_line_shape() -> None:
+    out = _render_sys(_system("turn_duration", durationMs=4200))
+    assert "turn_duration: 4.2s" in out
+    assert out.count("\n") == 0
+
+
+def test_a_system_subtype_with_nothing_to_say_is_still_one_line() -> None:
+    out = _render_sys(_system("agents_killed"))
+    assert "agents_killed" in out
+    assert out.count("\n") == 0
+
+
+def test_a_file_history_delta_gets_a_row_not_an_unknown_record_line(tmp_path) -> None:
+    """134 of these sit in the logs on this machine; before 2.1.289 was
+    modelled they printed as `[unknown record: file-history-delta]`."""
+    jsonl = tmp_path / "session.jsonl"
+    jsonl.write_text("\n".join(json.dumps(r) for r in [
+        {"type": "file-history-delta", "messageId": "m1",
+         "snapshotMessageId": "s1", "trackingPath": "/w/notes.md",
+         "backup": {"version": 1}},
+        {"type": "assistant", "uuid": "u2", "version": "2.1.289",
+         "message": {"role": "assistant", "content": [{"type": "text", "text": "done"}]}},
+    ]) + "\n")
+    out = _run_cli(jsonl, "--show-all").stdout
+    assert "file-history delta: /w/notes.md" in out
+    assert "unknown record" not in out
+
+
+def test_a_null_refusal_explanation_does_not_drop_the_record() -> None:
+    """Claude Code writes `apiRefusalExplanation: null` when the API gave a
+    category and no prose. A field typed too narrowly fails the record out of
+    `parse_all`, which hides the subtype outright rather than reporting it."""
+    raw = {
+        "type": "system", "uuid": "u1", "subtype": "model_refusal_fallback",
+        "level": "warning", "content": "", "originalModel": "claude-opus-5",
+        "apiRefusalCategory": "cyber", "apiRefusalExplanation": None,
+        "version": "2.1.289",
+    }
+    rec = parse_record(raw)
+    assert isinstance(rec, SystemRecord)
+    assert "cyber" in _render_sys(rec)
+
+
+def test_a_transport_api_error_names_its_status_not_its_headers() -> None:
+    """A proxy failure carries `{status, headers, ...}` and no prose; the
+    header dict is noise a reader cannot act on."""
+    out = _render_sys(_system(
+        "api_error", level="error",
+        error={"status": 502, "headers": {"server": "mitmproxy 12.2.3"},
+               "requestID": None, "type": None},
+        retryAttempt=1, maxRetries=10,
+    ))
+    assert "HTTP 502" in out
+    assert "mitmproxy" not in out

@@ -78,6 +78,12 @@ def test_persisted_output_parses_off_a_real_log_line() -> None:
     "context_efficiency",
     "todo",
     "background_task_status",
+    # Added to the denylist by 2.1.289: an always-empty arm
+    # (chunk-wgfrtm7w.js:167779 `prompt_render_point: () => [],`) and a type
+    # moved out of the loggable set into the dropped list
+    # (:168740, `"audio_transcript"`).
+    "prompt_render_point",
+    "audio_transcript",
 ])
 def test_bookkeeping_subtype_is_hidden(atype: str) -> None:
     assert attachment_is_model_visible(_rec(atype)) is False
@@ -190,35 +196,50 @@ def test_output_style_instructions_carries_an_object_style(tmp_path) -> None:
 # ── Re-derivation from the conversion source ────────────────────────────────
 
 _DECOMPILED = pathlib.Path("/repos/claude-code-decompiled/src")
-_MARKER = "normalizeAttachmentForAPI"
+
+# The conversion reports an unhandled subtype under its own name, and that name
+# is a string literal rather than a minified identifier, so it survives a
+# rebuild. It also sits past every arm, which makes it the region's end.
+# 2.1.289: `rX("normalizeAttachmentForAPI", Error(...))`,
+# chunk-wgfrtm7w.js:168741 — one occurrence tree-wide.
+_MARKER = '"normalizeAttachmentForAPI"'
+
+# The line that hands a recognised subtype to its arm. Matched on the call
+# alone, not on the membership test in front of it: 2.1.269 wrote
+# `if (e.type in pUr) return pUr[e.type](e);` and 2.1.289 writes
+# `if (Object.hasOwn(h4n, e.type)) return h4n[e.type](e);`, so a regex anchored
+# on the test went stale while the call did not. Group 1 names the arm table.
+_DISPATCH = re.compile(r"(\w+)\[(\w+)\.type\]\(\2\);")
 
 
-def _conversion_source() -> str | None:
+def _conversion_source() -> str:
     """The body of normalizeAttachmentForAPI plus the arm table it dispatches to.
 
     Chunk file names and minified identifiers both rotate per build, so the
     marker string is the only stable anchor; the table is found by the name the
     dispatch line gives it.
+
+    Each way of not finding the region raises under its own message. One
+    verdict for all three once blamed a moved dispatch on a missing marker,
+    which sent the next reader looking for a string the tree still had.
     """
-    if not _DECOMPILED.is_dir():
-        return None
     for path in sorted(_DECOMPILED.glob("chunk-*.js")):
         text = path.read_text(errors="replace")
         end = text.find(_MARKER)
         if end < 0:
             continue
-        dispatch = re.search(
-            r"if \((\w+)\.type in (\w+)\) return \2\[\1\.type\]\(\1\);", text[:end]
+        dispatch = _DISPATCH.search(text[:end])
+        assert dispatch is not None, (
+            f"{path.name} holds {_MARKER} but no `T[x.type](x);` dispatch — "
+            "the arm table is reached some other way now"
         )
-        if dispatch is None:
-            return None
-        table = re.findall(
-            rf"^\s*(?:var )?{dispatch.group(2)} = \{{$", text[:dispatch.start()], re.M
+        table = dispatch.group(1)
+        heads = re.findall(
+            rf"^\s*(?:var |let |const )?{table} = \{{$", text[:dispatch.start()], re.M
         )
-        if not table:
-            return None
-        return text[text.rindex(table[-1], 0, dispatch.start()):end]
-    return None
+        assert heads, f"the arm table `{table} = {{` is not declared above its dispatch"
+        return text[text.rindex(heads[-1], 0, dispatch.start()):end]
+    raise AssertionError(f"{_MARKER} is in no chunk under {_DECOMPILED}")
 
 
 @pytest.mark.skipif(not _DECOMPILED.is_dir(), reason="decompiled Claude Code not present")
@@ -229,11 +250,13 @@ def test_denylist_still_matches_the_conversion_source() -> None:
     off, and a hand-maintained list that nothing re-checks goes stale silently.
     """
     source = _conversion_source()
-    assert source is not None, f"{_MARKER} not found in {_DECOMPILED}"
     derived = set(re.findall(r"^    (\w+): \(\) => \[\],?$", source, re.M))
     derived |= set(re.findall(r'^    case "(\w+)":\n      return \[\];$', source, re.M))
+    # `return;` since 2.1.289, `return [];` before it — the caller wraps the
+    # result in `?? []` either way, so both spellings drop the record.
     skipped = re.search(
-        r"if \(\[((?:\"\w+\", )+\"\w+\")\]\.includes\(\w+\.type\)\) return \[\];", source
+        r"if \(\[((?:\"\w+\", )+\"\w+\")\]\.includes\(\w+\.type\)\) return(?: \[\])?;",
+        source,
     )
     assert skipped is not None, "the recognized-and-dropped list moved"
     derived |= set(re.findall(r'"(\w+)"', skipped.group(1)))
@@ -248,7 +271,6 @@ def test_hook_stdout_visible_events_still_match_the_conversion_source() -> None:
     the shape matched is the event guard, not a table entry.
     """
     source = _conversion_source()
-    assert source is not None, f"{_MARKER} not found in {_DECOMPILED}"
     # The template literal the model actually receives; unique tree-wide. A
     # reworded arm fails here rather than silently matching nothing below.
     assert "hook success: " in source, "the hook_success arm moved or was reworded"

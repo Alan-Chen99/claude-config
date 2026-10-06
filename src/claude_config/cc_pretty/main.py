@@ -46,6 +46,7 @@ from claude_config.cc_pretty.locate import SessionNotFound, resolve_log_arg
 from claude_config.cc_pretty.parse import (
     AssistantRecord,
     AttachmentRecord,
+    FileHistoryDeltaRecord,
     FileHistorySnapshotRecord,
     LastPromptRecord,
     PermissionModeRecord,
@@ -63,14 +64,15 @@ from claude_config.cc_pretty.render import C, Renderer, fmt_ts, render_skeleton,
 # ─── Attachment model-visibility ─────────────────────────────────────────────
 #
 # Every attachment record reaches the API through one conversion,
-# normalizeAttachmentForAPI (Claude Code 2.1.269,
-# /repos/claude-code-decompiled/src/chunk-dbb93264.js:235627), and what that
-# conversion returns is what the request carries.  Two properties of it decide
-# the shape of this classification:
+# normalizeAttachmentForAPI (Claude Code 2.1.289,
+# /repos/claude-code-decompiled/src/chunk-wgfrtm7w.js:168128, `function i6e`,
+# named by the string literal at :168741), and what that conversion returns is
+# what the request carries.  Two properties of it decide the shape of this
+# classification:
 #
 #   * It reads the whole record, not just its subtype.  A hook_success carries
-#     its hook's stdout only for three hook events (:236002); a queued_command
-#     drops itself when a batch head already rendered it (:235786).  So a
+#     its hook's stdout only for three hook events (:168526); a queued_command
+#     drops itself when a batch head already rendered it (:168289).  So a
 #     subtype alone cannot answer for every record.
 #   * For a subtype it recognises, producing content is the default — only the
 #     arms named in _NEVER_VISIBLE_ATTACHMENT_TYPES return nothing for every
@@ -82,18 +84,21 @@ from claude_config.cc_pretty.render import C, Renderer, fmt_ts, render_skeleton,
 #
 # Sessions from 2.1.269 onward settle it per record without either list: the
 # record's `rendered` field holds that same conversion's output, captured when
-# the log was written (:235526, stored by :235558).  Its absence is not an
-# answer — the persistence path also skips a conversion that produced
-# tool_use/tool_result blocks rather than text (:235549), and no log written
-# before 2.1.269 has the field at all.
+# the log was written (:167943 `function T5`, stored by :167997 `function Dle`).
+# Its absence is not an answer — the persistence path also skips a conversion
+# that produced tool_use/tool_result blocks rather than text (:167975,
+# `function Oyn`, which yields undefined unless every message is text), and no
+# log written before 2.1.269 has the field at all.
 
 _NEVER_VISIBLE_ATTACHMENT_TYPES = frozenset({
     # Conversion arms that return nothing whatever the record holds
-    # (chunk-dbb93264.js:235412-235414, :235463, :235503-235518).
+    # (chunk-wgfrtm7w.js:167778-167784, :167833, :167889-167904).
+    "advisor_stripped",
     "already_read_file",
     "async_hook_response_batch",
     "batching_reminder_sent",
     "command_permissions",
+    "credential_org",
     "deferred_tools_record",
     "edited_image_file",
     "goal_status",
@@ -104,16 +109,19 @@ _NEVER_VISIBLE_ATTACHMENT_TYPES = frozenset({
     "hook_permission_decision",
     "hook_system_message",
     "max_turns_reached",
+    "prompt_render_point",
     "prompt_snapshot",
     "secondary_reminder_sent",
     "structured_output",
     "teammate_shutdown_batch",
+    "thinking_drop",
     "thinking_stripped",
     "tool_host_result_lines",
-    # The same, in the switch that follows the arm table (:235894, :236009).
+    # The same, in the switch that follows the arm table (:168403, :168533).
     "attention_budget",
     "context_efficiency",
-    # Recognised and dropped before any arm runs (:236200).
+    # Recognised and dropped before any arm runs (:168740).
+    "audio_transcript",
     "autocheckpointing",
     "background_task_status",
     "companion_intro",
@@ -133,7 +141,7 @@ _NEVER_VISIBLE_ATTACHMENT_TYPES = frozenset({
 })
 
 # A hook's stdout is forwarded to the model for these events only; any other
-# event, or empty stdout, converts to nothing (:236002).  A hook that wants to
+# event, or empty stdout, converts to nothing (:168526).  A hook that wants to
 # be read at any other stage returns hookSpecificOutput.additionalContext
 # instead, which arrives as its own subtype.
 _HOOK_STDOUT_VISIBLE_EVENTS = frozenset({
@@ -937,6 +945,10 @@ def run_pipeline(inp: PipelineInput) -> None:
 
             elif isinstance(rec, FileHistorySnapshotRecord):
                 print(r.render_file_snapshot(rec))
+                i += 1
+
+            elif isinstance(rec, FileHistoryDeltaRecord):
+                print(r.render_file_delta(rec))
                 i += 1
 
             elif isinstance(rec, LastPromptRecord):

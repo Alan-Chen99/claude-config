@@ -1,8 +1,16 @@
 """Pydantic schema and parse functions for Claude Code JSONL session logs.
 
 Handles all record types found in Claude Code JSONL logs:
-  assistant, user, system, progress, file-history-snapshot, last-prompt,
-  queue-operation, attachment, permission-mode
+  assistant, user, system, progress, file-history-snapshot,
+  file-history-delta, last-prompt, queue-operation, attachment,
+  permission-mode
+
+Claude Code writes 46 top-level `type` values; 2.1.289 enumerates them in two
+policy tables (`chunk-wgfrtm7w.js:170131` `var nxr`, `:170911` `var rss`). The
+ones absent above are per-session latches and pointers — `mode`, `atis-latch`,
+`ai-title`, `cost-state`, `frame-link`, `summary`, `api-request*` — carrying no
+conversation content. They land on UnknownRecord by design, which the renderer
+prints as one dim line under --show-all.
 
 Content block types: thinking, text, tool_use, tool_result, image, document
 toolUseResult: arbitrary tool-defined JSON — only the object form is
@@ -237,6 +245,15 @@ class UserRecord(_Base):
         return parse_tool_use_result(self.toolUseResult)
 
 class SystemRecord(_Base):
+    """A host-side banner or turn marker.
+
+    Claude Code's own subtypes and their fields are declared one constructor
+    each at `chunk-wgfrtm7w.js:168850-169035`; `informational` has no single
+    constructor (any part of the loop raises one) and carries `content` plus
+    `level`. `cc_pretty_intercept.convert` reuses this class for an intercept
+    capture's `api_*` regions, which is why `content`/`detail`/`content_leaf`
+    sit here beside cc's fields.
+    """
     type: Literal["system"]
     uuid: str = ""
     timestamp: str = ""
@@ -245,11 +262,40 @@ class SystemRecord(_Base):
     subtype: str = ""
     # turn_duration
     durationMs: int = 0
-    # stop_hook_summary
+    # stop_hook_summary.  hookErrors and hookAdditionalContext are the two
+    # channels a Stop hook reaches anyone through; the summary is where a
+    # blocked turn says so.
     hookCount: int = 0
     hookInfos: list[dict[str, Any]] = []
-    # local_command
+    hookErrors: list[str] | None = None
+    hookAdditionalContext: list[str] | None = None
+    preventedContinuation: bool = False
+    stopReason: str | None = None
+    # local_command, informational, away_summary, scheduled_task_fire,
+    # bridge_status, cloud_session_status, permission_retry, compact_boundary
     content: str = ""
+    # informational and the error subtypes: one of
+    # info / notice / suggestion / warning / error
+    level: str | None = None
+    # memory_saved
+    writtenPaths: list[str] | None = None
+    # permission_retry
+    commands: list[str] | None = None
+    # api_error, as Claude Code writes it: an object whose `formatted` is the
+    # sentence a human reads.  The intercept capture's own api_error region
+    # leaves this unset and puts its text in `content` instead, which is how
+    # the renderer tells the two apart.
+    error: Any = None
+    source: str | None = None
+    retryAttempt: int | None = None
+    maxRetries: int | None = None
+    # model_refusal_fallback / model_refusal_no_fallback / model_consent_fallback.
+    # Nullable because Claude Code writes `apiRefusalExplanation: null` when the
+    # API gave a category and no prose, and a field too narrow for one subtype
+    # fails the whole record out of `parse_all` — hiding the subtype outright.
+    originalModel: str | None = None
+    apiRefusalCategory: str | None = None
+    apiRefusalExplanation: str | None = None
     version: str = ""
     slug: str = ""
     cwd: str = ""
@@ -278,6 +324,19 @@ class FileHistorySnapshotRecord(_Base):
 
     def parsed_snapshot(self) -> FileSnapshot:
         return FileSnapshot.model_validate(self.snapshot)
+
+class FileHistoryDeltaRecord(_Base):
+    """One file's backup, appended between snapshots.
+
+    A snapshot carries every tracked file; a delta names the one that changed
+    and points back at the snapshot it amends, so the two render as the same
+    kind of row.
+    """
+    type: Literal["file-history-delta"]
+    messageId: str = ""
+    snapshotMessageId: str = ""
+    trackingPath: str = ""
+    backup: dict[str, Any] = {}
 
 class LastPromptRecord(_Base):
     type: Literal["last-prompt"]
@@ -335,7 +394,7 @@ class AttachmentData(_Base):
     path: str = ""
     snippet: str = ""
     # queued_command.  A prompt carrying a pasted image is a list of content
-    # blocks rather than a string (`chunk-dbb93264.js:235829`,
+    # blocks rather than a string (`chunk-wgfrtm7w.js:168334`,
     # `if (Array.isArray(e.prompt))`); typed as str alone, such a record fails
     # validation and parse_all drops it, taking the user's message with it.
     prompt: str | list[dict[str, Any]] = ""
@@ -375,8 +434,9 @@ class UnknownRecord(_Base):
 
 Record = (
     AssistantRecord | UserRecord | SystemRecord | ProgressRecord
-    | FileHistorySnapshotRecord | LastPromptRecord | QueueOperationRecord
-    | AttachmentRecord | PermissionModeRecord | UnknownRecord
+    | FileHistorySnapshotRecord | FileHistoryDeltaRecord | LastPromptRecord
+    | QueueOperationRecord | AttachmentRecord | PermissionModeRecord
+    | UnknownRecord
 )
 
 _RECORD_MAP: dict[str, type[Record]] = {
@@ -385,6 +445,7 @@ _RECORD_MAP: dict[str, type[Record]] = {
     "system": SystemRecord,
     "progress": ProgressRecord,
     "file-history-snapshot": FileHistorySnapshotRecord,
+    "file-history-delta": FileHistoryDeltaRecord,
     "last-prompt": LastPromptRecord,
     "queue-operation": QueueOperationRecord,
     "attachment": AttachmentRecord,

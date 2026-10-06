@@ -19,6 +19,7 @@ from claude_config.cc_pretty.parse import (
     AttachmentRecord,
     BashProgress,
     BinaryBlock,
+    FileHistoryDeltaRecord,
     FileHistorySnapshotRecord,
     HookProgress,
     LastPromptRecord,
@@ -847,8 +848,19 @@ class Renderer:
             lines.append(self._hint(lineno, None, leaf))
         return "\n".join(lines)
 
+    def _system_head(self, rec: SystemRecord, ts: str) -> str:
+        color = C.ERROR if rec.level in ("error", "warning") else C.SYSTEM
+        return (
+            f"{color}┌ System{C.RESET}  {C.DIM}[{rec.subtype}]{C.RESET}"
+            f"  {C.TIMESTAMP}{ts}{C.RESET}"
+        )
+
     def render_system(self, rec: SystemRecord, ts: str, lineno: int = 0) -> str:
-        if rec.subtype.startswith("api_"):
+        # Claude Code's own api_error and the intercept capture's api_error
+        # region share a subtype and nothing else: cc puts an object in `error`
+        # and leaves `content` empty, the capture does the reverse.  Route on
+        # the field, not the name, or one of the two renders as a bare header.
+        if rec.subtype.startswith("api_") and rec.error is None:
             return self._render_api_region(rec, lineno)
 
         if rec.subtype == "turn_duration":
@@ -858,13 +870,35 @@ class Renderer:
             )
 
         if rec.subtype == "stop_hook_summary":
-            lines = [
+            head = (
                 f"{C.SYSTEM}┌ System{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"
                 f"  {C.DIM}hooks: {rec.hookCount} ran{C.RESET}"
-            ]
+            )
+            if rec.preventedContinuation:
+                head += f"  {C.ERROR}turn blocked{C.RESET}"
+                if rec.stopReason:
+                    head += f" {C.DIM}({trunc(rec.stopReason, 200)}){C.RESET}"
+            lines = [head]
             for hi in rec.parsed_hook_infos():
                 lines.append(f"  {C.DIM}  hook: {hi.command} ({fmt_duration(hi.durationMs)}){C.RESET}")
+            # A Stop hook speaks through these two lists, never through the
+            # count above; without them a blocked turn reads as a quiet one.
+            for err in rec.hookErrors or []:
+                lines.append(f"  {C.ERROR}  hook error: {trunc(str(err), self.tool_output_max)}{C.RESET}")
+            for ctx in rec.hookAdditionalContext or []:
+                lines.append(f"  {C.DIM}  hook context: {trunc(str(ctx), self.tool_output_max)}{C.RESET}")
             return "\n".join(lines)
+
+        if rec.subtype == "memory_saved":
+            paths = ", ".join(rec.writtenPaths or []) or "(no paths)"
+            return f"{self._system_head(rec, ts)}\n{ind(paths, '  ')}"
+
+        if rec.subtype in (
+            "api_error", "model_fallback", "model_consent_fallback",
+            "model_refusal_fallback", "model_refusal_no_fallback",
+        ):
+            return "\n".join([self._system_head(rec, ts),
+                              ind(self._system_failure_body(rec), "  ")])
 
         if rec.subtype == "local_command":
             return (
@@ -873,7 +907,47 @@ class Renderer:
                 f"{ind(rec.content[:200], '  ')}"
             )
 
-        return f"{C.SYSTEM}┌ System{C.RESET}  {C.DIM}[{rec.subtype}]{C.RESET}  {C.TIMESTAMP}{ts}{C.RESET}"
+        # Every remaining subtype that says anything says it in `content`: the
+        # usage-limit and loop-wakeup notices, an unknown slash command, the
+        # "a hook blocked the turn from ending" warning, the away summary.  A
+        # bare label would name the record and hide the sentence it exists for.
+        if rec.content:
+            return "\n".join([
+                self._system_head(rec, ts),
+                ind(trunc(rec.content, self.tool_output_max), "  "),
+            ])
+
+        return self._system_head(rec, ts)
+
+    def _system_failure_body(self, rec: SystemRecord) -> str:
+        """What an api_error or a model-switch record says went wrong.
+
+        `error.formatted` is the sentence Claude Code shows a human; the
+        refusal fields are the API's own category and explanation.
+        """
+        parts: list[str] = []
+        if isinstance(rec.error, dict):
+            # A transport failure carries a status and HTTP headers instead of
+            # prose; naming the status beats dumping the header dict.
+            said = rec.error.get("formatted") or rec.error.get("message")
+            if not said and rec.error.get("status"):
+                said = f"HTTP {rec.error['status']}"
+            parts.append(str(said or json.dumps(rec.error, default=str)))
+        elif rec.error is not None:
+            parts.append(str(rec.error))
+        elif rec.content:
+            parts.append(rec.content)
+        if rec.apiRefusalCategory:
+            parts.append(f"category: {rec.apiRefusalCategory}")
+        if rec.apiRefusalExplanation:
+            parts.append(rec.apiRefusalExplanation)
+        if rec.originalModel:
+            parts.append(f"model: {rec.originalModel}")
+        if rec.maxRetries:
+            parts.append(f"retry {rec.retryAttempt}/{rec.maxRetries}")
+        if rec.source:
+            parts.append(f"source: {rec.source}")
+        return trunc("\n".join(parts) or "(no detail)", self.tool_output_max)
 
     def render_progress(self, rec: ProgressRecord, ts: str) -> str:
         data = rec.parsed_data()
@@ -903,6 +977,9 @@ class Renderer:
         file_count = len(snap.trackedFileBackups)
         label = "update" if rec.isSnapshotUpdate else "snapshot"
         return f"{C.DIM}  ⌂ file-history {label}: {file_count} files tracked{C.RESET}"
+
+    def render_file_delta(self, rec: FileHistoryDeltaRecord) -> str:
+        return f"{C.DIM}  ⌂ file-history delta: {rec.trackingPath or '?'}{C.RESET}"
 
     def render_queue_op(self, rec: QueueOperationRecord) -> str:
         content = rec.content or ""
@@ -961,12 +1038,18 @@ class Renderer:
             # Nothing else prints it, and a record nothing prints is a record
             # nobody reads.
             #
-            # The text comes from `stdout` rather than from that same `content`:
-            # past roughly 2 KB Claude Code replaces `content` with a
-            # `<persisted-output>` stub naming a file beside the log, while
-            # `stdout` keeps the whole thing inside the record (measured to
-            # 204,016 bytes on 2.1.269). A stub is what the reader would
-            # otherwise get for exactly the hooks whose output is worth reading.
+            # The text comes from `stdout` rather than from that same
+            # `content`: past 10,000 chars Claude Code writes the stdout to a
+            # file beside the log and replaces `content` with a
+            # `<persisted-output>` stub holding a 2,000-char preview
+            # (threshold `HXo = 1e4`, chunk-qtae7z5t.js:32; preview
+            # `var wxe = 2000` at chunk-wjjn7eps.js:40 and the stub text in
+            # `function Fbe` at :159, reached from `function Lue` at :521).
+            # `stdout` on the same record is the raw string
+            # (chunk-wgfrtm7w.js:96190, `stdout: Ho.stdout`) and keeps the
+            # whole thing: 74,768 bytes intact in the logs here, 204,016
+            # measured on 2.1.269. A stub is what the reader would otherwise
+            # get for exactly the hooks whose output is worth reading.
             if not str(a.content or ""):
                 return head
             body = str(a.stdout or a.content or "")
@@ -1357,7 +1440,8 @@ def render_skeleton(
             # it, so it reads as the user turn it is and a reader scanning for
             # what the human said finds it. `commandMode` is the split cc itself
             # acts on: a typed prompt is delivered unflagged, a
-            # task-notification as `isMeta` (`chunk-dbb93264.js:235803-235808`).
+            # task-notification as `isMeta` (`chunk-wgfrtm7w.js:168310-168313`,
+            # `E4(e.origin, e.commandMode)`).
             if rec.attachment.type == "queued_command":
                 label = f"user:{rec.attachment.commandMode or 'queued'}"
             else:
