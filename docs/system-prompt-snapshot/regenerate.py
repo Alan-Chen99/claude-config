@@ -177,8 +177,8 @@ VARIANTS: dict[str, dict] = {
         "claude_args": [],
         "capture_flags": ["--capture-output-style", "default", "--subagent"],
     },
-    # The mode `scripts/claude.sh` launches. Not yet captured, so its directory
-    # is absent, not failed.
+    # The mode `scripts/claude.sh` launches. capture.py seeds the acceptance in
+    # the temp cwd's local settings so the startup warning dialog never opens.
     "bypass-permissions": {
         "claude_args": ["--dangerously-skip-permissions"],
         "capture_flags": ["--capture-output-style", "default"],
@@ -375,10 +375,17 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
 
     system = data.get("system", [])
     sys_tokens = count_tokens(req_model, system=system) - baseline_tokens(req_model)
+    # A server tool entry (`{"type": "advisor_20260301", "name": "advisor",
+    # "model": ...}`, logged-in rosters) has no definition text and the count
+    # endpoint rejects the whole request on it. tools_total_tokens is exact for
+    # the client-side definitions; what the server adds for its own tool is not
+    # visible from here.
+    client_tools = [t for t in tools if "type" not in t]
+    server_tools = [t["name"] for t in tools if "type" in t]
     tools_tokens = 0
-    if tools:
+    if client_tools:
         tools_tokens = count_tokens(
-            req_model, system=system, tools=tools
+            req_model, system=system, tools=client_tools
         ) - count_tokens(req_model, system=system)
 
     deferred = extract_deferred_tools(data)
@@ -402,13 +409,15 @@ def run_variant(name: str, variant: dict, model: str) -> bool:
         "tools_deferred_placeholder": placeholder,
         # Names the deferred-tools reminder in *this* request lists. Empty when
         # the request carries no reminder, which is every turn after the first:
-        # the thread API resends only new messages.
+        # a `thread: continue` request resends only new messages, and under
+        # `tengu_quiet_heron` only the billing-header system block.
         "tools_deferred": deferred,
         "tools_deferred_count": len(deferred),
         # Deferred tools whose full definition is present here. Empty in every
         # variant but tool-search-loaded, where it is the whole point.
         "tools_deferred_loaded": loaded,
         "tools_deferred_loaded_count": len(loaded),
+        "tools_server": server_tools,
         "tools_total_tokens": tools_tokens,
         "has_output_style": any("Output Style" in s.get("text", "") for s in sys_blocks),
         "has_doing_tasks": any("Doing tasks" in s.get("text", "") for s in sys_blocks),

@@ -355,9 +355,14 @@ def extract_request(req_path: Path, out_dir: Path, file_prefix: str = "") -> dic
     # count_tokens rejects a request whose every tool is deferred, so the lone
     # DeferredToolPlaceholder entry is measured with the flag dropped. The
     # definition text is what is being sized; the flag is not part of it.
+    # A server tool entry (`{"type": "advisor_20260301", "name": "advisor",
+    # "model": ...}`) has no definition text and the count endpoint rejects the
+    # whole request on it, so it is listed, not sized.
+    server_tools = {t["name"]: t["type"] for t in tools if "type" in t}
     tool_tokens = {
         t["name"]: count_tokens(model, tools=[_strip_defer_loading(t)]) - base
         for t in tools
+        if "type" not in t
     }
 
     summary = {
@@ -373,6 +378,7 @@ def extract_request(req_path: Path, out_dir: Path, file_prefix: str = "") -> dic
         ],
         "tools": [t["name"] for t in tools],
         "tool_tokens": tool_tokens,
+        "tools_server": server_tools,
         "source_request": req_path.name,
     }
     (out_dir / f"{file_prefix}summary.json").write_text(json.dumps(summary, indent=2))
@@ -557,6 +563,14 @@ def spawn_claude(
     settings = {}
     if output_style is not None:
         settings["outputStyle"] = output_style
+    # --dangerously-skip-permissions opens an acceptance dialog at startup
+    # unless a settings source carries skipDangerousModePermissionPrompt
+    # (`mz()`, src/chunk-3z4drmxy.js:3958, read by the dialog gate in
+    # src/chunk-q08t3k8v.js:129). Declined, the child exits before its first
+    # API call; accepted, it writes the key into the user's settings.json. The
+    # temp cwd's local settings is the one source this capture owns.
+    if "--dangerously-skip-permissions" in extra_args:
+        settings["skipDangerousModePermissionPrompt"] = True
     (settings_dir / "settings.local.json").write_text(json.dumps(settings))
 
     # Add a CLAUDE.md so the capture includes the claudeMd context block
