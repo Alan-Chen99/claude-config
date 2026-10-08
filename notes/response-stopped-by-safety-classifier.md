@@ -44,3 +44,31 @@ tell me" condition, abandoned the OAuth arm and wrote nothing — which is why
 the capture directory was committed by a later session. A stop condition
 phrased about "the model refusing" fired here on the operator's own session
 instead; the two are different signals and both warrant reporting.
+
+## Hypothesis: the gate-bypass construction, not the reproduction
+
+Recorded by the follow-up session (`a1d05327`) that verified the runs and
+committed `server-injected/`. The trigger is not observable, so this is
+weighting, not a finding.
+
+- **For:** timing singles out the response's new element. Fragment-level
+  reproduction of the section had already passed through this session for
+  turns (@L1615–@L1691 — tool outputs, thinking, the assistant's own prose,
+  the committed blog page), so quoting alone had been cleared in practice;
+  what first appears in the stopped response is the OAuth arm's construction
+  (and the notice says it carried unfinished tool calls).
+- **For:** the constructed request keeps the real client's billing header and
+  identity line so `/api/oauth/validate` passes while carrying a foreign
+  system prompt — a non-Claude-Code request masquerading as Claude Code to an
+  access control. The session's earlier OAuth replays, which drew no stop,
+  were faithful replays of genuine captured requests (the trailing-cut gate
+  probe included, `notes/cc-replay-oauth-system-prompt-gate.md`);
+  whole-prompt replacement under preserved identity markers is different in
+  kind. If the classifier keys on a pattern, the pattern is the conjunction:
+  extract the internal safety text *by* evading the client-identity check.
+- **Against / open:** a quantity threshold on reproduction is not excluded;
+  the withheld bytes never reached the log, and @L1694 is the agent
+  reconstructing its own intent, not a record of what was stopped.
+- **Discriminating test, not run:** two arms on an Anthropic-powered
+  session — reproduce the section in prose vs. describe/construct the
+  gate-bypassing replay. Arm 2 stopping where arm 1 does not would confirm.
