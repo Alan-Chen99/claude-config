@@ -85,6 +85,13 @@ otherwise intact Claude Code system prompt may well pass. Anyone who needs that
 answer can get it in two sends from a fresh capture, and should extend the table
 above rather than re-deriving the gate.
 
+Measured 2026-10-08, cc 2.1.289 (`ddc24a3b/0003`, `claude-fable-5-1`, claude.ai
+OAuth): cutting the trailing `# Claude in Chrome browser automation` section — 4,107
+of `system[2]`'s 25,788 chars, the billing header and identity line untouched —
+returns `200` with the full unified header set, 2/2. That `system[2]` was already a
+`--system-prompt-file` text, so the check is not on exact bytes; a prefix or
+something coarser stays open.
+
 ## The gate is not Opus-shaped, but it looks it
 
 Re-measured 2026-10-01, cc 2.1.269. With `system` replaced by one line,
