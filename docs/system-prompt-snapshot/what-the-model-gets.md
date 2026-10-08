@@ -1,7 +1,11 @@
 # What the Model Gets
 
-Everything the model receives, in order, on a fresh interactive session with a
-project CLAUDE.md, no output style.
+Everything the client sends, in order, on a fresh interactive session with a
+project CLAUDE.md, no output style. The API adds text no capture shows: a
+tool-use batching sentence (*"…make all of the independent calls in the same …
+block"*, not the prompt's own parallel-calls line), and a browser-safety section
+(≈2.5k Opus-5.5 tokens) whenever a `mcp__claude-in-chrome__*` tool is sent —
+`notes/chrome-tool-names-trigger-server-safety-block.md`.
 
 v2.1.289. Source: the seven `<model-id>/default/request.json` captures —
 `sonnet-5`, `sonnet-5-5`, `opus-5`, `opus-5-5`, `opus-4-7`, `opus-4-8`,
