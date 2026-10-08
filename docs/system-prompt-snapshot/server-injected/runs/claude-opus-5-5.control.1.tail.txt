@@ -1,0 +1,3 @@
+
+
+If you intend to call multiple tools and there are no dependencies between the calls, make all of the independent calls in the same [CALL TAG] block, otherwise you MUST wait for previous calls to finish first to determine the dependent values.
