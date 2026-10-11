@@ -134,8 +134,9 @@ A call that failed at the HTTP layer carries `error` in place of `response`:
 — `type` and `message`, the same two keys an in-stream error uses, or `body`
 (capped at 8 KB) when the body was something else, such as a gateway's HTML.
 A 200 whose body would not decode or reassemble carries `error` too, holding
-only `parse_error`, the exception's message. The request half is a complete
-conversation, so `cc-pretty-intercept` renders these.
+only `parse_error`, the exception's type and message; so does a non-streamed
+200 that is not a JSON object. The request half is a complete conversation, so
+`cc-pretty-intercept` renders these.
 
 A refusal is not an HTTP error: it arrives on a 200 stream as `stop_reason:
 "refusal"` with `stop_details` carrying `category` (`reasoning_extraction`,
@@ -166,15 +167,19 @@ reassemble — a sibling `NNNN.detail.json` keeps the wire's account:
 }
 ```
 
-`trigger.kind` is `http_error`, `refusal`, `stream_error` or `parse_error`. The
-API compresses every body — SSE as gzip, JSON and error bodies as br — so the
-relay sees compressed reads, and `raw_response` is the body with its
-`Content-Encoding` undone. `chunks` are those reads — TCP boundaries, not SSE
-events — each with the millisecond it arrived after the request, its size on
-the wire (`bytes`) and the text it made decodable (`text`); `raw_response` is
-exactly the concatenation of `chunks[].text`. A body its encoding will not undo
-is kept as the wire bytes in `raw_response_base64` instead, beside
-`decode_error`, with text-less chunks and a `decode-detail` line in
+`trigger.kind` is `http_error`, `refusal`, `stream_error` (an in-stream `error`
+event, or an `error` object in a non-streamed 200) or `parse_error`.
+`api.anthropic.com` compresses its bodies — SSE as gzip, JSON and error bodies
+as br — and the relay sees them as sent, so `raw_response` is the body with its
+`Content-Encoding` undone. `chunks` are the pieces of body mitmproxy relayed —
+an HTTP/1.1 chunk, or as much of one as had arrived; for an unchunked body, a
+socket read; never an SSE event as such — each with the millisecond it arrived
+after the request, its size on the wire (`bytes`) and the text it completed
+(`text`); `raw_response` is exactly the concatenation of `chunks[].text`. A body
+that will not decode — not what its `Content-Encoding` says, a compressed
+stream cut short or running past its end, or not UTF-8 — is kept as the wire
+bytes in `raw_response_base64` instead, beside `decode_error`, with text-less
+chunks and a `decode-detail` line naming the file in
 `requests-log/_errors/errors.log`. Nothing else is trimmed or capped. A clean
 `end_turn`/`tool_use`/`max_tokens` writes no detail file, and
 `cc-pretty-intercept` refuses one, naming its capture.
@@ -244,12 +249,13 @@ Losses that no capture records:
   rebuilds the addon when its script file changes, and the new instance has no
   record of a response already in progress. It never saw the body, so its
   capture and `NNNN.detail.json` carry none: a 200 becomes a `parse_error`
-  reading `response body not captured: the addon was reloaded mid-call`, with
-  a `parse-response` line in `requests-log/_errors/errors.log`. Editing
-  `proxy.py` while sessions are running costs those response bodies.
-- **Everything that is not conversation-shaped.** The `model` + `messages`
-  filter runs before any logging, so a failure on `count_tokens`, on OAuth
-  refresh, or on telemetry is never seen.
+  reading `ValueError: response body not captured: the addon was reloaded
+  mid-call`, with a `parse-response` line in `requests-log/_errors/errors.log`.
+  Editing `proxy.py` while sessions are running costs those response bodies.
+- **Everything that is not conversation-shaped.** `TARGET_HOSTS` and the
+  `model` + `messages` filter both run before any logging, so a failure on
+  OAuth refresh or on telemetry is never seen. `count_tokens` requests carry
+  both keys and are captured.
 - **Anything about a session that did not start under the proxy.** See below.
 
 ## Which sessions are captured

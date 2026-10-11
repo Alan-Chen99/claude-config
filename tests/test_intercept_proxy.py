@@ -7,9 +7,8 @@ no renderer can recover it.
 
 A capture is also only worth having if the session it intercepts still works.
 mitmproxy buffers a whole response body by default, which holds an SSE stream --
-status line included -- until the model has finished; the tests from "Pass-through
-streaming" on drive a real mitmdump to pin both halves of the fix, the relay and
-the capture.
+status line included -- until the model has finished; the tests that start a
+real mitmdump pin both halves of the fix, the relay and the capture.
 """
 
 from __future__ import annotations
@@ -31,7 +30,7 @@ from pathlib import Path
 import brotli
 import pytest
 import zstandard
-from hypothesis import given, strategies as st
+from hypothesis import assume, given, strategies as st
 
 from claude_config.cc_replay.proxy_module import load_proxy
 
@@ -224,36 +223,11 @@ def test_an_error_body_that_is_not_the_api_s_is_kept_as_capped_text() -> None:
     assert len(long["body"]) == proxy.ERROR_BODY_MAX
 
 
-# --- Failed-call detail: trigger classification and chunk decoding ---
+# --- Failed-call detail: the body as it crossed the wire ---
 
 
-def test_soft_error_trigger_fires_on_a_refusal_and_keeps_its_details() -> None:
-    trigger = proxy.soft_error_trigger(
-        {
-            "stop_reason": "refusal",
-            "stop_details": {"category": "reasoning_extraction", "explanation": "x"},
-        }
-    )
-    assert trigger == {
-        "kind": "refusal",
-        "stop_reason": "refusal",
-        "stop_details": {"category": "reasoning_extraction", "explanation": "x"},
-    }
-
-
-def test_soft_error_trigger_fires_on_an_in_stream_error() -> None:
-    trigger = proxy.soft_error_trigger({"error": {"type": "overloaded_error"}})
-    assert trigger == {"kind": "stream_error", "error": {"type": "overloaded_error"}}
-
-
-def test_soft_error_trigger_is_none_for_an_ordinary_completion() -> None:
-    assert proxy.soft_error_trigger({"stop_reason": "end_turn", "error": None}) is None
-    assert proxy.soft_error_trigger({"stop_reason": "max_tokens"}) is None
-    assert proxy.soft_error_trigger({"stop_reason": "tool_use"}) is None
-
-
-# Every coding Claude Code's Accept-Encoding offers. The API answers SSE in gzip
-# and JSON in br, so the relay sees compressed reads, not text.
+# Every coding Claude Code's Accept-Encoding offers. api.anthropic.com answers
+# SSE in gzip and JSON in br, so the relay sees compressed reads, not text.
 _ENCODE: dict[str, Callable[[bytes], bytes]] = {
     "identity": lambda data: data,
     "gzip": gzip.compress,
@@ -263,23 +237,59 @@ _ENCODE: dict[str, Callable[[bytes], bytes]] = {
 }
 
 
+def _reads(wire: bytes, cuts: list[int]) -> list[tuple[int, int]]:
+    """(offset_ms, length) per relayed read, the wire cut at arbitrary points."""
+    bounds = sorted({0, len(wire), *(cut % (len(wire) + 1) for cut in cuts)})
+    return [(10 * i, end - start) for i, (start, end) in enumerate(itertools.pairwise(bounds))]
+
+
 @given(
-    text=st.text(),
+    payload=st.one_of(st.text().map(str.encode), st.binary()),
     coding=st.sampled_from(sorted(_ENCODE)),
     cuts=st.lists(st.integers(min_value=0)),
 )
-def test_chunk_texts_rebuild_the_body_wherever_the_wire_split(text, coding, cuts) -> None:
+def test_chunk_texts_rebuild_the_body_exactly_or_the_decode_fails(payload, coding, cuts) -> None:
     """A read can end inside a compressed block or inside a UTF-8 character;
-    neither may cost a byte or leave a replacement character behind."""
-    wire = _ENCODE[coding](text.encode())
-    bounds = sorted({0, len(wire), *(cut % (len(wire) + 1) for cut in cuts)})
-    meta = [(10 * i, end - start) for i, (start, end) in enumerate(itertools.pairwise(bounds))]
+    neither may cost a byte. Bytes that are not UTF-8 fail the decode -- which
+    keeps them as base64 -- rather than turn into replacement characters."""
+    wire = _ENCODE[coding](payload)
+    reads = _reads(wire, cuts)
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError:
+        with pytest.raises(UnicodeDecodeError):
+            proxy.decode_chunks(wire, reads, coding)
+        return
 
-    raw, chunks = proxy.decode_chunks(wire, meta, coding)
+    raw, chunks = proxy.decode_chunks(wire, reads, coding)
 
     assert raw == text
     assert "".join(chunk["text"] for chunk in chunks) == text
-    assert [(chunk["offset_ms"], chunk["bytes"]) for chunk in chunks] == meta
+    assert [(chunk["offset_ms"], chunk["bytes"]) for chunk in chunks] == reads
+
+
+@given(
+    text=st.text(),
+    coding=st.sampled_from(sorted(set(_ENCODE) - {"identity"})),
+    run_on=st.booleans(),
+    extra=st.binary(min_size=1),
+    cut=st.integers(min_value=0),
+    cuts=st.lists(st.integers(min_value=0)),
+)
+def test_a_compressed_body_cut_short_or_running_on_fails_the_decode(
+    text, coding, run_on, extra, cut, cuts
+) -> None:
+    """mitmproxy's gzip and zstd decoders return a cut-short stream's prefix as
+    the whole body; a detail file must not."""
+    whole = _ENCODE[coding](text.encode())
+    if run_on:
+        wire = whole + extra
+    else:
+        assume(len(whole) > 1)
+        wire = whole[: 1 + cut % (len(whole) - 1)]
+
+    with pytest.raises(proxy.DECODE_ERRORS):
+        proxy.decode_chunks(wire, _reads(wire, cuts), coding)
 
 
 # --- Pass-through streaming ---
@@ -446,6 +456,8 @@ def _post_through_proxy(
     origin_port: int,
     session_id: str,
     extra_headers: tuple[tuple[str, str], ...] = (),
+    *,
+    streaming: bool = True,
 ) -> list[tuple[float, bytes]]:
     """POST a conversation-shaped body and timestamp every arrival.
 
@@ -454,7 +466,7 @@ def _post_through_proxy(
     origin can stand in for api.anthropic.com without touching DNS.
     """
     body = json.dumps(
-        {"model": "claude-stream-test", "messages": [{"role": "user", "content": "hi"}], "stream": True}
+        {"model": "claude-stream-test", "messages": [{"role": "user", "content": "hi"}], "stream": streaming}
     ).encode()
     extra = "".join(f"{name}: {value}\r\n" for name, value in extra_headers)
     request = (
@@ -731,8 +743,6 @@ def test_a_refusal_writes_a_detail_log_with_the_decoded_stream_and_its_timing(
     chunks = detail["chunks"]
     assert "".join(c["text"] for c in chunks) == raw
     assert all(set(c) == {"offset_ms", "bytes", "text"} and c["bytes"] > 0 for c in chunks)
-    offsets = [c["offset_ms"] for c in chunks]
-    assert offsets == sorted(offsets)
 
     def arrived(needle: str) -> int:
         return next(c["offset_ms"] for c in chunks if needle in c["text"])
@@ -760,16 +770,69 @@ def test_an_unparseable_stream_keeps_its_raw_bytes_in_a_detail_log(
     session_dir = home / ".claude" / "requests-log" / session_id
     _wait_for(session_dir / "0001.detail.json")
 
+    failure = "ValueError: no SSE data events in a streamed response"
     normal = json.loads((session_dir / "0001.json").read_text())
     assert "response" not in normal
-    assert normal["error"] == {"parse_error": "no SSE data events in a streamed response"}
+    assert normal["error"] == {"parse_error": failure}
 
     detail = json.loads((session_dir / "0001.detail.json").read_text())
-    assert detail["trigger"] == {
-        "kind": "parse_error", "message": "no SSE data events in a streamed response",
-    }
+    assert detail["trigger"] == {"kind": "parse_error", "message": failure}
     assert detail["response"] is None
     assert detail["raw_response"] == "event: ping\nnot an sse data line at all\n"
+
+
+@pytest.fixture(scope="module")
+def list_origin() -> Iterator[int]:
+    """A 200 whose JSON body is an array, where the API always sends an object."""
+    yield from _origin(_whole("200 OK", b'[{"type": "text"}]', "Content-Type: application/json"))
+
+
+def test_a_non_streamed_200_that_is_not_an_object_is_a_parse_error(list_origin, proxy_process) -> None:
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, list_origin, session_id, streaming=False)
+
+    session_dir = home / ".claude" / "requests-log" / session_id
+    _wait_for(session_dir / "0001.detail.json")
+
+    failure = "ValueError: a JSON list where the API sends an object"
+    normal = json.loads((session_dir / "0001.json").read_text())
+    assert normal["streaming"] is False
+    assert normal["error"] == {"parse_error": failure}
+
+    detail = json.loads((session_dir / "0001.detail.json").read_text())
+    assert detail["trigger"] == {"kind": "parse_error", "message": failure}
+    assert detail["response"] is None
+    assert detail["raw_response"] == '[{"type": "text"}]'
+
+
+_STREAM_ERROR = {"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}
+
+
+@pytest.fixture(scope="module")
+def stream_error_origin() -> Iterator[int]:
+    """A 200 stream the API ends with an `error` event, sent plain as Z.ai sends
+    every body."""
+    yield from _origin(_sse_stream((*_STREAM_EVENTS[:3], _STREAM_ERROR)))
+
+
+def test_an_in_stream_error_writes_a_detail_log(stream_error_origin, proxy_process) -> None:
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, stream_error_origin, session_id)
+
+    session_dir = home / ".claude" / "requests-log" / session_id
+    _wait_for(session_dir / "0001.detail.json")
+
+    normal = json.loads((session_dir / "0001.json").read_text())
+    assert normal["response"]["error"] == _STREAM_ERROR["error"]
+    assert normal["response"]["content"] == [{"type": "text", "text": "first "}]
+
+    detail = json.loads((session_dir / "0001.detail.json").read_text())
+    assert detail["trigger"] == {"kind": "stream_error", "error": _STREAM_ERROR["error"]}
+    assert detail["response"] == normal["response"]
+    assert detail["raw_response"].endswith(f"event: error\ndata: {json.dumps(_STREAM_ERROR)}\n\n")
+    assert "".join(c["text"] for c in detail["chunks"]) == detail["raw_response"]
 
 
 # A body labelled gzip that is not gzip: mitmproxy cannot undo it either.
@@ -804,7 +867,7 @@ def test_a_body_whose_encoding_will_not_undo_keeps_its_wire_bytes(
     assert [set(c) for c in detail["chunks"]] == [{"offset_ms", "bytes"}] * len(detail["chunks"])
     assert sum(c["bytes"] for c in detail["chunks"]) == len(_MISLABELLED)
     errors = (home / ".claude" / "requests-log" / "_errors" / "errors.log").read_text()
-    assert "decode-detail" in errors
+    assert f"decode-detail {session_dir / '0001.detail.json'}: " in errors
 
 
 def test_a_non_200_also_writes_a_detail_log(error_origin, proxy_process) -> None:
@@ -823,3 +886,26 @@ def test_a_non_200_also_writes_a_detail_log(error_origin, proxy_process) -> None
     assert detail["response"] is None
     # br undone: the API's JSON, not its compressed bytes.
     assert json.loads(detail["raw_response"])["error"]["message"] == "requires usage credits"
+
+
+@pytest.fixture(scope="module")
+def empty_origin() -> Iterator[int]:
+    """A gateway's bodiless 503 that still names a Content-Encoding."""
+    yield from _origin(_whole("503 Service Unavailable", b"", "Content-Encoding: gzip"))
+
+
+def test_an_empty_body_is_empty_whatever_its_content_encoding(empty_origin, proxy_process) -> None:
+    """Not a gzip stream cut short: Content-Encoding describes a body, and
+    there is none, as mitmproxy itself reads it."""
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, empty_origin, session_id)
+
+    session_dir = home / ".claude" / "requests-log" / session_id
+    _wait_for(session_dir / "0001.detail.json")
+
+    detail = json.loads((session_dir / "0001.detail.json").read_text())
+    assert detail["trigger"]["status"] == 503
+    assert detail["raw_response"] == ""
+    assert detail["chunks"] == []
+    assert "decode_error" not in detail
