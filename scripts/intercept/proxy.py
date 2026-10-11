@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import base64
 import codecs
+import hashlib
+import importlib.metadata
 import json
 import re
 import time
@@ -47,6 +49,40 @@ TARGET_HOSTS = ("api.anthropic.com", "api.kimi.ai", "api.z.ai")
 LOG_BASE = Path.home() / ".claude" / "requests-log"
 SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 SESSION_HEADER = "x-claude-code-session-id"
+
+# What a reader branches on to interpret a capture. Bump it, and add the
+# version's entry to README.md "Format versions", when a change alters what a
+# capture or detail file holds or what one of its values means: a key added,
+# dropped or renamed, a value computed differently, a kind of call newly
+# captured or no longer captured. A change that writes the same files does not
+# bump it; `proxy.blob` tells those apart.
+CAPTURE_FORMAT = 1
+
+
+def _writer() -> dict:
+    """The code writing captures, stamped on each one.
+
+    Computed whenever this module executes, and mitmdump re-executes it on
+    every edit to the file (a one-second mtime poll), so a proxy that outlives
+    the sessions it serves still stamps the code it is running. That is why
+    the identity is the loaded file's git blob id and not the checkout's HEAD:
+    a reload during a merge can read the new file before HEAD moves, and an
+    edit nobody committed has no commit. `git show <blob>` prints a committed
+    version, and a merely staged one until `git gc` prunes it. mitmproxy cuts
+    the relayed reads a detail file's `chunks` record, so its version is part
+    of the writer too.
+    """
+    source = Path(__file__).resolve()
+    data = source.read_bytes()
+    return {
+        "format": CAPTURE_FORMAT,
+        "source": str(source),
+        "blob": hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest(),
+        "mitmproxy": importlib.metadata.version("mitmproxy"),
+    }
+
+
+WRITER = _writer()
 
 
 # --- Session resolution ---
@@ -619,6 +655,7 @@ class InterceptAddon:
             flow.response.raw_content = wire
 
         envelope = {
+            "proxy": WRITER,
             "timestamp": timestamp,
             "duration_ms": duration_ms,
             **({"session": session_meta} if session_meta else {}),

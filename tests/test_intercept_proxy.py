@@ -14,10 +14,14 @@ real mitmdump pin both halves of the fix, the relay and the capture.
 from __future__ import annotations
 
 import base64
+import contextlib
 import gzip
+import importlib.metadata
 import itertools
 import json
 import os
+import re
+import shutil
 import socket
 import subprocess
 import threading
@@ -424,9 +428,15 @@ def proxy_process(tmp_path_factory) -> Iterator[tuple[int, Path]]:
     """A real mitmdump running the addon, with HOME -- and so the log tree
     write_log() derives from Path.home() -- pointed at a scratch directory."""
     home = tmp_path_factory.mktemp("intercept-home")
+    with _mitmdump(_PROXY, home) as port:
+        yield port, home
+
+
+@contextlib.contextmanager
+def _mitmdump(script: Path, home: Path) -> Iterator[int]:
     port = _free_port()
     process = subprocess.Popen(
-        ["mitmdump", "-s", str(_PROXY), "-p", str(port), "--listen-host", "127.0.0.1", "-q"],
+        ["mitmdump", "-s", str(script), "-p", str(port), "--listen-host", "127.0.0.1", "-q"],
         env={**os.environ, "HOME": str(home)},
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -445,10 +455,11 @@ def proxy_process(tmp_path_factory) -> Iterator[tuple[int, Path]]:
         process.kill()
         raise AssertionError("mitmdump never accepted connections")
 
-    yield port, home
-
-    process.terminate()
-    process.wait(timeout=15)
+    try:
+        yield port
+    finally:
+        process.terminate()
+        process.wait(timeout=15)
 
 
 def _post_through_proxy(
@@ -909,3 +920,75 @@ def test_an_empty_body_is_empty_whatever_its_content_encoding(empty_origin, prox
     assert detail["raw_response"] == ""
     assert detail["chunks"] == []
     assert "decode_error" not in detail
+
+
+# A capture is read by the code that wrote it: the proxy outlives every session
+# it serves and reloads its addon on an edit, so neither a session's launcher
+# nor the checkout's HEAD says which code that was.
+
+
+def _git_blob(path: Path) -> str:
+    return subprocess.run(
+        ["git", "hash-object", str(path)], capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+def test_every_capture_and_detail_file_names_the_code_that_wrote_it(
+    refusal_origin, proxy_process
+) -> None:
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, refusal_origin, session_id)
+
+    session_dir = home / ".claude" / "requests-log" / session_id
+    _wait_for(session_dir / "0001.detail.json")
+    stamp = json.loads((session_dir / "0001.json").read_text())["proxy"]
+    assert json.loads((session_dir / "0001.detail.json").read_text())["proxy"] == stamp
+
+    assert stamp == {
+        "format": proxy.CAPTURE_FORMAT,
+        "source": str(_PROXY),
+        # git's own id for the file, so `git show <blob>` resolves it.
+        "blob": _git_blob(_PROXY),
+        "mitmproxy": importlib.metadata.version("mitmproxy"),
+    }
+    readme = (_PROXY.parent / "README.md").read_text()
+    assert re.search(rf"^\| {stamp['format']} \| \S", readme, re.M), (
+        f"README.md 'Format versions' has no row for format {stamp['format']}; "
+        "a reader holding such a capture cannot tell what changed"
+    )
+
+
+def test_the_stamp_follows_an_edit_to_the_addon_without_a_restart(sse_origin, tmp_path) -> None:
+    """One session's captures can carry two blobs: mitmdump re-executes the
+    addon within a second of an edit, and the stamp has to say so."""
+    addon = tmp_path / "addon" / "proxy.py"
+    addon.parent.mkdir()
+    shutil.copy(_PROXY, addon)
+    home = tmp_path / "home"
+    home.mkdir()
+    session_id = str(uuid.uuid4())
+    session_dir = home / ".claude" / "requests-log" / session_id
+
+    def stamp_of_next_capture(n: int) -> dict:
+        _post_through_proxy(port, sse_origin, session_id)
+        capture = session_dir / f"{n:04d}.json"
+        _wait_for(capture)
+        return json.loads(capture.read_text())["proxy"]
+
+    with _mitmdump(addon, home) as port:
+        before = stamp_of_next_capture(1)
+        assert before["blob"] == _git_blob(_PROXY)
+        assert before["source"] == str(addon.resolve())
+
+        addon.write_text(addon.read_text() + "\n# an edit that changes no behaviour\n")
+        edited = _git_blob(addon)
+        n, after = 1, before
+        deadline = time.monotonic() + 15
+        while after["blob"] == before["blob"] and time.monotonic() < deadline:
+            time.sleep(0.5)
+            n += 1
+            after = stamp_of_next_capture(n)
+
+    assert after["blob"] == edited, f"still stamping {after['blob']} after {n} captures"
+    assert after["format"] == before["format"]

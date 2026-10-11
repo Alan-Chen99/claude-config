@@ -95,6 +95,12 @@ Sessions without an ID go to `~/.claude/requests-log/unknown/`.
 
 ```json
 {
+  "proxy": {
+    "format": 1,
+    "source": "/repos/claude-config/scripts/intercept/proxy.py",
+    "blob": "3f1c…",
+    "mitmproxy": "12.2.3"
+  },
   "timestamp": "2026-05-15T...",
   "duration_ms": 1234,
   "session": {
@@ -156,6 +162,7 @@ reassemble — a sibling `NNNN.detail.json` keeps the wire's account:
 
 ```json
 {
+  "proxy": {"…": "as in NNNN.json"},
   "timestamp": "…", "duration_ms": 1003, "session": {"…": "…"}, "streaming": true,
   "http": {"…": "credential-stripped, as in NNNN.json"},
   "detail_for": "0007.json",
@@ -208,6 +215,41 @@ captured as a `parse_error` with its bytes in `NNNN.detail.json`.
 
 A non-streaming reply is stored verbatim; only the streamed path is
 reassembled.
+
+## Which code wrote a capture
+
+Every capture and detail file opens with `proxy`, the identity of the code
+that wrote it:
+
+- `format` — what a reader branches on: two files with the same format hold
+  the same keys with the same meanings. The bump rule is at `CAPTURE_FORMAT`
+  in `proxy.py`; each version is listed below.
+- `blob` — the git blob id of the `proxy.py` that was loaded. `git show
+  <blob>` prints that exact source, and `git log --all --format='%h %cs %s'
+  --find-object=<blob>` lists the commits that added or removed it. A blob no
+  commit holds was loaded uncommitted: git keeps it only if it was staged, and
+  only until `git gc` prunes it.
+- `source` — the file that was loaded, which names the checkout. One checkout
+  can have several paths: this container mounts the canonical one at both
+  `/repos/claude-config` and `/home/alan/repos/claude-config`. Compare blobs,
+  not paths.
+- `mitmproxy` — the library version, which decides where `chunks` split.
+
+The proxy that wrote a capture is not the session's launcher, and its
+identity can differ from the revision a transcript's `<launch-provenance>`
+gives for `claude.sh`. One `mitmdump` serves every session for the life of
+the container: the personal monorepo's `docker/entrypoint.sh` starts it from
+the canonical checkout. It reloads `proxy.py` within a second of any edit, so
+one session's captures can carry two blobs.
+
+Captures without `proxy` predate format 1, so their layout has to be read off
+their keys: `http` is absent before 2026-09-30.
+
+### Format versions
+
+| `format` | What changed |
+| --- | --- |
+| 1 | First stamped format: the layout this README describes, with `NNNN.detail.json` beside each failed call |
 
 ## The `http` region
 
