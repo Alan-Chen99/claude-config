@@ -152,6 +152,16 @@ def log_to_records(
             ),
             ".response",
         )
+    elif log.error is not None and log.error.parse_error:
+        add(
+            SystemRecord(
+                type="system", subtype="api_parse_error",
+                content=log.error.parse_error,
+                detail="see the .detail.json beside this capture",
+                content_leaf=".parse_error",
+            ),
+            ".error",
+        )
     else:
         detail, said = _transport_detail(log.error)
         add(

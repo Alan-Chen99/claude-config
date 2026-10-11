@@ -126,6 +126,32 @@ def test_an_error_body_that_was_not_the_api_s_still_renders(tmp_path) -> None:
     assert "<html>" in out
 
 
+def test_a_response_that_would_not_reassemble_renders_why(tmp_path) -> None:
+    """A 200 whose body would not decode or reassemble: no status to report."""
+    cap = capture()
+    del cap["response"]
+    cap["error"] = {"parse_error": "no SSE data events in a streamed response"}
+    out = render(tmp_path, cap)
+    assert "Unreadable response" in out
+    assert "no SSE data events in a streamed response" in out
+    assert "HTTP 0" not in out
+    assert "never produced a response" not in out
+
+
+def test_a_detail_file_is_refused_with_its_capture_named(tmp_path) -> None:
+    """Its request is the capture's; rendered as one, it would hide the failure."""
+    path = tmp_path / "0007.detail.json"
+    path.write_text(json.dumps(capture(
+        detail_for="0007.json",
+        trigger={"kind": "http_error", "status": 429, "statusText": "Too Many Requests"},
+        response=None,
+        raw_response="{}",
+        chunks=[],
+    )))
+    with pytest.raises(ValueError, match=r"detail file.*0007\.json"):
+        main([str(path)])
+
+
 def test_an_assistant_message_carrying_a_bare_string_still_renders(tmp_path) -> None:
     """The API permits a prefill; content_blocks() yields nothing for one."""
     cap = capture()

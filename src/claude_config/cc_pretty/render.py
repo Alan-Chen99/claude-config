@@ -818,6 +818,7 @@ class Renderer:
         "api_error": "API error",
         "api_refusal": "Refusal",
         "api_transport_error": "Transport error",
+        "api_parse_error": "Unreadable response",
     }
 
     def _render_api_region(self, rec: SystemRecord, lineno: int) -> str:
@@ -828,7 +829,7 @@ class Renderer:
         gets the ref and recovery hint any other addressable block gets.
         """
         is_error = rec.subtype in (
-            "api_error", "api_refusal", "api_transport_error",
+            "api_error", "api_refusal", "api_transport_error", "api_parse_error",
         )
         color = C.ERROR if is_error else C.SYSTEM
         label = self._API_LABELS.get(rec.subtype, rec.subtype)

@@ -133,8 +133,9 @@ A call that failed at the HTTP layer carries `error` in place of `response`:
 `status` and `statusText`, plus the API's own account read from the error body
 — `type` and `message`, the same two keys an in-stream error uses, or `body`
 (capped at 8 KB) when the body was something else, such as a gateway's HTML.
-The request half is a complete conversation, so `cc-pretty-intercept` renders
-these.
+A 200 whose body would not decode or reassemble carries `error` too, holding
+only `parse_error`, the exception's message. The request half is a complete
+conversation, so `cc-pretty-intercept` renders these.
 
 A refusal is not an HTTP error: it arrives on a 200 stream as `stop_reason:
 "refusal"` with `stop_details` carrying `category` (`reasoning_extraction`,
@@ -144,31 +145,39 @@ describe the same event in different words.
 
 ### `NNNN.detail.json` — the failed call in full
 
-A refusal keeps only what it did not withhold: the reassembled `NNNN.json`
-holds the surviving blocks, while the tokens the classifier cut off never land
-in `content`, only in the `output_tokens` count. So whenever a call fails —
-a non-200 status, a 200 the model refused or ended with an in-stream `error`,
-or a stream that would not reassemble — a sibling `NNNN.detail.json` is written
-beside `NNNN.json` with everything the wire gave:
+`NNNN.json` keeps the reassembled message, not the stream it came from: the
+order and timing of events, and every event reassembly drops (`ping`, delta
+types it does not model), are gone once it is written. What a refusal withheld
+was never sent, so no file holds it, but the stream shows where it stopped and
+when. So whenever a call fails — a non-200 status, a 200 the model refused or
+ended with an in-stream `error`, or a response that would not decode or
+reassemble — a sibling `NNNN.detail.json` keeps the wire's account:
 
 ```json
 {
+  "timestamp": "…", "duration_ms": 1003, "session": {"…": "…"}, "streaming": true,
+  "http": {"…": "credential-stripped, as in NNNN.json"},
   "detail_for": "0007.json",
-  "trigger": {"kind": "refusal", "stop_reason": "refusal", "stop_details": {"category": "reasoning_extraction", "...": "..."}},
-  "http": { "...": "credential-stripped, same shape as NNNN.json" },
-  "request": { "...": "the full request body" },
-  "response": { "...": "the reassembled message, or null when it would not parse" },
-  "raw_response": "the undecoded SSE text in full",
-  "chunks": [{"offset_ms": 0, "bytes": 512, "text": "event: message_start\ndata: ..."}]
+  "trigger": {"kind": "refusal", "stop_reason": "refusal", "stop_details": {"category": "reasoning_extraction", "…": "…"}},
+  "request": {"…": "the full request body"},
+  "response": {"…": "the reassembled message, or null"},
+  "raw_response": "event: message_start\ndata: {…}\n\n…",
+  "chunks": [{"offset_ms": 2, "bytes": 127, "text": "event: message_start\ndata: {…}\n\n"}]
 }
 ```
 
-`trigger.kind` is `http_error`, `refusal`, `stream_error` or `parse_error`.
-`chunks` are the reads mitmproxy handed the relay — TCP boundaries, not SSE
-events — each stamped with the millisecond it arrived relative to the request,
-so `raw_response` is the concatenation of `chunks[].text`. Credentials are
-stripped from `http` here as everywhere; nothing else is trimmed or capped. A
-clean `end_turn`/`tool_use`/`max_tokens` writes no detail file.
+`trigger.kind` is `http_error`, `refusal`, `stream_error` or `parse_error`. The
+API compresses every body — SSE as gzip, JSON and error bodies as br — so the
+relay sees compressed reads, and `raw_response` is the body with its
+`Content-Encoding` undone. `chunks` are those reads — TCP boundaries, not SSE
+events — each with the millisecond it arrived after the request, its size on
+the wire (`bytes`) and the text it made decodable (`text`); `raw_response` is
+exactly the concatenation of `chunks[].text`. A body its encoding will not undo
+is kept as the wire bytes in `raw_response_base64` instead, beside
+`decode_error`, with text-less chunks and a `decode-detail` line in
+`requests-log/_errors/errors.log`. Nothing else is trimmed or capped. A clean
+`end_turn`/`tool_use`/`max_tokens` writes no detail file, and
+`cc-pretty-intercept` refuses one, naming its capture.
 
 Only bodies carrying both `model` and `messages` are logged, so every file on
 disk is a conversation-shaped request. That includes Claude Code's own
@@ -189,7 +198,8 @@ A `data:` line is read with or without the space after the colon. SSE makes
 that space optional and the first-party API sends it, so requiring it went
 unnoticed until `api.kimi.ai` joined `TARGET_HOSTS` and sent streams without
 it — every line was skipped and the all-defaults message went to disk looking
-like a real empty turn. A stream nothing parses out of now raises instead.
+like a real empty turn. A stream nothing parses out of raises instead, and is
+captured as a `parse_error` with its bytes in `NNNN.detail.json`.
 
 A non-streaming reply is stored verbatim; only the streamed path is
 reassembled.
@@ -230,24 +240,17 @@ Losses that no capture records:
   unreachable origin, a client abort: mitmproxy routes these to the `error`
   hook, which drops the flow's state and writes nothing — not even the request
   half. The client still sees the failure; the capture does not.
-- **A capture whose addon was replaced mid-flight.** mitmdump rebuilds the
-  addon when its script file changes, and the new instance has no record of a
-  response already in progress. It never saw the body, so what it can still
-  write — a `parse_error` capture from the request half plus an empty-bodied
-  `NNNN.detail.json` — carries no response bytes, and a `parse-response` line
-  lands in `requests-log/_errors/errors.log`. Editing `proxy.py` while sessions
-  are running costs those response bodies.
+- **The body of a call whose addon was replaced mid-flight.** mitmdump
+  rebuilds the addon when its script file changes, and the new instance has no
+  record of a response already in progress. It never saw the body, so its
+  capture and `NNNN.detail.json` carry none: a 200 becomes a `parse_error`
+  reading `response body not captured: the addon was reloaded mid-call`, with
+  a `parse-response` line in `requests-log/_errors/errors.log`. Editing
+  `proxy.py` while sessions are running costs those response bodies.
 - **Everything that is not conversation-shaped.** The `model` + `messages`
   filter runs before any logging, so a failure on `count_tokens`, on OAuth
   refresh, or on telemetry is never seen.
 - **Anything about a session that did not start under the proxy.** See below.
-
-A streamed response no SSE event could be read out of is no longer a loss:
-reassembly still raises rather than writing a message of defaults, but the
-raise now routes to a `parse_error` capture whose `NNNN.detail.json` holds the
-raw bytes (`conventions`: an all-defaults message on disk would be
-indistinguishable from a real empty turn, so the reassembled `NNNN.json` still
-refuses to record one — it carries `error.parse_error` instead).
 
 ## Which sessions are captured
 

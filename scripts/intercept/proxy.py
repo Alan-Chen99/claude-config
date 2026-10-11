@@ -6,11 +6,12 @@ entrypoint, kind). Logs are stored per-session:
   ~/.claude/requests-log/{session_id}/NNNN.json
 
 A call that failed -- a non-200 status, a 200 the model refused or cut short
-with an in-stream error, or a stream that would not reassemble -- also writes a
-sibling ~/.claude/requests-log/{session_id}/NNNN.detail.json. The reassembled
-NNNN.json keeps only the final message; a refusal withholds everything past the
-point it fired, so the detail file carries the raw response bytes and every
-relayed chunk with the millisecond it arrived, which is all the wire gives.
+with an in-stream error, or a response that would not decode or reassemble --
+also writes a sibling ~/.claude/requests-log/{session_id}/NNNN.detail.json. The
+reassembled NNNN.json keeps the message, not the stream it arrived as, so the
+detail file carries the response body as text, its Content-Encoding undone, and
+every relayed read with the millisecond it arrived -- which is all the wire
+gives; what a refusal withheld was never sent.
 
 Response bodies are forwarded to the client as they arrive and captured on the
 way past, so an intercepted SSE stream still streams. See README.md,
@@ -22,12 +23,20 @@ Or use the CLI wrapper: python3 run-proxy.py [--port PORT]
 
 from __future__ import annotations
 
+import base64
+import codecs
 import json
 import re
 import time
+import zlib
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
+
+# mitmproxy's own dependencies, so present wherever the addon runs.
+import brotli
+import zstandard
 
 # Every host a session's Anthropic-shaped traffic can go to: the first-party
 # API, and the Anthropic-compatible endpoints scripts/kimi.sh and scripts/zai.sh
@@ -224,9 +233,8 @@ def parse_sse_stream(raw: str) -> dict:
     message["content"] = [b for b in message["content"] if b is not None]
     # A stream nothing could be read out of yields a message that is entirely
     # defaults -- blank model, no content, zero usage -- which on disk is
-    # indistinguishable from a real empty turn. Raising routes it to the
-    # `parse-response` line in `_errors/errors.log` instead, where a capture
-    # that went missing has somewhere to be found.
+    # indistinguishable from a real empty turn. Raising makes it a
+    # `parse_error` capture instead, its bytes kept in the detail file.
     if events == 0:
         raise ValueError("no SSE data events in a streamed response")
 
@@ -280,27 +288,83 @@ def soft_error_trigger(parsed: dict) -> dict | None:
     return None
 
 
-def chunk_records(captured: bytes, chunk_meta: list[tuple[int, int]]) -> list[dict]:
-    """Each relayed chunk as arrival offset (ms), byte length, and decoded text.
+# What each streaming decoder raises on a body that is not what its
+# Content-Encoding says, plus the ValueError for a coding with no decoder.
+DECODE_ERRORS = (ValueError, zlib.error, brotli.error, zstandard.ZstdError)
 
-    The boundaries are the reads mitmproxy handed the relay -- TCP, not SSE
-    events -- so the timing is of the wire, not of the model. The text is sliced
-    back out of the single captured copy rather than held a second time in
-    memory for every flow.
+
+def _content_decoder(
+    content_encoding: str,
+) -> tuple[Callable[[bytes], bytes], Callable[[], bytes]]:
+    """Undo Content-Encoding one relayed read at a time: (feed, flush).
+
+    The relay sees the body as sent, and the API compresses every body -- gzip
+    on SSE, br on JSON -- so a read is compressed bytes, not text. Covered: the
+    four codings Claude Code's Accept-Encoding offers.
     """
-    records: list[dict] = []
+    coding = content_encoding.strip().lower()
+    if coding in ("", "identity"):
+        return (lambda data: data), (lambda: b"")
+    if coding in ("gzip", "deflate"):
+        # wbits 47 takes a gzip or a zlib header, as mitmproxy's decode_gzip does.
+        inflate = zlib.decompressobj(47)
+        return inflate.decompress, inflate.flush
+    if coding == "br":
+        return brotli.Decompressor().process, (lambda: b"")
+    if coding == "zstd":
+        unzstd = zstandard.ZstdDecompressor().decompressobj(read_across_frames=True)
+        return unzstd.decompress, unzstd.flush
+    raise ValueError(f"no streaming decoder for Content-Encoding {content_encoding!r}")
+
+
+def decode_chunks(
+    wire: bytes, reads: list[tuple[int, int]], content_encoding: str
+) -> tuple[str, list[dict]]:
+    """The body as text, and each relayed read with the text it made decodable.
+
+    `reads` holds (offset_ms, length) per read mitmproxy handed the relay --
+    TCP boundaries, not SSE events, so the timing is the wire's, not the
+    model's. A record's `bytes` is the read's size on the wire. The decompressor
+    and the UTF-8 decoder both carry state across reads, so a block or a
+    character split between two reads lands whole in the later one and the
+    texts concatenate to exactly the body. Raises one of DECODE_ERRORS for a
+    body its Content-Encoding will not undo.
+    """
+    feed, flush = _content_decoder(content_encoding)
+    utf8 = codecs.getincrementaldecoder("utf-8")(errors="replace")
+    chunks: list[dict] = []
     pos = 0
-    for offset_ms, length in chunk_meta:
-        segment = captured[pos : pos + length]
+    for offset_ms, length in reads:
+        text = utf8.decode(feed(wire[pos : pos + length]))
         pos += length
-        records.append(
-            {
-                "offset_ms": offset_ms,
-                "bytes": length,
-                "text": segment.decode("utf-8", errors="replace"),
-            }
-        )
-    return records
+        chunks.append({"offset_ms": offset_ms, "bytes": length, "text": text})
+    tail = utf8.decode(flush(), final=True)
+    if tail:
+        chunks[-1]["text"] += tail
+    return "".join(chunk["text"] for chunk in chunks), chunks
+
+
+def response_body_fields(
+    wire: bytes | None, reads: list[tuple[int, int]], content_encoding: str
+) -> dict:
+    """The response body as a detail file records it.
+
+    A body its Content-Encoding will not undo is kept as the wire bytes in
+    base64 instead -- the detail file exists for the failures, and that is one.
+    """
+    if wire is None:
+        return {"raw_response": None, "chunks": []}
+    try:
+        raw, chunks = decode_chunks(wire, reads, content_encoding)
+    except DECODE_ERRORS as e:
+        log_error("decode-detail", e)
+        return {
+            "raw_response": None,
+            "raw_response_base64": base64.b64encode(wire).decode("ascii"),
+            "decode_error": str(e),
+            "chunks": [{"offset_ms": offset, "bytes": length} for offset, length in reads],
+        }
+    return {"raw_response": raw, "chunks": chunks}
 
 
 # --- The HTTP envelope ---
@@ -400,8 +464,8 @@ def get_total_count() -> int:
     return total
 
 
-def _allocate_counter(session_id: str | None) -> tuple[Path, int]:
-    """Reserve the next NNNN slot for a session, creating its dir."""
+def write_log(entry: dict, session_id: str | None) -> Path:
+    """Write the capture as the session's next NNNN.json; return its path."""
     subdir = session_id if session_id else "unknown"
     log_dir = LOG_BASE / subdir
     dir_key = str(log_dir)
@@ -412,22 +476,15 @@ def _allocate_counter(session_id: str | None) -> tuple[Path, int]:
         log_dir.mkdir(parents=True, exist_ok=True)
         _counters[dir_key] += 1
         counter = _counters[dir_key]
-    return log_dir, counter
+
+    path = log_dir / f"{counter:04d}.json"
+    path.write_text(json.dumps(entry, indent=2))
+    return path
 
 
-def write_log(entry: dict, session_id: str | None) -> int:
-    """Write the capture as NNNN.json; return the counter it took."""
-    log_dir, counter = _allocate_counter(session_id)
-    (log_dir / f"{counter:04d}.json").write_text(json.dumps(entry, indent=2))
-    return counter
-
-
-def write_detail_log(entry: dict, session_id: str | None, counter: int) -> None:
-    """Write the failed call's full-detail sibling as NNNN.detail.json."""
-    subdir = session_id if session_id else "unknown"
-    log_dir = LOG_BASE / subdir
-    log_dir.mkdir(parents=True, exist_ok=True)
-    (log_dir / f"{counter:04d}.detail.json").write_text(json.dumps(entry, indent=2))
+def write_detail_log(capture: Path, entry: dict) -> None:
+    """Write a failed call's detail file beside its capture, as NNNN.detail.json."""
+    capture.with_suffix(".detail.json").write_text(json.dumps(entry, indent=2))
 
 
 def log_error(context: str, err: Exception) -> None:
@@ -449,16 +506,17 @@ class InterceptAddon:
 
     def __init__(self) -> None:
         self._flow_start: dict[str, float] = {}
-        self._streamed: dict[str, bytearray] = {}
-        self._chunks: dict[str, list[tuple[int, int]]] = {}
+        # The body relay() forwarded, and (offset_ms, length) per read.
+        self._streamed: dict[str, tuple[bytearray, list[tuple[int, int]]]] = {}
 
     def request(self, flow: "mitmproxy.http.HTTPFlow") -> None:
-        self._flow_start[flow.id] = time.time()
+        # `response` pops only a target host's entry; any other would stay.
+        if flow.request.pretty_host in TARGET_HOSTS:
+            self._flow_start[flow.id] = time.time()
 
     def error(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         self._flow_start.pop(flow.id, None)
         self._streamed.pop(flow.id, None)
-        self._chunks.pop(flow.id, None)
 
     def responseheaders(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         """Forward each response chunk onward as it arrives, keeping a copy.
@@ -482,14 +540,15 @@ class InterceptAddon:
             return
 
         captured = bytearray()
-        self._streamed[flow.id] = captured
-        chunk_meta: list[tuple[int, int]] = []
-        self._chunks[flow.id] = chunk_meta
+        reads: list[tuple[int, int]] = []
+        self._streamed[flow.id] = (captured, reads)
         t0 = self._flow_start.get(flow.id, time.time())
 
         def relay(chunk: bytes) -> bytes:
-            captured.extend(chunk)
-            chunk_meta.append((int((time.time() - t0) * 1000), len(chunk)))
+            # mitmproxy calls once more with b"" to mark the end of the body.
+            if chunk:
+                captured.extend(chunk)
+                reads.append((int((time.time() - t0) * 1000), len(chunk)))
             return chunk
 
         flow.response.stream = relay
@@ -498,8 +557,7 @@ class InterceptAddon:
         if flow.request.pretty_host not in TARGET_HOSTS:
             return
 
-        captured = self._streamed.pop(flow.id, None)
-        chunk_meta = self._chunks.pop(flow.id, None)
+        relayed, reads = self._streamed.pop(flow.id, (None, []))
         start_ms = self._flow_start.pop(flow.id, time.time())
         duration_ms = int((time.time() - start_ms) * 1000)
 
@@ -532,8 +590,9 @@ class InterceptAddon:
 
         # Streaming leaves raw_content unset (mitmproxy Message.raw_content),
         # so restore what relay() saw before anything reads the body.
-        if captured is not None:
-            flow.response.raw_content = bytes(captured)
+        wire = bytes(relayed) if relayed is not None else None
+        if wire is not None:
+            flow.response.raw_content = wire
 
         envelope = {
             "timestamp": timestamp,
@@ -543,102 +602,69 @@ class InterceptAddon:
             "http": http_region(flow),
         }
 
+        parsed = None
         if flow.response.status_code != 200:
-            counter = write_log(
-                {
-                    **envelope,
-                    "error": {
-                        "status": flow.response.status_code,
-                        "statusText": flow.response.reason,
-                        # strict=False: a body that fails to decode is still
-                        # worth more than no body at all.
-                        **error_detail(flow.response.get_content(strict=False)),
-                    },
-                    "request": body,
+            capture = {
+                **envelope,
+                "error": {
+                    "status": flow.response.status_code,
+                    "statusText": flow.response.reason,
+                    # strict=False: a body that fails to decode is still
+                    # worth more than no body at all.
+                    **error_detail(flow.response.get_content(strict=False)),
                 },
-                session_id,
-            )
-            self._write_detail(
-                counter, session_id, envelope, body, None, captured, chunk_meta,
-                {"kind": "http_error", "status": flow.response.status_code,
-                 "statusText": flow.response.reason},
-            )
-            return
-
-        response_bytes = flow.response.get_content()
-        try:
-            if streaming:
-                parsed = parse_sse_stream(
-                    response_bytes.decode("utf-8", errors="replace")
-                )
+                "request": body,
+            }
+            trigger = {
+                "kind": "http_error",
+                "status": flow.response.status_code,
+                "statusText": flow.response.reason,
+            }
+        else:
+            try:
+                # A body its Content-Encoding will not undo raises here, and is
+                # a parse_error like any other.
+                response_bytes = flow.response.get_content()
+                if response_bytes is None:
+                    # relay() belonged to an addon instance mitmdump has since
+                    # replaced, on an edit to this file.
+                    raise ValueError("response body not captured: the addon was reloaded mid-call")
+                if streaming:
+                    parsed = parse_sse_stream(
+                        response_bytes.decode("utf-8", errors="replace")
+                    )
+                else:
+                    parsed = json.loads(response_bytes)
+            except Exception as e:
+                log_error("parse-response", e)
+                capture = {**envelope, "error": {"parse_error": str(e)}, "request": body}
+                trigger = {"kind": "parse_error", "message": str(e)}
             else:
-                parsed = json.loads(response_bytes)
-        except Exception as e:
-            # A stream that would not reassemble is exactly when the raw bytes
-            # are the only record left; keep a visible capture and the detail.
-            log_error("parse-response", e)
-            counter = write_log(
-                {**envelope, "error": {"parse_error": str(e)}, "request": body},
-                session_id,
-            )
-            self._write_detail(
-                counter, session_id, envelope, body, None, captured, chunk_meta,
-                {"kind": "parse_error", "message": str(e)},
-            )
+                capture = {**envelope, "request": body, "response": parsed}
+                trigger = soft_error_trigger(parsed)
+
+        path = write_log(capture, session_id)
+        if trigger is None:
             return
-
-        counter = write_log(
-            {**envelope, "request": body, "response": parsed},
-            session_id,
-        )
-        trigger = soft_error_trigger(parsed)
-        if trigger is not None:
-            self._write_detail(
-                counter, session_id, envelope, body, parsed, captured, chunk_meta,
-                trigger,
-            )
-
-    def _write_detail(
-        self,
-        counter: int,
-        session_id: str | None,
-        envelope: dict,
-        body: dict,
-        parsed: dict | None,
-        captured: "bytearray | None",
-        chunk_meta: "list[tuple[int, int]] | None",
-        trigger: dict,
-    ) -> None:
-        """The failed call with everything the wire gave, as NNNN.detail.json.
-
-        Credentials are already gone from `envelope["http"]`; nothing else is
-        trimmed -- the raw response and per-chunk timing are the point.
-        """
-        raw = bytes(captured) if captured is not None else None
         try:
             write_detail_log(
+                path,
                 {
                     **envelope,
-                    "detail_for": f"{counter:04d}.json",
+                    "detail_for": path.name,
                     "trigger": trigger,
                     "request": body,
                     "response": parsed,
-                    "raw_response": (
-                        raw.decode("utf-8", errors="replace")
-                        if raw is not None
-                        else None
-                    ),
-                    "chunks": (
-                        chunk_records(raw, chunk_meta)
-                        if raw is not None and chunk_meta is not None
-                        else []
+                    **response_body_fields(
+                        wire, reads, flow.response.headers.get("content-encoding", "")
                     ),
                 },
-                session_id,
-                counter,
             )
-        except OSError as e:
+        except Exception as e:
+            # Re-raised so mitmproxy logs the traceback; errors.log is where a
+            # missing detail file is looked for.
             log_error("write-detail", e)
+            raise
 
 
 addons = [InterceptAddon()]

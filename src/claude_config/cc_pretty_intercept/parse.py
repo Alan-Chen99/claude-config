@@ -78,11 +78,12 @@ class Response(_Base):
 
 
 class TransportError(_Base):
-    """HTTP-level failure recorded in place of a response.
+    """A failure recorded in place of a response.
 
     The proxy writes `error` instead of `response` when the call never produced
-    a message — 401, 429, 529 and friends. The request half is a complete
-    conversation, so these captures still render.
+    a message — 401, 429, 529 and friends — or when a 200's body would not
+    decode or reassemble, which carries `parse_error` alone. The request half is
+    a complete conversation, so these captures still render.
 
     `type` and `message` carry the API's own account of the failure; `body`
     holds an error body that was not in that shape, such as a gateway's HTML.
@@ -92,6 +93,7 @@ class TransportError(_Base):
     type: str = ""
     message: str = ""
     body: str = ""
+    parse_error: str = ""
 
 
 class Credential(_Base):
@@ -157,16 +159,23 @@ def load_intercept(path: str) -> InterceptLog:
     """Load one intercept log file. Hard-errors if schema doesn't match.
 
     A capture carries `request` plus either `response` (the call returned a
-    message) or `error` (it failed at the HTTP layer). OTEL span exports —
-    keys `attributes`, `spanContext`, `events` — have neither and are named as
-    such in the error, since they are the one non-capture file shape known to
-    land under requests-log/.
+    message) or `error` (it failed, or its body would not be read). Two other
+    file shapes land under requests-log/ and are named as such in the error: a
+    failed call's NNNN.detail.json, whose request is its capture's and whose
+    failure lives in keys this schema does not render, and OTEL span exports —
+    keys `attributes`, `spanContext`, `events`.
     """
     with open(path) as f:
         raw = json.load(f)
 
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: expected JSON object at top level, got {type(raw).__name__}")
+
+    if "detail_for" in raw:
+        raise ValueError(
+            f"{path}: a failed call's detail file, not a capture — its capture is "
+            f"{raw['detail_for']} in the same directory"
+        )
 
     if "request" not in raw or not ("response" in raw or "error" in raw):
         present = ", ".join(sorted(raw.keys())) or "(none)"

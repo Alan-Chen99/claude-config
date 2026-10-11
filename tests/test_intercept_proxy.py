@@ -7,12 +7,16 @@ no renderer can recover it.
 
 A capture is also only worth having if the session it intercepts still works.
 mitmproxy buffers a whole response body by default, which holds an SSE stream --
-status line included -- until the model has finished; the last two tests drive a
-real mitmdump to pin both halves of the fix, the relay and the capture.
+status line included -- until the model has finished; the tests from "Pass-through
+streaming" on drive a real mitmdump to pin both halves of the fix, the relay and
+the capture.
 """
 
 from __future__ import annotations
 
+import base64
+import gzip
+import itertools
 import json
 import os
 import socket
@@ -20,10 +24,14 @@ import subprocess
 import threading
 import time
 import uuid
-from collections.abc import Iterator
+import zlib
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
+import brotli
 import pytest
+import zstandard
+from hypothesis import given, strategies as st
 
 from claude_config.cc_replay.proxy_module import load_proxy
 
@@ -216,7 +224,7 @@ def test_an_error_body_that_is_not_the_api_s_is_kept_as_capped_text() -> None:
     assert len(long["body"]) == proxy.ERROR_BODY_MAX
 
 
-# --- Failed-call detail: trigger classification and chunk reconstruction ---
+# --- Failed-call detail: trigger classification and chunk decoding ---
 
 
 def test_soft_error_trigger_fires_on_a_refusal_and_keeps_its_details() -> None:
@@ -244,14 +252,34 @@ def test_soft_error_trigger_is_none_for_an_ordinary_completion() -> None:
     assert proxy.soft_error_trigger({"stop_reason": "tool_use"}) is None
 
 
-def test_chunk_records_slice_text_back_out_in_arrival_order() -> None:
-    captured = b"alphaBETAgamma"
-    meta = [(0, 5), (12, 4), (30, 5)]
-    assert proxy.chunk_records(captured, meta) == [
-        {"offset_ms": 0, "bytes": 5, "text": "alpha"},
-        {"offset_ms": 12, "bytes": 4, "text": "BETA"},
-        {"offset_ms": 30, "bytes": 5, "text": "gamma"},
-    ]
+# Every coding Claude Code's Accept-Encoding offers. The API answers SSE in gzip
+# and JSON in br, so the relay sees compressed reads, not text.
+_ENCODE: dict[str, Callable[[bytes], bytes]] = {
+    "identity": lambda data: data,
+    "gzip": gzip.compress,
+    "deflate": zlib.compress,
+    "br": brotli.compress,
+    "zstd": lambda data: zstandard.ZstdCompressor().compress(data),
+}
+
+
+@given(
+    text=st.text(),
+    coding=st.sampled_from(sorted(_ENCODE)),
+    cuts=st.lists(st.integers(min_value=0)),
+)
+def test_chunk_texts_rebuild_the_body_wherever_the_wire_split(text, coding, cuts) -> None:
+    """A read can end inside a compressed block or inside a UTF-8 character;
+    neither may cost a byte or leave a replacement character behind."""
+    wire = _ENCODE[coding](text.encode())
+    bounds = sorted({0, len(wire), *(cut % (len(wire) + 1) for cut in cuts)})
+    meta = [(10 * i, end - start) for i, (start, end) in enumerate(itertools.pairwise(bounds))]
+
+    raw, chunks = proxy.decode_chunks(wire, meta, coding)
+
+    assert raw == text
+    assert "".join(chunk["text"] for chunk in chunks) == text
+    assert [(chunk["offset_ms"], chunk["bytes"]) for chunk in chunks] == meta
 
 
 # --- Pass-through streaming ---
@@ -291,13 +319,13 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
-def _serve_sse(conn: socket.socket) -> None:
-    """Answer one request with chunked SSE, one event every _SSE_GAP seconds."""
+def _read_request(conn: socket.socket) -> bool:
+    """Consume one request, body included; False when the client hung up first."""
     buf = b""
     while b"\r\n\r\n" not in buf:
         received = conn.recv(65536)
         if not received:
-            return
+            return False
         buf += received
     head, _, body = buf.partition(b"\r\n\r\n")
     length = 0
@@ -306,28 +334,20 @@ def _serve_sse(conn: socket.socket) -> None:
             length = int(line.split(b":", 1)[1])
     while len(body) < length:
         body += conn.recv(65536)
-
-    conn.sendall(
-        b"HTTP/1.1 200 OK\r\n"
-        b"Content-Type: text/event-stream\r\n"
-        b"Transfer-Encoding: chunked\r\n"
-        b"Cache-Control: no-cache\r\n\r\n"
-    )
-    for index, event in enumerate(_STREAM_EVENTS):
-        if index:
-            time.sleep(_SSE_GAP)
-        payload = f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode()
-        conn.sendall(b"%x\r\n" % len(payload) + payload + b"\r\n")
-    conn.sendall(b"0\r\n\r\n")
-    conn.close()
+    return True
 
 
-@pytest.fixture(scope="module")
-def sse_origin() -> Iterator[int]:
+def _origin(respond: Callable[[socket.socket], None]) -> Iterator[int]:
+    """A local origin answering every request through `respond`; yields its port."""
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     listener.bind(("127.0.0.1", 0))
     listener.listen(8)
+
+    def serve(conn: socket.socket) -> None:
+        with conn:
+            if _read_request(conn):
+                respond(conn)
 
     def accept_loop() -> None:
         while True:
@@ -335,11 +355,58 @@ def sse_origin() -> Iterator[int]:
                 conn, _ = listener.accept()
             except OSError:
                 return
-            threading.Thread(target=_serve_sse, args=(conn,), daemon=True).start()
+            threading.Thread(target=serve, args=(conn,), daemon=True).start()
 
     threading.Thread(target=accept_loop, daemon=True).start()
     yield listener.getsockname()[1]
     listener.close()
+
+
+def _sse_stream(events: tuple[dict, ...], *, gzip_encoded: bool = False) -> Callable[[socket.socket], None]:
+    """Chunked SSE, one event every _SSE_GAP seconds.
+
+    gzip_encoded is how the API sends every stream: the compressor is flushed
+    after each event, which is what lets a client decode one on arrival.
+    """
+
+    def respond(conn: socket.socket) -> None:
+        conn.sendall(
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: text/event-stream\r\n"
+            b"Transfer-Encoding: chunked\r\n"
+            + (b"Content-Encoding: gzip\r\n" if gzip_encoded else b"")
+            + b"Cache-Control: no-cache\r\n\r\n"
+        )
+        compressor = zlib.compressobj(wbits=31) if gzip_encoded else None
+        for index, event in enumerate(events):
+            if index:
+                time.sleep(_SSE_GAP)
+            payload = f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n".encode()
+            if compressor:
+                payload = compressor.compress(payload) + compressor.flush(zlib.Z_SYNC_FLUSH)
+            conn.sendall(b"%x\r\n" % len(payload) + payload + b"\r\n")
+        if compressor:
+            trailer = compressor.flush()
+            conn.sendall(b"%x\r\n" % len(trailer) + trailer + b"\r\n")
+        conn.sendall(b"0\r\n\r\n")
+
+    return respond
+
+
+def _whole(status: str, body: bytes, *headers: str) -> Callable[[socket.socket], None]:
+    """One response with a Content-Length body, sent in a single write."""
+    lines = (f"HTTP/1.1 {status}", *headers, f"Content-Length: {len(body)}", "Connection: close")
+    head = "".join(f"{line}\r\n" for line in lines).encode() + b"\r\n"
+
+    def respond(conn: socket.socket) -> None:
+        conn.sendall(head + body)
+
+    return respond
+
+
+@pytest.fixture(scope="module")
+def sse_origin() -> Iterator[int]:
+    yield from _origin(_sse_stream(_STREAM_EVENTS))
 
 
 @pytest.fixture(scope="module")
@@ -448,44 +515,26 @@ def test_a_streamed_response_is_still_logged_in_full(sse_origin, proxy_process) 
     assert entry["response"]["content"] == [{"type": "text", "text": "first second"}]
     assert entry["response"]["stop_reason"] == "end_turn"
     assert entry["response"]["usage"] == {"input_tokens": 11, "output_tokens": 7}
+    # A clean completion writes nothing else. The client's end of stream follows
+    # the response hook, so the hook is done by the time this runs.
+    assert sorted(p.name for p in log_file.parent.iterdir()) == ["0001.json"]
 
 
 @pytest.fixture(scope="module")
 def error_origin() -> Iterator[int]:
-    """An origin that refuses every call the way the API refuses one."""
+    """An origin that refuses every call the way the API refuses one -- br-encoded,
+    as the API sends every JSON body."""
     body = json.dumps(
         {"type": "error", "error": {"type": "rate_limit_error", "message": "requires usage credits"}}
     ).encode()
-    listener = socket.socket()
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(("127.0.0.1", 0))
-    listener.listen(8)
-
-    def serve(conn: socket.socket) -> None:
-        buf = b""
-        while b"\r\n\r\n" not in buf:
-            received = conn.recv(65536)
-            if not received:
-                conn.close()
-                return
-            buf += received
-        conn.sendall(
-            b"HTTP/1.1 429 Too Many Requests\r\nContent-Type: application/json\r\n"
-            b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body
+    yield from _origin(
+        _whole(
+            "429 Too Many Requests",
+            brotli.compress(body),
+            "Content-Type: application/json",
+            "Content-Encoding: br",
         )
-        conn.close()
-
-    def accept_loop() -> None:
-        while True:
-            try:
-                conn, _ = listener.accept()
-            except OSError:
-                return
-            threading.Thread(target=serve, args=(conn,), daemon=True).start()
-
-    threading.Thread(target=accept_loop, daemon=True).start()
-    yield listener.getsockname()[1]
-    listener.close()
+    )
 
 
 def test_a_refused_call_is_logged_with_the_api_s_own_reason(error_origin, proxy_process) -> None:
@@ -602,9 +651,10 @@ def test_a_refused_call_records_the_http_region_too(error_origin, proxy_process)
 
 # --- Failed-call detail log (NNNN.detail.json), end to end ---
 #
-# The reassembled NNNN.json keeps only the final message, which on a refusal is
-# everything the model did NOT withhold. These drive a real mitmdump so the raw
-# bytes, the per-chunk timing and the sibling filename are pinned on the wire.
+# The reassembled NNNN.json keeps the message, not the stream it arrived as.
+# These drive a real mitmdump, with origins encoding their bodies the way the API
+# does, so the decoded bytes, the per-read timing and the sibling filename are
+# pinned on the wire.
 
 _REFUSAL_EVENTS = (
     {
@@ -616,10 +666,11 @@ _REFUSAL_EVENTS = (
             "usage": {"input_tokens": 3},
         },
     },
+    {"type": "ping"},
     {"type": "content_block_start", "index": 0,
      "content_block": {"type": "thinking", "thinking": "", "signature": ""}},
     {"type": "content_block_delta", "index": 0,
-     "delta": {"type": "thinking_delta", "thinking": "partial reasoning"}},
+     "delta": {"type": "thinking_delta", "thinking": "partial reasoning — cut short"}},
     {
         "type": "message_delta",
         "delta": {
@@ -637,51 +688,8 @@ _REFUSAL_EVENTS = (
 
 @pytest.fixture(scope="module")
 def refusal_origin() -> Iterator[int]:
-    """A 200 SSE origin that ends in stop_reason: refusal, one event per gap."""
-    listener = socket.socket()
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(("127.0.0.1", 0))
-    listener.listen(8)
-
-    def serve(conn: socket.socket) -> None:
-        buf = b""
-        while b"\r\n\r\n" not in buf:
-            received = conn.recv(65536)
-            if not received:
-                conn.close()
-                return
-            buf += received
-        head, _, body = buf.partition(b"\r\n\r\n")
-        length = 0
-        for line in head.split(b"\r\n"):
-            if line.lower().startswith(b"content-length:"):
-                length = int(line.split(b":", 1)[1])
-        while len(body) < length:
-            body += conn.recv(65536)
-        conn.sendall(
-            b"HTTP/1.1 200 OK\r\n"
-            b"Content-Type: text/event-stream\r\n"
-            b"Transfer-Encoding: chunked\r\n\r\n"
-        )
-        for index, event in enumerate(_REFUSAL_EVENTS):
-            if index:
-                time.sleep(_SSE_GAP)
-            payload = f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode()
-            conn.sendall(b"%x\r\n" % len(payload) + payload + b"\r\n")
-        conn.sendall(b"0\r\n\r\n")
-        conn.close()
-
-    def accept_loop() -> None:
-        while True:
-            try:
-                conn, _ = listener.accept()
-            except OSError:
-                return
-            threading.Thread(target=serve, args=(conn,), daemon=True).start()
-
-    threading.Thread(target=accept_loop, daemon=True).start()
-    yield listener.getsockname()[1]
-    listener.close()
+    """A gzip SSE stream that ends in stop_reason: refusal, one event per gap."""
+    yield from _origin(_sse_stream(_REFUSAL_EVENTS, gzip_encoded=True))
 
 
 def _wait_for(path: Path, timeout: float = 10) -> None:
@@ -691,79 +699,60 @@ def _wait_for(path: Path, timeout: float = 10) -> None:
     assert path.exists(), f"never written: {path}"
 
 
-def test_a_refusal_writes_a_detail_log_with_raw_bytes_and_chunk_timing(
+def test_a_refusal_writes_a_detail_log_with_the_decoded_stream_and_its_timing(
     refusal_origin, proxy_process
 ) -> None:
     proxy_port, home = proxy_process
     session_id = str(uuid.uuid4())
-    _post_through_proxy(proxy_port, refusal_origin, session_id)
+    _post_through_proxy(proxy_port, refusal_origin, session_id, (("x-api-key", "sk-ant-SECRET"),))
 
     session_dir = home / ".claude" / "requests-log" / session_id
     _wait_for(session_dir / "0001.detail.json")
 
-    # The ordinary capture still lands, holding only the surviving message.
     normal = json.loads((session_dir / "0001.json").read_text())
     assert normal["response"]["stop_reason"] == "refusal"
 
-    detail = json.loads((session_dir / "0001.detail.json").read_text())
+    detail_text = (session_dir / "0001.detail.json").read_text()
+    assert "sk-ant-SECRET" not in detail_text
+    detail = json.loads(detail_text)
     assert detail["detail_for"] == "0001.json"
     assert detail["trigger"]["kind"] == "refusal"
     assert detail["trigger"]["stop_details"]["category"] == "reasoning_extraction"
-    # The raw stream carries bytes the reassembled message does not expose.
-    assert "blocked by ToS" in detail["raw_response"]
-    assert "reasoning_extraction" in detail["raw_response"]
-    # One event per _SSE_GAP arrives as its own relayed chunk, timestamped.
+    assert detail["response"] == normal["response"]
+
+    # gzip undone, every event kept in arrival order -- the ping included, which
+    # the reassembled message drops by design.
+    raw = detail["raw_response"]
+    assert "event: ping" in raw
+    assert "ping" not in json.dumps(normal["response"])
+    assert "partial reasoning — cut short" in raw
+    assert "\ufffd" not in raw
+
     chunks = detail["chunks"]
-    assert len(chunks) >= 2, chunks
+    assert "".join(c["text"] for c in chunks) == raw
+    assert all(set(c) == {"offset_ms", "bytes", "text"} and c["bytes"] > 0 for c in chunks)
     offsets = [c["offset_ms"] for c in chunks]
     assert offsets == sorted(offsets)
-    assert offsets[-1] > offsets[0]
-    assert all(set(c) == {"offset_ms", "bytes", "text"} for c in chunks)
-    assert "".join(c["text"] for c in chunks) == detail["raw_response"]
-    # Credentials never reach the detail file either.
-    assert "x-api-key" not in {n.lower() for n, _ in detail["http"]["request_headers"]}
+
+    def arrived(needle: str) -> int:
+        return next(c["offset_ms"] for c in chunks if needle in c["text"])
+
+    # Each event was its own read, so the stop is stamped a gap or more after
+    # the start; a buffering relay would stamp both at the same instant.
+    assert arrived("event: message_delta") - arrived("event: message_start") >= _SSE_GAP * 1000
 
 
 @pytest.fixture(scope="module")
 def unparseable_origin() -> Iterator[int]:
     """A 200 whose body carries no SSE `data:` event, so reassembly raises."""
-    listener = socket.socket()
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(("127.0.0.1", 0))
-    listener.listen(8)
-    body = b"event: ping\nnot an sse data line at all\n"
-
-    def serve(conn: socket.socket) -> None:
-        buf = b""
-        while b"\r\n\r\n" not in buf:
-            received = conn.recv(65536)
-            if not received:
-                conn.close()
-                return
-            buf += received
-        conn.sendall(
-            b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
-            b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body
-        )
-        conn.close()
-
-    def accept_loop() -> None:
-        while True:
-            try:
-                conn, _ = listener.accept()
-            except OSError:
-                return
-            threading.Thread(target=serve, args=(conn,), daemon=True).start()
-
-    threading.Thread(target=accept_loop, daemon=True).start()
-    yield listener.getsockname()[1]
-    listener.close()
+    yield from _origin(
+        _whole("200 OK", b"event: ping\nnot an sse data line at all\n", "Content-Type: text/event-stream")
+    )
 
 
 def test_an_unparseable_stream_keeps_its_raw_bytes_in_a_detail_log(
     unparseable_origin, proxy_process
 ) -> None:
-    """Reassembly still raises, but the raw bytes are no longer lost."""
     proxy_port, home = proxy_process
     session_id = str(uuid.uuid4())
     _post_through_proxy(proxy_port, unparseable_origin, session_id)
@@ -773,12 +762,49 @@ def test_an_unparseable_stream_keeps_its_raw_bytes_in_a_detail_log(
 
     normal = json.loads((session_dir / "0001.json").read_text())
     assert "response" not in normal
-    assert "parse_error" in normal["error"]
+    assert normal["error"] == {"parse_error": "no SSE data events in a streamed response"}
+
+    detail = json.loads((session_dir / "0001.detail.json").read_text())
+    assert detail["trigger"] == {
+        "kind": "parse_error", "message": "no SSE data events in a streamed response",
+    }
+    assert detail["response"] is None
+    assert detail["raw_response"] == "event: ping\nnot an sse data line at all\n"
+
+
+# A body labelled gzip that is not gzip: mitmproxy cannot undo it either.
+_MISLABELLED = b'event: ping\ndata: {"type": "ping"}\n\n'
+
+
+@pytest.fixture(scope="module")
+def mislabelled_origin() -> Iterator[int]:
+    yield from _origin(
+        _whole("200 OK", _MISLABELLED, "Content-Type: text/event-stream", "Content-Encoding: gzip")
+    )
+
+
+def test_a_body_whose_encoding_will_not_undo_keeps_its_wire_bytes(
+    mislabelled_origin, proxy_process
+) -> None:
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, mislabelled_origin, session_id)
+
+    session_dir = home / ".claude" / "requests-log" / session_id
+    _wait_for(session_dir / "0001.detail.json")
+
+    normal = json.loads((session_dir / "0001.json").read_text())
+    assert "incorrect header check" in normal["error"]["parse_error"]
 
     detail = json.loads((session_dir / "0001.detail.json").read_text())
     assert detail["trigger"]["kind"] == "parse_error"
-    assert detail["response"] is None
-    assert "not an sse data line" in detail["raw_response"]
+    assert detail["raw_response"] is None
+    assert base64.b64decode(detail["raw_response_base64"]) == _MISLABELLED
+    assert "incorrect header check" in detail["decode_error"]
+    assert [set(c) for c in detail["chunks"]] == [{"offset_ms", "bytes"}] * len(detail["chunks"])
+    assert sum(c["bytes"] for c in detail["chunks"]) == len(_MISLABELLED)
+    errors = (home / ".claude" / "requests-log" / "_errors" / "errors.log").read_text()
+    assert "decode-detail" in errors
 
 
 def test_a_non_200_also_writes_a_detail_log(error_origin, proxy_process) -> None:
@@ -795,4 +821,5 @@ def test_a_non_200_also_writes_a_detail_log(error_origin, proxy_process) -> None
     }
     assert detail["http"]["response"]["status"] == 429
     assert detail["response"] is None
-    assert "requires usage credits" in detail["raw_response"]
+    # br undone: the API's JSON, not its compressed bytes.
+    assert json.loads(detail["raw_response"])["error"]["message"] == "requires usage credits"

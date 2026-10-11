@@ -1,10 +1,11 @@
 """Load `scripts/intercept/proxy.py` as a module.
 
-The addon imports nothing outside the standard library, which is what keeps the
-bare `mitmdump -s proxy.py` invocation in its README working — the same
-invocation whose survival was why this repo rejected mitmproxy's
-`store_streamed_bodies` option. So the dependency runs one way: the package
-reaches into the addon, never the reverse.
+The addon imports nothing but the standard library and two of mitmproxy's own
+dependencies (`brotli`, `zstandard`), which is what keeps the bare
+`mitmdump -s proxy.py` invocation in its README working — the same invocation
+whose survival was why this repo rejected mitmproxy's `store_streamed_bodies`
+option. So the dependency runs one way: the package reaches into the addon,
+never the reverse.
 
 What is borrowed is `parse_sse_stream` and `error_detail`. A replay reassembled
 by a second implementation is not comparable to the capture it exists to be
