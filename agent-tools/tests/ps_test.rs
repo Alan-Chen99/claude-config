@@ -543,6 +543,52 @@ fn a_capture_without_meta_is_shown_rather_than_dropped() {
     );
 }
 
+/// The spawn writes the merge condition to `meta.json` before the tee opens
+/// `output`, and an open that fails never creates it, so a merged run can sit
+/// on disk with no capture file at all — which is also how a split run looks
+/// before its tees start. Nothing there says which, and `ps` must not call
+/// the run split on that absence.
+#[test]
+fn a_merged_run_with_no_capture_file_is_not_called_split() {
+    let home = tempfile::tempdir().unwrap();
+    let dir = seed_live_capture(
+        home.path(),
+        "sid-m",
+        None,
+        "toolu_m",
+        "merged-probe",
+        "2026-05-17T10:00:00Z",
+    );
+    let raw = std::fs::read_to_string(dir.join("meta.json")).unwrap();
+    let mut meta: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    meta["merge"] = "both pipes, same destination".into();
+    std::fs::write(
+        dir.join("meta.json"),
+        serde_json::to_string_pretty(&meta).unwrap(),
+    )
+    .unwrap();
+    std::fs::remove_file(dir.join("stdout")).unwrap();
+    std::fs::remove_file(dir.join("stderr")).unwrap();
+
+    let out = agent_tools()
+        .args(["ps", "--format", "text", "--all", "--session-id", "sid-m"])
+        .env("HOME", home.path())
+        .env_remove("AGENT_TOOLS_PARENT_DIR")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("merged-probe"), "the run is listed: {s}");
+    assert!(
+        !s.contains("streams split"),
+        "no file on disk is evidence of a split: {s}"
+    );
+}
+
 /// Agents routinely wrap large heredoc scripts, and `ps` is the recovery path
 /// the prompt names after a compaction. Rendering the whole command puts a
 /// six-figure line into the tool result that carries it.

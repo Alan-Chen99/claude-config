@@ -442,10 +442,16 @@ pub fn notes(s: &Status) -> Vec<String> {
     // the shape every `Command::output()` harness has, so noting it would put a
     // note on every line of every test run while production, which merges, got
     // none. `s.capture` is where the shape is known, read off the files that
-    // exist; `meta.merge` supplies only the condition.
-    if let (Capture::Split { .. }, Some(why)) =
-        (&s.capture, s.meta.as_ref().and_then(|m| m.merge.as_deref()))
-    {
+    // exist; `meta.merge` supplies only the condition. With no file there,
+    // `Capture::Split` is `derive`'s default rather than a reading: a merged
+    // run before its tee opens `output`, or whose open failed, looks the same.
+    // So the note waits for a file, and `last_byte_at` is set exactly when one
+    // exists.
+    if let (Capture::Split { .. }, Some(why), Some(_)) = (
+        &s.capture,
+        s.meta.as_ref().and_then(|m| m.merge.as_deref()),
+        s.last_byte_at,
+    ) {
         if why != core::DESTINATIONS_ALREADY_DIFFERED {
             // PROMPT-COUPLED
             notes.push(format!("streams split: {}", meta::escape_control(why)));
@@ -931,8 +937,9 @@ mod tests {
     fn a_hand_written_record_cannot_forge_a_second_line() {
         let d = TempDir::new().unwrap();
         // pid 0 has no /proc entry, so nothing here depends on a live wrapper.
-        // No capture file is written either, so the shape is `Capture::Split` —
-        // which is what the `merge` note needs in order to be rendered at all.
+        // A `stdout` and no `output` make the shape `Capture::Split`, which is
+        // what the `merge` note needs in order to be rendered at all.
+        std::fs::write(d.path().join("stdout"), b"").unwrap();
         std::fs::write(
             d.path().join("meta.json"),
             r#"{
