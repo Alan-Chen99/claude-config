@@ -304,7 +304,6 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "agents/developer.md" = 3374
 "docs/superpowers/specs/2026-08-12-session-analysis-skeleton-design.md" = 3347
 "plans/rebase-to-48bc8ed.md" = 3324
-"scripts/CLAUDE.md" = 3317
 "skills/auto-memory/SKILL.md" = 3248
 "docs/superpowers/specs/2026-08-26-agent-tools-run-design.md" = 3079
 "plans/alan-coding-style-gap-analysis-v2.md" = 3065
