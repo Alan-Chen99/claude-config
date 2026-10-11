@@ -216,6 +216,44 @@ def test_an_error_body_that_is_not_the_api_s_is_kept_as_capped_text() -> None:
     assert len(long["body"]) == proxy.ERROR_BODY_MAX
 
 
+# --- Failed-call detail: trigger classification and chunk reconstruction ---
+
+
+def test_soft_error_trigger_fires_on_a_refusal_and_keeps_its_details() -> None:
+    trigger = proxy.soft_error_trigger(
+        {
+            "stop_reason": "refusal",
+            "stop_details": {"category": "reasoning_extraction", "explanation": "x"},
+        }
+    )
+    assert trigger == {
+        "kind": "refusal",
+        "stop_reason": "refusal",
+        "stop_details": {"category": "reasoning_extraction", "explanation": "x"},
+    }
+
+
+def test_soft_error_trigger_fires_on_an_in_stream_error() -> None:
+    trigger = proxy.soft_error_trigger({"error": {"type": "overloaded_error"}})
+    assert trigger == {"kind": "stream_error", "error": {"type": "overloaded_error"}}
+
+
+def test_soft_error_trigger_is_none_for_an_ordinary_completion() -> None:
+    assert proxy.soft_error_trigger({"stop_reason": "end_turn", "error": None}) is None
+    assert proxy.soft_error_trigger({"stop_reason": "max_tokens"}) is None
+    assert proxy.soft_error_trigger({"stop_reason": "tool_use"}) is None
+
+
+def test_chunk_records_slice_text_back_out_in_arrival_order() -> None:
+    captured = b"alphaBETAgamma"
+    meta = [(0, 5), (12, 4), (30, 5)]
+    assert proxy.chunk_records(captured, meta) == [
+        {"offset_ms": 0, "bytes": 5, "text": "alpha"},
+        {"offset_ms": 12, "bytes": 4, "text": "BETA"},
+        {"offset_ms": 30, "bytes": 5, "text": "gamma"},
+    ]
+
+
 # --- Pass-through streaming ---
 #
 # Whether the proxy relays bytes or sits on them is a property of the running
@@ -560,3 +598,201 @@ def test_a_refused_call_records_the_http_region_too(error_origin, proxy_process)
     assert entry["error"]["status"] == 429
     sent = {name.lower(): value for name, value in entry["http"]["request_headers"]}
     assert sent["anthropic-beta"] == BETAS
+
+
+# --- Failed-call detail log (NNNN.detail.json), end to end ---
+#
+# The reassembled NNNN.json keeps only the final message, which on a refusal is
+# everything the model did NOT withhold. These drive a real mitmdump so the raw
+# bytes, the per-chunk timing and the sibling filename are pinned on the wire.
+
+_REFUSAL_EVENTS = (
+    {
+        "type": "message_start",
+        "message": {
+            "id": "msg_refused",
+            "model": "claude-stream-test",
+            "role": "assistant",
+            "usage": {"input_tokens": 3},
+        },
+    },
+    {"type": "content_block_start", "index": 0,
+     "content_block": {"type": "thinking", "thinking": "", "signature": ""}},
+    {"type": "content_block_delta", "index": 0,
+     "delta": {"type": "thinking_delta", "thinking": "partial reasoning"}},
+    {
+        "type": "message_delta",
+        "delta": {
+            "stop_reason": "refusal",
+            "stop_details": {
+                "type": "refusal",
+                "category": "reasoning_extraction",
+                "explanation": "blocked by ToS",
+            },
+        },
+        "usage": {"output_tokens": 99},
+    },
+)
+
+
+@pytest.fixture(scope="module")
+def refusal_origin() -> Iterator[int]:
+    """A 200 SSE origin that ends in stop_reason: refusal, one event per gap."""
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(8)
+
+    def serve(conn: socket.socket) -> None:
+        buf = b""
+        while b"\r\n\r\n" not in buf:
+            received = conn.recv(65536)
+            if not received:
+                conn.close()
+                return
+            buf += received
+        head, _, body = buf.partition(b"\r\n\r\n")
+        length = 0
+        for line in head.split(b"\r\n"):
+            if line.lower().startswith(b"content-length:"):
+                length = int(line.split(b":", 1)[1])
+        while len(body) < length:
+            body += conn.recv(65536)
+        conn.sendall(
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: text/event-stream\r\n"
+            b"Transfer-Encoding: chunked\r\n\r\n"
+        )
+        for index, event in enumerate(_REFUSAL_EVENTS):
+            if index:
+                time.sleep(_SSE_GAP)
+            payload = f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode()
+            conn.sendall(b"%x\r\n" % len(payload) + payload + b"\r\n")
+        conn.sendall(b"0\r\n\r\n")
+        conn.close()
+
+    def accept_loop() -> None:
+        while True:
+            try:
+                conn, _ = listener.accept()
+            except OSError:
+                return
+            threading.Thread(target=serve, args=(conn,), daemon=True).start()
+
+    threading.Thread(target=accept_loop, daemon=True).start()
+    yield listener.getsockname()[1]
+    listener.close()
+
+
+def _wait_for(path: Path, timeout: float = 10) -> None:
+    deadline = time.monotonic() + timeout
+    while not path.exists() and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert path.exists(), f"never written: {path}"
+
+
+def test_a_refusal_writes_a_detail_log_with_raw_bytes_and_chunk_timing(
+    refusal_origin, proxy_process
+) -> None:
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, refusal_origin, session_id)
+
+    session_dir = home / ".claude" / "requests-log" / session_id
+    _wait_for(session_dir / "0001.detail.json")
+
+    # The ordinary capture still lands, holding only the surviving message.
+    normal = json.loads((session_dir / "0001.json").read_text())
+    assert normal["response"]["stop_reason"] == "refusal"
+
+    detail = json.loads((session_dir / "0001.detail.json").read_text())
+    assert detail["detail_for"] == "0001.json"
+    assert detail["trigger"]["kind"] == "refusal"
+    assert detail["trigger"]["stop_details"]["category"] == "reasoning_extraction"
+    # The raw stream carries bytes the reassembled message does not expose.
+    assert "blocked by ToS" in detail["raw_response"]
+    assert "reasoning_extraction" in detail["raw_response"]
+    # One event per _SSE_GAP arrives as its own relayed chunk, timestamped.
+    chunks = detail["chunks"]
+    assert len(chunks) >= 2, chunks
+    offsets = [c["offset_ms"] for c in chunks]
+    assert offsets == sorted(offsets)
+    assert offsets[-1] > offsets[0]
+    assert all(set(c) == {"offset_ms", "bytes", "text"} for c in chunks)
+    assert "".join(c["text"] for c in chunks) == detail["raw_response"]
+    # Credentials never reach the detail file either.
+    assert "x-api-key" not in {n.lower() for n, _ in detail["http"]["request_headers"]}
+
+
+@pytest.fixture(scope="module")
+def unparseable_origin() -> Iterator[int]:
+    """A 200 whose body carries no SSE `data:` event, so reassembly raises."""
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(8)
+    body = b"event: ping\nnot an sse data line at all\n"
+
+    def serve(conn: socket.socket) -> None:
+        buf = b""
+        while b"\r\n\r\n" not in buf:
+            received = conn.recv(65536)
+            if not received:
+                conn.close()
+                return
+            buf += received
+        conn.sendall(
+            b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
+            b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body
+        )
+        conn.close()
+
+    def accept_loop() -> None:
+        while True:
+            try:
+                conn, _ = listener.accept()
+            except OSError:
+                return
+            threading.Thread(target=serve, args=(conn,), daemon=True).start()
+
+    threading.Thread(target=accept_loop, daemon=True).start()
+    yield listener.getsockname()[1]
+    listener.close()
+
+
+def test_an_unparseable_stream_keeps_its_raw_bytes_in_a_detail_log(
+    unparseable_origin, proxy_process
+) -> None:
+    """Reassembly still raises, but the raw bytes are no longer lost."""
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, unparseable_origin, session_id)
+
+    session_dir = home / ".claude" / "requests-log" / session_id
+    _wait_for(session_dir / "0001.detail.json")
+
+    normal = json.loads((session_dir / "0001.json").read_text())
+    assert "response" not in normal
+    assert "parse_error" in normal["error"]
+
+    detail = json.loads((session_dir / "0001.detail.json").read_text())
+    assert detail["trigger"]["kind"] == "parse_error"
+    assert detail["response"] is None
+    assert "not an sse data line" in detail["raw_response"]
+
+
+def test_a_non_200_also_writes_a_detail_log(error_origin, proxy_process) -> None:
+    proxy_port, home = proxy_process
+    session_id = str(uuid.uuid4())
+    _post_through_proxy(proxy_port, error_origin, session_id)
+
+    session_dir = home / ".claude" / "requests-log" / session_id
+    _wait_for(session_dir / "0001.detail.json")
+
+    detail = json.loads((session_dir / "0001.detail.json").read_text())
+    assert detail["trigger"] == {
+        "kind": "http_error", "status": 429, "statusText": "Too Many Requests",
+    }
+    assert detail["http"]["response"]["status"] == 429
+    assert detail["response"] is None
+    assert "requires usage credits" in detail["raw_response"]

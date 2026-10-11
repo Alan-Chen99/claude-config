@@ -5,6 +5,13 @@ Resolves sessions from X-Claude-Code-Session-Id header against
 entrypoint, kind). Logs are stored per-session:
   ~/.claude/requests-log/{session_id}/NNNN.json
 
+A call that failed -- a non-200 status, a 200 the model refused or cut short
+with an in-stream error, or a stream that would not reassemble -- also writes a
+sibling ~/.claude/requests-log/{session_id}/NNNN.detail.json. The reassembled
+NNNN.json keeps only the final message; a refusal withholds everything past the
+point it fired, so the detail file carries the raw response bytes and every
+relayed chunk with the millisecond it arrived, which is all the wire gives.
+
 Response bodies are forwarded to the client as they arrive and captured on the
 way past, so an intercepted SSE stream still streams. See README.md,
 "Pass-through streaming", for what buffering costs.
@@ -251,6 +258,51 @@ def error_detail(raw: bytes | None) -> dict:
     return {"body": text[:ERROR_BODY_MAX]}
 
 
+def soft_error_trigger(parsed: dict) -> dict | None:
+    """A 200 the model nonetheless refused or cut short, else None.
+
+    `stop_reason: "refusal"` and an in-stream `error` event both ride an
+    otherwise-successful 200 stream, so the status line is clean and the
+    reassembled NNNN.json keeps only the surviving blocks -- a refusal withholds
+    everything it generated past the stop. These are the 200s the detail log
+    exists for; a clean `end_turn`/`tool_use`/`max_tokens` returns None.
+    """
+    if not isinstance(parsed, dict):
+        return None
+    if parsed.get("stop_reason") == "refusal":
+        return {
+            "kind": "refusal",
+            "stop_reason": "refusal",
+            "stop_details": parsed.get("stop_details"),
+        }
+    if parsed.get("error"):
+        return {"kind": "stream_error", "error": parsed.get("error")}
+    return None
+
+
+def chunk_records(captured: bytes, chunk_meta: list[tuple[int, int]]) -> list[dict]:
+    """Each relayed chunk as arrival offset (ms), byte length, and decoded text.
+
+    The boundaries are the reads mitmproxy handed the relay -- TCP, not SSE
+    events -- so the timing is of the wire, not of the model. The text is sliced
+    back out of the single captured copy rather than held a second time in
+    memory for every flow.
+    """
+    records: list[dict] = []
+    pos = 0
+    for offset_ms, length in chunk_meta:
+        segment = captured[pos : pos + length]
+        pos += length
+        records.append(
+            {
+                "offset_ms": offset_ms,
+                "bytes": length,
+                "text": segment.decode("utf-8", errors="replace"),
+            }
+        )
+    return records
+
+
 # --- The HTTP envelope ---
 
 # Header names whose value is a credential. Dropped before an entry is built:
@@ -348,7 +400,8 @@ def get_total_count() -> int:
     return total
 
 
-def write_log(entry: dict, session_id: str | None) -> None:
+def _allocate_counter(session_id: str | None) -> tuple[Path, int]:
+    """Reserve the next NNNN slot for a session, creating its dir."""
     subdir = session_id if session_id else "unknown"
     log_dir = LOG_BASE / subdir
     dir_key = str(log_dir)
@@ -359,9 +412,22 @@ def write_log(entry: dict, session_id: str | None) -> None:
         log_dir.mkdir(parents=True, exist_ok=True)
         _counters[dir_key] += 1
         counter = _counters[dir_key]
+    return log_dir, counter
 
-    filename = f"{counter:04d}.json"
-    (log_dir / filename).write_text(json.dumps(entry, indent=2))
+
+def write_log(entry: dict, session_id: str | None) -> int:
+    """Write the capture as NNNN.json; return the counter it took."""
+    log_dir, counter = _allocate_counter(session_id)
+    (log_dir / f"{counter:04d}.json").write_text(json.dumps(entry, indent=2))
+    return counter
+
+
+def write_detail_log(entry: dict, session_id: str | None, counter: int) -> None:
+    """Write the failed call's full-detail sibling as NNNN.detail.json."""
+    subdir = session_id if session_id else "unknown"
+    log_dir = LOG_BASE / subdir
+    log_dir.mkdir(parents=True, exist_ok=True)
+    (log_dir / f"{counter:04d}.detail.json").write_text(json.dumps(entry, indent=2))
 
 
 def log_error(context: str, err: Exception) -> None:
@@ -384,6 +450,7 @@ class InterceptAddon:
     def __init__(self) -> None:
         self._flow_start: dict[str, float] = {}
         self._streamed: dict[str, bytearray] = {}
+        self._chunks: dict[str, list[tuple[int, int]]] = {}
 
     def request(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         self._flow_start[flow.id] = time.time()
@@ -391,6 +458,7 @@ class InterceptAddon:
     def error(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         self._flow_start.pop(flow.id, None)
         self._streamed.pop(flow.id, None)
+        self._chunks.pop(flow.id, None)
 
     def responseheaders(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         """Forward each response chunk onward as it arrives, keeping a copy.
@@ -415,9 +483,13 @@ class InterceptAddon:
 
         captured = bytearray()
         self._streamed[flow.id] = captured
+        chunk_meta: list[tuple[int, int]] = []
+        self._chunks[flow.id] = chunk_meta
+        t0 = self._flow_start.get(flow.id, time.time())
 
         def relay(chunk: bytes) -> bytes:
             captured.extend(chunk)
+            chunk_meta.append((int((time.time() - t0) * 1000), len(chunk)))
             return chunk
 
         flow.response.stream = relay
@@ -427,6 +499,7 @@ class InterceptAddon:
             return
 
         captured = self._streamed.pop(flow.id, None)
+        chunk_meta = self._chunks.pop(flow.id, None)
         start_ms = self._flow_start.pop(flow.id, time.time())
         duration_ms = int((time.time() - start_ms) * 1000)
 
@@ -462,14 +535,18 @@ class InterceptAddon:
         if captured is not None:
             flow.response.raw_content = bytes(captured)
 
+        envelope = {
+            "timestamp": timestamp,
+            "duration_ms": duration_ms,
+            **({"session": session_meta} if session_meta else {}),
+            "streaming": streaming,
+            "http": http_region(flow),
+        }
+
         if flow.response.status_code != 200:
-            write_log(
+            counter = write_log(
                 {
-                    "timestamp": timestamp,
-                    "duration_ms": duration_ms,
-                    **({"session": session_meta} if session_meta else {}),
-                    "streaming": streaming,
-                    "http": http_region(flow),
+                    **envelope,
                     "error": {
                         "status": flow.response.status_code,
                         "statusText": flow.response.reason,
@@ -480,6 +557,11 @@ class InterceptAddon:
                     "request": body,
                 },
                 session_id,
+            )
+            self._write_detail(
+                counter, session_id, envelope, body, None, captured, chunk_meta,
+                {"kind": "http_error", "status": flow.response.status_code,
+                 "statusText": flow.response.reason},
             )
             return
 
@@ -492,21 +574,71 @@ class InterceptAddon:
             else:
                 parsed = json.loads(response_bytes)
         except Exception as e:
+            # A stream that would not reassemble is exactly when the raw bytes
+            # are the only record left; keep a visible capture and the detail.
             log_error("parse-response", e)
+            counter = write_log(
+                {**envelope, "error": {"parse_error": str(e)}, "request": body},
+                session_id,
+            )
+            self._write_detail(
+                counter, session_id, envelope, body, None, captured, chunk_meta,
+                {"kind": "parse_error", "message": str(e)},
+            )
             return
 
-        write_log(
-            {
-                "timestamp": timestamp,
-                "duration_ms": duration_ms,
-                **({"session": session_meta} if session_meta else {}),
-                "streaming": streaming,
-                "http": http_region(flow),
-                "request": body,
-                "response": parsed,
-            },
+        counter = write_log(
+            {**envelope, "request": body, "response": parsed},
             session_id,
         )
+        trigger = soft_error_trigger(parsed)
+        if trigger is not None:
+            self._write_detail(
+                counter, session_id, envelope, body, parsed, captured, chunk_meta,
+                trigger,
+            )
+
+    def _write_detail(
+        self,
+        counter: int,
+        session_id: str | None,
+        envelope: dict,
+        body: dict,
+        parsed: dict | None,
+        captured: "bytearray | None",
+        chunk_meta: "list[tuple[int, int]] | None",
+        trigger: dict,
+    ) -> None:
+        """The failed call with everything the wire gave, as NNNN.detail.json.
+
+        Credentials are already gone from `envelope["http"]`; nothing else is
+        trimmed -- the raw response and per-chunk timing are the point.
+        """
+        raw = bytes(captured) if captured is not None else None
+        try:
+            write_detail_log(
+                {
+                    **envelope,
+                    "detail_for": f"{counter:04d}.json",
+                    "trigger": trigger,
+                    "request": body,
+                    "response": parsed,
+                    "raw_response": (
+                        raw.decode("utf-8", errors="replace")
+                        if raw is not None
+                        else None
+                    ),
+                    "chunks": (
+                        chunk_records(raw, chunk_meta)
+                        if raw is not None and chunk_meta is not None
+                        else []
+                    ),
+                },
+                session_id,
+                counter,
+            )
+        except OSError as e:
+            log_error("write-detail", e)
 
 
 addons = [InterceptAddon()]

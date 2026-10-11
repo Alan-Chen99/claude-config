@@ -142,6 +142,34 @@ A refusal is not an HTTP error: it arrives on a 200 stream as `stop_reason:
 synthesized `invalid_request` message, so the transcript and the capture
 describe the same event in different words.
 
+### `NNNN.detail.json` — the failed call in full
+
+A refusal keeps only what it did not withhold: the reassembled `NNNN.json`
+holds the surviving blocks, while the tokens the classifier cut off never land
+in `content`, only in the `output_tokens` count. So whenever a call fails —
+a non-200 status, a 200 the model refused or ended with an in-stream `error`,
+or a stream that would not reassemble — a sibling `NNNN.detail.json` is written
+beside `NNNN.json` with everything the wire gave:
+
+```json
+{
+  "detail_for": "0007.json",
+  "trigger": {"kind": "refusal", "stop_reason": "refusal", "stop_details": {"category": "reasoning_extraction", "...": "..."}},
+  "http": { "...": "credential-stripped, same shape as NNNN.json" },
+  "request": { "...": "the full request body" },
+  "response": { "...": "the reassembled message, or null when it would not parse" },
+  "raw_response": "the undecoded SSE text in full",
+  "chunks": [{"offset_ms": 0, "bytes": 512, "text": "event: message_start\ndata: ..."}]
+}
+```
+
+`trigger.kind` is `http_error`, `refusal`, `stream_error` or `parse_error`.
+`chunks` are the reads mitmproxy handed the relay — TCP boundaries, not SSE
+events — each stamped with the millisecond it arrived relative to the request,
+so `raw_response` is the concatenation of `chunks[].text`. Credentials are
+stripped from `http` here as everywhere; nothing else is trimmed or capped. A
+clean `end_turn`/`tool_use`/`max_tokens` writes no detail file.
+
 Only bodies carrying both `model` and `messages` are logged, so every file on
 disk is a conversation-shaped request. That includes Claude Code's own
 auxiliary calls — its WebSearch tool reaches the API as a separate
@@ -196,8 +224,7 @@ faithful.
 
 ## What a capture does not record
 
-Five losses. None of them produces a capture, and only two leave any
-trace at all:
+Losses that no capture records:
 
 - **A call that never produced a response.** A stream cut mid-body, an
   unreachable origin, a client abort: mitmproxy routes these to the `error`
@@ -205,18 +232,22 @@ trace at all:
   half. The client still sees the failure; the capture does not.
 - **A capture whose addon was replaced mid-flight.** mitmdump rebuilds the
   addon when its script file changes, and the new instance has no record of a
-  response already in progress, so that capture is dropped with one
-  `parse-response` line in `requests-log/_errors/errors.log` naming no session
-  and no request. Editing `proxy.py` while sessions are running costs those
-  captures.
-- **A streamed response no SSE event could be read out of.** Reassembly
-  raises rather than returning a message of defaults, so this too costs the
-  capture and leaves a `parse-response` line — the trade is deliberate: an
-  all-defaults capture on disk is indistinguishable from a real empty turn.
+  response already in progress. It never saw the body, so what it can still
+  write — a `parse_error` capture from the request half plus an empty-bodied
+  `NNNN.detail.json` — carries no response bytes, and a `parse-response` line
+  lands in `requests-log/_errors/errors.log`. Editing `proxy.py` while sessions
+  are running costs those response bodies.
 - **Everything that is not conversation-shaped.** The `model` + `messages`
   filter runs before any logging, so a failure on `count_tokens`, on OAuth
   refresh, or on telemetry is never seen.
 - **Anything about a session that did not start under the proxy.** See below.
+
+A streamed response no SSE event could be read out of is no longer a loss:
+reassembly still raises rather than writing a message of defaults, but the
+raise now routes to a `parse_error` capture whose `NNNN.detail.json` holds the
+raw bytes (`conventions`: an all-defaults message on disk would be
+indistinguishable from a real empty turn, so the reassembled `NNNN.json` still
+refuses to record one — it carries `error.parse_error` instead).
 
 ## Which sessions are captured
 
