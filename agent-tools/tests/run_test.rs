@@ -332,6 +332,39 @@ fn hide_cmdline_hides_desc_and_argv_from_proc_self_cmdline() {
     );
 }
 
+/// The hide path names `comm` after its title, `agent-tools: <cmd>`, and the
+/// kernel keeps 15 bytes of that whatever character they split, so the title
+/// must stop before a character that would cross 15 bytes: a half character is
+/// invalid UTF-8 to every strict reader of `/proc/<pid>/comm`.
+#[test]
+fn a_hidden_title_cuts_comm_on_a_character_boundary() {
+    if !cfg!(target_os = "linux") {
+        return;
+    }
+    let home = tempfile::tempdir().unwrap();
+    let parent_dir = make_task(home.path());
+    let bin_dir = home.path().join("bin");
+    std::fs::create_dir(&bin_dir).unwrap();
+    // `agent-tools: a` is 14 bytes, so the two-byte `é` after it would end at 16.
+    std::os::unix::fs::symlink("/bin/sh", bin_dir.join("aé")).unwrap();
+    let path = format!("{}:{}", bin_dir.display(), std::env::var("PATH").unwrap());
+    let out = agent_tools()
+        .args(["run", "--hide-cmdline", "--", "aé", "-c", "cat /proc/$PPID/comm"])
+        .env("HOME", home.path())
+        .env("AGENT_TOOLS_PARENT_DIR", &parent_dir)
+        .env("PATH", path)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let comm = String::from_utf8(out.stdout.clone())
+        .unwrap_or_else(|_| panic!("comm is not UTF-8: {:?}", out.stdout));
+    assert_eq!(comm, "agent-tools: a\n");
+}
+
 /// A `--desc` in ordinary prose can carry a non-ASCII character at any byte
 /// offset. The wrapper exists to protect the command, so no spelling of the
 /// description may decide whether the command runs.

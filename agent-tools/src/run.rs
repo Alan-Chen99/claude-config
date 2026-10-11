@@ -36,13 +36,15 @@ pub async fn run(
     // shows what this wrapper is running without hiding the full argv.
     // Clarity is the priority for general debugging.
     //
-    // Opt-in: --hide-cmdline additionally overwrites /proc/self/cmdline
-    // so peer processes reading `ps aux` cannot recover the `--desc`
-    // string or the wrapped command line. Round-19 F88 named the leak:
+    // Opt-in: --hide-cmdline overwrites /proc/self/cmdline with a title
+    // naming only the program and takes `comm` from that title rather than
+    // `--desc`, so peer processes reading `ps aux` cannot recover the
+    // description from the wrapper; the child's own argv still shows its
+    // command. Round-19 F88 named the leak:
     // E-k3-nodontact quoted verbatim `agent-tools run --desc E-k3-v8:
     // Kimi K3 + v8 + H17` from `ps aux`. `desc` remains available in
     // meta.json for the intended observability path regardless of this
-    // flag; only the argv memory changes.
+    // flag.
     let comm_hint = desc.as_deref().unwrap_or(&cmd[0]);
     if hide_cmdline {
         crate::procname::hide_cmdline(&format!("agent-tools: {}", cmd[0]));

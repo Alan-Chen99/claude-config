@@ -23,9 +23,10 @@ const NAMES: usize = 3;
 /// the *right*, so a narrow pane loses `(+N)` first — the one thing telling a
 /// reader jobs are hidden — and the bar under-reports silently rather than
 /// failing loudly. The same narrowness makes this cap's unit matter: it
-/// counts *characters*, and a terminal spends *columns*. `tests/run_test.rs:338`
-/// already exercises a CJK `--desc`; 14 wide characters cost 28 columns, not
-/// 14, which pushes the real worst case toward 132.
+/// counts *characters*, and a terminal spends *columns*.
+/// `tests/run_test.rs`'s `multibyte_desc_still_runs_the_command` already
+/// exercises a CJK `--desc`; 14 wide characters cost 28 columns, not 14,
+/// which pushes the real worst case toward 132.
 const NAME_MAX: usize = 14;
 
 /// The whole line, from the captures `ps` collected.

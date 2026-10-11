@@ -9,13 +9,15 @@
 //! `hide_cmdline(title)` — opt-in via `--hide-cmdline`. Zeros the argv
 //! memory region and writes `title` at its start, so peer processes
 //! reading `ps aux` or `/proc/*/cmdline` cannot recover the `--desc`
-//! string or the wrapped command line. Also sets `comm` to match.
+//! string or the full command line from the wrapper; the wrapped child is
+//! its own process, whose argv still shows the command. Also sets `comm`
+//! to match.
 //!
 //! Round-19 F88 named the leak the hide path addresses: `agent-tools
 //! run --desc "E-k3-v8: Kimi K3 + v8 + H17"` argv was visible via
 //! `/proc/*/cmdline`, and a test-agent quoted it back verbatim. That
 //! matters for probe/contamination-sensitive work. It does not matter
-//! for normal use, so the hide is now opt-in.
+//! for normal use, so the hide is opt-in.
 //!
 //! Mechanism (hide path): `/proc/self/stat` fields 48 (`arg_start`)
 //! and 49 (`arg_end`) record the exact virtual-memory range the kernel
@@ -27,36 +29,25 @@
 
 use std::fs;
 
+/// The longest prefix of `name` that the kernel's 15-byte `comm` slot
+/// (`TASK_COMM_LEN - 1`) holds whole. prctl cuts at 15 bytes without regard
+/// for character boundaries, and a half character is invalid UTF-8 to every
+/// strict reader of `/proc/<pid>/comm` and `/proc/<pid>/stat`.
+fn comm_for(name: &str) -> &str {
+    &name[..name.floor_char_boundary(15)]
+}
+
 /// Set the kernel `comm` slot (`ps -o comm=`) to a truncated form of
 /// `hint`. Cheap identifier for debugging; does NOT hide the argv.
 ///
 /// Result is prefixed with `at:` (short for `agent-tools`) so
 /// `ps -o comm=` distinguishes the wrapper from an inline invocation
-/// while still leaving room for meaningful hint text under the
-/// kernel's 15-byte TASK_COMM_LEN - 1 limit.
-/// Build the `comm` string for `hint`: the `at:` prefix plus as much of the
-/// hint as the kernel's 15-byte `TASK_COMM_LEN - 1` limit holds.
-fn comm_for(hint: &str) -> String {
-    // 15 bytes max on Linux. "at:" prefix leaves 12 bytes for the hint.
-    // The bound is on bytes and the push is a whole character, so a character
-    // that would cross 15 ends the string: prctl cuts at 15 without regard for
-    // character boundaries, and a half character is invalid UTF-8 in every
-    // reader of /proc/<pid>/stat.
-    let mut s = String::from("at:");
-    for c in hint.chars() {
-        if s.len() + c.len_utf8() > 15 {
-            break;
-        }
-        s.push(c);
-    }
-    s
-}
-
+/// while still leaving 12 bytes for the hint.
 pub fn set_comm(hint: &str) {
     if !cfg!(target_os = "linux") {
         return;
     }
-    let c_short = match std::ffi::CString::new(comm_for(hint)) {
+    let c_short = match std::ffi::CString::new(comm_for(&format!("at:{hint}"))) {
         Ok(v) => v,
         Err(_) => return,
     };
@@ -97,11 +88,9 @@ pub fn hide_cmdline(title: &str) {
         let n = bytes.len().min(size.saturating_sub(1));
         std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr, n);
     }
-    // Match comm to the visible title, truncated to the kernel's 15-byte
-    // TASK_COMM_LEN - 1 limit. Cheap and makes `ps -o comm=` consistent
-    // with `ps -o args=`.
-    let short: String = title.chars().take(15).collect();
-    let c_short = std::ffi::CString::new(short).unwrap_or_default();
+    // Match comm to the visible title, so `ps -o comm=` agrees with
+    // `ps -o args=`.
+    let c_short = std::ffi::CString::new(comm_for(title)).unwrap_or_default();
     unsafe {
         libc::prctl(libc::PR_SET_NAME, c_short.as_ptr(), 0, 0, 0);
     }
@@ -134,22 +123,28 @@ fn argv_range() -> Option<(usize, usize)> {
 mod tests {
     use super::*;
 
-    /// The kernel truncates `comm` at 15 bytes. A hint whose character
+    /// The kernel truncates `comm` at 15 bytes. A name whose character
     /// straddles that boundary must be cut before the character, not through
-    /// it: a half character leaves invalid UTF-8 in `/proc/<pid>/stat`, which
-    /// every reader of that file then fails on.
+    /// it, and no earlier. Both callers' prefixes are ASCII, so the padding
+    /// walks every multi-byte tail across every offset of the limit.
     #[test]
-    fn comm_hint_never_straddles_the_kernel_limit() {
-        for n in 0..20 {
-            for tail in ["鍵盘 driver", "✅ tail", "école", "😀 x"] {
-                let hint = format!("{}{}", "x".repeat(n), tail);
-                let s = comm_for(&hint);
-                assert!(
-                    s.len() <= 15,
-                    "comm_for({hint:?}) = {s:?} is {} bytes, kernel keeps 15",
-                    s.len()
-                );
-                assert!(s.starts_with("at:"), "comm_for({hint:?}) = {s:?}");
+    fn comm_never_straddles_the_kernel_limit() {
+        for prefix in ["at:", "agent-tools: "] {
+            for n in 0..20 {
+                for tail in ["鍵盘 driver", "✅ tail", "école", "😀 x"] {
+                    let name = format!("{prefix}{}{tail}", "x".repeat(n));
+                    let s = comm_for(&name);
+                    assert!(
+                        s.len() <= 15,
+                        "comm_for({name:?}) = {s:?} is {} bytes, kernel keeps 15",
+                        s.len()
+                    );
+                    let next = name[s.len()..].chars().next();
+                    assert!(
+                        next.is_none_or(|c| s.len() + c.len_utf8() > 15),
+                        "comm_for({name:?}) = {s:?} stops before {next:?}, which fits"
+                    );
+                }
             }
         }
     }
