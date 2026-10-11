@@ -2,6 +2,15 @@
 
 set -eux
 
+# The launcher's version, recorded with the rest of the environment by
+# `agent-tools hook-provenance` (the CLAUDE prefix). Bump it, and add its line
+# here, when a change alters the configuration a session launched from here
+# starts with -- a variable set or dropped, a value or its meaning, an argument
+# to claude. A change that starts every session the same way does not. A reader
+# branches on this, not on which variables happen to be present.
+#   1  first versioned: the configuration below
+export CLAUDE_SH_VERSION=1
+
 # Fixed against the ambient environment rather than defaulted from it, so a
 # GIT_AUTHOR_NAME already in the shell cannot end up on a commit. A sibling
 # launcher names the model behind the session through CLAUDE_SH_AUTHOR_NAME --

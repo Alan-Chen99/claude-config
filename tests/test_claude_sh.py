@@ -10,6 +10,7 @@ a session would ever surface. These tests exist to make that loss loud.
 """
 
 import os
+import re
 import socket
 import subprocess
 from pathlib import Path
@@ -28,6 +29,7 @@ echo "CLAUDE_CODE_DISABLE_AGENT_VIEW=${CLAUDE_CODE_DISABLE_AGENT_VIEW-<unset>}"
 echo "CLAUDE_CODE_TMPDIR=${CLAUDE_CODE_TMPDIR-<unset>}"
 echo "CLAUDE_CODE_TOTAL_TOKENS_REMINDER=${CLAUDE_CODE_TOTAL_TOKENS_REMINDER-<unset>}"
 echo "CLAUDE_SH_TOKENS_REMINDER_SOURCE=${CLAUDE_SH_TOKENS_REMINDER_SOURCE-<unset>}"
+echo "CLAUDE_SH_VERSION=${CLAUDE_SH_VERSION-<unset>}"
 """
 
 
@@ -225,3 +227,24 @@ def test_a_drawn_arm_is_labelled_and_never_printed(tmp_path: Path) -> None:
     assert arm in ("off", "padded-countdown")
     assert "export CLAUDE_CODE_TOTAL_TOKENS_REMINDER" not in result.stderr
     assert f"CLAUDE_CODE_TOTAL_TOKENS_REMINDER={arm}" not in result.stderr
+
+
+def test_the_launcher_version_reaches_claude_and_says_what_it_means(tmp_path: Path) -> None:
+    """A transcript is read by the version of the launcher that configured it.
+
+    The value reaches the record only as an exported variable, so a deleted
+    export leaves every later session unversioned without failing anything; and
+    a version with no line saying what it changed is a number a reader cannot
+    act on. A caller's own value must not survive either: the variable names
+    this file's version, not the caller's.
+    """
+    script = _patched_script_with_dead_proxy_port(tmp_path)
+    result = _run(script, tmp_path, extra_env={"CLAUDE_SH_VERSION": "a-caller-value"})
+    assert result.returncode == 0, result.stderr
+
+    version = _reported(result, "CLAUDE_SH_VERSION")
+    assert version.isdigit(), version
+    assert re.search(rf"^#\s+{version}\s+\S", CLAUDE_SH.read_text(), re.M), (
+        f"scripts/claude.sh exports CLAUDE_SH_VERSION={version} but has no "
+        "comment line saying what that version changed"
+    )
