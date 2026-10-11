@@ -12,9 +12,10 @@ const LOCK_WAIT: std::time::Duration = std::time::Duration::from_millis(1000);
 /// Scopes with a live `Ledger` in this process.
 ///
 /// `flock` keys off the open file description, not the process, so a second
-/// `open` on a scope this process already holds blocks forever waiting on its
-/// own lock — with no diagnostic, and nothing able to release it. The set turns
-/// that hang into an error.
+/// `open` on a scope this process already holds would wait on its own lock,
+/// which nothing can release, until `LOCK_WAIT` ran out — spending a second of
+/// the hook's budget to blame another delivery point for it. The set turns
+/// that into an immediate error naming the real cause.
 fn open_scopes() -> &'static Mutex<HashSet<PathBuf>> {
     static SCOPES: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
     SCOPES.get_or_init(|| Mutex::new(HashSet::new()))
@@ -78,7 +79,7 @@ impl Ledger {
         if !open_scopes().lock().unwrap().insert(scope.clone()) {
             bail!(
                 "a Ledger for {} is already open in this process; a second one would \
-                 block forever waiting on this process's own flock",
+                 wait on this process's own flock",
                 scope.display()
             );
         }

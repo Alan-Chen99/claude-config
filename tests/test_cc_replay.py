@@ -128,9 +128,9 @@ def test_a_synthesized_url_picks_its_host_off_the_model_id(tmp_path, model, host
 # ── Credentials ─────────────────────────────────────────────────────────────
 #
 # A capture never carries one. Every resolution names its source, because an
-# API key and an OAuth bearer are not the same caller: whether a beta such as
-# claude-code-20250219 is gated to the OAuth path is unverified, so a replay
-# that diverges from its capture must be able to rule the credential in or out.
+# API key and an OAuth bearer are not the same caller: the OAuth token is refused
+# for a replaced `system`, which an API key accepts, so a replay that diverges
+# from its capture must be able to rule the credential in or out.
 
 import time as _time
 

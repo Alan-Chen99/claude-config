@@ -91,7 +91,7 @@ The plugin field is a top-level config key, peer to `agent`. Plugins install
 into opencode's package cache on first run.
 
 **A globally-registered plugin loads whether or not your inline config mentions
-it.** `~/.config/opencode/opencode.jsonc` on this machine registers superpowers,
+it.** `~/.config/opencode/opencode.jsonc` has superpowers commented out,
 and `OPENCODE_DISABLE_PROJECT_CONFIG=1` disables the *project* config only.
 `opencode run --pure` is documented as "run without external plugins" and is the
 one switch that certainly applies. Whether `"plugin": []` in
@@ -184,9 +184,9 @@ Round 19 F88 named this: a probe launched as `agent-tools run --desc
 visible via `ps aux` and `/proc/*/cmdline`, and E-k3-nodontact's
 test-agent quoted it back verbatim.
 
-Fix: `agent-tools run --hide-cmdline ...` overwrites the argv memory
-region so peers reading `ps aux` or `/proc/*/cmdline` see only
-`agent-tools: <exe>` instead of the full `--desc "..." -- <cmd>`. The
+Fix: `agent-tools run --hide-cmdline ...` overwrites the wrapper's argv,
+so peers reading `ps aux` or `/proc/*/cmdline` see `agent-tools: <exe>`
+there; the child's own argv still shows `<cmd>`. The
 hide is **opt-in**: without the flag, `comm` is set to `at:<hint>`
 but the argv is left visible because clarity is more useful than
 privacy for general debugging.

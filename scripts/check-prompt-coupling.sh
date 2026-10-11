@@ -140,9 +140,9 @@ check '`agent-tools ps` reports what is running now, as JSON' "$prompt"
 check 'default_value_t = ps::PsFormat::Json' "$src/main.rs"
 
 # The notes segment and the stat-failure group, both built by `status.rs::render`.
-# The prompt names all five so the agent reads a bracket after the byte counts as
-# facts about the run rather than as a second status key; rename one and that
-# bracket is unexplained on a line the agent must still read. Source-side needles
+# The status reference names all five so the agent reads a bracket after the byte
+# counts as facts about the run rather than as a second status key; rename one and
+# that bracket is unexplained on a line the agent must still read. Source-side needles
 # are whole `format!` / `push` expressions because the bare words also appear in
 # this file's own render assertions, so a word-level grep passes over a drifted
 # emitter. Each needle was verified to match exactly one place in `status.rs`.
@@ -176,8 +176,9 @@ check '"{}  wrapper pid {wrapper_pid}  child pid {pid}"' "$src/run.rs"
 # prompt-facing literal shipped with its prompt sentence and no needle: the gate
 # stays green while the prompt goes false, which is the failure this script exists
 # to prevent arriving by the one route a needle list cannot see. So every literal
-# in `hook_post.rs` and `status.rs` whose text the prompt quotes carries a
-# `// PROMPT-COUPLED` marker on the line above it, and the counts must agree.
+# in `hook_post.rs`, `status.rs` and `hook_subagent.rs` whose text the prompt or
+# the status reference quotes carries a `// PROMPT-COUPLED` marker on the line
+# above it, and the counts must agree.
 #
 # The marker means the prompt quotes this text rather than standing a placeholder
 # in for it: `started {}, ran {}` is quoted and marked, while `last byte {}s ago`
@@ -186,7 +187,7 @@ check '"{}  wrapper pid {wrapper_pid}  child pid {pid}"' "$src/run.rs"
 # been marked; what it enforces is that a declared coupling is pinned, and what
 # prompts the declaration is the marker standing beside every neighbour.
 #
-# Only these two files: they are the ones whose text reaches the agent through
+# Only these three files: they hold the literals that reach the agent through
 # `additionalContext`, where a string is read rather than shown. Needles aimed at
 # any other file are outside the count, so `hook_prompt.rs` sharing the
 # `unavailable` needle does not have to carry a marker for it.

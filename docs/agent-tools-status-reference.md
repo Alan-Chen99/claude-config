@@ -149,7 +149,7 @@ splits. Known differences:
    closes, the child takes the `SIGPIPE` bare would have given it, and the line shows `141`
    beside `drain capped`.
 2. The wrapper is a separate process with the child's argv, so a `pkill -f` aimed at the
-   command matches both. `--hide-cmdline` suppresses the argv and `--desc` in `/proc`.
+   command matches both. `--hide-cmdline` hides the wrapper's copy, `--desc` included.
 3. The wrapper writes its own diagnostics to stderr, always prefixed `agent-tools:`.
 4. `isatty` is false on the child's stdout and stderr — inherent to a tee. This is not a
    difference from bare in the Bash tool, which already pipes both: `test -t 1` reports no

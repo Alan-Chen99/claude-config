@@ -306,8 +306,8 @@ A call is captured only if the session process had `HTTPS_PROXY` pointed at
 this proxy when it started. `scripts/claude.sh` sets it, and only when
 something answers on 9160 at launch — otherwise it warns on stderr and runs
 unintercepted. `scripts/kimi.sh` execs `claude.sh`, so a Kimi session is
-covered on the same terms. `agent-tools claude` does not set it at all, so
-worktree and prompt-test sessions produce no captures. Subagents are not separate sessions
+covered on the same terms, and so is a worktree or prompt-test session:
+`agent-tools claude` execs that checkout's `claude.sh`. Subagents are not separate sessions
 here: their calls carry the parent's session id and land in the parent's
 directory.
 

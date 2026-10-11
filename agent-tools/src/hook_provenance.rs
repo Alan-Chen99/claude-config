@@ -54,9 +54,12 @@
 //! rebuilt the binary. On these events the same skew costs an error message
 //! instead of a session that cannot run a tool.
 //!
-//! This hook never exits non-zero. A failure to record provenance must not be
-//! silent either, since an unlabelled session is the defect this exists to
-//! prevent, so failures are reported into the block itself under `errors:`.
+//! This hook never exits non-zero. Clap and root resolution run before it and
+//! exit 2 on that same skew or a root mismatch, which on `Stop` keeps the turn
+//! from ending, so `settings.json` wires it `|| true`. A failure to record
+//! provenance must not be silent either, since an unlabelled session is the
+//! defect this exists to prevent, so failures are reported into the block
+//! itself under `errors:`.
 
 use anyhow::Result;
 use std::collections::BTreeMap;

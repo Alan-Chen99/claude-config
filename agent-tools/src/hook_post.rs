@@ -327,9 +327,10 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
     // delivery points prepend, and the notes prepended after packing. Budgeting
     // from zero measured only the middle of the report and let the ends push the
     // total past the ceiling — a 9,000-char budget emitting 9,003 characters,
-    // the size at which the runtime replaces the whole block with its stub. The
-    // backgrounding notice is deliberately not charged: it rides on top because
-    // it is the one message this hook must never drop for size.
+    // eating the margin that keeps the report, with the backgrounding notice on
+    // top, under the 10,000 characters at which the runtime replaces the whole
+    // block with its stub. The notice is deliberately not charged: it rides on
+    // top because it is the one message this hook must never drop for size.
     let reserved: usize = report_header(now).len()
         + 1
         + notes.iter().map(|n| n.len() + 1).sum::<usize>();
@@ -343,9 +344,10 @@ pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result
     );
     // `collapse_running` gets only what `bound` left of the budget, not the
     // module ceiling again: checking its one line against the whole of
-    // `REPORT_BUDGET` a second time would let the two sums together exceed
-    // it, and a report over `REPORT_BUDGET` is replaced whole by the
-    // runtime's stub — which reads to the agent as nothing else changed.
+    // `REPORT_BUDGET` a second time would let the two sums together reach
+    // twice it, well past the 10,000 characters at which the runtime replaces
+    // the whole report with its stub — which reads to the agent as nothing
+    // else changed.
     let used: usize = reserved + lines.iter().map(|l| l.len() + 1).sum::<usize>();
     let running: Vec<(String, String, String, String)> = running
         .into_iter()
@@ -619,8 +621,9 @@ mod tests {
         // `bound` and the collapsed line share one ceiling. Checking the
         // collapsed line against the whole of it — the same ceiling `bound`
         // already spent part of on terminal lines — would let the two sum
-        // past REPORT_BUDGET, and a report over that size is replaced whole by
-        // the runtime's stub, which reads to the agent as nothing changed.
+        // past REPORT_BUDGET and on past the 10,000 characters at which the
+        // runtime replaces the whole report with its stub, which reads to the
+        // agent as nothing changed.
         let tmp = tempfile::TempDir::new().unwrap();
         let mut ledger = crate::ledger::Ledger::open(tmp.path()).unwrap();
 

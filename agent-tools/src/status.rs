@@ -775,11 +775,12 @@ mod tests {
 
         let now = Utc::now();
         let line = render(d.path(), &derive(d.path(), now), now);
-        // The whole bracket group, not one `contains` per note: the prompt
-        // promises this order, and a `contains` per note holds whichever order
-        // `render` emits them in, so swapping two `notes.push` blocks would
-        // leave every note present and this test green. The bounding spaces
-        // make this the group's entire content rather than a substring of it.
+        // The whole bracket group, not one `contains` per note: the status
+        // reference promises this order, and a `contains` per note holds
+        // whichever order `render` emits them in, so swapping two `notes.push`
+        // blocks would leave every note present and this test green. The
+        // bounding spaces make this the group's entire content rather than a
+        // substring of it.
         let segment = " [streams split: not both writable; downstream closed; drain capped; \
              capture failed: No space left on device] ";
         assert!(line.contains(segment), "line: {line}");

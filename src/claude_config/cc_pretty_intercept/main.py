@@ -6,8 +6,8 @@ scripts/intercept/proxy.py to ~/.claude/requests-log/<session_id>/NNNN.json.
 Shares cc-pretty's CLI surface and rendering pipeline: the capture is flattened
 into cc-pretty records by ``claude_config.cc_pretty_intercept.convert`` — see
 that module for how the API's named regions become records and keep their jq
-addresses. ``--no-system`` and ``--no-tools`` are the two options this
-front-end adds, for the two regions only an API payload has.
+addresses. ``--no-system``, ``--no-tools`` and ``--show-http`` are the options
+this front-end adds, for the three regions only an API capture has.
 
 Color output is auto-detected: on when stdout is a TTY, off when piped or when
 NO_COLOR is set (https://no-color.org). --color forces it on (e.g. piping to

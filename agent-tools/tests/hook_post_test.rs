@@ -1135,15 +1135,16 @@ fn an_exited_child_keeps_its_own_full_line_rather_than_joining_the_running_summa
 }
 
 #[test]
-fn the_combined_report_never_exceeds_the_budget_the_runtime_enforces() {
+fn the_combined_report_never_exceeds_the_report_budget() {
     // 25 terminal children with 200-char names, sized so `bound` alone
     // consumes most of REPORT_BUDGET (9,000 — mirrored here since the
     // constant is private to hook_post.rs) without dropping any of them,
     // plus 3 running ones. `collapse_running` must be checked against what
     // `bound` left over, not against the whole budget again: reverting that
     // arithmetic measurably pushes this scenario's additionalContext past
-    // 9,000, into territory the runtime replaces whole with a ~2,000-char
-    // stub — which reads to the agent as nothing changed at all.
+    // 9,000, the ceiling that keeps the report and the uncharged
+    // backgrounding notice under the 10,000 characters at which the runtime
+    // replaces the whole block with a ~2,000-char stub.
     let home = tempfile::TempDir::new().unwrap();
     seed_many_terminal(home.path(), "toolu_wide", 25, 200);
     for i in 0..3u32 {
@@ -1158,8 +1159,9 @@ fn the_combined_report_never_exceeds_the_budget_the_runtime_enforces() {
         .expect("additionalContext");
     assert!(
         ctx.len() <= 9_000,
-        "additionalContext must stay under the 9,000-char REPORT_BUDGET, or the \
-         runtime replaces the whole thing with a ~2,000-char stub; got {} bytes",
+        "additionalContext must stay within the 9,000-char REPORT_BUDGET, which keeps \
+         it and the backgrounding notice under the runtime's 10,000-char stub \
+         threshold; got {} bytes",
         ctx.len()
     );
 }
