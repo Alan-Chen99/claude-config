@@ -134,7 +134,8 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Wrap a command inside an active wrap-task (for pipeline capture).
+    /// Run a command in this session's scope, capturing both streams and
+    /// reporting its fate on the status channel.
     Run {
         #[arg(long)]
         desc: Option<String>,
@@ -184,7 +185,7 @@ enum Cmd {
     /// PreToolUse hook for Bash and Monitor.
     #[command(name = "hook-pre")]
     HookPre,
-    /// PostToolUse hook for Bash and Monitor.
+    /// PostToolUse and PostToolUseFailure hook, every tool: reports run status changes.
     #[command(name = "hook-post")]
     HookPost,
     /// UserPromptSubmit hook: carries pending run status changes into a user turn.
@@ -193,14 +194,16 @@ enum Cmd {
     /// SubagentStart hook: asks the spawning subagent for a Required notes block.
     #[command(name = "hook-subagent-start")]
     HookSubagentStart,
-    /// PreToolUse and Stop hook: writes the launch configuration into the
-    /// session transcript, once, where the model never sees it.
+    /// PostToolUse, PostToolUseFailure and Stop hook: writes the launch
+    /// configuration into the session transcript, once per Claude Code process,
+    /// where the model never sees it.
     #[command(name = "hook-provenance")]
     HookProvenance,
-    /// pre_output script used in output styles
+    /// The `## Before response` step: prints the rule reminder and records the
+    /// turn's summary for ntfy-hook.
     #[command(name = "pre_output.record")]
     PreOutputRecord {
-        /// JSON argument (accepted and discarded)
+        /// The turn's record: one JSON object with a non-empty `summary`
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
