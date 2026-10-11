@@ -33,6 +33,19 @@
 //! Whichever arrives first writes the record; the sentinel makes every later
 //! invocation a stat and an exit.
 //!
+//! The sentinel is per Claude Code process within a session, not per session.
+//! A resume keeps the session id and appends to the same transcript from a new
+//! process that its launcher configured afresh — `claude.sh` draws its trial
+//! arm again — so a record per session would label every resumed stretch with
+//! the configuration of the process before it. Observed under v1, which kept
+//! one: `7da642fa`'s only record reads `off`, and 52 `<total_tokens>` markers
+//! follow its `SessionStart:resume`.
+//!
+//! The launchers are read when the record is written, not when the process
+//! started, and a `/clear` hours into a process writes the new session's
+//! record then. A launcher modified since the process started is flagged on
+//! its line rather than presented as what ran.
+//!
 //! `PreToolUse` would fire marginally earlier and is deliberately not used: a
 //! `PreToolUse` hook's exit code is a permission verdict, so any way of exiting
 //! 2 there denies the tool call. That is not hypothetical — `clap` exits 2 for
@@ -52,14 +65,18 @@ use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::{Duration, SystemTime};
 
 use serde::Deserialize;
 
 /// Bumped when the block's shape changes, so a reader can tell which grammar a
 /// record follows rather than inferring it from which fields happen to be there.
-const FORMAT: &str = "v1";
+/// v1: one record per session. v2: one per process, with a `process:` line,
+/// and launchers flagged when modified after the process started.
+const FORMAT: &str = "v2";
 
-/// Name of the sentinel inside the session's agent-tools state directory.
+/// Name of the sentinel inside the session's agent-tools state directory,
+/// suffixed `.<pid>-<start ticks>` when the process is known.
 const SENTINEL: &str = "launch-provenance";
 
 /// Above this, a source file is named and its size reported instead of being
@@ -142,6 +159,16 @@ pub fn run() -> Result<()> {
     }
 
     let mut errors: Vec<String> = Vec::new();
+    let process = current_process();
+    let sentinel = match &process {
+        Ok(p) => format!("{SENTINEL}.{}-{}", p.pid, p.start_ticks),
+        Err(e) => {
+            errors.push(format!(
+                "process: {e}; recorded once per session, so a resumed session's new process records nothing"
+            ));
+            SENTINEL.to_string()
+        }
+    };
     let session_dir = match crate::paths::state_root() {
         Ok(root) => Some(root.join(&payload.session_id)),
         Err(e) => {
@@ -150,7 +177,7 @@ pub fn run() -> Result<()> {
         }
     };
     if let Some(dir) = session_dir {
-        match claim_sentinel_in(&dir) {
+        match claim_sentinel_in(&dir, &sentinel) {
             Sentinel::Claimed => {}
             Sentinel::AlreadyHeld => return Ok(()),
             // Emitting anyway is the loud failure: the block still reaches the
@@ -166,10 +193,15 @@ pub fn run() -> Result<()> {
         .clone()
         .or_else(|| std::env::current_dir().ok().map(|p| p.display().to_string()))
         .unwrap_or_else(|| "(unknown)".into());
+    let process = process.ok();
     let block = render(
         &payload,
         &cwd,
-        &launcher_chain(std::env::var("CLAUDE_SH_LAUNCHERS").ok().as_deref()),
+        process.as_ref(),
+        &launcher_chain(
+            std::env::var("CLAUDE_SH_LAUNCHERS").ok().as_deref(),
+            process.as_ref().map(|p| p.started),
+        ),
         recorded_env(std::env::vars()),
         &settings_sources(Path::new(&cwd)),
         &mut errors,
@@ -178,6 +210,50 @@ pub fn run() -> Result<()> {
     stdout.write_all(block.as_bytes())?;
     stdout.flush()?;
     Ok(())
+}
+
+struct Process {
+    pid: u32,
+    start_ticks: u64,
+    started: SystemTime,
+}
+
+/// The Claude Code process this hook runs under. Claude Code exports its own
+/// pid to hooks as `CLAUDE_PID`; the start ticks tell it apart from a later
+/// process given the same pid, which a container restart makes likely.
+fn current_process() -> Result<Process, String> {
+    let raw = std::env::var("CLAUDE_PID").map_err(|e| format!("CLAUDE_PID: {e}"))?;
+    let pid: u32 = raw
+        .parse()
+        .map_err(|e| format!("CLAUDE_PID={raw:?}: {e}"))?;
+    let start_ticks = crate::procstat::start_ticks(pid).map_err(|e| format!("{e:#}"))?;
+    Ok(Process {
+        pid,
+        start_ticks,
+        started: start_time(start_ticks)?,
+    })
+}
+
+/// Boot time plus the start ticks. `/proc/stat` gives boot time in whole
+/// seconds, so the result can be up to a second early, and a launcher modified
+/// in the second before its process started can be flagged.
+fn start_time(start_ticks: u64) -> Result<SystemTime, String> {
+    let stat = fs::read_to_string("/proc/stat").map_err(|e| format!("/proc/stat: {e}"))?;
+    let btime: u64 = stat
+        .lines()
+        .find_map(|l| l.strip_prefix("btime "))
+        .ok_or("/proc/stat has no btime line")?
+        .trim()
+        .parse()
+        .map_err(|e| format!("/proc/stat btime: {e}"))?;
+    // SAFETY: sysconf reads a system constant and has no preconditions.
+    let hz = unsafe { libc::sysconf(libc::_SC_CLK_TCK) };
+    if hz <= 0 {
+        return Err(format!("sysconf(_SC_CLK_TCK) returned {hz}"));
+    }
+    Ok(SystemTime::UNIX_EPOCH
+        + Duration::from_secs(btime)
+        + Duration::from_millis(start_ticks * 1000 / hz as u64))
 }
 
 enum Sentinel {
@@ -192,14 +268,14 @@ enum Sentinel {
 /// Takes the directory rather than reading `HOME` for it, so a test can drive
 /// the decision without `set_var` — which is process-global and would race
 /// every other test thread, this binary's `paths` tests included.
-fn claim_sentinel_in(dir: &Path) -> Sentinel {
+fn claim_sentinel_in(dir: &Path, name: &str) -> Sentinel {
     if let Err(e) = fs::create_dir_all(dir) {
         return Sentinel::Failed(e);
     }
     match fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(dir.join(SENTINEL))
+        .open(dir.join(name))
     {
         Ok(_) => Sentinel::Claimed,
         Err(e) if e.kind() == ErrorKind::AlreadyExists => Sentinel::AlreadyHeld,
@@ -212,6 +288,7 @@ fn claim_sentinel_in(dir: &Path) -> Sentinel {
 fn render(
     payload: &Payload,
     cwd: &str,
+    process: Option<&Process>,
     launchers: &[Launcher],
     env: BTreeMap<String, String>,
     settings: &[PathBuf],
@@ -223,9 +300,22 @@ fn render(
     let _ = writeln!(
         out,
         "recorded: {} (hook {})",
-        chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, false),
+        local_rfc3339(SystemTime::now()),
         payload.hook_event_name.as_deref().unwrap_or("?")
     );
+    match process {
+        Some(p) => {
+            let _ = writeln!(
+                out,
+                "process:  pid {}, started {}",
+                p.pid,
+                local_rfc3339(p.started)
+            );
+        }
+        None => {
+            let _ = writeln!(out, "process:  unknown (see errors)");
+        }
+    }
     let _ = writeln!(out, "cwd:      {cwd}");
 
     let _ = writeln!(out, "launchers:");
@@ -235,7 +325,12 @@ fn render(
         let _ = writeln!(out, "  (none — CLAUDE_SH_LAUNCHERS unset)");
     }
     for (i, l) in launchers.iter().enumerate() {
-        let _ = writeln!(out, "  {}. {} {}", i + 1, l.path.display(), l.revision);
+        let flag = if l.modified_after_start {
+            " (modified after this process started: its text below may not be what ran)"
+        } else {
+            ""
+        };
+        let _ = writeln!(out, "  {}. {} {}{flag}", i + 1, l.path.display(), l.revision);
     }
 
     let _ = writeln!(out, "env:");
@@ -268,16 +363,24 @@ fn render(
     out
 }
 
+fn local_rfc3339(t: SystemTime) -> String {
+    chrono::DateTime::<chrono::Local>::from(t).to_rfc3339_opts(chrono::SecondsFormat::Secs, false)
+}
+
 struct Launcher {
     path: PathBuf,
     revision: String,
+    modified_after_start: bool,
 }
 
 /// Each launcher appends its own resolved path to `CLAUDE_SH_LAUNCHERS` before
 /// handing off, so the variable is the chain in the order it ran. Nothing else
 /// can supply it: every launcher here ends in `exec`, which replaces the shell,
-/// leaving no process for a hook to walk back to.
-fn launcher_chain(raw: Option<&str>) -> Vec<Launcher> {
+/// leaving no process for a hook to walk back to. The same `exec` keeps the pid,
+/// so the process's start time is when its first launcher began, and a
+/// launcher whose mtime is later than that changed after it ran. With no start
+/// time nothing is flagged, and the `process:` line says why.
+fn launcher_chain(raw: Option<&str>, started: Option<SystemTime>) -> Vec<Launcher> {
     let raw = match raw {
         Some(v) => v,
         None => return Vec::new(),
@@ -287,7 +390,16 @@ fn launcher_chain(raw: Option<&str>) -> Vec<Launcher> {
         .map(|s| {
             let path = PathBuf::from(s);
             let revision = git_revision(&path);
-            Launcher { path, revision }
+            // An unreadable launcher gets its own section saying so below.
+            let modified_after_start = match (started, fs::metadata(&path).and_then(|m| m.modified())) {
+                (Some(start), Ok(mtime)) => mtime > start,
+                _ => false,
+            };
+            Launcher {
+                path,
+                revision,
+                modified_after_start,
+            }
         })
         .collect()
 }
@@ -552,7 +664,11 @@ mod tests {
     /// and whether the launcher drew it. `scripts/claude.sh` is the writer.
     #[test]
     fn launcher_bookkeeping_reaches_the_record() {
-        for name in ["CLAUDE_SH_LAUNCHERS", "CLAUDE_SH_TOKENS_REMINDER_SOURCE"] {
+        for name in [
+            "CLAUDE_SH_LAUNCHERS",
+            "CLAUDE_SH_TOKENS_REMINDER_SOURCE",
+            "CLAUDE_SH_VERSION",
+        ] {
             assert!(is_recorded_name(name), "{name} must reach the record");
             assert!(!is_secret_name(name), "{name} must keep its value");
         }
@@ -590,6 +706,7 @@ mod tests {
         render(
             &payload(),
             "/nonexistent-cwd-for-test",
+            None,
             launchers,
             env,
             &[],
@@ -602,8 +719,8 @@ mod tests {
     #[test]
     fn the_block_is_delimited_and_names_its_format() {
         let block = rendered(&[], BTreeMap::new());
-        assert!(block.starts_with("<launch-provenance v1>\n"));
-        assert!(block.ends_with("</launch-provenance v1>\n"));
+        assert!(block.starts_with(&format!("<launch-provenance {FORMAT}>\n")));
+        assert!(block.ends_with(&format!("</launch-provenance {FORMAT}>\n")));
         assert!(block.contains("session:  sid-1"));
         assert!(block.contains("(hook PreToolUse)"));
     }
@@ -612,7 +729,7 @@ mod tests {
     /// `claude`, and has to read as an answer rather than as a missing field.
     #[test]
     fn an_absent_launcher_chain_is_stated_rather_than_omitted() {
-        assert!(launcher_chain(None).is_empty());
+        assert!(launcher_chain(None, None).is_empty());
         assert!(rendered(&[], BTreeMap::new()).contains("(none — CLAUDE_SH_LAUNCHERS unset)"));
     }
 
@@ -620,7 +737,7 @@ mod tests {
     /// the order is which script ran first.
     #[test]
     fn the_launcher_chain_keeps_its_order() {
-        let chain = launcher_chain(Some("/repo/scripts/kimi.sh:/repo/scripts/claude.sh"));
+        let chain = launcher_chain(Some("/repo/scripts/kimi.sh:/repo/scripts/claude.sh"), None);
         assert_eq!(chain.len(), 2);
         assert_eq!(chain[0].path, PathBuf::from("/repo/scripts/kimi.sh"));
         assert_eq!(chain[1].path, PathBuf::from("/repo/scripts/claude.sh"));
@@ -674,9 +791,9 @@ mod tests {
     fn a_claimed_sentinel_turns_every_later_invocation_into_a_no_op() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("sentinel-test-session");
-        assert!(matches!(claim_sentinel_in(&dir), Sentinel::Claimed));
-        assert!(matches!(claim_sentinel_in(&dir), Sentinel::AlreadyHeld));
-        assert!(matches!(claim_sentinel_in(&dir), Sentinel::AlreadyHeld));
+        assert!(matches!(claim_sentinel_in(&dir, SENTINEL), Sentinel::Claimed));
+        assert!(matches!(claim_sentinel_in(&dir, SENTINEL), Sentinel::AlreadyHeld));
+        assert!(matches!(claim_sentinel_in(&dir, SENTINEL), Sentinel::AlreadyHeld));
     }
 
     /// Settings sources are addressed by path; a `cwd` deep in a checkout must
