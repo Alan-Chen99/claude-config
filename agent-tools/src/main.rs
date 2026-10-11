@@ -9,8 +9,9 @@ use std::process::Command;
 use clap::{CommandFactory, Parser, Subcommand};
 
 /// Printed to stdout by `agent-tools opencode.gate`. Coupled to
-/// `opencode/agents/alan-default-ids.md` step 4/5 wording — see agent-tools CLAUDE.md
-/// "Prompt-coupled strings" table.
+/// `opencode/agents/alan-default-ids.md` step 4/5 wording AND to the body rules
+/// R002 / R043 / R090 which G1/G4/G6 point at. Nothing checks the pair: edit
+/// both sides together, then rebuild.
 const GATE_STDOUT: &str = "\
 (R060) Consider any mistakes or problems you may have made — across the work you did, the draft output, and your identification of the task and user motivations — and take further action or revise accordingly. The items below are reminders to check specific rules; they are not a complete checklist.
 
@@ -29,7 +30,7 @@ If this surfaced new work or a revision, do it and re-enter the gate at the next
 /// `opencode/agents/min.md` step 4/5/6 wording AND to the body rules
 /// R002 (big-picture optimization target) / R043 (cheap-rejection
 /// transparency) / R090 (no implicit work-assignment) which G1/G4/G6
-/// point at — see agent-tools CLAUDE.md "Prompt-coupled strings" table.
+/// point at. Nothing checks the pair: edit both sides together, then rebuild.
 ///
 /// The min gate is the deliberately-thin counterpart to `opencode.gate`. It
 /// numbers the umbrella rule (R060 — consider mistakes) and uses
@@ -139,12 +140,12 @@ enum Cmd {
     Run {
         #[arg(long)]
         desc: Option<String>,
-        /// Overwrite /proc/self/cmdline to hide --desc and the wrapped
-        /// command from peer processes reading `ps aux` /
-        /// `/proc/*/cmdline`. Opt-in because the default cmdline is
-        /// load-bearing for debugging; only enable for probe /
-        /// contamination-sensitive work. See agent-tools CLAUDE.md
-        /// "Process identity: `comm` (default) vs `--hide-cmdline` (opt-in)".
+        /// Overwrite this wrapper's /proc/self/cmdline so peers reading
+        /// `ps aux` / `/proc/*/cmdline` cannot recover --desc or the command
+        /// from it. The wrapped child is a separate process whose own
+        /// cmdline still shows its command. Opt-in because the default
+        /// cmdline is load-bearing for debugging; only enable for probe /
+        /// contamination-sensitive work.
         #[arg(long)]
         hide_cmdline: bool,
         /// Bytes captured after the downstream closed before the read end is

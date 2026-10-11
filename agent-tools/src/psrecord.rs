@@ -21,9 +21,9 @@ pub const USER_SHELL: &str = "user-shell";
 /// `status::derive`, `status::name`, `status::notes` and `Status::duration_s`
 /// are the same four helpers the other two renderers call, and this assembles
 /// their answers rather than re-deriving beside them. What that does not cover
-/// is which children a renderer *selects* — see `agent-tools/CLAUDE.md`, "One
-/// derivation, four renderers", for the three axes in use and the one key they
-/// disagree about.
+/// is which children a renderer *selects* — see `agent-tools/README.md`,
+/// "Status channel", for the three axes in use and the one key they disagree
+/// about.
 #[derive(Debug, Serialize)]
 pub struct Record {
     pub name: String,

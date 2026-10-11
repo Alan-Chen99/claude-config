@@ -15,8 +15,7 @@ use crate::procstat;
 /// line from `meta.json` at whatever length the record holds. They are escaped
 /// rather than capped, since every producer is a wrapper-authored `io::Error`
 /// or one of `decide_merge`'s own literals, so length is bounded in practice
-/// while a hand-edited record's newlines are not. `agent-tools/CLAUDE.md`,
-/// "Report lines", carries the same enumeration.
+/// while a hand-edited record's newlines are not.
 const NAME_MAX: usize = 200;
 
 /// Quiet thresholds, ascending. Configuration, not contract.

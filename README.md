@@ -134,7 +134,7 @@ and so does `TaskStop` (measured on cc 2.1.269 in the
 [status reference](docs/agent-tools-status-reference.md)). Passthrough is
 tested against a real binary, since every property it promises is a property
 of processes ([spec](docs/superpowers/specs/2026-08-26-agent-tools-run-design.md);
-internals in [`agent-tools/CLAUDE.md`](agent-tools/CLAUDE.md)), and the stress
+internals in [`agent-tools/`](agent-tools/)), and the stress
 findings are kept as written:
 [`notes/agent-tools-run-stress-findings.md`](notes/agent-tools-run-stress-findings.md)
 records, for instance, `yes | head -1` needing a kill at 5 s with a 2.1 GB

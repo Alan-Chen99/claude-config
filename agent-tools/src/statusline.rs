@@ -65,8 +65,8 @@ pub fn render_records(records: &[Record], now: DateTime<Utc>) -> String {
     // count, not just reordered. "Which do I list first" and "which three do
     // I keep" are different questions, and a surface with a hard cap has to
     // answer the second one — that is what settles the direction, not just
-    // the churn argument below. See `agent-tools/CLAUDE.md`, "What `ps` adds,
-    // and what it admits", for the ordering this deliberately does not share.
+    // the churn argument below. `ps::render_json` and `ps::render_text` carry
+    // the ordering this deliberately does not share.
     //
     // This line also carries no timer and freezes the instant the agent goes
     // idle — exactly when a person is reading it — so the three slots that

@@ -172,8 +172,8 @@ counts) — via `--update`, which refuses to write a count of 0 and leaves `_com
 re-read that by hand. The two vendored skills under `skills/` — via `skilldiff.sh --update`,
 never by hand.
 
-**Re-verify the claim, keep the label:** every version banner under `docs/`, `skills/cc-history`,
-`output-styles/README.md` and `agent-tools/CLAUDE.md`, and the first-byte-watchdog window in
+**Re-verify the claim, keep the label:** every version banner under `docs/`, `skills/cc-history`
+and `output-styles/README.md`, and the first-byte-watchdog window in
 `scripts/intercept/README.md`, "Pass-through streaming".
 
 **Do NOT re-pin — dated records of an older build, and rewriting them destroys the evidence:**

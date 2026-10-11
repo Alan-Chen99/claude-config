@@ -24,7 +24,7 @@ production agents (opencode/agents/alan-default-ids.md) layer a P001 personality
 
 min.md exists as the diagnostic baseline: it isolates which rules are doing which work so variant testing (changing one rule at a time) produces interpretable results. sessions running min.md will look terse, will skip optional disclosures, and will not produce alan-default-ids.md-style output. this is intentional — adding style or efficiency rules to min.md would confound variant tests.
 
-investigation that produced this rule set: notes/compliance-check-failure-mode.md (rounds 1–7 for adopted rules; F1–F40 for adoption-level findings). round 8 (baseline probe on the round-8 V5 fixture) and round 9 (R910 diagnostic-instrument probes) added F41–F61 as investigation-level findings — none of the round-9 rule variants were adopted, but they produced concrete design lessons (see "Explored and rejected" below). gate-coupling table: agent-tools/CLAUDE.md.
+investigation that produced this rule set: notes/compliance-check-failure-mode.md (rounds 1–7 for adopted rules; F1–F40 for adoption-level findings). round 8 (baseline probe on the round-8 V5 fixture) and round 9 (R910 diagnostic-instrument probes) added F41–F61 as investigation-level findings — none of the round-9 rule variants were adopted, but they produced concrete design lessons (see "Explored and rejected" below).
 
 how to add or change a rule:
 - add when a real test case shows the agent failing in a way the current rules do not catch, AND the new rule supports "deviation = failure" argument from observation alone, AND it is not duplicative or contradictory.
@@ -44,7 +44,6 @@ variant: xhigh
 # rationale: see docs/opencode-system-prompt/min-commentary.md.
 # Pairs with `agent-tools min.gate` for gate stdout. Investigation that
 # produced the current rule set: notes/compliance-check-failure-mode.md.
-# Coupled-string table: agent-tools/CLAUDE.md.
 ---
 
 <!--

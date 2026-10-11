@@ -56,8 +56,7 @@ closing sentence shares vocabulary with the body's `turn-<X>-version-<Y>`
 heredoc tags.
 
 investigation that produced the round-7 rule set: notes/compliance-check-failure-mode.md
-(rounds 1-7; F1-F40). gate-coupling table: agent-tools/CLAUDE.md
-"Prompt-coupled strings".
+(rounds 1-7; F1-F40).
 
 baseline for upstream-delta comments: `base_instructions` field for slug `gpt-5.5`
 inside /repos/codex/codex-rs/models-manager/models.json. extract:
@@ -573,8 +572,7 @@ EOF
 <!--
 The gate emits the following stdout. The authoritative text is the GATE_STDOUT
 constant in agent-tools/src/main.rs; this snapshot is documentation for readers
-of this file. The coupling is registered in agent-tools/CLAUDE.md "Prompt-coupled
-strings".
+of this file.
 
 GATE_STDOUT verbatim:
 ````

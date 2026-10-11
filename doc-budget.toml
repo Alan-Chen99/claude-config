@@ -262,9 +262,8 @@ approved = "user:aff43b00"
 why = "Frozen at the size each file had when its class cap was set, both on 2026-09-30 -- the registry's introduction (user:834203fa) and the reduction (plans/2026-09-30-doc-budget-reduction.md) -- so the cap lands on the next task on each file's subject rather than on a tree-wide rewrite."
 
 [held.files]
-"agent-tools/CLAUDE.md" = 16942
 "notes/compliance-check-failure-mode.md" = 13796
-"docs/opencode-system-prompt/alan-default-commentary.md" = 12725
+"docs/opencode-system-prompt/alan-default-commentary.md" = 12684
 "plans/refactor-coding-style-skill.md" = 12506
 # 22,500 is the user's cap for the 2.1.289 upgrade round only (2026-10-05): the next
 # upgrade re-asks it rather than inheriting it.
@@ -281,7 +280,7 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "docs/system-prompt-anatomy-source-verified.md" = 8032
 "plans/agent-tools-run-finish.md" = 7835
 "docs/superpowers/specs/2026-09-02-env-context-design.md" = 7475
-"docs/opencode-system-prompt/min-commentary.md" = 6880
+"docs/opencode-system-prompt/min-commentary.md" = 6851
 "plans/planner-lite.md" = 6871
 "docs/superpowers/specs/2026-08-29-agent-tools-run-background-ps-design.md" = 6689
 "docs/superpowers/specs/2026-09-12-telegram-hitl-design.md" = 6575

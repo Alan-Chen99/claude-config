@@ -2,8 +2,7 @@
 
 Python package `claude_config`, installed editable into the repo venv: the session-log
 renderers, the Claude Code hooks, and the Telegram proxy. Most modules are reached through
-an `agent-tools` subcommand — that surface, and its flags, are documented in
-`agent-tools/CLAUDE.md`.
+an `agent-tools` subcommand, whose own flags print with `agent-tools <sub> -- --help`.
 
 ## Files and modules
 
