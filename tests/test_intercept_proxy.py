@@ -144,6 +144,73 @@ def test_text_and_thinking_still_accumulate() -> None:
     assert msg["content"][1]["text"] == "an answer"
 
 
+def _summary_flow(messages: list[dict], *, host: str = "api.anthropic.com", session: str = "s1"):
+    from mitmproxy.test import tflow, tutils
+
+    body = json.dumps({"model": "m", "messages": messages}, ensure_ascii=False).encode()
+    req = tutils.treq(host=host, content=body)
+    req.headers["x-claude-code-session-id"] = session
+    return tflow.tflow(req=req)
+
+
+SUMMARY = (
+    "This session is being continued from a previous conversation that ran out of context. "
+    "Summary: ...\n\nContinue the conversation from where it left off without asking the user any "
+    "further questions. Resume directly \u2014 do not acknowledge the summary, do not recap what was "
+    "happening, do not preface with \"I'll continue\" or similar. Pick up the last task as if the "
+    "break never happened."
+)
+
+
+def test_the_compaction_summary_loses_its_closing_sentence_and_nothing_else_does() -> None:
+    quote = "the README quotes: Pick up the last task as if the break never happened."
+    flow = _summary_flow(
+        [
+            {"role": "user", "content": [{"type": "text", "text": SUMMARY}]},
+            {"role": "assistant", "content": [{"type": "text", "text": quote}]},
+            {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t", "content": quote}]},
+            {"role": "user", "content": "caf\u00e9 \U0001f600 " + SUMMARY},
+        ]
+    )
+    proxy.InterceptAddon().request(flow)
+    sent = json.loads(flow.request.get_content())
+    assert "as if the break never happened" not in sent["messages"][0]["content"][0]["text"]
+    assert sent["messages"][0]["content"][0]["text"].endswith('do not preface with "I\'ll continue" or similar.')
+    assert sent["messages"][1]["content"][0]["text"] == quote
+    assert sent["messages"][2]["content"][0]["content"] == quote
+    assert sent["messages"][3]["content"].startswith("caf\u00e9 \U0001f600 ")
+    assert "as if the break never happened" not in sent["messages"][3]["content"]
+    assert flow.request.headers["content-length"] == str(len(flow.request.get_content()))
+
+
+def test_a_body_without_a_summary_is_forwarded_byte_for_byte() -> None:
+    flow = _summary_flow([{"role": "user", "content": "hello \u2014 as if the break never happened."}])
+    before = flow.request.get_content()
+    proxy.InterceptAddon().request(flow)
+    assert flow.request.get_content() == before
+
+
+def test_a_summary_without_the_sentence_is_reported_once_per_session(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(proxy, "LOG_BASE", tmp_path)
+    addon = proxy.InterceptAddon()
+    old = SUMMARY.replace(" Pick up the last task as if the break never happened.", "")
+    for _ in range(2):
+        flow = _summary_flow([{"role": "user", "content": old}], session="s9")
+        before = flow.request.get_content()
+        addon.request(flow)
+        assert flow.request.get_content() == before
+    lines = (tmp_path / "_errors" / "errors.log").read_text().splitlines()
+    assert len(lines) == 1 and "rewrite-summary" in lines[0] and "s9" in lines[0]
+
+
+def test_a_lone_surrogate_in_the_body_still_serializes() -> None:
+    body = {"messages": [{"role": "user", "content": "x\ud83d " + SUMMARY}]}
+    proxy.rewrite_summary(body)
+    out = proxy.serialize_body(body)
+    assert json.loads(out)["messages"][0]["content"].startswith("x\ud83d ")
+    assert b"as if the break never happened" not in out
+
+
 def test_only_conversation_shaped_bodies_are_logged() -> None:
     """The capture filter is why every file on disk carries a messages array."""
     source = _PROXY.read_text()
