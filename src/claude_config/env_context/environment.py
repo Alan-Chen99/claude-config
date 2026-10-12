@@ -12,6 +12,9 @@ tool commands execute under.
 
 from __future__ import annotations
 
+import re
+import sys
+
 import os
 import shutil
 import subprocess
@@ -305,3 +308,31 @@ def git_snapshot(cwd: str) -> GitSnapshot | None:
         "status": status_text,
         "recent_commits": out(log),
     }
+
+
+_COMPACT_BOUNDARY = re.compile(r'"subtype"\s*:\s*"compact_boundary"')
+
+
+def continues_from_summary(source: object, transcript_path: object, skill_file: Path) -> bool:
+    """Whether the session's next turn opens on a compaction summary.
+
+    cc's SessionStart payload names its trigger in `source`: `compact` is the
+    turn right after a compaction; `resume` reopens a transcript that may or
+    may not hold one, so the file decides -- a `compact_boundary` record is
+    written only by compaction and survives every later turn. `startup` and
+    `clear` open on no summary. The directive is dropped when the skill it
+    names is not installed beside this hook, so no session is told to invoke
+    a name the Skill tool cannot resolve.
+    """
+    if not skill_file.is_file():
+        return False
+    if source == "compact":
+        return True
+    if source != "resume" or not isinstance(transcript_path, str):
+        return False
+    try:
+        with open(transcript_path, encoding="utf-8", errors="replace") as fh:
+            return any(_COMPACT_BOUNDARY.search(line) for line in fh)
+    except OSError as exc:
+        print(f"env-context: transcript unreadable, no resumption section: {exc}", file=sys.stderr)
+        return False

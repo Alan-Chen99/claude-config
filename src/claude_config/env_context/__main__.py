@@ -37,7 +37,11 @@ section with and without one line -- no machine fact rides on either.
 
 What this hook supplies that cc does not: the shell the Bash tool actually
 runs (cc reports `unknown` here), the session id, the worktree's
-main-checkout path, the clock's offset and zone, and the drift note.
+main-checkout path, the clock's offset and zone, the drift note, and — on
+`source: compact`, or `resume` over a compacted transcript — the
+`resume-from-summary` directive (render.resumption_section), placed here
+because it has to reach the model with the first post-boundary message
+rather than from the system prompt's tail.
 
 Emitting the JSON envelope is not optional. Plain stdout from a SessionStart
 hook is injected as `SessionStart hook success: <text>`
@@ -200,6 +204,11 @@ def main() -> int:
         "scratchpad": scratchpad_or_none(cwd, session_id),
         "drift_note": drift_note(),
         "git_snapshot": environment.git_snapshot(cwd) if is_git_repo else None,
+        "continues_from_summary": environment.continues_from_summary(
+            payload.get("source"),
+            payload.get("transcript_path"),
+            ROOT / "skills" / "resume-from-summary" / "SKILL.md",
+        ),
     }
 
     json.dump(

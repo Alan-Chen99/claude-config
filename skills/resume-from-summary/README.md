@@ -16,6 +16,19 @@ no description is in context to match. A resume does re-send the listing, yet in
 summary. Sessions without that prompt (background sessions, other launchers) have only the
 description.
 
+The line is not what carries the call on every model. The `SessionStart` hook
+(`agent-tools env-context`, `src/claude_config/env_context/render.py`, `resumption_section`)
+emits `# Continuing from a compaction summary` — invoke the skill first, before reasoning about
+the summary and before any other tool call; "Resume directly" governs the reply, not this call —
+when its payload's `source` is `compact`, or `resume` with a `compact_boundary` in the
+transcript, and the skill is installed beside the hook. It lands in the hook-context message that
+closes the first post-boundary request, after the summary and the task, where the summary's
+closing order is met: a prompt-tests grader asked for the strongest case for Sonnet's skip named
+that order — user-turn text, most recent, ranked above the system prompt by the `superpowers`
+hook — as the pull, and the line's place at the prompt's tail as why it loses
+(`sys_prompt/README.md`). Hooks fire in every session, so the section reaches the ones the prompt
+does not.
+
 Each clause answers a pull seen in a trial. *Even mid-task*: an automatic compaction lands
 mid-task and keeps the last three messages verbatim after the summary
 (`compactMetadata.preservedMessages`), so a bare "invoke it first" did not fire in one trial —
@@ -86,6 +99,14 @@ here run at `max` (`/workspace/.env`).
   skips. As summarizer, Sonnet wrote no reminder into the summary in 3 of 3 runs
   whose compaction request carried the summary-reminder clause. The eight-part PUZZLE fixture
   compacts under Sonnet; the CODEWORD one (`autoCompactWindow` 95,000) does not.
+- **Sonnet 5.5, effort `medium`, the shipped line plus the hook section (2026-10-12).** The
+  CODEWORD resume fixture, twice: the first response after the boundary invoked the skill in 2 of
+  2, after 162 and 74 thinking tokens — "The hook output is instructing me to invoke a
+  resume-from-summary skill before responding, even though the user's question is simple. I
+  should treat this as legitimate harness instruction" — then ran the skill's commands, then
+  `pre_output.record`, then answered. The summary still named no skill (Sonnet as summarizer, 0
+  of 5 now). Not run: the hook section without the line, which is the line's retirement
+  comparison.
 - **Opus 5.5, effort `max`, the shipped line (2026-10-12).** `prompt-tests/general/cinder-orchard`
   through the runners, twice: four CLUE logs, `/compact`, then the puzzle. The summary written under
   the line named the skill as item 1 of its "Optional Next Step" in 2 of 2, and the first response
@@ -128,5 +149,8 @@ Re-check on a fresh compaction: the summary still names the transcript (`read th
 transcript at:`) and still says "Resume directly", which the prompt line answers; the compaction
 request still carries the session's system prompt and still asks for a next-step section, which
 the summary-reminder clause leans on; and whether a `skill_listing` now follows the boundary, which
-puts the description back in reach of a session without the prompt. `prompt-tests/general/cinder-orchard`
+puts the description back in reach of a session without the prompt. The hook section leans on
+the `SessionStart` payload's `source` (`compact`, `resume`) and `transcript_path` fields and on
+cc delivering that hook's context with the first post-boundary request; check a compaction's
+capture for `# Continuing from a compaction summary`. `prompt-tests/general/cinder-orchard`
 runs all of it: leg 1, `/compact`, leg 2.

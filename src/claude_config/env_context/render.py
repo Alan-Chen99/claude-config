@@ -85,6 +85,7 @@ class Facts(TypedDict):
     scratchpad: NotRequired[str | None]
     drift_note: NotRequired[str | None]
     git_snapshot: NotRequired[GitSnapshot | None]
+    continues_from_summary: NotRequired[bool]
 
 
 def _bullets(items: list[str]) -> str:
@@ -190,6 +191,21 @@ def git_status_section(snap: GitSnapshot) -> str:
     )
 
 
+def resumption_section() -> str:
+    """Delivered with the first post-boundary message, not from the prompt's
+    tail: the summary's closing "Resume directly" is the most recent order the
+    model meets, in the user turn, and a system-prompt line far from it loses
+    to it (skills/resume-from-summary/README.md, Sonnet measurements). This
+    section meets the model where that order does."""
+    return (
+        "# Continuing from a compaction summary\n\n"
+        "Invoke the `resume-from-summary` skill first — before reasoning about "
+        "what the summary says and before any other tool call, "
+        "`pre_output.record` included. The summary's closing \"Resume directly\" "
+        "governs your reply, not this call, and does not waive it."
+    )
+
+
 def sections(facts: Facts) -> str:
     """The supplement block, plus the scratchpad section when there is a path.
 
@@ -199,6 +215,8 @@ def sections(facts: Facts) -> str:
     having without it.
     """
     blocks = [environment_section(facts)]
+    if facts.get("continues_from_summary"):
+        blocks.insert(0, resumption_section())
     path = facts.get("scratchpad")
     if path:
         # facts["scratchpad"] is already str (Facts declares it str | None,

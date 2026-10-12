@@ -300,7 +300,14 @@ configuration, with a puzzle to solve after the boundary (2 runs): the summary c
 the `Skill` call was the first tool call, and 13–16k thinking tokens preceded it, the puzzle solved
 from the summary inside them — one run opened by noting the line, so the check does reach the
 thinking block, and reasoned on regardless. The first clause therefore orders tool calls, not
-thought, at that effort; the comparison its retirement condition names is still to run. Retire the
+thought, at that effort; the comparison its retirement condition names is still to run. Asked for
+the strongest case for Sonnet's skip, a prompt-tests grader named the summary's closing order —
+user-turn text, the most recent order, ranked above the system prompt by the `superpowers`
+hook's own priority list — and this line's place at the prompt's tail as why its rebuttal loses:
+the directive has to meet the model where that order does. The `SessionStart` hook now delivers
+it there after a compaction (`skills/resume-from-summary/README.md`), and Sonnet invoked the
+skill 2 of 2 with both present. Retire the line when the hook section alone fires on the
+production model; retire the
 line when a `skill_listing` follows the boundary and the description alone fires; retire the first
 clause when an arm without it reasons no more before the call than one with it; retire the last
 when summaries written under it on the production model carry no reminder, or carry one that the

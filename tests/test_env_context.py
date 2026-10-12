@@ -2128,3 +2128,75 @@ def test_the_block_stays_inside_its_token_budget(tmp_path: Path) -> None:
         git_snapshot=environment.git_snapshot(str(repo)),
     ))
     assert _count_local(text) <= 625
+
+
+# --- the resumption section -------------------------------------------------
+
+
+def _skill(tmp_path: Path) -> Path:
+    skill = tmp_path / "skills" / "resume-from-summary" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    _ = skill.write_text("---\nname: resume-from-summary\n---\n")
+    return skill
+
+
+def test_resumption_after_compact(tmp_path: Path) -> None:
+    assert environment.continues_from_summary("compact", None, _skill(tmp_path))
+
+
+def test_resumption_on_resume_only_with_a_boundary(tmp_path: Path) -> None:
+    skill = _skill(tmp_path)
+    plain = tmp_path / "plain.jsonl"
+    _ = plain.write_text('{"type":"user","message":{"content":"hi"}}\n')
+    compacted = tmp_path / "compacted.jsonl"
+    boundary = '{"type":"system","subtype":"compact_boundary","compactMetadata":{"trigger":"auto"}}'
+    _ = compacted.write_text('{"type":"user","message":{"content":"hi"}}\n' + boundary + "\n")
+    assert not environment.continues_from_summary("resume", str(plain), skill)
+    assert environment.continues_from_summary("resume", str(compacted), skill)
+    assert not environment.continues_from_summary("resume", str(tmp_path / "missing.jsonl"), skill)
+    assert not environment.continues_from_summary("resume", None, skill)
+
+
+def test_resumption_never_on_startup_or_clear(tmp_path: Path) -> None:
+    skill = _skill(tmp_path)
+    for source in ("startup", "clear", None, 7):
+        assert not environment.continues_from_summary(source, None, skill)
+
+
+def test_resumption_needs_the_skill_installed(tmp_path: Path) -> None:
+    assert not environment.continues_from_summary("compact", None, tmp_path / "absent" / "SKILL.md")
+
+
+def test_resumption_section_opens_the_block() -> None:
+    facts: render.Facts = {
+        "cwd": "/w",
+        "is_git_repo": False,
+        "clock": "2026-10-12T00:00:00-04:00 (America/New_York, EDT)",
+        "shell": "/bin/bash",
+        "session_id": "abc-123",
+        "continues_from_summary": True,
+    }
+    out = render.sections(facts)
+    assert out.startswith("# Continuing from a compaction summary\n")
+    assert "invoke the `resume-from-summary` skill first" in out.lower()
+    assert "# Environment (supplement)" in out
+    facts["continues_from_summary"] = False
+    assert "compaction summary" not in render.sections(facts)
+
+
+def test_hook_emits_the_section_only_after_a_compaction(tmp_path: Path) -> None:
+    def run(payload: dict[str, object]) -> str:
+        proc = subprocess.run(
+            [sys.executable, "-m", "claude_config.env_context"],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=str(Path(__file__).resolve().parents[1]),
+        )
+        return cast(str, json.loads(proc.stdout)["hookSpecificOutput"]["additionalContext"])
+
+    base: dict[str, object] = {"cwd": str(tmp_path), "session_id": "abc-123"}
+    assert "compaction summary" not in run(base)
+    assert "compaction summary" not in run({**base, "source": "startup"})
+    assert run({**base, "source": "compact"}).startswith("# Continuing from a compaction summary")
