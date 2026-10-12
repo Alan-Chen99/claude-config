@@ -38,14 +38,17 @@ file. The `grep` for user messages, `AskUserQuestion` answers and boundaries
 gave 3–48 lines on the same five; one session held 9 answers given only through
 `AskUserQuestion`.
 
-A recovery added about 21k tokens in the test run. At the schema's minimum
+A recovery added about 21k tokens in the hook test run. At the schema's minimum
 `autoCompactWindow` (100,000, so compaction near 67k) that refilled the context
 enough to bring on the next compaction twice in a row; at `settings.json`'s
 400,000 (compaction at 367k) it is about 6%. The skill's "Stop once you can
 act" line is aimed at that.
+With it, recovery took 4–5k tokens in each of the three prompt-trigger
+trials, and none compacted again.
 
 ## After a Claude Code upgrade
 
 Re-check on a fresh compaction: the summary still names the transcript (`read
-the full transcript at:`); whether a `skill_listing` now follows the boundary,
-which would let the description trigger the skill without the prompt line.
+the full transcript at:`) and still says "Resume directly", which the prompt
+line answers; and whether a `skill_listing` now follows the boundary, which
+puts the description back in reach of a session without the prompt.
