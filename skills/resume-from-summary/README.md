@@ -27,7 +27,9 @@ closing order is met: a prompt-tests grader asked for the strongest case for Son
 that order — user-turn text, most recent, ranked above the system prompt by the `superpowers`
 hook — as the pull, and the line's place at the prompt's tail as why it loses
 (`sys_prompt/README.md`). Hooks fire in every session, so the section reaches the ones the prompt
-does not.
+does not. It does not cover a handoff typed as a prompt — "resume from <session id>" in a
+fresh session is `source: startup`, and the gate reads the hook payload, not the prompt; that
+form has only the listing's "from a handoff", and the body's `<target>` names no user-given id.
 
 Each clause answers a pull seen in a trial. *Even mid-task*: an automatic compaction lands
 mid-task and keeps the last three messages verbatim after the summary
@@ -107,6 +109,14 @@ here run at `max` (`/workspace/.env`).
   `pre_output.record`, then answered. The summary still named no skill (Sonnet as summarizer, 0
   of 5 now). Not run: the hook section without the line, which is the line's retirement
   comparison.
+- **The typed handoff, "resume from <session id>" as the only prompt of a fresh session, effort
+  `medium` (2026-10-12).** No hook section (startup). Invoked the skill: 0 of 3. Opus invoked
+  `cc-history` instead — "a request to resume a prior session by its ID rather than continue a
+  summary" — found the transcript under `CLAUDE_CONFIG_DIR/projects` and reviewed it. One Sonnet
+  found it by way of the request log and a scratchpad; the other searched `~/.claude/projects`
+  and `/`, declared "No transcript exists for that session", and answered from a `/tmp`
+  pre-output record, saying it "did not invoke `resume-from-summary`, because this conversation
+  has no summary to resume from". The form is a log-location task before it is a resumption one.
 - **Opus 5.5, effort `max`, the shipped line (2026-10-12).** `prompt-tests/general/cinder-orchard`
   through the runners, twice: four CLUE logs, `/compact`, then the puzzle. The summary written under
   the line named the skill as item 1 of its "Optional Next Step" in 2 of 2, and the first response
