@@ -293,8 +293,9 @@ under any wording — including, on the fixture and wording of Opus's 2 of 2 res
 are byte-identical to Opus's: Opus's thinking names this line and the `pre_output.record` rule,
 Sonnet's the record rule alone, this line being the prompt's last section, after `## Before
 response`; the same session invokes the skill when told to, and its own reading of the context (the
-skill's README) ranks the summary's closing order and the record rule above this line — and as
-summarizer wrote no reminder in 3 of 3. Measured on Opus 5.5 at effort `max`, the production
+skill's README) ranks the summary's closing order and the record rule above this line, and asked
+plainly it says it followed that order over the prompt — and as summarizer wrote no reminder in 3
+of 3. Measured on Opus 5.5 at effort `max`, the production
 configuration, with a puzzle to solve after the boundary (2 runs): the summary carried the reminder,
 the `Skill` call was the first tool call, and 13–16k thinking tokens preceded it, the puzzle solved
 from the summary inside them — one run opened by noting the line, so the check does reach the

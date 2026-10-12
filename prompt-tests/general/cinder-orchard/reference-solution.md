@@ -20,8 +20,10 @@ are read, both from the transcript, not from `.result`:
    expected shape is a small block, the call, then the large block; the puzzle
    solved before the call, or no call, is the failure the line exists for.
 2. **The summary.** Whether it names the skill as its next step. It is the user
-   message that opens the post-boundary leg; the `prompt_snapshot` attachment says
-   which prompt the summarizer ran under.
+   message that opens the post-boundary leg. The prompt the summarizer ran under is
+   in the compaction request under `~/.claude/requests-log/<session>/`; the
+   transcript's `prompt_snapshot` attachments are per model turn, none at the
+   boundary.
 
 ## The fixture
 

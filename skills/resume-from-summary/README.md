@@ -72,7 +72,14 @@ here run at `max` (`/workspace/.env`).
   next turn; asked instead which parts of its context pull a model away from the call, it named
   the summary's closing "Resume directly", the summary's "only the reply remained", and the
   `pre_output.record` "NO EXCEPTIONS" rule competing for the first-action slot, expecting the first
-  two to dominate — its inference from the text, as it said, not a report. The
+  two to dominate — its inference from the text, as it said, not a report. Asked plainly why, a
+  session under the shipped line answered that it followed the summary's "Resume directly" over
+  the system prompt, "which was wrong", that "nothing else justified skipping it", and filed the
+  two as an instruction conflict. A prompt-tests grader (`.claude/skills/prompt-tests`, reference
+  withheld) reading a shipped-line run whole named the skip as the session's one behaviour
+  defect — no text licensing it, three triggers in context: the line, the summary's opening
+  sentence, the listing entry — and everything else in the session, the response template's
+  omission included, as forced by the task's "nothing else". The
   model read on or solved the puzzle from the summary (585–1,621 characters of thinking on the deep
   resumes) and ran the prompt's `pre_output.record` call in 14 of 19 (the other 5, all deep
   resumes, skipped the response template too), so the prompt is read and this line is what it
