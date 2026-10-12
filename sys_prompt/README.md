@@ -281,12 +281,25 @@ order; *first — before reasoning about what the summary says* — the user's d
 reasoning spent before the skill loads is spent on the summary's account, which the skill exists to
 replace, and "before your next action" left the thinking block outside the rule. Hypothesis: a check
 the model can run as it opens a response — is the skill invoked yet? — reaches the thinking block
-where a rule about actions does not. Unmeasured as a difference: where the skill fired (Opus 5.5,
-5 of 5) the thinking before it was already 121–517 characters, and where it did not (Sonnet 5.5) no
-wording fired. Retire the line when a `skill_listing` follows the boundary and the description alone
-fires; retire the first clause when an arm without it reasons no more before the call than one with
-it. No `prompt-tests/general/` case: the observation is made on a compacting session, which that
-harness does not run.
+where a rule about actions does not. *When writing such a summary, make this invocation its first
+next step* — the user's direction (2026-10-12): the compaction call runs under this prompt (root
+`README.md`), so the summary's writer reads this line too, and a next step inside the summary sits
+where the resumed model acts — the summary's own "Pick up the last task" — rather than at the far
+end of the system prompt. Hypothesis: the resumed model weights the summary's next step above a
+prompt line it may skip. Unmeasured as a difference: where the skill fired (Opus 5.5, 5 of 5, effort
+`medium`) the thinking before it was already 121–517 characters, and Sonnet 5.5 invoked nothing
+under any wording — including, on the fixture and wording of Opus's 2 of 2 resumes, 0 of 2 — and as
+summarizer wrote no reminder in 3 of 3. Measured on Opus 5.5 at effort `max`, the production
+configuration, with a puzzle to solve after the boundary (2 runs): the summary carried the reminder,
+the `Skill` call was the first tool call, and 13–16k thinking tokens preceded it, the puzzle solved
+from the summary inside them — one run opened by noting the line, so the check does reach the
+thinking block, and reasoned on regardless. The first clause therefore orders tool calls, not
+thought, at that effort; the comparison its retirement condition names is still to run. Retire the
+line when a `skill_listing` follows the boundary and the description alone fires; retire the first
+clause when an arm without it reasons no more before the call than one with it; retire the last
+when summaries written under it on the production model carry no reminder, or carry one that the
+resumed model invokes the skill no earlier for. All three are observed on
+`prompt-tests/general/cinder-orchard`, whose leg 2 follows a `/compact`.
 
 ## Ledger: wordings measured and not shipped
 
@@ -301,4 +314,4 @@ believing it new. Its probe is restorable; its run is in the commit that measure
 | *A note telling the next reader to avoid something is a fix you did not make* | Saturated where the fix or the check is part of the task: the arms took it either way. Not saturated where the note contradicts a rule the change has just falsified — there one arm rewrote the sentence and the other left a file asserting and denying one rule. | `git checkout d530b4ed -- prompt-tests/runs/slate-harbor`, `… bronze-kettle` |
 | *Finding out costs less than the rule you would write instead* | Never written: every leg already ran the check unprompted, established the finding was pre-existing, named the fix and put the choice in the reply, with no standing rule in any tree. | `git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket` |
 | *A rule's scope is a claim. Wording one wider than you checked asserts the cases you did not look at — narrow it to those you did, or check the rest* | The arm carrying it shipped the failure the line names, asserting a coupling one render refutes, where the bare arm stated it correctly. Hypothesis: the unchecked half of a claim is invisible while the sentence is being composed, so a line naming it changes nothing — what catches it is looking at the second case. This is the live failure: every leg of the probe above turned one instance into a project-wide rule, and the added scope, not the instance, is where the false statements were. Ship a wording here when an arm carrying it states no claim its own tree refutes where a bare arm does. | `git checkout 4cb01c30 -- prompt-tests/runs/pewter-dial` |
-| `before your next action` as the `resume-from-summary` line's placement clause | Replaced at the user's direction by `first — before reasoning about what the summary says`: thinking is not an action, so the clause left the reasoning block outside the rule. Not refuted: on Opus 5.5 it put the skill first in 5 of 5 with 121–517 characters of thinking before the call, and on Sonnet 5.5 neither wording fired (`skills/resume-from-summary/README.md`). | — |
+| `before your next action` as the `resume-from-summary` line's placement clause | Replaced at the user's direction by `first — before reasoning about what the summary says`: thinking is not an action, so the clause left the reasoning block outside the rule. Not refuted: on Opus 5.5 it put the skill first in 5 of 5 with 121–517 characters of thinking before the call, and on Sonnet 5.5 neither wording fired, this one 0 of 2 on Opus's own resume fixture (`skills/resume-from-summary/README.md`). | `prompt-tests/general/cinder-orchard` with the clause restored |
