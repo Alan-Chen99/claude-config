@@ -1,4 +1,4 @@
-# cc 2.1.269 → 2.1.289: `sys_prompt/` rebase, reviewed 2026-10-05 — one borrowed clause dropped upstream
+# cc 2.1.269 → 2.1.289: `sys_prompt/` rebase, reviewed 2026-10-05/06 — one borrowed clause dropped upstream
 
 > **Dated record.** Claude Code **2.1.289**; the procedure is `docs/prompt-rebase.md`.
 

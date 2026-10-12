@@ -212,7 +212,8 @@ own block only embeds the id in the scratchpad path; retire that clause if the l
 
 ### Subagents: `run_in_background: false` on every Agent call
 
-The model decides per call and nothing checks it. `docs/subagent-backgrounding.md` carries the
+The model decides per call and nothing checks it; dropping the hook that enforced it for a prompt
+rule was the user's direction, not a measurement's. `docs/subagent-backgrounding.md` carries the
 harness side: the fork gate the rule needs off, why only a literal `false` keeps a call in the
 foreground, the hook the rule replaced, and the alternative settings.
 

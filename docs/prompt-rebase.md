@@ -7,14 +7,15 @@ file's text and drops every other section, as
 that read like upstream's are copies taken once, and upstream rewrites its prose between releases,
 so a copy goes stale with no signal.
 
-The replacement covers one channel of two. Anthropic-authored wording still reaches a
-`claude.sh` session through `messages[]`, which the flag does not touch: the CLAUDE.md wrapper and
-its "these instructions OVERRIDE any default behavior" line, the `userEmail` rule, and a
-`role: "system"` block carrying `# Environment`, the model-identity line, the deferred-tool
-listing, the agent-type roster and every skill description — several of them behavioural rules,
-not facts, and all enumerated in `notes/cc-2.1.269-messages-and-reminders.md`. A rebase that
-reads only the system prompt reads half of what the model is told, and nothing pins that half, so
-a reminder upstream rewords lands unreviewed.
+The replacement covers one channel of two. Anthropic-authored wording still reaches a `claude.sh`
+session through `messages[]`, which the flag does not touch: the CLAUDE.md wrapper and its "these
+instructions OVERRIDE any default behavior" line, the `userEmail` rule, and a `role: "system"` block
+carrying `# Environment`, the model-identity line, the deferred-tool listing, the agent-type roster
+and every skill description — several of them behavioural rules, not facts, and all enumerated in
+`notes/cc-2.1.269-messages-and-reminders.md` — a capture older than `settings.json`'s empty
+`attribution.commit`/`.pr`, so the attribution reminder it lists no longer arrives
+(`sys_prompt/README.md`, `# Git`). A rebase that reads only the system prompt reads half of what the
+model is told, and nothing pins that half, so a reminder upstream rewords lands unreviewed.
 
 A `/compact` turn runs under `alan-default-next.md` too (root `README.md`), so its rules govern the
 summary the next context window is built from.

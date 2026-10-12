@@ -24,10 +24,11 @@ Every token of the prompt is spent on every request of every session. After any 
 3. Name the behaviour that changes without the line. If you cannot, drop the line.
 
 The prompt states the rule. What dates it — versions, issue links, dates, measurements, the
-reasoning — goes in `README.md` or in the doc of a mechanism the line names. A `README.md`
-section quotes the text it explains in a backticked literal in its `###` heading, and gives the
-claim, the hypothesis, and the retirement condition: the observation that would end the line,
-naming the `prompt-tests/general/` case where it is made. Run narrative stays in the commit; a
+reasoning — goes in `README.md` or in the doc of a mechanism the line names. A `README.md` section
+quotes the text it explains in a backticked literal in its `###` heading, and gives the claim, the
+hypothesis, and the retirement condition: the observation that would end the line, naming the
+`prompt-tests/general/` case where it is made — or, where no case makes it, standing as a deletion
+candidate with that test outstanding (the prompt-tests skill). Run narrative stays in the commit; a
 wording measured and not shipped is a ledger row. `scripts/check-prompt-rationale.sh` fails on a
 section quoting no live prompt text, and the prompt-tests skill deletes a case `README.md` stops
 naming.
