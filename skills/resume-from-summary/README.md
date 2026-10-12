@@ -53,9 +53,19 @@ here run at `max` (`/workspace/.env`).
   fixture. The skill was invoked in 0 of 19: 7 with the shipped placement clause, 6 with "before
   your next action", 3 with "you MUST invoke" in front, 3 with the summary-reminder clause. Two of
   the "before your next action" runs are the configuration of Opus's 2 of 2 resumes — same fixture,
-  wording, effort and harness — and the proxy's captures show each request carrying the line, the
-  `Skill` tool and the same `thinking`/`effort` fields as Opus's — and, the resume having re-sent the
-  listing, the skill's description — so the difference is the model. Resumed afterwards and told to
+  wording, effort and harness — and a field-by-field comparison of the captured requests
+  (`session-analysis`, 2026-10-12) finds the system prompt, the `Skill` tool, eight of the other nine
+  tools, the skill listing entry (a resume re-sends the listing) and the summary's closing block
+  byte-identical to the two Opus requests that invoked the skill; what differs beyond session
+  values is Claude Code's per-model text — the `Agent` and `Bash` tool descriptions and the
+  bypass-permissions reminder, present for Opus only. The line is the prompt's last section, 96%
+  of the way through, 2.6 kB after `## Before response`. Sonnet's whole thinking block, 38 tokens:
+  "The system prompt requires me to run pre_output.record before responding, so I should do that
+  first and then give a brief answer following the template." Opus's, on the byte-identical prompt:
+  "The instructions require running pre_output.record and invoking the resume-from-summary skill
+  before my next action — it's a simple question, but the instructions are explicit, so I'll invoke
+  it quickly." Under the shipped wording on the puzzle fixture, Sonnet's thinking is the puzzle
+  alone and neither call is made. Resumed afterwards and told to
   invoke the skill, the session did, and the tool returned the skill: the harness resolves it.
   Asked to reconstruct its earlier reasoning, Sonnet 5.5 is refused by the API's safeguard
   (`stop_reason: refusal`, detail `reasoning_extraction`), and the refusal recurs on that session's
