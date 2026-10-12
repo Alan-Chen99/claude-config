@@ -11,6 +11,12 @@
 #
 # Resuming needs the original cwd: the artifact is a file in that scratch
 # directory, and the session's own tool history refers to it by path.
+#
+# A case whose second leg must be answered from a compaction summary carries a
+# `compact-before-leg2` file beside leg2.md (its content says why). The session
+# is then compacted here, through the same resume and under the same arm prompt
+# so the summary is written by the prompt under test, and leg 2 is sent only
+# once the transcript holds a compact_boundary.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
@@ -85,6 +91,27 @@ echo "leg-1 snapshot: $SNAP"
 # itself. Raise it for a case that legitimately runs longer:
 #   PROMPT_TEST_TIMEOUT=3600 scripts/prompt-test-cc.sh ...
 TIMEOUT="${PROMPT_TEST_TIMEOUT:-900}"
+
+if [ -e "$CASE_DIR/compact-before-leg2" ]; then
+  cstatus=0
+  ( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" timeout --kill-after=30 "$TIMEOUT" "$AT" claude \
+      -p --output-format json \
+      --resume "$SID" \
+      --settings "$SETTINGS" \
+      --system-prompt-file "$PROMPT_FILE" \
+      --system-prompt-snapshot off \
+      "/compact" > "$OUT.compact.raw" ) 2>"$OUT.compact.stderr" || cstatus=$?
+  if [ "$cstatus" -ne 0 ]; then
+    echo "compaction leg exited $cstatus; see $OUT.compact.stderr" >&2
+    exit "$cstatus"
+  fi
+  T1="$(find "$REPO/.claude/worktree-config/projects" -name "$SID.jsonl" 2>/dev/null | head -1)"
+  if [ -z "$T1" ] || ! grep -q '"compact_boundary"' "$T1"; then
+    echo "no compact_boundary in the transcript after the compaction leg; see $OUT.compact.raw" >&2
+    exit 1
+  fi
+  echo "compacted:  $SID"
+fi
 
 status=0
 ( cd "$SCRATCH" && CLAUDE_CONFIG_ROOT="$REPO" timeout --kill-after=30 "$TIMEOUT" "$AT" claude \

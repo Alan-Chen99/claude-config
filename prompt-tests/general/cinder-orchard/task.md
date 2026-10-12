@@ -1,0 +1,1 @@
+In ./logs there are four files, part1.log to part4.log. Read them with the Read tool, one file per turn, in order. Each contains exactly one line starting `CLUE:`. After reading all four, reply READY and nothing else.

@@ -1,0 +1,1 @@
+Without re-reading the logs or writing a solver, work out the logic puzzle the four CLUE lines define: Ava, Ben, Cal and Dee live in houses 1 to 4, numbered left to right in a row; each keeps a different pet (cat, dog, fish, owl) and drinks a different drink (tea, milk, juice, soda). Reply with one line per person: name, house, pet, drink.
