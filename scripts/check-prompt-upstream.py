@@ -15,8 +15,7 @@ Each pin must appear in the prompt, and appear in the decompiled source exactly 
 many times as recorded:
 
   absent from the decompiled source  this repo carries wording no release ships,
-                                     so the rebase log in `sys_prompt/CLAUDE.md`
-                                     is out of date
+                                     so a rebase is due (`docs/prompt-rebase.md`)
   absent from the prompt             a borrowed passage was edited without
                                      recording the divergence
   a different number of times        Claude Code builds the two prompt bodies
@@ -27,10 +26,10 @@ many times as recorded:
 
 Either way the answer is a decision, not an edit to this file: adopt upstream's
 new wording, or diverge on purpose and move the pin to the "deliberate
-divergences" list in `sys_prompt/CLAUDE.md`.
+divergences" list in `docs/prompt-rebase.md`.
 
 Pins cover only what this repo borrowed. Upstream text this prompt never carried
-is invisible here — `sys_prompt/CLAUDE.md` covers finding that by diffing the
+is invisible here — `docs/prompt-rebase.md` covers finding that by diffing the
 decompile across releases.
 
 Exit 0 every pin resolves, 1 some do not, 2 the decompiled tree is missing or is
@@ -159,7 +158,7 @@ def main() -> int:
     if bad:
         print(
             f"\n{bad} problem(s) across {len(PINS)} borrowed passages — "
-            "see sys_prompt/CLAUDE.md, 'Rebasing on an upstream release'",
+            "see docs/prompt-rebase.md",
             file=sys.stderr,
         )
         return 1

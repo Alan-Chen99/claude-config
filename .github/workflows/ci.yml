@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # Needs only python3 and the two files it reads, so it runs on the bare
-      # image: a section of sys_prompt/CLAUDE.md that names no live prompt text
+      # image: a section of sys_prompt/README.md that names no live prompt text
       # is what fails, and the fix is to delete it.
       - name: Every rationale section names live prompt text
         run: ./scripts/check-prompt-rationale.sh

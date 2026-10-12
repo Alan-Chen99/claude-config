@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail when a section of sys_prompt/CLAUDE.md's rationale names no text the
+# Fail when a section of sys_prompt/README.md's rationale names no text the
 # prompt still carries.
 #
 # Each `###` under `## Why the prompt says what it says` explains one thing the
@@ -16,7 +16,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-python3 - "$root/sys_prompt/CLAUDE.md" "$root/sys_prompt/alan-default-next.md" <<'PY'
+python3 - "$root/sys_prompt/README.md" "$root/sys_prompt/alan-default-next.md" <<'PY'
 import re
 import sys
 

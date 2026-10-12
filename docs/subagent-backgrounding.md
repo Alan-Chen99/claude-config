@@ -3,7 +3,7 @@
 Verified against claude-cli **2.1.289**; citations are `src/chunk-<hash>.js:<line>` in
 `/repos/claude-code-decompiled`. The 2.1.235 investigation that found the regression is
 `notes/subagent-backgrounding-overrides-run-in-background.md`; the prompt side of the
-arrangement is `sys_prompt/CLAUDE.md`, "Subagents: `run_in_background: false` on every
+arrangement is `sys_prompt/README.md`, "Subagents: `run_in_background: false` on every
 Agent call".
 
 ## `CLAUDE_CODE_FORK_SUBAGENT`, and how subagents stay in the foreground

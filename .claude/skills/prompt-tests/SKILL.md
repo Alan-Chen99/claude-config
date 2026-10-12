@@ -141,14 +141,14 @@ otherwise it is deleted with the round that wrote it. Keeping an un-promoted
 probe is the ratchet this repo is against: a directory nobody re-runs, that only
 a human will ever remove.
 
-**A case is kept only while `sys_prompt/CLAUDE.md` names it.** A retirement
+**A case is kept only while `sys_prompt/README.md` names it.** A retirement
 condition there says what observation would end a prompt line; the case is where
 that observation gets made, so the condition names the case and the case needs no
 argument of its own. One grep decides:
 
 ```bash
 for c in prompt-tests/general/*/; do
-  grep -qF "prompt-tests/general/$(basename "$c")" sys_prompt/CLAUDE.md || echo "unowned: $c"
+  grep -qF "prompt-tests/general/$(basename "$c")" sys_prompt/README.md || echo "unowned: $c"
 done
 ```
 
@@ -160,7 +160,7 @@ command and no human is involved in either direction. Say so in the commit.
 
 The grep reads `general/` only, and that is the whole corpus this rule governs:
 a case there measures a prompt line, so a prompt line can own it. A case whose
-system under test is a harness setting owns nothing in `sys_prompt/CLAUDE.md`
+system under test is a harness setting owns nothing in `sys_prompt/README.md`
 and cannot — `scripts/check-prompt-rationale.sh` requires every rationale
 section to quote live prompt text. Those live in `prompt-tests/harness/`, and
 what retires one is a release that removes the setting.
@@ -179,7 +179,7 @@ naming it or the case is unowned.
 at a narrative sentence that has it. Otherwise the grep is held up by the
 narrative, deleting the narrative silently unowns the case, and the two rules —
 own by observation, and the rule keeping run narrative out of
-`sys_prompt/CLAUDE.md` and in the commit — pull against each
+`sys_prompt/README.md` and in the commit — pull against each
 other. Three of five entries here were in that state.
 
 Run it in the other direction too. A condition naming no case, or naming a

@@ -49,13 +49,13 @@ fork's argv is built from scratch, and neither `--system-prompt` nor
 [`sys_prompt/alan-default-next.md`](sys_prompt/alan-default-next.md) replaces
 Claude Code's system prompt through `--system-prompt-file`. The rule in
 [`sys_prompt/CLAUDE.md`](sys_prompt/CLAUDE.md): the prompt states the rule and
-the file beside it carries the reasoning — version numbers, dates, measurements
-and the argument that justified a line all move out — and the editing loop ends
-in a falsifiable test: name the behaviour that changes without the line, or drop
-it. The flag replaces only one of two channels; Anthropic-authored text still
-arrives through `messages[]`, so a release is a rebase, not a diff — adopt,
-adapt, or diverge on purpose, and write down which. Three scripts keep the file
-honest: [`scripts/check-prompt-upstream.py`](scripts/check-prompt-upstream.py)
+[`sys_prompt/README.md`](sys_prompt/README.md) carries the reasoning — version
+numbers, dates, measurements and the argument that justified a line all move out
+— and the editing loop ends in a falsifiable test: name the behaviour that
+changes without the line, or drop it. The flag replaces only one of two
+channels; Anthropic-authored text still arrives through `messages[]`, so a
+release is a rebase, not a diff — adopt, adapt, or diverge on purpose, and write
+down which. Three scripts keep the file honest: [`scripts/check-prompt-upstream.py`](scripts/check-prompt-upstream.py)
 requires each passage borrowed from upstream to occur in the decompiled source
 the recorded number of times, and exits non-zero rather than passing vacuously
 when the tree is missing; [`scripts/check-prompt-coupling.sh`](scripts/check-prompt-coupling.sh)

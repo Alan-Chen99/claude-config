@@ -7,7 +7,7 @@ exists. claudeMd, userEmail and currentDate still arrive in the
 system-reminder user message. cc's gitStatus reminder does not: settings.json
 sets `includeGitInstructions: false`, one gate for both that reminder and
 the Bash tool's `# Git` block, and the block is what the setting is there to
-remove (`sys_prompt/CLAUDE.md`, "Git"); a -p session never carried the
+remove (`sys_prompt/README.md`, "# Git"); a -p session never carried the
 reminder anyway. `environment.git_snapshot` is the replacement, and it
 re-fires with this hook on resume, /clear and compact.
 
