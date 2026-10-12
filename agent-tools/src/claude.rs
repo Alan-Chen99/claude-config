@@ -175,9 +175,16 @@ fn assemble(root: &Path, cfg: &Path) -> Result<()> {
     // when the model or theme changes mid-session, and a link would land those
     // writes on the checkout's tracked file. Recopied on every launch so an
     // edit to the checkout's settings is never tested one revision behind.
+    // Copied under a private name and renamed into place: `fs::copy` truncates
+    // its destination before writing, and a parallel launch reading the file in
+    // that window -- its own wired-subcommand check, or Claude Code starting up
+    // -- sees an empty document and fails to parse it.
     let settings = root.join("settings.json");
-    fs::copy(&settings, cfg.join("settings.json"))
-        .with_context(|| format!("copying {}", settings.display()))?;
+    let dst = cfg.join("settings.json");
+    let tmp = cfg.join(format!(".settings.json.{}", std::process::id()));
+    fs::copy(&settings, &tmp)
+        .with_context(|| format!("copying {} to {}", settings.display(), tmp.display()))?;
+    fs::rename(&tmp, &dst).with_context(|| format!("replacing {}", dst.display()))?;
 
     let real = real_config_dir()?;
     for name in FROM_REAL_CONFIG {
