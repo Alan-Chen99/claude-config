@@ -161,6 +161,10 @@ cap = 1000
 [groups."skills/<name>"]
 loaded = "on demand, when the skill is invoked"
 
+# The repo-local skills under .claude/skills, the same class.
+[groups.".claude/skills/<name>"]
+loaded = "on demand, when the skill is invoked"
+
 # One reference per topic, read one at a time.
 [groups."skills/prompt-engineer/references"]
 per_file = true
@@ -296,7 +300,6 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "docs/superpowers/specs/2026-08-29-agent-tools-run-background-ps-design.md" = 6689
 "docs/superpowers/specs/2026-09-12-telegram-hitl-design.md" = 6575
 "skills/opencode-subcommand/SKILL.md" = 6534
-".claude/skills/prompt-tests/SKILL.md" = 6292
 "plans/alan-style-reference-gating.md" = 5865
 "skills/session-analysis/SKILL.md" = 5739
 "plans/deterministic-qr-gates-plan.md" = 5607

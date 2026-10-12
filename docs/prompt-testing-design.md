@@ -98,6 +98,26 @@ for both is the word *just*. A defect with no trigger the agent could have had i
 about the task rather than a pass for the agent. Inventing a trigger to avoid
 writing it is this design's characteristic failure.
 
+## Instruction is obeyed, a view is weighed
+
+A grader cannot tell from inside whether a sentence reached it as an instruction
+or as a view: it obeys the first and weighs only the second. So the dispatch
+carries scope and facts — what to evaluate, which arm ran which prompt — and no
+framing: candidate reasons, a method, the one criterion the verdict turns on, an
+expected null. A framing in an instruction is the parent's hypothesis reaching
+the verdict unweighed, and the parent that wrote the edit is the least
+independent reader of its arms. The reference carries the caller's framing on
+purpose, and arrives labelled as a view after the grader's own has formed.
+
+Blinding the comparison grader to the arms guarded the same thing by hiding
+facts, and failed on its own terms: the harness unblinds a grader with a file it
+never asked for; a manipulation that stands in the transcript cannot be hidden
+(`prompt-tests/harness/budget-read-depth`); and a grader without the prompt text
+cannot quote it, so it cannot make the forcing-claim comparison that justifies
+an edit. The pull toward finding a difference it was written against was never
+observed in a sighted grader here; the one blind grader that found something
+held both arms.
+
 ## Reading one run rather than counting many
 
 A single opportunity for the behaviour under test is a coin flip whatever the
