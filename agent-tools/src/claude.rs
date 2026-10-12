@@ -213,13 +213,19 @@ fn real_config_dir() -> Result<PathBuf> {
 }
 
 fn relink(src: &Path, dst: &Path) -> Result<()> {
-    match fs::remove_file(dst) {
-        Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => return Err(e).with_context(|| format!("replacing {}", dst.display())),
-    }
-    symlink(src, dst)
-        .with_context(|| format!("linking {} -> {}", dst.display(), src.display()))
+    // Launches assembling the same directory at once -- a harness starting
+    // sessions in parallel -- race a remove-then-link pair: one finds the
+    // other's fresh link and fails on `File exists`. A link made under a
+    // private name and renamed over `dst` replaces whatever is there in one
+    // step.
+    let name = dst
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let tmp = dst.with_file_name(format!(".{name}.{}", std::process::id()));
+    symlink(src, &tmp)
+        .with_context(|| format!("linking {} -> {}", tmp.display(), src.display()))?;
+    fs::rename(&tmp, dst).with_context(|| format!("replacing {}", dst.display()))
 }
 
 /// Every `agent-tools <sub>` a settings file wires must exist in this build.
