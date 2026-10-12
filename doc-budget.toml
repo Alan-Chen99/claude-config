@@ -77,6 +77,11 @@ cap = 2000
 [groups."skills/telegram-hitl/SKILL.md"]
 cap = 1000
 
+# Loaded after every compaction, the system prompt naming it; the user set
+# 1,000 when the skill was written (2026-10-11).
+[groups."skills/resume-from-summary/SKILL.md"]
+cap = 1000
+
 # agents/*.md, each its own group; a spawn is an invocation, so the skill-body
 # cap.  The three held bodies share one precedence table and one
 # Missing-documentation block verbatim.

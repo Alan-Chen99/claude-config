@@ -31,6 +31,7 @@ dispatch-prompt patterns and the anti-patterns.
 | `arxiv-to-md/`        | arXiv paper to markdown conversion        | Converting papers for LLM consumption    |
 | `cc-history/`         | Claude Code conversation history analysis | Querying past conversations, token usage |
 | `session-analysis/`   | Session log analysis: skeleton-first reading; facts-only evidence artifacts | Analyzing agent session logs (opencode or Claude Code JSONL) |
+| `resume-from-summary/` | Recovering the transcript behind a session summary (`cc-pretty --skeleton --compact-all`); the system prompt names it | Continuing from autocompact, `/compact`, a resume or a handoff |
 | `diagnose-workflow/`  | Structural sub-agent workflow extraction  | Diagnosing multi-agent workflow success/failure |
 | `long-bash/`          | Long-running bash command protocol (autoloads) | Running, or recovering, a command that outruns the Bash timeout |
 | `git-surgery/`        | pygit2 history rewrites that leave worktree, index and HEAD alone and preserve cited SHAs | Rewriting commits when the worktree must survive or SHAs are checked in |
