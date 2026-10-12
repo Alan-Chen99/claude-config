@@ -26,7 +26,8 @@ closes the first post-boundary request, after the summary and the task, where th
 closing order is met: a prompt-tests grader asked for the strongest case for Sonnet's skip named
 that order — user-turn text, most recent, ranked above the system prompt by the `superpowers`
 hook — as the pull, and the line's place at the prompt's tail as why it loses
-(`sys_prompt/README.md`). Hooks fire in every session, so the section reaches the ones the prompt
+(`sys_prompt/README.md`) — a case argued, not a difference measured; the Sonnet bullet below
+lists what co-varies with position. Hooks fire in every session, so the section reaches the ones the prompt
 does not. It does not cover a handoff typed as a prompt — "resume from <session id>" in a
 fresh session is `source: startup`, and the gate reads the hook payload, not the prompt; that
 form has only the listing's "from a handoff", and the body's `<target>` names no user-given id.
@@ -99,9 +100,16 @@ here run at `max` (`/workspace/.env`).
   resumes) and ran the prompt's `pre_output.record` call in 14 of 19 (the other 5, all deep
   resumes, skipped the response template too), so the prompt is read and this line is what it
   skips. In none of the 19 does the first thinking after the boundary name the line, the skill or
-  its scope: the skip is not a reading that the rule does not apply — the typed-handoff runs
-  below make that reading and say so — and the hook section, scoped to "a compaction summary",
-  fired on the same fixture. As summarizer, Sonnet wrote no reminder into the summary in 3 of 3 runs
+  its scope: the skip is not a reading that the rule does not apply (the typed-handoff runs
+  below make that reading and say so), and the hook section, scoped no wider, fired on the
+  same fixture. What separates the rule that fired from the one that did not is four things at
+  once, not position alone — both sit in the prompt's last 20%: the record rule is
+  unconditional, `MUST … NO EXCEPTIONS`, and restated by the summary itself in 17 of 19
+  ("`pre_output.record` (turn 1) has been recorded", under Current Work); this line is
+  conditional on a state the summary's closing order says to treat as no state, and no Sonnet
+  summary restated it, 0 of 19. On the deep fixture the record rule went too, 5 of 9, and the
+  response template with it. A `/compact` whose summary is made to carry the invocation as its
+  first next step, then a resume, would separate restatement from the rest; not run. As summarizer, Sonnet wrote no reminder into the summary in 3 of 3 runs
   whose compaction request carried the summary-reminder clause. The eight-part PUZZLE fixture
   compacts under Sonnet; the CODEWORD one (`autoCompactWindow` 95,000) does not.
 - **Sonnet 5.5, effort `medium`, the shipped line plus the hook section (2026-10-12).** The
@@ -137,6 +145,23 @@ A `SessionStart` hook (matcher `compact`, plus `resume` gated on the transcript 
 boundary) was the first trigger built: in a test run it put the skill first after each of four
 automatic compactions and on a resume. The prompt line replaced it as the simpler mechanism; go
 back to the hook if the line stops firing.
+
+## What the summary drops
+
+The skill's `grep` targets the user's words. Measured 2026-10-12 over every compacted session
+under `~/.claude/projects` on this machine — 114 sessions, 185 compaction legs, Claude Code
+2.1.289 summaries, whose instruction asks for "All user messages" verbatim: of a leg's user
+messages of 200 characters or fewer (693, deduplicated; slash commands, images, usage notices
+and injected records excluded), 550 are in the summary verbatim (a 40-character window), 62 in
+paraphrase (at least 60% of their six-letter-or-longer words present) and 81 — 12% — are
+absent; of longer messages (369), 30 are absent; of `AskUserQuestion` answers (149), 3 are
+absent and 11 paraphrased. 57 of the 185 legs lost at least one. The absent ones include
+standing instructions and corrections — "lets do one thing at a time … write the security doc
+as said earlier", "oh and, lets just not use the word 'proceed'?", "you did not address the
+bigger problem of backgrounding" — beside throwaway questions. Not measured: whether an absent
+message bound the work that followed, and whether the summary's state claims are right — a
+verbatim quote of every message says nothing about those. The rate rests on the summary
+instruction's "All user messages" section; re-measure after an upgrade.
 
 ## Sizes
 

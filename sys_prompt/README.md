@@ -304,7 +304,10 @@ thought, at that effort; the comparison its retirement condition names is still 
 the strongest case for Sonnet's skip, a prompt-tests grader named the summary's closing order —
 user-turn text, the most recent order, ranked above the system prompt by the `superpowers`
 hook's own priority list — and this line's place at the prompt's tail as why its rebuttal loses:
-the directive has to meet the model where that order does. The `SessionStart` hook now delivers
+the directive has to meet the model where that order does — the grader's case, not a measured
+difference: in the same 19 runs the record rule, unconditional and restated by the summary in 17
+of 19, fired 14 of 19, and this line, restated in none, never (the skill's README lists what
+co-varies). The `SessionStart` hook now delivers
 it there after a compaction (`skills/resume-from-summary/README.md`), and Sonnet invoked the
 skill 2 of 2 with both present. Retire the line when the hook section alone fires on the
 production model; retire the
