@@ -177,8 +177,13 @@ approved = "user:834203fa"
 [groups.scripts]
 loaded = "on demand"
 
+# One reference solution per prompt line under test, 570-2,200 tokens each; a
+# grader reads one case at a time. 14,000 is the user's cap (2026-10-12), set
+# two cases above the eleven present; the twelfth or thirteenth pays the cut.
 [groups.prompt-tests]
 loaded = "on demand"
+cap = 14000
+approved = "user:fc4f3e7d"
 
 [groups.sys_prompt]
 loaded = "on demand"
