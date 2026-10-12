@@ -98,7 +98,10 @@ here run at `max` (`/workspace/.env`).
   model read on or solved the puzzle from the summary (585–1,621 characters of thinking on the deep
   resumes) and ran the prompt's `pre_output.record` call in 14 of 19 (the other 5, all deep
   resumes, skipped the response template too), so the prompt is read and this line is what it
-  skips. As summarizer, Sonnet wrote no reminder into the summary in 3 of 3 runs
+  skips. In none of the 19 does the first thinking after the boundary name the line, the skill or
+  its scope: the skip is not a reading that the rule does not apply — the typed-handoff runs
+  below make that reading and say so — and the hook section, scoped to "a compaction summary",
+  fired on the same fixture. As summarizer, Sonnet wrote no reminder into the summary in 3 of 3 runs
   whose compaction request carried the summary-reminder clause. The eight-part PUZZLE fixture
   compacts under Sonnet; the CODEWORD one (`autoCompactWindow` 95,000) does not.
 - **Sonnet 5.5, effort `medium`, the shipped line plus the hook section (2026-10-12).** The
