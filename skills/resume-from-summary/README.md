@@ -28,10 +28,11 @@ that order — user-turn text, most recent, ranked above the system prompt by th
 hook — as the pull, and the line's place at the prompt's tail as why it loses
 (`sys_prompt/README.md`) — a case argued, not a difference measured; the Sonnet bullet below
 lists what co-varies with position. Hooks fire in every session, so the section reaches the ones the prompt
-does not. Under `scripts/claude.sh` with the intercept listener up, the proxy also removes the
-order's last sentence, "Pick up the last task as if the break never happened", in flight
-(`scripts/intercept/README.md`, Rewrites); every measurement below predates that, the sentence
-present. The section does not cover a handoff typed as a prompt — "resume from <session id>" in a
+does not. The order itself is Claude Code 2.1.289's: it closes every autocompact and `/compact`
+summary (173 of the 185 compaction legs on this machine; the 12 without are 2.1.87's), no
+setting or hook reaches it, and an in-flight removal by the intercept proxy was built and dropped
+the same day (2026-10-12) as a hack — it holds only while the listener is up, and leaves the
+transcript saying what the model never saw. It does not cover a handoff typed as a prompt — "resume from <session id>" in a
 fresh session is `source: startup`, and the gate reads the hook payload, not the prompt; that
 form has only the listing's "from a handoff", and the body's `<target>` names no user-given id.
 
@@ -187,9 +188,7 @@ and the request to name where the summary and the transcript disagree.
 ## After a Claude Code upgrade
 
 Re-check on a fresh compaction: the summary still names the transcript (`read the full
-transcript at:`), still says "Resume directly", which the prompt line answers, and still ends
-"as if the break never happened", which the proxy's `SUMMARY_REWRITES` removes (a summary
-without it writes a `rewrite-summary` line to `requests-log/_errors/errors.log`); the compaction
+transcript at:`) and still says "Resume directly", which the prompt line answers; the compaction
 request still carries the session's system prompt and still asks for a next-step section, which
 the summary-reminder clause leans on; and whether a `skill_listing` now follows the boundary, which
 puts the description back in reach of a session without the prompt. The hook section leans on

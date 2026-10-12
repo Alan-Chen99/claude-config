@@ -20,9 +20,6 @@ way past, so an intercepted SSE stream still streams. See README.md,
 
 Load with: mitmdump -s proxy.py -p 9160
 Or use the CLI wrapper: python3 run-proxy.py [--port PORT]
-
-One body edit, `SUMMARY_REWRITES`: the compaction summary's closing sentence is
-removed before the request leaves (README.md, Rewrites).
 """
 
 from __future__ import annotations
@@ -49,16 +46,6 @@ import zstandard
 # point ANTHROPIC_BASE_URL at. A host missing here is not an error anywhere —
 # the flow passes through uncaptured and the session leaves no request log.
 TARGET_HOSTS = ("api.anthropic.com", "api.kimi.ai", "api.z.ai")
-
-# Claude Code 2.1.289 closes the user message that carries a compaction summary --
-# autocompact and /compact alike; only its compact-up-to path omits it -- with an
-# order to treat the break as no break. The order pulls the resumed model away from
-# recovering the transcript (skills/resume-from-summary/README.md), so the sentence
-# is removed before the request leaves. In flight only: the transcript on disk and
-# a --resume still carry it, and every later request of the session re-sends and is
-# rewritten again. No setting of Claude Code's covers this text.
-SUMMARY_OPENING = "This session is being continued from a previous conversation"
-SUMMARY_REWRITES = {" Pick up the last task as if the break never happened.": ""}
 LOG_BASE = Path.home() / ".claude" / "requests-log"
 SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 SESSION_HEADER = "x-claude-code-session-id"
@@ -576,47 +563,6 @@ def log_error(context: str, err: Exception) -> None:
         pass
 
 
-def rewrite_summary(body: dict) -> tuple[int, int]:
-    """Apply SUMMARY_REWRITES to every user text block that opens a compaction summary.
-
-    Returns (summary blocks seen, replacements made). Assistant text and tool
-    results that quote the same sentence are left alone: a session reading the
-    sentence as evidence must see it.
-    """
-    seen = made = 0
-    for message in body.get("messages", ()):
-        if not isinstance(message, dict) or message.get("role") != "user":
-            continue
-        content = message.get("content")
-        blocks = [message] if isinstance(content, str) else content if isinstance(content, list) else []
-        for block in blocks:
-            if not isinstance(block, dict):
-                continue
-            key = "content" if block is message else "text"
-            text = block.get(key)
-            if not isinstance(text, str) or SUMMARY_OPENING not in text or block.get("type", "text") != "text":
-                continue
-            seen += 1
-            for old, new in SUMMARY_REWRITES.items():
-                n = text.count(old)
-                if n:
-                    text = text.replace(old, new)
-                    made += n
-            block[key] = text
-    return seen, made
-
-
-def serialize_body(body: dict) -> bytes:
-    """JSON as Claude Code sends it: compact, non-ASCII raw. A lone surrogate
-    (JSON.stringify escapes those, json.loads keeps them) cannot be UTF-8
-    encoded, so that body falls back to all-ASCII escapes."""
-    text = json.dumps(body, ensure_ascii=False, separators=(",", ":"))
-    try:
-        return text.encode("utf-8")
-    except UnicodeEncodeError:
-        return json.dumps(body, ensure_ascii=True, separators=(",", ":")).encode("ascii")
-
-
 # --- mitmproxy addon ---
 
 
@@ -626,37 +572,6 @@ class InterceptAddon:
     def __init__(self) -> None:
         # The body relay() forwarded, and (offset_ms, length) per read.
         self._streamed: dict[str, tuple[bytearray, list[tuple[int, int]]]] = {}
-        # Sessions already reported for a summary that carries none of the
-        # sentences SUMMARY_REWRITES names: a Claude Code wording change would
-        # otherwise stop the rewrite silently.
-        self._unrewritten: set[str] = set()
-
-    def request(self, flow: "mitmproxy.http.HTTPFlow") -> None:
-        if flow.request.pretty_host not in TARGET_HOSTS:
-            return
-        raw = flow.request.get_content()
-        if not raw or SUMMARY_OPENING.encode() not in raw:
-            return
-        try:
-            body = json.loads(raw)
-        except (json.JSONDecodeError, ValueError):
-            return
-        if not isinstance(body, dict) or not isinstance(body.get("messages"), list):
-            return
-        seen, made = rewrite_summary(body)
-        if made:
-            flow.request.set_content(serialize_body(body))
-        elif seen:
-            session_id = flow.request.headers.get(SESSION_HEADER, "-")
-            if session_id not in self._unrewritten:
-                self._unrewritten.add(session_id)
-                log_error(
-                    "rewrite-summary",
-                    RuntimeError(
-                        f"session {session_id}: a compaction summary carries none of "
-                        f"{list(SUMMARY_REWRITES)}; Claude Code's wording may have changed"
-                    ),
-                )
 
     def error(self, flow: "mitmproxy.http.HTTPFlow") -> None:
         self._streamed.pop(flow.id, None)

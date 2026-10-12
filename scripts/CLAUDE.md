@@ -26,7 +26,7 @@ and one-off probes. Each launcher's rationale is in its own comments.
 
 | Directory    | What                                                        | When to read                                      |
 | ------------ | ----------------------------------------------------------- | ------------------------------------------------- |
-| `intercept/` | MITM proxy capturing conversation-shaped API calls to `~/.claude/requests-log/` and removing the compaction summary's closing sentence in flight (`README.md`, Rewrites), with a `NNNN.detail.json` beside each failed one — only from sessions `claude.sh` launched while it was listening. The listener is the canonical venv's `mitmdump` (`install.sh`, HIDDEN PATH DEPENDENCY). Its `README.md` carries the port, the CA setup, the capture format and what a capture cannot record; `agent-tools cc-replay` re-sends one | Capturing requests; replaying one; diagnosing an intercepted session whose turns abort; judging what a missing capture means |
+| `intercept/` | MITM proxy capturing conversation-shaped API calls to `~/.claude/requests-log/`, with a `NNNN.detail.json` beside each failed one — only from sessions `claude.sh` launched while it was listening. The listener is the canonical venv's `mitmdump` (`install.sh`, HIDDEN PATH DEPENDENCY). Its `README.md` carries the port, the CA setup, the capture format and what a capture cannot record; `agent-tools cc-replay` re-sends one | Capturing requests; replaying one; diagnosing an intercepted session whose turns abort; judging what a missing capture means |
 
 ## Agent Policy
 

@@ -279,27 +279,6 @@ Captures written before 2026-09-30 have no `http` key. Their beta lists are
 unrecoverable, and `agent-tools cc-replay` refuses to re-send one as if it were
 faithful.
 
-## Rewrites
-
-One edit in flight, `SUMMARY_REWRITES` in `proxy.py`: the user message that opens a
-compaction summary (`This session is being continued from a previous conversation`)
-loses its last sentence, "Pick up the last task as if the break never happened."
-Claude Code 2.1.289 appends it to every autocompact and `/compact` (its `LY()`, under
-`suppressFollowUpQuestions`; only the compact-up-to path omits it — 173 of the 185
-compaction legs on this machine carry it, the 12 without are 2.1.87's), no setting
-covers it, and it is the order a resumed model follows instead of recovering the
-transcript (`skills/resume-from-summary/README.md`). Only text blocks of `user`
-messages that carry the opening are edited; an assistant turn or a tool result quoting
-the sentence keeps it. The body is re-serialized as Claude Code sends it (compact,
-non-ASCII raw; all-ASCII when a lone surrogate forbids UTF-8), and the capture holds
-the body as sent. The transcript keeps the original, so `cc-pretty` shows a sentence
-the model never saw, and a `--resume` is rewritten again on every request.
-
-When a summary carries none of the table's sentences — a session from before the
-wording, or a Claude Code release that changed it — one `rewrite-summary` line per
-session goes to `requests-log/_errors/errors.log`; that is the signal to re-read the
-literal. An empty table turns the rewrite off.
-
 ## What a capture does not record
 
 Losses that no capture records:
