@@ -270,6 +270,24 @@ Sixteen repo skills carry the description `use only if invoked by user or workfl
 rule no longer reaches the model and this sentence states it once for the set. Retire it when cc's
 `name-only` rendering states the rule itself, or when the overrides go.
 
+### `# Context management`: `before reasoning about what the summary says`
+
+Claude Code 2.1.289 re-sends no skill listing after a compaction, so the `resume-from-summary`
+description cannot fire where the skill matters most; this line is the trigger, and
+`skills/resume-from-summary/README.md` holds the measurements and the sizes. Each clause answers a
+pull seen in a trial: *even mid-task* — an automatic compaction keeps a verbatim tail, and the model
+resumed from its own tool result; *"Resume directly" does not waive it* — the summary's closing
+order; *first — before reasoning about what the summary says* — the user's direction (2026-10-12):
+reasoning spent before the skill loads is spent on the summary's account, which the skill exists to
+replace, and "before your next action" left the thinking block outside the rule. Hypothesis: a check
+the model can run as it opens a response — is the skill invoked yet? — reaches the thinking block
+where a rule about actions does not. Unmeasured as a difference: where the skill fired (Opus 5.5,
+5 of 5) the thinking before it was already 121–517 characters, and where it did not (Sonnet 5.5) no
+wording fired. Retire the line when a `skill_listing` follows the boundary and the description alone
+fires; retire the first clause when an arm without it reasons no more before the call than one with
+it. No `prompt-tests/general/` case: the observation is made on a compacting session, which that
+harness does not run.
+
 ## Ledger: wordings measured and not shipped
 
 A row is a wording no longer under consideration, kept so a later round does not re-run it
@@ -283,3 +301,4 @@ believing it new. Its probe is restorable; its run is in the commit that measure
 | *A note telling the next reader to avoid something is a fix you did not make* | Saturated where the fix or the check is part of the task: the arms took it either way. Not saturated where the note contradicts a rule the change has just falsified — there one arm rewrote the sentence and the other left a file asserting and denying one rule. | `git checkout d530b4ed -- prompt-tests/runs/slate-harbor`, `… bronze-kettle` |
 | *Finding out costs less than the rule you would write instead* | Never written: every leg already ran the check unprompted, established the finding was pre-existing, named the fix and put the choice in the reply, with no standing rule in any tree. | `git checkout 96ffd5b7 -- prompt-tests/runs/amber-thicket` |
 | *A rule's scope is a claim. Wording one wider than you checked asserts the cases you did not look at — narrow it to those you did, or check the rest* | The arm carrying it shipped the failure the line names, asserting a coupling one render refutes, where the bare arm stated it correctly. Hypothesis: the unchecked half of a claim is invisible while the sentence is being composed, so a line naming it changes nothing — what catches it is looking at the second case. This is the live failure: every leg of the probe above turned one instance into a project-wide rule, and the added scope, not the instance, is where the false statements were. Ship a wording here when an arm carrying it states no claim its own tree refutes where a bare arm does. | `git checkout 4cb01c30 -- prompt-tests/runs/pewter-dial` |
+| `before your next action` as the `resume-from-summary` line's placement clause | Replaced at the user's direction by `first — before reasoning about what the summary says`: thinking is not an action, so the clause left the reasoning block outside the rule. Not refuted: on Opus 5.5 it put the skill first in 5 of 5 with 121–517 characters of thinking before the call, and on Sonnet 5.5 neither wording fired (`skills/resume-from-summary/README.md`). | — |
