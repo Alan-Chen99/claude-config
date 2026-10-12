@@ -2167,21 +2167,81 @@ def test_resumption_needs_the_skill_installed(tmp_path: Path) -> None:
     assert not environment.continues_from_summary("compact", None, tmp_path / "absent" / "SKILL.md")
 
 
-def test_resumption_section_opens_the_block() -> None:
-    facts: render.Facts = {
+def _skill_text() -> str:
+    return (Path(__file__).resolve().parents[1] / "skills" / "resume-from-summary" / "SKILL.md").read_text()
+
+
+TOY_SKILL = (
+    "Skeleton it:\n\n```bash\nagent-tools cc-pretty <target> --skeleton > <scratchpad>/prior.skel\n```\n\n"
+    "`<target>`: the path the summary names.\n\nRead it in parts.\n"
+)
+
+
+def _resumption_facts(**overrides: object) -> render.Facts:
+    # Same shape as _facts above: a plain dict cast through object.
+    base: dict[str, object] = {
         "cwd": "/w",
         "is_git_repo": False,
         "clock": "2026-10-12T00:00:00-04:00 (America/New_York, EDT)",
         "shell": "/bin/bash",
         "session_id": "abc-123",
-        "continues_from_summary": True,
+        "scratchpad": "/scratch",
+        "resumption": {"skill_body": TOY_SKILL, "target": "/logs/abc-123.jsonl"},
     }
-    out = render.sections(facts)
+    base.update(overrides)
+    return cast(render.Facts, cast(object, base))
+
+
+def test_skill_body_strips_the_frontmatter() -> None:
+    assert render.skill_body("---\nname: x\ndescription: y\n---\n\nBody.\n") == "Body."
+    assert render.skill_body("Body only.\n") == "Body only."
+
+
+def test_resumption_section_opens_the_block_with_the_filled_body() -> None:
+    out = render.sections(_resumption_facts())
     assert out.startswith("# Continuing from a compaction summary\n")
-    assert "invoke the `resume-from-summary` skill first" in out.lower()
-    assert "# Environment (supplement)" in out
-    facts["continues_from_summary"] = False
-    assert "compaction summary" not in render.sections(facts)
+    assert "no `Skill` call is needed" in out
+    assert "Run its two commands before anything else" in out
+    assert "agent-tools cc-pretty /logs/abc-123.jsonl --skeleton > /scratch/prior.skel" in out
+    assert "<target>" not in out and "<scratchpad>" not in out
+    # The definition of <target> is for a reader invoking the skill by hand;
+    # here the hook has filled it, so the line goes and nothing else does.
+    assert "the path the summary names" not in out
+    assert "Read it in parts." in out
+    assert "\n\n\n" not in out
+    assert out.index("# Continuing from a compaction summary") < out.index("# Environment (supplement)")
+    assert "compaction summary" not in render.sections(_resumption_facts(resumption=None))
+
+
+def test_resumption_without_a_scratchpad_keeps_that_placeholder() -> None:
+    out = render.sections(_resumption_facts(scratchpad=None))
+    assert "/logs/abc-123.jsonl --skeleton > <scratchpad>/prior.skel" in out
+
+
+def test_the_real_skill_renders_without_placeholders() -> None:
+    body = render.skill_body(_skill_text())
+    # The renderer drops exactly this line, so the skill must carry exactly one.
+    assert sum(line.startswith(render.TARGET_DEFINITION) for line in body.split("\n")) == 1
+    out = render.resumption_section({"skill_body": body, "target": "/logs/t.jsonl"}, "/scratch")
+    assert "<target>" not in out and "<scratchpad>" not in out
+    assert "cc-pretty /logs/t.jsonl --skeleton --compact-all > /scratch/prior.skel" in out
+    assert "as if the break never happened" in out
+
+
+def test_the_resumption_block_stays_inside_its_token_budget() -> None:
+    """Spent on every post-compaction request. Pinned beside its renderer like
+    the env block above: the size with the real skill body and two live-length
+    paths, divided by 0.8, so the first growth past it pays a cut."""
+    from claude_config.count_tokens import _count_local
+
+    out = render.resumption_section(
+        {
+            "skill_body": render.skill_body(_skill_text()),
+            "target": "/root/.claude/projects/-root-claude-config-work/95e6d4cf-768c-4ec4-95b9-5747c2d2aa3a.jsonl",
+        },
+        "/root/.claude/tmp/claude-0/-root-claude-config-work/95e6d4cf-768c-4ec4-95b9-5747c2d2aa3a/scratchpad",
+    )
+    assert _count_local(out) <= 630
 
 
 def test_hook_emits_the_section_only_after_a_compaction(tmp_path: Path) -> None:
@@ -2199,4 +2259,8 @@ def test_hook_emits_the_section_only_after_a_compaction(tmp_path: Path) -> None:
     base: dict[str, object] = {"cwd": str(tmp_path), "session_id": "abc-123"}
     assert "compaction summary" not in run(base)
     assert "compaction summary" not in run({**base, "source": "startup"})
-    assert run({**base, "source": "compact"}).startswith("# Continuing from a compaction summary")
+    compact = run({**base, "source": "compact", "transcript_path": "/logs/abc-123.jsonl"})
+    assert compact.startswith("# Continuing from a compaction summary")
+    assert "agent-tools cc-pretty /logs/abc-123.jsonl --skeleton --compact-all" in compact
+    # No transcript_path in the payload: the session id is the target cc-pretty resolves.
+    assert "agent-tools cc-pretty abc-123 --skeleton --compact-all" in run({**base, "source": "compact"})

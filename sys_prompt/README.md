@@ -308,8 +308,9 @@ the directive has to meet the model where that order does — the grader's case,
 difference: in the same 19 runs the record rule, unconditional and restated by the summary in 17
 of 19, fired 14 of 19, and this line, restated in none, never (the skill's README lists what
 co-varies). The `SessionStart` hook now delivers
-it there after a compaction (`skills/resume-from-summary/README.md`), and Sonnet invoked the
-skill 2 of 2 with both present. Retire the line when the hook section alone fires on the
+the skill's body there after a compaction (`skills/resume-from-summary/README.md`), so the line's
+"invoke" is met by the block and a `Skill` call duplicates it; when the hook named the skill
+instead, Sonnet invoked it 2 of 2 with both present. Retire the line when the hook section alone fires on the
 production model; retire the
 line when a `skill_listing` follows the boundary and the description alone fires; retire the first
 clause when an arm without it reasons no more before the call than one with it; retire the last

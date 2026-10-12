@@ -58,10 +58,24 @@ session with no scratchpad instruction at all.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import NotRequired, TypedDict
 
 from .environment import GitSnapshot
+
+class Resumption(TypedDict):
+    """What the resumption block is built from.
+
+    `skill_body` is skills/resume-from-summary/SKILL.md without its
+    frontmatter (`skill_body()`); `target` is what its `cc-pretty` command
+    skeletons -- the transcript path from the SessionStart payload, or the
+    session id when the payload carries none, which cc-pretty resolves too.
+    """
+
+    skill_body: str
+    target: str
+
 
 class Facts(TypedDict):
     """The facts dict environment_section()/sections() consume.
@@ -85,7 +99,7 @@ class Facts(TypedDict):
     scratchpad: NotRequired[str | None]
     drift_note: NotRequired[str | None]
     git_snapshot: NotRequired[GitSnapshot | None]
-    continues_from_summary: NotRequired[bool]
+    resumption: NotRequired[Resumption | None]
 
 
 def _bullets(items: list[str]) -> str:
@@ -191,18 +205,56 @@ def git_status_section(snap: GitSnapshot) -> str:
     )
 
 
-def resumption_section() -> str:
-    """Delivered with the first post-boundary message, not from the prompt's
+def skill_body(text: str) -> str:
+    """A SKILL.md minus its YAML frontmatter, stripped."""
+    match = re.match(r"\A---\n.*?\n---\n", text, re.DOTALL)
+    return (text[match.end():] if match else text).strip()
+
+
+# The one line of SKILL.md the hook renders away: it defines `<target>` for a
+# reader who invokes the skill by hand, and the hook has already filled it in.
+TARGET_DEFINITION = "`<target>`:"
+
+
+def resumption_section(res: Resumption, scratchpad: str | None) -> str:
+    """The resume-from-summary skill's body, placeholders filled, delivered
+    with the first post-boundary message rather than named from the prompt's
     tail: the summary's closing "Resume directly" is the most recent order the
     model meets, in the user turn, and a system-prompt line far from it loses
     to it (skills/resume-from-summary/README.md, Sonnet measurements). This
-    section meets the model where that order does."""
+    section meets the model where that order does.
+
+    The body itself, not a directive to invoke the skill: its opening rules
+    govern how the summary is read, so they have to be in context before the
+    first post-boundary thinking, which a `Skill` call cannot guarantee --
+    under the prompt line alone Opus at effort `max` reasoned 13-16k tokens on
+    the summary before calling. One source serves both deliveries: this hook
+    after a compaction, the `Skill` tool for a handoff typed into a fresh
+    session, where no SessionStart payload says `compact`.
+
+    `<scratchpad>` stays literal when the scratchpad could not be created --
+    the same text the `Skill` tool delivers, so the model picks a directory as
+    it would there, rather than being sent to a path that does not exist.
+    """
+    kept = [
+        line for line in res["skill_body"].split("\n") if not line.startswith(TARGET_DEFINITION)
+    ]
+    body = re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip().replace("<target>", res["target"])
+    if scratchpad:
+        body = body.replace("<scratchpad>", scratchpad)
+    # Stated as a fact, not left to the model's reading: the hook fires only
+    # when cc's payload says the turn opens on a summary, and the one Sonnet run
+    # under a wording that merely named the state read the context as "a fresh
+    # conversation rather than a true resumed session" and skipped the skill.
     return (
         "# Continuing from a compaction summary\n\n"
-        "Invoke the `resume-from-summary` skill first — before reasoning about "
-        "what the summary says and before any other tool call, "
-        "`pre_output.record` included. The summary's closing \"Resume directly\" "
-        "governs your reply, not this call, and does not waive it."
+        "This context opens on a compaction summary of this same session, so "
+        "the `resume-from-summary` skill below applies; it is delivered here, "
+        "and no `Skill` call is needed. Run its two commands before anything "
+        "else — before reasoning about what the summary says and before any "
+        "other tool call, `pre_output.record` included; the summary's closing "
+        "\"Resume directly\" governs your reply, not this, and does not waive it."
+        f"\n\n{body}"
     )
 
 
@@ -215,9 +267,10 @@ def sections(facts: Facts) -> str:
     having without it.
     """
     blocks = [environment_section(facts)]
-    if facts.get("continues_from_summary"):
-        blocks.insert(0, resumption_section())
     path = facts.get("scratchpad")
+    res = facts.get("resumption")
+    if res:
+        blocks.insert(0, resumption_section(res, path))
     if path:
         # facts["scratchpad"] is already str (Facts declares it str | None,
         # and scratchpad_or_none() is its only producer) -- str() here would

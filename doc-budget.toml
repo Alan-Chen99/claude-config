@@ -81,7 +81,8 @@ cap = 1000
 # cap (2026-10-12), set at the file's size: the body is the two commands and
 # what to recover, and growth is a request to the user, not a cut.
 [groups."skills/resume-from-summary/SKILL.md"]
-cap = 200
+cap = 400
+approved = "user:95e6d4cf"
 
 # agents/*.md, each its own group; a spawn is an invocation, so the skill-body
 # cap.  The three held bodies share one precedence table and one

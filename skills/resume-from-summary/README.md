@@ -16,12 +16,19 @@ no description is in context to match. A resume does re-send the listing, yet in
 summary. Sessions without that prompt (background sessions, other launchers) have only the
 description.
 
-The line is not what carries the call on every model. The `SessionStart` hook
+The line is not what carries the skill on every model. The `SessionStart` hook
 (`agent-tools env-context`, `src/claude_config/env_context/render.py`, `resumption_section`)
-emits `# Continuing from a compaction summary` — invoke the skill first, before reasoning about
-the summary and before any other tool call; "Resume directly" governs the reply, not this call —
-when its payload's `source` is `compact`, or `resume` with a `compact_boundary` in the
-transcript, and the skill is installed beside the hook. It lands in the hook-context message that
+emits `# Continuing from a compaction summary` — since 2026-10-12 the skill's own body, `SKILL.md`
+minus its frontmatter with `<target>` and `<scratchpad>` filled from the payload's `transcript_path`
+and the session scratchpad, under a directive to follow it first, before reasoning about the summary
+and before any other tool call, no `Skill` call needed; "Resume directly" governs the reply, not
+this — when its payload's `source` is `compact`, or `resume` with a `compact_boundary` in the
+transcript, and the skill is installed beside the hook. The body rather than the name because the
+body's opening rules govern how the summary is read, so they have to precede the first
+post-boundary thinking, which a `Skill` call cannot guarantee (Opus at `max`, below: 13–16k thinking
+tokens before the call); one source then serves the hook after a compaction and the `Skill` tool for
+"continue <session id>" typed into a fresh session. Before this change the hook named the skill,
+and Sonnet invoked it 2 of 2 (below). It lands in the hook-context message that
 closes the first post-boundary request — the request's last message, role `system`, opening
 `SessionStart hook additional context:` — after the summary, the task and, on an automatic
 compaction, the preserved tail (captures `5ff525a4/0012.json`, `1197f8d0/0014.json`). Checked
@@ -41,7 +48,9 @@ setting or hook reaches it, and an in-flight removal by the intercept proxy was 
 the same day (2026-10-12) as a hack — it holds only while the listener is up, and leaves the
 transcript saying what the model never saw. It does not cover a handoff typed as a prompt — "resume from <session id>" in a
 fresh session is `source: startup`, and the gate reads the hook payload, not the prompt; that
-form has only the listing's "from a handoff", and the body's `<target>` names no user-given id.
+form has the listing's entry, which since 2026-10-12 names "continue <session id>", and the
+body's `<target>` clause, which now takes the id the user gave — unmeasured since; 0 of 3 before
+either named it (below).
 
 Each clause answers a pull seen in a trial. *Even mid-task*: an automatic compaction lands
 mid-task and keeps the last three messages verbatim after the summary
@@ -56,6 +65,16 @@ step* — the user's direction (2026-10-12): the compaction request carries this
 block (seen in the proxy's capture of every `/compact` here), so the summarizer reads the line, and
 cc's compaction instruction ends the summary with a numbered "Optional Next Step" that the resumed
 model is told to pick up; a reminder there is nearer the resumed model than the prompt's last line.
+*The summary is prior output: trust what it reports as said, done or decided; hold its judgments
+with room for doubt; inherit none of its framing; then step back* (`SKILL.md`) — the user's
+direction (2026-10-12), in place of removing the closing order's last sentence in flight (below):
+"Pick up the last task as if the break never happened" hands the resumed model the summarizer's
+framing and momentum, so the body says what the summary is good for — its record of what was said
+and done, which the `grep` completes — and what it is not, and names the sentence it overrides so
+the two are not read as a conflict; "do not acknowledge the summary" is kept as form, and the
+order's "without asking the user any further questions" is overridden too, since a step back may
+end in a question that is the user's. Unmeasured as a difference; the first runs under it are the
+Sonnet pair below.
 
 ## Measurements
 
@@ -131,6 +150,26 @@ here run at `max` (`/workspace/.env`).
   `pre_output.record`, then answered. The summary still named no skill (Sonnet as summarizer, 0
   of 5 now). Not run: the hook section without the line, which is the line's retirement
   comparison.
+- **Sonnet 5.5, effort `medium`, the shipped line plus the hook carrying the skill's body (2026-10-12).**
+  `prompt-tests/general/cinder-orchard` by hand through the worktree binary — plugins off, as the
+  runner does; the directive-form pair above ran with the `superpowers` block present — twice: four
+  CLUE logs, `/compact`, the puzzle. Sessions `bb24123f` and `65b00952` under
+  `.claude/worktree-config/projects/-tmp-wk-*/`, read as a probe (first response only, no grader).
+  The body reached the request's last message in both (capture `65b00952/0012.json`). Neither ran
+  its commands: 0 of 2. Both engaged it — the first thinking on this fixture to name the hook at
+  all — and declined: "I'm weighing whether to actually follow that hook instruction … It feels like
+  this directive may not genuinely apply here since this reads as a fresh conversation rather than a
+  true resumed session" (778 thinking tokens, no tool call at all, puzzle from the summary); "the
+  hook instructs skeletoning the transcript before relying on the summary, and the transcript should
+  take precedence if they conflict" (969 tokens, puzzle from the summary, then `pre_output.record`
+  carrying the uncertainty "clues taken from compaction summary, not re-verified"). The summary named
+  the skill in 0 of 2 (Sonnet as summarizer, 0 of 7 now). The wording both read opened "This is the
+  `resume-from-summary` skill, delivered here so no `Skill` call is needed. Follow it first"; replaced
+  the same day by a statement of the state the hook already gates on and of the first action — "This
+  context opens on a compaction summary of this same session … Run its two commands before anything
+  else" — unmeasured. One `/compact` leg hung before sending its compaction request (its captures end
+  at `count_tokens`); killed after 10 minutes and re-run, 16 s. Cost 0.80–0.87 USD per run against
+  0.30 for the CODEWORD pair, the compaction leg alone 0.26–0.29.
 - **The typed handoff, "resume from <session id>" as the only prompt of a fresh session, effort
   `medium` (2026-10-12).** No hook section (startup). Invoked the skill: 0 of 3. Opus invoked
   `cc-history` instead — "a request to resume a prior session by its ID rather than continue a
@@ -188,9 +227,12 @@ on the next compaction twice in a row; at `settings.json`'s 400,000 (compaction 
 about 6%. The skill's "stop once you can act" is aimed at that: with it, recovery took 4–5k
 tokens in each of the three prompt-trigger trials, and none compacted again.
 
-`SKILL.md` is 200 tokens under the 200 cap the user set (2026-10-12): the description, the two
-commands, and what to recover. Cut to fit: the handoff target, the skeleton's `recover:` header,
-and the request to name where the summary and the transcript disagree.
+`SKILL.md` is 400 tokens under a 400 cap (the user's, 2026-10-12, raised from 200 for the rules, the
+typed-handoff target and a fresh reader's review of the body — the `<scratchpad>` definition, the
+precedence of transcript over summary, the no-compaction and no-transcript cases). Rendered by the hook with two live-length paths it is about 525 tokens
+(`tests/test_env_context.py` pins 630), spent on the first post-boundary request and carried in
+the conversation after it; the directive it replaced was 62. Still cut: the skeleton's `recover:`
+header and the request to name where the summary and the transcript disagree.
 
 ## After a Claude Code upgrade
 
@@ -199,7 +241,8 @@ transcript at:`) and still says "Resume directly", which the prompt line answers
 request still carries the session's system prompt and still asks for a next-step section, which
 the summary-reminder clause leans on; and whether a `skill_listing` now follows the boundary, which
 puts the description back in reach of a session without the prompt. The hook section leans on
-the `SessionStart` payload's `source` (`compact`, `resume`) and `transcript_path` fields and on
+the `SessionStart` payload's `source` (`compact`, `resume`) and `transcript_path` fields — the
+latter also the path the rendered `cc-pretty` command targets — and on
 cc delivering that hook's context with the first post-boundary request; check that a compaction's
 capture carries `# Continuing from a compaction summary` in the request's last message (`role:
 system`, `SessionStart hook additional context:`) — the transcript's `hook_additional_context`

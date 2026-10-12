@@ -39,9 +39,10 @@ What this hook supplies that cc does not: the shell the Bash tool actually
 runs (cc reports `unknown` here), the session id, the worktree's
 main-checkout path, the clock's offset and zone, the drift note, and — on
 `source: compact`, or `resume` over a compacted transcript — the
-`resume-from-summary` directive (render.resumption_section), placed here
-because it has to reach the model with the first post-boundary message
-rather than from the system prompt's tail.
+`resume-from-summary` skill's body, placeholders filled
+(render.resumption_section), placed here because its rules for reading the
+summary have to reach the model with the first post-boundary message rather
+than from the system prompt's tail or after a `Skill` call.
 
 Emitting the JSON envelope is not optional. Plain stdout from a SessionStart
 hook is injected as `SessionStart hook success: <text>`
@@ -66,6 +67,7 @@ from . import drift, environment, render, scratchpad
 
 ROOT = Path(__file__).resolve().parents[3]
 MANIFEST = ROOT / "docs" / "env-context-manifest.json"
+SKILL_FILE = ROOT / "skills" / "resume-from-summary" / "SKILL.md"
 # One cache for every checkout. Correct only because the key hashes the
 # manifest's content rather than its mtime: five worktrees carrying
 # byte-identical manifests share a scan instead of invalidating each other.
@@ -152,6 +154,25 @@ def scratchpad_or_none(
         return None
 
 
+def resumption_or_none(
+    payload: Mapping[str, object], session_id: str
+) -> render.Resumption | None:
+    """The resumption block's inputs, or None when the turn opens on no summary.
+
+    The gate is environment.continues_from_summary; the target is the
+    payload's `transcript_path`, which both `compact` and `resume` carry on
+    2.1.289, with the session id as the fallback cc-pretty can resolve.
+    """
+    transcript = payload.get("transcript_path")
+    if not environment.continues_from_summary(payload.get("source"), transcript, SKILL_FILE):
+        return None
+    target = transcript if isinstance(transcript, str) and transcript else session_id
+    return {
+        "skill_body": render.skill_body(SKILL_FILE.read_text(encoding="utf-8")),
+        "target": target,
+    }
+
+
 def _require_str(payload: Mapping[str, object], field: str) -> str:
     """cwd and session_id must be str, checked immediately after the parse.
 
@@ -204,11 +225,7 @@ def main() -> int:
         "scratchpad": scratchpad_or_none(cwd, session_id),
         "drift_note": drift_note(),
         "git_snapshot": environment.git_snapshot(cwd) if is_git_repo else None,
-        "continues_from_summary": environment.continues_from_summary(
-            payload.get("source"),
-            payload.get("transcript_path"),
-            ROOT / "skills" / "resume-from-summary" / "SKILL.md",
-        ),
+        "resumption": resumption_or_none(payload, session_id),
     }
 
     json.dump(
