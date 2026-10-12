@@ -288,8 +288,11 @@ where the resumed model acts — the summary's own "Pick up the last task" — r
 end of the system prompt. Hypothesis: the resumed model weights the summary's next step above a
 prompt line it may skip. Unmeasured as a difference: where the skill fired (Opus 5.5, 5 of 5, effort
 `medium`) the thinking before it was already 121–517 characters, and Sonnet 5.5 invoked nothing
-under any wording — including, on the fixture and wording of Opus's 2 of 2 resumes, 0 of 2 — and as
-summarizer wrote no reminder in 3 of 3. Measured on Opus 5.5 at effort `max`, the production
+under any wording — including, on the fixture and wording of Opus's 2 of 2 resumes, 0 of 2, with the
+`Skill` tool and the resume's re-sent listing in its request; the same session invokes the skill
+when told to, and its own reading of the context (the skill's README) ranks the summary's closing
+order and the `pre_output.record` rule above this line — and as summarizer wrote no reminder in 3 of
+3. Measured on Opus 5.5 at effort `max`, the production
 configuration, with a puzzle to solve after the boundary (2 runs): the summary carried the reminder,
 the `Skill` call was the first tool call, and 13–16k thinking tokens preceded it, the puzzle solved
 from the summary inside them — one run opened by noting the line, so the check does reach the

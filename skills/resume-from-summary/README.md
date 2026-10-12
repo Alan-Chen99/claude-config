@@ -54,7 +54,15 @@ here run at `max` (`/workspace/.env`).
   your next action", 3 with "you MUST invoke" in front, 3 with the summary-reminder clause. Two of
   the "before your next action" runs are the configuration of Opus's 2 of 2 resumes — same fixture,
   wording, effort and harness — and the proxy's captures show each request carrying the line, the
-  `Skill` tool and the same `thinking`/`effort` fields as Opus's; the difference is the model. The
+  `Skill` tool and the same `thinking`/`effort` fields as Opus's — and, the resume having re-sent the
+  listing, the skill's description — so the difference is the model. Resumed afterwards and told to
+  invoke the skill, the session did, and the tool returned the skill: the harness resolves it.
+  Asked to reconstruct its earlier reasoning, Sonnet 5.5 is refused by the API's safeguard
+  (`stop_reason: refusal`, detail `reasoning_extraction`), and the refusal recurs on that session's
+  next turn; asked instead which parts of its context pull a model away from the call, it named
+  the summary's closing "Resume directly", the summary's "only the reply remained", and the
+  `pre_output.record` "NO EXCEPTIONS" rule competing for the first-action slot, expecting the first
+  two to dominate — its inference from the text, as it said, not a report. The
   model read on or solved the puzzle from the summary (585–1,621 characters of thinking on the deep
   resumes) and ran the prompt's `pre_output.record` call in 14 of 19 (the other 5, all deep
   resumes, skipped the response template too), so the prompt is read and this line is what it
