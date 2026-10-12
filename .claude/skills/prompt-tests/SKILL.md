@@ -38,12 +38,18 @@ a system-reminder, enlarging its instructions without its knowledge. Stage
 `task.md`, the arm's system prompt, the fixture, the delivered artifact, and the
 session log. Withhold the reference.
 
-**Copy content, not paths.** Anything generated from repository files carries
-their paths inside it, and the case directory is named for what is being
-measured: a `diff -u` writes the fixture's absolute path into its own header, so
-a staged diff hands a blind reader the case name in the first two lines. Pass
-`--label before/<f> --label after/<f>`, and grep the staged tree for the case
-name and for `prompt-test` before dispatching.
+**The dispatch names what to evaluate, never what to look for.** "Evaluate the
+agent's decision on X" is a dispatch; "… possible reasons: A, B, C" is not, nor
+is a method, the one criterion the verdict turns on, or a finding it is told not
+to make: each would read differently had the parent expected a different result.
+A grader obeys an instruction and weighs only a labelled view, as the reference
+arrives in phase 2; a question of the forbidden shape is a `session-analysis`
+focus.
+
+**Copy content, not paths.** A `diff -u` writes the fixture's absolute path —
+and so the case name — into its own header.
+Pass `--label before/<f> --label after/<f>`, and grep the staged tree for the
+case name and for `prompt-test` before dispatching.
 
 **Phase 1, reference withheld.** Two arguments, in this order, to
 `judgement-<arm>.md`:
@@ -93,21 +99,15 @@ records the rejection.
 The judgement stays in the round's scratch directory and is not committed;
 `prompt-tests/runs/README.md` says why a later round cannot cite it anyway.
 
-**A prompt edit gets one more grader, and that one grades blind.** The
-judgements above are per-arm. The comparison is a separate dispatch: one grader
-holding both sessions labelled A and B, told only that they differ in the system
-prompt and what the decisive criterion is. A grader told which arm is the
-treatment has a visible pull toward finding a difference.
+**A prompt edit gets one more grader, holding both arms.** Per-arm judgements do
+not compare: attention moved with what each grader noticed. One grader
+takes both sessions and both prompts, told which ran which, runs both phases over
+both arms and reports the forcing claims that hold under one prompt and die under
+the other, and the ones the edit creates; whatever it searches one arm for, it
+searches the other for.
 
-**Strip the `prompt_snapshot` attachments before handing a transcript to that
-grader.** A Claude Code JSONL carries the whole system prompt in two of them, so a
-blind reader given the raw log reads the arm off it and nothing in its answer says
-that it did. Drop every record whose `attachment.type` is `prompt_snapshot`, then
-grep the copy for a phrase unique to the treated arm.
-
-**Before attributing a behaviour to an edit, grep the arm's own prompt for it.**
-A prompt that already instructs the behaviour a case grades produces it in both
-arms, and the difference you are measuring is then somewhere else.
+**Before attributing a behaviour to an edit, grep the arm's own prompt for it:**
+a prompt that already instructs it produces it in both arms.
 
 Two more ways an attribution fails silently, both of which have happened here:
 
