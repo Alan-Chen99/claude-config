@@ -22,8 +22,15 @@ emits `# Continuing from a compaction summary` — invoke the skill first, befor
 the summary and before any other tool call; "Resume directly" governs the reply, not this call —
 when its payload's `source` is `compact`, or `resume` with a `compact_boundary` in the
 transcript, and the skill is installed beside the hook. It lands in the hook-context message that
-closes the first post-boundary request, after the summary and the task, where the summary's
-closing order is met: a prompt-tests grader asked for the strongest case for Sonnet's skip named
+closes the first post-boundary request — the request's last message, role `system`, opening
+`SessionStart hook additional context:` — after the summary, the task and, on an automatic
+compaction, the preserved tail (captures `5ff525a4/0012.json`, `1197f8d0/0014.json`). Checked
+2026-10-12 over every boundary on this machine with a timestamp-aware read (the preserved tail is
+re-emitted after the summary with its pre-boundary timestamps, so the first assistant record after
+a boundary can be a preserved one): on 2.1.289 all 62 — 28 automatic, 34 manual — had a hook context
+before the first post-boundary response, as did every 2.1.235 and 2.1.269 leg; the 15 without are
+2.1.87 and 2.1.143. A `/compact` then resume delivers the compact-time and the resume-time hook
+outputs both, so the section arrives twice. Where the summary's closing order is met: a prompt-tests grader asked for the strongest case for Sonnet's skip named
 that order — user-turn text, most recent, ranked above the system prompt by the `superpowers`
 hook — as the pull, and the line's place at the prompt's tail as why it loses
 (`sys_prompt/README.md`) — a case argued, not a difference measured; the Sonnet bullet below
@@ -193,6 +200,8 @@ request still carries the session's system prompt and still asks for a next-step
 the summary-reminder clause leans on; and whether a `skill_listing` now follows the boundary, which
 puts the description back in reach of a session without the prompt. The hook section leans on
 the `SessionStart` payload's `source` (`compact`, `resume`) and `transcript_path` fields and on
-cc delivering that hook's context with the first post-boundary request; check a compaction's
-capture for `# Continuing from a compaction summary`. `prompt-tests/general/cinder-orchard`
+cc delivering that hook's context with the first post-boundary request; check that a compaction's
+capture carries `# Continuing from a compaction summary` in the request's last message (`role:
+system`, `SessionStart hook additional context:`) — the transcript's `hook_additional_context`
+record shows that the hook ran, the capture that its text reached the model. `prompt-tests/general/cinder-orchard`
 runs all of it: leg 1, `/compact`, leg 2.
