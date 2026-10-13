@@ -186,14 +186,18 @@ everything under `notes/`, `plans/`, `docs/superpowers/plans/` and `specs/` (all
 ### 3.4 Snapshot-capture mechanics that break on upgrade
 
 `docs/system-prompt-snapshot/capture.py`: the trust-dialog cursor reader
-(`_trust_arrow_presses` — the default already flipped once between 2.1.235 and 2.1.269), the
+(`_trust_arrow_presses`; README, "Trust-dialog default flipped"), the
 main-request selector (the `select == "max-tools"` block), the `cc_is_subagent=true`
 billing-header marker, and the child-env strip (`spawn_claude`), whose second half names the
 knobs that carry no `CLAUDE_CODE_` prefix — `ENABLE_CLAUDEAI_MCP_SERVERS`, `ENABLE_TOOL_SEARCH`,
 `ANTHROPIC_BASE_URL` and the two `ANTHROPIC_*` tokens. `regenerate.py` excludes the
 `defer_loading` placeholder (`run_variant`). `render_capture.py` derives `prompt.md` and `tools/`
-from each `request.json` (`tests/test_snapshot_rendering.py` fails on drift). Every count in
-`README.md` and `what-the-model-gets.md` derives from these files — re-derive, don't adjust.
+from each `request.json` (`tests/test_snapshot_rendering.py` fails on drift). `capture_skills.py`
+reads the directory a body's `Base directory for this skill: ` line names (`wis`,
+`src/chunk-nh7xtj5c.js:108`) after exit, as nothing deletes it (`r7n`,
+`src/chunk-8wf3pk41.js:8048`, `"bundled-skills"`); deleted, it fails the capture; unnamed, it warns.
+Every count in `README.md` and `what-the-model-gets.md` derives from these files — re-derive,
+don't adjust.
 
 **The isolated config dir.** A stock launch against `~/.claude` rewrites `~/.claude.json`
 (`numStartups`, `cachedGrowthBookFeatures`, a `projects[<tmpdir>]` entry,
@@ -201,13 +205,10 @@ a backup per minute), refetches the changelog and model caches the running build
 appends to `history.jsonl`, and — through `ge("userSettings")`, which `--setting-sources` does not
 gate — can write `settings.json` through its symlink into the canonical checkout (the §3.1 symlink
 row). So every capture runs under `CLAUDE_CONFIG_DIR=<fresh dir>` seeded with a **copy** of
-`~/.claude.json` (it carries `migrationVersion`, onboarding and auto-mode flags and
-`oauthAccount`; a symlink would defeat the `.claude.json.lock` taken there) and a `sessions/`
-**symlink** to `~/.claude/sessions` (the proxy maps session header to pid through it;
-`capture.py` filters logs by pid), plus `CLAUDE_SECURESTORAGE_CONFIG_DIR=$HOME/.claude`
-(`HS()`, `src/chunk-pwmegksr.js:18-24`) so the `logged-in` variants' token refresh stays in the
-shared `.credentials.json`. Nothing else is seeded: `settings.json`, `skills/`, `agents/` and
-`plugins/` are user-source gated, and the user `CLAUDE.md` (`KZ("User")`,
+`~/.claude.json` and a `sessions/` **symlink** to `~/.claude/sessions`, plus
+`CLAUDE_SECURESTORAGE_CONFIG_DIR=$HOME/.claude` (`HS()`, `src/chunk-pwmegksr.js:18-24`) — why:
+the snapshot README, "How to re-capture". Nothing else is seeded: `settings.json`,
+`skills/`, `agents/` and `plugins/` are user-source gated, and the user `CLAUDE.md` (`KZ("User")`,
 `src/chunk-g83p48tw.js:23505`) reached no capture of either build. Both knobs survive `capture.py`'s `CLAUDE_CODE_*` strip. Verified under strace on
 2026-10-06: the child wrote nothing under `~/.claude` (`.credentials.json` and the user
 `CLAUDE.md` read-only); `.device-keys.json`, `state/` and the `cc-socks` socket dir never relocate.

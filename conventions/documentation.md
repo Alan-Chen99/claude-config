@@ -35,7 +35,8 @@ Prose that is always present is always paid for. Every tracked `.md` counts
 against a group in `doc-budget.toml`, grouped by how its text reaches a
 context — every request, every session, per invocation, per spawn, on demand —
 unless a `[data]` entry there declares it not guidance, though a `README.md` or
-`CLAUDE.md` counts wherever it is; design in
+`CLAUDE.md` counts wherever it is unless a capture wrote it (an entry marked
+`generated`: captured data is generated and does not count); design in
 `docs/superpowers/specs/2026-09-29-doc-budget-design.md`. Measure with
 `uv run doc-budget [path]` in the checkout you are editing — each checkout's
 venv measures its own tree: local-tokenizer tokens, what `count-tokens`

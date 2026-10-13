@@ -538,6 +538,20 @@ def spawn_claude(
     # interactive mode works.
     work_dir = tempfile.mkdtemp(prefix="capture-cwd-")
     subprocess.run(["git", "init", "-q", work_dir], capture_output=True)
+    # `.claude/` below holds only settings.local.json, and Claude Code appends
+    # `**/.claude/settings.local.json` to the user's global ignore file the
+    # first time it writes local settings in a repo (`Xor(gM("localSettings"),
+    # ...)`, src/chunk-3z4drmxy.js:3748). Whether the session's git status lists
+    # `.claude/` -- in the context block every capture records, and in the body
+    # `/security-review` builds from it -- would then follow this machine's
+    # history. A repo-local excludes file holding that one rule replaces the
+    # global file, giving the state every committed capture records.
+    excludes = Path(work_dir) / ".git" / "capture-excludes"
+    excludes.write_text("**/.claude/settings.local.json\n")
+    subprocess.run(
+        ["git", "-C", work_dir, "config", "core.excludesFile", str(excludes)],
+        check=True,
+    )
     # Opt-in, because it changes what the session sees: an unborn branch becomes
     # a repo with a commit and a remote, which a prompt or reminder can report.
     # Every committed variant capture is taken without it, so their bytes stay
