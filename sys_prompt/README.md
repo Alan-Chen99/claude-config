@@ -177,7 +177,7 @@ nothing loads the first.
 The section is the only git policy a `claude.sh` session receives, because `settings.json` turns
 the other one off. `includeGitInstructions: false` removes the Bash tool description's `# Git`
 block and, off the same gate, cc's `gitStatus` reminder; the gate's source and everything else it
-removes are the `includeGitInstructions` row of `.claude/skills/update-claude-code/SKILL.md`.
+removes are the `includeGitInstructions` row of `.claude/skills/update-claude-code/references/inventory.md`.
 `attribution.commit` and `.pr` set to `""` remove the attribution reminder by a documented key;
 the first key removes it too, but that is observed rather than documented, so both are set.
 

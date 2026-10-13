@@ -13,7 +13,7 @@
 # `RTo`, src/chunk-sye9h7es.js:259). artifact-diagramming is loaded verbatim, so
 # its copy does say what the built-in says. This checks the body the asset holds,
 # nothing else; the loader read that covers the rest is unconditional at every
-# upgrade (SKILL.md, section 4).
+# upgrade (references/still-to-check.md).
 set -uo pipefail
 A=${ASSETS:-/repos/claude-code-decompiled/assets}
 [ -d "$A" ] || { echo "decompiled assets not found: $A" >&2; exit 2; }

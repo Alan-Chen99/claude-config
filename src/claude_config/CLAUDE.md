@@ -15,7 +15,7 @@ an `agent-tools` subcommand, whose own flags print with `agent-tools <sub> -- --
 | `cc_workflow/` | Sub-agent workflow extraction and analysis | `cc-workflow-extract` |
 | `count_tokens.py`, `tokenizer_data/` | Token count for text, by the **vendored** Qwen3.8 tokenizer (default) or the Anthropic `count_tokens` API (`--api`); the two do not measure the same thing. `agent-tools/CLAUDE.md` says which to use when and how to re-vendor; never edit `tokenizer_data/` by hand, its sha256 is checked on every run | `agent-tools count-tokens` |
 | `doc_budget.py` | Every tracked `.md` against the caps in `doc-budget.toml`: resolver, report, `--print-held`, and the same-session approval gate on `CLAUDE_CODE_SESSION_ID` (unset: a warning, every approval live) | `doc-budget` |
-| `env_context/` | SessionStart hook for what cc's own env block lacks, the clock's zone and offset included. Mirrors cc algorithms — `.claude/skills/update-claude-code` §3.2 lists which | `agent-tools env-context` |
+| `env_context/` | SessionStart hook for what cc's own env block lacks, the clock's zone and offset included. Mirrors cc algorithms — `.claude/skills/update-claude-code/references/inventory.md` lists which | `agent-tools env-context` |
 | `ntfy_hook.py` | ntfy notification hook for Claude Code | `agent-tools ntfy-hook` |
 | `pre_output/record.py` | The `## Before response` step: the rule reminder, and the turn's JSON for `ntfy_hook`'s "Done" push | `agent-tools pre_output.record` |
 | `config.py` | Load the repo `.env` into `os.environ` with `override=True`, so a `.env` value wins over one already in the shell | (library — `from claude_config.config import load`) |

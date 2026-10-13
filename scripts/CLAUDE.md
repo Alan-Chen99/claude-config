@@ -34,7 +34,8 @@ and one-off probes. Each launcher's rationale is in its own comments.
   what selects Z.ai's recommended `max` (a captured request carries
   `output_config {"effort": "max"}`). It also omits the
   `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` Z.ai's own setup sets: nothing it gates
-  (`.claude/skills/update-claude-code` §3.2b) is needed to reach Z.ai. Keep both.
+  (`.claude/skills/update-claude-code/references/inventory.md`, "Unset knobs") is needed to
+  reach Z.ai. Keep both.
 - Kimi on this subscription: `k3[1m]`, `kimi-for-coding`, `k3-256k`;
   `kimi-for-coding-highspeed` answers 401 (2026-09-24).
 - Under `zai.sh`, `maxOutputTokens` and `costUSD` (so `/cost`) are cc's defaults for a
