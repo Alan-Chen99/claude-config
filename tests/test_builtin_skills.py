@@ -1,10 +1,10 @@
 """The captured built-in skill bodies must still agree with their manifest.
 
 `docs/system-prompt-snapshot/builtin-skills/` is read as a diff across a Claude
-Code release, so a body that no longer matches the hash beside it shows a delta
-nobody captured. The bodies also carry absolute paths that differ on every run;
-those are normalized at capture time, and a leaked one would show up in the diff
-of every future capture as noise that looks like a real change.
+Code release, so a body or extracted file that no longer matches the hash beside
+it shows a delta nobody captured. The bodies also carry absolute paths that
+differ on every run; those are normalized at capture time, and a leaked one would
+show up in the diff of every future capture as noise that looks like a real change.
 
 Regenerate with `docs/system-prompt-snapshot/capture_skills.py`.
 """
@@ -33,8 +33,14 @@ SHAPES = {"body", "stub", "forked", "local-exec", "unavailable", "none"}
 # replaces each; any survivor here would make every later diff noisy.
 VOLATILE = (
     re.compile(r"/bundled-skills/\d+\.\d+\.\d+/[0-9a-f]{8,}"),
-    re.compile(r"/tmp/capture-cwd-\w+"),
+    re.compile(r"capture-cwd-\w+"),
     re.compile(r"/tmp/claude-\d+/"),
+    re.compile(r"/dev-mods/(?!<session-id>)"),
+)
+
+# What each skill's extraction directory held, mirrored under builtin-skills/<name>/.
+BUNDLE_FILES = (
+    sorted(p for p in SKILLS_DIR.glob("*/**/*") if p.is_file()) if SKILLS_DIR.is_dir() else []
 )
 
 
@@ -97,9 +103,56 @@ def test_body_matches_manifest(name: str) -> None:
     )
 
 
-@pytest.mark.parametrize("path", sorted(SKILLS_DIR.glob("*.md")) if SKILLS_DIR.is_dir() else [])
+def _with_files() -> dict[str, dict]:
+    return {n: e["files"] for n, e in _manifest()["skills"].items() if e.get("files")}
+
+
+@pytest.mark.parametrize("name", sorted(_with_files()) if MANIFEST.exists() else [])
+def test_bundle_files_match_manifest(name: str) -> None:
+    files = _with_files()[name]
+    root = SKILLS_DIR / name
+    on_disk = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+    assert on_disk == sorted(files), f"{name}/ and its manifest entry list different files"
+    for rel, meta in files.items():
+        data = (root / rel).read_bytes()
+        assert len(data) == meta["bytes"], f"{name}/{rel}: size differs from the manifest"
+        assert hashlib.sha256(data).hexdigest() == meta["sha256"], (
+            f"{name}/{rel} no longer matches its manifest hash"
+        )
+
+
+def test_every_bundle_directory_belongs_to_a_skill_with_files() -> None:
+    """A directory left behind by a skill that no longer ships files, or by one
+    the roster dropped, would read as files the release still ships."""
+    dirs = {p.name for p in SKILLS_DIR.iterdir() if p.is_dir()}
+    assert dirs == set(_with_files())
+
+
+@pytest.mark.parametrize(
+    "name",
+    sorted(n for n, e in _manifest()["skills"].items() if e.get("chars"))
+    if MANIFEST.exists() else [],
+)
+def test_every_file_a_body_names_was_captured(name: str) -> None:
+    """The body opens with the base-directory line exactly when files were
+    extracted, and every path it names under that directory is one of them."""
+    text = (SKILLS_DIR / f"{name}.md").read_text(encoding="utf-8")
+    files = _with_files().get(name, {})
+    opens = text.startswith("Base directory for this skill: <bundled-skills-dir>\n")
+    assert opens == bool(files), (
+        f"{name}: base-directory line {'present' if opens else 'absent'} but "
+        f"{len(files)} extracted files recorded"
+    )
+    missing = _capture_skills()._unresolved_refs(text, files)
+    assert not missing, f"{name} names {missing} under its base directory, not captured"
+
+
+@pytest.mark.parametrize(
+    "path",
+    (sorted(SKILLS_DIR.glob("*.md")) if SKILLS_DIR.is_dir() else []) + BUNDLE_FILES,
+)
 def test_no_volatile_paths_survive(path: Path) -> None:
-    text = path.read_text()
+    text = path.read_bytes().decode("utf-8")
     for pattern in VOLATILE:
         assert not pattern.search(text), (
             f"{path.name} still carries a per-run path matching {pattern.pattern}; "
@@ -126,19 +179,54 @@ def test_no_harness_text_captured_as_a_body(path: Path) -> None:
     )
 
 
-def test_normalize_replaces_a_real_extraction_path() -> None:
+def test_normalize_keeps_what_follows_each_replaced_value(tmp_path, monkeypatch) -> None:
     """Staged rather than asserted against a capture that may not contain one.
 
-    Only skills shipping resource files get a `Base directory` line, so a
-    regression here is invisible on a run where none of them were captured.
+    The values are those of a real 2.1.289 `plugin-authoring` capture: its
+    extraction directory, and a config directory made inside the capturing
+    session's scratchpad, which the body names with the child's session id.
+    Every one sits under a temp root, so a rewrite by path shape would turn each
+    into one bare placeholder and lose which file a line means.
     """
     module = _capture_skills()
-    raw = (
-        "Base directory for this skill: "
-        "/tmp/claude-0/bundled-skills/2.1.269/8b5b3624970e774f049f2f106391de3f/claude-api\n\n"
-        "# Body\n"
+    base = "/tmp/claude-0/bundled-skills/2.1.289/8c0c0e8a5cd992e177fe3bb5860247af/plugin-authoring"
+    cfg = ("/root/.claude/tmp/claude-0/-root-claude-config-work/"
+           "bba96906-cd9d-486f-8f22-e925749fcfff/scratchpad/cc-config-2.1.289")
+    sid = "2572ede1-6d59-4c47-9a85-3dddb122ec12"
+    cwd = "/tmp/capture-cwd-c80skwui"
+    body = (
+        f"Base directory for this skill: {base}\n\n"
+        f"Write each mod in its own child folder of `{cfg}/dev-mods/{sid}`.\n"
+        f"Shown in `{base}/examples/pane.tsx`; the long form is {base}/reference.md.\n"
+        f"The working directory is {cwd}.\n"
     )
-    text, changed = module._normalize(raw)
+    log = tmp_path / "0001.json"
+    log.write_text(json.dumps({"session": {"session_id": sid, "cwd": cwd}}))
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", cfg)
+    text, changed = module._normalize(body, module._placeholders(body, [log]))
     assert changed
-    assert "<bundled-skills-dir>" in text
-    assert "8b5b3624" not in text
+    assert text == (
+        "Base directory for this skill: <bundled-skills-dir>\n\n"
+        "Write each mod in its own child folder of `<config-dir>/dev-mods/<session-id>`.\n"
+        "Shown in `<bundled-skills-dir>/examples/pane.tsx`; the long form is "
+        "<bundled-skills-dir>/reference.md.\n"
+        "The working directory is <cwd>.\n"
+    )
+    assert module._unresolved_refs(text, {"examples/pane.tsx": b"", "reference.md": b""}) == []
+    assert module._unresolved_refs(text, {"reference.md": b""}) == ["examples/pane.tsx"]
+
+
+def test_normalize_replaces_a_path_only_where_a_path_segment_ends() -> None:
+    """The default config directory is a prefix of the global config file's
+    name; a session id names a transcript file by itself."""
+    module = _capture_skills()
+    sid = "2572ede1-6d59-4c47-9a85-3dddb122ec12"
+    text, _ = module._normalize(
+        "/root/.claude/settings.json, /root/.claude.json, /root/.claude-x and "
+        f"/root/.claude. Transcript: {sid}.jsonl",
+        {"/root/.claude": "<config-dir>", sid: "<session-id>"},
+    )
+    assert text == (
+        "<config-dir>/settings.json, /root/.claude.json, /root/.claude-x and "
+        "<config-dir>. Transcript: <session-id>.jsonl"
+    )

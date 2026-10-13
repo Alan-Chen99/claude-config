@@ -6,7 +6,8 @@
 with the worktree's own venv, measures that worktree.
 
 Every tracked `.md` counts against exactly one group unless a `[data]` entry
-covers it -- and a README.md or CLAUDE.md counts wherever it is. Groups follow
+covers it -- and a README.md or CLAUDE.md counts wherever it is, except under
+an entry marked `generated`, whose files a capture wrote. Groups follow
 the mechanism that loads a file, not the directory it sits in; the registry's
 header states the grammar and `conventions/documentation.md` the policy: over
 cap, cut that group to 80% of cap in the same change.
@@ -40,7 +41,7 @@ FILE_CLASSES = ("claude-md", "skill-bodies", "agent-bodies")
 APPROVED = re.compile(r"(user:)?[0-9a-f]{8}")
 TOP_KEYS = frozenset({"cut_to", "default_cap", "groups", "data", "held"})
 GROUP_KEYS = frozenset({"cap", "loaded", "per_file", "one_of", "derived", "residual", "approved", "why"})
-DATA_KEYS = frozenset({"paths", "approved", "why"})
+DATA_KEYS = frozenset({"paths", "approved", "why", "generated"})
 HELD_KEYS = frozenset({"approved", "why", "files"})
 
 _EPILOG = """\
@@ -197,6 +198,8 @@ def load_registry(path: Path) -> dict[str, Any]:
                 or not all(isinstance(p, str) for p in d["paths"])):
             raise RegistryError(
                 f"data {name!r}: `paths` must be a non-empty list of strings")
+        if not isinstance(d.get("generated", False), bool):
+            raise RegistryError(f"data {name!r}: `generated` must be true or false")
         _approved(d, f"data {name!r}")
     if "held" in reg:
         held = _table(reg["held"], "held")
@@ -270,6 +273,8 @@ class Resolver:
         self.data: list[tuple[str, str]] = [
             (n, p) for n, d in self.reg.get("data", {}).items()
             if self.live(d["approved"]) for p in d["paths"]]
+        self.generated: set[str] = {
+            n for n, d in self.reg.get("data", {}).items() if d.get("generated")}
         self._check()
 
     def live(self, approved: str) -> bool:
@@ -285,8 +290,11 @@ class Resolver:
         for dn, d in self.reg.get("data", {}).items():
             for p in d["paths"]:
                 if not any(covering(p, f) for f in self.files
-                           if PurePosixPath(f).name not in INDEX_NAMES):
+                           if dn in self.generated
+                           or PurePosixPath(f).name not in INDEX_NAMES):
                     raise RegistryError(
+                        f"data {dn!r}: {p!r} covers no tracked file"
+                        if dn in self.generated else
                         f"data {dn!r}: {p!r} covers no countable file "
                         "(README.md and CLAUDE.md count wherever they are)")
         for f, size in self.reg.get("held", {}).get("files", {}).items():
@@ -347,10 +355,17 @@ class Resolver:
         return None
 
     def data_of(self, f: str) -> str | None:
-        """The live data entry covering `f`, or None; an index file is never data."""
-        if PurePosixPath(f).name in INDEX_NAMES:
-            return None
-        return next((n for n, p in self.data if covering(p, f)), None)
+        """The live data entry covering `f` by the longest path, or None.
+
+        An index file is data only under a `generated` entry: a README.md that
+        a capture wrote is the capture's payload, not this repo's directory doc.
+        The longest path wins so a generated entry nested inside a broader one
+        lists every file it covers, not only the index files the broader one
+        cannot take."""
+        index = PurePosixPath(f).name in INDEX_NAMES
+        hits = [(len(pre), n) for n, p in self.data
+                if (pre := covering(p, f)) and (n in self.generated or not index)]
+        return max(hits)[1] if hits else None
 
     def by_class(self, f: str) -> tuple[str, int]:
         """Where `f` falls with nothing naming it: its derived class, each file

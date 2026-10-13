@@ -8,8 +8,9 @@
 # about 1.5x this on prose; the backends never reconcile.
 #
 # A file's group, first match wins: a group named with its path ([held.files]
-# included); a [data] path covering it -- listed, never counted, except that a
-# README.md or CLAUDE.md counts wherever it is; its derived class; the longest
+# included); a [data] path covering it, the longest when two do -- listed, never
+# counted, except that a README.md or CLAUDE.md counts wherever it is unless the
+# entry sets `generated` (a capture wrote it); its derived class; the longest
 # path group, a literal name over a placeholder on a tie; the residual.
 # `one_of` claims its files ahead of all of this and pays the largest member.
 # `per_file` makes each file its own group at the group's cap; `<name>` stands
@@ -228,6 +229,12 @@ cap = 12000
 paths = ["docs/system-prompt-snapshot/<model>"]
 approved = "user:834203fa"
 why = "Regenerated captures of Claude Code's own prompt and skills; a cap cannot shrink what a capture returns."
+
+[data.bundled-skill-files]
+paths = ["docs/system-prompt-snapshot/builtin-skills/<skill>"]
+generated = true
+approved = "user:8366a41d"
+why = "The files Claude Code extracts beside a built-in skill, copied verbatim by capture_skills.py. Captured data is generated and does not count, so the README.md files among them (13 in claude-api) are payload, not this repo's directory docs."
 
 [data.papers]
 paths = ["skills/prompt-engineer/papers"]

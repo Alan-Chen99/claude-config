@@ -35,9 +35,10 @@ what the aliases capture; `opus-5/` and `sonnet-5/` are the explicit ids. `claud
 | `<model-id>/<variant>/tools/<Name>.md` | One tool definition each — attributes, description, input schema |
 | `<model-id>/<variant>/summary.json` | Block count, token counts, tool inventory, `tools_server` |
 | `builtin-skills/<name>.md` | What invoking that built-in skill injects. Shared across models: bodies byte-identical on opus-5 and sonnet-5 |
-| `builtin-skills/manifest.json` | Per skill: delivery shape, which route reached it, size, sha256 |
+| `builtin-skills/<name>/` | The files that skill extracts for the model to read |
+| `builtin-skills/manifest.json` | Per skill: delivery shape, which route reached it, size, sha256; the same per file |
 | `capture.py` | Captures one variant via pty + MITM proxy |
-| `capture_skills.py` | Captures every built-in skill's body into `builtin-skills/` |
+| `capture_skills.py` | Captures every built-in skill's body and files into `builtin-skills/` |
 | `regenerate.py` | Drives `capture.py` across every variant, writes `summary.json` |
 | `render_capture.py` | Renders `prompt.md` and `tools/` from a `request.json`; `--tree <root>` does a whole directory |
 | `scripts/intercept/` — repo root | MITM proxy for API call logging |
@@ -68,7 +69,7 @@ live directory.
 |---|---|
 | The 19 deferred tools' descriptions and schemas — the reminder lists their names, and `tools/` holds one `DeferredToolPlaceholder` stub | `<model-id>/tool-search-loaded/tools/` |
 | The Chrome and claude.ai connector tools entirely — `default` does not even list their names | `opus-5/logged-in-tool-search-loaded/tools/` |
-| The 17 built-in skills' bodies — the reminder carries each name and description, never the text an invocation injects | `builtin-skills/` |
+| The 17 built-in skills' bodies — the reminder carries each name and description, never the text an invocation injects — and the files five extract | `builtin-skills/` |
 
 The deferred half works because `ToolSearch` does not do what its own description says: it
 advertises a `<functions>` block, and no such block exists anywhere in the binary except that
@@ -158,17 +159,14 @@ memory line. Committed as captured.
 ### Built-in skill captures
 
 `builtin-skills/` holds what invoking each of the 17 built-in skills injects on 2.1.289
-(sonnet-5, 2026-10-06), 533,266 characters in all; the per-skill table is in
-`builtin-skills/README.md`. The 2.1.289 listing drops `design` and adds `plugin-authoring`;
-`capture_skills.py` prunes a dropped skill's entry and body on a full-roster run. Three
-conditions change the result: interactive rather than `-p`, or the skills gated on `Artifact`
-are unreachable; `--setting-sources project,local`, or `code-review` degrades to a stub; a
-resolvable `origin/HEAD`, or `/security-review` — whose prompt interpolates
-`` !`git diff origin/HEAD...` `` — injects nothing at all. Each failure produces a plausible
-short body rather than an error, so `capture_skills.py` refuses to write a body opening with
-harness text and `tests/test_builtin_skills.py` checks the committed files for the same thing:
-the first run wrote cc's type-ahead suggester prompt into two files and a bare system reminder
-into a third.
+(sonnet-5, 2026-10-12), 533,724 characters in all, and the 114 files five of them extract;
+the per-skill table, the extraction and the three capture conditions that change the result
+are in `builtin-skills/README.md`. The 2.1.289 listing drops `design` and adds
+`plugin-authoring`; `capture_skills.py` prunes a dropped skill's entry, body and files on a
+full-roster run. A wrong condition produces a plausible short body rather than an error, so
+`capture_skills.py` refuses to write a body opening with harness text and
+`tests/test_builtin_skills.py` checks the committed files for the same thing: the first run
+wrote cc's type-ahead suggester prompt into two files and a bare system reminder into a third.
 
 ### Subagent captures
 

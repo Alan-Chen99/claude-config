@@ -106,6 +106,52 @@ why = "captured"
     assert row(1, 100, 80, "infra") in out
 
 
+def test_a_generated_entry_takes_the_index_files_a_capture_wrote(tmp_path, capsys):
+    """A capture's README.md is its payload: under a `generated` entry it is data,
+    and that entry lists every file it covers even inside a broader plain entry,
+    whose own index file still counts."""
+    root = repo(tmp_path, {
+        "snap/README.md": w(5),               # this repo's doc: counts
+        "snap/body.md": w(3),                 # plain data
+        "snap/bundle/a/README.md": w(500),    # captured: data
+        "snap/bundle/a/CLAUDE.md": w(400),    # captured: data
+        "snap/bundle/a/ref.md": w(7),         # captured: the nested entry's, by length
+    }, BASE + """
+[groups.snap]
+loaded = "on demand"
+cap = 10
+
+[data.snapshots]
+paths = ["snap"]
+approved = "user:aaaaaaaa"
+why = "captured"
+
+[data.bundles]
+paths = ["snap/bundle/<skill>"]
+generated = true
+approved = "user:aaaaaaaa"
+why = "captured verbatim"
+""")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 0, out
+    assert row(5, 10, 8, "snap") in out
+    assert f"{1:5d} files {3:10,d}  snapshots: snap" in out
+    assert f"{3:5d} files {907:10,d}  bundles: snap/bundle/<skill>" in out
+
+
+def test_a_generated_entry_may_cover_only_index_files(tmp_path, capsys):
+    root = repo(tmp_path, {"cap/README.md": w(500), "k.md": w(1)}, BASE + """
+[data.cap]
+paths = ["cap"]
+generated = true
+approved = "user:aaaaaaaa"
+why = "captured"
+""")
+    code, out, _ = run(root, capsys=capsys)
+    assert code == 0, out
+    assert f"{1:5d} files {500:10,d}  cap: cap" in out
+
+
 def test_a_placeholder_makes_each_match_its_own_group_and_a_literal_wins_a_tie(tmp_path, capsys):
     root = repo(tmp_path, {
         "skills/x/a.md": w(3),
@@ -266,6 +312,8 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
     (BASE + "\n[data.d]\npaths = ['nowhere']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "covers no countable file"),
     (BASE + "\n[data.d]\npaths = ['i']\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n",
      "covers no countable file (README.md and CLAUDE.md count wherever they are)"),
+    (BASE + "\n[data.d]\npaths = ['nowhere']\ngenerated = true\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n",
+     "data 'd': 'nowhere' covers no tracked file"),
     (BASE + "\n[groups.nowhere]\nloaded = 'a'\n", "covers no tracked file"),
     (BASE + "\n[held]\napproved = 'user:aaaaaaaa'\n[held.files]\n'gone.md' = 9\n", "not a tracked .md file"),
     (BASE + "\n[held]\napproved = 'user:aaaaaaaa'\n[held.files]\n'x/a.md' = 100\n", "not above its class cap"),
@@ -277,6 +325,8 @@ def test_an_unset_session_warns_and_treats_every_approval_as_live(tmp_path, caps
     ("cut_to = 0.8\ndefault_cap = 100\ngroups = 3\n", "groups: must be a table"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 'big'\n", "`cap` must be a positive integer"),
     (BASE + "\n[data.d]\npaths = 'x'\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n", "`paths` must be a non-empty list of strings"),
+    (BASE + "\n[data.d]\npaths = ['x']\ngenerated = 'yes'\napproved = 'user:aaaaaaaa'\nwhy = 'w'\n",
+     "`generated` must be true or false"),
     (BASE + "\n[groups.x]\nloaded = 'a'\ncap = 4\n[groups.\"x/a.md\"]\nloaded = 'a'\n", "inherits `default_cap` 100, above 4"),
     (BASE + "\n[groups.x]\nloaded = 'a'\none_of = 5\n", "must be a string carrying a <name> placeholder"),
     (BASE + "\n[groups.oc]\nloaded = 'a'\none_of = 'x/<n>.md'\n[held]\napproved = 'user:aaaaaaaa'\n"

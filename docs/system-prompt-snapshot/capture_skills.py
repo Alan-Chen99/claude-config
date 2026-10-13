@@ -17,9 +17,17 @@ either route is recorded with the reason rather than an empty file -- a forked
 skill runs as a background agent, an entitlement-gated one substitutes a stub,
 and both are facts about the release worth keeping.
 
+A skill that ships files has them written to a per-process directory as it is
+invoked, and its body opens by naming that directory. Those files are read off
+the disk after the session and kept beside the body: they are what the body
+tells the model to read.
+
 Output:
     builtin-skills/<name>.md    the delivered text, volatile paths normalized
-    builtin-skills/manifest.json  shape, size, sha256 and route per skill
+    builtin-skills/<name>/      the files Claude Code extracted for it, verbatim
+                                but for the same normalization
+    builtin-skills/manifest.json  shape, size, sha256 and route per skill, and
+                                size and sha256 per extracted file
 
 Usage:
     ./capture_skills.py                      # every built-in skill
@@ -32,7 +40,9 @@ Prerequisites: the same credentials and MITM proxy capture.py needs.
 
 import hashlib
 import json
+import os
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -126,24 +136,99 @@ def builtin_skill_names(request_path: Path) -> list[str]:
     )
 
 
-def _normalize(text: str) -> tuple[str, bool]:
-    """Replace per-run paths so the same release renders the same bytes.
+# The line Claude Code prefixes to the body of a skill that ships files, naming
+# the directory it has just written them to (`wis`, src/chunk-nh7xtj5c.js:108):
+# `<tmp>/claude-<uid>/bundled-skills/<version>/<random hex per process>/<name>`.
+# Absent when the write failed, which Claude Code only logs.
+_BASE_DIR_LINE = re.compile(r"^Base directory for this skill: (\S+)$", re.MULTILINE)
 
-    A skill shipping resource files is extracted to
-    `<tmp>/bundled-skills/<version>/<random hex>/<name>` and told to the model as
-    an absolute path, so its body differs on every capture in a way that has
-    nothing to do with the release.
+# A path the normalized body names under that directory.
+_DIR_REF = re.compile(r"<bundled-skills-dir>/([^\s`'\"()<>\[\]]+)")
+
+
+def _placeholders(body: str | None, log_files: list[Path]) -> dict[str, str]:
+    """This run's own values, each mapped to the placeholder that stands for it.
+
+    Each differs between two captures of one release for a reason that has
+    nothing to do with the release: the extraction directory carries a random
+    hex per process, the child's session id and working directory are fresh per
+    run, and the config directory is wherever the operator put it --
+    `plugin-authoring` names `<config dir>/dev-mods/<session id>`. Replacing the
+    exact values rather than path shapes keeps whatever follows them, so a body's
+    `<bundled-skills-dir>/examples/pane.tsx` still says which file it means.
     """
-    subs = (
-        (re.compile(r"(?<=Base directory for this skill: )\S+"), "<bundled-skills-dir>"),
-        (re.compile(r"/tmp/capture-cwd-\w+"), "<cwd>"),
-        (re.compile(r"/tmp/claude-\d+/[^\s`'\"]+"), "<scratchpad>"),
-    )
+    values: dict[str, str] = {}
+    base = _BASE_DIR_LINE.search(body or "")
+    if base:
+        values[base.group(1)] = "<bundled-skills-dir>"
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR") or str(Path.home() / ".claude")
+    values[os.path.normpath(config_dir)] = "<config-dir>"
+    for log_path in log_files:
+        session = json.loads(log_path.read_text()).get("session") or {}
+        if session.get("session_id"):
+            values[session["session_id"]] = "<session-id>"
+        if session.get("cwd"):
+            values[session["cwd"]] = "<cwd>"
+    return values
+
+
+def _normalize(text: str, values: dict[str, str]) -> tuple[str, bool]:
+    """Replace each of `values` with its placeholder, longest value first.
+
+    Longest first because one value can hold another: a config directory made
+    inside a session's scratchpad holds that session's id. A path must end
+    where a path segment does, so the config directory `/root/.claude` leaves
+    `/root/.claude.json` alone while a sentence's closing full stop still ends
+    it; a session id is replaced wherever it occurs, `<id>.jsonl` included.
+    """
     changed = False
-    for pattern, replacement in subs:
-        text, n = pattern.subn(replacement, text)
+    for value in sorted(values, key=len, reverse=True):
+        placeholder = values[value]
+        end = r"(?![\w-])(?!\.\w)" if value.startswith("/") else ""
+        pattern = re.compile(re.escape(value) + end)
+        text, n = pattern.subn(lambda _m: placeholder, text)
         changed = changed or bool(n)
     return text, changed
+
+
+def _bundled_files(base_dir: str) -> dict[str, bytes]:
+    """Every file under a skill's extraction directory, keyed by relative path.
+
+    Read off the disk after the session: Claude Code writes the directory as
+    the skill is invoked and nothing removes it at exit (`r7n`,
+    `src/chunk-8wf3pk41.js:8048`, `"bundled-skills"`; writer `IJn`,
+    `src/chunk-nh7xtj5c.js:38`, which also refuses symlinks with `O_NOFOLLOW`).
+    """
+    root = Path(base_dir)
+    if not root.is_dir():
+        raise RuntimeError(
+            f"the body names {root} as its base directory and it does not exist: "
+            "Claude Code no longer leaves the extraction directory behind, so its "
+            "files cannot be read after the session."
+        )
+    files: dict[str, bytes] = {}
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink() or not (path.is_dir() or path.is_file()):
+            raise RuntimeError(f"{path}: not a regular file or directory")
+        if path.is_file():
+            files[path.relative_to(root).as_posix()] = path.read_bytes()
+    if not files:
+        # The base-directory line is emitted only after a write of at least one
+        # file succeeded (`R`, src/chunk-nh7xtj5c.js:193).
+        raise RuntimeError(f"{root} names no file although the body says it does")
+    return files
+
+
+def _unresolved_refs(body: str, files: dict) -> list[str]:
+    """Paths the normalized body names under `<bundled-skills-dir>` that no
+    captured file is or contains."""
+    missing = []
+    for m in _DIR_REF.finditer(body):
+        ref = m.group(1).rstrip(".,:;")
+        prefix = ref if ref.endswith("/") else ref + "/"
+        if ref not in files and not any(f.startswith(prefix) for f in files):
+            missing.append(ref)
+    return missing
 
 
 def _texts_from_requests(log_files: list[Path]) -> tuple[list[str], list[str]]:
@@ -246,7 +331,26 @@ def capture_one(name: str, model: str, route: str) -> dict:
                 "so it is harness text rather than the skill. Refusing to write it."
             )
     shape, note = _classify(body, wrappers)
-    return {"body": body, "shape": shape, "note": note, "route": route}
+
+    values = _placeholders(body, log_files)
+    base = _BASE_DIR_LINE.search(body or "")
+    files: dict[str, tuple[bytes, bool]] = {}
+    for rel, raw in (_bundled_files(base.group(1)) if base else {}).items():
+        text, changed = _normalize(raw.decode("utf-8"), values)
+        files[rel] = (text.encode("utf-8"), changed)
+    normalized = False
+    if body is not None:
+        body, normalized = _normalize(body, values)
+        # A file the body tells the model to read and the capture does not hold
+        # would commit a body pointing at nothing.
+        missing = _unresolved_refs(body, files)
+        if missing:
+            raise RuntimeError(
+                f"/{name} via {route}: the body names {', '.join(missing)} under its "
+                "base directory and no extracted file is there."
+            )
+    return {"body": body, "normalized": normalized, "files": files,
+            "shape": shape, "note": note, "route": route}
 
 
 def capture_skill(name: str, model: str) -> dict:
@@ -329,6 +433,8 @@ def main() -> None:
         for stale in sorted(set(manifest["skills"]) - set(names)):
             del manifest["skills"][stale]
             (OUT_DIR / f"{stale}.md").unlink(missing_ok=True)
+            if (OUT_DIR / stale).is_dir():
+                shutil.rmtree(OUT_DIR / stale)
             print(f"pruned {stale}: no longer in the roster", flush=True)
 
     failures = []
@@ -352,15 +458,44 @@ def main() -> None:
             (OUT_DIR / f"{name}.md").unlink(missing_ok=True)
             entry["chars"] = 0
         else:
-            text, normalized = _normalize(result["body"])
-            (OUT_DIR / f"{name}.md").write_text(text)
+            text = result["body"]
+            (OUT_DIR / f"{name}.md").write_text(text, encoding="utf-8")
             entry["chars"] = len(text)
             entry["sha256"] = hashlib.sha256(text.encode()).hexdigest()
-            if normalized:
+            if result["normalized"]:
                 entry["normalized_paths"] = True
+
+        # Rewritten whole, so a file the release stopped shipping goes too.
+        files_dir = OUT_DIR / name
+        if files_dir.is_dir():
+            shutil.rmtree(files_dir)
+        if result["files"]:
+            entry["files"] = {}
+            for rel, (data, changed) in result["files"].items():
+                (files_dir / rel).parent.mkdir(parents=True, exist_ok=True)
+                (files_dir / rel).write_bytes(data)
+                entry["files"][rel] = {
+                    "bytes": len(data),
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                }
+                if changed:
+                    entry["files"][rel]["normalized_paths"] = True
+        # Losing every file reads in the diff as the release dropping them, and
+        # it can also be a failed write or, for artifact-capabilities, a failed
+        # fetch of its type definitions -- which Claude Code only logs.
+        before = manifest["skills"].get(name, {}).get("files", {})
+        if before and not result["files"]:
+            print(
+                f"    WARNING: {name} shipped {len(before)} files in the last "
+                "capture and none in this one; check that the release dropped "
+                "them before committing.",
+                file=sys.stderr,
+            )
 
         manifest["skills"][name] = entry
         detail = f"{entry['chars']:,} chars" if entry["chars"] else result["note"]
+        if result["files"]:
+            detail += f", {len(result['files'])} files"
         print(f"    {result['shape']:<12} via {result['route']:<5}  {detail}")
 
     manifest["skills"] = dict(sorted(manifest["skills"].items()))

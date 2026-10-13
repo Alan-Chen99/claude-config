@@ -33,9 +33,10 @@ model id, not per version, and
 [no two of the five captured models receive the same one](docs/system-prompt-snapshot/what-the-model-gets.md)
 — opus-4-7 and sonnet-5 get the long-form body (8,702 and 8,745 system tokens),
 opus-5, fable-5 and opus-4-8 the compressed `# Harness` body (3,252, 3,556 and
-2,266). The 17 built-in skills' bodies, which no ordinary capture records, are
-captured separately ([`builtin-skills/`](docs/system-prompt-snapshot/builtin-skills/README.md),
-512,397 characters). The proxy logs bodies only, never headers; it had to be
+2,266). The 17 built-in skills' bodies and the files five of them extract, which
+no ordinary capture records, are captured separately
+([`builtin-skills/`](docs/system-prompt-snapshot/builtin-skills/README.md),
+533,724 characters and 114 files on 2.1.289). The proxy logs bodies only, never headers; it had to be
 taught pass-through streaming, because mitmproxy's default buffering withholds
 response headers past Claude Code's first-byte watchdog
 ([`notes/intercept-proxy-response-buffering.md`](notes/intercept-proxy-response-buffering.md),
