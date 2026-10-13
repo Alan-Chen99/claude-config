@@ -77,9 +77,10 @@ cap = 2000
 [groups."skills/telegram-hitl/SKILL.md"]
 cap = 1000
 
-# Loaded after every compaction, the system prompt naming it. 200 is the user's
-# cap (2026-10-12), set at the file's size: the body is the two commands and
-# what to recover, and growth is a request to the user, not a cut.
+# Loaded after every compaction: the SessionStart hook renders the body and the
+# system prompt names the skill. 400 is the user's cap (2026-10-12, up from 200
+# when the body took the rules for reading a summary), set at the file's size:
+# growth is a request to the user, not a cut.
 [groups."skills/resume-from-summary/SKILL.md"]
 cap = 400
 approved = "user:95e6d4cf"
