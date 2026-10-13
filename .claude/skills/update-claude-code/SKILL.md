@@ -236,6 +236,23 @@ a new gap rather than leaving it in a session transcript.
   against it, the plugin API is EARLY ACCESS and it trades one settings key for a plugin. Decide,
   or record the decision not to.
 
+**A decision held on a Claude Code defect**
+- `skills/resume-from-summary` keeps its override of the summary's closing order (`LY()`,
+  `src/chunk-wgfrtm7w.js:74256`; the sentence `as if the break never happened` at `:74273`). No
+  setting or settings hook reaches the order; a mod reaches it in most compactions — measured
+  2026-10-12 on 2.1.289 (session `c8997157`): a `session.append` hook on door `compaction` rewrites
+  it in every autocompact, interactive and `-p`, and in a `-p` `/compact`, stored and model-visible.
+  An interactive `/compact` dispatches no `session.append`, against the bundled reference
+  (`a compaction's boundary and summary`, `assets/reference-a3dfe203.md:109`); only a
+  `session.compact` hook reaches it, by returning the summary rebuilt without its `handle`, which
+  drops `isCompactSummary`. That gap and the plugin API's `EARLY ACCESS`
+  (`assets/claude-code.d.ts-30639c1e.txt:3`) are why the user keeps the override. Re-check each
+  upgrade: run `claude --setting-sources project,local --plugin-dir <mod>` interactively in a pty,
+  the mod logging `session.append` by door, under `CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1` (a
+  nested session saves no transcript without it; a stock launch puts the prompts in
+  `history.jsonl`), and send a prompt, then `/compact`. Once that `/compact` reaches
+  `session.append` and the API leaves early access, put the decision back to the user.
+
 **Measurements the source cannot settle**
 - `hook_post.rs`'s 18,611-character "arrived whole" measurement (2.1.269) against the
   10,000-character persistence ceiling both builds carry (§3.1 `REPORT_BUDGET`). Retire with a
