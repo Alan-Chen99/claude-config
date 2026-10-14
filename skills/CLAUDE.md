@@ -27,6 +27,7 @@ dispatch-prompt patterns and the anti-patterns.
 | `leon-writing-style/` | Style-matched content generation          | Writing content matching user's style    |
 | `alan-coding-style/`  | Style-matched code generation and review  | Coding matching user's conventions       |
 | `alan-writing-style/` | Write, rewrite or check text as Alan; `samples/` is maintenance data | Text in Alan's voice, only when invoked |
+| `adhd-explain/`       | Shapes an explanation Alan asked for, for a reader with ADHD; adapted from `ayghri/i-have-adhd` (MIT); autoloads on its description | Answering an explain-X question; changing its rules or scope |
 | `copy-writing-style/` | Style-matched generation from any reference file | Writing in any reference style           |
 | `arxiv-to-md/`        | arXiv paper to markdown conversion        | Converting papers for LLM consumption    |
 | `cc-history/`         | Claude Code conversation history analysis | Querying past conversations, token usage |
