@@ -43,6 +43,11 @@ the tested-agent transcript shows any of:
   a case name in it: a settings file, a log, a marker. An agent lists its working
   directory before it starts and reports what it found. Keep harness plumbing
   outside the cwd and give it a path that does not say *prompt test*.
+- **a byproduct of running the fixture's code where it lives** —
+  `__pycache__/`, `.pytest_cache/`, build output — which the copy ships. A
+  `.pyc` embeds the absolute path of the source it was compiled from; observed
+  2026-10-13, a tested agent read a probe's directory name out of one. Run
+  fixture code only in a copy.
 - **the command line**, which `--hide-cmdline` does not cover. It hides the
   wrapper's argv; the wrapped command is its own process and its
   `/proc/<pid>/cmdline` still spells out the case name and the arm, where a peer
