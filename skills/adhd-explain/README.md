@@ -78,7 +78,7 @@ Tasks, verbatim:
 | B | without | - | 324 | 19.2k | $0.66 |
 | B | with | first step | 615 | 51.3k | $1.62 |
 | C | without | - | 984 | 31.6k | $1.06 |
-| C | with | first step | none: the account's session limit (HTTP 429) ended the run before its answer | | |
+| C | with | first step | none: the account's session limit (HTTP 429) ended the run before its answer | 57.8k | $1.92 |
 | D | without | - | 235 | | $0.55 |
 | D | with | no | 214 | | $0.50 |
 | D-why | with | no | 173 | | $0.72 |
