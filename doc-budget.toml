@@ -86,6 +86,12 @@ cap = 1000
 cap = 400
 approved = "user:95e6d4cf"
 
+# 2,000 is the user's cap (2026-10-14): the skill-bodies cap, pinned to the
+# file so a later change to the class cap does not move it.
+[groups."skills/prompt-engineer-v2/SKILL.md"]
+cap = 2000
+approved = "user:c6130d54"
+
 # agents/*.md, each its own group; a spawn is an invocation, so the skill-body
 # cap.  The three held bodies share one precedence table and one
 # Missing-documentation block verbatim.
