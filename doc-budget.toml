@@ -320,7 +320,6 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "docs/opencode-system-prompt/min-commentary.md" = 6851
 "plans/planner-lite.md" = 6871
 "docs/superpowers/specs/2026-08-29-agent-tools-run-background-ps-design.md" = 6689
-"docs/superpowers/specs/2026-09-12-telegram-hitl-design.md" = 6575
 "skills/opencode-subcommand/SKILL.md" = 6534
 "plans/alan-style-reference-gating.md" = 5865
 "skills/session-analysis/SKILL.md" = 5739
