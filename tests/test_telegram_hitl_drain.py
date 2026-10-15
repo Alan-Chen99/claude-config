@@ -97,6 +97,43 @@ def test_updates_are_appended_and_the_offset_advances(tmp_path, fake_telegram) -
     assert fake_telegram.requests[1].payload["offset"] == 43
 
 
+def test_every_update_type_reaches_the_log(tmp_path, fake_telegram) -> None:
+    """Telegram keeps the update list the token's last poller named and drops an
+    unlisted update as it happens. This bot was found holding ["message",
+    "callback_query"], so no human reaction or edit ever reached the log. The
+    fake drops the same way and falls back to that list on any poll naming none
+    — another poller can narrow it between two polls — so only a full list named
+    on every poll records every update."""
+    log_path = tmp_path / "channel.jsonl"
+    log = ChannelLog(log_path)
+    kinds = ["message", "edited_message", "callback_query", "message_reaction",
+             "message_reaction_count", "my_chat_member", "chat_member"]
+    upcoming = list(enumerate(kinds, start=60))
+    held: list[dict] = []
+
+    def answer(recorded) -> tuple[int, bytes]:
+        listed = recorded.payload.get("allowed_updates", ["message", "callback_query"])
+        if upcoming:                    # the human does one thing per poll
+            update_id, kind = upcoming.pop(0)
+            if kind in listed:
+                held.append({"update_id": update_id, kind: {}})
+        due = [update for update in held if update["update_id"] >= recorded.payload["offset"]]
+        if due:
+            return _batch(*due)
+        time.sleep(0.05)
+        return 200, b'{"ok":true,"result":[]}'
+
+    fake_telegram.handler = answer
+
+    with _running(log, tmp_path, fake_telegram):
+        # the poll after the last update is made, so its batch is on disk
+        _wait_until(lambda: len(fake_telegram.requests) > len(kinds))
+    log.close()
+
+    assert [next(key for key in record["update"] if key != "update_id")
+            for record in _records(log_path) if record["kind"] == "inbound"] == kinds
+
+
 def test_the_log_is_written_before_telegram_is_told_to_forget(tmp_path, fake_telegram) -> None:
     """Advancing the offset is what makes an update unrecoverable, so the record
     must already be on disk. The fake answers as a function of the request, so it

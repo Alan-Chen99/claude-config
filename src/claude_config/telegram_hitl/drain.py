@@ -25,6 +25,24 @@ POLL_TIMEOUT = 25
 BACKOFF_FIRST = 1.0
 BACKOFF_CAP = 60.0
 
+# Every Update field but update_id as of Bot API 10.3, named on every poll. A
+# poll naming none keeps the token's last list: this bot held ["message",
+# "callback_query"] on 2026-10-14, the list telegram-bot-skill's poller names,
+# and the default list omits message_reaction, message_reaction_count and
+# chat_member. Telegram drops an unlisted update as it happens, so no later poll
+# can fetch it; a type a later Bot API adds stays unlisted until named here, and
+# a name Telegram does not know is ignored rather than refused
+# (tdlib/telegram-bot-api: Client::get_allowed_update_types, ::add_update_impl).
+ALLOWED_UPDATES = (
+    "message", "edited_message", "channel_post", "edited_channel_post",
+    "business_connection", "business_message", "edited_business_message",
+    "deleted_business_messages", "guest_message", "message_reaction",
+    "message_reaction_count", "inline_query", "chosen_inline_result", "callback_query",
+    "shipping_query", "pre_checkout_query", "purchased_paid_media", "poll", "poll_answer",
+    "my_chat_member", "chat_member", "chat_join_request", "chat_boost",
+    "removed_chat_boost", "managed_bot", "subscription", "stopped_message_generation",
+)
+
 
 def read_offset(path: Path) -> int:
     """An absent offset means "whatever Telegram still holds" — the safe direction."""
@@ -67,7 +85,8 @@ def run(log: ChannelLog, faults: ErrorTransitions, *, api_base: str, token: str,
         try:
             answer = upstream.call(
                 api_base, token, "getUpdates",
-                body=json.dumps({"offset": offset, "timeout": poll_timeout}).encode(),
+                body=json.dumps({"offset": offset, "timeout": poll_timeout,
+                                 "allowed_updates": ALLOWED_UPDATES}).encode(),
                 content_type="application/json", timeout=poll_timeout + 10)
         except urllib.error.URLError as error:
             faults.failed(f"getUpdates:{type(error).__name__}", repr(error))

@@ -266,6 +266,32 @@ def test_a_refused_reaction_still_counts_as_handled(tmp_path, monkeypatch) -> No
     assert announced == ["channel up"]
 
 
+def test_a_reaction_or_an_edit_in_the_log_is_passed_over(tmp_path) -> None:
+    """The drain records every update type, so a human's reaction and an edit sit
+    in the log beside the messages. The listener announces messages (R1); the
+    other types pass it by, and a reader that assumed every update was a message
+    would die on the first of them."""
+    (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
+        {"kind": "proxy", "event": "started"},
+        {"kind": "inbound", "update": {"update_id": 50, "message_reaction": {
+            "chat": {"id": -100}, "message_id": 51, "actor_chat": {"id": -100},
+            "date": 1760000000, "old_reaction": [],
+            "new_reaction": [{"type": "emoji", "emoji": "👍"}]}}},
+        {"kind": "inbound", "update": {"update_id": 51, "edited_message": {
+            "message_id": 52, "message_thread_id": 6, "is_topic_message": True,
+            "chat": {"id": -100}, "text": "ship it, now"}}},
+        {"kind": "inbound", "update": {"update_id": 52, "message": {
+            "message_id": 53, "message_thread_id": 6, "is_topic_message": True,
+            "chat": {"id": -100}, "text": "ship it"}}},
+    ]))
+
+    process = _cli(tmp_path, "6", "--peek")
+    out, err = process.communicate(timeout=20)
+
+    assert (process.returncode, err) == (0, "")
+    assert out == "message 53 in chat -100: ship it\nchannel up\n"
+
+
 def test_the_topics_command_lists_the_forum_and_who_has_sent_in_each_topic(tmp_path) -> None:
     """What an agent runs before joining a topic instead of writing a reader."""
     (tmp_path / "channel.jsonl").write_text("".join(json.dumps(record) + "\n" for record in [
