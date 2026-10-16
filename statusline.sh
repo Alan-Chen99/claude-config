@@ -1,4 +1,4 @@
-#\!/bin/bash
+#!/bin/bash
 input=$(cat)
 
 # Extract all values
@@ -24,7 +24,7 @@ SESSION=$(echo "$input" | jq -r '.session_id // empty' 2>/dev/null)
 # running".
 TASKS=""
 if [ -n "$SESSION" ]; then
-    # `timeout`, because all four rows below share one 5000 ms budget: a `ps`
+    # `timeout`, because every row below shares one 5000 ms budget: a `ps`
     # that hangs takes the whole status line down with it, which is a louder
     # version of the same failure the fallback below exists to prevent. 2s is
     # comfortably inside the budget and far above what this costs even on a
@@ -39,11 +39,32 @@ fi
 
 COST_FMT=$(printf "%.4f" "$COST" 2>/dev/null || echo "0.0000")
 
-# Context window capacity and absolute usage in K
-CAPACITY=$(echo "$input" | jq -r '.context_window.capacity // 0' 2>/dev/null)
-CAPACITY_K=$((CAPACITY / 1000))
+# Absolute context usage in K
 USED_TOKENS=$((CURR_IN + CURR_OUT + CACHE_WR + CACHE_RD))
 USED_K=$((USED_TOKENS / 1000))
+
+# Prompt cache, absent until the first API response. `|`-joined because read
+# collapses adjacent tab separators, and a null field must stay in its slot.
+CACHE_DETAIL=""
+if [ -n "$(echo "$input" | jq -r '.prompt_cache // empty | "x"')" ]; then
+    IFS='|' read -r PC_WARM PC_TTL PC_EXP PC_HIT PC_MISS PC_REQ PC_CAUSE < <(echo "$input" | jq -r '.prompt_cache
+        | [.warm, .ttl, .expires_at, (.hit_ratio | if . == null then null else . * 100 | round end),
+           .misses, .requests, (.last_miss_cause.causes // [] | join(","))]
+        | map(if . == null then "" else tostring end) | join("|")')
+    if [ "$PC_WARM" = true ]; then PC_STATE=warm; else PC_STATE=cold; fi
+    # jq 1.8.1's strflocaltime prints UTC even with TZ set; date honours it
+    [ -n "$PC_EXP" ] && PC_STATE="$PC_STATE until $(date -d "@$PC_EXP" '+%H:%M')"
+    PC_HIT=${PC_HIT:+$PC_HIT%}
+    CACHE_DETAIL=" | ${PC_TTL} ${PC_STATE} | hit ${PC_HIT:--} | ${PC_MISS}/${PC_REQ} miss"
+    [ -n "$PC_CAUSE" ] && CACHE_DETAIL="$CACHE_DETAIL (last: $PC_CAUSE)"
+fi
+
+# Plan rate limits; cc omits a window it has no current reading for
+LIMITS=""
+while read -r LABEL PCT RESETS; do
+    LIMITS="${LIMITS:+$LIMITS | }${LABEL} ${PCT}% (resets $(date -d "@$RESETS" '+%a %H:%M'))"
+done < <(echo "$input" | jq -r '.rate_limits // {} | ["5h", .five_hour], ["7d", .seven_day]
+    | select(.[1]) | "\(.[0]) \(.[1].used_percentage | round) \(.[1].resets_at)"')
 
 # Shorten dir: replace $HOME with ~
 DIR_SHORT=$(echo "$DIR" | sed "s|^$HOME|~|")
@@ -54,7 +75,8 @@ printf "%s\n" "Context: ${USED_K}K | \$${COST_FMT} | ${MODEL}"
 # printf "%s\n"
 # printf "%s\n" "${DIR_SHORT}"
 printf "%s\n" "Session: ${TOTAL_IN} in / ${TOTAL_OUT} out | Last: ${CURR_IN} in / ${CURR_OUT} out"
-printf "%s\n" "Cache: ${CACHE_WR} write / ${CACHE_RD} read"
+printf "%s\n" "Cache: ${CACHE_WR} write / ${CACHE_RD} read${CACHE_DETAIL}"
+[ -n "$LIMITS" ] && printf "%s\n" "Limits: $LIMITS"
 printf "%s\n" "${TRANSCRIPT}"
 [ -n "$TASKS" ] && printf "%s\n" "$TASKS"
 
