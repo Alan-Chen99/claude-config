@@ -3,6 +3,11 @@ input=$(cat)
 
 # Extract all values
 MODEL=$(echo "$input" | jq -r '.model.display_name // "?"')
+# Absent on models without reasoning effort, where the model name stands alone
+EFFORT=$(echo "$input" | jq -r '.effort.level // empty')
+[ -n "$EFFORT" ] && MODEL="$MODEL ($EFFORT)"
+# Absent until cc auto-names the session after its first prompt, or /rename
+NAME=$(echo "$input" | jq -r '.session_name // empty')
 PERCENT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' 2>/dev/null)
 COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0' 2>/dev/null)
 DIR=$(echo "$input" | jq -r '.workspace.current_dir // "?"')
@@ -70,7 +75,7 @@ done < <(echo "$input" | jq -r '.rate_limits // {} | ["5h", .five_hour], ["7d", 
 DIR_SHORT=$(echo "$DIR" | sed "s|^$HOME|~|")
 
 # Format output
-printf "%s\n" "Context: ${USED_K}K | \$${COST_FMT} | ${MODEL}"
+printf "%s\n" "${NAME:+$NAME | }Context: ${USED_K}K | \$${COST_FMT} | ${MODEL}"
 # printf "%s\n"
 # printf "%s\n"
 # printf "%s\n" "${DIR_SHORT}"
