@@ -20,14 +20,16 @@ NEVER include educational content unless explicitly asked. Forbidden phrases:
 IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIONS.
 
 ```
-agent-tools pre_output.record '{
+agent-tools pre_output.record <<'EOF'
+{
   "turn": 1/2/...,
   "summary": "10 words max",
   "workflow": "executing which skill/workflow: step #/name, or 'none'",
   "uncertainties": ["unresolved observations, unverified assumptions, unconfirmed data", ...],
   "possible-verification": ["what should the user do to verify your response", ...],
   "possible-next-steps": ["refactor, update docs", ...]
-}'
+}
+EOF
 ```
 
 It is NOT wrong to decide that you are actually not ready after invoking `agent-tools pre_output.record`; in that case, invoke `agent-tools pre_output.record` again with updated information with the same "turn" arg.

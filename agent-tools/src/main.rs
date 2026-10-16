@@ -204,7 +204,8 @@ enum Cmd {
     /// turn's summary for ntfy-hook.
     #[command(name = "pre_output.record")]
     PreOutputRecord {
-        /// The turn's record: one JSON object with a non-empty `summary`
+        /// Refused: the turn's record, one JSON object with a non-empty
+        /// `summary`, arrives on stdin
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },

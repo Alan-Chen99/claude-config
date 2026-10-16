@@ -214,14 +214,14 @@ The `Before response` section in the output styles invokes
    high model attention at generation time.
 
 Rule reinforcement is the whole reason the section is mandatory, and it does not
-depend on the argument: composing the JSON is the breakpoint, and the reminder
-prints even when the argument is rejected.
+depend on the JSON it reads from stdin: composing it is the breakpoint, and the
+reminder prints even when it is rejected.
 
-The argument is kept as well. `summary` becomes the body of the ntfy "Done" push
+The JSON is kept as well. `summary` becomes the body of the ntfy "Done" push
 (`src/claude_config/ntfy_hook.py`), so the notification carries the session's own
 sentence rather than a second model's reading of the transcript. That gives the
-model a second reason to write the field carefully, and it is why an argument
-with no usable `summary` now fails the call instead of being discarded.
+model a second reason to write the field carefully, and it is why JSON
+with no usable `summary` fails the call instead of being discarded.
 
 Source: `src/claude_config/pre_output/record.py` (wrapped by `agent-tools pre_output.record`; see `agent-tools/src/main.rs`)
 

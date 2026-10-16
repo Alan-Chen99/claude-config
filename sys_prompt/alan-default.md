@@ -206,14 +206,16 @@ End-of-turn summary: one or two sentences. What changed and what's next.
 IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIONS.
 
 ```
-agent-tools pre_output.record '{
+agent-tools pre_output.record <<'EOF'
+{
   "turn": <int>,
   "summary": "<≤10 words>",
   "workflow": "<skill or workflow> step <n> | none",
   "uncertainties": ["unresolved observations, unverified assumptions, unconfirmed data", ...],
   "possible-verification": ["what should the user do to verify your response", ...],
   "possible-next-steps": ["refactor, update docs", ...]
-}'
+}
+EOF
 ```
 
 You may re-record with updated info using the same `turn` value if you decide more work is needed after the first call.

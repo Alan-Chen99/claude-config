@@ -207,17 +207,19 @@ Compaction summaries, subagent prompts, plans and specs, reports back to a paren
 IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIONS.
 
 ```
-agent-tools pre_output.record '{
+agent-tools pre_output.record <<'EOF'
+{
   "turn": <int>,
   "summary": "<≤10 words>",
   "workflow": "<skill or workflow> step <n> | none",
   "uncertainties": ["unresolved observations, unverified assumptions, unconfirmed data", ...],
   "possible-verification": ["what should the user do to verify your response", ...],
   "possible-next-steps": ["refactor, update docs", ...]
-}'
+}
+EOF
 ```
 
-You may re-record with updated info using the same `turn` value if you decide more work is needed after the first call.
+If more work turns out needed after recording, re-record with the same `turn`.
 
 This should be the last thing you run. If you needed to call any tools (including read) afterwards, call `agent-tools pre_output.record` again.
 

@@ -51,7 +51,7 @@ def _write(session_id: str, payload: dict) -> None:
     os.replace(tmp, dest)
 
 
-def _record(argv: list[str]) -> str | None:
+def _record(argv: list[str], text: str) -> str | None:
     """Write the turn's record. Returns None on success, else why not."""
     session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
     if not session_id:
@@ -63,21 +63,19 @@ def _record(argv: list[str]) -> str | None:
             "this from inside a Bash tool call means both are affected."
         )
 
-    if len(argv) != 1:
+    if argv:
         return (
-            f"expected exactly one JSON argument, got {len(argv)}. The shell "
-            "split the argument, which single quotes around the JSON do not "
-            "survive when the JSON itself contains an apostrophe; a heredoc "
-            "into a file and \"$(cat file)\" does survive it."
+            f"expected the JSON on stdin and no arguments, got {len(argv)}; "
+            "a quoted heredoc (<<'EOF') passes it through the shell unchanged."
         )
 
     try:
-        payload = json.loads(argv[0])
+        payload = json.loads(text)
     except json.JSONDecodeError as exc:
-        return f"argument is not valid JSON: {exc}"
+        return f"stdin is not valid JSON: {exc}"
 
     if not isinstance(payload, dict):
-        return f"argument is a JSON {type(payload).__name__}, expected an object"
+        return f"stdin is a JSON {type(payload).__name__}, expected an object"
 
     summary = payload.get("summary")
     if not isinstance(summary, str) or not summary.strip():
@@ -88,7 +86,7 @@ def _record(argv: list[str]) -> str | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    problem = _record(sys.argv[1:] if argv is None else argv)
+    problem = _record(sys.argv[1:] if argv is None else argv, sys.stdin.read())
 
     if problem is None:
         print("recorded successfully.\n")
