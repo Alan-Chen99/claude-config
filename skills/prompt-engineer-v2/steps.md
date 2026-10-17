@@ -47,7 +47,7 @@ Identify the (property, enforcement) pairs the target prompt/workflow guarantees
 
 If Step 1 mode is `n/a (mechanical)` — write "Mechanical change — no invariant analysis needed" and proceed to step 3.
 
-**Invariants are structural properties paired with the enforcement mechanism that holds them.** LLMs are stochastic — instructions influence behavior probabilistically, not deterministically; the enforcement mechanism is what makes the property real. A step the agent runs, a reviewer, or a check in the prompt counts as enforcement as much as a hook or script does; code is not stronger enforcement by default ("Code is no more reliable than a prompt" in `SKILL.md`).
+**Invariants are structural properties paired with the enforcement mechanism that holds them.** Agents follow instructions probabilistically; code holds exactly the condition its author wrote, right or wrong. Neither makes a property real by itself: name what holds it, whether a step, a reviewer, a stated goal the agent can check its output against, or a hook — and when it fails (see "Fixed rules and judgment fail differently" in `SKILL.md`).
 
 **Useful invariants reject Step 4 design options; useless ones don't.** The common failure mode is *artifact-existence claims* ("a block appears in the response", "a tool call happens before reply", "the schema is defined in one place"); any Step 4 option that emits the named artifact passes the check, including options that emit the artifact in a position or context where it no longer enforces anything. Useful invariants describe *relationships between steps* — orderings ("commit written before rules reach context"), feedback loops ("violation found at checkpoint triggers restart"), asymmetric incentives ("no work-savings from under-reporting because the work is already done by the time the check fires"), dependency chains. After writing each pair, run the **sketch test**: imagine a Step 4 option that minimally emits the named artifact / makes the named tool call but otherwise behaves naively. If your sketch satisfies the pair while the underlying property silently breaks, the pair is artifact-existence — re-state it as the relationship the artifact was supposed to enforce, then re-run the sketch test on the new pair. (See "Fix invariants, not symptoms" in `SKILL.md` for a worked example.)
 
@@ -55,24 +55,25 @@ If Step 1 mode is `n/a (mechanical)` — write "Mechanical change — no invaria
 
    Format each pair:
    - **Invariant**: `<structural property>`
-   - **Enforced by**: `<concrete artifact in the workflow — a step, a tool call, a fixed-format check>`. NOT "the agent does X" — that is a deterministic-instruction claim, not an enforcement. Enforcement must quote or reference specific text/step/tool in the target workflow, not paraphrase.
+   - **Enforced by**: `<the specific text, step, reviewer, tool call or check in the workflow that holds it>`. NOT a bare "the agent does X" with nothing named that makes it so. Enforcement must quote or reference specific text/step/tool in the target workflow, not paraphrase.
 
    Examples:
    - Invariant: "Workflow has no single point of failure."
      Enforced by: "Final output must pass 3 parallel runs of the reviewer at the same time before acceptance."
    - Invariant: "Iterative improvement converges — no candidate beats the chosen solution at termination."
      Enforced by: "Each iteration drafts ≥2 options and the prior winner is always one of them."
-   - Invariant: "Any bug introduced has nonzero probability of discovery on subsequent tasks."
-     Enforced by: "Each task starts with a regression-test pass over a rolling buffer of prior tasks."
+   - Invariant: "A handoff summary keeps every fact its reader cannot re-derive."
+     Enforced by: "The reader is a fresh agent with no access to this conversation", stated where the summary is written, so the writer can test each cut against it.
    - Invariant: "Errors from tooling propagate to the user at least 50% of the time."
      Enforced by: "Stderr is not suppressed; commands that exit 0 with empty stdout are flagged."
 
    These examples illustrate the pair shape. Your target prompt's invariants must be specific to that prompt — do not reuse the example pairs verbatim.
 
-   NOT invariants (deterministic-instruction claims, or properties without concrete enforcement):
-   - "Agent will include string X in output because instruction Y says to."
+   NOT invariants (claims that an instruction is obeyed because it exists, or properties without concrete enforcement):
+   - "Agent includes X because instruction Y says to", with nothing on why Y holds where the case arises. An instruction is enforcement when the pair names why it fires there: its placement, a stated reason the agent can apply, a step that puts the case in front of it.
    - "Agent reads section 3 then executes step Z."
    - "Agent always verifies because the prompt says IMPORTANT."
+   - "A hook enforces X", when the hook's condition matches only part of what X covers.
 
    A **review pair** is one whose enforcement mechanism is itself a check/test/review step. The "TDD for prompts" rule in `SKILL.md` applies when the broken pair is a review pair.
 
@@ -112,7 +113,8 @@ Before designing workflow options, generate a rapid, unfiltered list of ideas.
 2. Vary along these dimensions — if all your ideas cluster on one, force ideas on the others (these are starting dimensions, not exhaustive — add problem-specific dimensions as needed):
    - **Timing**: when does it happen? (before, during, after, periodic)
    - **Actor**: who/what does it? (agent, system, user, tool, separate process)
-   - **Mechanism**: how is it enforced? (rule, example, tool, workflow step, system injection)
+   - **Mechanism**: how is it enforced? (rule, stated goal left to judgment, example, tool, workflow step, system injection)
+   - **Rigidity**: tighten into a fixed rule or check, or loosen a fixed rule into a goal the reader applies
    - **Scope**: where does it apply? (per-item, per-task, per-session, global)
    - **Existing text** (if Step 1 found failing text): rewrite, remove, or re-place it, rather than only adding beside it
 3. Review your list. Mark ideas that share the same core mechanism with the same letter (A, B, C...). If any group has >3 ideas, you are converging — force ideas using underrepresented mechanisms.
@@ -131,8 +133,9 @@ The only exception: if the change is purely mechanical (e.g., rewording a single
 8. (E) User confirms which items to persist at end of session — user-driven, after-work
 9. (C) Tool auto-persists anything written to a scratch file — tool-enforced, during-work
 10. (F) Separate background agent monitors conversation, persists independently — separate process, periodic
+11. (G) Drop the "update memory" rule; state what a later session will lack without memory and let the agent judge what to keep — judgment, during-work
 ```
-Note: letters mark mechanism groups. Ideas 1/3/5 share mechanism (A), signaling convergence — ideas 7-10 were forced into underrepresented groups.
+Note: letters mark mechanism groups. Ideas 1/3/5 share mechanism (A), signaling convergence — ideas 7-11 were forced into underrepresented groups.
 
 NEXT STEP:
 <invoke cmd="agent-tools skill prompt_engineer_v2.do --step 4 <<'EOF'
@@ -175,6 +178,7 @@ Define the target and generate multiple paths to reach it.
    - A builds an intermediate artifact then transforms it; B writes the final form directly
    - A reads context first then drafts; B drafts then validates against context
    - A uses chain-of-thought to construct a decision tree then selects; B evaluates options sequentially
+   - A checks the case against a fixed rule and acts; B derives the action from a stated goal, reaching different intermediate reasoning
 
 NEXT STEP:
 <invoke cmd="agent-tools skill prompt_engineer_v2.do --step 5 <<'EOF'
@@ -297,11 +301,11 @@ EOF
 " />
 Execute this command now.
 
-<!-- step 9: deterministic-check -->
+<!-- step 9: perfect-obedience-check -->
 
-# Patch Mode - Deterministic Failure Mode Check
+# Patch Mode - Failures Under Perfect Obedience
 
-A "Deterministic Failure Mode" is one where a failure still occurs even if agent appears to follow instructions perfectly.
+Find failures that still occur when the agent follows the instructions perfectly.
 
 Review your draft for failure modes including but not limited to:
 
@@ -316,7 +320,7 @@ Review your draft for failure modes including but not limited to:
 3. **Impossible to know WHEN to follow**: "If X, do Y" where:
    - Checking X is not possible with available tools
    - How to check X is not specified
-   - X is ambiguous or subjective without a decision procedure
+   - X needs a judgment the agent has no basis for: no decision procedure and no stated goal to judge by
 
 4. **Underspecified spec**
    - Possible things agent may do at a point in timeline that you consider "wrong/worse" than your inteneded behavior but is a better or equally resonable thing to do given the prompt and context they have at the point
@@ -324,10 +328,14 @@ Review your draft for failure modes including but not limited to:
 5. **Missing context**
    - Your planned timeline does not provide a particular piece of context, or provide it too late -- agent must have the context at the point they need it
 
-6. **Code paired with the prompt** (any hook, script, filter or check the draft adds or relies on):
-   - The condition it encodes, and the cases it gets wrong: inputs that look like the target but are not, targets it does not match, and states its author did not picture. The author of this code is as fallible as the agent it guards; nothing about being code makes the condition right.
-   - For each wrong case the agent sees the result of, what it does next: does the prompt tell it the code is always right, so it obeys a false block or skips its own check on a silent miss? Does the code's message mislead it into a worse action than no message?
-   - If the prompt's correctness now depends on the code, a code miss is a prompt failure: write the prompt so the agent can still notice and act when the code is wrong, or drop the code.
+6. **Fixed action, wrong case**
+   - A rule with a fixed action ("never", "always", a closed list, a pattern match) reaching a case where that action is wrong, with nothing letting the agent see it and do otherwise. Fix by narrowing the condition, naming the exception, or stating the goal instead.
+
+7. **Fixed check paired with judgment** (any hook, script, filter or check the draft adds or relies on, next to prompt text the agent judges by):
+   - The condition the check encodes, and the cases it gets wrong: inputs that look like the target but are not, targets it does not match, states its author did not picture.
+   - For each wrong case the agent sees the result of, what it does next: obeys a false block, skips its own judgment on a silent miss, or follows a misleading message.
+   - The reverse: where the prompt lets the agent's judgment override or route around a check that is right.
+   - Revise so each side can be caught when the other errs, or drop the side that adds nothing.
 
 For each issue found: **revise the draft**.
 
@@ -336,7 +344,7 @@ You may assume any requirement that is true in your current environment and task
 
 NEXT STEP:
 <invoke cmd="agent-tools skill prompt_engineer_v2.do --step 10 <<'EOF'
-## deterministic-issues
+## obedience-failures
 ...
 
 ## env-requirements
@@ -345,9 +353,9 @@ EOF
 " />
 Execute this command now.
 
-<!-- step 10: non-deterministic-check -->
+<!-- step 10: execution-error-check -->
 
-# Patch Mode - Non-Deterministic Error Check
+# Patch Mode - Execution Error Check
 
 What mistakes may the agent make even with correct instructions?
 
@@ -359,7 +367,7 @@ Consider:
 4. **Ordering errors**: Steps the agent might execute out of order or in parallel when sequential is required.
 5. **Hallucination risks**: Points where the agent might fabricate rather than check (especially verification steps).
 
-For each risk identified, assess severity (low/medium/high) and revise the draft if severity >= medium.
+For each risk identified, assess severity (low/medium/high) and revise the draft if severity >= medium. A revision can add a fixed check where the condition is mechanical, or replace a rule with its goal where it is not.
 
 NEXT STEP:
 <invoke cmd="agent-tools skill prompt_engineer_v2.do --step 11 <<'EOF'

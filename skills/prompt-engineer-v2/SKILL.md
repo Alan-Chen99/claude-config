@@ -21,8 +21,8 @@ fit. Nor is it complete: a text that passes every check can still fail.
 - **Every character is an instruction.** Keep framing minimal. Maintainer
   notes read to the agent as instructions; keep them in one place all
   maintainers find, such as a companion CLAUDE.md.
-- **Fix invariants, not symptoms.** Rule out deterministic failures, then find
-  the broken pair: a structural property and the enforcement giving it teeth,
+- **Fix invariants, not symptoms.** Rule out failures under perfect obedience,
+  then find the broken pair: a structural property and what holds it,
   like "no single point of failure" enforced by "output passes 3 parallel
   reviewer runs". If a reviewer skipped a check on X, restore the 3-run
   guarantee, not X: fixing X masks the broken pair, so X′ fails next. Test each
@@ -34,12 +34,16 @@ fit. Nor is it complete: a text that passes every check can still fail.
   transcript or a reproduction, or mark the cause unverified. Then fix that
   text: a new guard beside it unchanged leaves the cause to misfire where no
   one watches.
-- **Code is no more reliable than a prompt.** A hook or script is written by an
-  agent as fallible as the one it guards, freezing a possibly nuanced condition at write
-  time. It looks infallible only to its author: on the cases no one anticipated,
-  which always exist, it is typically worse than a reader's judgment. Keep it
-  for truly mechanical conditions. A prompt paired with code acts on the code's
-  verdict: check what the agent does when the code fires wrongly or stays silent.
+- **Fixed rules and judgment fail differently.** A fixed rule (a hook, a
+  script, an absolute "never X", a closed list) does exactly what its author,
+  as fallible as its reader, encoded: it looks infallible to that author, but
+  on unanticipated cases, which always exist, it acts wrongly with no way out.
+  Judgment adapts there, but drifts, skips under load, and argues itself past
+  rules it finds inconvenient. Fixed where the condition is mechanical and
+  complete, judgment where it is nuanced; a failing fixed rule may need
+  loosening, failing judgment a check. Where both act, check each side when
+  the other errs: a check firing wrongly or silent, a reader overriding a
+  correct check.
 - **TDD for prompts.** When the broken enforcement is itself a check, test or
   review, fix only it; defer what it reviews until a real run shows it catching
   the failure: patched symptoms would hide whether it works.
@@ -53,10 +57,10 @@ fit. Nor is it complete: a text that passes every check can still fail.
 
 ## Checks for each edit
 
-**Deterministic failures first**: they occur even under perfect obedience.
-Commands crashing or exiting 0 with wrong output, steps needing absent state
-or tools, "if X" with X uncheckable, underspecified specs, dangling pointers,
-context missing or late. Then misreading, skipping under pressure, over-applied
+**Failures under perfect obedience first.** Commands crashing or exiting 0
+with wrong output, steps needing absent state or tools, "if X" with X
+uncheckable, underspecified specs, dangling pointers, context missing or late,
+a fixed action wrong in some case it reaches. Then misreading, skipping under pressure, over-applied
 triggers, misordering, hallucinated verification.
 
 ### The rule
@@ -73,7 +77,8 @@ triggers, misordering, hallucinated verification.
 
 - **Rules need triggers, not just procedures.** "If git blame shows a function
   is new, remove it" fires zero times: nothing says which functions to check.
-  Cover a defined set unconditionally, or have a step enumerate the candidates.
+  Cover a defined set, have a step enumerate the candidates, or name a moment
+  in the work where the case is already in front of the reader.
 - **Fires in the right places?** Too broad reaches cases it was not written
   for. Too narrow, when a failure motivates the edit, is scoped by the case
   instead of the invariant: words lifted from the case, categories mapping 1:1
@@ -84,7 +89,8 @@ triggers, misordering, hallucinated verification.
 - **Where does obeying it do harm?** An edge case, or a case where its fixed
   action is wrong and the reader sees no way out. Narrow the condition, name
   the exception, or state the goal the rule serves so the reader can serve it
-  when the rule would not.
+  when the rule would not. Mirror: where does leaving it to judgment do harm?
+  A mechanical condition readers keep getting wrong wants a check.
 
 ### Who reads it
 
@@ -107,7 +113,7 @@ triggers, misordering, hallucinated verification.
   it); anything else the agent reports undone instead of dropping.
 - **What does the user never see?** A rule that changes what the user gets
   with no visible act, such as a filter, a default, a "never do X" the user
-  wants this time, runs unnoticed until it costs them. Make its effect visible
+  wants this time, or a judgment call made silently, runs unnoticed until it costs them. Make its effect visible
   to them, or ask.
 
 ### Testing the edit

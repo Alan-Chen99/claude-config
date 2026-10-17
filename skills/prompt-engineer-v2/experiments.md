@@ -28,8 +28,8 @@ succeeds and behavior changes — the diagnostic itself, possibly shortened, is 
 fix; (2) recognition succeeds but behavior does not — pair recognition with an
 action trigger (re-enter the gate, do not send); (3) recognition fails — the
 agent cannot perceive the failure; do not add enforcement, instead reframe the
-invariant in vocabulary the agent uses; an external verifier is the last resort,
-under `SKILL.md`'s "Code is no more reliable than a prompt". Enforcement
+invariant in vocabulary the agent uses, or add an external verifier, weighed
+under `SKILL.md`'s "Fixed rules and judgment fail differently". Enforcement
 on top of unrecognized failure produces compliance theater. Pairs with
 implicit-guidance justification: that rule answers "do not add what the agent
 already derives"; this one answers "do not add what the agent cannot perceive".

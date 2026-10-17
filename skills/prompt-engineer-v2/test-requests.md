@@ -387,7 +387,7 @@ last `cat <<'TURN_STATE'` Bash call after the last user message
 
 ---
 
-### Step 9 — Deterministic Failure Mode Check
+### Step 9 — Failures Under Perfect Obedience
 
 1. **Crash / silent success.** `cat` of a quoted heredoc cannot fail
    or expand. A JSON typo now succeeds silently (I5 lost); the only
@@ -425,7 +425,7 @@ prompt.
 
 ---
 
-### Step 10 — Non-Deterministic Error Check
+### Step 10 — Execution Error Check
 
 1. **Misreading (low).** "Last thing you run" vs. "last thing in the
    turn" — same in practice.
@@ -532,7 +532,7 @@ These are about the workflow, not the example. This run was on the
 - **Step 5 remove line: harmless duplication** of "what existing text
   conflicts" on this task, since the failing text and the conflicting
   text are the same lines.
-- **Step 9 item 6 "Code paired with the prompt": the most productive
+- **Step 9 item 6 (now item 7, "Fixed check paired with judgment") "Code paired with the prompt": the most productive
   new item.** It found the extractor would match the checkpoint quoted
   inside another command, the 8,000-byte tail, and sidechains, and it
   forced the stale `env_context` hook text to be treated as a
@@ -543,7 +543,7 @@ These are about the workflow, not the example. This run was on the
   cause no longer applies" has no referent when no cause was found.
 - **Changed in `steps.md` after this run, from the findings above:**
   Step 1 item 2 now takes "no failure" as an answer and Steps 3, 4, 5
-  and 12 skip their failing-text items when it is given; Step 9 item 6
+  and 12 skip their failing-text items when it is given; Step 9 item 7
   asks what the agent does next only for results it sees. On this task
   those items would now be skipped, not answered vacuously.
 - **The Step 2 "code is not stronger" sentence changed scoring.** I5
