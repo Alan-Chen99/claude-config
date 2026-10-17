@@ -29,6 +29,17 @@ fit. Nor is it complete: a text that passes every check can still fail.
   property: if a naive design that merely emits the named artifact (a block, a
   tool call) satisfies it, restate it as a relationship between steps
   (ordering, feedback loop, dependency).
+- **A failing line is evidence about the line.** Before adding anything, find
+  why the existing text failed (unseen, misread, outweighed, misleading) from a
+  transcript or a reproduction, or mark the cause unverified. Then fix that
+  text: a new guard beside it unchanged leaves the cause to misfire where no
+  one watches.
+- **Code is no more reliable than a prompt.** A hook or script is written by an
+  agent as fallible as the one it guards, freezing a possibly nuanced condition at write
+  time. It looks infallible only to its author: on the cases no one anticipated,
+  which always exist, it is typically worse than a reader's judgment. Keep it
+  for truly mechanical conditions. A prompt paired with code acts on the code's
+  verdict: check what the agent does when the code fires wrongly or stays silent.
 - **TDD for prompts.** When the broken enforcement is itself a check, test or
   review, fix only it; defer what it reviews until a real run shows it catching
   the failure: patched symptoms would hide whether it works.

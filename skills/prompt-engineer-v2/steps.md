@@ -9,9 +9,10 @@ Why make this change? What goes wrong if we do nothing?
 Write out:
 
 1. **The problem**: What specific behavior needs to change? Be concrete (quote output, describe failure mode, show example).
-2. **Cost of inaction**: What happens if no prompt change is made? Who is affected and how?
-3. **Success criteria**: How will you know the change worked? What observable difference?
-4. **Classification**: Pick one mode. This gates Step 2 behavior.
+2. **Why the current text failed**: only when the change responds to a failure. If an existing instruction should have prevented it, quote it and say why it did not hold — the agent never saw it, misread it, let something outweigh it, or followed it into the failure. Take this from the transcript's reasoning or a reproduction; if neither is available, mark the cause unverified rather than guessing. "No instruction covers this" is also an answer. If the change responds to no failure (a new capability, a removal, an optimization), write "no failure" — every later step that names the failing text then skips it.
+3. **Cost of inaction**: What happens if no prompt change is made? Who is affected and how?
+4. **Success criteria**: How will you know the change worked? What observable difference?
+5. **Classification**: Pick one mode. This gates Step 2 behavior.
    - `correctness` — a structural invariant is currently broken (or missing entirely; "adding a new capability" counts as correctness with structural gap = "invariant missing"). Step 2 will find the broken/missing pair.
    - `efficiency` — all invariants hold; you are optimizing within them (tokens, time, steps). Step 2 will enumerate invariants at risk during your optimization so Step 7 can preserve them.
    - `n/a (mechanical)` — typo, rename, or pure reordering with no behavioral change. Step 2 will short-circuit.
@@ -21,6 +22,9 @@ Write out:
 NEXT STEP:
 <invoke cmd="agent-tools skill prompt_engineer_v2.do --step 2 <<'EOF'
 ## problem
+...
+
+## why-current-text-failed
 ...
 
 ## cost
@@ -43,7 +47,7 @@ Identify the (property, enforcement) pairs the target prompt/workflow guarantees
 
 If Step 1 mode is `n/a (mechanical)` — write "Mechanical change — no invariant analysis needed" and proceed to step 3.
 
-**Invariants are structural properties paired with the enforcement mechanism that holds them.** LLMs are stochastic — instructions influence behavior probabilistically, not deterministically; the enforcement mechanism is what makes the property real.
+**Invariants are structural properties paired with the enforcement mechanism that holds them.** LLMs are stochastic — instructions influence behavior probabilistically, not deterministically; the enforcement mechanism is what makes the property real. A step the agent runs, a reviewer, or a check in the prompt counts as enforcement as much as a hook or script does; code is not stronger enforcement by default ("Code is no more reliable than a prompt" in `SKILL.md`).
 
 **Useful invariants reject Step 4 design options; useless ones don't.** The common failure mode is *artifact-existence claims* ("a block appears in the response", "a tool call happens before reply", "the schema is defined in one place"); any Step 4 option that emits the named artifact passes the check, including options that emit the artifact in a position or context where it no longer enforces anything. Useful invariants describe *relationships between steps* — orderings ("commit written before rules reach context"), feedback loops ("violation found at checkpoint triggers restart"), asymmetric incentives ("no work-savings from under-reporting because the work is already done by the time the check fires"), dependency chains. After writing each pair, run the **sketch test**: imagine a Step 4 option that minimally emits the named artifact / makes the named tool call but otherwise behaves naively. If your sketch satisfies the pair while the underlying property silently breaks, the pair is artifact-existence — re-state it as the relationship the artifact was supposed to enforce, then re-run the sketch test on the new pair. (See "Fix invariants, not symptoms" in `SKILL.md` for a worked example.)
 
@@ -110,6 +114,7 @@ Before designing workflow options, generate a rapid, unfiltered list of ideas.
    - **Actor**: who/what does it? (agent, system, user, tool, separate process)
    - **Mechanism**: how is it enforced? (rule, example, tool, workflow step, system injection)
    - **Scope**: where does it apply? (per-item, per-task, per-session, global)
+   - **Existing text** (if Step 1 found failing text): rewrite, remove, or re-place it, rather than only adding beside it
 3. Review your list. Mark ideas that share the same core mechanism with the same letter (A, B, C...). If any group has >3 ideas, you are converging — force ideas using underrepresented mechanisms.
 
 The only exception: if the change is purely mechanical (e.g., rewording a single phrase, moving text between sections), 5 ideas minimum.
@@ -154,6 +159,7 @@ Define the target and generate multiple paths to reach it.
    [step] -> [step] -> [step] -> end
    Structural invariants restored: [which structural properties from step 2 this option restores]
    Structural invariants abandoned: [which properties this option does NOT restore, and why that's acceptable]
+   Failing text (if Step 1 found any): [what happens to it — rewritten, moved, or removed; if left unchanged, why the cause Step 1 found no longer applies, here and in the other cases it reaches]
    ```
 
    Options must differ in **temporal sequence** — the order in which observable state changes occur. "State" means external artifacts (files on disk, tool call results) or internal artifacts (chain-of-thought constructions, intermediate reasoning). A reader tracing the reasoning log should see different intermediate states at different points in time.
@@ -193,7 +199,7 @@ For EACH workflow option from step 4, write the concrete set of prompt changes n
 Per option, specify:
 
 - **Instructions to add/modify**: exact wording
-- **Instructions to remove**: what existing text conflicts
+- **Instructions to remove**: what existing text conflicts, and any failing text as the option's `Failing text` line decided
 - **Placement**: where in the prompt (system prompt section, CLAUDE.md, skill file, etc.)
 - **Trigger condition**: when should this instruction activate
 
@@ -318,6 +324,11 @@ Review your draft for failure modes including but not limited to:
 5. **Missing context**
    - Your planned timeline does not provide a particular piece of context, or provide it too late -- agent must have the context at the point they need it
 
+6. **Code paired with the prompt** (any hook, script, filter or check the draft adds or relies on):
+   - The condition it encodes, and the cases it gets wrong: inputs that look like the target but are not, targets it does not match, and states its author did not picture. The author of this code is as fallible as the agent it guards; nothing about being code makes the condition right.
+   - For each wrong case the agent sees the result of, what it does next: does the prompt tell it the code is always right, so it obeys a false block or skips its own check on a silent miss? Does the code's message mislead it into a worse action than no message?
+   - If the prompt's correctness now depends on the code, a code miss is a prompt failure: write the prompt so the agent can still notice and act when the code is wrong, or drop the code.
+
 For each issue found: **revise the draft**.
 
 Then list **prompt assumptions** (e.g., "python3 needed", "git available", "internet access", "Task is not review-only").
@@ -397,9 +408,10 @@ Write the **final version** of all prompt changes.
 This is the deliverable. Include:
 
 1. **For each file changed**: full path, and the complete change (add/modify/remove) with exact text
-2. **Environment requirements** (from step 9)
-3. **Known tradeoffs** (from steps 7, 11) -- accepted regressions or risks
-4. **Testing suggestion**: one concrete way to verify the change works as intended
+2. **The failing text from Step 1**, if any: what became of it, and why its cause no longer applies
+3. **Environment requirements** (from step 9)
+4. **Known tradeoffs** (from steps 7, 11) -- accepted regressions or risks
+5. **Testing suggestion**: one concrete way to verify the change works as intended
 
 Present the changes so they can be applied directly (copy-paste ready or as diffs).
 
