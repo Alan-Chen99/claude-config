@@ -34,16 +34,17 @@ fit. Nor is it complete: a text that passes every check can still fail.
   transcript or a reproduction, or mark the cause unverified. Then fix that
   text: a new guard beside it unchanged leaves the cause to misfire where no
   one watches.
-- **Fixed rules and judgment fail differently.** A fixed rule (a hook, a
-  script, an absolute "never X", a closed list) does exactly what its author,
-  as fallible as its reader, encoded: it looks infallible to that author, but
-  on unanticipated cases, which always exist, it acts wrongly with no way out.
+- **Fixed rules and judgment fail differently.** A fixed rule (a hook, a script,
+  an absolute "never X", a closed list) does exactly what its author, as
+  fallible as its reader, encoded: it looks infallible to that author, but on
+  unanticipated cases, which always exist, it acts wrongly with no way out.
   Judgment adapts there, but drifts, skips under load, and argues itself past
-  rules it finds inconvenient. Fixed where the condition is mechanical and
-  complete, judgment where it is nuanced; a failing fixed rule may need
-  loosening, failing judgment a check. Where both act, check each side when
-  the other errs: a check firing wrongly or silent, a reader overriding a
-  correct check.
+  rules it finds inconvenient. Fixed where the condition is mechanical, judgment
+  where it is nuanced; a failing fixed rule may need loosening, failing judgment
+  a check. A mechanical condition is still the author's guess at every case:
+  give a fixed rule a visible way out. Where both act, check each side when the
+  other errs: a check firing wrongly or silent, a reader overriding a correct
+  check.
 - **TDD for prompts.** When the broken enforcement is itself a check, test or
   review, fix only it; defer what it reviews until a real run shows it catching
   the failure: patched symptoms would hide whether it works.
@@ -87,10 +88,11 @@ triggers, misordering, hallucinated verification.
   must…" when it covers prose). Examples span domains, at least one the case
   does not touch.
 - **Where does obeying it do harm?** An edge case, or a case where its fixed
-  action is wrong and the reader sees no way out. Narrow the condition, name
-  the exception, or state the goal the rule serves so the reader can serve it
-  when the rule would not. Mirror: where does leaving it to judgment do harm?
-  A mechanical condition readers keep getting wrong wants a check.
+  action is wrong and the reader sees no way out, for a hook or script too.
+  Narrow the condition, name the exception, give a visible override, or state
+  the goal the rule serves so the reader can serve it when the rule would not.
+  Mirror: where does leaving it to judgment do harm? A mechanical condition
+  readers keep getting wrong wants a check.
 
 ### Who reads it
 
@@ -123,7 +125,10 @@ triggers, misordering, hallucinated verification.
 - **Cold read by a fresh subagent**, the test for the reader checks: give it
   the full edited prompt and the invariant, never the failing case, its text or
   failure mode; ask what narrows below the invariant and which lines it reads
-  otherwise than meant. Revise the prompt on each finding and re-review.
+  otherwise than meant, and, for each fixed rule, what the reader can do from
+  the text it sees when the user explicitly asks for the other action, and who
+  sees it. Drafters miss that case; asked directly, reviewers find it. Revise
+  the prompt on each finding and re-review.
 - Running cases or reading transcripts? First read this skill's
   `experiments.md`.
 

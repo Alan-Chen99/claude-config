@@ -329,7 +329,7 @@ Review your draft for failure modes including but not limited to:
    - Your planned timeline does not provide a particular piece of context, or provide it too late -- agent must have the context at the point they need it
 
 6. **Fixed action, wrong case**
-   - A rule with a fixed action ("never", "always", a closed list, a pattern match) reaching a case where that action is wrong, with nothing letting the agent see it and do otherwise. Fix by narrowing the condition, naming the exception, or stating the goal instead.
+   - A rule with a fixed action ("never", "always", a closed list, a pattern match, a hook) reaching a case where that action is wrong, with nothing letting the agent see it and do otherwise. One such case always exists: the user explicitly asks for the other action. Write that request out and trace it: what can the agent do, and who sees that it did? Fix by narrowing the condition, naming the exception, adding a visible override, or stating the goal instead.
 
 7. **Fixed check paired with judgment** (any hook, script, filter or check the draft adds or relies on, next to prompt text the agent judges by):
    - The condition the check encodes, and the cases it gets wrong: inputs that look like the target but are not, targets it does not match, states its author did not picture.
