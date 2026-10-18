@@ -39,7 +39,7 @@ OPENCODE_DIR="${HOME}/.config/opencode"
 DIRS=(agents conventions output-styles skills)
 
 # Files to symlink
-FILES=(settings.json statusline.sh)
+FILES=(settings.json statusline.py)
 
 mkdir -p "$CLAUDE_DIR"
 

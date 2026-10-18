@@ -27,7 +27,7 @@ const FROM_CHECKOUT: [&str; 5] = [
     "conventions",
     "output-styles",
     "skills",
-    "statusline.sh",
+    "statusline.py",
 ];
 
 /// Machine state rather than checkout state. Shared with the real config so the

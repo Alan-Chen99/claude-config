@@ -210,7 +210,7 @@ against 15,516 with `--all`. The withheld ones stay counted by key under `withhe
 `--format text` is the human-readable rendering and the only one that can carry `--events`,
 the cumulative chronological event log; at any other format the flag is ignored with a note
 on stderr rather than parsing into silence. `--format statusline` is the one-line form
-`statusline.sh` consumes, and prints zero bytes when nothing is live.
+`statusline.py` consumes, and prints zero bytes when nothing is live.
 
 No format commits the ledger, so reading `ps` never retires a change the push report still
 owes the agent.

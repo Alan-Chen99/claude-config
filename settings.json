@@ -248,7 +248,7 @@
   "enableArtifact": false,
   "statusLine": {
     "type": "command",
-    "command": "~/.claude/statusline.sh"
+    "command": "~/.claude/statusline.py"
   },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,

@@ -6,7 +6,7 @@ description: Use when Claude Code has been upgraded and this repo must be re-che
 # Updating after a Claude Code release
 
 This repo reads, imitates and cites Claude Code, and a release breaks it **silently**: `serde`
-ignores unknown keys, the pydantic models allow extras, `statusline.sh` defaults a missing field
+ignores unknown keys, the pydantic models allow extras, `statusline.py` defaults a missing field
 to `0`, and the tests that re-derive cc constants `skipif` without the decompile. **A check that
 cannot fail is not a check**: a green run is done once what each check misses has been checked
 by hand.

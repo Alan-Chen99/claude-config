@@ -323,7 +323,7 @@ git clone https://github.com/Alan-Chen99/claude-config ~/claude-config
 
 Directory-level symlinks for `agents`, `conventions`, `output-styles` and
 `skills` into `~/.claude/`, `~/.config/opencode` → `opencode/`, file symlinks
-for `settings.json` and `statusline.sh`, the `systemd/` units into
+for `settings.json` and `statusline.py`, the `systemd/` units into
 `~/.config/systemd/user/` (linked, enabled by hand), an `agent-tools` build
 linked with the `scripts/claude.sh`, `scripts/kimi.sh` and `scripts/zai.sh`
 launchers into `~/.local/bin`, and the Python venv. Run it from the
