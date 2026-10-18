@@ -278,7 +278,7 @@
   "outputStyle": "default",
   "feedbackDrafts": "off",
   "effortLevel": "high",
-  "autoCompactWindow": 400000,
+  "autoCompactWindow": 600000,
   "showClearContextOnPlanAccept": true,
   "tui": "fullscreen",
   "autoMemoryEnabled": false,
