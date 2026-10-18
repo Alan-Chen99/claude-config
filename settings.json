@@ -258,9 +258,9 @@
     "commit-commands@claude-plugins-official": false,
     "ralph-loop@claude-plugins-official": false,
     "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false,
-    "claude-md-management@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "github@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": false,
+    "github@claude-plugins-official": false,
     "cc-plugin-you-should-know@builtin": true
   },
   "extraKnownMarketplaces": {
