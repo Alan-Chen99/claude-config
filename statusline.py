@@ -82,7 +82,7 @@ WEB_SEARCH = 0.01
 # Muted: the split is read when looked for, not at a glance
 CATEGORIES = [("in", 67), ("out", 133), ("wr", 136), ("rd", 65), ("web", 102)]
 # The split without `web`, so "cost split -" and "?" keep the columns after it
-SPLIT_WIDTH = 32
+SPLIT_WIDTH = 43
 
 
 def responses(transcript):
@@ -135,20 +135,28 @@ def cost_split(transcript):
 
 
 def render_split(cost, total):
-    """The split, and the warnings for row 3. `traced` is the
-    split's sum over cc's total, shown when they differ by over 1%: below 100,
-    cc billed calls whose usage no transcript under the session dir records;
-    above, the transcripts hold usage cc's total does not count. A `-p --resume`
-    carries the earlier cost into cc's total, so a resume alone reads 100%."""
-    total_split = sum(cost.values())
-    if total_split == 0:
+    """The split as shares of cc's total, and the warnings for row 3.
+
+    `other` is what cc billed that no transcript under the session dir records:
+    its prompt suggestions and away summaries send the whole conversation to the
+    main model with `skipTranscript`, and in a long interactive session that is
+    a tenth of the cost or more. It never counts above zero: transcripts holding
+    more than cc's total by over 1% is not something cc is known to do, so
+    `traced` names it in red instead. A `-p --resume` carries the earlier cost
+    into cc's total, so a resume alone is not that."""
+    traced = sum(cost.values())
+    if traced == 0:
         return "cost split -", []
-    shown = [(n, c) for n, c in CATEGORIES if n != "web" or cost["web"] > 0]
-    legend = [pad(f"{fg(color, name)} {fg(GREY, f'{round(cost[name] / total_split * 100)}%')}", len(name) + 5)
-              for name, color in shown]
+    # cc's total is 0 only before it has counted anything; the transcripts then
+    # stand for the whole
+    whole = max(total, traced)
+    shares = {n: cost[n] for n, _ in CATEGORIES if n != "web" or cost["web"] > 0} | {"other": whole - traced}
+    colors = dict(CATEGORIES) | {"other": GREY}
+    legend = [pad(f"{fg(colors[n], n)} {fg(GREY, f'{round(c / whole * 100)}%')}", len(n) + 5)
+              for n, c in shares.items()]
     warn = []
-    if total > 0 and abs(total_split / total - 1) > 0.01:
-        warn.append(fg(RED, f"traced {round(total_split / total * 100)}%"))
+    if total > 0 and traced / total > 1.01:
+        warn.append(fg(RED, f"traced {round(traced / total * 100)}%"))
     return " ".join(legend), warn
 
 

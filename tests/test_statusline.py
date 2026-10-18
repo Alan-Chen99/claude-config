@@ -53,11 +53,18 @@ def test_split_reprices_each_response_once_across_subagents(tmp_path):
     # m1 logged twice (one line per content block) and a half-appended last line
     t = session(tmp_path, [OPUS, OPUS, '{"type":"assistant","message":{"id":"m9"'], [HAIKU])
     rows, err = run(t)
-    assert "$0.0403  in 0%   out 52%  wr 43%  rd 5%   │" in rows[0], rows[0]
+    assert "$0.0403  in 0%   out 52%  wr 43%  rd 5%   other 0%   │" in rows[0], rows[0]
     assert "traced" not in rows[2] and err == ""
 
 
-def test_a_gap_against_cc_total_is_flagged(tmp_path):
+def test_cost_no_transcript_records_is_other(tmp_path):
+    # $0.06 billed, $0.04029 traced: other = 32.85%; shares are of cc's total
+    rows, _ = run(session(tmp_path, [OPUS], [HAIKU]), total=0.06)
+    assert "in 0%   out 35%  wr 29%  rd 3%   other 33% " in rows[0], rows[0]
+    assert "traced" not in rows[2]
+
+
+def test_transcripts_above_cc_total_are_flagged(tmp_path):
     rows, _ = run(session(tmp_path, [OPUS], [HAIKU]), total=0.02)
     assert rows[2].startswith("traced 201% │ ")
 
