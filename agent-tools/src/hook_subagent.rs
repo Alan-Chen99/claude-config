@@ -35,9 +35,15 @@ const CLOSING: &str = "Your caller sees your report and nothing else of your con
 item you leave out is lost. Where your instructions fix an output format that permits nothing \
 else, use the notes slot that format provides.";
 
+/// Subagents run without `sys_prompt/`, so its rule for `name-only` skills
+/// reaches them only here, with "your brief" for its "the user";
+/// `sys_prompt/README.md`, "`listed without a description`", governs both.
+const NAME_ONLY: &str = "A skill listed without a description is invoked only when your brief \
+or a workflow names it.";
+
 fn additional_context() -> String {
     let bullets: Vec<String> = CATEGORIES.iter().map(|c| format!("- {c}")).collect();
-    format!("{ASK}\n\n{}\n\n{CLOSING}", bullets.join("\n"))
+    format!("{ASK}\n\n{}\n\n{CLOSING}\n\n{NAME_ONLY}", bullets.join("\n"))
 }
 
 /// SubagentStart hook. The block is the same for every agent type, so the
@@ -128,9 +134,15 @@ mod tests {
         assert!(additional_context().contains("## Required notes"));
     }
 
+    #[test]
+    fn carries_the_name_only_skill_rule() {
+        assert!(additional_context().contains("A skill listed without a description"));
+    }
+
     /// Spent once per subagent spawn. `doc-budget.toml` prices the `.md`
     /// tree; this block is not `.md`, so it is pinned here -- in characters,
-    /// since the Rust suite has no tokenizer. 856 when pinned. Over: cut the
+    /// since the Rust suite has no tokenizer. 856 when pinned, 950 with the
+    /// `name-only` rule. Over: cut the
     /// ask, not the number (`conventions/documentation.md`, *Documentation
     /// budget*).
     #[test]

@@ -18,7 +18,7 @@ Rust binary behind every `agent-tools` subcommand: the Claude Code hooks, the wr
 | `background.rs`, `signals.rs` | `--background`'s fork, `setsid` and readiness pipe (the only `unsafe`); signal forwarding | Changing detach or signals |
 | `status.rs`, `psrecord.rs`, `ps.rs`, `statusline.rs` | Status derived from disk, and its line; the record the json and statusline renderers share; `ps` | Changing a key, a line, or `ps` output |
 | `hook_pre.rs`, `hook_post.rs`, `hook_prompt.rs` | `PreToolUse` rewrite into a wrapped run; the report on `PostToolUse`/`PostToolUseFailure` and `UserPromptSubmit` | Changing what a hook rewrites or reports |
-| `hook_subagent.rs`, `hook_provenance.rs`, `hook_input.rs` | `SubagentStart` Required-notes ask; the launch record the model never sees; hook payloads | Changing those hooks |
+| `hook_subagent.rs`, `hook_provenance.rs`, `hook_input.rs` | `SubagentStart` Required-notes ask and `name-only` skill rule; the launch record the model never sees; hook payloads | Changing those hooks |
 | `ledger.rs`, `events.rs`, `meta.rs`, `paths.rs` | What the agent was last told; the `ps --events` log; `meta.json` and `escape_control`; state root and scope | Touching reporting state or a rendered field |
 | `procname.rs`, `procstat.rs` | `comm` and `--hide-cmdline`; `/proc/<pid>/stat`, read lossily | Changing process naming or liveness |
 | `claude.rs`, `opencode.rs` | The two launchers | Launching a checkout or opencode |
