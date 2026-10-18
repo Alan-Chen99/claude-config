@@ -5,6 +5,10 @@ file in `skills/scripts/`, read `README.md`** — it fixes the section ordering,
 step-delimited prompt organization, the `[PHASE]_[TYPE]` naming of prompt constants, the
 dispatch-prompt patterns and the anti-patterns.
 
+A skill that runs only when the user or a workflow names it has no `description` and a
+`name-only` entry in `settings.json` `skillOverrides`; `sys_prompt/README.md`, "`listed without a
+description`", has why.
+
 ## Subdirectories
 
 | Directory             | What                                      | When to read                             |

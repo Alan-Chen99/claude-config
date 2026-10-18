@@ -1,1 +1,0 @@
-We're about to pick SQLite over Postgres as the session store for our internal dashboard: one VM, about 40 users, nightly backups by copying the database file. Critique this decision before we commit to it.

@@ -1,6 +1,5 @@
 ---
 name: alan-writing-style
-description: Write, rewrite or check prose as Alan -- docs, shared notes, specs, status reports, messages, in any domain. Use only when invoked by the user or a workflow. Not for code, prompts or instructions to agents, personal notes, other people's voices, or detector evasion.
 ---
 
 # Alan writing style

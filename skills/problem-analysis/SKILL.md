@@ -1,6 +1,5 @@
 ---
 name: problem-analysis
-description: use only if invoked by user or workflow
 ---
 
 # Problem Analysis

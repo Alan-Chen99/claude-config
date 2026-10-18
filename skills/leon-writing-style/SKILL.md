@@ -1,6 +1,5 @@
 ---
 name: leon-writing-style
-description: use only if invoked by user or workflow
 ---
 
 # Leon Writing Style

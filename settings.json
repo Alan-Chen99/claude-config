@@ -2,6 +2,7 @@
   "cleanupPeriodDays": 36500,
   "syncClaudeAiSkills": false,
   "syncClaudeAiPlugins": false,
+  "skillListingBudgetFraction": 0.05,
   "env": {
     "CLAUDE_CODE_FORK_SUBAGENT": "0",
     "TELEGRAM_HITL_STATE_DIR": "/home/alan/personal/telegram-hitl",
@@ -37,6 +38,7 @@
     "init": "user-invocable-only",
     "security-review": "user-invocable-only",
     "alan-coding-style": "name-only",
+    "alan-writing-style": "name-only",
     "codebase-analysis": "name-only",
     "copy-writing-style": "name-only",
     "decision-critic": "name-only",

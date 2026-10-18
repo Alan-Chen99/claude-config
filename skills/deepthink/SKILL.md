@@ -1,6 +1,5 @@
 ---
 name: deepthink
-description: use only if invoked by user or workflow
 ---
 
 # DeepThink

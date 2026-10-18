@@ -1,6 +1,5 @@
 ---
 name: planner
-description: use only if invoked by user or workflow
 ---
 
 # Planner

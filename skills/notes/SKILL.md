@@ -1,6 +1,5 @@
 ---
 name: notes
-description: use only if invoked by user or workflow
 ---
 
 # Notes

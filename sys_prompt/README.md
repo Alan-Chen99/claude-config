@@ -264,11 +264,19 @@ carve-out's licence, and that an unread plan's status reaches the next reader's 
 
 ### `listed without a description`
 
-Sixteen repo skills carry the description `use only if invoked by user or workflow`, and
-`skillOverrides` in `settings.json` lists them and four bundled skills as `name-only`
-(`plans/2026-09-30-session-start-token-cuts.md`, #6, #9, #10), so the description that carried the
-rule no longer reaches the model and this sentence states it once for the set. Retire it when cc's
-`name-only` rendering states the rule itself, or when the overrides go.
+A repo skill meant to run only when named has no `description` and a `name-only` entry in
+`settings.json` `skillOverrides`, as four bundled skills do (`plans/2026-09-30-session-start-token-cuts.md`,
+#6, #9, #10); `tests/test_skill_listing_overrides.py` holds the pair. cc lists such a skill bare and
+this sentence alone holds it back; opencode lists only described skills. Measured 2026-10-18 (Opus
+5.5, superpowers on, one run per arm, probes at `269e2df4`): on tasks the bare `refactor` and
+`decision-critic` fit, both runs with the sentence cited it and did the work; both without it invoked
+the skill, one citing superpowers' "even a 1% chance". Hypothesis: a bare name fitting the task reads
+as the Skill tool's "a listed skill covers". The sentence presumes bare means `name-only`, but over
+budget cc renders low-ranked skills bare too (`Skill listing over budget`): at the default 0.01 a
+Haiku subagent's 8,000 chars against an 8,830-char listing cut five descriptions, `auto-memory`'s
+among them. `skillListingBudgetFraction: 0.05` gives a 200k window at least the 30,000 chars Opus
+5.5's 1M window gets by default. Retire the sentence when the probes, re-run without it, leave the
+skill alone, or when cc's `name-only` rendering states the rule itself.
 
 ### `# Context management`: `before reasoning about what the summary says`
 

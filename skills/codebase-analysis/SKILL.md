@@ -1,6 +1,5 @@
 ---
 name: codebase-analysis
-description: use only if invoked by user or workflow
 ---
 
 # Codebase Analysis

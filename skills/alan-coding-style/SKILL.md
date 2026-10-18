@@ -1,6 +1,5 @@
 ---
 name: alan-coding-style
-description: use only if invoked by user or workflow
 ---
 
 # Alan Coding Style

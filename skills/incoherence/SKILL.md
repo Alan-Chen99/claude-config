@@ -1,6 +1,5 @@
 ---
 name: incoherence
-description: use only if invoked by user or workflow
 ---
 
 # Incoherence Detector
