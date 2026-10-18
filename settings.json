@@ -258,7 +258,8 @@
     "writing-prose-like-a-human-for-agents@writing-prose-like-a-human-for-agents": false,
     "claude-md-management@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "github@claude-plugins-official": true
+    "github@claude-plugins-official": true,
+    "cc-plugin-you-should-know@builtin": true
   },
   "extraKnownMarketplaces": {
     "playwright-skill": {
