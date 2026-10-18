@@ -45,10 +45,11 @@ fi
 # resumed session's transcript holds turns cc's total does not, and calls cc
 # makes outside the transcript are invisible here.
 BREAKDOWN="cost split ?"
+COST_WARN=""
 if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
     # 3s: a 44 MB transcript takes 0.75s, and the `ps` above holds the rest of
     # the 5000 ms budget.
-    if BREAKDOWN=$(find "$TRANSCRIPT" "${TRANSCRIPT%.jsonl}" -name '*.jsonl' -print0 2>/dev/null \
+    if SPLIT=$(find "$TRANSCRIPT" "${TRANSCRIPT%.jsonl}" -name '*.jsonl' -print0 2>/dev/null \
         | xargs -0 cat | timeout 3 jq -n -r --argjson total "$COST" '
         def tier: {
             t2_10:  {in: 2,   out: 10, w5: 2.5,   w1h: 4,   rd: 0.2},
@@ -98,48 +99,78 @@ if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
            rd: (map(.rd) | add // 0), web: (map(.web) | add // 0)} as $c
         | ($c | add) as $sum
         | if $sum == 0 then "cost split -" else
-            ([["in", $c.in], ["out", $c.out], ["wr", $c.wr], ["rd", $c.rd]]
-              + (if $c.web > 0 then [["web", $c.web]] else [] end)
-             | map("\(.[0]) \(.[1] / $sum * 100 | round | tostring | " " * (3 - length) + .)%")
-             | join(" "))
+            ([["in", $c.in, 75], ["out", $c.out, 213], ["wr", $c.wr, 214], ["rd", $c.rd, 114]]
+              + (if $c.web > 0 then [["web", $c.web, 250]] else [] end)) as $cats
+            | ($cats | map(.[1] / $sum * 100)) as $pct
+            # Cumulative rounding, so the segments always fill exactly 12 cells
+            | [foreach $pct[] as $p (0; . + $p; . * 12 / 100 | round)] as $ends
+            | [range($cats | length) | {c: $cats[.][2], name: $cats[.][0], p: ($pct[.] | round),
+                w: ($ends[.] - (if . == 0 then 0 else $ends[. - 1] end))}] as $seg
+            | ($seg | map(select(.w > 0) | "\u001b[38;5;\(.c)m" + ("█" * .w)) | join("")) + "\u001b[39m "
+            + ($seg | map("\u001b[38;5;\(.c)m\(.name)\u001b[39m \u001b[22m"
+                + (.p | tostring | " " * (3 - length) + .) + "%\u001b[2m") | join(" "))
+            + "\t"
             + (if $total > 0 and (($sum / $total - 1) | fabs) > 0.01
-               then " (traced \($sum / $total * 100 | round)%)" else "" end)
-            + (if ($unpriced | length) > 0 then " (unpriced: \($unpriced | join(",")))" else "" end)
+               then " \u001b[38;5;203mtraced \($sum / $total * 100 | round)%\u001b[39m" else "" end)
+            + (if ($unpriced | length) > 0
+               then " \u001b[38;5;203munpriced: \($unpriced | join(","))\u001b[39m" else "" end)
           end'); then
-        :
+        IFS=$'\t' read -r BREAKDOWN COST_WARN <<<"$SPLIT"
     else
         BREAKDOWN="cost split ?"
     fi
 fi
 
+# cc renders every row dimmed and prefixes each row with all the escape codes
+# of the rows above it, so styles here only ever change the foreground (closed
+# by 39, never 0) or lift a value to normal intensity (22, then back to 2):
+# a full reset would undim the rest of the row and leak into the next.
+E=$'\e'
+hi() { printf '%s' "$E[22m$1$E[2m"; }
+fg() { printf '%s' "$E[38;5;$1m$2$E[39m"; }
+RED=203; YELLOW=220; GREEN=114
+# A usage percentage at normal intensity, yellow from 50, red from 80
+level() {
+    if [ "$1" -ge 80 ]; then fg $RED "$(hi "$2")"
+    elif [ "$1" -ge 50 ]; then fg $YELLOW "$(hi "$2")"
+    else hi "$2"; fi
+}
+case "$BREAKDOWN" in *\?) BREAKDOWN=$(fg $RED "$BREAKDOWN") ;; esac
+[ "$TASKS" = "▶ ?" ] && TASKS=$(fg $RED "$TASKS")
+
 # Prompt cache, absent until the first API response. `|`-joined because read
 # collapses adjacent tab separators, and a null field must stay in its slot.
-CACHE="Cache -"
+CACHE="cache -"
 if [ -n "$(echo "$input" | jq -r '.prompt_cache // empty | "x"')" ]; then
     IFS='|' read -r PC_WARM PC_TTL PC_EXP PC_HIT PC_MISS PC_REQ PC_CAUSE < <(echo "$input" | jq -r '.prompt_cache
         | [.warm, .ttl, .expires_at, (.hit_ratio | if . == null then null else . * 100 | round end),
            .misses, .requests, (.last_miss_cause.causes // [] | join(","))]
         | map(if . == null then "" else tostring end) | join("|")')
-    if [ "$PC_WARM" = true ]; then PC_STATE=warm; else PC_STATE=cold; fi
+    if [ "$PC_WARM" = true ]; then PC_STATE=warm; PC_COLOR=$GREEN; else PC_STATE=cold; PC_COLOR=$YELLOW; fi
     # jq 1.8.1's strflocaltime prints UTC even with TZ set; date honours it
     [ -n "$PC_EXP" ] && PC_STATE="$PC_STATE until $(date -d "@$PC_EXP" '+%H:%M')"
     PC_HIT=${PC_HIT:+$PC_HIT%}
-    CACHE=$(printf "Cache %-2s %-16s | hit %4s | %5s miss" "$PC_TTL" "$PC_STATE" "${PC_HIT:--}" "$PC_MISS/$PC_REQ")
+    MISS=$(printf "%5s" "$PC_MISS/$PC_REQ")
+    [ "${PC_MISS:-0}" -gt 0 ] && MISS=$(fg $YELLOW "$MISS")
+    CACHE="cache $(printf %-2s "$PC_TTL") $(fg $PC_COLOR "$(printf %-16s "$PC_STATE")") │ hit $(hi "$(printf %4s "${PC_HIT:--}")") │ $MISS miss"
     [ -n "$PC_CAUSE" ] && CACHE="$CACHE (last: $PC_CAUSE)"
 fi
 
 # Plan rate limits; cc omits a window it has no current reading for
 LIMITS=""
 while read -r LABEL PCT RESETS; do
-    LIMITS="$LIMITS | $(printf "%s %3s%% (%s)" "$LABEL" "$PCT" "$(date -d "@$RESETS" '+%a %H:%M')")"
+    LIMITS="$LIMITS │ $LABEL $(level "$PCT" "$(printf "%3s%%" "$PCT")") $(date -d "@$RESETS" '+%a %H:%M')"
 done < <(echo "$input" | jq -r '.rate_limits // {} | ["5h", .five_hour], ["7d", .seven_day]
     | select(.[1]) | "\(.[0]) \(.[1].used_percentage | round) \(.[1].resets_at)"')
 
 # Fixed-width fields first and the variable-length ones last, so each item
-# sits in the same column in every session.
-printf "%4sK %3s%% | \$%7.4f = %s | %s%s\n" "$USED_K" "$PERCENT" "$COST" "$BREAKDOWN" "$MODEL" "${NAME:+ | $NAME}"
+# sits in the same column in every session; cc truncates a row at the
+# terminal's width, so the name is what a narrow window loses.
+printf "%s\n" "ctx $(hi "$(printf %4s "${USED_K}K")") $(level "$PERCENT" "$(printf %3s%% "$PERCENT")") │ $(hi "$(printf %-8s "\$$(printf %.4f "$COST")")") $BREAKDOWN │ $(printf %-19s "$MODEL")${NAME:+ │ $(hi "$NAME")}"
 printf "%s\n" "$CACHE$LIMITS"
-printf "%s\n" "${TRANSCRIPT:-transcript ?}"
+# Cost warnings lead this row rather than follow the split, which would push
+# the model and name off their columns whenever one appears
+printf "%s\n" "${COST_WARN:+${COST_WARN# } │ }${TRANSCRIPT:-$(fg $RED "transcript ?")}"
 [ -n "$TASKS" ] && printf "%s\n" "$TASKS"
 
 exit 0
