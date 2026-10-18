@@ -279,7 +279,7 @@
   "effortLevel": "high",
   "autoCompactWindow": 400000,
   "showClearContextOnPlanAccept": true,
-  "tui": "default",
+  "tui": "fullscreen",
   "autoMemoryEnabled": false,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
