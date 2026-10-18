@@ -136,9 +136,10 @@ def cost_split(transcript):
 
 def render_split(cost, total):
     """The split, and the warnings for row 3. `traced` is the
-    split's sum over cc's total, shown when they differ by over 1%: a resumed
-    session's transcript holds turns cc's total does not, and calls cc makes
-    outside the transcript are invisible here."""
+    split's sum over cc's total, shown when they differ by over 1%: below 100,
+    cc billed calls whose usage no transcript under the session dir records;
+    above, the transcripts hold usage cc's total does not count. A `-p --resume`
+    carries the earlier cost into cc's total, so a resume alone reads 100%."""
     total_split = sum(cost.values())
     if total_split == 0:
         return "cost split -", []
