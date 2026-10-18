@@ -79,9 +79,10 @@ MODELS = {
 # Fast mode doubles every rate on the models that offer it
 FAST = {"claude-opus-4-8": 2, "claude-opus-5": 2, "claude-opus-5-5": 2}
 WEB_SEARCH = 0.01
-# Bar and legend colours, muted: the split is read when looked for, not at a glance
+# Muted: the split is read when looked for, not at a glance
 CATEGORIES = [("in", 67), ("out", 133), ("wr", 136), ("rd", 65), ("web", 102)]
-BAR_CELLS = 12
+# The split without `web`, so "cost split -" and "?" keep the columns after it
+SPLIT_WIDTH = 32
 
 
 def responses(transcript):
@@ -134,7 +135,7 @@ def cost_split(transcript):
 
 
 def render_split(cost, total):
-    """The split's bar and legend, and the warnings for row 3. `traced` is the
+    """The split, and the warnings for row 3. `traced` is the
     split's sum over cc's total, shown when they differ by over 1%: a resumed
     session's transcript holds turns cc's total does not, and calls cc makes
     outside the transcript are invisible here."""
@@ -142,19 +143,12 @@ def render_split(cost, total):
     if total_split == 0:
         return "cost split -", []
     shown = [(n, c) for n, c in CATEGORIES if n != "web" or cost["web"] > 0]
-    bar, legend, cum, end = "", [], 0.0, 0
-    for name, color in shown:
-        pct = cost[name] / total_split * 100
-        # Cumulative rounding, so the segments always fill exactly BAR_CELLS
-        cum += pct
-        cells = round(cum * BAR_CELLS / 100) - end
-        end += cells
-        bar += fg(color, "█" * cells) if cells else ""
-        legend.append(pad(f"{fg(color, name)} {fg(GREY, f'{round(pct)}%')}", len(name) + 5))
+    legend = [pad(f"{fg(color, name)} {fg(GREY, f'{round(cost[name] / total_split * 100)}%')}", len(name) + 5)
+              for name, color in shown]
     warn = []
     if total > 0 and abs(total_split / total - 1) > 0.01:
         warn.append(fg(RED, f"traced {round(total_split / total * 100)}%"))
-    return f"{bar} {' '.join(legend)}", warn
+    return " ".join(legend), warn
 
 
 def tasks_row(session):
@@ -239,7 +233,7 @@ def main():
     # terminal's width, so the name is what a narrow window loses. Bold for what
     # is read at every glance, grey for what is read when looked for.
     row1 = (f"{lab('ctx')} {pad(emph(f'{used_k}K {level(pct)}'), 10)}{SEP}"
-            f"{pad(lab(f'${total:.4f}'), 8)} {split}{SEP}{pad(emph(model), 19)}"
+            f"{pad(lab(f'${total:.4f}'), 8)} {pad(split, SPLIT_WIDTH)}{SEP}{pad(emph(model), 19)}"
             + (f"{SEP}{hi(name)}" if name else ""))
     # Cost warnings lead row 3 rather than follow the split, which would push
     # the model and name off their columns whenever one appears

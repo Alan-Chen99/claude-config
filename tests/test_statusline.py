@@ -53,7 +53,7 @@ def test_split_reprices_each_response_once_across_subagents(tmp_path):
     # m1 logged twice (one line per content block) and a half-appended last line
     t = session(tmp_path, [OPUS, OPUS, '{"type":"assistant","message":{"id":"m9"'], [HAIKU])
     rows, err = run(t)
-    assert "████████████ in 0%   out 52%  wr 43%  rd 5%" in rows[0], rows[0]
+    assert "$0.0403  in 0%   out 52%  wr 43%  rd 5%   │" in rows[0], rows[0]
     assert "traced" not in rows[2] and err == ""
 
 
@@ -86,11 +86,13 @@ def test_tasks_failure_is_shown(tmp_path):
 
 def test_columns_hold_across_sessions(tmp_path):
     """The model and name start in the same column whatever the context size,
-    cost, split or model name."""
-    (tmp_path / "a").mkdir(), (tmp_path / "b").mkdir()
+    cost, split or model name, and with no usage yet."""
+    for d in "abc":
+        (tmp_path / d).mkdir()
+    c, _ = run(session(tmp_path / "c", ['{"type":"user"}']))
     a, _ = run(session(tmp_path / "a", [OPUS]))
     b, _ = run(session(tmp_path / "b", [HAIKU]),
                total=12.5, model={"display_name": "Sonnet 5.5"}, effort={"level": "medium"},
                context_window={"used_percentage": 100, "current_usage": {"input_tokens": 1_000_000}})
     cols = lambda row: [m.start() for m in re.finditer("│", row)]
-    assert cols(a[0]) == cols(b[0]), (a[0], b[0])
+    assert cols(a[0]) == cols(b[0]) == cols(c[0]), (a[0], b[0], c[0])
