@@ -1,0 +1,55 @@
+{
+  "captured_at": "2026-10-19T03:20:52.987Z",
+  "variant": "configured CLI exec, live CODEX_HOME, repository cwd; not a VS Code host replay",
+  "command": "codex exec -m gpt-6.1-sol --json 'say hello' < /dev/null",
+  "cwd": "/root/claude-config-work",
+  "cli_version": "codex-cli 0.163.0",
+  "codex_source_commit": "83086188ae0614bd882818ff1aa23f3194962012",
+  "source_checkout_matches_binary": "not build-proven; version and source commit recorded separately",
+  "repository_head_at_capture": "55ca21c3bd73fab216e0ea0ee72206f869e403f3",
+  "capture_addon_sha256": "bd1ad63dcffeecd8cd59e31f3c9d5296f5d4bc4ac69e85c8480470e0fb06a956",
+  "mitmproxy_version": "Mitmproxy: 12.2.3\nPython:    3.14.0\nOpenSSL:   OpenSSL 4.0.0 14 Apr 2026\nPlatform:  Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+  "transport": "WebSocket Responses Lite: generate=false prewarm, incremental generating turn",
+  "redactions": [
+    "No HTTP headers, cookies, auth.json, certificates or access tokens captured",
+    "Persistent safety_identifier, installation_id, creator_user_id and creator_account_id replaced with [redacted]",
+    "x-codex-turn-metadata JSON strings reserialized with compact separators; prompt text preserved"
+  ],
+  "session_logs": [
+    {
+      "file": "session.jsonl",
+      "original_path": "/root/.codex/sessions/2026/10/19/rollout-2026-10-19T03-20-52-01a1522d-2441-7210-b7da-f91f4b2b6878.jsonl",
+      "source_sha256": "bfb4cc37167a2a7185dcde2789ce9aed6d8ac9367802ef36cba5909bde87a82d",
+      "records": 16
+    },
+    {
+      "file": "original-vscode-session.jsonl",
+      "original_path": "/root/.codex/sessions/2026/10/19/rollout-2026-10-19T02-52-07-01a15212-d198-7ad3-90aa-fda77b7f5be9.jsonl",
+      "source_sha256": "93655a59ae2f0492d696b9f26b35d642fc9a8cbb845e358482dc7b18e9b63879",
+      "records": 16
+    }
+  ],
+  "raw_sanitized_frames_sha256": {
+    "002-result.json": "e9919b7077403a4679ff79166eab36d6bcbea1d2929004df1b3641596e65bc80",
+    "003-request.json": "329b6290a1daa43a9706f99a19d8708469044892703ce876453d349b133d5cf6",
+    "001-request.json": "e4aab44d8ec6500e71709261438918dcedd2ad0620ce52356dbe49465e5df396",
+    "004-result.json": "6bf18e283d52f9bd27a01fba1ea905660e7fac5ed8b4d28ee9bf0870d0d29934"
+  },
+  "repository_changes_at_capture": "Untracked capture scripts, tests and prior trial artifacts; see client metadata has_changes=true",
+  "base_source_verification": [
+    {
+      "path": "/repos/codex/codex-rs/models-manager/models.json",
+      "model": "gpt-6.1-sol",
+      "field": "model_messages.instructions_template",
+      "exact_match_to_captured_base": true,
+      "template_sha256": "e1bdd4f8f0df4b20f4a0ffc8a861ce819df45325d8cecdfb92e80379cf8d142e"
+    },
+    {
+      "path": "/root/.codex/models_cache.json",
+      "model": "gpt-6.1-sol",
+      "field": "model_messages.instructions_template",
+      "exact_match_to_captured_base": true,
+      "template_sha256": "e1bdd4f8f0df4b20f4a0ffc8a861ce819df45325d8cecdfb92e80379cf8d142e"
+    }
+  ]
+}

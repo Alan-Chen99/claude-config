@@ -9,6 +9,7 @@ blind — `.claude/skills/update-claude-code` governs.
 
 | File                                       | What                                          | When to read                                            |
 | ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------- |
+| `codex-prompt-capture.md` | Live Codex greeting capture, complete API token reconciliation, source map and reproduction | Investigating Codex prompt costs or refreshing its snapshot |
 | `system-prompt-anatomy.md`                 | Simplified overview of system prompt assembly — pinned to cc 2.1.88 source | Quick orientation, understanding prompt structure       |
 | `system-prompt-anatomy-source-verified.md` | Detailed anatomy with function references — pinned to cc 2.1.88 source     | Debugging context loading, source-level understanding   |
 | `prompt-rebase.md`                         | Rebasing `sys_prompt/` on a cc release: reading both sides, the pins, the deliberate divergences | After a Claude Code upgrade; when `scripts/check-prompt-upstream.py` fails |
