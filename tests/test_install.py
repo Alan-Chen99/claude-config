@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # install.sh reaches its linking steps with only these on PATH. cargo, uv and
 # systemctl are absent on purpose: those steps are skipped with a warning, so a
 # run costs no build.
-STUB_COMMANDS = ("basename", "dirname", "git", "ln", "mkdir")
+STUB_COMMANDS = ("basename", "dirname", "git", "ln", "mkdir", "mv")
 
 
 def _install_env(tmp_path: Path, allow_worktree: bool = True) -> tuple[dict[str, str], Path]:
@@ -25,6 +25,7 @@ def _install_env(tmp_path: Path, allow_worktree: bool = True) -> tuple[dict[str,
 
     env = os.environ.copy()
     env["HOME"] = str(home)
+    env.pop("CODEX_HOME", None)
     env["PATH"] = str(bin_dir)
     # ROOT is itself a worktree in any session working from one, and the tests
     # that install from ROOT are about the links, not the guard. The guard's own
@@ -119,3 +120,23 @@ def test_install_escape_hatch_allows_worktree(tmp_path: Path) -> None:
     result = _run(worktree / "install.sh", tmp_path, env)
     assert result.returncode == 0, result.stderr
     assert (home / ".claude").is_dir()
+
+
+def test_install_codex_preserves_config_and_is_idempotent(tmp_path: Path) -> None:
+    env, home = _install_env(tmp_path)
+    env.pop("CODEX_HOME", None)
+    codex = home / ".codex"
+    codex.mkdir()
+    (codex / "config.toml").write_text('model = "existing-model"\n')
+    claude = home / ".claude"
+    claude.mkdir()
+    (claude / "CLAUDE.md").write_text("Shared environment instructions\n")
+
+    for _ in range(2):
+        result = _run(ROOT / "install.sh", tmp_path, env)
+        assert result.returncode == 0, result.stderr
+    assert (codex / "config.toml").resolve() == ROOT / "codex/config.toml"
+    assert (codex / "config.toml.pre-claude-config").read_text() == 'model = "existing-model"\n'
+    assert (codex / "skills/config").resolve() == ROOT / "skills"
+    assert (codex / "AGENTS.md").read_text() == "Shared environment instructions\n"
+    assert (home / ".local/bin/codex.sh").resolve() == ROOT / "scripts/codex.sh"

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Alan-Chen99/claude-config/actions/workflows/ci.yml/badge.svg)](https://github.com/Alan-Chen99/claude-config/actions/workflows/ci.yml)
 
-My Claude Code and opencode configuration, and the tooling built around it.
+My Claude Code, Codex and opencode configuration, and the tooling built around it.
 It began as a fork of [solatis/claude-config](https://github.com/solatis/claude-config)
 and grew a Rust harness (`agent-tools`), a replacement system prompt with its
 reasoning kept beside it rather than inside it, a prompt-evaluation corpus, and
@@ -16,6 +16,32 @@ layout — read it before running it anywhere. Nothing here is versioned or
 packaged for anyone else, and Claude Code moves quickly: every measurement
 below carries the date it was taken and, where it depends on one, the Claude
 Code version.
+
+## Codex
+
+`codex/config.toml` tracks the user config, including the default commit policy and tone markers copied
+from `sys_prompt/alan-default-next.md`. `install.sh` links it into
+`${CODEX_HOME:-~/.codex}`, installs `skills/config` as a link to `skills/`, and
+links global `AGENTS.md` to `~/.claude/CLAUDE.md` so those environment instructions
+load automatically. That source file remains machine managed. Repository
+`CLAUDE.md` is a fallback when there is no `AGENTS.md`.
+
+Launch with `codex.sh` for the fixed `Codex` Git author and committer identity;
+it uses the same account email as `claude.sh` and forwards all arguments.
+The config preserves the existing permission and trust settings without pinning
+a model. Authentication and session data stay outside this repository.
+
+The native footer shows context usage, model/effort, five-hour and weekly limits,
+input/output tokens, branch and thread ID. It approximates `statusline.py`;
+Claude's cache diagnostics, cost split and task rows remain Claude-specific.
+Use `/statusline` to adjust the native fields.
+
+Install from the canonical checkout with `./install.sh`. Existing regular Codex
+files are saved once with `.pre-claude-config` appended; an existing backup blocks
+replacement. Test a worktree installation only with a scratch `HOME` and
+`ALLOW_WORKTREE_INSTALL=1`, never against the live home.
+
+Settings: [official OpenAI configuration reference](https://developers.openai.com/codex/config-reference/).
 
 ## Ideas
 

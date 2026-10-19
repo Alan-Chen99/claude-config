@@ -84,6 +84,32 @@ if [ -d "$src" ]; then
     echo "linked: $dst -> $src"
 fi
 
+# Codex shares the skills tree and global environment instructions with Claude.
+# Keep authentication, sessions and other Codex state outside the linked files.
+CODEX_DIR="${CODEX_HOME:-${HOME}/.codex}"
+mkdir -p "$CODEX_DIR/skills"
+for entry in config.toml AGENTS.md skills/config; do
+    case "$entry" in
+        config.toml) src="${REPO_DIR}/codex/config.toml" ;;
+        AGENTS.md) src="${CLAUDE_DIR}/CLAUDE.md" ;;
+        skills/config) src="${REPO_DIR}/skills" ;;
+    esac
+    # A fixture checkout may contain only install.sh.
+    [ "$entry" = AGENTS.md ] || [ -e "$src" ] || continue
+    dst="$CODEX_DIR/$entry"
+    if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+        # Preserve the pre-install config once; refuse an ambiguous migration.
+        if [ -e "$dst.pre-claude-config" ] || [ -L "$dst.pre-claude-config" ]; then
+            echo "error: backup already exists: $dst.pre-claude-config" >&2
+            exit 1
+        fi
+        mv "$dst" "$dst.pre-claude-config"
+        echo "saved: $dst.pre-claude-config"
+    fi
+    ln -sfn "$src" "$dst"
+    echo "linked: $dst -> $src"
+done
+
 # Link systemd user units. Symlink only: enabling is left to a human, because a
 # unit here can need machine-local state that no install step can provide —
 # telegram-hitl.service will not start until a bot token exists at
@@ -141,7 +167,7 @@ fi
 # installs its own copy redirects every session's `claude.sh` to that worktree's
 # scripts/claude.sh and sys_prompt/, and leaves a dangling symlink behind when the
 # worktree is deleted.
-for launcher in claude.sh kimi.sh zai.sh; do
+for launcher in claude.sh codex.sh kimi.sh zai.sh; do
     LAUNCHER_SRC="${REPO_DIR}/scripts/${launcher}"
     LAUNCHER_DST="${HOME}/.local/bin/${launcher}"
     if [ -f "$LAUNCHER_SRC" ]; then

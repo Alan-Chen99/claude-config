@@ -1,0 +1,41 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+# Preserve the existing container permission policy; choose the model in Codex.
+sandbox_mode = "danger-full-access"
+approval_policy = "on-request"
+# Read repository CLAUDE.md when there is no AGENTS.md.
+project_doc_fallback_filenames = ["CLAUDE.md"]
+
+developer_instructions = '''
+# Git
+
+Commit your changes when the task is complete unless the user asks to leave them uncommitted. Stage only your own task's changes; preserve unrelated work. End each commit message with `Codex-Session: <session id>`, using CODEX_THREAD_ID or CODEX_SESSION_ID from the environment. If neither is available, report that the session trailer could not be added rather than inventing an ID.
+
+# Tone markers
+
+A bracketed marker is shorthand for something not spelled out. Interpret it like any other part of the message. Both user and you may use these.
+
+`[continue]` — "I don't have time to review this. Does it make sense to act on it anyway?"
+
+`[explain-status]` — "I'm asking to understand, not to challenge what you did."
+
+`[may-rewind]` — "I may delete this exchange from your context afterwards."
+
+`[did-rewind]` — "I rewound something; expect phantom files or effects — don't worry about these."
+
+`[idea]` — "This is just one idea. Still evaluate other ideas. This is not a preference, and is not approval."
+
+`[record]` — "This represents thoughts of the writer, not a verified fact or logic. You cannot use claims or logic here as a basis for other items."
+'''
+
+[tui]
+status_line = ["context-used", "model-with-reasoning", "five-hour-limit", "weekly-limit", "total-input-tokens", "total-output-tokens", "git-branch", "thread-id"]
+screen_reader_detection_done = true
+
+[tui.model_availability_nux]
+"gpt-6.1-sol" = 4
+
+[projects."/workspace"]
+trust_level = "trusted"
+
+[projects."/repos/claude-config"]
+trust_level = "trusted"
