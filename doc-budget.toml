@@ -329,7 +329,6 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "docs/superpowers/specs/2026-05-17-agent-tools-run-design.md" = 4641
 "docs/superpowers/specs/2026-06-01-prompt-tests-restructure-design.md" = 4573
 "notes/env-context-manifest.md" = 4467
-"notes/subagent-backgrounding-overrides-run-in-background.md" = 4341
 "notes/total-tokens-reminder.md" = 4047
 "docs/background-sessions.md" = 3983
 "docs/superpowers/specs/2026-09-30-intercept-replay-design.md" = 3916

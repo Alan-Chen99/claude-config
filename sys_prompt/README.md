@@ -210,26 +210,19 @@ commits. The trailer rule reads the hook's `Session ID:` line, unique to the hoo
 own block only embeds the id in the scratchpad path; retire that clause if the line goes, since
 `CLAUDE_CODE_SESSION_ID` would still carry the id but no text would say so.
 
-### Subagents: `run_in_background: false` on every Agent call
+### `a turn ending only to wait on background work`
 
-The model decides per call and nothing checks it; dropping the hook that enforced it for a prompt
-rule was the user's direction, not a measurement's. `docs/subagent-backgrounding.md` carries the
-harness side: the fork gate the rule needs off, why only a literal `false` keeps a call in the
-foreground, the hook the rule replaced, and the alternative settings.
-
-- **Concurrency is not a reason to background.** Several Agent calls in one assistant message run
-  concurrently in the foreground, so the strongest legitimate pull toward backgrounding does not
-  hold, in exactly the case that needs several agents at once.
-- **The tool description recommends the opposite.** Named and overridden, that is a resolved
-  conflict; unnamed, the model settles it per call.
-- **`Default` carries the escape hatch**, so the prompt spells out no exception.
-
-Dropped and not replaced: "never report an agent as still running and never wait for a
-notification that the launching call already answered" — both were true only while nothing could
-background. The override clause rests on no trial that weighed the tool description against the
-prompt, so removing it and re-running `prompt-tests/general/subagent-foreground-default` is what
-would tell it from text the first clause already covers. Retire this if `settings.json` moves to
-`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, which forces the foreground with no help from the model.
+The user's direction: with every subagent forced into the background in both modes
+(`docs/subagent-backgrounding.md`), a turn that ends only to wait should cost a line. Under
+`NO EXCEPTIONS` the cost is chance: in `prompt-tests/general/background-wait-turn`, 2026-10-22, one
+baseline run, still carrying the foreground rule it could not obey, recorded and wrote a status on
+both wait turns, one without that rule on neither; the excepted prompt ended three wait turns with
+a line each and recorded once, at the end. Both it and the second baseline left the pre-launch
+commands out of the final Evidence, so that miss is not the exception's. Hypothesis: "nothing to
+report yet" keeps it from swallowing a report. A fork inherits this prompt but not the turn after,
+hence the `SubagentStart` clause that a subagent's run ends at its report. Retire it when that
+case, run without it, ends wait turns on a line as reliably, or when `settings.json` stops forcing
+the background.
 
 ### Backgrounding a wrapped command: `run_in_background: true` by default, `--background` by exception
 

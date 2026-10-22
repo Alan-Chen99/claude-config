@@ -162,3 +162,56 @@ def test_a_task_notification_clears_the_record_too(session, monkeypatch):
     assert not record.record_path(session).exists()
     assert ntfy_hook.donefile_path(session).exists()
     ntfy_hook.donefile_path(session).unlink()
+
+
+# --- a turn that ends waiting on a background agent -----------------------
+
+
+@pytest.fixture
+def pushes(session, monkeypatch):
+    """Each "Done" the Stop hook spawns a sender for, by session id."""
+    sent = []
+    monkeypatch.setattr(ntfy_hook, "get_topic_url", lambda: "https://ntfy.invalid/topic")
+    monkeypatch.setattr(
+        ntfy_hook.subprocess, "Popen",
+        lambda argv, **_: sent.append(argv[argv.index("--session-id") + 1]),
+    )
+    yield sent
+    ntfy_hook.donefile_path(session).unlink(missing_ok=True)
+
+
+def _stop(monkeypatch, session: str, background_tasks: list[dict]) -> None:
+    _stdin(monkeypatch, {
+        "session_id": session, "transcript_path": "", "cwd": "",
+        "hook_event_name": "Stop", "background_tasks": background_tasks,
+    })
+    ntfy_hook.do_stop(ntfy_hook.argparse.Namespace(delayed=False))
+
+
+AGENT = {"id": "a1b2", "type": "subagent", "status": "running", "description": "x"}
+MONITOR = {"id": "b3c4", "type": "shell", "status": "running", "description": "topic 61",
+           "command": "python3 listen.py 61"}
+
+
+def test_the_done_waits_for_the_last_background_agent(session, pushes, monkeypatch):
+    _stdin(monkeypatch, {"session_id": session, "prompt": "go"})
+    ntfy_hook.do_cancel(None)
+
+    _stop(monkeypatch, session, [AGENT, {**AGENT, "id": "d5e6"}])
+    assert pushes == []
+    assert not ntfy_hook.donefile_path(session).exists()
+
+    _stdin(monkeypatch, {"session_id": session, "prompt": "<task-notification>a1b2</task-notification>"})
+    ntfy_hook.do_cancel(None)
+    _stop(monkeypatch, session, [{**AGENT, "id": "d5e6"}])
+    assert pushes == []
+
+    _stdin(monkeypatch, {"session_id": session, "prompt": "<task-notification>d5e6</task-notification>"})
+    ntfy_hook.do_cancel(None)
+    _stop(monkeypatch, session, [])
+    assert pushes == [session]
+
+
+def test_an_armed_monitor_does_not_hold_back_the_done(session, pushes, monkeypatch):
+    _stop(monkeypatch, session, [MONITOR])
+    assert pushes == [session]

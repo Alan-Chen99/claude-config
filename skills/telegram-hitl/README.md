@@ -19,8 +19,8 @@ design is current.
 
 ## The wait
 
-A `claude -p` turn end is the process end unless a tool call is still running
-or a `Monitor` is armed. `--wait` is the first: one Bash call that returns
+A `claude -p` turn end is the process end unless a tool call is still running,
+a `Monitor` is armed or a background agent runs (`docs/subagent-backgrounding.md`). `--wait` is the first: one Bash call that returns
 when the log has something for the session. Its ceiling is the Bash tool's
 `timeout`, clamped to `Math.min(timeout || BASH_DEFAULT_TIMEOUT_MS,
 max(600000, BASH_MAX_TIMEOUT_MS))` — 120 s and 10 min by default — so
@@ -100,11 +100,12 @@ Measured 2026-10-01 on Claude Code 2.1.269 unless marked; source read in
   (`src/chunk-5g752enf.js:23-29`, `src/chunk-93mkz49v.js:402`, `:446`). So
   unattended listening costs a re-arm turn per ten minutes and a listener
   nobody re-arms exits the process.
-- The hold is itself bounded: once `-p` input is closed and nothing is queued,
+- The hold has a ceiling: once `-p` input is closed and nothing is queued,
   a session with only background tasks and armed monitors left is terminated
   after `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS`, default 600,000 ms, with
   `Background tasks still running after Ns; terminating.` on stderr
-  (`src/chunk-mgxpmmsq.js:1874`, `:2033`; `0` waits indefinitely).
+  (`src/chunk-mgxpmmsq.js:1874`, `:2033`). `settings.json` sets `0`, which
+  waits indefinitely, so a listener nobody re-arms holds only until its expiry.
 - Notifications queued while a tool call runs are delivered only if the process
   is still alive at the next turn boundary; under `-p` with nothing running,
   they are dropped — the queue is in memory, and no teardown path delivers it.

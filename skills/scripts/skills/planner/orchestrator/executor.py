@@ -106,12 +106,11 @@ def direct_dispatch(agent_type: str, task_prompt: str) -> str:
         "Task tool parameters:\n"
         f"  - subagent_type: {agent_type}\n"
         "  - prompt: Include the full task description below\n"
-        "  - run_in_background: NEVER set this. Always omit or set false.\n"
         "\n"
         "TASK FOR THE SUB-AGENT:\n"
         f"{task_prompt}\n"
         "\n"
-        "After the sub-agent returns, continue with the next workflow step."
+        "After the sub-agent's report arrives, continue with the next workflow step."
     )
 
 

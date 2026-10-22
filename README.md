@@ -118,13 +118,13 @@ the hypothesis beside it, not another run's artifacts. Tested agents run from a
 fresh directory holding only fixture files, because harnesses auto-load nearby
 `CLAUDE.md` — and graders are contaminated by the same channel. One case shows
 the shape:
-[`subagent-foreground-default`](prompt-tests/general/subagent-foreground-default/reference-solution.md)
-is graded mechanically — a per-record table of the `Agent` tool-use inputs,
-read with `jq` — because omission of `run_in_background` is the failure mode
-and a backgrounded call looks unremarkable in a transcript. With the old prompt
-bullet, 0 of 3 calls carried the parameter and all three backgrounded; with the
-rewritten one, 9 of 9 across three trials passed `false` and none did
-(2026-09-16, cc 2.1.269).
+[`background-wait-turn`](prompt-tests/general/background-wait-turn/reference-solution.md)
+is read mechanically — a per-turn table of which turns ended with subagents
+still running and which called `pre_output.record` — because a turn that ends
+only to wait looks like any other in a transcript. Under `NO EXCEPTIONS` one
+run recorded and wrote a status on both wait turns and another on neither; with
+the wait-turn exception all three ended on one line and the record ran once, at
+the end (2026-10-22, cc 2.1.289, one run per arm).
 [`skills/prompt-engineer-v2/experiments.md`](skills/prompt-engineer-v2/experiments.md)
 states the measurement rules as negatives: no enforcement the agent would
 derive alone, none for a failure the agent cannot perceive, no targeting a pass

@@ -31,11 +31,7 @@ ACTION: Use the Task tool to spawn this agent.
 Task tool parameters:
   - subagent_type: {agent_type}
   - model: {model_param}
-  - prompt: Include the task and invoke command below
-  - run_in_background: NEVER set this. Always omit or set false.
-    Background agents return full session transcripts in an output file,
-    flooding the orchestrator context window when it is read. Foreground
-    agents return only the agent's final text response."""
+  - prompt: Include the task and invoke command below"""
 
 SUB_AGENT_INVOKE = """\
 MANDATORY INVOKE BLOCK - Copy VERBATIM into the agent's prompt:

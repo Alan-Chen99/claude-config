@@ -67,6 +67,12 @@ NOTIFY_TYPES: dict[str, tuple[str, str]] = {
     "stalled": ("Claude Code: Parked on a rate limit", "no_entry"),
 }
 
+# `background_tasks[].type` values in the Stop payload whose completion
+# re-invokes the session. "shell" is left out: a Monitor is a shell task there,
+# indistinguishable from a backgrounded Bash call, and an armed listener
+# (skills/telegram-hitl) would otherwise suppress every "Done" of its session.
+AGENT_TASK_TYPES = frozenset({"subagent", "workflow", "cloud session"})
+
 _SUMMARY_ROLE = (
     "You are a push-notification summarizer. "
     "You will receive a TRANSCRIPT of a conversation between a user and an AI coding assistant. "
@@ -714,6 +720,22 @@ def do_stop(args: argparse.Namespace) -> None:
     # Skip "done" notification if the agent was interrupted (e.g. Ctrl+C)
     if was_interrupted(transcript_path):
         log.debug("suppressed stop notification: interrupted (session %s)", session_id)
+        return
+
+    # A turn ending while a background agent runs is a pause: the session is
+    # re-invoked when the agent finishes, and the turn after the last one sends
+    # the "Done". Touching the donefile here would suppress that one too, since
+    # do_cancel keeps it across task-notification prompts.
+    waiting_on = [
+        t for t in hook_input.get("background_tasks") or []
+        if t.get("type") in AGENT_TASK_TYPES
+    ]
+    if waiting_on:
+        log.debug(
+            "suppressed stop notification: waiting on %s (session %s)",
+            ", ".join(f"{t.get('type')} {t.get('id')}" for t in waiting_on),
+            session_id,
+        )
         return
 
     # Skip mid-turn subagent completions (tool dispatched, result back,

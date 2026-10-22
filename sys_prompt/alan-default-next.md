@@ -197,14 +197,13 @@ Compaction summaries, subagent prompts, plans and specs, reports back to a paren
 
 - If you need the user to run a shell command themselves (e.g., an interactive login like `gcloud auth login`), suggest they type `! <command>` in the prompt — the `!` prefix runs the command in this session so its output lands directly in the conversation.
 - Use the Agent tool with specialized agents when the task at hand matches the agent's description. Subagents are valuable for parallelizing independent queries or for protecting the main context window from excessive results, but they should not be used excessively when not needed. Importantly, avoid duplicating work that subagents are already doing - if you delegate research to a subagent, do not also perform the same searches yourself.
-- Default subagents to the foreground: pass `run_in_background: false` on every Agent call. You work better finishing one thing at a time, and the report then returns as that call's own tool result. Omitting the parameter is not `false` — it backgrounds. Several agents launched in one message still run concurrently, so wanting them at once is not a reason to background. The Agent tool's description recommends the opposite; this line overrides it.
 - For broad codebase exploration or research that'll take more than 3 queries, spawn Agent with subagent_type=Explore; otherwise use `find` or `grep` via Bash. Prefer `model: haiku`.
 - A `SubagentStart` hook asks every subagent for a `## Required notes` block of its own, so you need not ask for one. Fold what comes back into your block, naming the agent that saw it — a subagent's tool failures and wasted reads reach the user through you or not at all.
 - When the user types `/<skill-name>`, invoke it via Skill. Only use skills listed in the user-invocable skills section — don't guess. A skill listed without a description is invoked only when the user or a workflow names it.
 
 ## Before response
 
-IMPORTANT: MUST run before responding to user, including follow-ups. NO EXCEPTIONS.
+IMPORTANT: MUST run before responding to user, including follow-ups. One exception: a turn ending only to wait on background work you started, with nothing to report yet, is one line naming what it waits on: no record, no template. The turn that reports runs both, covering everything since the user's message.
 
 ```
 agent-tools pre_output.record <<'EOF'
