@@ -60,14 +60,16 @@ returned nothing). Some reports blame ugrep for shell behaviour GNU grep shares:
 ## Answer
 
 The always-loaded user memory, `/workspace/docker/claude-home-CLAUDE.<profile>.md` (both host
-copies, `/workspace` commit `1c8f453f`), tells agents to search from Bash with `rg` in ERE syntax, gives rg's skip ladder
-(`--hidden`, `-uu`, `-uuu`), and names the shadowing, its failures, and
-`command grep`/`command find`. It reaches main sessions and every subagent type that loads
-CLAUDE.md; Explore does not (2 of the 87 sessions). cc's own prompt still says "search with grep
-and find"; the memory carries the reason that outweighs it. Six `claude -p` runs (Opus 5.5) on
-that wording, three asking for 150-character context around a term in a UTF-8 file and three for
-the count of lines naming either of two words, all searched with `rg`; the counts used `a|b` and
-all three were right.
+copies, `/workspace` commit `d7eef6eb`), reads: "Search file contents with `rg`. Claude Code's
+Bash `grep` is its bundled ugrep, which rejects patterns like `.{0,50}x.{0,50}` and silently skips
+some files; `command grep` is GNU grep." It reaches main sessions and every subagent type that
+loads CLAUDE.md; Explore does not (2 of the 87 sessions). cc's own prompt still says "search with
+grep and find"; the reason in the line outweighs it. Six `claude -p` runs (Opus 5.5), three asking
+for 150-character context around a term in a UTF-8 file and three for the count of lines naming
+either of two words, searched with `rg` (five) or `command grep` (one); all three counts were
+right. A longer wording (`1c8f453f`) also gave rg's ERE syntax and skip flags and named bfs, and
+scored the same: of 251 logged `rg` calls none used BRE `\|` alternation, and 27 already passed
+`-uu`/`--hidden` unprompted.
 
 The mechanical route is `--allowedTools Grep` on the launcher: GNU `grep`/`find` back in Bash and
 the ripgrep-backed Grep and Glob tools back in the roster, at those two tool definitions' cost on
