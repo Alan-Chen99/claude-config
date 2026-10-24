@@ -49,6 +49,8 @@ In a `claude --plugin-dir` session with the period cut to 1 min, the refresh rea
 (the last request's 24,194 read plus 363 written), with 63 uncached and 4 output, in about
 1 s with one reply. The notification's `turn.start` disarmed it, and the JSONL kept the row.
 Event order: `classic.Stop`, then `turn.complete`.
+With the real period, a wake 70 min after the turn's last request read all 24,664 cached
+tokens, ten minutes after the unrefreshed entry would have lapsed.
 
 ## Testing
 

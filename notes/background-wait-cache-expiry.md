@@ -72,5 +72,10 @@ written, 4 output, in 984 ms with one reply. The read equals the prior request's
 its write 363. The notification-driven turn raised `turn.start`; `classic.Stop` fires before
 `turn.complete`; `$.ui.log` rows persist as JSONL `system` records.
 
+With the real 50-min period and a `sleep 4200` in the background: the turn's final request
+(01:01:07Z) read 24,191 and wrote 473 at 1h. The refresh (01:51:09Z) read 24,664. The wake
+(02:11:07Z), ten minutes past that entry's hour, read 24,664 and wrote 391: the refresh had
+restarted the TTL.
+
 A fork after the entry lapsed pays the prefix uncached (`the prefix billed afresh once the entry
 lapsed`). The main thread drops to 5m in overage, so the mod arms only after a 1h write.
