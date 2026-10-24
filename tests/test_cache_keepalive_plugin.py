@@ -23,7 +23,7 @@ def _claude(*args: str) -> subprocess.CompletedProcess[str]:
 def test_the_engine_admits_the_module() -> None:
     run = _claude("validate")
     assert run.returncode == 0, run.stdout + run.stderr
-    assert "hooks: session.start, turn.start, turn.complete, classic.Stop, session.compact, session.end" in run.stdout
+    assert "hooks: session.start, turn.start, turn.complete, tool.call, classic.SessionStart, classic.Stop, session.compact, session.end" in run.stdout
 
 
 def test_the_mods_own_tests_pass() -> None:
