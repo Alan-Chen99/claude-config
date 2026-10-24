@@ -9,7 +9,8 @@ set -eux
 # to claude. A change that starts every session the same way does not. A reader
 # branches on this, not on which variables happen to be present.
 #   1  first versioned: the configuration below
-export CLAUDE_SH_VERSION=1
+#   2  --plugin-dir scripts/cache-keepalive when stdin is a terminal
+export CLAUDE_SH_VERSION=2
 
 # Fixed against the ambient environment rather than defaulted from it, so a
 # GIT_AUTHOR_NAME already in the shell cannot end up on a commit. A sibling
@@ -117,8 +118,17 @@ else
 	export CLAUDE_SH_TOKENS_REMINDER_SOURCE=draw
 fi
 
+# The cache keepalive mod (scripts/cache-keepalive/README.md) shares the draw's
+# `-t 0` test: prompt-test runs reach claude through here with stdin on a file
+# and stay at "no plugins loaded".
+PLUGIN_ARGS=()
+if [ -t 0 ]; then
+	PLUGIN_ARGS=(--plugin-dir "${REPO_DIR}/scripts/cache-keepalive")
+fi
+
 exec claude --dangerously-skip-permissions \
 	--system-prompt-file "${REPO_DIR}/sys_prompt/alan-default-next.md" \
+	"${PLUGIN_ARGS[@]}" \
 	"$@"
 
 # exec claude --dangerously-skip-permissions "$@"

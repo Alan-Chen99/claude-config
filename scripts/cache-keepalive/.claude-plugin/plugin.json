@@ -1,0 +1,1 @@
+{ "name": "cache-keepalive", "version": "0.1.0", "description": "Keeps the main thread's 1h prompt cache warm while a turn has ended waiting on background work" }

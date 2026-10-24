@@ -7,7 +7,7 @@ and one-off probes. Each launcher's rationale is in its own comments.
 
 | File                          | What                                                                                          | When to read                                                       |
 | ----------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `claude.sh`                   | The launcher — git identity, `IS_SANDBOX`, agent view off, scratch root, proxy env only when 9160 answers, then `claude` on `sys_prompt/alan-default-next.md` | Changing how sessions start; diagnosing a session whose prompt, proxy or scratch root is wrong |
+| `claude.sh`                   | The launcher — git identity, `IS_SANDBOX`, agent view off, scratch root, proxy env only when 9160 answers, then `claude` on `sys_prompt/alan-default-next.md`, plus `--plugin-dir cache-keepalive/` when stdin is a terminal | Changing how sessions start; diagnosing a session whose prompt, proxy or scratch root is wrong |
 | `kimi.sh`, `zai.sh`           | Provider launchers — endpoint, key, every model tier and its window, a `Claude(Kimi)`/`Claude(GLM)` git identity, then `claude.sh` | Running a session on Kimi or GLM; diagnosing one that reached Anthropic, sized its context wrong, or committed under the wrong name |
 | `check-prompt-coupling.sh`    | Fails when a string `agent-tools` emits drifts from the system prompt or status reference that teaches the agent to recognize it | Editing an emitted literal the prompt or `docs/agent-tools-status-reference.md` quotes, or the text quoting it |
 | `check-prompt-rationale.sh`   | Fails when a `sys_prompt/README.md` rationale section quotes no text the prompt still carries | Deleting or rewording a prompt line; adding a section to that file |
@@ -27,6 +27,7 @@ and one-off probes. Each launcher's rationale is in its own comments.
 | Directory    | What                                                        | When to read                                      |
 | ------------ | ----------------------------------------------------------- | ------------------------------------------------- |
 | `intercept/` | MITM proxy capturing conversation-shaped API calls to `~/.claude/requests-log/`, with a `NNNN.detail.json` beside each failed one — only from sessions `claude.sh` launched while it was listening. The listener is the canonical venv's `mitmdump` (`install.sh`, HIDDEN PATH DEPENDENCY). Its `README.md` carries the port, the CA setup, the capture format and what a capture cannot record; `agent-tools cc-replay` re-sends one | Capturing requests; replaying one; diagnosing an intercepted session whose turns abort; judging what a missing capture means |
+| `cache-keepalive/` | Mod (function-hook plugin) refreshing the main thread's 1h prompt cache once, 50 min into a wait on background work; `waits.py` re-derives that from the transcripts. Its `README.md` carries why the built-in keepalive does not run here, the TTL gate and how to read its rows | Changing the period or cap; a `cache-keepalive:` row or toast; a session that waited past the hour and still rewrote its cache |
 
 ## Agent Policy
 
