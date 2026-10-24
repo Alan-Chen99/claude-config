@@ -219,10 +219,11 @@ baseline run, still carrying the foreground rule it could not obey, recorded and
 both wait turns, one without that rule on neither; the excepted prompt ended three wait turns with
 a line each and recorded once, at the end. Both it and the second baseline left the pre-launch
 commands out of the final Evidence, so that miss is not the exception's. Hypothesis: "nothing to
-report yet" keeps it from swallowing a report. A fork inherits this prompt but not the turn after,
-hence the `SubagentStart` clause that a subagent's run ends at its report. Retire it when that
-case, run without it, ends wait turns on a line as reliably, or when `settings.json` stops forcing
-the background.
+report yet" keeps it from swallowing a report. A fork inherits this prompt, but a subagent's turn
+end loses its job under `-p` and costs its caller a turn interactively
+(`notes/cc-2.1.289-subagent-waits.md`), hence the `SubagentStart` clause asking a subagent to wait
+out its background work before it reports. Retire it when that case, run without it, ends wait
+turns on a line as reliably, or when `settings.json` stops forcing the background.
 
 ### Backgrounding a wrapped command: `run_in_background: true` by default, `--background` by exception
 

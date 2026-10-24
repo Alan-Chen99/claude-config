@@ -77,6 +77,7 @@ mod run;
 mod signals;
 mod status;
 mod statusline;
+mod wait;
 
 #[derive(Parser)]
 #[command(name = "agent-tools")]
@@ -258,6 +259,22 @@ enum Cmd {
         /// different question than what is running.
         #[arg(long)]
         events: bool,
+    },
+    /// Block until a job ends or --max seconds pass, and print where each
+    /// stands: the background task output files given, or else this agent's
+    /// runs through `agent-tools run`. For an agent no notification
+    /// re-invokes: a subagent, or a `claude -p` main thread. Exits 0 either
+    /// way, 1 when there is nothing to wait on. Give the Bash call a
+    /// `timeout` above --max, or it is moved to the background at the
+    /// default 120 s.
+    Wait {
+        /// Seconds to wait at most. 240 keeps a subagent's next request inside
+        /// its 5-minute prompt cache with a minute to spare for generating it.
+        #[arg(long, default_value_t = 240)]
+        max: u64,
+        /// Task output files, as a background launch prints them after
+        /// `Output is being written to:`
+        files: Vec<std::path::PathBuf>,
     },
     /// Launch Claude Code against this checkout's config without installing it.
     Claude {
@@ -723,6 +740,12 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        Cmd::Wait { max, files } => {
+            if let Err(e) = wait::run(std::time::Duration::from_secs(max), files) {
+                eprintln!("agent-tools wait: {e:#}");
+                std::process::exit(1);
+            }
+        }
         Cmd::Claude { args } => {
             let known = wireable_subcommands();
             if let Err(e) = claude::run(&root, &known, args) {
@@ -848,6 +871,7 @@ fn main() {
             Cmd::Run { .. } => unreachable!(),
             Cmd::RunCore { .. } => unreachable!(),
             Cmd::Ps { .. } => unreachable!(),
+            Cmd::Wait { .. } => unreachable!(),
             Cmd::OpencodeGate { .. } => unreachable!(),
             Cmd::MinGate { .. } => unreachable!(),
             Cmd::Claude { .. } => unreachable!(),

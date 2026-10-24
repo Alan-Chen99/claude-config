@@ -187,6 +187,30 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
         // here would be a guess, and a wrong Cause: reads as fact.
         "not stated by the tool response".to_string()
     };
+    // An agent nothing re-invokes when the job ends waits inside its turn. A
+    // subagent's turn end loses the job under `claude -p` and wakes its caller
+    // interactively, and a `-p` main thread's turn end exits the process; a
+    // message, and the job's end, reach a subagent only between tool calls
+    // (`notes/cc-2.1.289-subagent-waits.md`). Subagents run without this repo's
+    // system prompt and, measured 2026-10-24, do not load the skill on its
+    // description, so the notice carries the call itself. Hooks see
+    // `CLAUDE_CODE_SESSION_ATTENDED` as tool shells do: `0` under `-p` (same note).
+    let unattended = std::env::var("CLAUDE_CODE_SESSION_ATTENDED").as_deref() == Ok("0");
+    let who = if input.agent_id.is_some() {
+        Some("as a subagent")
+    } else if unattended {
+        Some("under `claude -p`")
+    } else {
+        None
+    };
+    let in_turn = who.map_or(String::new(), |who| {
+        format!(
+            " To wait for it {who}, stay in your turn: call `agent-tools wait <its output \
+             file>` with Bash `timeout: 300000` until it reports the job ended. Each call \
+             returns within 4 minutes, which keeps your prompt cache warm and lets messages to \
+             you arrive; answer them before the next call."
+        )
+    });
     // "Backgrounded" (not "involuntarily backgrounded") — every cause but the
     // last is involuntary from the model's view, while explicit
     // run_in_background is voluntary; the `Cause:` line carries the distinction.
@@ -195,7 +219,7 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
         "BACKGROUNDED: Command was backgrounded. Cause: {cause}. \
          Process is still running (task_id: {bg_task_id}). \
          To wait for it without polling: load the long-bash skill. \
-         To kill it: use TaskStop tool with task_id {bg_task_id}."
+         To kill it: use TaskStop tool with task_id {bg_task_id}.{in_turn}"
     ))
 }
 

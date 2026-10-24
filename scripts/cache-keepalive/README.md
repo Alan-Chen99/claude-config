@@ -30,6 +30,12 @@ after that lapse finds no entry and pays the whole prefix uncached, at 10x a ref
 refresh is armed only when the newest main-thread cache write in the transcript's last 1 MB was
 1h. Third-party endpoints (`kimi.sh`, `zai.sh`) write no `ephemeral_*` field and never arm.
 
+**Main thread only.** `$.model.fork` replays the main thread, and a subagent caches for 5
+minutes, so a waiting subagent keeps itself warm with `skills/long-bash`'s `agent-tools wait`
+loop. Subagent turns raise no `turn.start`, and a stopped subagent's running shell is listed in
+`background_tasks` (2.1.289, `notes/cc-2.1.289-subagent-waits.md`): subagent activity neither
+disarms a refresh nor hides the work that arms one.
+
 **Interactive sessions only.** `scripts/claude.sh` passes `--plugin-dir` when stdin is a
 terminal. Prompt-test runs stay at "no plugins loaded", and a background handoff keeps the flag.
 

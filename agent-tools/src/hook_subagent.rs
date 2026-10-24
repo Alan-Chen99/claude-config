@@ -28,20 +28,19 @@ const CATEGORIES: [&str; 8] = [
 /// that permit nothing outside their own structure; each of those carries a
 /// notes slot for it.
 ///
-/// Its background-work clause: a subagent's run ends at its report and
-/// nothing re-invokes it. Probed 2026-10-22 on 2.1.289 under
-/// `CLAUDE_CODE_FORK_SUBAGENT=1`: a haiku general-purpose agent whose `sleep 45`
-/// was blocked re-ran it with `run_in_background`, ended its turn, and reported
-/// "Waiting for the sleep command to complete..."; the shell was killed at exit.
-/// A `fork` inherits the main prompt, whose wait-turn exception
-/// (`sys_prompt/README.md`) describes ending a turn to wait as routine.
+/// Its background-work clause: a subagent that reports with its own work still
+/// running loses it under `claude -p`, where the process exits and kills it,
+/// and interactively hands its caller an interim report and is resumed later
+/// (`notes/cc-2.1.289-subagent-waits.md`, 2.1.289). A `fork` inherits the main
+/// prompt, whose wait-turn exception (`sys_prompt/README.md`) describes ending
+/// a turn to wait as routine.
 // PROMPT-COUPLED
 const ASK: &str = "End your report with a `## Required notes` block. Bullet only what \
 applies, and write \"none\" when nothing does:";
 
 const CLOSING: &str = "Your caller sees your report and nothing else of your context, so an \
-item you leave out is lost, as is background work still running when you report. Where your \
-instructions fix an output format allowing nothing else, use its notes slot.";
+item you leave out is lost. Wait out or stop background work before reporting (the long-bash \
+skill). Where your instructions fix an output format allowing nothing else, use its notes slot.";
 
 /// Subagents run without `sys_prompt/`, so its rule for `name-only` skills
 /// reaches them only here, with "your brief" for its "the user";
@@ -150,7 +149,8 @@ mod tests {
     /// Spent once per subagent spawn. `doc-budget.toml` prices the `.md`
     /// tree; this block is not `.md`, so it is pinned here -- in characters,
     /// since the Rust suite has no tokenizer. 856 when pinned, 950 with the
-    /// `name-only` rule, 978 with the background-work clause. Over: cut the
+    /// `name-only` rule, 978 with the background-work clause, 998 with it
+    /// pointing at long-bash. Over: cut the
     /// ask, not the number (`conventions/documentation.md`, *Documentation
     /// budget*).
     #[test]

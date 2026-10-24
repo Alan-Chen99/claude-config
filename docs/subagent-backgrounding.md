@@ -18,11 +18,12 @@ successfully`, the report arrives as a `<task-notification>` whose `<result>` ho
 the built-in `web-fetch` agent (`OE()`), and a `-p` subagent's own Agent call, which stays in
 the foreground; an interactive subagent's is backgrounded.
 
-A subagent's run ends at its report and nothing re-invokes it. Probed 2026-10-22, `=1`, `-p`,
-haiku: a general-purpose agent whose `sleep 45` was blocked re-ran it with
-`run_in_background`, ended its turn and reported "Waiting for the sleep command to
-complete..."; the shell was killed at exit. `agent-tools/src/hook_subagent.rs` tells every
-subagent so.
+A subagent that ends its turn with a shell of its own running is kept interactively, resumed
+when the shell ends or a message arrives, and every turn end notifies the main thread; under
+`-p` the shell's notification waits for the main thread, whose exit kills the shell
+(`notes/cc-2.1.289-subagent-waits.md`). `agent-tools/src/hook_subagent.rs` asks every subagent
+to wait out its work, and `hook_post.rs`'s `BACKGROUNDED:` notice gives a subagent, or a `-p`
+main thread, the `agent-tools wait` call.
 
 Every `Stop` payload carries `background_tasks[]`, agents as `type: "subagent"`
 (`src/chunk-wgfrtm7w.js:92381`, `background_tasks: m2t(`), so

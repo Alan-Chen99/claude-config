@@ -379,7 +379,7 @@ fn render_text(
 /// a tool_use_id dir contains pid-named subdirs (numeric, parseable as `u32`);
 /// a subagent dir contains tool_use_id-named subdirs (non-numeric). See
 /// `dir_holds_pid_children`.
-fn collect_captures(session_dir: &Path, out: &mut Vec<Capture>) -> Result<()> {
+pub(crate) fn collect_captures(session_dir: &Path, out: &mut Vec<Capture>) -> Result<()> {
     let rd = match fs::read_dir(session_dir) {
         Ok(r) => r,
         Err(_) => return Ok(()),

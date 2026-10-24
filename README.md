@@ -171,7 +171,10 @@ an atomic rename (2026-08-25 to 2026-08-27). Root resolution is an assertion,
 never an override: `CLAUDE_CONFIG_ROOT` must name the compile-time root by
 device and inode, so a session on one checkout refuses another checkout's
 binary. [`skills/long-bash/`](skills/long-bash/SKILL.md) teaches the agent the
-protocol.
+protocol. An agent no notification re-invokes, a subagent or a `claude -p` session, waits with
+`agent-tools wait`, which returns when the job ends or within four minutes: a subagent's prompt
+cache lives five, and a message reaches it only between tool calls
+([measured](notes/cc-2.1.289-subagent-waits.md)).
 
 ### Session logs as data
 

@@ -192,6 +192,49 @@ fn explicit_run_in_background_is_not_reported_as_timeout() {
 /// coverage assertion pairs one needle with one `// PROMPT-COUPLED` marker, and
 /// this literal shares an emit site with the `BACKGROUNDED:` prefix — so read the
 /// name back out of the emitted text and resolve it against `skills/`.
+/// An agent nothing re-invokes is told how to wait inside its turn, with a call
+/// it can copy: a subagent, and a `-p` main thread (`CLAUDE_CODE_SESSION_ATTENDED=0`).
+/// An interactive main thread, which the completion notification re-invokes, is not.
+#[test]
+fn only_an_agent_nothing_re_invokes_is_told_to_wait_in_its_turn() {
+    let notice = |agent: Option<&str>, attended: &str| {
+        let home = tempfile::tempdir().unwrap();
+        let mut body = serde_json::json!({
+            "session_id": "sid",
+            "tool_name": "Bash",
+            "tool_input": {"command": "slow", "run_in_background": true},
+            "tool_use_id": "tuid",
+            "tool_response": {"backgroundTaskId": "bt-sub"}
+        });
+        if let Some(a) = agent {
+            body["agent_id"] = serde_json::json!(a);
+        }
+        let mut c = agent_tools()
+            .arg("hook-post")
+            .env("HOME", home.path())
+            .env("CLAUDE_CODE_SESSION_ATTENDED", attended)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        c.stdin.as_mut().unwrap().write_all(body.to_string().as_bytes()).unwrap();
+        let out = c.wait_with_output().unwrap();
+        assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+        let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        v["hookSpecificOutput"]["additionalContext"].as_str().unwrap().to_string()
+    };
+    for (agent, attended, who) in [(Some("a1"), "1", "as a subagent"), (Some("a1"), "0", "as a subagent"), (None, "0", "under `claude -p`")] {
+        let n = notice(agent, attended);
+        assert!(n.starts_with("BACKGROUNDED: Command was backgrounded."), "{n}");
+        assert!(n.contains(&format!("To wait for it {who}, stay in your turn")), "{n}");
+        assert!(n.contains("`agent-tools wait <its output file>`"), "{n}");
+        assert!(n.contains("`timeout: 300000`"), "{n}");
+    }
+    let main = notice(None, "1");
+    assert!(!main.contains("agent-tools wait"), "{main}");
+}
+
 #[test]
 fn the_backgrounding_notice_names_a_skill_that_exists() {
     let home = tempfile::tempdir().unwrap();
