@@ -121,7 +121,8 @@ capture directory, and tells you nothing more. Report that directory, which
 - `agent-tools wait`'s Bash `timeout` must exceed its `--max`: at the default
   120 s the call itself is moved to the background.
 - Under `claude -p`, a background launch is stopped after 30 minutes unless its
-  Bash call sets `timeout` (up to `2147483647`).
+  Bash call sets a longer `timeout`: the notification reads `stopped after
+  reaching its background time limit`, the file ends `[killed]`.
 
 Everything else is yours. The `awk` stamp earns its place when a command might
 stall or run past midnight, and is noise when it already timestamps its own

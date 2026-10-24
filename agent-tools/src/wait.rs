@@ -181,8 +181,9 @@ fn read_task_file(path: &Path) -> Result<TaskFile> {
 
 /// The line Claude Code appends to a background shell task's output file when
 /// the task ends (2.1.289): `[exited with code N]` (`unknown` when there is
-/// none), `[killed]`, or `[stopped <reason>]`, the last for a time limit or a
-/// stop by the session.
+/// none), or `[killed]`, which a TaskStop and the `-p` background time limit
+/// both write (`notes/cc-2.1.289-subagent-waits.md`). `[stopped <reason>]`
+/// is read off the decompile for served background commands and not seen here.
 fn is_trailer(line: &str) -> bool {
     let Some(inner) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) else {
         return false;
