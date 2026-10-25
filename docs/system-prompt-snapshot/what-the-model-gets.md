@@ -308,8 +308,8 @@ definitions are captured in `<model-id>/tool-search-loaded/tools/`, and for the
 Chrome and connector tools a `default` session never names, in
 `opus-5/logged-in-tool-search-loaded/tools/`. 2.1.289 added `ArtifactComments`
 and `ArtifactData` and dropped `TaskOutput`, whose only remaining trace in the
-binary is a retired-name set — `var o_e = new Set(["Frame", "FrameRead",
-"TeamCreate", ...` (`src/chunk-wgfrtm7w.js:42837`) — beside `AgentOutput`,
+binary is a retired-name set — `var nMe = new Set(["Frame", "FrameRead",
+"TeamCreate", ...` (`src/chunk-j0tbz6ra.js:63049`) — beside `AgentOutput`,
 `BashOutput` and `TeamCreate`. opus-4-7 has 22 instead: the five `Task*` tools,
 and no `EndConversation`. Of the 19, only `WebFetch` (1,841 full / 651 lean)
 and `WebSearch` (1,344 / 334) split by branch; the other 17 are byte-identical
@@ -447,18 +447,18 @@ The two `tool-search-loaded` captures are turn-2 requests — `thread:
 system block, the billing header: 140 tokens on both, against 9,467 on
 sonnet-5 and 3,974 on opus-5 on turn 1, with no `messages[1]`
 reminder bundle either. That is a client-side trim, not lost context.
-Under growthbook `tengu_quiet_heron` (`BWo()`, `return
-!Bs().threadInheritedFields.breakerTripped && A("tengu_quiet_heron", !1)
-=== !0;`, `src/chunk-wgfrtm7w.js:82463-82465`, coded default false,
-served on 2026-10-06) `shapeInheritedFields` (`ao`,
-`src/chunk-wgfrtm7w.js:82623-82650`) keeps only the blocks `gB()`
+Under growthbook `tengu_quiet_heron` (`Eyr()`, `return
+!Ti().threadInheritedFields.breakerTripped && k("tengu_quiet_heron", !1)
+=== !0;`, `src/chunk-j0tbz6ra.js:107690-107692`, coded default false,
+served on 2026-10-06 and 2026-10-25) `shapeInheritedFields` (`go`,
+`src/chunk-j0tbz6ra.js:107846-107881`) keeps only the blocks `ZG()`
 accepts — text starting `x-anthropic-billing-header:`, or equal to the
 `# Reporting outcomes` ephemeral suffix
-(`src/chunk-898k2gs2.js:2256-2267`) — and omits `tools` entirely when
+(`src/chunk-q1myka9a.js:22-25`) — and omits `tools` entirely when
 `threadInheritedFields.storedToolsHashByThread` already matches
-(`:82640`); the thread holds the rest, and resends only new messages. A
+(`:107868`); the thread holds the rest, and resends only new messages. A
 server `fingerprint_mismatch` trips a breaker and full fields go for the
-remainder of the session (`:82771-82776`, log line `[tether] a continue
+remainder of the session (`:108002`, log line `[tether] a continue
 that left system/tools to the thread was refused`). So the text the
 model has on turn 2 is the turn-1 text, and `tools[]` is still the whole
 roster.

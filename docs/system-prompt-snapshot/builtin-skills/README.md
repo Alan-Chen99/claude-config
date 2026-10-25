@@ -64,12 +64,12 @@ sha256. Three of the five sets are fixed by the release — `claude-api`'s with
 the build's model ids filled in — and two are not:
 
 - `plugin-authoring/types/claude-code.d.ts` is an embedded declaration file
-  followed by typings generated from the session's non-MCP tools (`bBr`,
-  `src/chunk-gppff98a.js:17425`), so a tool whose schema a server flag changes
+  followed by typings generated from the session's non-MCP tools (`Ue()`,
+  `src/chunk-shyejxf8.js:1454`), so a tool whose schema a server flag changes
   changes it too: `Artifact`'s differed between two 2.1.289 sessions.
 - `artifact-capabilities/<contract>/` is the platform's `window.claude` type
   definitions for the runtime contract the server names, fetched as the skill
-  loads (`src/chunk-3vz7qf6p.js:1053`); its body is composed from the same
+  loads (its `**Call contract**` line, `src/chunk-n7dvjfwp.js:250`); its body is composed from the same
   platform. 2026-10-06 got contract 0.2.69 and 2026-10-12 got 0.2.75, on one
   build; 2.1.310 got 0.2.90. A failed fetch extracts nothing, which
   `capture_skills.py` warns about when the last capture had files.

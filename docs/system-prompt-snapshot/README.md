@@ -19,8 +19,8 @@ Directories are named for the model id the request carried, minus its `claude-` 
 Aliases are repointed as models ship — `opus` meant `claude-opus-4-6` in the 2.1.143 capture
 and `claude-opus-5` in the 2.1.269 one, and resolves to `claude-opus-5-5` here while `sonnet`
 resolves to `claude-sonnet-5-5` (`latest_per_family: {..., opus: "claude-opus-5-5", sonnet:
-"claude-sonnet-5-5", haiku: "claude-haiku-5-5"}`, `src/chunk-dvghjmtr.js:950-954`) — so an alias-named directory
-changes meaning between captures while its path stays put. `opus-5-5/` and `sonnet-5-5/` are
+"claude-sonnet-5-5", haiku: "claude-haiku-5-5"}`, `src/chunk-dvghjmtr.js:950-954`) — so an
+alias-named directory changes meaning between captures while its path stays put. `opus-5-5/` and `sonnet-5-5/` are
 what the aliases capture; `opus-5/` and `sonnet-5/` are the explicit ids. `claude-fable-5-1`,
 `claude-mythos-5` and `claude-mythos-5-1` are selectable too and none is captured —
 `notes/cc-2.1.269-fable-and-mythos-model-ids.md`.
@@ -97,10 +97,10 @@ permission classifier is in play; and a `messages[1]` reminder opening `While by
 permissions mode is active:` instead of `While auto mode is active:` over a byte-identical
 body. `capture.py` passes the startup acceptance dialog by writing
 `skipDangerousModePermissionPrompt: true` into the temp cwd's `.claude/settings.local.json`
-(gate `mz()`, `src/chunk-3z4drmxy.js:3958`, read by the dialog at `src/chunk-q08t3k8v.js:129`);
+(gate `Q5()`, `src/chunk-7c3thgax.js:4567-4569`, read by the dialog at `src/chunk-v7659rjj.js:444`);
 accepting by hand writes that key into the real `settings.json`, and `.claude.json`'s older
 `bypassPermissionsModeAccepted` is migrated into it by
-`tengu_migrate_bypass_permissions_accepted` (`src/chunk-ya33qr7x.js:851-866`).
+`tengu_migrate_bypass_permissions_accepted` (`src/chunk-mh7sh27p.js:246-270`).
 
 ### The three `logged-in` variants
 
@@ -109,8 +109,8 @@ Every other variant exports `CLAUDE_CODE_OAUTH_TOKEN` and is MCP-free. These thr
 `~/.claude/.credentials.json`, the condition under which it reaches the Chrome extension and
 the claude.ai connectors.
 
-The mechanism is an OAuth scope check, not a preference. `WFt()`
-(`src/chunk-gppff98a.js:16875-16887`) returns false before it looks at any flag or setting when
+The mechanism is an OAuth scope check, not a preference. `zht()`
+(`src/chunk-6h7ejyet.js:20275-20288`) returns false before it looks at any flag or setting when
 `/api/oauth/validate` rejects the token's scopes, and its log line names them: *"needs
 user:profile, user:office, or user:ccr_inference; env-var and setup-token sessions default to
 user:inference only"*. An exported `CLAUDE_CODE_OAUTH_TOKEN` child cannot reach Chrome however
@@ -128,10 +128,10 @@ leave with the key. `notes/artifact-tool-roster-cost.md` records the same compar
 2.1.269, when `Artifact` was 25,099 characters rather than 21,621.
 
 `logged-in-tool-search-loaded` is the only place the Chrome and connector definitions live.
-Both sets are MCP, and the deferral predicate (`h()`, `src/chunk-sspbjbr8.js:52-57`) defers
-every MCP tool unconditionally — `if (e.isMcp === !0) return !0;` (`:53`) — so `logged-in`
+Both sets are MCP, and the deferral predicate (`T()`, `src/chunk-s72xe0e3.js:53-57`) defers
+every MCP tool unconditionally — `if (e.isMcp === !0) return !0;` (`:54`) — so `logged-in`
 records their names and not one definition. The variant adds `--chrome` and the
-`tool-search-loaded` machinery to the `logged-in` credential: `WFt()` reads the flag ahead of
+`tool-search-loaded` machinery to the `logged-in` credential: `zht()` reads the flag ahead of
 both `CLAUDE_CODE_ENABLE_CFC` and the `claudeInChromeDefaultEnabled` setting, and that setting
 lives in `~/.claude.json`, which `--setting-sources project,local` does not filter — so without
 the flag the Chrome roster would be a property of the operator's machine. Its 117 `tools[]`
@@ -147,8 +147,8 @@ reason: verified against `default`, which knows only its 19 names, a capture who
 schemas never arrived would pass.
 
 `advisor` is a **server tool**: `{"type": "advisor_20260301", "name": "advisor", "model":
-"claude-opus-5-5", "defer_loading": true}` (`var lTt = "advisor_20260301"`,
-`src/chunk-wgfrtm7w.js:44092`), in every logged-in roster and no MCP-free one. It has no
+"claude-opus-5-5", "defer_loading": true}` (`var PXt = "advisor_20260301"`,
+`src/chunk-j0tbz6ra.js:64701`), in every logged-in roster and no MCP-free one. It has no
 description and no schema, so `tools/advisor.md` renders its `type` and `model` under
 `## attributes` with both empty. `regenerate.py` lists such entries under `tools_server` and
 excludes them from `tools_total_tokens`: `count_tokens` rejects a request on one.

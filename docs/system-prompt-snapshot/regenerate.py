@@ -158,13 +158,13 @@ VARIANTS: dict[str, dict] = {
     # The only place a Chrome or claude.ai connector tool's description and
     # schema exist. Both sets are MCP, and the deferral predicate defers every
     # MCP tool unconditionally -- `if (e.isMcp === !0) return !0;`
-    # (`h()`, `src/chunk-sspbjbr8.js:53`) -- so `logged-in` records 57
+    # (`T()`, `src/chunk-s72xe0e3.js:54`) -- so `logged-in` records 101
     # names and not one definition. Reaching them needs the credentials-file
-    # login as well as the ToolSearch call: `WFt()` refuses Chrome outright
+    # login as well as the ToolSearch call: `zht()` refuses Chrome outright
     # when the OAuth token carries only `user:inference`, which is what an
     # exported CLAUDE_CODE_OAUTH_TOKEN session gets ("env-var and setup-token
     # sessions default to user:inference only",
-    # `src/chunk-gppff98a.js:16877`). `--chrome` is passed because `WFt()`
+    # `src/chunk-6h7ejyet.js:20277`). `--chrome` is passed because `zht()`
     # reads the flag ahead of both CLAUDE_CODE_ENABLE_CFC and the
     # `claudeInChromeDefaultEnabled` setting, and that setting lives in
     # ~/.claude.json, which `--setting-sources project,local` does not filter:
@@ -180,7 +180,7 @@ VARIANTS: dict[str, dict] = {
             "--capture-message", TOOL_SEARCH_MESSAGE,
         ],
         "requires_variant": "logged-in",
-        # ~95 tools and 4 blocks, one count_tokens call each, after a 120s pty.
+        # ~117 tools and 4 blocks, one count_tokens call each, after a 120s pty.
         "timeout": 1800,
     },
     # --- subagent capture ---
