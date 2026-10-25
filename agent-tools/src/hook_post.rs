@@ -201,6 +201,11 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
     // unless `"tengu_tidy_sloth"` (default on) holds the process for the shell
     // and starts a turn when it ends (`function ppt()`, 2.1.310; measured
     // 2026-10-25), which is what an interactive main thread gets.
+    // A subagent is told whatever the flag says: cc sets it only for a
+    // synchronous one ("a synchronous subagent's command"), yet under `-p` an
+    // async subagent's shell is killed too when the main thread finishes, as
+    // `-p` holds only main-thread shells (`e.agentId === void 0`; measured
+    // 2026-10-25, 81848736).
     let who = if input.agent_id.is_some() {
         Some("as a subagent")
     } else if flag("backgroundEndsWithFinalResponse") {
