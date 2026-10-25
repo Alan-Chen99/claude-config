@@ -56,11 +56,9 @@ Use these tools freely and with confidence:
 
 | Tool   | Purpose                           |
 | ------ | --------------------------------- |
-| Glob   | Find files by pattern             |
-| Grep   | Search content                    |
-| Read   | Examine files                     |
-| Search | Web search for context            |
-| Bash   | Run commands, inspect environment |
+| Read      | Examine files                                |
+| Bash      | `find` by pattern, `rg` content, inspect env |
+| WebSearch | Web search for context (load via ToolSearch) |
 
 **Always explore**:
 
@@ -137,7 +135,7 @@ Minimize internal reasoning verbosity:
 Examples:
 
 - VERBOSE: "Now I need to find similar features. Let me search for authentication patterns."
-- CONCISE: "Similar auth: Grep auth, Read handlers/"
+- CONCISE: "Similar auth: rg auth, Read handlers/"
 
 ## Required notes
 
