@@ -12,19 +12,11 @@ rather than leaving it in a session transcript.
   phrase swap. `artifact-diagramming`'s (2.1.289: `trimStart()` only) is unread. 2.1.310: same chain (page contract gated on `CLAUDE_CODE_ARTIFACT_TOOLSET` or `tengu_cobalt_plinth_damson`; Thumbnail line `tengu_cobalt_plinth_campion`). Never retires.
 - **The resume-from-summary override, a decision held on a Claude Code defect.**
   `skills/resume-from-summary` overrides the summary's closing order
-  (`as if the break never happened`), which no setting or settings hook reaches. A mod reaches
-  most compactions — measured 2026-10-12 (session `c8997157`): a `session.append` hook on door
-  `compaction` rewrites it in every autocompact, interactive and `-p`, and in a `-p` `/compact`.
-  An interactive `/compact` dispatches no `session.append`, against the bundled reference
-  (`a compaction's boundary and summary`); only a `session.compact` hook reaches it, by
-  rebuilding the summary without its `handle`, which drops `isCompactSummary`. That gap and the
-  plugin API's `EARLY ACCESS` are why the user keeps the override. Re-check: run
-  `claude --setting-sources project,local --plugin-dir <mod>` interactively in a pty, the mod
-  logging `session.append` by door, under `CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1` (a nested
-  session saves no transcript without it); send a prompt, then `/compact`. Once that `/compact`
-  reaches `session.append` and the API leaves early access, put the decision back to the user.
-
-- **`-p` background shells.** Re-probe a `-p` main-thread and a `-p` subagent background shell (`tengu_tidy_sloth`; the held-shell test `e.agentId === void 0`); `inventory.md`'s `long-bash` row.
+  (`as if the break never happened`); an interactive `/compact` dispatches no `session.append`
+  (against the bundled reference), and the plugin API is `EARLY ACCESS` — why the user keeps it.
+  Re-run the mod test (`skills/resume-from-summary/README.md`, "After a Claude Code upgrade");
+  once an interactive `/compact` reaches `session.append` and the API leaves early access, put
+  the decision back to the user.
 
 ## Open decision
 
@@ -49,15 +41,6 @@ rather than leaving it in a session transcript.
 `inventory.md` claims no lookup reached: the `Output too large (` persister's threshold for hook
 text (`REPORT_BUDGET`), `statusline.py`'s payload builder, the session file's `entrypoint`, the
 sync gate's paths, the skills `enableArtifact` disables, the shadowing rule.
-
-## Pins never re-derived for this build
-
-- `notes/env-context-manifest.md` (named by `docs/env-context-manifest.json`): its byte offsets,
-  anchor count and `Shell: PowerShell` probe describe 2.1.235.
-- `docs/system-prompt-snapshot/README.md`: the two **Not re-verified since 2.1.235** blocks, under
-  "Security-monitor calls" and "Interactive vs `-p` mode differences".
-- `docs/system-prompt-snapshot/builtin-output-styles/`: captured from v2.1.87, and has no file
-  for 2.1.257's `Proactive`. Retire by re-capturing every built-in style.
 
 ## Unread in the 2.1.289 captures
 
@@ -90,10 +73,3 @@ sync gate's paths, the skills `enableArtifact` disables, the shadowing rule.
   resolves, so it is a cost and behaviour choice.
 - Whether the env-context window check is redesigned around the field templates it no longer
   sees (`checks.md`).
-
-## Pre-existing, not upgrade-caused
-
-`agents/*.md` and ~30 sites under `skills/scripts/` name `Grep`, `Glob`, `TodoWrite` and
-`Task`, none on the live roster. `TodoWrite` is a settings decision
-(`CLAUDE_CODE_ENABLE_TODO_TOOLS`, `inventory.md`); `Task` is an accepted alias for `Agent`; the
-rest are text edits.

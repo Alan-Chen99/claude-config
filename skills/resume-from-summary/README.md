@@ -251,3 +251,12 @@ capture carries `# Continuing from a compaction summary` in the request's last m
 system`, `SessionStart hook additional context:`) — the transcript's `hook_additional_context`
 record shows that the hook ran, the capture that its text reached the model. `prompt-tests/general/cinder-orchard`
 runs all of it: leg 1, `/compact`, leg 2.
+
+The user keeps the override because an interactive `/compact` dispatches no `session.append`
+(measured 2026-10-12, session `c8997157`: a `session.append` hook on door `compaction` rewrites
+the summary's closing order in every autocompact, interactive and `-p`, and in a `-p`
+`/compact`; only a `session.compact` hook reaches the interactive one, by rebuilding the summary
+without its `handle`, which drops `isCompactSummary`). Re-run: in a pty,
+`claude --setting-sources project,local --plugin-dir <mod>` with the mod logging
+`session.append` by door, under `CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1` (a nested session
+saves no transcript without it); send a prompt, then `/compact`.
