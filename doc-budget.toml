@@ -180,7 +180,9 @@ loaded = "on demand, when the skill is invoked"
 # invocation; the references -- the coupling inventory, what each check misses,
 # the open items -- are grepped before an edit and read whole only at an
 # upgrade's step 13. Capped just above their size: the next row added pays the
-# 20% cut or asks the user for a cap.
+# 20% cut or asks the user for a cap. 2026-10-25 (user:cf4624e1): the user
+# approved the 2.1.310 pass landing near 9,400 rather than the 8,240 an 80% cut
+# reaches, which would delete check-bearing rows; the cap stays.
 [groups.".claude/skills/update-claude-code"]
 cap = 10300
 approved = "user:149edf87"
