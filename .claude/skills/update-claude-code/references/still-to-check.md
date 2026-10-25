@@ -38,8 +38,7 @@ rather than leaving it in a session transcript.
 
 ## Not re-read on 2.1.310
 
-`inventory.md` claims no lookup reached: the `Output too large (` persister's threshold for hook
-text (`REPORT_BUDGET`), `statusline.py`'s payload builder, the session file's `entrypoint`, the
+`inventory.md` claims no lookup reached: `statusline.py`'s payload builder, the session file's `entrypoint`, the
 sync gate's paths, the skills `enableArtifact` disables, the shadowing rule.
 
 ## Unread in the 2.1.289 captures
@@ -60,12 +59,7 @@ sync gate's paths, the skills `enableArtifact` disables, the shadowing rule.
   `agent-tools run --background sleep 900`, quit Claude Code, check whether the child survives.
 - `docs/tool-token-limits.md`: the changelog's 20 MB Grep/Glob output cap has no matching
   constant in the search path (2.1.310: `20971520` caps only file, PDF, image and JSON reads).
-- `src/claude_config/cc_pretty/` record handling: subagent progress ticks replaced (2.1.251),
-  async hook notices batched onto one line (2.1.257), nested background subagent results in the
-  parent subagent's transcript (2.1.259), the report arriving through a `SubagentHandback` call
-  (2.1.271), every foreground Agent result under the `[Subagent hand-back]` header (2.1.277), so
-  a small `--tool-max` preview is mostly preamble. Retire by re-reading real 2.1.310 logs
-  (step 10).
+- `src/claude_config/cc_pretty/` record handling for the 2.1.251–2.1.277 changes (progress ticks, batched hook notices, nested subagent results, `SubagentHandback`, the `[Subagent hand-back]` header): step 10 on 2.1.310 logs retires it.
 
 ## Open design questions
 

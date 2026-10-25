@@ -173,13 +173,14 @@ loaded = "on demand, when the skill is invoked"
 [groups.".claude/skills/<name>"]
 loaded = "on demand, when the skill is invoked"
 
-# update-claude-code is budgeted as the sum of its body and these references.
-# 12,300 is the user's cap (2026-10-12): 2,000 (the skill-bodies cap) + 10,300,
-# set when the skill was cut from 22,894 in one body to 12,140. The body is the
-# runbook and the edit rule, paid on every invocation; the references -- the
-# coupling inventory, what each check misses, the open items -- are grepped
-# before an edit and read whole only at an upgrade's step 13. Capped just above
-# their size: the next row added pays the 20% cut or asks the user for a cap.
+# update-claude-code: the cap covers the references only; SKILL.md is its own
+# group at the skill-bodies cap (2,000). The user set 12,300 for the pair on
+# 2026-10-12 -- 2,000 + 10,300 -- when the skill was cut from 22,894 in one
+# body to 12,140. The body is the runbook and the edit rule, paid on every
+# invocation; the references -- the coupling inventory, what each check misses,
+# the open items -- are grepped before an edit and read whole only at an
+# upgrade's step 13. Capped just above their size: the next row added pays the
+# 20% cut or asks the user for a cap.
 [groups.".claude/skills/update-claude-code"]
 cap = 10300
 approved = "user:149edf87"
