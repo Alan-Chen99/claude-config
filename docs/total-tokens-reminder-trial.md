@@ -3,19 +3,8 @@
 Pre-registered 2026-09-25 on Claude Code **2.1.269**, before any randomized
 session. `scripts/claude.sh` draws one arm per interactive session:
 `CLAUDE_CODE_TOTAL_TOKENS_REMINDER` = `off` or `padded-countdown`, 50/50.
-
 Written in advance so the outcome cannot be chosen after the fact; **no outcome
-is primary yet** — one entry of the frozen list below is promoted before the
-first look at randomized data.
-
-## What it tests, and why the fixture cannot
-
-`notes/total-tokens-reminder.md` measured the marker's *proximate* effect on one
-turn: a binding budget cut reading by two thirds and got the answer wrong; at the
-shipped value `off` and 15M were indistinguishable — a null that cannot transfer,
-since every run reached the cause (a ceiling) and one turn cannot show a per-turn
-economy compounding across turns and compactions into missing context and
-rework. The fixture measures the response, this trial the consequence.
+is primary yet** — one frozen entry below is promoted before the first look. Fixture: `notes/total-tokens-reminder.md` (one turn).
 
 ## Design
 
@@ -29,40 +18,20 @@ rework. The fixture measures the response, this trial the consequence.
 
 ## Arm recovery
 
-**What was delivered.** Claude Code writes the marker into the transcript as
-`attachment` records, so `grep -c '<total_tokens>' /root/.claude/projects/*/*.jsonl`
-separates the arms: zero is `off`.
-
-**One confound.** No markers is also what `CLAUDE_CODE_DISABLE_ATTACHMENTS` or
-`CLAUDE_CODE_SIMPLE` produce; neither is set here today, and sessions from a
-period where one is are unlabelable — dropped, not `off`.
-
-**What was configured.** `agent-tools hook-provenance` writes the launch
-configuration into the same JSONL, out of the model's context: the launcher
-chain verbatim, every `CLAUDE_CODE_*` variable in force, every settings file
-readable:
+`grep -c '<total_tokens>' /root/.claude/projects/*/*.jsonl` is zero for `off`; `CLAUDE_CODE_DISABLE_ATTACHMENTS` or `CLAUDE_CODE_SIMPLE` also yield zero: drop, not `off`. `grep -L '<launch-provenance'` (records since 2026-09-29) finds unlabelled sessions.
 
 ```bash
 jq -r 'select(.attachment.type=="hook_success") | .attachment.stdout
        | select(startswith("<launch-provenance"))' <session>.jsonl
 ```
 
-The count says which arm ran, not which arm *set* the draw was over; with a
-third arm only the launcher's text, embedded here, tells the treatments apart.
-`grep -L '<launch-provenance'` also checks the draw still happens — no record
-and no marker is unlabelled, not `off`. Records begin 2026-09-29.
+`CLAUDE_SH_TOKENS_REMINDER_SOURCE` (since 2026-09-30):
 
-**Whether the launcher drew it.** After `exec` a drawn value and a
-caller-exported one are the same variable, so `scripts/claude.sh` labels the
-path it took, in the same block:
-
-| `CLAUDE_SH_TOKENS_REMINDER_SOURCE` | Means |
+| Value | Means |
 | --- | --- |
-| `draw` | randomized at launch; the session is in the trial |
-| `caller` | the environment already carried a value — chosen, not drawn; excluded |
-| `skipped-not-interactive` | no tty, no draw, variable unset: a `-p` run, which Claude Code configures for itself |
-
-Absent before 2026-09-30, when the embedded launcher text answers instead.
+| `draw` | randomized at launch; in the trial |
+| `caller` | value carried in — chosen, not drawn; excluded |
+| `skipped-not-interactive` | `-p` run |
 
 ## Gating checks, before any outcome is read
 
@@ -121,28 +90,4 @@ asked and needs the most.
 
 ## The compaction clamp
 
-`settings.json` sets `autoCompactWindow: 600000` since 2026-10-18 (`640abd00`),
-and `400000` from 2026-09-25 — after the draw went live — until then, so the
-sessions fall in three strata; it reaches a session through the
-`~/.claude/settings.json` symlink into the canonical checkout.
-
-Auto-compaction then fires at **567,000** context tokens (367,000 at `400000`)
-against 967,000 before — the window less `min(maxOutputTokens, 20000)` less a flat 13,000 (`SK` →
-`MJ` → `GQ`, `src/chunk-j0tbz6ra.js:64535`, `:64468`, `:64109`; Opus 5's window
-1e6 at `src/chunk-dvghjmtr.js:668-676`), compared live off
-`n.options.autoCompactWindow` (`chunk-j0tbz6ra.js:101421`, `:101483`). Re-derived on 2.1.289 and
-again on 2.1.310, unmoved. The clamp only lowers — `TS()` returns `Math.min(modelWindow, n)`
-(`:64296`) — and 2.1.288's server-supplied window is read only after the
-settings key (`:64318` before `:64336`), so it does not displace this one.
-
-**A covariate, not a second treatment.** Outcomes 2–4 are counted per
-compaction, so the clamp moves their denominator: one stratum before, another
-after, arms randomized inside each. The treatment cannot move:
-`padded-countdown` emits `JZ() − cumulativeUsed`, which carries rolled-over
-tokens across every compaction (`chunk-j0tbz6ra.js:137421`, `:90151`; rollover
-`src/chunk-f0m66zs2.js:95`, unconditional since 2.1.310), so it reads the same at either window; `countdown`,
-whose subtrahend is the current message list, would move — no arm draws it.
-The split buys yield and dates itself: at 367,000 a long session compacts about
-2.6× as often (at 567,000, 1.7×), so each session supplies more of the events outcomes 2–4 count,
-and a first compaction near 367k or 567k rather than 967k recovers the stratum
-without the commit date.
+`autoCompactWindow` in `settings.json` makes three strata: unset until 2026-09-25 (compaction at 967,000), `400000` (367,000) until 2026-10-18, `600000` since `640abd00` (567,000). A covariate for outcomes 2–4 (counted per compaction); arms randomize inside each. `padded-countdown` carries rolled-over tokens across compactions, so it cannot move with the window.
