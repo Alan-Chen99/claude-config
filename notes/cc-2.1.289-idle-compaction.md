@@ -1,5 +1,12 @@
 # 2.1.289 compacts an idle main thread 54 minutes after its last request, background work or not
 
+> **2.1.299 added a setting and a threshold variable (read in 2.1.310's source, 2026-10-25).**
+> `"idleCompaction": false` in `settings.json` (default true) refuses a firing as
+> `idle_compaction_off`, checked right after `compaction_off`; the notice now ends `turn off with
+> "idleCompaction": false in settings.json`. `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` replaces the
+> flag's `minTokens`, still floored at 100,000 with 200,000 as the default. The flag also takes
+> a `compact_on_return` mode. Everything below is 2.1.289's and stands as measured.
+
 Investigated 2026-10-24 on Claude Code **2.1.289**: the code by an Explore subagent in
 `/repos/claude-code-decompiled`, each citation re-read by hand; the firings from this machine's
 transcripts.

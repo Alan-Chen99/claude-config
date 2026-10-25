@@ -48,8 +48,10 @@ waits, and 40 of the 53 measured in-turn waits fell there. A module reloaded mid
 to this folder) holds no path until its next Stop. Both refresh on the 1h every measured main
 thread here used, and the lapse check reports one that was not.
 
-**Idle compaction overlaps one case.** 2.1.289 compacts an idle main thread 54 minutes after its
-last request when its context is 200k+ tokens and the person is away. On this account the
+**Idle compaction overlaps one case.** Claude Code compacts an idle main thread 54 minutes after
+its last request when its context is 200k+ tokens (`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS`, floor
+100k) and the person is away, unless `settings.json` sets `"idleCompaction": false` (2.1.299;
+this repo's does not). On this account the
 GrowthBook flag `tengu_sunny_locket` is `{"mode": "compact"}`
 (`notes/cc-2.1.289-idle-compaction.md`). It ignores background work and refuses inside a turn.
 After a turn end in that case both are armed. In the one session where the mod refreshed a 240k

@@ -1,5 +1,11 @@
 # `/rewind` restores only Edit/Write/NotebookEdit files — Bash writes are never checkpointed
 
+> **2.1.309 closed the `sed -i` exception (read in 2.1.310's source, 2026-10-25).** The
+> changelog: `sed -i` now gets "the standard Bash prompt and run[s] as written, not a simulated
+> file-edit preview; like other Bash edits, it is no longer restored by `/rewind`". Nothing in
+> 2.1.310 sets `_simulatedSedEdit`; the name survives only in the lists that strip it from a
+> call's input. Every Bash write is now outside the restore boundary below.
+
 Investigated 2026-09-04 against the decompiled **Claude Code 2.1.235** tree at `/repos/claude-code-decompiled/`. `/rewind`'s code restore reverts only files that the Edit, Write, or NotebookEdit tools were about to touch. It is not a working-tree snapshot: no directory walk exists in the file-history module, so a file changed by `sed -i`, a heredoc, `>` redirection, `cp`, `mv`, or any other shell means is neither backed up nor restored.
 
 Concrete consequence for this repo: under bypass-permissions mode the harness instructs the agent to make file changes through Bash rather than through Edit/Write. That instruction and file checkpointing are mutually exclusive — a session following it produces edits that `/rewind` cannot undo, while the same session's conversation restore still succeeds, leaving files ahead of the transcript. The `[may-rewind]` marker in `sys_prompt/alan-default-next.md` (`# Tone markers`) tells an agent the user may drop an exchange from its context; it deliberately carries none of these mechanics, so this note is the only place the restore boundary is written down.
