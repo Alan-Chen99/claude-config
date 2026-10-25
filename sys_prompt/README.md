@@ -11,10 +11,10 @@ measured and not shipped. How to write either is `CLAUDE.md`.
 Claude Code 2.1.198 (2026-07-01) changed the built-in Explore agent's model from `haiku` to
 `inherit`, as a reliability fix rather than a quality one: issue #45357 reported that a large MCP
 tool surface overflowed Haiku's prompt limit and killed every spawn. That failure needs a heavy
-MCP install; a session without one keeps Haiku's headroom, and Explore is scoped to locating code
+MCP install, and since 2.1.310 first-party `haiku` is Haiku 5.5, with a 1M window and `effort`
+(third-party providers still map it to 4.5, 200K). Explore is scoped to locating code
 rather than reviewing it. `Prefer` carries the escape hatch, so the prompt spells none out: pass
-`sonnet` or `opus` when a search is genuinely hard. Haiku also drops the session's inherited
-`effort` setting, which the API rejects for that model. Per-call rather than an `Explore` agent
+`sonnet` or `opus` when a search is genuinely hard. Per-call rather than an `Explore` agent
 shadowing the built-in, because the shadow would have to re-declare everything the built-in sets;
 since 2.1.271 that is possible — `omitClaudeMd` is now agent frontmatter, where it used to be
 readable only on built-in definitions — but the per-call form needs no upkeep.

@@ -113,9 +113,10 @@ adjacency it referred to):
 > which describes how you should respond to user queries. Use the instructions
 > below and the tools available to you to assist the user.
 
-When no output style is active (default):
+When no output style is active (default; 2.1.310 dropped the 2.1.269 "interactive agent that
+helps users with software engineering tasks"):
 
-> You are an interactive agent that helps users with software engineering tasks.
+> You are an agent working with the user toward their goals, using your own judgment along the way.
 
 ### Injection points
 

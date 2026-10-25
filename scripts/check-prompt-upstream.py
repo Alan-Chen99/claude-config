@@ -48,10 +48,10 @@ DECOMPILED = Path("/repos/claude-code-decompiled/src")
 
 # (label, occurrences in the decompiled tree, verbatim text). Each text is cut to
 # avoid `${...}` interpolation in the upstream template, which is why some start
-# mid-sentence. The opening line occurs twice because Claude Code opens both its
-# lean and its non-lean prompt body with it, from two separate literals.
+# mid-sentence. The opening line occurs once though both prompt bodies open with
+# it: since 2.1.310 they share one literal.
 PINS = [
-    ("opening line", 2, "You are an interactive agent that helps users with software engineering tasks."),
+    ("opening line", 1, "You are an agent working with the user toward their goals, using your own judgment along the way."),
     ("harness/output", 1, "Text you output outside of tool use is displayed to the user as Github-flavored markdown in a terminal."),
     ("harness/permission", 1, "Tools run behind a user-selected permission mode; a denied call means the user declined it — adjust, don't retry verbatim."),
     ("harness/system-reminder", 1, "`<system-reminder>` tags in messages and tool results are injected by the harness, not the user."),
