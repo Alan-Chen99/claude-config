@@ -51,11 +51,14 @@ def level(pct):
 
 SEP = f" {lab('│')} "
 
-# cc 2.1.289's model catalog `pricing_tiers`, $/Mtok. Per-model prices rather
-# than ratios: cache read is 0.05x input on opus-5-5 but 0.1x elsewhere, and a
-# session mixes models.
+# cc 2.1.310's model catalog `pricing_tiers`, $/Mtok. Per-model prices rather
+# than ratios: cache read is 0.1x input on most models but less on the newest,
+# and a session mixes models. A tier's `long` replaces it for a
+# response whose prompt (uncached input, cache read and cache write) is over
+# `above` tokens.
 TIERS = {
     "t2_10": dict(inp=2, out=10, w5=2.5, w1h=4, rd=0.2),
+    "t2_10r": dict(inp=2, out=10, w5=2.5, w1h=4, rd=0.1),
     "t3_15": dict(inp=3, out=15, w5=3.75, w1h=6, rd=0.3),
     "t5_25": dict(inp=5, out=25, w5=6.25, w1h=10, rd=0.5),
     "t15_75": dict(inp=15, out=75, w5=18.75, w1h=30, rd=1.5),
@@ -64,12 +67,14 @@ TIERS = {
     "t4_20r": dict(inp=4, out=20, w5=5, w1h=8, rd=0.2),
     "h35": dict(inp=0.8, out=4, w5=1, w1h=1.6, rd=0.08),
     "h45": dict(inp=1, out=5, w5=1.25, w1h=2, rd=0.1),
+    "h55": dict(inp=0.1, out=0.5, w5=0.125, w1h=0.2, rd=0.01,
+                long=dict(above=100_000, inp=0.5, out=2.5, w5=0.625, w1h=1, rd=0.05)),
 }
 MODELS = {
-    "claude-3-5-haiku": "h35", "claude-haiku-4-5": "h45",
+    "claude-3-5-haiku": "h35", "claude-haiku-4-5": "h45", "claude-haiku-5-5": "h55",
     "claude-3-5-sonnet": "t3_15", "claude-3-7-sonnet": "t3_15",
     "claude-sonnet-4-0": "t3_15", "claude-sonnet-4-5": "t3_15", "claude-sonnet-4-6": "t3_15",
-    "claude-sonnet-5": "t2_10", "claude-sonnet-5-5": "t2_10",
+    "claude-sonnet-5": "t2_10", "claude-sonnet-5-5": "t2_10r",
     "claude-opus-4-0": "t15_75", "claude-opus-4-1": "t15_75",
     "claude-opus-4-5": "t5_25", "claude-opus-4-6": "t5_25", "claude-opus-4-7": "t5_25",
     "claude-opus-4-8": "t5_25", "claude-opus-5": "t5_25", "claude-opus-5-5": "t4_20r",
@@ -125,6 +130,8 @@ def cost_split(transcript):
         if model not in MODELS:
             unpriced.add(model)
         p = TIERS[MODELS.get(model, "t5_25")]
+        if "long" in p and inp + rd + cw > p["long"]["above"]:
+            p = p["long"]
         k = (1.1 if u.get("inference_geo") == "us" else 1) * (FAST.get(model, 1) if u.get("speed") == "fast" else 1) / 1e6
         cost["in"] += inp * p["inp"] * k
         cost["out"] += out * p["out"] * k

@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "statusline.py"
 ANSI = re.compile(r"\x1b\[[\d;]*m")
@@ -67,6 +69,23 @@ def test_cost_no_transcript_records_is_other(tmp_path):
 def test_transcripts_above_cc_total_are_flagged(tmp_path):
     rows, _ = run(session(tmp_path, [OPUS], [HAIKU]), total=0.02)
     assert rows[2].startswith("traced 201% │ ")
+
+
+# Each priced alone against a cc total that matches only the tier named:
+# another tier leaves an `other` share or flags `traced`.
+@pytest.mark.parametrize("line, total", [
+    # haiku_55 long_prompt, 1 + 100000 + 1000 prompt tokens over 1e5:
+    # 1*0.5 + 100000*0.05 + 1000*1 (1h) = $0.0060005
+    (assistant("h1", "claude-haiku-5-5", input_tokens=1, output_tokens=0, cache_read_input_tokens=100000,
+               cache_creation_input_tokens=1000, cache_creation={"ephemeral_1h_input_tokens": 1000}), 0.0060005),
+    # haiku_55 at exactly 1e5 prompt tokens, not over: 100000*0.01 = $0.001
+    (assistant("h2", "claude-haiku-5-5", input_tokens=0, output_tokens=0, cache_read_input_tokens=100000), 0.001),
+    # tier_2_10_cache_read_0_10: 100000*0.1 = $0.01
+    (assistant("n1", "claude-sonnet-5-5", input_tokens=0, output_tokens=0, cache_read_input_tokens=100000), 0.01),
+])
+def test_each_response_is_priced_at_its_tier(tmp_path, line, total):
+    rows, _ = run(session(tmp_path, [line]), total=total)
+    assert "other 0% " in rows[0] and "traced" not in rows[2], rows
 
 
 def test_an_unknown_model_is_named(tmp_path):
