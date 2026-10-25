@@ -1,4 +1,4 @@
-import type { EngineInterface, ModelForkResult, Register, Timer } from 'claude-code'
+import type { EngineInterface, HookFailure, ModelForkResult, Register, Timer } from 'claude-code'
 
 // The main thread's cache entries live 1h from their last use. The first
 // entry's hour starts when the request before the wait is sent, which is
@@ -86,6 +86,23 @@ const ttlOf = async ($: EngineInterface, path: string): Promise<Ttl | { error: s
   return cacheTtl(tail.stdout)
 }
 
+// A dim transcript row the model never reads (kept in the JSONL as a
+// `system` record); failures also toast and stay pinned as the status line
+// until the next turn starts.
+const fail = ($: EngineInterface, line: string) => {
+  $.ui.log(line)
+  $.ui.toast(line, { timeoutMs: 15_000 })
+  $.ui.status(`failed: ${line}`)
+}
+
+const UNARMED = 'session.start never ran here, so nothing can arm'
+
+// The `.catch` of every hook at a site whose answer can refuse what was asked
+// (a tool call, a stop, a compaction): it reports and passes the action on, as
+// a missed refresh costs one cache rewrite and a refused action the person's work.
+const caught = ($: EngineInterface, event: string, error: HookFailure) =>
+  fail($, `${event} hook failed (${error.kind}${error.message === undefined ? '' : `: ${error.message}`}); passed on`)
+
 export const register: Register = on => {
   // Set by session.start: timers outlive the dispatch that starts them, so
   // they hang off the session's own hook rather than the Stop or tool call
@@ -101,6 +118,7 @@ export const register: Register = on => {
   // Stop do. A module reloaded mid-session (an edit to this folder) has none
   // until its next Stop.
   let transcriptPath: string | undefined
+  let isUnarmedReported = false
 
   const disarm = () => {
     timer?.cancel()
@@ -108,15 +126,6 @@ export const register: Register = on => {
   }
 
   on('session.start', ($, e, next) => {
-    // A dim transcript row the model never reads (kept in the JSONL as a
-    // `system` record); failures also toast and stay pinned as the status
-    // line until the next turn starts.
-    const fail = (line: string) => {
-      $.ui.log(line)
-      $.ui.toast(line, { timeoutMs: 15_000 })
-      $.ui.status(`failed: ${line}`)
-    }
-
     const refresh = async (n: number, wait: Wait) => {
       // A turn still running after its Stop (a settings Stop hook made it go
       // on) keeps the cache warm by itself, and its own Stop arms again.
@@ -140,13 +149,13 @@ export const register: Register = on => {
       }
       const r = await $.model.fork({ prompt: PROMPT })
       const line = `refresh ${n}/${MAX_REFRESHES}: ${describe(r)}${during}`
-      if (!r.isAnswered && r.reason !== 'empty-reply') return fail(line)
+      if (!r.isAnswered && r.reason !== 'empty-reply') return fail($, line)
       const u = r.usage
       // The fork re-sends the main thread's last request: reading less than
       // it paid uncached means that entry had lapsed (or /model replaced
       // it), so this refresh warmed nothing and a later one cannot either.
       if (u.cache_read_input_tokens < u.input_tokens + u.cache_creation_input_tokens)
-        return fail(`${line}; the cache had already lapsed`)
+        return fail($, `${line}; the cache had already lapsed`)
       $.ui.log(line)
       if (n < MAX_REFRESHES) return schedule(n + 1, wait)
       if (wait === 'idle') $.ui.status(`cache warm until ${clock((await $.clock.now()) + TTL_MS)}`)
@@ -157,7 +166,7 @@ export const register: Register = on => {
       timer = $.clock.after(PERIOD_MS, () => {
         timer = undefined
         refresh(n, wait).catch(err => {
-          fail(`refresh ${n} threw: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
+          fail($, `refresh ${n} threw: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
           throw err
         })
       })
@@ -186,7 +195,11 @@ export const register: Register = on => {
   // them) and the tool's run: the whole time the main thread sends nothing.
   on('tool.call', async ($, e, next) => {
     if (e.agentId !== undefined) return next(e)
-    if (arm === undefined) throw new Error('session.start never ran here, so nothing can arm')
+    if (arm === undefined) {
+      if (!isUnarmedReported) fail($, UNARMED)
+      isUnarmedReported = true
+      return next(e)
+    }
     const isFirst = pending.size === 0
     pending.set(e, e.tool)
     try {
@@ -196,10 +209,16 @@ export const register: Register = on => {
       pending.delete(e)
       if (pending.size === 0) disarm()
     }
+  }).catch(($, e, next) => {
+    caught($, 'tool.call', next.error)
+    return next(e)
   })
 
   on('classic.SessionStart', ($, e, next) => {
     transcriptPath = e.transcript_path
+    return next(e)
+  }).catch(($, e, next) => {
+    caught($, 'classic.SessionStart', next.error)
     return next(e)
   })
 
@@ -209,7 +228,8 @@ export const register: Register = on => {
     transcriptPath = e.transcript_path
     if ((e.background_tasks ?? []).length === 0 || result.block !== undefined) return result
     if (arm === undefined) {
-      $.ui.toast('session.start never ran here, so nothing is armed', { timeoutMs: 15_000 })
+      if (!isUnarmedReported) fail($, UNARMED)
+      isUnarmedReported = true
       return result
     }
     const ttl = await ttlOf($, e.transcript_path)
@@ -219,11 +239,17 @@ export const register: Register = on => {
     }
     await arm('idle')
     return result
+  }).catch(($, e, next) => {
+    caught($, 'classic.Stop', next.error)
+    return next(e)
   })
 
   on('session.compact', ($, e, next) => {
     disarm()
     $.ui.status(undefined)
+    return next(e)
+  }).catch(($, e, next) => {
+    caught($, 'session.compact', next.error)
     return next(e)
   })
 

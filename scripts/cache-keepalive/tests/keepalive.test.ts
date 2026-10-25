@@ -314,6 +314,25 @@ describe('cache-keepalive', () => {
     expect(seen.runs).toEqual([['tail', '-c', '1000000', '/p/s.jsonl']])
   })
 
+  test('a module that saw no session.start passes every call and stop on, and says once why nothing arms', async ($, on) => {
+    const { clock, seen } = world(on, { toolMin: { AskUserQuestion: 120 } })
+    await $.classic.SessionStart(STARTUP)
+    await $.turn.start(START)
+    const call = $.tool.call(ASK)
+    await clock.advance(120 * MIN)
+    expect(await call).toEqual({ result: {} })
+    expect(await $.classic.Stop(STOP)).toEqual({})
+    const later = $.tool.call(BASH)
+    await clock.advance(300 * MIN)
+    expect(await later).toEqual({ result: {} })
+    expect(seen.calls).toEqual([undefined, undefined])
+    expect(seen.forks).toHaveLength(0)
+    const line = 'session.start never ran here, so nothing can arm'
+    expect(seen.logs).toEqual([line])
+    expect(seen.toasts).toEqual([line])
+    expect(seen.status).toEqual([undefined, `failed: ${line}`])
+  })
+
   test("a first turn's tool call refreshes with its TTL unread, and says so", async ($, on) => {
     // The first turn's responses are not in the transcript file while it waits.
     const { clock, seen } = world(on, { tail: '{"type":"user"}\n{"type":"attachment"}\n', toolMin: { AskUserQuestion: 120 } })

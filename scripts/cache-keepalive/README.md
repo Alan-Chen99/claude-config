@@ -79,6 +79,13 @@ terminal. Prompt-test runs stay at "no plugins loaded", and a background handoff
   that says no logs `not armed: …` at a Stop and `not refreshed: …` in a tool call. A failure
   also toasts and stays as the plugin's status line until the next turn. `waits.py` lists each
   refresh and whether the response after it hit.
+- A keepalive failure never refuses what it hooks. On 2.1.310 a hook that throws is skipped and
+  the action goes on, reported only by the engine; each hook at a site whose answer can refuse
+  (`claude plugin validate`'s `gating hook` lines) carries a `.catch` that reports a failure
+  row, `<event> hook failed (…); passed on`, and passes the action on. A module that saw no
+  `session.start` passes everything on and says so once. No `.catch` reaches the 2.1.299
+  refusal: a tool input or result the hooks worker cannot be handed, or hand back, refuses the
+  call for any module hooking `tool.call`.
 
 ## Verification (2.1.289)
 
