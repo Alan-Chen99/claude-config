@@ -1,9 +1,8 @@
 # Claude Code System Prompt Snapshots
 
-Captured: 2026-10-06, every model and variant, on claude-cli/2.1.289 — the three
-`opus-5/logged-in*` variants and `opus-5/bypass-permissions` in a second session half an hour
-after the rest. `builtin-output-styles/` is a 2.1.87 capture;
-both self-label.
+Captured: 2026-10-25, every model and variant, on claude-cli/2.1.310, in one session —
+`opus-5/logged-in-tool-search-loaded` half an hour after the rest, retaken past the 64-name
+select cap (below). `builtin-output-styles/` is a 2.1.87 capture; both self-label.
 Mode: interactive (real pty via `capture.py`, `--setting-sources project,local`), under an
 isolated `CLAUDE_CONFIG_DIR` — see "How to re-capture".
 Default captures include a project CLAUDE.md.
@@ -12,15 +11,15 @@ This file is the procedure: what each variant is, what credential it needs, how 
 and what goes wrong. What the captured prompt and tools *say* is `what-the-model-gets.md`;
 eight `notes/cc-2.1.269-*.md` records hold the 2.1.269 release analysis, one behaviour each.
 
-`git show e9caa2ce:docs/system-prompt-snapshot/...` gives the 2.1.269 artifact for any path
-here and `git show b318e59:...` the 2.1.235 one. Every number below was re-derived from the
+`git show 18e10549~1:docs/system-prompt-snapshot/...` gives the 2.1.289 artifact for any path
+here, `e9caa2ce:` the 2.1.269 one and `b318e59:` the 2.1.235 one. Every number below was re-derived from the
 artifacts on disk; an older figure kept for comparison is labelled with its release.
 
 Directories are named for the model id the request carried, minus its `claude-` prefix.
 Aliases are repointed as models ship — `opus` meant `claude-opus-4-6` in the 2.1.143 capture
 and `claude-opus-5` in the 2.1.269 one, and resolves to `claude-opus-5-5` here while `sonnet`
 resolves to `claude-sonnet-5-5` (`latest_per_family: {..., opus: "claude-opus-5-5", sonnet:
-"claude-sonnet-5-5", ...}`, `src/chunk-jepmcrwm.js:845-849`) — so an alias-named directory
+"claude-sonnet-5-5", haiku: "claude-haiku-5-5"}`, `src/chunk-dvghjmtr.js:950-954`) — so an alias-named directory
 changes meaning between captures while its path stays put. `opus-5-5/` and `sonnet-5-5/` are
 what the aliases capture; `opus-5/` and `sonnet-5/` are the explicit ids. `claude-fable-5-1`,
 `claude-mythos-5` and `claude-mythos-5-1` are selectable too and none is captured —
@@ -46,8 +45,8 @@ what the aliases capture; `opus-5/` and `sonnet-5/` are the explicit ids. `claud
 ### Reading a capture as a diff
 
 `request.json` is the artifact of record and is unreadable as a diff: one line per string with
-every newline escaped, so a reworded paragraph inside `Artifact`'s 19,888-character description
-arrives in `git diff` as a single changed line 19,888 characters wide. `prompt.md` and
+every newline escaped, so a reworded paragraph inside `Artifact`'s 21,621-character description
+arrives in `git diff` as a single changed line 21,621 characters wide. `prompt.md` and
 `tools/<Name>.md` carry the same content as text for the person reading that diff across a
 release. They are derived — never hand-edit them: `./render_capture.py --tree .` rebuilds them
 and `tests/test_snapshot_rendering.py` fails when they drift from the `request.json` beside them.
@@ -77,6 +76,8 @@ sentence. It returns a `tool_result` of `{"type": "tool_reference", "tool_name":
 plus `Tool loaded.`, and the **server** expands those into the next request's `tools` array —
 measured on opus-5, 15 entries before the call and 34 after. Those `tool_reference` blocks sit
 inside the `tool_result` block's own `content` array, not directly in `messages[].content`.
+A `select:` query is cut to its first 64 names without a word (`MDo()`, `dw = 64`, beside
+`cYn = /^select:(.+)$/i`), so `regenerate.py` asks for parallel calls of at most 64.
 
 `tool-search-loaded` is captured for opus-5 and sonnet-5, enough to separate per-model text
 from shared — which of the 19 split by prompt branch is in `what-the-model-gets.md`.
@@ -115,15 +116,16 @@ user:profile, user:office, or user:ccr_inference; env-var and setup-token sessio
 user:inference only"*. An exported `CLAUDE_CODE_OAUTH_TOKEN` child cannot reach Chrome however
 it is flagged; the interactive login's token carries `user:profile` and does.
 
-`logged-in` is the reference roster: 5,090 system tokens over blocks 190/57/1,603/13,440 chars,
-block 3 carrying a `# Claude in Chrome browser automation` section no MCP-free capture has.
+`logged-in` is the reference roster: 5,482 system tokens over blocks 190/57/7,101/9,303 chars,
+block 2 carrying a `# Claude in Chrome browser automation` section no MCP-free capture has
+(block 3 on 2.1.289).
 `logged-in-no-artifact` adds `CLAUDE_CODE_DISABLE_ARTIFACT=1` through `--capture-child-env`,
 which is how a variant names a `CLAUDE_CODE_*` knob it wants after the wholesale strip. The
 pair prices the `Artifact` tool with the credential fixed and both captures in one session:
-24,597 tool tokens against 13,273, 14 upfront tools against 13, the three `artifact-*` skills
-listed against absent, 92 deferred names against 90 — `ArtifactComments` and `ArtifactData`
+26,324 tool tokens against 14,037, 14 upfront tools against 13, the three `artifact-*` skills
+listed against absent, 101 deferred names against 99 — `ArtifactComments` and `ArtifactData`
 leave with the key. `notes/artifact-tool-roster-cost.md` records the same comparison on
-2.1.269, when `Artifact` was 25,099 characters rather than 19,888.
+2.1.269, when `Artifact` was 25,099 characters rather than 21,621.
 
 `logged-in-tool-search-loaded` is the only place the Chrome and connector definitions live.
 Both sets are MCP, and the deferral predicate (`h()`, `src/chunk-sspbjbr8.js:52-57`) defers
@@ -132,12 +134,14 @@ records their names and not one definition. The variant adds `--chrome` and the
 `tool-search-loaded` machinery to the `logged-in` credential: `WFt()` reads the flag ahead of
 both `CLAUDE_CODE_ENABLE_CFC` and the `claudeInChromeDefaultEnabled` setting, and that setting
 lives in `~/.claude.json`, which `--setting-sources project,local` does not filter — so without
-the flag the Chrome roster would be a property of the operator's machine. Its 111 `tools[]`
-entries are 14 upfront + 96 deferred-loaded + `DeferredToolPlaceholder`, still sent with
-everything loaded. The 96: 22 `mcp__claude-in-chrome__*`, 51 connector tools (30 Gmail, 8
-Google Drive, 8 Claude Docs, 4 Indeed, 1 ZipRecruiter), the 22 built-in deferred names, and
-`advisor` — exactly `logged-in`'s 92 reminder names plus the four definitions it already
-carries (three Claude Docs tools and `advisor`), so the two are same-session comparable.
+the flag the Chrome roster would be a property of the operator's machine. Its 117 `tools[]`
+entries are 14 upfront + 102 deferred-loaded + `DeferredToolPlaceholder`, still sent with
+everything loaded. The 102: 22 `mcp__claude-in-chrome__*`, 57 connector tools (30 Gmail, 9
+Google Calendar, 8 Google Drive, 5 Claude Docs, 4 Indeed, 1 ZipRecruiter), the 22 built-in
+deferred names, and `advisor` — exactly `logged-in`'s 101 reminder names plus `advisor`. Three
+more Claude Docs tools never enter `tools[]`: `messages[1]` carries each as a `tool_addition`
+block holding a whole `tool_definition`, where 2.1.289 sent a `tool_reference` to a deferred
+`tools[]` entry.
 `check_deferred_loaded` compares a load against its own `requires_variant` sibling for this
 reason: verified against `default`, which knows only its 19 names, a capture whose 22 Chrome
 schemas never arrived would pass.
@@ -149,7 +153,7 @@ description and no schema, so `tools/advisor.md` renders its `type` and `model` 
 `## attributes` with both empty. `regenerate.py` lists such entries under `tools_server` and
 excludes them from `tools_total_tokens`: `count_tokens` rejects a request on one.
 
-**Privacy.** The tool definitions carry no account data — the only mail addresses in the 73 MCP
+**Privacy.** The tool definitions carry no account data — the only mail addresses in the 79 MCP
 definitions are Google's documentation placeholders (`gduser1@workspacesamples.dev`,
 `user@example.com`), and no ids, tokens or paths. The request body does: the `userEmail`
 reminder in `messages[0]` always has, and 2.1.289's `safeguards` adds `user_identity` plus
@@ -158,11 +162,10 @@ memory line. Committed as captured.
 
 ### Built-in skill captures
 
-`builtin-skills/` holds what invoking each of the 17 built-in skills injects on 2.1.289
-(sonnet-5, 2026-10-12), 533,724 characters in all, and the 114 files five of them extract;
+`builtin-skills/` holds what invoking each of the 17 built-in skills injects on 2.1.310
+(sonnet-5, 2026-10-25), 548,533 characters in all, and the 141 files five of them extract;
 the per-skill table, the extraction and the three capture conditions that change the result
-are in `builtin-skills/README.md`. The 2.1.289 listing drops `design` and adds
-`plugin-authoring`; `capture_skills.py` prunes a dropped skill's entry, body and files on a
+are in `builtin-skills/README.md`. The listing is 2.1.289's; `capture_skills.py` prunes a dropped skill's entry, body and files on a
 full-roster run. A wrong condition produces a plausible short body rather than an error, so
 `capture_skills.py` refuses to write a body opening with harness text and
 `tests/test_builtin_skills.py` checks the committed files for the same thing: the first run
@@ -217,8 +220,8 @@ bearer and prints which credential answered; checked on 2026-10-02 against every
 `opus-5` `summary.json`, the OAuth credential reproduced each figure exactly.
 
 `tools_total_tokens` prices only the entries without `defer_loading` — the endpoint honours the
-flag, which is why `logged-in-tool-search-loaded`, `logged-in` and `default` all report 24,597
-across 111, 19 and 15 `tools[]` entries. What the server charges for `advisor` is not visible
+flag, which is why `logged-in-tool-search-loaded`, `logged-in` and `default` all report 26,324
+across 117, 16 and 15 `tools[]` entries. What the server charges for `advisor` is not visible
 from here.
 
 `capture.py` refuses to spawn when neither source has credentials. Without the guard the child
@@ -227,25 +230,27 @@ capture.
 
 ## `--system-prompt` behavior
 
-Replaces blocks 2-3 with the custom text plus the `WebSearch` `mode` paragraph that tails an
-unoverridden block 3; the identity block survives. Block 2 is 452 chars in all three override
-captures: 27 of custom text (`"You are a custom assistant."`, `regenerate.py`'s
-`CUSTOM_PROMPT`), a blank line, and that 423-char paragraph. `gitStatus` is not appended — it
+Replaces blocks 2-3 with the custom text plus two paragraphs: the `WebSearch` `mode` one that
+tails an unoverridden block 3, and the Artifact `edits` one that tails block 2; the identity
+block survives. Block 2 is 1,419 chars in all three override captures: 27 of custom text
+(`"You are a custom assistant."`, `regenerate.py`'s `CUSTOM_PROMPT`), the 423-char
+`WebSearch` paragraph and the 965-char Artifact one, blank-line separated. `gitStatus` is not appended — it
 moved into `messages[0]` unconditionally in 2.1.269, so it survives an override the way
 `userEmail` always has.
 
 `system_tokens` for the replacement-prompt variants (exact, from `summary.json`):
 
-| Flag | Sonnet 5 (2.1.235 / 2.1.269 / 2.1.289) | Opus 5 (2.1.269 / 2.1.289) |
+| Flag | Sonnet 5 (2.1.235 / .269 / .289 / .310) | Opus 5 (2.1.269 / .289 / .310) |
 |---|---|---|
-| `--system-prompt` | 228 / 116 / 279 | not captured |
-| `--system-prompt-file` | 226 / 114 / 279 | 117 / 276 |
+| `--system-prompt` | 228 / 116 / 279 / 570 | not captured |
+| `--system-prompt-file` | 226 / 114 / 279 / 567 | 117 / 276 / 570 |
 
-The 2.1.269 drop was `gitStatus` leaving, the rise the `WebSearch` paragraph arriving.
+The 2.1.269 drop was `gitStatus` leaving, the 2.1.289 rise the `WebSearch` paragraph arriving,
+the 2.1.310 one the Artifact paragraph.
 `--append-system-prompt` still inserts the custom text at the end of block 3, after that
 paragraph.
 
-What survives the removal of blocks 2-3: billing header, identity, the `WebSearch` paragraph,
+What survives the removal of blocks 2-3: billing header, identity, both paragraphs above,
 the CLAUDE.md wrapper reminder with its "these instructions OVERRIDE any default behavior"
 line, `userEmail`+`gitStatus`+Attribution
 (all in `messages[0]`), every upfront tool definition, the deferred-tool placeholder, and one
@@ -258,13 +263,9 @@ Anthropic-authored guidance about when to delegate, and an override displaces no
 
 ### Background sessions do not inherit the flag
 
-The forked-argv list is built from scratch at `src/chunk-8w9chsdq.js:767-769` and carries
-`--resume`, `--model`, `--permission-mode`, `--append-system-prompt`,
-`--system-prompt-snapshot` and nine others — but neither `--system-prompt` nor
-`--system-prompt-file`, and no other path carries them across, so a custom prompt is replaced
-by the default one the moment a session backgrounds. `docs/background-sessions.md` is the
-maintained source for the handoff, kept current against 2.1.289; no backgrounding capture lives
-here.
+Neither `--system-prompt` nor `--system-prompt-file` is in the forked argv, so a custom prompt
+becomes the default one the moment a session backgrounds; `docs/background-sessions.md` is the
+maintained source.
 
 ### Sub-agent behavior
 
@@ -282,23 +283,18 @@ byte-identical to 2.1.235.
 does not; `SendFeedback` is the reverse. A matching `messages[0]` block tells the child that
 only a `SubagentHandback` call reaches its caller. Explore's deferred list stays at 7,
 general-purpose's went 8 -> 10 with the two `Artifact*` names. Per-tool token figures exist
-only in these two captures: `Artifact` 11,678, `Bash` 4,504, `Agent` 3,236, `Read` 1,260,
+only in these two captures: `Artifact` 12,641, `Bash` 4,611, `Agent` 3,401, `Read` 1,364,
 `Skill` 977, `Edit` 933, `ToolSearch` 889, `Write` 714, `DeferredToolPlaceholder` 432.
+2.1.310's handback reminder adds *"Do not also send the report with SendMessage: your caller
+would get it twice"*.
 
-## Security-monitor calls
+## Not re-verified since 2.1.235
 
-**Not re-verified since 2.1.235.** Measuring the side-channel harm-classifier calls needs a
-live session making tool calls under a permission mode other than
-`--dangerously-skip-permissions`, which the 2.1.235 measurement notes suppresses them
-entirely — no capture here provides that. Its description (model, prompt structure,
-`<severity>`/`<block>` response forms) is historical.
-
-## Interactive vs `-p` mode differences
-
-**Not re-verified since 2.1.235.** gitStatus and the Environment block both moved to a
-messages-level reminder in interactive mode, so the old finding that "gitStatus is appended in
-`-p` mode too, block 2 is byte-identical" needs one `claude -p` capture to settle, as do
-`safeguards` and the permission-mode reminder, both permission-mode-derived.
+- **Security-monitor calls.** The side-channel harm-classifier calls need tool calls under a
+  mode other than `--dangerously-skip-permissions`, which suppresses them; no capture here has
+  one, so their description (model, prompt, `<severity>`/`<block>` forms) is historical.
+- **Interactive vs `-p` mode differences.** Whether `-p` still differs — gitStatus,
+  `safeguards`, the permission-mode reminder — needs one `claude -p` capture.
 
 ## How to re-capture
 
@@ -336,14 +332,11 @@ them. Never two `regenerate.py` at once — they share `capture-output/` and
 
 ### Trust-dialog default flipped
 
-2.1.269's first-run trust dialog starts with the cursor on **"No, exit"** rather than the trust
-option (2.1.235 defaulted to trust, so the bare `\r` `capture.py` sent accepted it). Confirming
-"No, exit" quits the child before its first API call, and the only symptom is `ERROR: No API
-calls captured.` — indistinguishable at a glance from a credentials or proxy-logging problem.
-`capture.py` reads which option the cursor (`❯`) is on from the live pty screen and sends a
-down-arrow (`\x1b[B`) before the accepting `\r` when needed (`_trust_arrow_presses` /
-`TRUST_OPTION` / `DECLINE_OPTION` / `MENU_CURSOR`), so it tolerates the default flipping again.
-If that error recurs with valid credentials and a reachable proxy, check this first.
+Since 2.1.269 the first-run trust dialog opens on **"No, exit"**, which quits the child before
+its first API call with only `ERROR: No API calls captured.` to show for it. `capture.py` reads
+the cursor (`❯`) off the pty screen and sends a down-arrow before the `\r` when needed
+(`_trust_arrow_presses`), so it tolerates the default flipping again; check this first when that
+error recurs with valid credentials and a reachable proxy.
 
 A capture is not byte-reproducible: the billing header fingerprints, the temp working
 directory, the scratchpad UUID and gitStatus's content change per run. Token totals are stable

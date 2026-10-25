@@ -1,7 +1,7 @@
-# Built-in skill bodies and files — claude-cli 2.1.289
+# Built-in skill bodies and files — claude-cli 2.1.310
 
-533,724 characters of instruction the model can be handed, and 114 files
-(2,897,457 bytes) that five skills extract for it to read, none of which a
+548,533 characters of instruction the model can be handed, and 141 files
+(3,442,748 bytes) that five skills extract for it to read, none of which a
 `default` capture records. That capture carries each skill's *name and
 description* — they ride in the same reminder block as the agent-type listing —
 and the body only on invocation. The body is the part that changes between
@@ -27,19 +27,19 @@ sha256). This is the opposite of tool *descriptions*, some of which do vary —
 
 | skill | chars | files | route | shape |
 |---|---:|---:|---|---|
-| `update-config` | 288,012 |  | slash | body |
-| `claude-api` | 100,907 | 79 | slash | body |
-| `artifact-design` | 31,691 |  | skill | body |
-| `artifact-capabilities` | 20,518 | 13 | slash | body |
+| `update-config` | 293,319 |  | slash | body |
+| `claude-api` | 106,925 | 105 | slash | body |
+| `artifact-design` | 34,705 |  | skill | body |
+| `artifact-capabilities` | 20,607 | 13 | slash | body |
 | `workflow-authoring` | 16,966 |  | slash | body |
-| `keybindings-help` | 14,924 |  | skill | body |
+| `keybindings-help` | 14,951 |  | skill | body |
 | `security-review` | 10,753 |  | slash | body |
-| `plugin-authoring` | 8,638 | 7 | slash | body |
+| `plugin-authoring` | 8,661 | 8 | slash | body |
 | `loop` | 8,122 |  | slash | body |
-| `fewer-permission-prompts` | 7,523 |  | slash | body |
+| `fewer-permission-prompts` | 7,647 |  | slash | body |
 | `dataviz` | 7,036 | 9 | slash | body |
 | `code-review` | 6,497 |  | slash | body |
-| `artifact-diagramming` | 3,619 |  | slash | body |
+| `artifact-diagramming` | 3,826 |  | slash | body |
 | `run` | 3,250 | 6 | slash | body |
 | `simplify` | 2,817 |  | slash | body |
 | `init` | 2,312 |  | slash | body |
@@ -71,8 +71,8 @@ the build's model ids filled in — and two are not:
   definitions for the runtime contract the server names, fetched as the skill
   loads (`src/chunk-3vz7qf6p.js:1053`); its body is composed from the same
   platform. 2026-10-06 got contract 0.2.69 and 2026-10-12 got 0.2.75, on one
-  build. A failed fetch extracts nothing, which `capture_skills.py` warns about
-  when the last capture had files.
+  build; 2.1.310 got 0.2.90. A failed fetch extracts nothing, which
+  `capture_skills.py` warns about when the last capture had files.
 
 ## Two routes
 

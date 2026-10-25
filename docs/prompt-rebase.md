@@ -1,8 +1,8 @@
 # Rebasing `sys_prompt/` on an upstream release
 
 The prompts in `sys_prompt/` replace Claude Code's own system prompt rather than adding to it.
-`--system-prompt-file` keeps the identity block, appends the WebSearch `mode` paragraph to the
-file's text and drops every other section, as
+`--system-prompt-file` keeps the identity block, appends the WebSearch `mode` paragraph and
+(2.1.310) the Artifact `edits` paragraph to the file's text and drops every other section, as
 `docs/system-prompt-snapshot/opus-5/system-prompt-file/prompt.md` shows. The passages in them
 that read like upstream's are copies taken once, and upstream rewrites its prose between releases,
 so a copy goes stale with no signal.
