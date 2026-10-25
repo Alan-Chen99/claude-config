@@ -74,7 +74,7 @@ AFTER = BEFORE + ["WebFetch", "Monitor", "NotebookEdit"]
 
 def test_roster_difference_survives_dedup(capture: ModuleType, tmp_path: Path) -> None:
     logs = [_log(tmp_path, 1, BEFORE), _log(tmp_path, 2, AFTER)]
-    results = capture.find_all_requests_proxy(logs)
+    results = capture.find_all_requests_proxy(logs, tmp_path)
     assert [r[2] for r in results] == [len(BEFORE), len(AFTER)], (
         "the post-ToolSearch request was collapsed into the one before it"
     )
@@ -83,7 +83,7 @@ def test_roster_difference_survives_dedup(capture: ModuleType, tmp_path: Path) -
 def test_identical_requests_still_collapse(capture: ModuleType, tmp_path: Path) -> None:
     """The roster is added to the key, not substituted for the system prompt."""
     logs = [_log(tmp_path, 1, BEFORE), _log(tmp_path, 2, BEFORE)]
-    assert len(capture.find_all_requests_proxy(logs)) == 1
+    assert len(capture.find_all_requests_proxy(logs, tmp_path)) == 1
 
 
 def test_max_tools_selection_prefers_the_grown_roster(capture: ModuleType, tmp_path: Path) -> None:
@@ -93,6 +93,6 @@ def test_max_tools_selection_prefers_the_grown_roster(capture: ModuleType, tmp_p
     default selector cannot separate them.
     """
     logs = [_log(tmp_path, 1, BEFORE), _log(tmp_path, 2, AFTER)]
-    results = capture.find_all_requests_proxy(logs)
+    results = capture.find_all_requests_proxy(logs, tmp_path)
     chosen = max(range(len(results)), key=lambda i: (not results[i][3], results[i][2]))
     assert results[chosen][2] == len(AFTER)

@@ -269,16 +269,18 @@ def find_new_proxy_logs(start_time: float, child_pid: int) -> list[Path]:
 
 
 def find_all_requests_proxy(
-    log_files: list[Path],
+    log_files: list[Path], tmp_dir: Path
 ) -> list[tuple[Path, int, int, bool]]:
     """Return deduplicated requests from proxy log files.
 
     Each entry is (path_to_request_json, system_tokens, n_tools, is_subagent).
-    Deduplicates by system prompt content plus tool roster.
+    Deduplicates by system prompt content plus tool roster. The request bodies
+    are written under `tmp_dir`, which the caller owns and removes once it is
+    done with the paths: a directory made here outlived every capture, and
+    each one holds full request bodies.
     """
     results = []
     seen: set[str] = set()
-    tmp_dir = Path(tempfile.mkdtemp(prefix="capture-reqs-"))
 
     for log_path in log_files:
         try:
@@ -788,68 +790,69 @@ def main() -> None:
             proxy_proc.terminate()
         sys.exit(1)
 
-    all_reqs = find_all_requests_proxy(log_files)
-    if not all_reqs:
-        print("ERROR: No system prompt found in captured requests.", file=sys.stderr)
-        if proxy_proc:
-            proxy_proc.terminate()
-        sys.exit(1)
+    with tempfile.TemporaryDirectory(prefix="capture-reqs-") as reqs_dir:
+        all_reqs = find_all_requests_proxy(log_files, Path(reqs_dir))
+        if not all_reqs:
+            print("ERROR: No system prompt found in captured requests.", file=sys.stderr)
+            if proxy_proc:
+                proxy_proc.terminate()
+            sys.exit(1)
 
-    if OUT_DIR.exists():
-        shutil.rmtree(OUT_DIR)
-    OUT_DIR.mkdir(parents=True)
+        if OUT_DIR.exists():
+            shutil.rmtree(OUT_DIR)
+        OUT_DIR.mkdir(parents=True)
 
-    # Select main prompt: prefer requests that have tools defined (the main
-    # conversation call), falling back to largest system prompt. v2.1.87+ makes
-    # a title-generation Haiku call (~250 tokens, no tools) before the main call.
-    # With --system-prompt the main call can be smaller than the title-gen call,
-    # so size alone is not sufficient — tools presence is the reliable signal.
-    # Subagent calls also carry tools, and are excluded by their header flag.
-    if select == "max-tools":
-        # (not subagent, tool count) -- size is not a tiebreaker here because the
-        # request with the grown roster carries the same system prompt as the one
-        # before it, so they tie on size and the roster is the only signal.
-        key = lambda i: (not all_reqs[i][3], all_reqs[i][2])
-    else:
-        key = lambda i: (not all_reqs[i][3], all_reqs[i][2] > 0, all_reqs[i][1])
-    main_idx = max(range(len(all_reqs)), key=key)
-    main_summary = extract_request(all_reqs[main_idx][0], OUT_DIR)
-    content = (OUT_DIR / "system.txt").read_text()
-    print(content)
+        # Select main prompt: prefer requests that have tools defined (the main
+        # conversation call), falling back to largest system prompt. v2.1.87+ makes
+        # a title-generation Haiku call (~250 tokens, no tools) before the main call.
+        # With --system-prompt the main call can be smaller than the title-gen call,
+        # so size alone is not sufficient — tools presence is the reliable signal.
+        # Subagent calls also carry tools, and are excluded by their header flag.
+        if select == "max-tools":
+            # (not subagent, tool count) -- size is not a tiebreaker here because the
+            # request with the grown roster carries the same system prompt as the one
+            # before it, so they tie on size and the roster is the only signal.
+            key = lambda i: (not all_reqs[i][3], all_reqs[i][2])
+        else:
+            key = lambda i: (not all_reqs[i][3], all_reqs[i][2] > 0, all_reqs[i][1])
+        main_idx = max(range(len(all_reqs)), key=key)
+        main_summary = extract_request(all_reqs[main_idx][0], OUT_DIR)
+        content = (OUT_DIR / "system.txt").read_text()
+        print(content)
 
-    # Extract subagent prompts. `cc_is_subagent=true` in the billing header is
-    # the authoritative marker; size and tool-presence heuristics also match the
-    # title-generation call and the security-monitor classifier, which are not
-    # subagents.
-    subagent_summaries = []
-    if subagents:
-        sub_reqs = [
-            (p, sz) for i, (p, sz, _ht, is_sub) in enumerate(all_reqs)
-            if is_sub and i != main_idx
-        ]
-        if not sub_reqs:
-            raise RuntimeError(
-                f"--subagent requested {subagents} but no request carried "
-                "cc_is_subagent=true; the session never spawned an agent."
-            )
-        sub_dir = OUT_DIR / "subagents"
-        sub_dir.mkdir()
-        for i, (req_path, _) in enumerate(sub_reqs, 1):
-            prefix = f"{i:03d}"
-            s = extract_request(req_path, sub_dir, file_prefix=f"{prefix}-")
-            subagent_summaries.append(s)
-            sub_content = (sub_dir / f"{prefix}-system.txt").read_text()
-            print(
-                f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}"
-            )
+        # Extract subagent prompts. `cc_is_subagent=true` in the billing header is
+        # the authoritative marker; size and tool-presence heuristics also match the
+        # title-generation call and the security-monitor classifier, which are not
+        # subagents.
+        subagent_summaries = []
+        if subagents:
+            sub_reqs = [
+                (p, sz) for i, (p, sz, _ht, is_sub) in enumerate(all_reqs)
+                if is_sub and i != main_idx
+            ]
+            if not sub_reqs:
+                raise RuntimeError(
+                    f"--subagent requested {subagents} but no request carried "
+                    "cc_is_subagent=true; the session never spawned an agent."
+                )
+            sub_dir = OUT_DIR / "subagents"
+            sub_dir.mkdir()
+            for i, (req_path, _) in enumerate(sub_reqs, 1):
+                prefix = f"{i:03d}"
+                s = extract_request(req_path, sub_dir, file_prefix=f"{prefix}-")
+                subagent_summaries.append(s)
+                sub_content = (sub_dir / f"{prefix}-system.txt").read_text()
+                print(
+                    f"\n\n===SUBAGENT {i} (model: {s.get('model')})===\n\n{sub_content}"
+                )
 
-    n_sub = len(subagent_summaries)
-    print(
-        f"\n--- Captured main: {main_summary['block_count']} blocks, "
-        f"{main_summary['total_tokens']} tokens (model: {main_summary.get('model')})"
-        f"{f', {n_sub} subagent(s)' if subagents else ''} ---",
-        file=sys.stderr,
-    )
+        n_sub = len(subagent_summaries)
+        print(
+            f"\n--- Captured main: {main_summary['block_count']} blocks, "
+            f"{main_summary['total_tokens']} tokens (model: {main_summary.get('model')})"
+            f"{f', {n_sub} subagent(s)' if subagents else ''} ---",
+            file=sys.stderr,
+        )
 
 
 
