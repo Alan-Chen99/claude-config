@@ -540,12 +540,13 @@ def spawn_claude(
     subprocess.run(["git", "init", "-q", work_dir], capture_output=True)
     # `.claude/` below holds only settings.local.json, and Claude Code appends
     # `**/.claude/settings.local.json` to the user's global ignore file the
-    # first time it writes local settings in a repo (`Xor(gM("localSettings"),
-    # ...)`, src/chunk-3z4drmxy.js:3748). Whether the session's git status lists
-    # `.claude/` -- in the context block every capture records, and in the body
-    # `/security-review` builds from it -- would then follow this machine's
-    # history. A repo-local excludes file holding that one rule replaces the
-    # global file, giving the state every committed capture records.
+    # first time it writes local settings in a repo (`C5r(fA("localSettings"),
+    # ...)`, src/chunk-7c3thgax.js:4350, beside `"gitignore_global_rule"`).
+    # Whether the session's git status lists `.claude/` -- in the context
+    # block every capture records, and in the body `/security-review` builds
+    # from it -- would then follow this machine's history. A repo-local
+    # excludes file holding that one rule replaces the global file, giving the
+    # state every committed capture records.
     excludes = Path(work_dir) / ".git" / "capture-excludes"
     excludes.write_text("**/.claude/settings.local.json\n")
     subprocess.run(
@@ -579,8 +580,10 @@ def spawn_claude(
         settings["outputStyle"] = output_style
     # --dangerously-skip-permissions opens an acceptance dialog at startup
     # unless a settings source carries skipDangerousModePermissionPrompt
-    # (`mz()`, src/chunk-3z4drmxy.js:3958, read by the dialog gate in
-    # src/chunk-q08t3k8v.js:129). Declined, the child exits before its first
+    # (`Q5()`, src/chunk-7c3thgax.js:4567, literal
+    # `pe("localSettings")?.skipDangerousModePermissionPrompt`, read by the
+    # startup dialog gate beside `BypassPermissionsModeDialog`,
+    # src/chunk-v7659rjj.js:444). Declined, the child exits before its first
     # API call; accepted, it writes the key into the user's settings.json. The
     # temp cwd's local settings is the one source this capture owns.
     if "--dangerously-skip-permissions" in extra_args:

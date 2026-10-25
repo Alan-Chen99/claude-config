@@ -137,7 +137,8 @@ def builtin_skill_names(request_path: Path) -> list[str]:
 
 
 # The line Claude Code prefixes to the body of a skill that ships files, naming
-# the directory it has just written them to (`wis`, src/chunk-nh7xtj5c.js:108):
+# the directory it has just written them to (src/chunk-b6tgsycv.js:108, literal
+# `Base directory for this skill: ${`):
 # `<tmp>/claude-<uid>/bundled-skills/<version>/<random hex per process>/<name>`.
 # Absent when the write failed, which Claude Code only logs.
 _BASE_DIR_LINE = re.compile(r"^Base directory for this skill: (\S+)$", re.MULTILINE)
@@ -195,9 +196,9 @@ def _bundled_files(base_dir: str) -> dict[str, bytes]:
     """Every file under a skill's extraction directory, keyed by relative path.
 
     Read off the disk after the session: Claude Code writes the directory as
-    the skill is invoked and nothing removes it at exit (`r7n`,
-    `src/chunk-8wf3pk41.js:8048`, `"bundled-skills"`; writer `IJn`,
-    `src/chunk-nh7xtj5c.js:38`, which also refuses symlinks with `O_NOFOLLOW`).
+    the skill is invoked and nothing removes it at exit (`zjt()`,
+    `src/chunk-d5zj5299.js:7838`, `"bundled-skills"`; writer `$Br()`,
+    `src/chunk-b6tgsycv.js:38`, which also refuses symlinks with `O_NOFOLLOW`).
     """
     root = Path(base_dir)
     if not root.is_dir():
@@ -214,7 +215,7 @@ def _bundled_files(base_dir: str) -> dict[str, bytes]:
             files[path.relative_to(root).as_posix()] = path.read_bytes()
     if not files:
         # The base-directory line is emitted only after a write of at least one
-        # file succeeded (`R`, src/chunk-nh7xtj5c.js:193).
+        # file succeeded (`R`, src/chunk-b6tgsycv.js:194, `"skill_bundled_extract"`).
         raise RuntimeError(f"{root} names no file although the body says it does")
     return files
 

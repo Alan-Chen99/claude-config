@@ -15,14 +15,15 @@ alias-named directory silently changes meaning between captures while its path
 stays put.
 
 Which system prompt a capture receives follows from the model's registry entry.
-2.1.289 serves the compressed `# Harness` prompt to every model whose entry
-declares the `lean_prompt` capability -- claude-sonnet-5-5, claude-opus-4-8,
-claude-opus-5, claude-opus-5-5, claude-fable-5, claude-fable-5-1,
-claude-mythos-5-1 (the baked-in catalog, `src/chunk-jepmcrwm.js`) -- and the
-older multi-section one to everything else, including claude-sonnet-5, every
-haiku and claude-opus-4-7. The gate is `Qr()`/`dV()` (chunk-898k2gs2.js:266-277,
-found by `"lean_prompt"`), consumed as `g` in `jMt()` (chunk-wgfrtm7w.js:59085),
-which picks the single `# Harness` builder over the multi-section ones.
+2.1.310 serves the compressed `# Harness` prompt to every model whose entry
+declares the `lean_prompt` capability -- claude-sonnet-5-5, claude-haiku-5-5,
+claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-fable-5, claude-fable-5-1,
+claude-mythos-5-1 (the baked-in catalog, `src/chunk-dvghjmtr.js`) -- and the
+older multi-section one to everything else, including claude-sonnet-5, the older
+haikus and claude-opus-4-7. The gate is `ne()`/`iz()` (chunk-cn4azb2f.js:227-238,
+found by `"lean_prompt"`), consumed as `h` in `fun()` (chunk-j0tbz6ra.js:90842,
+after its `"bare"` early return), which picks the single `# Harness` builder over the
+multi-section ones.
 Capturing both prompts therefore requires two model ids, not a flag.
 
 Usage:
