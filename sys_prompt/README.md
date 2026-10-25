@@ -15,13 +15,15 @@ MCP install, and since 2.1.310 first-party `haiku` is Haiku 5.5, with a 1M windo
 (third-party providers still map it to 4.5, 200K). Explore is scoped to locating code
 rather than reviewing it. `Prefer` carries the escape hatch, so the prompt spells none out: pass
 `sonnet` or `opus` when a search is genuinely hard. Per-call rather than an `Explore` agent
-shadowing the built-in, because the shadow would have to re-declare everything the built-in sets;
-since 2.1.271 that is possible — `omitClaudeMd` is now agent frontmatter, where it used to be
-readable only on built-in definitions — but the per-call form needs no upkeep.
-`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (2.1.257, unset here) would override every per-spawn `model`
-and turn this line into text the harness discards; `CLAUDE_CODE_SUBAGENT_MODEL` would not, since
-2.1.251 made it a default an explicit `model` beats. Retire this if the built-in default returns
-to `haiku`, or if Explore spawns start failing on prompt size.
+shadowing the built-in, which would have to re-declare everything the built-in sets.
+`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (unset here) would make the harness discard this line;
+`CLAUDE_CODE_SUBAGENT_MODEL` would not. Retire this if the built-in default returns to `haiku`, or
+if Explore spawns start failing on prompt size.
+
+No line says when to spawn: upstream's lean body, which Opus 5.5 gets, drops both its subagent
+bullets (2.1.310 source and captures), and 2.1.310's Agent description says `When in doubt, don't
+spawn.` If sessions under-delegate, add spawn guidance to that description with a `tool.describe`
+mod, not to this prompt.
 
 ### `# Writing for other agents`
 

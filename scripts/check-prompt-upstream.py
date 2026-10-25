@@ -61,8 +61,6 @@ PINS = [
     ("care/confirm-first", 1, "For actions that are hard to reverse or outward-facing, confirm first unless durably authorized or explicitly told to proceed without asking; approval in one context doesn't extend to the next. Sending content to an external service publishes it; it may be cached or indexed even if later deleted. Before deleting or overwriting, look at the target"),
     ("context-management", 1, "When the conversation grows long, some or all of the current context is summarized; the summary, along with any remaining unsummarized context, is provided in the next context window so work can continue — you don't need to wrap up early or hand off mid-task."),
     ("guidance/bang-prefix", 1, "If you need the user to run a shell command themselves (e.g., an interactive login like `gcloud auth login`), suggest they type `! <command>` in the prompt — the `!` prefix runs the command in this session so its output lands directly in the conversation."),
-    ("guidance/subagents", 1, "tool with specialized agents when the task at hand matches the agent's description. Subagents are valuable for parallelizing independent queries or for protecting the main context window from excessive results, but they should not be used excessively when not needed. Importantly, avoid duplicating work that subagents are already doing - if you delegate research to a subagent, do not also perform the same searches yourself."),
-    ("guidance/explore", 1, "For broad codebase exploration or research that'll take more than "),
     ("guidance/skills", 1, "Only use skills listed in the user-invocable skills section — don't guess."),
 ]
 

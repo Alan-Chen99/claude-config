@@ -2,6 +2,7 @@
 
 > **Dated record.** Claude Code **2.1.310**; the procedure is `docs/prompt-rebase.md`.
 > 2026-10-25: the user declined the `<pasted_content>` bullet; it is now a divergence row in `docs/prompt-rebase.md`.
+> 2026-10-25: the Agent-tool decision closed — the subagent and Explore bullets are dropped (`sys_prompt/README.md`, `model: haiku` section). Upstream serves them only to a non-lean model, which Opus 5.5 is not.
 
 Against the 2.1.289 tree (`af400306`) and the captures re-taken on 2.1.310 (`18e10549`).
 
