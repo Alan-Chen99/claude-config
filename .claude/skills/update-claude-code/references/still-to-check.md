@@ -9,7 +9,7 @@ rather than leaving it in a session transcript.
   a placeholder, prefix or substitution changes what the built-in says while the copies stay
   byte-identical. 2.1.310's `artifact-design` loader: asset → `trimStart()` → the
   `<!-- dataviz-callout -->` splice → under the split toolset a `## Page contract` prefix and one
-  phrase swap. `artifact-diagramming`'s (2.1.289: `trimStart()` only) is unread. 2.1.310: same chain (page contract gated on `CLAUDE_CODE_ARTIFACT_TOOLSET` or `tengu_cobalt_plinth_damson`; Thumbnail line `tengu_cobalt_plinth_campion`). Never retires.
+  phrase swap. `artifact-diagramming`'s (2.1.289: `trimStart()` only) is unread. Never retires.
 - **The resume-from-summary override, a decision held on a Claude Code defect.**
   `skills/resume-from-summary` overrides the summary's closing order
   (`as if the break never happened`); an interactive `/compact` dispatches no `session.append`
@@ -36,11 +36,6 @@ rather than leaving it in a session transcript.
 - `claude agents` sessions are inferred, not measured, to get `SessionStart` rather than
   `SubagentStart`; read one transcript.
 
-## Not re-read on 2.1.310
-
-`inventory.md` claims no lookup reached: `statusline.py`'s payload builder, the session file's `entrypoint`, the
-sync gate's paths, the skills `enableArtifact` disables, the shadowing rule.
-
 ## Unread in the 2.1.289 captures
 
 - `"model": "opus"` now resolves to `claude-opus-5-5`, whose block 3 lacks opus-5's
@@ -59,7 +54,6 @@ sync gate's paths, the skills `enableArtifact` disables, the shadowing rule.
   `agent-tools run --background sleep 900`, quit Claude Code, check whether the child survives.
 - `docs/tool-token-limits.md`: the changelog's 20 MB Grep/Glob output cap has no matching
   constant in the search path (2.1.310: `20971520` caps only file, PDF, image and JSON reads).
-- `src/claude_config/cc_pretty/` record handling for the 2.1.251–2.1.277 changes (progress ticks, batched hook notices, nested subagent results, `SubagentHandback`, the `[Subagent hand-back]` header): step 10 on 2.1.310 logs retires it.
 
 ## Open design questions
 
