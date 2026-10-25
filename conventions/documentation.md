@@ -22,8 +22,13 @@ tracks 60 CLAUDE.md files and a session started at the root carries two of them
 — the user's `~/.claude/CLAUDE.md` and this repo's root file — with every nested
 one absent from the opening context (observed 2026-09-13, cc 2.1.269). Put
 policy an agent must obey from its first turn at the root or above; a nested
-file reaches the agent only once something pulls it in, and by what mechanism is
-unverified here.
+file reaches the agent only once something pulls it in. In cc 2.1.310's source
+that is a `Read` or a write of a file under it, or a Bash command viewing one
+file (a lone `cat`, `head`, `tail`, `sed -n` or `grep`). A nested file over
+40,000 characters, or over 5% of the model's context window at 3 characters a
+token (4 on pre-5 models) if that is larger, loads only up to its last line
+break within that size, with a note to `Read` the rest (`"Only the start of
+this file is shown."`).
 
 **README.md = invisible knowledge**: README.md files capture knowledge NOT
 visible from reading source code. If ANY invisible knowledge exists for a
