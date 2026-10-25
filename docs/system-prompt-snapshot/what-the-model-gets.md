@@ -270,10 +270,10 @@ every model.
 
 2.1.310's schema changes: `Agent` takes `effort` (`low`…`max`, *"Set this ONLY
 when the user, or instructions such as CLAUDE.md or a skill, explicitly ask"*),
-dropped whenever `CLAUDE_CODE_EFFORT_LEVEL` is set at all (`QA() !== void 0 ?
-_.omit({effort: !0})`); `Read` takes `allow_large`; `Artifact` takes `edits`,
+dropped when `CLAUDE_CODE_EFFORT_LEVEL` parses, `unset` included, `""` not (`QA() !== void 0 ?
+_.omit({effort: !0})`); `Read` takes `allow_large`, `Artifact` `edits`,
 up to 64 `old_str`/`new_str` pairs applied on publish, and `list`'s `limit`
-maximum went 50 -> 200. The lean `Agent` text now argues against
+maximum 50 -> 200. The lean `Agent` text argues against
 spawning (*"A fresh agent costs more than it looks"* ... *"When in doubt, don't
 spawn."*).
 
