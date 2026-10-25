@@ -9,7 +9,7 @@ rather than leaving it in a session transcript.
   a placeholder, prefix or substitution changes what the built-in says while the copies stay
   byte-identical. 2.1.310's `artifact-design` loader: asset → `trimStart()` → the
   `<!-- dataviz-callout -->` splice → under the split toolset a `## Page contract` prefix and one
-  phrase swap. `artifact-diagramming`'s (2.1.289: `trimStart()` only) is unread. Never retires.
+  phrase swap. `artifact-diagramming`'s (2.1.289: `trimStart()` only) is unread. 2.1.310: same chain (page contract gated on `CLAUDE_CODE_ARTIFACT_TOOLSET` or `tengu_cobalt_plinth_damson`; Thumbnail line `tengu_cobalt_plinth_campion`). Never retires.
 - **The resume-from-summary override, a decision held on a Claude Code defect.**
   `skills/resume-from-summary` overrides the summary's closing order
   (`as if the break never happened`), which no setting or settings hook reaches. A mod reaches
@@ -23,6 +23,8 @@ rather than leaving it in a session transcript.
   logging `session.append` by door, under `CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1` (a nested
   session saves no transcript without it); send a prompt, then `/compact`. Once that `/compact`
   reaches `session.append` and the API leaves early access, put the decision back to the user.
+
+- **`-p` background shells.** Re-probe a `-p` main-thread and a `-p` subagent background shell (`tengu_tidy_sloth`; the held-shell test `e.agentId === void 0`); `inventory.md`'s `long-bash` row.
 
 ## Open decision
 
