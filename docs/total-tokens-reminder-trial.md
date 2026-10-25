@@ -113,7 +113,7 @@ asked and needs the most.
   the configured budget, not `Nw().window`) but moves compaction frequency, which
   outcomes 2–4 count, so each change opens a stratum — one is on record below.
   2.1.288's classifier-overflow compaction counts the same
-  (`src/chunk-wgfrtm7w.js:76561`); `--dangerously-skip-permissions` keeps it out.
+  (`src/chunk-j0tbz6ra.js:100125`); `--dangerously-skip-permissions` keeps it out.
 - Any session where the user knew the arm and said so. Excluded so far:
   `4a3c0e33-070b-4408-9bd1-e572bf4888a4` (2026-09-30, `off`, read its own
   provenance record). Every record embeds the launcher's text, so grep
@@ -126,20 +126,20 @@ the draw went live, so it splits the sessions — and reaches a session through
 the `~/.claude/settings.json` symlink into the canonical checkout.
 
 Auto-compaction then fires at **367,000** context tokens against 967,000 before
-— the window less `min(maxOutputTokens, 20000)` less a flat 13,000 (`TCe` →
-`OK` → `dK`, `src/chunk-wgfrtm7w.js:43998`, `:43931`, `:43763`; Opus 5's window
-1e6 at `src/chunk-jepmcrwm.js:585-593`), compared live off
-`n.options.autoCompactWindow` (`:77742`, `:77790`). Re-derived on 2.1.289 and
-unmoved. The clamp only lowers — `Nw()` returns `Math.min(modelWindow, n)`
-(`:43849`) — and 2.1.288's server-supplied window is read only after the
-settings key (`:43869` before `:43875`), so it does not displace this one.
+— the window less `min(maxOutputTokens, 20000)` less a flat 13,000 (`SK` →
+`MJ` → `GQ`, `src/chunk-j0tbz6ra.js:64535`, `:64468`, `:64109`; Opus 5's window
+1e6 at `src/chunk-dvghjmtr.js:668-676`), compared live off
+`n.options.autoCompactWindow` (`chunk-j0tbz6ra.js:101421`, `:101483`). Re-derived on 2.1.289 and
+again on 2.1.310, unmoved. The clamp only lowers — `TS()` returns `Math.min(modelWindow, n)`
+(`:64296`) — and 2.1.288's server-supplied window is read only after the
+settings key (`:64318` before `:64336`), so it does not displace this one.
 
 **A covariate, not a second treatment.** Outcomes 2–4 are counted per
 compaction, so the clamp moves their denominator: one stratum before, another
 after, arms randomized inside each. The treatment cannot move:
-`padded-countdown` emits `Uie() − cumulativeUsed`, which carries rolled-over
-tokens across every compaction (`:138238`, `:58461`; rollover
-`src/chunk-hmg8c715.js:84`), so it reads the same at either window; `countdown`,
+`padded-countdown` emits `JZ() − cumulativeUsed`, which carries rolled-over
+tokens across every compaction (`chunk-j0tbz6ra.js:137421`, `:90151`; rollover
+`src/chunk-f0m66zs2.js:95`, unconditional since 2.1.310), so it reads the same at either window; `countdown`,
 whose subtrahend is the current message list, would move — no arm draws it.
 The split buys yield and dates itself: at 367,000 a long session compacts about
 2.6× as often, so each session supplies more of the events outcomes 2–4 count,

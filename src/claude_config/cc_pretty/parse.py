@@ -6,7 +6,7 @@ Handles all record types found in Claude Code JSONL logs:
   permission-mode
 
 Claude Code writes 46 top-level `type` values; 2.1.289 enumerates them in two
-policy tables (`chunk-wgfrtm7w.js:170131` `var nxr`, `:170911` `var rss`). The
+policy tables (`chunk-j0tbz6ra.js:11325` `var Tco`, `:13639` `var Kyi`). The
 ones absent above are per-session latches and pointers — `mode`, `atis-latch`,
 `ai-title`, `cost-state`, `frame-link`, `summary`, `api-request*` — carrying no
 conversation content. They land on UnknownRecord by design, which the renderer
@@ -248,7 +248,7 @@ class SystemRecord(_Base):
     """A host-side banner or turn marker.
 
     Claude Code's own subtypes and their fields are declared one constructor
-    each at `chunk-wgfrtm7w.js:168850-169035`; `informational` has no single
+    each at `chunk-j0tbz6ra.js:204705-204890`; `informational` has no single
     constructor (any part of the loop raises one) and carries `content` plus
     `level`. `cc_pretty_intercept.convert` reuses this class for an intercept
     capture's `api_*` regions, which is why `content`/`detail`/`content_leaf`
@@ -394,7 +394,7 @@ class AttachmentData(_Base):
     path: str = ""
     snippet: str = ""
     # queued_command.  A prompt carrying a pasted image is a list of content
-    # blocks rather than a string (`chunk-wgfrtm7w.js:168334`,
+    # blocks rather than a string (`chunk-j0tbz6ra.js:204089`,
     # `if (Array.isArray(e.prompt))`); typed as str alone, such a record fails
     # validation and parse_all drops it, taking the user's message with it.
     prompt: str | list[dict[str, Any]] = ""

@@ -63,10 +63,10 @@ fn additional_context() -> String {
 /// spawn site agrees on 2.1.289: a non-zero exit becomes an attachment and even
 /// a `blockingError` is pushed into the subagent's messages rather than
 /// aborting it, and only an abort rethrows
-/// (`src/chunk-2dk1sr5c.js:5758-5781`, marker
+/// (`src/chunk-x3dkgs4r.js:4275-4298`, marker
 /// `SubagentStart hooks cancelled (control stream closed)`). The one shape that
 /// skips this hook entirely is a `delegatedObservation` subagent
-/// (`src/chunk-g83p48tw.js:18001`), which is not a path anything here spawns.
+/// (`src/chunk-ajtyjx88.js:35272`), which is not a path anything here spawns.
 pub fn run() -> Result<()> {
     let mut buf = String::new();
     std::io::stdin().read_to_string(&mut buf)?;
@@ -105,7 +105,7 @@ mod tests {
 
     /// Claude Code rejects the whole output when `hookEventName` names another
     /// event, and the subagent then starts with no block and no error
-    /// (`src/chunk-wgfrtm7w.js:93152`, marker `Hook returned incorrect event
+    /// (`src/chunk-j0tbz6ra.js:140875`, marker `Hook returned incorrect event
     /// name: expected '`).
     #[test]
     fn names_the_event_it_answers() {

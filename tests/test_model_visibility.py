@@ -79,9 +79,9 @@ def test_persisted_output_parses_off_a_real_log_line() -> None:
     "todo",
     "background_task_status",
     # Added to the denylist by 2.1.289: an always-empty arm
-    # (chunk-wgfrtm7w.js:167779 `prompt_render_point: () => [],`) and a type
+    # (chunk-j0tbz6ra.js:203526 `prompt_render_point: () => [],`) and a type
     # moved out of the loggable set into the dropped list
-    # (:168740, `"audio_transcript"`).
+    # (:204583, `"audio_transcript"`).
     "prompt_render_point",
     "audio_transcript",
 ])
@@ -201,7 +201,7 @@ _DECOMPILED = pathlib.Path("/repos/claude-code-decompiled/src")
 # is a string literal rather than a minified identifier, so it survives a
 # rebuild. It also sits past every arm, which makes it the region's end.
 # 2.1.289: `rX("normalizeAttachmentForAPI", Error(...))`,
-# chunk-wgfrtm7w.js:168741 — one occurrence tree-wide.
+# chunk-j0tbz6ra.js:204584 — one occurrence tree-wide.
 _MARKER = '"normalizeAttachmentForAPI"'
 
 # The line that hands a recognised subtype to its arm. Matched on the call

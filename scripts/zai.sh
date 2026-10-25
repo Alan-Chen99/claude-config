@@ -42,12 +42,12 @@ ZAI_MODEL="${ZAI_MODEL:-glm-5.3[1m]}"
 ZAI_HAIKU_MODEL="${ZAI_HAIKU_MODEL:-glm-5.3-flash[1m]}"
 
 # `[1m]` is Claude Code syntax rather than part of the id: the request's model
-# field is `Ux(model)` (`src/chunk-wgfrtm7w.js:87038`), which strips the suffix
-# (`Hn()`, `/\[(1|2)m\]/gi`, `src/chunk-namb4g5x.js:30`), and the endpoint
+# field is `tA(model)` (`src/chunk-j0tbz6ra.js:112632`), which strips the suffix
+# (`$n()`, `/\[(1|2)m\]/gi`, `src/chunk-ya7n419k.js:30`), and the endpoint
 # rejects it unstripped — `glm-5.3[1m]` answers 400 `[1211][Unknown Model,
 # please check the model code.]`. The test mirrors cc's own, which is
-# case-insensitive and matches anywhere in the string (`Jbt()`, `/\[1m\]/i`,
-# `src/chunk-g83p48tw.js:14076`).
+# case-insensitive and matches anywhere in the string (`K2t()`, `/\[1m\]/i`,
+# `src/chunk-ajtyjx88.js:21371`).
 has_1m_window() { [[ "$1" =~ \[1[mM]\] ]]; }
 
 # Claude Code reads a context size off the model name: the `[1m]` form returns
@@ -93,8 +93,8 @@ export ANTHROPIC_DEFAULT_HAIKU_MODEL="$ZAI_HAIKU_MODEL"
 export CLAUDE_CODE_SUBAGENT_MODEL="$ZAI_MODEL"
 
 # Derived from the same number as the window so the two cannot drift apart.
-# Stating it settles where the compact threshold comes from: `Nw()`
-# (`src/chunk-wgfrtm7w.js:43849`) takes this variable ahead of a settings
+# Stating it settles where the compact threshold comes from: `TS()`
+# (`src/chunk-j0tbz6ra.js:64296`) takes this variable ahead of a settings
 # value, clientdata, an experiment and the model defaults, and the effective
 # threshold is the smaller of it and the context window. cc caps it at
 # 1,000,000: the derived default sits exactly there, and a larger

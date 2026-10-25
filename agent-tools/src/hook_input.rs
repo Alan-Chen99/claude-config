@@ -10,13 +10,17 @@ use serde::Deserialize;
 /// declared, so only the fields something reads are listed. What the runtime
 /// builds is one base object shared by every event — `session_id`,
 /// `transcript_path`, `cwd`, `scratchpad_dir`, `prompt_id`, `permission_mode`,
-/// `agent_id`, `agent_type`, `effort` (`rd`, `src/chunk-wgfrtm7w.js:92957`,
+/// `agent_id`, `agent_type`, `effort` (`qu`, `src/chunk-j0tbz6ra.js:140668`,
 /// marker `scratchpad_dir:`; the same names are listed as reserved at
-/// `src/chunk-q6wr75ng.js:958`) — and then the event's own fields
-/// (`src/chunk-ps4gchhg.js:6821-6853`, marker
+/// `src/chunk-gq77tz5k.js:4267`) — and then the event's own fields
+/// (`src/chunk-at88wjsn.js:6944-6976`, marker
 /// `hook_event_name: R("PreToolUse")`). Across 2.1.270–2.1.289 that shape
 /// gained exactly one field, the optional `mcp_server` on the five tool
-/// events, so nothing declared below moved.
+/// events, and 2.1.310 changed none of the event fields, so nothing declared
+/// below moved. 2.1.310 did add a second base for a served (remote) call —
+/// `session_id` `served:<caller>`, an empty `transcript_path`, no
+/// `scratchpad_dir`, `prompt_id` or `agent_type` — which still carries the
+/// `session_id` every struct here requires.
 #[derive(Debug, Deserialize)]
 pub struct PreToolUseInput {
     pub session_id: String,

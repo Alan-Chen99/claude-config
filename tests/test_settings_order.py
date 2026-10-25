@@ -34,7 +34,7 @@ def _module() -> ModuleType:
 
 
 def test_settings_json_is_byte_identical_to_what_claude_code_would_write() -> None:
-    """`JSON.stringify(k, null, 2) + "\\n"` (`src/chunk-3z4drmxy.js:3721`).
+    """`JSON.stringify(k, null, 2) + "\\n"` (`src/chunk-7c3thgax.js:4322`).
 
     Independent of the key order and of any decompile: two-space indent,
     non-ASCII left unescaped, exactly one trailing newline. Drift in any of

@@ -79,7 +79,7 @@ find "$SCRATCH" -maxdepth 1 -type f -exec cp -a {} "$SNAP/" \;
 echo "leg-1 snapshot: $SNAP"
 
 # Since cc 2.1.267 a resume replays the system prompt recorded on the first
-# request, whatever a later launch passes (e5e, src/chunk-wgfrtm7w.js:5393, found
+# request, whatever a later launch passes (V1e, src/chunk-j0tbz6ra.js:4276, found
 # by `systemPromptSnapshot === !1`); without this flag the arm file above is
 # validated and then ignored. Measured on 2.1.269 through the proxy: a resume
 # passing prompt B sent A; with the flag, B.

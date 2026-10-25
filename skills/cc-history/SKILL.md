@@ -35,10 +35,10 @@ PROJECT_DIR="$HOME/.claude/projects/$(echo "$PWD" | sed 's|[^a-zA-Z0-9]|-|g')"
 
 Encoding rule: **every character outside `[a-zA-Z0-9]` becomes `-`** — slashes, dots,
 underscores and spaces alike (`e.replace(/[^a-zA-Z0-9]/g, "-")`,
-`src/chunk-v0mb4zbj.js:696`). An encoded name longer than 200 characters is cut to 200 and
-given a `-<base36 hash>` suffix (`src/chunk-v0mb4zbj.js:701`; the limit `Nie = 200` is at
-`:691`, the hash at `:693`). The result is joined under `<config dir>/projects/`
-(`src/chunk-acw83f1p.js:20` and `:46`, literal `i(we(), "projects")`).
+`src/chunk-t0wrcf3t.js:701`). An encoded name longer than 200 characters is cut to 200 and
+given a `-<base36 hash>` suffix (`src/chunk-t0wrcf3t.js:706`; the limit `_Se = 200` is at
+`:696`, the hash at `:698`). The result is joined under `<config dir>/projects/`
+(`src/chunk-zjm5ncxc.js:22` and `:55`, literal `i(we(), "projects")`).
 
 Examples (all three are directory names present under `~/.claude/projects/`):
 
@@ -196,8 +196,8 @@ A skill reaches a log by one of three routes, and no single pattern catches all 
 | `agent-tools skill`  | `tool_use` block, `name == "Bash"`, in `.input.command` | `agent-tools skill <skill_name>.<module>` |
 | `python3 -m skills.` | same, `.input.command`                              | `python3 -m skills.<skill_name>.<module>`    |
 
-The `Skill` tool is first-class in 2.1.289 — description at `src/chunk-wgfrtm7w.js:133343`,
-input schema `{skill, args?}` at `src/chunk-qec902z2.js:594-597` (literal `The name of a skill
+The `Skill` tool is first-class in 2.1.289 — description at `src/chunk-j0tbz6ra.js:91144`,
+input schema `{skill, args?}` at `src/chunk-sb2f74gp.js:427-430` (literal `The name of a skill
 from the available-skills list`). The two bash routes
 are this repo's own convention (`skills/CLAUDE.md`): custom skills go through `agent-tools`,
 upstream skills through the direct `python3 -m` call. Both use underscores in the module
@@ -385,9 +385,9 @@ Most transcript entries have a `timestamp` field (ISO 8601 string, e.g. `"2025-0
 Present on, as measured over every log on disk
 (`jq -r 'select(type=="object") | "\(.type)\t\(.timestamp != null)"'`): `user`,
 `assistant`, `system`, `attachment`, `queue-operation`, `file-history-delta`, `frame-link`.
-The binary also stamps one onto `pr-link` (`src/chunk-wgfrtm7w.js:172375`), `frame-link`
-(`:172381`), `memory-mode` (`:172345`), `ended-by-model` (`:175786`), `continued-in`
-(`src/chunk-bfmr5z4y.js:147`) and `observer-ref` (`src/chunk-wgfrtm7w.js:173495`) — only
+The binary also stamps one onto `pr-link` (`src/chunk-j0tbz6ra.js:15304`), `frame-link`
+(`:15310`), `memory-mode` (`:15274`), `ended-by-model` (`:19095`), `continued-in`
+(`src/chunk-zg0g4fdz.js:177`) and `observer-ref` (`src/chunk-j0tbz6ra.js:16616`) — only
 `frame-link` occurs here, so the rest is a source reading, not a measurement.
 
 **Not present on**: `file-history-snapshot`, `last-prompt`, `ai-title`, `mode`,
@@ -397,7 +397,7 @@ approximation, or read the nested `.snapshot.timestamp`.
 
 Additional timing fields outside the JSONL transcript: SDK `result` messages carry
 `duration_ms` and `duration_api_ms`, plus optional `ttft_ms`, `ttft_stream_ms` and
-`time_to_request_ms` (`src/chunk-ps4gchhg.js:7634-7638`, literal `time_to_request_ms`; four
+`time_to_request_ms` (`src/chunk-at88wjsn.js:7823-7827`, literal `time_to_request_ms`; four
 more `@internal` timing fields follow it). These are stream-json output, not
 transcript entries — do not expect them in a `.jsonl` under `~/.claude/projects/`. An earlier
 revision listed `task-summary` here as well; that entry type no longer exists (see "Message
@@ -449,13 +449,13 @@ jq -s '[.[] | select(.type=="assistant") |
 ### Parallel Subagents
 
 Subagent conversations are stored in `{session}/subagents/agent-{agentId}.jsonl`
-(`src/chunk-acw83f1p.js:67` builds the directory, `:72` the filename) with a companion
+(`src/chunk-zjm5ncxc.js:79` builds the directory, `:87` the filename) with a companion
 `.meta.json`. Each JSONL entry has `isSidechain: true` and an `agentId` field matching the
 filename.
 
 The `.meta.json` is richer than `{agentType, description}`. It is written by
-`src/chunk-wgfrtm7w.js:171031` (literal `persistAgentMetadata: storage write failed`; the file
-write at `:171044` and `:171052`), and the record mirrored alongside it at `:171055-171123`
+`src/chunk-j0tbz6ra.js:13782` (literal `persistAgentMetadata: storage write failed`; the file
+write at `:13804` and `:13812`), and the record mirrored alongside it at `:13815-13899`
 enumerates the writable fields: `agentType`,
 `isFork`, `isBuiltIn`, `worktreePath`, `worktreeBranch`, `cwd`, `spawnMode`, `description`,
 `workflowPhase`, `name`, `toolUseId`, `parentAgentId`, `stoppedByUser`, `spawnDepth`,
@@ -563,15 +563,15 @@ jq -c --arg t "toolu_01RtsuZUajp1KogNP5FLJ5iq" \
 `Agent` tool call. Older files predating the field have only `{agentType, description}`.
 
 **In the transcript the tool is named `Agent`, not `Task`.** `"Task"` survives in 2.1.289 as a
-name constant (`src/chunk-qws8heqd.js:17`, beside `ht = "Agent"` at `:11`), as keybinding-context
-labels for the Ctrl+B background affordance (`src/chunk-1r3smv21.js:39`, `:52`;
-`src/chunk-f4qx496g.js:189`, literal `task:background`), in the permission-rule name list
-(`src/chunk-c06bg8hw.js:33555`, literal `BUILTIN_TOOL_NAMES`), and in alias checks that accept
-either name (`src/chunk-g83p48tw.js:18211`, literal `e !== "Agent" && e !== "Task"`). One of
+name constant (`src/chunk-gdcb8skc.js:22`, beside `ht = "Agent"` at `:13`), as keybinding-context
+labels for the Ctrl+B background affordance (`src/chunk-hy2g8tcy.js:44`, `:57`;
+`src/chunk-dmwqqfc0.js:180`, literal `task:background`), in the permission-rule name list
+(`src/chunk-s6eb4jds.js:37285`, literal `BUILTIN_TOOL_NAMES`), and in alias checks that accept
+either name (`src/chunk-ajtyjx88.js:35514`, literal `e !== "Agent" && e !== "Task"`). One of
 those matters when you read exported sessions rather than JSONL: SDK and
 `--output-format stream-json` output renames `Agent` to `Task` on the way out
-(`src/chunk-43jbw5qg.js:64`, applied to the `init` message's `tools` at `:141` and to a
-permission request's `tool_name` at `src/chunk-mgxpmmsq.js:8725`) — pre-existing, not new in
+(`src/chunk-wybpgt3b.js:67`, applied to the `init` message's `tools` at `:166` and to a
+permission request's `tool_name` at `src/chunk-7rnqxvcm.js:14199`) — pre-existing, not new in
 this build. Inside a `.jsonl` under `~/.claude/projects/` the name is always `Agent`, so
 correlation recipes keyed on `.name=="Task"` return nothing there.
 

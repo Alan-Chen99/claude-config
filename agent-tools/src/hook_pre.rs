@@ -15,10 +15,10 @@ pub fn run() -> Result<()> {
     // exiting non-zero on a payload this binary could not read would deny the
     // call outright. Claude Code's own two failures here — a matcher it cannot
     // evaluate and a `tool_input` it cannot serialize — do now block the call
-    // (`hook_matching_failed`, `src/chunk-wgfrtm7w.js:96661`; `Hook input is
-    // over the size limit`, `:96685`, both rethrown for the two events in
-    // `Az = new Set(["PreToolUse", "PermissionRequest"])`,
-    // `src/chunk-q75vj0vh.js:3499`), but both happen before this process is
+    // (`hook_matching_failed`, `src/chunk-j0tbz6ra.js:145111`; `Hook input is
+    // over the size limit`, `:145136`, both rethrown for the two events in
+    // `dq = new Set(["PreToolUse", "PermissionRequest"])`,
+    // `src/chunk-d54avynm.js:1919`), but both happen before this process is
     // spawned, so neither is reachable from here. What is reachable is a
     // payload whose shape `hook_input` no longer matches, and there the honest
     // answer is to let the unwrapped command run.
@@ -41,11 +41,14 @@ pub fn run() -> Result<()> {
     // we don't echo back (timeout, description, run_in_background,
     // dangerouslyDisableSandbox, future fields) is silently dropped from the
     // executed tool call: both consumers assign it over the original input
-    // (`case "hookUpdatedInput":` at chunk-wgfrtm7w.js:65210 and
-    // `E.type === "hookUpdatedInput"` at chunk-v15exdkc.js:747, fed from the
-    // one producer at chunk-wgfrtm7w.js:63671; re-find by the error string
+    // (`case "hookUpdatedInput":` at chunk-j0tbz6ra.js:161111 and
+    // `x.type === "hookUpdatedInput"` at chunk-72xgh5c7.js:845, fed from the
+    // one producer at chunk-j0tbz6ra.js:159548; re-find by the error string
     // "returned updatedInput that failed schema validation",
-    // chunk-wgfrtm7w.js:63595).
+    // chunk-j0tbz6ra.js:41913). Since 2.1.300 that replacement is checked as
+    // the tool's own input is: keys the schema does not know are dropped, and
+    // a schema failure denies the call with that error string — so echoing
+    // the original fields back is what keeps the call valid, not a courtesy.
     let Some(command) = input.tool_input.get("command").and_then(|v| v.as_str()) else {
         eprintln!(
             "agent-tools hook-pre: tool_input.command missing or not a string; \

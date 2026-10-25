@@ -15,24 +15,26 @@ use crate::paths;
 ///
 /// The 8,000-character/200-line `additionalContext` cap — truncating and
 /// flagging rather than dropping (the cap table at
-/// `src/chunk-9vm7mwz3.js:13-19`, marker `additionalContext: 8000`, applied by
-/// `Tfr` at `:28`) — lives in a chunk imported by exactly the three paths that
-/// sanitize an answer before using it: the cloud relay
-/// (`src/chunk-q79rd8cy.js:1042`, the chunk that carries `Hooks the cloud
-/// session forwards here` at `:1995`), callback hooks
-/// (`src/chunk-5zevbw45.js:510`) and device hook templates
-/// (`src/chunk-xr615zem.js:365`). A local command hook's stdout is
-/// interpreted instead by `S4` (`src/chunk-wgfrtm7w.js:93096`, marker
-/// `expectedHookEvent`, called at `:96106`), which has no sanitizer, so that
-/// cap never applies here — and lowering the budget to chase it would cost
-/// lines for nothing.
+/// `src/chunk-6h7ejyet.js:13323-13329`, marker `additionalContext: 8000`,
+/// applied by `KMo` at `:13338` through `Cr` at `:13351`) — is applied by the
+/// answer sanitizer `Rhe` (`:13530`) on the paths that sanitize an answer
+/// before using it: the cloud relay (`src/chunk-nc2bf1j8.js:542`, the chunk
+/// that carries `Hooks the cloud session forwards here` at `:1508`), callback
+/// hooks (`src/chunk-9rp40b48.js:510`) and device hook templates
+/// (`src/chunk-gjq2zs1s.js:381`). Since 2.1.310 a hook from the user's own
+/// settings passes through `Rhe` too (`MV`, `src/chunk-j0tbz6ra.js:142449`,
+/// `personal: !0`), but `Cr` hands a personal answer's fields back untouched
+/// (`if (e.options.personal === !0) return r;`), so a local command hook's
+/// stdout, interpreted by `Bte` (`src/chunk-j0tbz6ra.js:140816`, marker
+/// `expectedHookEvent`, called at `:144510`), still meets no cap — and
+/// lowering the budget to chase it would cost lines for nothing.
 ///
 /// The ceiling that does apply to every hook kind is persistence: an
 /// `additionalContext` longer than 10,000 characters is written to a file and
 /// replaced by a `<persisted-output>` stub carrying a 2,000-character preview
-/// (threshold `HXo = 1e4`, `src/chunk-qtae7z5t.js:32`; stub built by `Fbe`,
-/// `src/chunk-wjjn7eps.js:159`, marker `Output too large (`; reached for every
-/// hook's `additionalContext` at `src/chunk-wgfrtm7w.js:96461`). 9,000 clears
+/// (threshold `Gii = 1e4`, `src/chunk-r1dvrqha.js:34`; stub built by `zDe`,
+/// `src/chunk-z0mss2jj.js:180`, marker `Output too large (`; reached for every
+/// hook's `additionalContext` at `src/chunk-j0tbz6ra.js:144889`). 9,000 clears
 /// it with the backgrounding notice on top, which this budget deliberately
 /// leaves uncharged and which is 250 characters at its widest. A measurement
 /// recorded here against 2.1.269 — a PostToolUse command hook returning 18,611
@@ -149,12 +151,12 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
             .unwrap_or(false)
     };
     // The Bash tool's output schema names one field per cause
-    // (`src/chunk-wgfrtm7w.js:162653-162657`, marker
+    // (`src/chunk-j0tbz6ra.js:197871-197876`, marker
     // `backgroundedToDeliverMessage`), and the set is the same one 2.1.269
     // declared. The background time limit added since then does not extend it:
     // a task stopped at its deadline is announced through its own notice
     // (`stopped after reaching its background time limit`,
-    // `src/chunk-wgfrtm7w.js:6627`) rather than through a field on the call
+    // `src/chunk-j0tbz6ra.js:5638`) rather than through a field on the call
     // that started it. `timedOutAfterMs` carries the
     // timeout that actually applied, which is not the one the model asked for
     // whenever the runtime shortened it — so the response answers this where

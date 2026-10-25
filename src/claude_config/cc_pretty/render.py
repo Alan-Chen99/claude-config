@@ -1043,11 +1043,11 @@ class Renderer:
             # `content`: past 10,000 chars Claude Code writes the stdout to a
             # file beside the log and replaces `content` with a
             # `<persisted-output>` stub holding a 2,000-char preview
-            # (threshold `HXo = 1e4`, chunk-qtae7z5t.js:32; preview
-            # `var wxe = 2000` at chunk-wjjn7eps.js:40 and the stub text in
-            # `function Fbe` at :159, reached from `function Lue` at :521).
+            # (threshold `Gii = 1e4`, chunk-r1dvrqha.js:34; preview
+            # `var GDe = 2000` at chunk-z0mss2jj.js:41 and the stub text in
+            # `function zDe` at :180, reached from `function jhe` at :542).
             # `stdout` on the same record is the raw string
-            # (chunk-wgfrtm7w.js:96190, `stdout: Ho.stdout`) and keeps the
+            # (chunk-j0tbz6ra.js:144604, `stdout: fs.stdout`) and keeps the
             # whole thing: 74,768 bytes intact in the logs here, 204,016
             # measured on 2.1.269. A stub is what the reader would otherwise
             # get for exactly the hooks whose output is worth reading.
@@ -1441,8 +1441,8 @@ def render_skeleton(
             # it, so it reads as the user turn it is and a reader scanning for
             # what the human said finds it. `commandMode` is the split cc itself
             # acts on: a typed prompt is delivered unflagged, a
-            # task-notification as `isMeta` (`chunk-wgfrtm7w.js:168310-168313`,
-            # `E4(e.origin, e.commandMode)`).
+            # task-notification as `isMeta` (`chunk-j0tbz6ra.js:204065-204068`,
+            # `XF(e.origin, e.commandMode, e.runId)`).
             if rec.attachment.type == "queued_command":
                 label = f"user:{rec.attachment.commandMode or 'queued'}"
             else:

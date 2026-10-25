@@ -659,7 +659,7 @@ def _queue_session(tmp_path) -> object:
                        "<system-reminder>\nThe user sent a new message while "
                        "you were working:\nand commit when it passes\n"
                        "</system-reminder>"}]},
-        # A pasted image makes `prompt` a block list (chunk-wgfrtm7w.js:168334).
+        # A pasted image makes `prompt` a block list (chunk-j0tbz6ra.js:204089).
         {"type": "attachment", "uuid": "q2", "attachment": {
             "type": "queued_command", "commandMode": "prompt", "prompt": [
                 {"type": "text", "text": "this screenshot shows the bug"},
@@ -957,7 +957,7 @@ def test_long_hook_stdout_is_truncated_with_a_recovery_recipe() -> None:
 def test_a_persisted_output_stub_is_not_what_the_reader_gets() -> None:
     """Past 10,000 chars Claude Code swaps `content` for a stub naming a file
     beside the log and holding a 2,000-char preview; `stdout` keeps the text
-    itself (2.1.289 threshold `HXo = 1e4`, chunk-qtae7z5t.js:32)."""
+    itself (2.1.310 threshold `Gii = 1e4`, chunk-r1dvrqha.js:34)."""
     r = Renderer("/tmp/log.jsonl", tool_output_max=200, tool_input_max=200)
     out = r.render_attachment(
         _hook_success(
@@ -994,7 +994,7 @@ def test_hook_stdout_reaches_the_reader_only_under_show_all(tmp_path) -> None:
 # ─── System records that say something (2.1.289 subtype set) ────────────────
 #
 # Claude Code declares one constructor per transcript system subtype at
-# chunk-wgfrtm7w.js:168850-169035. Most put their whole payload in `content`;
+# chunk-j0tbz6ra.js:204705-204890. Most put their whole payload in `content`;
 # memory_saved, api_error and the model-switch family each use fields of their
 # own. A bare `[subtype]` label names the record while hiding the sentence it
 # exists for, so each shape below is pinned to the text it carries.
