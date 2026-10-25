@@ -111,7 +111,7 @@ asked and needs the most.
   which config layer wins. Silent; caught only by the 50/50 check.
 - `autoCompactWindow` changing again: it never reaches the reminder (`vf()` or
   the configured budget, not `Nw().window`) but moves compaction frequency, which
-  outcomes 2–4 count, so each change opens a stratum — one is on record below.
+  outcomes 2–4 count, so each change opens a stratum — two are on record below.
   2.1.288's classifier-overflow compaction counts the same
   (`src/chunk-j0tbz6ra.js:100125`); `--dangerously-skip-permissions` keeps it out.
 - Any session where the user knew the arm and said so. Excluded so far:
@@ -121,12 +121,13 @@ asked and needs the most.
 
 ## The compaction clamp
 
-`settings.json` sets `autoCompactWindow: 400000`, committed 2026-09-25 — after
-the draw went live, so it splits the sessions — and reaches a session through
-the `~/.claude/settings.json` symlink into the canonical checkout.
+`settings.json` sets `autoCompactWindow: 600000` since 2026-10-18 (`640abd00`),
+and `400000` from 2026-09-25 — after the draw went live — until then, so the
+sessions fall in three strata; it reaches a session through the
+`~/.claude/settings.json` symlink into the canonical checkout.
 
-Auto-compaction then fires at **367,000** context tokens against 967,000 before
-— the window less `min(maxOutputTokens, 20000)` less a flat 13,000 (`SK` →
+Auto-compaction then fires at **567,000** context tokens (367,000 at `400000`)
+against 967,000 before — the window less `min(maxOutputTokens, 20000)` less a flat 13,000 (`SK` →
 `MJ` → `GQ`, `src/chunk-j0tbz6ra.js:64535`, `:64468`, `:64109`; Opus 5's window
 1e6 at `src/chunk-dvghjmtr.js:668-676`), compared live off
 `n.options.autoCompactWindow` (`chunk-j0tbz6ra.js:101421`, `:101483`). Re-derived on 2.1.289 and
@@ -142,6 +143,6 @@ tokens across every compaction (`chunk-j0tbz6ra.js:137421`, `:90151`; rollover
 `src/chunk-f0m66zs2.js:95`, unconditional since 2.1.310), so it reads the same at either window; `countdown`,
 whose subtrahend is the current message list, would move — no arm draws it.
 The split buys yield and dates itself: at 367,000 a long session compacts about
-2.6× as often, so each session supplies more of the events outcomes 2–4 count,
-and a first compaction near 367k rather than 967k recovers the boundary without
-the commit date.
+2.6× as often (at 567,000, 1.7×), so each session supplies more of the events outcomes 2–4 count,
+and a first compaction near 367k or 567k rather than 967k recovers the stratum
+without the commit date.
