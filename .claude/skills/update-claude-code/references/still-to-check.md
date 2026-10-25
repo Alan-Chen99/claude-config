@@ -1,4 +1,4 @@
-# Still to check — as of 2026-10-05, Claude Code 2.1.289
+# Still to check — as of 2026-10-25, Claude Code 2.1.310
 
 Open items with what retires each. Delete an entry once closed; add one for every gap you find
 rather than leaving it in a session transcript.
@@ -7,11 +7,9 @@ rather than leaving it in a session transcript.
 
 - **The vendored skills' loaders.** `skilldiff.sh` compares asset bodies, so a loader that gains
   a placeholder, prefix or substitution changes what the built-in says while the copies stay
-  byte-identical. 2.1.289's `artifact-design` loader: asset → `trimStart()` → the
-  `<!-- dataviz-callout -->` splice (`tengu_cobalt_plinth_dataviz`) → under
-  `CLAUDE_CODE_ARTIFACT_TOOLSET` a "Page contract" prefix (a `tengu_cobalt_plinth_campion`
-  Thumbnail line) and one phrase swap. `artifact-diagramming`'s is `trimStart()` only. Never
-  retires.
+  byte-identical. 2.1.310's `artifact-design` loader: asset → `trimStart()` → the
+  `<!-- dataviz-callout -->` splice → under the split toolset a `## Page contract` prefix and one
+  phrase swap. `artifact-diagramming`'s (2.1.289: `trimStart()` only) is unread. Never retires.
 - **The resume-from-summary override, a decision held on a Claude Code defect.**
   `skills/resume-from-summary` overrides the summary's closing order
   (`as if the break never happened`), which no setting or settings hook reaches. A mod reaches
@@ -44,6 +42,12 @@ rather than leaving it in a session transcript.
 - `claude agents` sessions are inferred, not measured, to get `SessionStart` rather than
   `SubagentStart`; read one transcript.
 
+## Not re-read on 2.1.310
+
+`inventory.md` claims no lookup reached: the `Output too large (` persister's threshold for hook
+text (`REPORT_BUDGET`), `statusline.py`'s payload builder, the session file's `entrypoint`, the
+sync gate's paths, the skills `enableArtifact` disables, the shadowing rule.
+
 ## Pins never re-derived for this build
 
 - `notes/env-context-manifest.md` (named by `docs/env-context-manifest.json`): its byte offsets,
@@ -55,35 +59,31 @@ rather than leaving it in a session transcript.
 
 ## Unread in the 2.1.289 captures
 
-- The permission-mode reminder's per-model bodies: its emitter is unread
-  (grep `mode is active:`).
 - `"model": "opus"` now resolves to `claude-opus-5-5`, whose block 3 lacks opus-5's
   `# Delivering work`, `# Corrections` and reduced-delegation line and whose `Bash` description
   drops the cat/head/sed bullet — a new bundle, or `opus_5_prompt_bundle` missing the id,
-  unknown. `sys_prompt/` drops block 3; the `Bash` text reaches every session.
-- `advisor`, a server tool on every logged-in roster (`advisor_20260301`), does something
-  unread; a `claude.sh` roster did not carry it (2026-10-06).
+  unknown (2.1.310: read on `claude-opus-5`'s catalog entry only). `sys_prompt/` drops block 3;
+  the `Bash` text reaches every session.
 - No backgrounded-session capture since 2.1.235; `/feedback` from a logged-in session never
   checked.
 
-## Opened by the release notes (2.1.247–2.1.268 read 2026-09-12, 2.1.270–2.1.289 on 2026-10-05)
+## Opened by the release notes (2.1.247–2.1.289 read by 2026-10-05, 2.1.290–2.1.310 on 2026-10-25)
 
 - `docs/agent-tools-status-reference.md`, "The kill boundary": 2.1.257 fixed `setsid`-detached
   commands surviving a task stop or a Claude Code exit — what `agent-tools run --background` is
   built on. The task-stop half is measured there; the exit half needs a human:
   `agent-tools run --background sleep 900`, quit Claude Code, check whether the child survives.
 - `docs/tool-token-limits.md`: the changelog's 20 MB Grep/Glob output cap has no matching
-  constant in the search path.
+  constant in the search path (2.1.310: `20971520` caps only file, PDF, image and JSON reads).
 - `src/claude_config/cc_pretty/` record handling: subagent progress ticks replaced (2.1.251),
   async hook notices batched onto one line (2.1.257), nested background subagent results in the
   parent subagent's transcript (2.1.259), the report arriving through a `SubagentHandback` call
   (2.1.271), every foreground Agent result under the `[Subagent hand-back]` header (2.1.277), so
-  a small `--tool-max` preview is mostly preamble. Retire by re-reading real 2.1.289 logs
+  a small `--tool-max` preview is mostly preamble. Retire by re-reading real 2.1.310 logs
   (step 10).
 
 ## Open design questions
 
-- `cc-render-coverage` cannot see selection defects (`checks.md`).
 - Whether `agents/session-analysis.md` moves from `claude-opus-4-8` to `claude-opus-5-5`: the pin
   resolves, so it is a cost and behaviour choice.
 - Whether the env-context window check is redesigned around the field templates it no longer

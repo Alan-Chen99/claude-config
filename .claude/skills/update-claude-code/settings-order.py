@@ -5,10 +5,10 @@ Claude Code does not append a UI change to the end of the file. It writes the
 *validated* settings object -- the parsed settings deep-merged with the update
 (`dF`, lodash `mergeWith`, so the base's order survives and new keys land
 after it), then `JSON.stringify(k, null, 2) + "\\n"`
-(`src/chunk-3z4drmxy.js:3662`, `:3711`, `:3721`) -- and that object came out of
+(the writer beside `Writing through symlink:`) -- and that object came out of
 a zod `.object({...}).passthrough()`, whose parser fills a fresh object from
 the schema's `allKeys` and only then appends the keys it did not recognize
-(`src/chunk-pm8xqwnw.js:1292-1295`, `:1215`). Its keys therefore arrive in the
+(zod's `for (let x of a.allKeys)` loop). Its keys therefore arrive in the
 schema's *declaration* order, not the file's. Every hand-ordered edit is
 reverted by the next `/config` toggle, and the reordering lands in a later
 commit on top of whatever else it touched.
@@ -17,7 +17,7 @@ commit on top of whatever else it touched.
 builds only the entries the document actually carries. That does not move the
 order -- the builder iterates `Object.keys(fields)`, so a per-document schema
 is the full declaration order filtered, never resorted
-(`src/chunk-q75vj0vh.js:5144`, `:6514`, `:7090`).
+(`this.keys = Object.keys(e).filter(`, then `forDocument`; re-read on 2.1.310).
 
 The order is re-derived from the decompiled schema rather than pinned, so an
 upgrade that reorders the schema cannot leave a stale list behind: this either
@@ -173,7 +173,7 @@ def main() -> int:
         return 0
 
     # Writing the same bytes cc writes: two-space indent, non-ASCII unescaped,
-    # one trailing newline (`src/chunk-3z4drmxy.js:3721`).
+    # one trailing newline (the writer beside `Writing through symlink:`).
     body = json.dumps({k: current[k] for k in want}, indent=2, ensure_ascii=False) + "\n"
     if mode == "write":
         SETTINGS.write_text(body)

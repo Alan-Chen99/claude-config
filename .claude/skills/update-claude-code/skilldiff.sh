@@ -9,8 +9,8 @@
 # Matching the asset is not matching the built-in, and only for artifact-design:
 # its loader splices a dataviz callout into the asset's `<!-- dataviz-callout -->`
 # line behind a server flag, then under CLAUDE_CODE_ARTIFACT_TOOLSET prefixes a
-# page contract and swaps one phrase (`Est`, src/chunk-h86mqzg4.js:59, calling
-# `RTo`, src/chunk-sye9h7es.js:259). artifact-diagramming is loaded verbatim, so
+# page contract and swaps one phrase (grep `<!-- dataviz-callout -->`, then
+# `## Page contract`). artifact-diagramming is loaded verbatim, so
 # its copy does say what the built-in says. This checks the body the asset holds,
 # nothing else; the loader read that covers the rest is unconditional at every
 # upgrade (references/still-to-check.md).
