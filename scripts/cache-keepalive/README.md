@@ -58,8 +58,8 @@ context (2026-10-24), no compaction followed; whether the fork makes it refuse
 
 **Main thread only.** `$.model.fork` replays the main thread, and a subagent caches for 5
 minutes, so a waiting subagent keeps itself warm with `skills/long-bash`'s `agent-tools wait`
-loop. A subagent's `tool.call` carries its `agentId` and passes through. Subagent turns raise no
-`turn.start`, and a stopped subagent's running shell is listed in `background_tasks` (2.1.289,
+loop. A subagent's `tool.call` and, since 2.1.299, its `turn.start` carry its `agentId` and pass
+through. A stopped subagent's running shell is listed in `background_tasks` (2.1.289,
 `notes/cc-2.1.289-subagent-waits.md`): subagent activity neither disarms a refresh nor hides the
 work that arms one.
 

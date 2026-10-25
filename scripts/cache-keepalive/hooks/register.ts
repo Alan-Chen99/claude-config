@@ -170,6 +170,7 @@ export const register: Register = on => {
   })
 
   on('turn.start', ($, e, next) => {
+    if (e.agentId !== undefined) return next(e)
     isTurnRunning = true
     disarm()
     $.ui.status(undefined)

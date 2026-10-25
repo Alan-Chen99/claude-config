@@ -259,6 +259,19 @@ describe('cache-keepalive', () => {
     expect(seen.forks).toHaveLength(0)
   })
 
+  test("a subagent's turn after the stop leaves the idle refresh armed", async ($, on) => {
+    const { clock, seen } = world(on)
+    await $.session.start(SESSION)
+    await $.turn.start(START)
+    await $.classic.Stop(STOP)
+    await $.turn.complete(COMPLETE)
+    await clock.advance(10 * MIN)
+    await $.turn.start({ text: 'look', turnId: 's1', agentId: 'a1' } as typeof START)
+    await $.turn.complete({ ...COMPLETE, turnId: 's1', agentId: 'a1' } as typeof COMPLETE)
+    await clock.advance(40 * MIN)
+    expect(seen.forks).toHaveLength(1)
+  })
+
   test('a tool call on a 5m cache is not refreshed, and says why', async ($, on) => {
     const { clock, seen } = world(on, { tail: [row('5m'), ''].join('\n'), toolMin: { AskUserQuestion: 120 } })
     await $.session.start(SESSION)
