@@ -78,7 +78,9 @@ export ANTHROPIC_DEFAULT_FABLE_MODEL="$KIMI_MODEL"
 export CLAUDE_CODE_SUBAGENT_MODEL="$KIMI_MODEL"
 
 export CLAUDE_CODE_MAX_CONTEXT_TOKENS="$KIMI_CONTEXT_TOKENS"
-export CLAUDE_CODE_AUTO_COMPACT_WINDOW="$KIMI_CONTEXT_TOKENS"
+# The compaction window is capped at 1,000,000: above that Claude Code warns at
+# startup that it "is too large" and uses the cap, so 1048576 is clamped here.
+export CLAUDE_CODE_AUTO_COMPACT_WINDOW="$((KIMI_CONTEXT_TOKENS < 1000000 ? KIMI_CONTEXT_TOKENS : 1000000))"
 export CLAUDE_CODE_EFFORT_LEVEL="${CLAUDE_CODE_EFFORT_LEVEL:-high}"
 
 # claude.sh fixes the git identity against the ambient environment; this is the
