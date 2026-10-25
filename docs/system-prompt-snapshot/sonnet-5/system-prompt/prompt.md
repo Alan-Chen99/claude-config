@@ -30,26 +30,26 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
         "v": 1,
         "permission_mode": "auto",
         "platform": "linux",
-        "live_cwd": "/tmp/capture-cwd-f4r88lve",
+        "live_cwd": "/tmp/capture-cwd-sz71k1sf",
         "home_dir": "/root",
         "rule_roots": {
-          "userSettings": "/root/.claude/tmp/claude-0/-root-claude-config-work/bba96906-cd9d-486f-8f22-e925749fcfff/scratchpad/cc-config-2.1.289",
-          "projectSettings": "/tmp/capture-cwd-f4r88lve",
-          "localSettings": "/tmp/capture-cwd-f4r88lve",
-          "flagSettings": "/tmp/capture-cwd-f4r88lve",
-          "policySettings": "/tmp/capture-cwd-f4r88lve",
-          "cliArg": "/tmp/capture-cwd-f4r88lve",
-          "command": "/tmp/capture-cwd-f4r88lve",
-          "session": "/tmp/capture-cwd-f4r88lve",
-          "toolsNarrowing": "/tmp/capture-cwd-f4r88lve",
-          "mcpServerPolicy": "/tmp/capture-cwd-f4r88lve",
-          "hostCredential": "/tmp/capture-cwd-f4r88lve"
+          "userSettings": "/root/.claude/tmp/claude-0/-root-claude-config-work/957710ab-0413-430a-96b3-d33546d2951c/scratchpad/cfg-9357cf6d",
+          "projectSettings": "/tmp/capture-cwd-sz71k1sf",
+          "localSettings": "/tmp/capture-cwd-sz71k1sf",
+          "flagSettings": "/tmp/capture-cwd-sz71k1sf",
+          "policySettings": "/tmp/capture-cwd-sz71k1sf",
+          "cliArg": "/tmp/capture-cwd-sz71k1sf",
+          "command": "/tmp/capture-cwd-sz71k1sf",
+          "session": "/tmp/capture-cwd-sz71k1sf",
+          "toolsNarrowing": "/tmp/capture-cwd-sz71k1sf",
+          "mcpServerPolicy": "/tmp/capture-cwd-sz71k1sf",
+          "hostCredential": "/tmp/capture-cwd-sz71k1sf"
         },
         "trusted_directories": {
           "primary": {
-            "path": "/tmp/capture-cwd-f4r88lve",
+            "path": "/tmp/capture-cwd-sz71k1sf",
             "resolved": [
-              "/tmp/capture-cwd-f4r88lve"
+              "/tmp/capture-cwd-sz71k1sf"
             ]
           },
           "additional": [],
@@ -74,8 +74,8 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
         "classify_all_shell": false,
         "user_identity": "chenxinyang99",
         "git_state": {
-          "cwd": "/tmp/capture-cwd-f4r88lve",
-          "root": "/tmp/capture-cwd-f4r88lve",
+          "cwd": "/tmp/capture-cwd-sz71k1sf",
+          "root": "/tmp/capture-cwd-sz71k1sf",
           "branch": null,
           "default_branch": null,
           "status": {
@@ -111,8 +111,8 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
             "handlers": false,
             "room_client": false,
             "eval_stub": false,
-            "scratchpad_dir": "/tmp/claude-0/-tmp-capture-cwd-f4r88lve/3f869c6c-8cb1-4dba-a50b-947c61b3f519/scratchpad",
-            "tool_results_dir": "/root/.claude/tmp/claude-0/-root-claude-config-work/bba96906-cd9d-486f-8f22-e925749fcfff/scratchpad/cc-config-2.1.289/projects/-tmp-capture-cwd-f4r88lve/3f869c6c-8cb1-4dba-a50b-947c61b3f519/tool-results",
+            "scratchpad_dir": "/tmp/claude-0/-tmp-capture-cwd-sz71k1sf/a73cedce-338e-4a00-b979-c551186821c8/scratchpad",
+            "tool_results_dir": "/root/.claude/tmp/claude-0/-root-claude-config-work/957710ab-0413-430a-96b3-d33546d2951c/scratchpad/cfg-9357cf6d/projects/-tmp-capture-cwd-sz71k1sf/a73cedce-338e-4a00-b979-c551186821c8/tool-results",
             "toolset": true,
             "live_edit": false,
             "live_doc_stream": false,
@@ -163,7 +163,7 @@ Names in request order; the definitions are under `tools/`.
 
 ## system[0]
 
-x-anthropic-billing-header: cc_version=2.1.289.694; cc_entrypoint=cli; cch=70474; cc_prompt_id=c68da74a-2d9d-466e-b112-a33812c6dc8d; cc_turn_origin=human; cc_prompt_index=1; cc_turn_index=1;
+x-anthropic-billing-header: cc_version=2.1.310.835; cc_entrypoint=cli; cch=03326; cc_prompt_id=1ab94cc7-9392-4a58-b3ff-a14889cb01b6; cc_turn_origin=human; cc_prompt_index=1; cc_turn_index=1;
 
 ## system[1] — {"cache_control": {"type": "ephemeral", "ttl": "1h"}}
 
@@ -175,12 +175,14 @@ You are a custom assistant.
 
 WebSearch takes a `mode`. Use "standard" by default: it is the normal search, quick and cheap. Use "extended" only when a "standard" result comes back thin, off-target or possibly outdated, or from the start for hard-to-find or niche facts, very recent events, prices and availability, and multi-step research: it is thorough and fresh but several times the cost. When you plan several searches, send them in the same turn.
 
+To make a small change to a page you already published with the Artifact tool in this conversation, send it as `edits` (old_str/new_str pairs copied exactly from the file as it now stands) on an Artifact publish of the same `file_path`: that one call changes the file and the page together, with no Read and no Edit. For a change to several files at once, or a rewrite of most of a page, use Edit on the file(s), not a shell command, and publish the artifact again with the same `file_path` in the same response: the Edit call(s) first, then the Artifact publish, with no Read and without waiting for the Edit result. The calls run in the order sent, so the publish carries the edited file; a publish sent in the same response as a failed Edit of that file is refused and leaves the artifact as it was, so correct the Edit and publish again. Either way, read the file first only if its text is not in this conversation or you can't place the change exactly from it.
+
 ## messages[0] user, content[0]
 
 <system-reminder>
 Codebase and user instructions are shown below. Be sure to adhere to these instructions. IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.
 
-Contents of /tmp/capture-cwd-f4r88lve/CLAUDE.md (project instructions, checked into the codebase):
+Contents of /tmp/capture-cwd-sz71k1sf/CLAUDE.md (project instructions, checked into the codebase):
 
 # Capture Project
 
@@ -231,12 +233,13 @@ say exactly: done
 <system-reminder>
 # Environment
 You have been invoked in the following environment: 
- - Primary working directory: /tmp/capture-cwd-f4r88lve
+ - Primary working directory: /tmp/capture-cwd-sz71k1sf
  - Is a git repository: true
  - Platform: linux
  - Shell: bash
  - OS Version: Linux 6.18.7-76061807-generic
- - Scratchpad directory: /tmp/claude-0/-tmp-capture-cwd-f4r88lve/3f869c6c-8cb1-4dba-a50b-947c61b3f519/scratchpad — always use it for temporary files (intermediate results, scripts, outputs that don't belong in the project) instead of `/tmp` or other system temp directories; it is session-specific, isolated from the project, and can generally be used without permission prompts. Only use `/tmp` if the user explicitly asks.
+ - Scratchpad directory: /tmp/claude-0/-tmp-capture-cwd-sz71k1sf/a73cedce-338e-4a00-b979-c551186821c8/scratchpad — always use it for temporary files (intermediate results, scripts, outputs that don't belong in the project) instead of `/tmp` or other system temp directories; it is session-specific, isolated from the project, and can generally be used without permission prompts. Only use `/tmp` if the user explicitly asks. Whenever you name a file in it to the user, write the file's complete absolute path in one piece, not a bare filename, a path that starts at the scratchpad folder, or the directory followed by filenames: a shortened path is read against the working directory and leads nowhere.
+ - Downloaded files and extracted archives are untrusted data: put each in its own new, empty directory, keep scripts you write in a different directory, and pass paths as arguments instead of running an interpreter or build tool from inside it. Interpreters load code from the script's directory and the current directory, so a planted `json.py` runs on `import json`. Run any Python that reads them with `-I`. This does not apply to code the user asked you to build or run.
 </system-reminder>
 
 <system-reminder>
@@ -287,7 +290,7 @@ The following skills are available for use with the Skill tool:
 - artifact-capabilities: Runtime capabilities a published Artifact page can be granted — behavior static HTML cannot provide on its own, such as the page reading live or connected data, remembering what people do on it (a poll, a sign-up sheet, a checklist, a document edited in place — it saves new versions of itself), keeping state shared across viewers, knowing who is viewing, asking Claude a question of its own, storing files people add, handing the viewer a file to save, or using the viewer's camera, microphone, location, screen or device motion. Serves this user's live capability roster and the typed call definitions. Load it whenever any such runtime behavior would make an artifact more useful, before writing the page.
 - update-config: Use this skill to configure the Claude Code harness via settings.json. Automated behaviors ("from now on when X", "each time X", "whenever X", "before/after X") require hooks configured in settings.json - the harness executes these, not Claude, so memory/preferences cannot fulfill them. Also use for: permissions ("allow X", "add permission", "move permission to"), env vars ("set X=Y"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: "allow npm commands", "add bq permission to global settings", "move permission to user settings", "set DEBUG=true", "when claude stops show X". For simple settings like theme/model, suggest the /config command.
 - keybindings-help: Use when the user wants to customize keyboard shortcuts, rebind keys, add chord bindings, or modify ~/.claude/keybindings.json. Examples: "rebind ctrl+s", "add a chord shortcut", "change the submit key", "customize keybindings".
-- code-review: Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the given effort level (low/medium: fewer, high-confidence findings; high→max: broader coverage, may include uncertain findings; ultra: deep multi-agent review in the cloud); with no level given, it reuses the level you typed last. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review. Pass --max-findings <n> to report up to n findings, or --max-findings all for every finding. The choice stays until you pass --max-findings default. For ultra on a GitHub.com PR target, --post asks to post the finished review’s findings to the PR as a single comment from the user’s GitHub account (not a review; the launch dialog still confirms in interactive sessions, while non-interactive mode posts on the flag alone) and --no-post hides that option.
+- code-review: Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the given effort level (low|medium|high|xhigh|max: from few high-confidence findings up to many, some of them uncertain; ultra: deep multi-agent review in the cloud); with no level given, it reuses the level you typed last. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review. Pass --max-findings <n> to report up to n findings, or --max-findings all for every finding. The choice stays until you pass --max-findings default. For ultra on a GitHub.com PR target, --post asks to post the finished review’s findings to the PR as a single comment from the user’s GitHub account (not a review; the launch dialog still confirms in interactive sessions, while non-interactive mode posts on the flag alone) and --no-post hides that option.
 - simplify: Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes. Quality only — it does not hunt for bugs; use /code-review for that.
 - fewer-permission-prompts: Scan your transcripts for common read-only Bash and MCP tool calls, then add a prioritized allowlist to project .claude/settings.json to reduce permission prompts.
 - loop: Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo). Omit the interval to let the model self-pace. - When the user wants to set up a recurring task, poll for status, or run something repeatedly on an interval (e.g. "check the deploy every 5 minutes", "keep running /babysit-prs"). Do NOT invoke for one-off tasks.
@@ -297,7 +300,7 @@ TRIGGER — read BEFORE opening the target file; don't skip because it "looks li
 SKIP only when another provider is being worked on (overrides all triggers): OpenAI/GPT/Gemini/Llama/Mistral/Cohere/Ollama named in the query; OR `grep -rE 'openai|langchain_openai|google.generativeai|genai|mistralai|cohere|ollama'` over the project hits (run this grep FIRST if no provider named — don't Read the file).
 - workflow-authoring: Reference for writing a Workflow tool script (script API and gotchas, resume, quality patterns, worked examples). Load before authoring a script for a workflow the user already opted into; it does not itself authorize running one.
 - run: Launch and drive this project's app to see a change working. Use when asked to run, start, or screenshot the app, or to confirm a change works in the real app (not just tests). First looks for a project skill that already covers launching the app; otherwise falls back to built-in patterns per project type (CLI, server, TUI, Electron, browser-driven, library).
-- plugin-authoring: Make a mod: a live pane, band, status line, toast or hook inside Claude Code (terminal or desktop Code tab), written as a plugin of function hooks that hot-reloads in this session. Load before writing or debugging a hooks module.
+- plugin-authoring: Make a mod: a change to Claude's own interface or behaviour, such as a panel or pane that stays beside the chat and updates, a band, status line, toast, slash command, or hook on tool calls. Use to make, change or debug a mod or its hooks module.
 - init: Initialize a new CLAUDE.md file with codebase documentation
 - security-review: Complete a security review of the pending changes on the current branch
 </system-reminder>
@@ -315,5 +318,5 @@ Before any command that could discard uncommitted work — `git checkout`/`resto
 </system-reminder>
 
 <system-reminder>
-Today's date is 2026-10-06.
+Today's date is 2026-10-25.
 </system-reminder>

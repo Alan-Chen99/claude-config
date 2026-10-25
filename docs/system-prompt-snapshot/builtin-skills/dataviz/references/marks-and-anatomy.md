@@ -50,15 +50,16 @@ one swatch restates the title and costs space.
   segment to "solve" it - that crops the first/last characters and is worse than no
   label. Text never overflows or is clipped by its own mark.
 - Bars -> value at the tip. Columns -> value on the cap. Lines -> value at the end.
-- Y-axis ticks: round to clean numbers (0 / 1,000 / 2,000), thousands-comma'd; they
+- Y-axis ticks: round to clean numbers, compact from 1,000 up (0 / 1K / 2K); they
   carry the values you didn't directly label, so keep them unless every value is labeled.
 - **Text never wears the data color.** Marks - bars, lines, dots, area fills - carry
   the series color; labels, values, legends, and axis text use **text tokens**
   (primary / secondary / muted). A light categorical hue (yellow, aqua) is illegible
   as text on the surface. Identity comes from the colored mark *beside* the text - a
   dot, a short line-key, a swatch - never from coloring the text itself. A label set
-  *inside* a colored fill (a stacked segment, a map tile) is the one exception: pick
-  white or ink by the fill's luminance so it always clears contrast.
+  *inside* a colored fill (a stacked segment, a map tile) is the one exception: white or
+  near-black, the same two in both modes, by the fill's luminance. `palette.md` says which its
+  categorical and status colors take.
 - **When end-labels collide, don't stack them.** Direct end-labels work when series
   separate at the right edge. When lines converge, nudging labels apart vertically
   detaches them from their lines and reads as noise - instead use **leader lines**

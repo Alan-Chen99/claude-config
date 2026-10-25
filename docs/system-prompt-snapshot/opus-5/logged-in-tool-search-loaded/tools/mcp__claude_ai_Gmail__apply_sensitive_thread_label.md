@@ -17,8 +17,6 @@ Adds a sensitive label (Trash or Spam) to a single thread in the authenticated u
 
 Use `apply_sensitive_thread_label` when applying Trash or Spam to exactly 1 thread. To apply sensitive labels to multiple threads, use `batch_apply_sensitive_thread_labels` instead.
 
-To find the thread ID, use the `search_threads` tool first.
-
 
 ## input_schema
 

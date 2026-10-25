@@ -18,8 +18,8 @@
  * {@link Claude.Comments.onSendToClaude} (the write verbs reject
  * `not_granted` and {@link Claude.Comments.canSendToClaude} resolves
  * `"off"`) and never prompts for consent, not even where a listener is
- * handed the viewer's words (the ONE exception below). Either form may add
- * `"customAnchors": true`, which grants
+ * handed the viewer's words or selected model (the ONE exception below).
+ * Either form may add `"customAnchors": true`, which grants
  * {@link Claude.Comments.customAnchors}: the page positions the comment
  * pins itself, for content the shell cannot anchor to. The page never
  * holds a credential: the shell performs every write with the viewer's
@@ -38,10 +38,10 @@
  * where the platform offers it to this viewer: a page
  * that subscribes to {@link Claude.Comments.onSendToClaude}
  * is handed the words the current viewer has just typed, at their own
- * "Send to Claude" press, before anything is posted — never a stored
- * comment, another person's words, an author, or an account id.) Keep a returned
- * `threadId` only if the page will act on that thread again this visit
- * — nothing hands it back later.
+ * "Send to Claude" press, before anything is posted, and sometimes the id
+ * of the model they have selected — never a stored comment, another person's
+ * words, an author, or an account id.) Keep a returned `threadId` only if
+ * the page will act on that thread again this visit — nothing hands it back later.
  *
  * Consent is the viewer's, per artifact, asked at the FIRST write: the
  * shell holds that call and shows the viewer a prompt, so it may stay
@@ -335,8 +335,11 @@ declare namespace Claude {
        * on, treat clicks on commentable spots as comment gestures and
        * keep {@link CustomAnchors.placed} reports current; while off,
        * stop (a visible control that calls compose may stay). A post
-       * keeps the mode on and opens the posted card; the mode ends when
-       * the viewer leaves it or on {@link CustomAnchors.exitMode}. */
+       * keeps the mode on and normally leaves a new anchored comment as a
+       * closed pin: its card opens when the viewer opens it. A comment the
+       * page is asked about through {@link Comments.onSendToClaude} keeps
+       * its card open instead, until the viewer closes it. The mode ends
+       * when the viewer leaves it or on {@link CustomAnchors.exitMode}. */
       mode: (on: boolean) => void;
       /** The full current set of anchored threads on the page being
        * shown (at most 256), replacing the previous list; re-sent when
@@ -391,6 +394,17 @@ declare namespace Claude {
       anchor: string | null;
       /** The anchor's label as the composer shows it, when it has one. */
       label?: string;
+      /** The id of the Claude model the viewer who pressed has selected in
+       * the conversation beside the artifact that this comment would go to,
+       * read at the press. Absent when the comment would go elsewhere, when
+       * that selection is unknown, and unless the viewer app knows that nobody
+       * outside the artifact owner's organization has written to it; never a
+       * guess. Other Claude sessions may answer on their own models. At most
+       * 128 visible ASCII characters, as the viewer app would send it; it may
+       * carry a tag or date {@link Claude.sample}'s `model` may not accept:
+       * compare it whole, never parse it, and never show it to anyone but
+       * this viewer. */
+      selectedModel?: string;
     }
 
     /** A {@link Comments.onSendToClaude} listener's answer. */

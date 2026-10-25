@@ -90,6 +90,13 @@ def test_the_query_asks_for_a_max_results_the_roster_cannot_outgrow(
     assert "max_results larger than" in regen.TOOL_SEARCH_MESSAGE
 
 
+def test_the_query_splits_a_roster_over_the_select_cap(regen: ModuleType) -> None:
+    """cc cuts a select query to its first 64 names without saying so."""
+    assert regen.SELECT_CAP == 64
+    assert f"at most {regen.SELECT_CAP} names" in regen.TOOL_SEARCH_MESSAGE
+    assert "exactly once" not in regen.TOOL_SEARCH_MESSAGE
+
+
 def test_a_tool_that_did_not_load_is_reported(regen: ModuleType, tmp_path: Path) -> None:
     sibling = tmp_path / "opus-5" / "logged-in"
     sibling.mkdir(parents=True)

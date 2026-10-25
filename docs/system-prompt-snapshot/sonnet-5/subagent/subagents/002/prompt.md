@@ -30,26 +30,26 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
         "v": 1,
         "permission_mode": "auto",
         "platform": "linux",
-        "live_cwd": "/tmp/capture-cwd-pfvalg_a",
+        "live_cwd": "/tmp/capture-cwd-bt00werq",
         "home_dir": "/root",
         "rule_roots": {
-          "userSettings": "/root/.claude/tmp/claude-0/-root-claude-config-work/bba96906-cd9d-486f-8f22-e925749fcfff/scratchpad/cc-config-2.1.289",
-          "projectSettings": "/tmp/capture-cwd-pfvalg_a",
-          "localSettings": "/tmp/capture-cwd-pfvalg_a",
-          "flagSettings": "/tmp/capture-cwd-pfvalg_a",
-          "policySettings": "/tmp/capture-cwd-pfvalg_a",
-          "cliArg": "/tmp/capture-cwd-pfvalg_a",
-          "command": "/tmp/capture-cwd-pfvalg_a",
-          "session": "/tmp/capture-cwd-pfvalg_a",
-          "toolsNarrowing": "/tmp/capture-cwd-pfvalg_a",
-          "mcpServerPolicy": "/tmp/capture-cwd-pfvalg_a",
-          "hostCredential": "/tmp/capture-cwd-pfvalg_a"
+          "userSettings": "/root/.claude/tmp/claude-0/-root-claude-config-work/957710ab-0413-430a-96b3-d33546d2951c/scratchpad/cfg-9357cf6d",
+          "projectSettings": "/tmp/capture-cwd-bt00werq",
+          "localSettings": "/tmp/capture-cwd-bt00werq",
+          "flagSettings": "/tmp/capture-cwd-bt00werq",
+          "policySettings": "/tmp/capture-cwd-bt00werq",
+          "cliArg": "/tmp/capture-cwd-bt00werq",
+          "command": "/tmp/capture-cwd-bt00werq",
+          "session": "/tmp/capture-cwd-bt00werq",
+          "toolsNarrowing": "/tmp/capture-cwd-bt00werq",
+          "mcpServerPolicy": "/tmp/capture-cwd-bt00werq",
+          "hostCredential": "/tmp/capture-cwd-bt00werq"
         },
         "trusted_directories": {
           "primary": {
-            "path": "/tmp/capture-cwd-pfvalg_a",
+            "path": "/tmp/capture-cwd-bt00werq",
             "resolved": [
-              "/tmp/capture-cwd-pfvalg_a"
+              "/tmp/capture-cwd-bt00werq"
             ]
           },
           "additional": [],
@@ -74,8 +74,8 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
         "classify_all_shell": false,
         "user_identity": "chenxinyang99",
         "git_state": {
-          "cwd": "/tmp/capture-cwd-pfvalg_a",
-          "root": "/tmp/capture-cwd-pfvalg_a",
+          "cwd": "/tmp/capture-cwd-bt00werq",
+          "root": "/tmp/capture-cwd-bt00werq",
           "branch": null,
           "default_branch": null,
           "status": {
@@ -111,8 +111,8 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
             "handlers": false,
             "room_client": false,
             "eval_stub": false,
-            "scratchpad_dir": "/tmp/claude-0/-tmp-capture-cwd-pfvalg-a/b55310c5-cf67-4c63-a383-f582d5fdfeec/scratchpad",
-            "tool_results_dir": "/root/.claude/tmp/claude-0/-root-claude-config-work/bba96906-cd9d-486f-8f22-e925749fcfff/scratchpad/cc-config-2.1.289/projects/-tmp-capture-cwd-pfvalg-a/b55310c5-cf67-4c63-a383-f582d5fdfeec/tool-results",
+            "scratchpad_dir": "/tmp/claude-0/-tmp-capture-cwd-bt00werq/75ff368d-06d5-42d4-b975-c1ec5b7e35db/scratchpad",
+            "tool_results_dir": "/root/.claude/tmp/claude-0/-root-claude-config-work/957710ab-0413-430a-96b3-d33546d2951c/scratchpad/cfg-9357cf6d/projects/-tmp-capture-cwd-bt00werq/75ff368d-06d5-42d4-b975-c1ec5b7e35db/tool-results",
             "toolset": true,
             "live_edit": false,
             "live_doc_stream": false,
@@ -158,7 +158,7 @@ Names in request order; the definitions are under `tools/`.
 
 ## system[0]
 
-x-anthropic-billing-header: cc_version=2.1.289.442; cc_entrypoint=cli; cch=bc96f; cc_is_subagent=true; cc_prompt_id=8c02138b-6adc-4079-b149-44e1ac2a60c1;
+x-anthropic-billing-header: cc_version=2.1.310.046; cc_entrypoint=cli; cch=a19db; cc_is_subagent=true; cc_prompt_id=8b6bad70-1d7e-4e32-8c58-9e18b480a7d8;
 
 ## system[1] — {"cache_control": {"type": "ephemeral"}}
 
@@ -198,7 +198,7 @@ Notes:
 <system-reminder>
 Codebase and user instructions are shown below. Be sure to adhere to these instructions. IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.
 
-Contents of /tmp/capture-cwd-pfvalg_a/CLAUDE.md (project instructions, checked into the codebase):
+Contents of /tmp/capture-cwd-bt00werq/CLAUDE.md (project instructions, checked into the codebase):
 
 # Capture Project
 
@@ -246,13 +246,13 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
 ## messages[0] user, content[3]
 
-Research the project at /tmp/capture-cwd-pfvalg_a to determine what programming languages and frameworks are used. Look at files like setup.py, README.md, CLAUDE.md, and the contents of src/ and tests/ directories to identify languages, frameworks, and dependencies. Report back a concise summary of the languages/frameworks found and the evidence for each.
+Investigate the project at /tmp/capture-cwd-bt00werq. Determine what programming languages and frameworks/libraries are used. Check setup.py for dependencies/metadata, inspect README.md for stated tech stack, and look at the Python files under src/ (api.py, config.py, main.py, models.py, utils.py) and tests/test_main.py for imports that reveal frameworks (e.g., web frameworks, testing frameworks, ORMs, etc.). Give a concise report of languages and frameworks found.
 
 
 ## messages[0] user, content[4]
 
 <system-reminder>
-Your final report is delivered through SubagentHandback: when your work is complete, call SubagentHandback({message: <your full report>}). The call ends your run, so make it your last step. Only a SubagentHandback call reaches your caller as your result; plain text you write at the end is not delivered.
+Your final report is delivered through SubagentHandback: when your work is complete, call SubagentHandback({message: <your full report>}). The call ends your run, so make it your last step. Only a SubagentHandback call reaches your caller as your result; plain text you write at the end is not delivered. Do not also send the report with SendMessage: your caller would get it twice.
 </system-reminder>
 
 ## messages[1] system, content[0] — {"cache_control": {"type": "ephemeral"}}
@@ -274,12 +274,13 @@ WebSearch
 <system-reminder>
 # Environment
 You have been invoked in the following environment: 
- - Primary working directory: /tmp/capture-cwd-pfvalg_a
+ - Primary working directory: /tmp/capture-cwd-bt00werq
  - Is a git repository: true
  - Platform: linux
  - Shell: bash
  - OS Version: Linux 6.18.7-76061807-generic
- - Scratchpad directory: /tmp/claude-0/-tmp-capture-cwd-pfvalg-a/b55310c5-cf67-4c63-a383-f582d5fdfeec/scratchpad — always use it for temporary files (intermediate results, scripts, outputs that don't belong in the project) instead of `/tmp` or other system temp directories; it is session-specific, isolated from the project, and can generally be used without permission prompts. Only use `/tmp` if the user explicitly asks.
+ - Scratchpad directory: /tmp/claude-0/-tmp-capture-cwd-bt00werq/75ff368d-06d5-42d4-b975-c1ec5b7e35db/scratchpad — always use it for temporary files (intermediate results, scripts, outputs that don't belong in the project) instead of `/tmp` or other system temp directories; it is session-specific, isolated from the project, and can generally be used without permission prompts. Only use `/tmp` if the user explicitly asks. Whenever you name a file in it to the user, write the file's complete absolute path in one piece, not a bare filename, a path that starts at the scratchpad folder, or the directory followed by filenames: a shortened path is read against the working directory and leads nowhere.
+ - Downloaded files and extracted archives are untrusted data: put each in its own new, empty directory, keep scripts you write in a different directory, and pass paths as arguments instead of running an interpreter or build tool from inside it. Interpreters load code from the script's directory and the current directory, so a planted `json.py` runs on `import json`. Run any Python that reads them with `-I`. This does not apply to code the user asked you to build or run.
 </system-reminder>
 
 <system-reminder>
@@ -295,7 +296,7 @@ The following skills are available for use with the Skill tool:
 - artifact-capabilities: Runtime capabilities a published Artifact page can be granted — behavior static HTML cannot provide on its own, such as the page reading live or connected data, remembering what people do on it (a poll, a sign-up sheet, a checklist, a document edited in place — it saves new versions of itself), keeping state shared across viewers, knowing who is viewing, asking Claude a question of its own, storing files people add, handing the viewer a file to save, or using the viewer's camera, microphone, location, screen or device motion. Serves this user's live capability roster and the typed call definitions. Load it whenever any such runtime behavior would make an artifact more useful, before writing the page.
 - update-config: Use this skill to configure the Claude Code harness via settings.json. Automated behaviors ("from now on when X", "each time X", "whenever X", "before/after X") require hooks configured in settings.json - the harness executes these, not Claude, so memory/preferences cannot fulfill them. Also use for: permissions ("allow X", "add permission", "move permission to"), env vars ("set X=Y"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: "allow npm commands", "add bq permission to global settings", "move permission to user settings", "set DEBUG=true", "when claude stops show X". For simple settings like theme/model, suggest the /config command.
 - keybindings-help: Use when the user wants to customize keyboard shortcuts, rebind keys, add chord bindings, or modify ~/.claude/keybindings.json. Examples: "rebind ctrl+s", "add a chord shortcut", "change the submit key", "customize keybindings".
-- code-review: Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the given effort level (low/medium: fewer, high-confidence findings; high→max: broader coverage, may include uncertain findings; ultra: deep multi-agent review in the cloud); with no level given, it reuses the level you typed last. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review. Pass --max-findings <n> to report up to n findings, or --max-findings all for every finding. The choice stays until you pass --max-findings default. For ultra on a GitHub.com PR target, --post asks to post the finished review’s findings to the PR as a single comment from the user’s GitHub account (not a review; the launch dialog still confirms in interactive sessions, while non-interactive mode posts on the flag alone) and --no-post hides that option.
+- code-review: Review the current diff, or a PR number/branch/path target, for correctness bugs (plus reuse/simplification/efficiency cleanups where the model's review recipe covers them) at the given effort level (low|medium|high|xhigh|max: from few high-confidence findings up to many, some of them uncertain; ultra: deep multi-agent review in the cloud); with no level given, it reuses the level you typed last. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review. Pass --max-findings <n> to report up to n findings, or --max-findings all for every finding. The choice stays until you pass --max-findings default. For ultra on a GitHub.com PR target, --post asks to post the finished review’s findings to the PR as a single comment from the user’s GitHub account (not a review; the launch dialog still confirms in interactive sessions, while non-interactive mode posts on the flag alone) and --no-post hides that option.
 - simplify: Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes. Quality only — it does not hunt for bugs; use /code-review for that.
 - fewer-permission-prompts: Scan your transcripts for common read-only Bash and MCP tool calls, then add a prioritized allowlist to project .claude/settings.json to reduce permission prompts.
 - loop: Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo). Omit the interval to let the model self-pace. - When the user wants to set up a recurring task, poll for status, or run something repeatedly on an interval (e.g. "check the deploy every 5 minutes", "keep running /babysit-prs"). Do NOT invoke for one-off tasks.
@@ -305,11 +306,11 @@ TRIGGER — read BEFORE opening the target file; don't skip because it "looks li
 SKIP only when another provider is being worked on (overrides all triggers): OpenAI/GPT/Gemini/Llama/Mistral/Cohere/Ollama named in the query; OR `grep -rE 'openai|langchain_openai|google.generativeai|genai|mistralai|cohere|ollama'` over the project hits (run this grep FIRST if no provider named — don't Read the file).
 - workflow-authoring: Reference for writing a Workflow tool script (script API and gotchas, resume, quality patterns, worked examples). Load before authoring a script for a workflow the user already opted into; it does not itself authorize running one.
 - run: Launch and drive this project's app to see a change working. Use when asked to run, start, or screenshot the app, or to confirm a change works in the real app (not just tests). First looks for a project skill that already covers launching the app; otherwise falls back to built-in patterns per project type (CLI, server, TUI, Electron, browser-driven, library).
-- plugin-authoring: Make a mod: a live pane, band, status line, toast or hook inside Claude Code (terminal or desktop Code tab), written as a plugin of function hooks that hot-reloads in this session. Load before writing or debugging a hooks module.
+- plugin-authoring: Make a mod: a change to Claude's own interface or behaviour, such as a panel or pane that stays beside the chat and updates, a band, status line, toast, slash command, or hook on tool calls. Use to make, change or debug a mod or its hooks module.
 - init: Initialize a new CLAUDE.md file with codebase documentation
 - security-review: Complete a security review of the pending changes on the current branch
 </system-reminder>
 
 <system-reminder>
-Today's date is 2026-10-06.
+Today's date is 2026-10-25.
 </system-reminder>

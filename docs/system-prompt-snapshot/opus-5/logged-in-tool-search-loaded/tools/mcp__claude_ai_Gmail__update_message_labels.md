@@ -14,6 +14,7 @@
 Atomically adds and/or removes labels from a specific message in the authenticated user's Gmail account.
 
 Requires at least one of `addLabelIds` or `removeLabelIds` to be provided. Moving an email between labels can be accomplished in a single call by specifying the target label in `addLabelIds` and the current label in `removeLabelIds`.
+For inbox category tabs, adding the target `CATEGORY_*` label (e.g. `CATEGORY_PERSONAL` for Primary) is sufficient; Gmail automatically removes the previous category.
 
 
 ## input_schema

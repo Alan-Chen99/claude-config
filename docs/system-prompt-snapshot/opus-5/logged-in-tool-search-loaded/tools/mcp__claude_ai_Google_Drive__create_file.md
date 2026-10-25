@@ -55,6 +55,10 @@ To disable conversions for first-party mime types, set `disableConversionToGoogl
       "description": "Set to true to retain the passed in content mime type and not convert to a Google type. For example, without this a `text/plain` content mime type will be converted to to `application/vnd.google-apps.document`. Has no effect for types that do not have a Google equivalent.",
       "type": "boolean"
     },
+    "inheritedPermissionsDisabled": {
+      "description": "Set to true to disable inherited permissions on the created folder, restricting access to only users with direct permissions on the folder.",
+      "type": "boolean"
+    },
     "mimeType": {
       "deprecated": true,
       "description": "Deprecated: DO NOT USE!! Set `contentMimeType` instead.",

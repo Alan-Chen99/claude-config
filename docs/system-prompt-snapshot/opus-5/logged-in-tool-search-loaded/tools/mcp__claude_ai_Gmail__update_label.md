@@ -11,7 +11,7 @@
 
 ## description
 
-Modifies an existing label's name and color in the user's Gmail account.
+Modifies an existing label's name, color, and visibility settings in the user's Gmail account.
 
 
 ## input_schema

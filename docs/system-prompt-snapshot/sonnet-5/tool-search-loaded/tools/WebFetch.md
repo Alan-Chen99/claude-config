@@ -49,6 +49,12 @@ Usage notes:
     "prompt": {
       "description": "The prompt to run on the fetched content",
       "type": "string"
+    },
+    "offset": {
+      "description": "Character position in the page text to start reading from. Use it to read on through a page too long for one call, with the value the previous result gave.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
     }
   },
   "required": [

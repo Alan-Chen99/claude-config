@@ -17,7 +17,7 @@ Adds a sensitive label (Trash or Spam) to a single message in the authenticated 
 
 Use `apply_sensitive_message_label` when applying Trash or Spam to exactly 1 message. To apply sensitive labels to multiple messages, use `batch_apply_sensitive_message_labels` instead. If the message belongs to a thread that should be labeled as a whole, prefer `trash_thread` or `mark_thread_spam`.
 
-To find the message ID, use tools like `search_threads` or `get_thread`. To find the draft message ID, use tools like `list_drafts`.
+To find the message ID, use the `get_thread` tool. To find the draft message ID, use tools like `list_drafts`.
 
 
 ## input_schema

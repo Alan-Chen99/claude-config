@@ -1,7 +1,7 @@
 {
   "model": "claude-opus-5",
   "system_blocks": 4,
-  "system_tokens": 5093,
+  "system_tokens": 5198,
   "tools_upfront": [
     "Agent",
     "AskUserQuestion",
@@ -99,6 +99,15 @@
     "mcp__claude_ai_Gmail__update_draft",
     "mcp__claude_ai_Gmail__update_label",
     "mcp__claude_ai_Gmail__update_message_labels",
+    "mcp__claude_ai_Google_Calendar__create_event",
+    "mcp__claude_ai_Google_Calendar__delete_event",
+    "mcp__claude_ai_Google_Calendar__get_event",
+    "mcp__claude_ai_Google_Calendar__list_calendars",
+    "mcp__claude_ai_Google_Calendar__list_events",
+    "mcp__claude_ai_Google_Calendar__respond_to_event",
+    "mcp__claude_ai_Google_Calendar__search_events",
+    "mcp__claude_ai_Google_Calendar__suggest_time",
+    "mcp__claude_ai_Google_Calendar__update_event",
     "mcp__claude_ai_Google_Drive__copy_file",
     "mcp__claude_ai_Google_Drive__create_file",
     "mcp__claude_ai_Google_Drive__download_file_content",
@@ -113,18 +122,15 @@
     "mcp__claude_ai_Indeed__search_jobs",
     "mcp__claude_ai_ZipRecruiter__search_jobs"
   ],
-  "tools_deferred_count": 90,
+  "tools_deferred_count": 99,
   "tools_deferred_loaded": [
-    "mcp__claude_ai_Claude_Docs__batch",
-    "mcp__claude_ai_Claude_Docs__guide",
-    "mcp__claude_ai_Claude_Docs__update",
     "advisor"
   ],
-  "tools_deferred_loaded_count": 4,
+  "tools_deferred_loaded_count": 1,
   "tools_server": [
     "advisor"
   ],
-  "tools_total_tokens": 13273,
+  "tools_total_tokens": 14037,
   "has_output_style": false,
   "has_doing_tasks": false,
   "subagent_count": 0

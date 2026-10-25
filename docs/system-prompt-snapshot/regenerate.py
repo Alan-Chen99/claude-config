@@ -64,11 +64,22 @@ CUSTOM_PROMPT = "You are a custom assistant."
 # reminder rather than listed here, so a release that adds or drops a deferred
 # tool is captured without this file being edited; check_deferred_loaded then
 # fails the capture if the model's list came back short.
+#
+# A select query is cut to its first 64 names, silently: 2.1.310's `MDo()`
+# keeps `h.slice(0, dw)` with `dw = 64`, next to `cYn = /^select:(.+)$/i` (found
+# by that regex). logged-in's 101 names came back 64 in one call, so the
+# message asks for parallel calls of at most SELECT_CAP names each; capture.py's
+# max-tools selection then takes the request that carries all of them.
+SELECT_CAP = 64
 TOOL_SEARCH_MESSAGE = (
-    "Call the ToolSearch tool exactly once. Its query must be the literal text "
-    "select: followed by every tool name from the deferred-tools system reminder, "
-    "comma-separated, no spaces, none omitted. Pass a max_results larger than "
-    "the number of names you found, so the roster cannot outgrow it. "
+    "Call the ToolSearch tool. Its query must be the literal text select: "
+    "followed by tool names from the deferred-tools system reminder, "
+    "comma-separated, no spaces. One select query loads at most "
+    f"{SELECT_CAP} names, so when the reminder lists more than {SELECT_CAP}, "
+    "split them across several ToolSearch calls sent together in one response, "
+    f"each with at most {SELECT_CAP} names; together the calls must cover every "
+    "name, none omitted. Pass each call a max_results larger than the number of "
+    "names in it, so the roster cannot outgrow it. "
     "Then reply with exactly: done"
 )
 

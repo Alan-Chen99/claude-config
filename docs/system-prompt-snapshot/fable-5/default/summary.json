@@ -1,7 +1,7 @@
 {
   "model": "claude-fable-5",
   "system_blocks": 4,
-  "system_tokens": 3939,
+  "system_tokens": 4248,
   "tools_upfront": [
     "Agent",
     "Artifact",
@@ -47,7 +47,7 @@
   "tools_deferred_loaded": [],
   "tools_deferred_loaded_count": 0,
   "tools_server": [],
-  "tools_total_tokens": 24717,
+  "tools_total_tokens": 26444,
   "has_output_style": false,
   "has_doing_tasks": false,
   "subagent_count": 0

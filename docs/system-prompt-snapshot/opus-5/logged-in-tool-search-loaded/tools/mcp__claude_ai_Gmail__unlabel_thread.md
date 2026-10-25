@@ -11,7 +11,10 @@
 
 ## description
 
-Removes labels from an entire thread in the authenticated user's Gmail account. If unsure of the thread ID, use the `search_threads` tool first. If unsure of a user label's ID, use the `list_labels` tool first.
+Removes labels from an entire thread in the authenticated user's Gmail account. This operation affects all messages currently in the thread.
+
+Use `unlabel_thread` when removing labels from an email or thread (such as marking it as read by removing `UNREAD`, archiving it by removing `INBOX`, or removing user-defined labels), even if the thread currently contains only 1 message. If unsure of a user label's ID, use the `list_labels` tool first.
+
 
 ## input_schema
 

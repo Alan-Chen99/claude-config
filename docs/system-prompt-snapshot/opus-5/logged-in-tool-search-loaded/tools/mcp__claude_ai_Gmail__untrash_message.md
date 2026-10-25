@@ -13,7 +13,7 @@
 
 Removes a specific message from the Trash in the authenticated user's Gmail account.
 
-To find the message ID, use tools like `search_threads` or `get_thread`.
+To find the message ID, use the `get_thread` tool.
 
 
 ## input_schema

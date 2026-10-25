@@ -13,7 +13,7 @@
 
 Marks an entire thread as Spam in the authenticated user's Gmail account. This operation affects all messages currently in the thread.
 
-Use `mark_thread_spam` when marking a thread as spam, even if it currently contains only 1 message. Marking spam at the thread level ensures all current messages in the thread are marked as Spam. If unsure of the thread ID, use the `search_threads` tool first.
+Use `mark_thread_spam` when marking a thread as spam, even if it currently contains only 1 message. Marking spam at the thread level ensures all current messages in the thread are marked as Spam.
 
 
 ## input_schema

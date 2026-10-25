@@ -1,7 +1,7 @@
 {
   "model": "claude-opus-4-8",
   "system_blocks": 4,
-  "system_tokens": 2656,
+  "system_tokens": 2952,
   "tools_upfront": [
     "Agent",
     "Artifact",
@@ -47,7 +47,7 @@
   "tools_deferred_loaded": [],
   "tools_deferred_loaded_count": 0,
   "tools_server": [],
-  "tools_total_tokens": 24717,
+  "tools_total_tokens": 26444,
   "has_output_style": false,
   "has_doing_tasks": false,
   "subagent_count": 0

@@ -26,8 +26,10 @@ Query terms & operators:
  - `parentId` (ops: `=`, `!=`). Use `'root'` for the user's "My Drive".
  - `owner` (ops: `=`, `!=`). Use `'me'` for the requesting user.
  - `sharedWithMe` (ops: `=`, `!=`). Values: `true` or `false`.
+ - `starred` (ops: `=`, `!=`). Values: `true` or `false`.
+ - `folderProperties` (ops: `in`): `'syncedComputer'` (synced computer), `'syncFolder'` (synced folder).
 
-Other operators: `and`, `or`, `not`.
+Other operators: `and`, `or`, `not`, `in`.
 
 Examples:
 
@@ -37,9 +39,10 @@ Examples:
  - `fullText contains 'hello'`
  - `owner = 'test@example.org'`
  - `sharedWithMe = true`
+ - `starred = true`
  - `owner = 'me'` (for files owned by the user)
 
-Use `next_page_token` to paginate. An empty response means no more results.
+Use `next_page_token` to paginate. Duplicate results can occur across page boundaries. An empty response means no more results.
 
 
 ## input_schema

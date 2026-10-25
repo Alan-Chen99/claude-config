@@ -13,6 +13,41 @@
  * this artifact's document store, on a page that declared `db`): then
  * `use("mcp")` resolves whatever the connector manifest's state — none
  * declared, or declared but not granted to this viewer.
+ *
+ * Claude Docs (connector `"Claude Docs"`, manifest entry `{server:
+ * "Claude Docs", tools: ["batch"]}`): a page can create a NEW document
+ * owned by the VIEWER. Beyond that, and `export` when this artifact is
+ * itself a Doc (see `self_only`), it cannot read, edit, share, list or
+ * search their documents. Send these members and no others:
+ *
+ *     callTool("Claude Docs", "batch", {container: {kind: "project",
+ *       create: {name, doc: {markdown}}}, batch: []})
+ *
+ * `name`, the title: 1-200 code points, none of them `\p{Cc}`, `\p{Cf}`,
+ * `\p{Zl}` or `\p{Zp}` (so no line break or tab) except U+200C and
+ * U+200D. `markdown`: not empty, under 32 KB as UTF-8 bytes (not
+ * `.length`); Docs refuses an image, footnote or TeX math in it. Check
+ * the `name` and the size first: outside those limits, with an extra
+ * member, or for a Claude Docs tool the manifest declares other than
+ * `batch` and `export`, the call rejects `self_only`. claude.ai asks
+ * the viewer to allow this artifact's first create. A decline is not
+ * kept (a later call asks again); an allow is kept: later creates run
+ * without asking, whether or not the viewer wanted one. Only your page's
+ * code can check that: call only when the viewer clicks a control that
+ * says it creates a new document, once per click, never on load or a
+ * timer. Outcomes (other codes: as below):
+ * - resolves: `payload` includes `created: true` and may include `url`;
+ *   link to `url` if set.
+ * - `approval_required`: declined, or this view cannot ask. Keep the
+ *   control; say creating the document needs the viewer's approval, and
+ *   that claude.ai asks for it when the artifact is open there.
+ * - `tool_error` whose `result?.structuredContent` is `{created: false,
+ *   reason}`: nothing was created. Say so and show `reason`, a code such
+ *   as `unsupported_construct` (an image, footnote or TeX math); do not
+ *   show `message`, it is JSON.
+ * - other `tool_error`, `server_unavailable`, `upstream_error`: the
+ *   document may exist. Say so and suggest checking Claude Docs; call
+ *   again only on a new click, whatever `retryable` says.
  */
 
 declare namespace Claude {
@@ -185,10 +220,15 @@ declare namespace Claude {
      *   page only on the page's own artifact: `get_artifact` and
      *   `publish_version` naming this artifact (a page that also reads
      *   other artifacts' data or project files cannot republish itself),
-     *   and Claude Docs `export` when this artifact is a Doc. Any other
-     *   tool of theirs, or another or a new artifact or Doc as the target,
-     *   is refused for every viewer. Permanent, a page bug: remove the
-     *   call. Claude in a conversation can still use these connectors.
+     *   and Claude Docs `export` when this artifact is a Doc. One
+     *   exception, for any page: the Claude Docs create form at the top
+     *   of this file. Anything else on these two connectors is refused
+     *   for every viewer. Permanent for that call, a page bug: remove or
+     *   correct it. Claude in a conversation can still use these
+     *   connectors. The artifacts connector is the viewer's connector to
+     *   artifacts on Claude, the one with `get_artifact` and
+     *   `publish_version`; it is not one of Claude's own servers for this
+     *   artifact, such as `artifacts_data`.
      * - `approval_required` — this call needs the viewer's approval and
      *   none was given. The shell asks only while a page's own
      *   `callTool` waits; on Allow that call resolves as usual. A watch
@@ -503,11 +543,15 @@ declare namespace Claude {
         | false
         | {
             /** Serve-without-execution window. Default 0; capped at
-             * 300000 ms (5 min) — the cap bounds how long revoked
-             * access keeps answering. */
+             * 604800000 ms (7 days; 5 min on an older shell, and for a
+             * connector the viewer chose among several with the same
+             * name) — the cap bounds how long revoked access keeps
+             * answering. Needs a `gcTime` at least as long. */
             staleTime?: number;
             /** Entry lifetime. Default 300000 ms (5 min); capped at
-             * 86400000 (24 h); zero/negative disables caching. */
+             * 604800000 (7 days; 24 h on an older shell, and for a
+             * connector the viewer chose among several with the same
+             * name); zero/negative disables caching. */
             gcTime?: number;
             /** Skip the cache read: execute upstream, overwrite the
              * entry ("invalidate then call" in one flag). Failed

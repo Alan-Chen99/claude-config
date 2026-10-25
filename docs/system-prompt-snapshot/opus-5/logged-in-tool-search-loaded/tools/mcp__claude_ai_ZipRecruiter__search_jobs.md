@@ -17,6 +17,7 @@ Guidelines:
 - The tool provides the search results all in one list, so if the user intends to search for multiple job roles, it may be better to invoke the tool for each job role separately.
 - If the user has not provided a location and is not asking for remote jobs, ask the user for a location before calling this tool. If you call without a location, results will default to a United States-wide search and the user will be warned.
 - If a previous search_jobs response in this conversation included a conversation_id, echo that exact value back and never invent or modify it; omit it otherwise.
+- Each result's listing_key is an internal identifier. Keep it for follow-up tool calls, but never show it to the user or mention it when describing the results.
 
 Notes:
 - When provided radius_miles, jobs will be included in the result if their location's boundaries approximately fall within radius miles of the requested location's boundaries.

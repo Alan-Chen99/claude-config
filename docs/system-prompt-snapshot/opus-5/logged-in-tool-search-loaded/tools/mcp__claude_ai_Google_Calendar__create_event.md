@@ -1,0 +1,349 @@
+# mcp__claude_ai_Google_Calendar__create_event
+
+## attributes
+
+```json
+{
+  "eager_input_streaming": true,
+  "defer_loading": true
+}
+```
+
+## description
+
+Creates an event on the given calendar.
+
+## input_schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "addGoogleMeetUrl": {
+      "description": "Optional. Create and add a Google Meet URL. Default: `false`.",
+      "type": "boolean"
+    },
+    "allDay": {
+      "description": "Optional. Whether the event spans the entire day. If true, start/end times are treated as midnight.",
+      "type": "boolean"
+    },
+    "attachments": {
+      "description": "Optional. File attachments.",
+      "items": {
+        "$ref": "#/$defs/Attachment"
+      },
+      "type": "array"
+    },
+    "attendeeEmails": {
+      "deprecated": true,
+      "description": "Optional. Deprecated: use `attendees` instead.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "attendees": {
+      "description": "Optional. Attendees of the event. For events that are created on the user's primary calendar with at least one other attendee, the current user will automatically be added as an attendee if not already included.",
+      "items": {
+        "$ref": "#/$defs/Attendee"
+      },
+      "type": "array"
+    },
+    "availability": {
+      "description": "Optional. Availability setting.",
+      "enum": [
+        "AVAILABILITY_UNSPECIFIED",
+        "AVAILABILITY_BUSY",
+        "AVAILABILITY_FREE"
+      ],
+      "type": "string",
+      "x-google-enum-descriptions": [
+        "Default. Treated as `BUSY`.",
+        "Blocks time on calendar.",
+        "Does not block time."
+      ]
+    },
+    "calendarId": {
+      "description": "Optional. ID of the calendar to create the event on. Email address - can be resolved using `list_calendars`. Default: primary calendar.",
+      "type": "string"
+    },
+    "colorId": {
+      "description": "Optional. The color of the event. For a list of color IDs, refer to the documentation of the Event resource.",
+      "type": "string"
+    },
+    "description": {
+      "description": "Optional. Description. Can contain HTML.",
+      "type": "string"
+    },
+    "endTime": {
+      "description": "Required. End time (ISO 8601, for example `2026-04-30T11:00:00`). Follows the same rules as `start_time`.",
+      "type": "string"
+    },
+    "eventType": {
+      "description": "Optional. Type of the event.",
+      "enum": [
+        "EVENT_TYPE_UNSPECIFIED",
+        "DEFAULT",
+        "OUT_OF_OFFICE",
+        "FOCUS_TIME",
+        "WORKING_LOCATION",
+        "BIRTHDAY",
+        "FROM_GMAIL"
+      ],
+      "type": "string",
+      "x-google-enum-descriptions": [
+        "Treated as `DEFAULT`.",
+        "Regular event. Default value.",
+        "Out-of-office event. Out-of-office events cannot be all-day.",
+        "Focus-time event. Focus-time events cannot be all-day.",
+        "Working location event.",
+        "Special all-day event with an annual recurrence.",
+        "Event from Gmail. This type of event cannot be created."
+      ]
+    },
+    "googleMeetUrl": {
+      "description": "Optional. Specific Google Meet URL or meeting ID. Overrides `add_google_meet_url`.",
+      "type": "string"
+    },
+    "guestPermissions": {
+      "$ref": "#/$defs/GuestPermissions",
+      "description": "Optional. Guest permissions."
+    },
+    "location": {
+      "description": "Optional. Location.",
+      "type": "string"
+    },
+    "notificationLevel": {
+      "description": "Optional. Which email notification should be sent for this event update.",
+      "enum": [
+        "NOTIFICATION_LEVEL_UNSPECIFIED",
+        "NONE",
+        "EXTERNAL_ONLY",
+        "ALL"
+      ],
+      "type": "string",
+      "x-google-enum-descriptions": [
+        "Default. Treated as `ALL`.",
+        "No notifications.",
+        "External attendees only.",
+        "All attendees."
+      ]
+    },
+    "overrideReminders": {
+      "description": "Optional. Reminders override calendar defaults.",
+      "items": {
+        "$ref": "#/$defs/Reminder"
+      },
+      "type": "array"
+    },
+    "recurrenceData": {
+      "description": "Optional. Recurrence rules as `RRULE`, `RDATE`, or `EXDATE` strings (per RFC 5545).",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "startTime": {
+      "description": "Required. Start time (ISO 8601, for example `2026-04-30T10:00:00`). Pass the local time with no UTC offset and no trailing `Z`; only include an offset if the user themselves stated one. If the user named a time zone, leave this without offset and put its IANA name in this request's top-level `timeZone` field.",
+      "type": "string"
+    },
+    "summary": {
+      "description": "Required. Title.",
+      "type": "string"
+    },
+    "timeZone": {
+      "description": "Optional. The time zone the event should be created in, as an IANA Time Zone Database name (for example, `America/Los_Angeles`). Only use this parameter if the user explicitly states a time zone, but always set it when they do, even if that time zone looks like the user's own. Otherwise leave it unset: the server resolves the user's time zone automatically.",
+      "type": "string"
+    },
+    "useDefaultReminders": {
+      "description": "Optional. Whether to use the default reminders for the event. If true, the event will use default reminders. Cannot be set to true if `override_reminders` are specified. If set to false and `override_reminders` is empty or unset, the event will have no reminders. Defaults to false if override_reminders is set, otherwise defaults to true.",
+      "type": "boolean"
+    },
+    "visibility": {
+      "description": "Optional. Visibility of the event. Possible values are: - `default` - Uses the default visibility for events on the calendar. Default value. - `public` - The event is public and event details are visible to all readers of the calendar. - `private` - Only event attendees may view event details. ",
+      "type": "string"
+    },
+    "workingLocationProperties": {
+      "$ref": "#/$defs/WorkingLocationProperties",
+      "description": "Optional. Working location properties (if `eventType` is `WORKING_LOCATION`)."
+    }
+  },
+  "required": [
+    "summary",
+    "startTime",
+    "endTime"
+  ],
+  "$defs": {
+    "Attachment": {
+      "description": "A file attachment for an event.",
+      "properties": {
+        "fileUrl": {
+          "description": "Required. URL link to the attachment.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Optional. Attachment title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fileUrl"
+      ],
+      "type": "object"
+    },
+    "Attendee": {
+      "description": "An event attendee.",
+      "properties": {
+        "additionalGuests": {
+          "description": "Optional. Number of additional guests. Default: `0`.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "comment": {
+          "description": "Output only. Response comment.",
+          "readOnly": true,
+          "type": "string"
+        },
+        "displayName": {
+          "description": "Optional. Name.",
+          "type": "string"
+        },
+        "email": {
+          "description": "Required. Attendee's email address.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Output only. Profile ID.",
+          "readOnly": true,
+          "type": "string"
+        },
+        "optionalAttendee": {
+          "description": "Optional. Whether attendee is optional. Default: `false`.",
+          "type": "boolean"
+        },
+        "organizer": {
+          "description": "Output only. Whether attendee is the organizer. Default: `false`.",
+          "readOnly": true,
+          "type": "boolean"
+        },
+        "resource": {
+          "description": "Optional. Whether attendee is a resource (for example, room). Immutable, can only be set when the attendee is initially added. Default: `false`.",
+          "type": "boolean"
+        },
+        "responseStatus": {
+          "description": "Optional. Response status. Possible values are: - `needsAction` - Attendee has not responded to the invitation (recommended for new events). - `declined` - Attendee has declined the invitation. - `tentative` - Attendee has tentatively accepted the invitation. - `accepted` - Attendee has accepted the invitation. ",
+          "type": "string"
+        },
+        "self": {
+          "description": "Output only. Whether this entry represents the calendar on which this copy of the event appears. Default: `false`.",
+          "readOnly": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "email"
+      ],
+      "type": "object"
+    },
+    "GuestPermissions": {
+      "description": "Guest permissions for attendees other than the organizer.",
+      "properties": {
+        "guestsCanInviteOthers": {
+          "description": "Optional. Whether guests can invite others.",
+          "type": "boolean"
+        },
+        "guestsCanModify": {
+          "description": "Optional. Whether guests can modify the event.",
+          "type": "boolean"
+        },
+        "guestsCanSeeGuests": {
+          "description": "Optional. Whether guests can see other guests.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "OfficeLocationDetails": {
+      "description": "Details for an office location.",
+      "properties": {
+        "buildingId": {
+          "description": "Optional. The building ID.",
+          "type": "string"
+        },
+        "deskId": {
+          "description": "Optional. The desk ID.",
+          "type": "string"
+        },
+        "floorId": {
+          "description": "Optional. The floor ID.",
+          "type": "string"
+        },
+        "floorSectionId": {
+          "description": "Optional. The floor section ID.",
+          "type": "string"
+        },
+        "label": {
+          "description": "Optional. Human-readable label for the office location.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Reminder": {
+      "description": "An event reminder.",
+      "properties": {
+        "method": {
+          "description": "Required. Delivery method. Possible values are: - `email` - Reminders are sent via email. - `popup` - Reminders are sent via a UI popup. ",
+          "type": "string"
+        },
+        "minutes": {
+          "description": "Required. Minutes in advance that the reminder is triggered.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "method",
+        "minutes"
+      ],
+      "type": "object"
+    },
+    "WorkingLocationProperties": {
+      "description": "Properties for working location events.",
+      "properties": {
+        "customLocationLabel": {
+          "description": "Optional. The label for a custom location. Required if type is `CUSTOM_LOCATION`.",
+          "type": "string"
+        },
+        "officeLocation": {
+          "$ref": "#/$defs/OfficeLocationDetails",
+          "description": "Optional. The office location details. Required if type is `OFFICE_LOCATION`."
+        },
+        "timeZone": {
+          "description": "Output only. Time zone (IANA Time Zone Database name, e.g., \"America/Los_Angeles\").",
+          "readOnly": true,
+          "type": "string"
+        },
+        "type": {
+          "description": "Optional. Working location type.",
+          "enum": [
+            "WORKING_LOCATION_TYPE_UNSPECIFIED",
+            "HOME_OFFICE",
+            "CUSTOM_LOCATION",
+            "OFFICE_LOCATION"
+          ],
+          "type": "string",
+          "x-google-enum-descriptions": [
+            "Unspecified working location type. Will be treated as `HOME_OFFICE`.",
+            "Home office.",
+            "Custom location.",
+            "Office location."
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "description": "Request message for CreateEvent."
+}
+```

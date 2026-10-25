@@ -3,86 +3,86 @@
     "artifact-capabilities": {
       "shape": "body",
       "route": "slash",
-      "chars": 20518,
-      "sha256": "90cb63f50c43a97f6ee823ad985cc92eedabe1c4f5dcfe13f672ba6136c4a2a3",
+      "chars": 20607,
+      "sha256": "bae704ff580eb262dc7b96bdfe4e9dd3ee6c49e1fdc6e465071149703369969c",
       "normalized_paths": true,
       "files": {
-        "0.2.75/artifact.d.ts": {
-          "bytes": 30170,
-          "sha256": "978bbdde2dadc7b7d888bd28987bef97a988a6c75b35c244ede518dd645e06a8"
+        "0.2.90/artifact.d.ts": {
+          "bytes": 33001,
+          "sha256": "58c6860941efc91de186d1a0fe036d8f9722d44d6ab82df6257553f3dc6cb404"
         },
-        "0.2.75/assets.d.ts": {
-          "bytes": 13217,
-          "sha256": "160805f8e9906d3de0f75ae03236128735002ac8d47f0be2726356ddd30ba667"
+        "0.2.90/assets.d.ts": {
+          "bytes": 18016,
+          "sha256": "b3c17de497eae5dbbe4d6f9b3980d9f9ad2c14d1ff10e49705e4d5d5c58df798"
         },
-        "0.2.75/claude.d.ts": {
+        "0.2.90/claude.d.ts": {
           "bytes": 3017,
           "sha256": "54bfa849203cd184725473e365669e501612a826a13651c531d5d01c7ad8ae42"
         },
-        "0.2.75/comments.d.ts": {
-          "bytes": 36914,
-          "sha256": "547cb9b0a833495588f1ed5bc1d96bdeafd8d5c8bd456d85977d82c29c31e261"
+        "0.2.90/comments.d.ts": {
+          "bytes": 37970,
+          "sha256": "c441b6d5cb07d3570bfe1053fbf6e3a98823ef693d04d0ecdfb35a13ab29b93e"
         },
-        "0.2.75/db.d.ts": {
+        "0.2.90/db.d.ts": {
           "bytes": 25762,
           "sha256": "9aa00ba3543e6240b9ded3d8d6354470792037b3cd7f4939842252009e8c5693"
         },
-        "0.2.75/downloads.d.ts": {
-          "bytes": 5182,
-          "sha256": "5875d79313416c4a99e9ce0e5021083f15c2cb61e53b0ae482e34ca9883b3ad9"
+        "0.2.90/downloads.d.ts": {
+          "bytes": 6051,
+          "sha256": "6f3e7afc2cc22d215b31874a52782ea80d79d4aa88663ea03b113d7e0989f28e"
         },
-        "0.2.75/files.d.ts": {
+        "0.2.90/files.d.ts": {
           "bytes": 6823,
           "sha256": "13b170a86bc9e98a61aecc419d1ab151ed1a29612d1068c3cc945258f542a48a"
         },
-        "0.2.75/mcp.d.ts": {
-          "bytes": 38086,
-          "sha256": "be21e5d6af9048ad41094afb7ccba389f1ef874df690ce6fa5b7f7990038adfe"
+        "0.2.90/mcp.d.ts": {
+          "bytes": 40824,
+          "sha256": "b53a32efe495137c8f0257cf4be8c5bebf416303160b1def566ddf58816d7174"
         },
-        "0.2.75/permissions.d.ts": {
+        "0.2.90/permissions.d.ts": {
           "bytes": 4320,
           "sha256": "aa8e173745aa047a26c8f2994bb28a4a8243bfc0311fba7d5db01cc2b0351f2d"
         },
-        "0.2.75/room.d.ts": {
-          "bytes": 31727,
-          "sha256": "8d352ff145a58a603b42b809ff02295186f669d51016e80822a5d39a4906bbbc"
+        "0.2.90/room.d.ts": {
+          "bytes": 34952,
+          "sha256": "743817276d237fe47fba2819853a084ba142dfa3c983f4bcb97eff3a25641fdf"
         },
-        "0.2.75/sample.d.ts": {
-          "bytes": 37720,
-          "sha256": "3f4c2d7b9d392c5bb15af408b3a94811235ae34ee52d922394d80a52bc4d045c"
+        "0.2.90/sample.d.ts": {
+          "bytes": 38578,
+          "sha256": "870e9102bca5546be1af1674ba8da920c7cefbc0430f431ad617517b86eba109"
         },
-        "0.2.75/self.d.ts": {
+        "0.2.90/self.d.ts": {
           "bytes": 644,
           "sha256": "162ec5ebc98126b8a532348a2a6af9815f8cb667822105dce02748cb165e3515"
         },
-        "0.2.75/user.d.ts": {
-          "bytes": 14909,
-          "sha256": "08c35bb1d7e96a589feace1e0aeefdd9985ea29b132d6c0e5c6e9e7d7ca3b3b0"
+        "0.2.90/user.d.ts": {
+          "bytes": 15236,
+          "sha256": "6ffebf31ecc1431bdf116ab1a13ce101b1bb33980415f7afb352a6beda33fda6"
         }
       }
     },
     "artifact-design": {
       "shape": "body",
       "route": "skill",
-      "chars": 31691,
-      "sha256": "005938692b7e36d8f4970f88b8a17a8bca254e3f640a41d2142b09e259b12fc6"
+      "chars": 34705,
+      "sha256": "dbf0cc2758ead09d84c490eb1a99ea38b3265c0e6ba819689f65cc6c7466162b"
     },
     "artifact-diagramming": {
       "shape": "body",
       "route": "slash",
-      "chars": 3619,
-      "sha256": "ce72ec290ba02c129f83d6f42fbc8587b98c75d7d344dbc6fb3812a77571e683"
+      "chars": 3826,
+      "sha256": "ef58c45ca8a38d20ae137004c672c4884b357a233dd56e50caa59c03fae070f7"
     },
     "claude-api": {
       "shape": "body",
       "route": "slash",
-      "chars": 100907,
-      "sha256": "2dce38089b9d54850aab9e2162223bb86a93df08b5d1e7b4142351dd6222d262",
+      "chars": 106925,
+      "sha256": "ee89de035cdae764ba8b53705ff7914c5f778baee66d329642c35362d80fab74",
       "normalized_paths": true,
       "files": {
         "csharp/claude-api/README.md": {
-          "bytes": 18915,
-          "sha256": "5504328ce794dffe46ec2572113098271363c80e911022be0eb889f453f6e902"
+          "bytes": 18934,
+          "sha256": "7925af874c76081abee943d38f853eb0d5063542c12965b3ddc16a04fd364e61"
         },
         "csharp/claude-api/batches.md": {
           "bytes": 413,
@@ -92,65 +92,77 @@
           "bytes": 900,
           "sha256": "766ccf5dca9ef3caba8cefeddde10f6d171a7bd2ff4c97689462fad2d0d18e4b"
         },
+        "csharp/claude-api/opentelemetry.md": {
+          "bytes": 2537,
+          "sha256": "58f011deb089d2a00740c68fcb399014a1bf066c3f4b46b61b30cecd7a11ccb2"
+        },
         "csharp/claude-api/streaming.md": {
           "bytes": 787,
           "sha256": "bc0100e50b3495e869901bcfb231870cb3483b936534af5fd3dddb5d07e4531e"
         },
         "csharp/claude-api/tool-use.md": {
-          "bytes": 5998,
-          "sha256": "d3d5e7f309316414d698146d0ea1e234642c957940e1c4e9bcf9176994c2176d"
+          "bytes": 7619,
+          "sha256": "3adbb219380f4e4ee27b2ff9e06dba9be70bc2f70f3ac814ec8d92e3151472ee"
         },
         "curl/examples.md": {
           "bytes": 9714,
-          "sha256": "4520e447d37924e62fe982923f3eceea5338dbf3b3a0d25d0f914272c16b90a0"
+          "sha256": "256b2cdffb58609aea4a29b205686c415f0d05be71f6deae0737f7c3a4dcf4bc"
         },
         "curl/managed-agents.md": {
-          "bytes": 8669,
-          "sha256": "fad84ee01746f8eaee2f654d65cb15a3d31f5b76fe5834ea01fc2ce599a0868d"
+          "bytes": 11008,
+          "sha256": "34bca185990673ace89408c1a28faa8844f4cc631e5c129aa874de509afb8976"
         },
         "go/claude-api/README.md": {
-          "bytes": 8477,
-          "sha256": "a8e78588e8f11ef4d8f2dd1729739952ca79aefd7b1ebf07c411ee58c05d8231"
+          "bytes": 8478,
+          "sha256": "89a0c2eb5f291863eee5ddf0a5e69955c6372dea87679e005b0bfeff3f0bfe3b"
         },
         "go/claude-api/files-api.md": {
           "bytes": 936,
           "sha256": "7bf67ece5e4d18b1fb07085a55b680420cc7bd4de94a1fb2bb73cb23f39c20f0"
+        },
+        "go/claude-api/opentelemetry.md": {
+          "bytes": 2129,
+          "sha256": "900bc47c139d4e12302ceec37cf5a8e7e7ae2c1e6d3135492023981745699fc5"
         },
         "go/claude-api/streaming.md": {
           "bytes": 1026,
           "sha256": "a523e992e438309ca1bbc075ded2b652eb257242fd0ce521afd3b8ea024ed94d"
         },
         "go/claude-api/tool-use.md": {
-          "bytes": 8393,
-          "sha256": "2053c347e13691b3785189b13e6bc7c41d577e893004e9c0f67817effdc91ef5"
+          "bytes": 10014,
+          "sha256": "d445707a6b3cf37a150924acd9397fd176250a6c377f17e13124a6e28fb16b2b"
         },
         "go/managed-agents/README.md": {
-          "bytes": 19075,
-          "sha256": "f91d9b2ae70d905be1202d5a29b80b2f9c62bcc677b306d4ac02920287ff56a6"
+          "bytes": 22631,
+          "sha256": "61f84d53cfb806904dc39736184b72145f9ab555833365410017b80abfca9ae4"
         },
         "java/claude-api/README.md": {
-          "bytes": 11946,
-          "sha256": "cb6d395dc1d930371f828290132681541eff7f1a7e2739bb4c6655ebbb3b8c7f"
+          "bytes": 11943,
+          "sha256": "299de70f60f05deb7ddc34daedbdbc48822a1f59db2f52b4c2d6829808052eb0"
         },
         "java/claude-api/files-api.md": {
           "bytes": 1198,
           "sha256": "1c792f3421de32f42a56235327f87807a5579340726bba677ec13e05f9b493c7"
+        },
+        "java/claude-api/opentelemetry.md": {
+          "bytes": 2692,
+          "sha256": "939edd41104bf18b85e83ffef6b6fdb46b72169a99ab0ba654497a6cf93c9fff"
         },
         "java/claude-api/streaming.md": {
           "bytes": 655,
           "sha256": "de13bc9573b37edb5af69606853c4fde3d494ee10ff47d1a030ecef9cc17463b"
         },
         "java/claude-api/tool-use.md": {
-          "bytes": 9509,
-          "sha256": "58240638a66d67fee542978301841929fbefe7317487e12b86734281f6b649d6"
+          "bytes": 11130,
+          "sha256": "c2dd1102df5d2372331abc01e4005e4a52124c890814de2790d2159d83f68353"
         },
         "java/managed-agents/README.md": {
-          "bytes": 17034,
-          "sha256": "5353a1d961706b7560d16498b4bee15585fe6f2a59be1f8595a35fcd43e6f717"
+          "bytes": 20634,
+          "sha256": "655d79e19b491bf0641e4c5684ba7a35b0e3d89f1779c5eab3b265d676646b0f"
         },
         "php/claude-api/README.md": {
-          "bytes": 6554,
-          "sha256": "00e2e88f3ea9a6cce812d3e6ae9e035bc36f88828a09e518bb73af91097a9d66"
+          "bytes": 6551,
+          "sha256": "f228986a018ee0f60bd1dffd204a5890c44c2c0c45000937c66654dae6970f0e"
         },
         "php/claude-api/batches.md": {
           "bytes": 447,
@@ -160,89 +172,105 @@
           "bytes": 476,
           "sha256": "0715a0d4cce88fd885f57bd33b4654071a9068d5f8a892143b062c78fe51afc9"
         },
+        "php/claude-api/opentelemetry.md": {
+          "bytes": 2666,
+          "sha256": "fde6e4007b291a63ac33efad9e67cb054d1c2a6f2edb57a527b92134f88270fe"
+        },
         "php/claude-api/streaming.md": {
           "bytes": 682,
           "sha256": "3b8ac667b21f17750eb3c1fc7dc166fd7b1f57a1d8b11e74489de4432e21d31d"
         },
         "php/claude-api/tool-use.md": {
-          "bytes": 8097,
-          "sha256": "319e8ecfe18c54770b697936c095dbfdfbb0c0987360151f10eaf48fed18c9c5"
+          "bytes": 9718,
+          "sha256": "cf6addc60f45ce9b292dc47eada726a13d905b38addc5ab265d276cb92df289a"
         },
         "php/managed-agents/README.md": {
-          "bytes": 13571,
-          "sha256": "27f3c817d55f3e808d9a84cb9ff5b252f78ab421619436ff68b801351ab24c05"
+          "bytes": 16721,
+          "sha256": "ef8fe39a174d0b36968a2fd306cfdcda0665c5e1ad29da9937976743d9e4249f"
         },
         "python/claude-api/README.md": {
-          "bytes": 20491,
-          "sha256": "9ff90530827950140ff6c707374fc0d95a94de437ffbc2340b78a54140508c95"
+          "bytes": 20623,
+          "sha256": "284fbc6408809afd27288da95c5fb32daa48bd77518cd5fd4e973cc05363eaa8"
         },
         "python/claude-api/batches.md": {
-          "bytes": 5588,
-          "sha256": "15d480b44e07b237a33eac50a5ae4d7c46b5c94c4462c992346f2b0818964f57"
+          "bytes": 5723,
+          "sha256": "7e4d07173845836617be3db70482c182311ad2d6d5ddf786482ca57c7c45776c"
         },
         "python/claude-api/files-api.md": {
           "bytes": 4499,
           "sha256": "2aa142978660d9ae3200d21a4d333531ca101898706f620834304e8a7d534580"
         },
+        "python/claude-api/opentelemetry.md": {
+          "bytes": 2683,
+          "sha256": "be6d5d4d2c42e36626cf1fc0bad52801939ff1700dc26effd2b9bd52469deb82"
+        },
         "python/claude-api/sdk-upgrade.md": {
-          "bytes": 28741,
-          "sha256": "408bdcabdd05aceca3765320b03684a00e1bd22f6da2d057db5c24b48804bef8"
+          "bytes": 29672,
+          "sha256": "034ec5e881c59cd947990691f3c1a94e91173e676fcf44caea756f3830f453d0"
         },
         "python/claude-api/streaming.md": {
           "bytes": 11940,
           "sha256": "8f73a54dbbb5e82c2c7690d7d866f17ad8c72f662a2be6dd788b5c0956714026"
         },
         "python/claude-api/tool-use.md": {
-          "bytes": 19786,
-          "sha256": "133934c24555f2e20297ff331c1e3303b14b1dc4824d2ec336e418caf162927f"
+          "bytes": 21400,
+          "sha256": "513bddca6b1fade10801cefb723079a74d6ca7fbc0791371186eb2d81bec8f8c"
         },
         "python/managed-agents/README.md": {
-          "bytes": 11572,
-          "sha256": "caa03d794a9158ca77f38e9de1df8b8b8d0b49164a28ca0744059b73a0a67367"
+          "bytes": 15040,
+          "sha256": "240e1f1f7ccef996c81a2f14bc9fe6da3c792ce8b1e2a7fb642ae29e96387b7c"
         },
         "ruby/claude-api/README.md": {
-          "bytes": 4843,
-          "sha256": "c7de89d236f22bc0b44a091a45ee186ec057caa021a71acd4d3849599cbf3b36"
+          "bytes": 4840,
+          "sha256": "224b91a73aa65e13021297b6bb11157906bdf2cc7be1a57935706907de3862a7"
+        },
+        "ruby/claude-api/opentelemetry.md": {
+          "bytes": 1832,
+          "sha256": "4c3dc73176f32635182dd52f0a86e1781b0bb7c2b57def38c9d35654ac35a35f"
         },
         "ruby/claude-api/streaming.md": {
           "bytes": 235,
           "sha256": "09b784f2ab0a5fd17e0589225408c618d26c6dd3cd601364ff92f409d5b104a0"
         },
         "ruby/claude-api/tool-use.md": {
-          "bytes": 1063,
-          "sha256": "9d4290be5e263eaee485f5d36e0ce8b87cafed19ed30fc045c484757efe29a22"
+          "bytes": 2684,
+          "sha256": "f08ce45f19c7ff571d6aa72f7c51691f07c96baeadb30911ce8188428e753600"
         },
         "ruby/managed-agents/README.md": {
-          "bytes": 10502,
-          "sha256": "2db985f41360aa9af5f139b93977c65e6b3e25c0cd7387cb0178ff6edbba038e"
+          "bytes": 12370,
+          "sha256": "982a14c57d108e3fb138d8ddb237dc627e2d34ff9e8b1c04ef9c9ebaefd3081b"
         },
         "shared/admin-api.md": {
-          "bytes": 11606,
-          "sha256": "a69c53817391fca50c0a1848f46de9debf71fa3681298fccb0a6435b760bac2d"
+          "bytes": 12661,
+          "sha256": "530e5a98402716d515b5f0be37658a8553d358991d1d6ef3a616dbad6098ec15"
         },
         "shared/agent-design.md": {
           "bytes": 8736,
           "sha256": "9960728faf6976a2ddfceed02ed72af122d3b2558af573a9a0ea207b3adec2bc"
         },
         "shared/anthropic-cli.md": {
-          "bytes": 22260,
-          "sha256": "ef85c2e47eb1ab8469b8b026aba87b11e6f2c3acad7ad6e95a4183ef428c7587"
+          "bytes": 25786,
+          "sha256": "3ed02607ea10ef21689b6763ad299864a1469d57dcb042fdfc46c47f2b7737fb"
+        },
+        "shared/api-version-migration.md": {
+          "bytes": 35808,
+          "sha256": "e102f9fa1bf44aade5f53f6d25cdc25f9f1b4785a7b09ba585ccc94218154ade"
         },
         "shared/claude-platform-on-aws.md": {
-          "bytes": 4420,
-          "sha256": "dec03193c61909167846c0526a4feacf011578b5e7ee29f76378141315cf97f5"
+          "bytes": 4686,
+          "sha256": "0967190b43bced05ae4e7cfed4f0572b6b32cd90c07679cc7bdef62c4519239a"
         },
         "shared/cost-optimization.md": {
-          "bytes": 58092,
-          "sha256": "e4a9f8febfb37ee718ff6b7dad20b67c8b78d95c8b0895936f5cffe8898eed30"
+          "bytes": 58662,
+          "sha256": "eba32b8954e1c47913b134c726e481d538bd8df19c5aa83befff75bede50188f"
         },
         "shared/error-codes.md": {
-          "bytes": 19845,
-          "sha256": "9345972e355af8e50717e3e5b757d051972687192142223321a05e3588a13205"
+          "bytes": 21200,
+          "sha256": "2f9967326f1b1024b895f49fc3222cf854da4d051f493613cee705ee9b7a96ec"
         },
         "shared/evals/build-eval.md": {
           "bytes": 55219,
-          "sha256": "16ac48c2b0341f6bf916e435e3245d1d4fc50be7b34dd9a7a18bc99453886f40"
+          "sha256": "01ca9859e2f554484beede3e525b2f355298b19f6cfdd09d4c8e161254fa78ef"
         },
         "shared/evals/cost-hillclimb.md": {
           "bytes": 31711,
@@ -268,113 +296,185 @@
           "bytes": 33142,
           "sha256": "c3a87ba4b94b3018b83c075d5148ba7760580aa447699d513d45ab55b82a531a"
         },
+        "shared/google-cloud-anthropic-managed.md": {
+          "bytes": 9568,
+          "sha256": "a5027671213830139df814d7b217c7015d024bce6062235e52e4b3d2becec6d0"
+        },
         "shared/live-sources.md": {
-          "bytes": 22989,
-          "sha256": "f042911ea9ad57fdbb7340975d56edf47f1c4ceefc9ae72def7888d6950f570a"
+          "bytes": 19211,
+          "sha256": "6d084668bc8d59442e746b7659a89c759ac0249ad8225eab731bdff0f7e4c90a"
         },
         "shared/managed-agents-api-reference.md": {
-          "bytes": 34401,
-          "sha256": "1e7762835f6fc83e5cb704daa08eda6201d4afd141ed789fde9d24dbec6ae098"
+          "bytes": 35299,
+          "sha256": "41544f6e0e08851a0ee9bf5acfe164dc8a9d207d056a4daf676df3194030dd08"
         },
         "shared/managed-agents-client-patterns.md": {
-          "bytes": 12043,
-          "sha256": "f3d752675e225892f97da4d7bffbefd430841d6655b2c53a926f212121759d55"
+          "bytes": 12478,
+          "sha256": "043d7eeff816ca4afddfabe07f19ce6586e4aab3b973a66d10811dfb7d1b12fc"
         },
         "shared/managed-agents-core.md": {
-          "bytes": 32852,
-          "sha256": "1d2e548fcdbf5291d20dde57a5463cbfbf7db22ce9ac1bb307af98c5d302451b"
+          "bytes": 33720,
+          "sha256": "4da9221aaa9fa8a26a79b5a19dfa0e063d2d6625631580958092e9de3ddb51a7"
         },
         "shared/managed-agents-environments.md": {
-          "bytes": 12920,
-          "sha256": "45c02eff9e77b0387d3543ef8e13332376955d963e2bcc0a907aac8458c8b7a3"
+          "bytes": 14333,
+          "sha256": "a507f745313db6664eba707a01eb6a1eb551f52a0b127d24371973f58dbbb05e"
         },
         "shared/managed-agents-events.md": {
-          "bytes": 25029,
-          "sha256": "c3c4bde5dbc8ae5d283ed9df86a87871ec098f6cd60a27ff384df0d685eeb767"
+          "bytes": 26020,
+          "sha256": "e5ded8c46babb7041b4757ac150dd416b94896a2327ddd284cff6eaf8898c3f4"
         },
         "shared/managed-agents-memory.md": {
-          "bytes": 11362,
-          "sha256": "0dec5641630f97629ea75bbbe5c2bced861f9c16b0572a68c901849ea4d00bcb"
+          "bytes": 11412,
+          "sha256": "ab45ddaf130730d37bf818c68a0fb81b42e45b03dff9d0a0e19df54083a7a884"
         },
         "shared/managed-agents-multiagent.md": {
-          "bytes": 26250,
-          "sha256": "11da64cd20c3e2fd53cd6e437c3b1ee5472bd19d7e388814cf7f0dc78b6bc778"
+          "bytes": 72092,
+          "sha256": "263487e8389ede6308940cfa3ff459c2fd4384ded34e7164cb8a6f2933dbef12"
+        },
+        "shared/managed-agents-onboarding-from-quickstart.md": {
+          "bytes": 19841,
+          "sha256": "a4f78c5dced3f345749e253156666322abaea22da58901c6f11aa23ff8000d1e"
+        },
+        "shared/managed-agents-onboarding-from-url.md": {
+          "bytes": 35243,
+          "sha256": "4b60e658c113a8833606c8af4a2ea6fbd2409f12afea868ac01499e6fa3fe9b3"
         },
         "shared/managed-agents-onboarding.md": {
-          "bytes": 13558,
-          "sha256": "22ff51c3eb88379aa0e09e4829e790bb27c3238a42bd081adda61f7c0807ef8e"
+          "bytes": 17288,
+          "sha256": "43b48b6ee258698420a784d3e08ae47c1563d7902b74486d9c7f42a0f2a275ac"
         },
         "shared/managed-agents-outcomes.md": {
-          "bytes": 7918,
-          "sha256": "cc387b0d3f326acde20d571bd778cc3bd3e94ec4dfed39c514232c6a036c4265"
+          "bytes": 8957,
+          "sha256": "d36e1703b5d4f72c3e5463437699b0057ff18b4d915ba255742571a7e787821e"
         },
         "shared/managed-agents-overview.md": {
-          "bytes": 13341,
-          "sha256": "d19da7375c7565818f1521566b7a376d8c4b76d930fe79147523017617acfd3e"
+          "bytes": 14700,
+          "sha256": "fcc7728e20b9df6ef98cf46ec434b33ce1c4f02f3892187723f54aa898993381"
+        },
+        "shared/managed-agents-quickstarts/bug-hunter.md": {
+          "bytes": 8096,
+          "sha256": "9afd40ef3e1bca9e1cc4c6655d314127cec0b4dcff0e12f6016508c134954248"
+        },
+        "shared/managed-agents-quickstarts/contract-tracker.md": {
+          "bytes": 1806,
+          "sha256": "312ee5f886de59b6db4603d2df9766d66285db36973656c5b9ff0bcc1ed02279"
+        },
+        "shared/managed-agents-quickstarts/data-analyst.md": {
+          "bytes": 1561,
+          "sha256": "c2116bac43972f2b40311104bd7cd4e084cca806dd40a1ddf8462845d785bd57"
+        },
+        "shared/managed-agents-quickstarts/deep-researcher.md": {
+          "bytes": 2430,
+          "sha256": "a680856d874dff23cd3f016e36d0a58bc4db36c56d790d216743f236ee37a48c"
+        },
+        "shared/managed-agents-quickstarts/explainer-video-maker.md": {
+          "bytes": 4886,
+          "sha256": "c2570c5e14d51c5caa77646ac417d18619d34a27cc94dc72cf020c698f2803f3"
+        },
+        "shared/managed-agents-quickstarts/field-monitor.md": {
+          "bytes": 2105,
+          "sha256": "f17f26eee0109f4172134c5bea5761c52b8459e44ae03608c701cd3492f4a3af"
+        },
+        "shared/managed-agents-quickstarts/incident-commander.md": {
+          "bytes": 1723,
+          "sha256": "badd3622ffab0798ab44a55189f47e95c107107ce57eda9fa5357b1aded8fb2a"
+        },
+        "shared/managed-agents-quickstarts/performance-tuner.md": {
+          "bytes": 11394,
+          "sha256": "922396e14b569bc98a7bdde34d10890cc81c5184e81971e6c9be108d191dd639"
+        },
+        "shared/managed-agents-quickstarts/sprint-retro-facilitator.md": {
+          "bytes": 2091,
+          "sha256": "8b5ed9895feb1ade54578a270493c63d0f57b3bb0fbc2eafcfa2e87d3130fa75"
+        },
+        "shared/managed-agents-quickstarts/structured-extractor.md": {
+          "bytes": 1541,
+          "sha256": "c278074c8c48d35fc6c68ed32eaa8704cae73a8e74035fd1d4a6abdcb9bd0fbd"
+        },
+        "shared/managed-agents-quickstarts/support-agent.md": {
+          "bytes": 1481,
+          "sha256": "da75c50edf207f5ef468fbbbfc2e77d56e7d906a6c2cda28756f896195e171c5"
+        },
+        "shared/managed-agents-quickstarts/support-to-eng-escalator.md": {
+          "bytes": 1842,
+          "sha256": "46720e5341808a9938825be44f936c91f83739ebdef9e1d17d9f0ec22738346b"
+        },
+        "shared/managed-agents-quickstarts/watchlist-scanner.md": {
+          "bytes": 5642,
+          "sha256": "e67861c63b9d46b01c8d2784998b7f0de9a87aa6012b77127def1253c5ac13db"
         },
         "shared/managed-agents-scheduled-deployments.md": {
-          "bytes": 9068,
-          "sha256": "eb1c8a1a6f428b3db634e6d37162fd8952c3d853920b7414be32a4943b70f227"
+          "bytes": 9561,
+          "sha256": "0f797a414f772f228ebfa7894daf42aab3a1d6930376b1ac574dff1e8e0475b1"
+        },
+        "shared/managed-agents-secure.md": {
+          "bytes": 28140,
+          "sha256": "2cc933a98354d8af69a27a829e88316aefc6c9995946f1331e5dadb8a929080d"
         },
         "shared/managed-agents-self-hosted-sandboxes.md": {
-          "bytes": 27847,
-          "sha256": "3228ab72afbe3ab1a0ac0f5a41995e1764c947cf17ce22a858b41b67262b71ee"
+          "bytes": 29331,
+          "sha256": "66b99904806e3a6712dac009952a765f7fd7556982c61cfef99c6fad5ed34631"
         },
         "shared/managed-agents-tools.md": {
-          "bytes": 35673,
-          "sha256": "17672bb414c3cccd0f5b040e1ab1c08f8b3d1de648615d9840b34c856be6c00b"
+          "bytes": 37908,
+          "sha256": "dee7ca3aa8e192c32160299491eb6148724265d1f2f5d72d5f6146320f8762e4"
         },
         "shared/managed-agents-webhooks.md": {
           "bytes": 11321,
           "sha256": "38746f77a3ee971f9b1f7d47cec9e753131bf271fd795aed5c3da1764c9a6ac1"
         },
         "shared/model-migration.md": {
-          "bytes": 317528,
-          "sha256": "07b72aa9318bca6028ad56912252759cb7ea92f2f1e630f5de7e48da69054f98"
+          "bytes": 348264,
+          "sha256": "db52cb8422e1d6b7bd82f8813e650c04f1d64a9a6c6cdd76fc29292153e9da3c"
         },
         "shared/models.md": {
-          "bytes": 15970,
-          "sha256": "5171019f23305f71397fb37cb6fe7abe93958b0af42e983967fd31c2663710e4"
+          "bytes": 17582,
+          "sha256": "7a38e23315da103543761a47eba4c7fc4757e288d606c38b53ad25439f8941b9"
+        },
+        "shared/opentelemetry.md": {
+          "bytes": 51622,
+          "sha256": "b7d961138760e1a260c366c5ef97700340bf5d7a6b67a14d465bba256a684eef"
         },
         "shared/platform-availability.md": {
-          "bytes": 7415,
-          "sha256": "607997bc16de403970cb32c1dc1fa63e68f7f02328728be59397e7cefb2efed4"
+          "bytes": 10331,
+          "sha256": "7cf152e2a06333eccb014ab127859c99daf42d1fac13dfe772af9c972af1b4eb"
         },
         "shared/preserved-thinking-migration/causes.md": {
-          "bytes": 39687,
-          "sha256": "04f8992d35c3b8523a94933105b360dcce397c20774f7fd8774c57d488d5633d"
+          "bytes": 45380,
+          "sha256": "f4f6ac41e0168c78048b6ce6f1bb955de4536b552809c52d463170b0f12e947d"
         },
         "shared/preserved-thinking-migration/drop_block_probe.py": {
-          "bytes": 66582,
-          "sha256": "f23abb75bc079d835f57da7598ac5a1bee4318214ab803185feb94d8db8c4b88"
+          "bytes": 67677,
+          "sha256": "6dae043c8215fd1c1dd1d42a37580b476423e4e0a461f9a230a86a9f3dda3f3b"
         },
         "shared/preserved-thinking-migration/prefix_diff.py": {
           "bytes": 94008,
           "sha256": "734934b81b5f26e9ed2f8f51f44fed6554233de4f37b22a8845ae4ffcb622ac0"
         },
         "shared/preserved-thinking-migration.md": {
-          "bytes": 64031,
-          "sha256": "636ec522407a5bf66b1b25a26c7a74492e543f70ea88044a984ad522e270e746"
+          "bytes": 64072,
+          "sha256": "7cfd9a24f37f5b05cfed29387220cdf5edb1d1c07481e5ef601accdc5fccdfd7"
         },
         "shared/prompt-audit.md": {
-          "bytes": 49306,
-          "sha256": "1097e6746370430875c2f881bd858694de6dbaa8e193074355bb4c39621347f1"
+          "bytes": 49382,
+          "sha256": "1b9f1943338b645e190f71f1207317f31b18750625ac327653725dec9c8a64d3"
         },
         "shared/prompt-caching.md": {
-          "bytes": 33021,
-          "sha256": "92c0904c031831594187840231628d5986c4fd9e0e3415e41ac06bf9220e5c60"
+          "bytes": 33279,
+          "sha256": "683101b599362e4762922923af38847ac21174a43b5d3a192d81036869ea7742"
         },
         "shared/token-counting.md": {
           "bytes": 1603,
           "sha256": "8674e246c165decdc13106a4861a254ededb0421caf7fa4015ed0fb36e6c60dc"
         },
         "shared/tool-use-concepts.md": {
-          "bytes": 44242,
-          "sha256": "bc5364fed0fe2a196a9f81cddf943d210adde53e3ad5be9b84057093fc8b28f5"
+          "bytes": 44819,
+          "sha256": "a810f2b76ac5e185cde94dbe55bc0ed87f5d820cd8953de300707ab6a78046d6"
         },
         "typescript/claude-api/README.md": {
-          "bytes": 15739,
-          "sha256": "e1477b7d759734ba7189d094e002c171a68749f3e56f0aa5a4326ecac6825bd4"
+          "bytes": 15833,
+          "sha256": "b2a01ccbaa0d4406e400bcd8efc033759af5d646a97aab744aee55bf07d6ab16"
         },
         "typescript/claude-api/batches.md": {
           "bytes": 2594,
@@ -384,17 +484,21 @@
           "bytes": 2384,
           "sha256": "df8e4e433a4ded6d4c3eb40de9bc0782cf77aaa8e3e331a539aec1cff55d1316"
         },
+        "typescript/claude-api/opentelemetry.md": {
+          "bytes": 2454,
+          "sha256": "6f13c7425ec1d15a3082721c703c54d2923bd8d813e7b394bebcd93dd1f850c5"
+        },
         "typescript/claude-api/streaming.md": {
-          "bytes": 9514,
-          "sha256": "09db982effb0b7d14e29eddd5425b00040debfedccf3dd0db9af73f7d2da3e79"
+          "bytes": 9613,
+          "sha256": "b67f7a1f581314f8559e8ef714da7126a4e738ea11b3432b1a64996753f8c657"
         },
         "typescript/claude-api/tool-use.md": {
-          "bytes": 22670,
-          "sha256": "fdc6b6aa9cc076206d284cbe0844db4650b23d10dbb6a2b0b036fc802054ce9d"
+          "bytes": 24284,
+          "sha256": "dc35097a05f0b45e1cda8b3e8f4adadfd99527517d207172f6bc9103e2733848"
         },
         "typescript/managed-agents/README.md": {
-          "bytes": 11039,
-          "sha256": "cf8c1c840d2a5ccc992f5c5f824e9515b90fcef0a077cde47d0f77997d9850cb"
+          "bytes": 14229,
+          "sha256": "e3bd61c66aed6c075dc0e29a596a5ed50b5cf59ce36b747cbd0034dbebcc6665"
         }
       }
     },
@@ -420,8 +524,8 @@
           "sha256": "fbd8d8fb385670569c16cdcfe3d0e05281d0a33f892ef09a54b5c5780dc548e2"
         },
         "references/color-formula.md": {
-          "bytes": 8152,
-          "sha256": "1d41cc6eb42b7cb3d9f9267c755e62a0e64e6ea6f5d50b73251174fecda8ba3b"
+          "bytes": 8509,
+          "sha256": "6924caad41a9a19c14764a95e97430a30a9891abac13c6a1a5dd5a01727b5187"
         },
         "references/components.md": {
           "bytes": 2108,
@@ -432,28 +536,28 @@
           "sha256": "2050b65e1a0d919627db870215f423956e17f82c1285eb336537b732cb0c7893"
         },
         "references/marks-and-anatomy.md": {
-          "bytes": 6037,
-          "sha256": "3f37b23fb59bfd46cf9f08a8c64dc90329bd5a3ac09e0b3ee883a688935f98e7"
+          "bytes": 6103,
+          "sha256": "0659e4a8fc65ddc3f56bf369dbdbfa60b0f94bb385f22ba88dc5daddd7c68845"
         },
         "references/palette.md": {
-          "bytes": 9024,
-          "sha256": "783339ddc3681b452f466e632f75a43015f47b04a5192dff38864ce9d66deea8"
+          "bytes": 9523,
+          "sha256": "b0eb3882e9cf8467a2979c4f63a69f2f83510318e7ebeb7a07e0ebd89189bba1"
         },
         "scripts/validate_palette.js": {
-          "bytes": 18007,
-          "sha256": "6ac628a48e67d58918f4cb2bde55076a2344f77a986cee767eb7bf3306496914"
+          "bytes": 19958,
+          "sha256": "25df43beb77674dad34348b9fe338d5a47f568e08bcf51b38780e51386cf866e"
         },
         "scripts/validate_palette.py": {
-          "bytes": 15785,
-          "sha256": "25e2f72f297948a5a9b20dec8300de15b9c10bc76bd62ce2fef4749895a5ed56"
+          "bytes": 17684,
+          "sha256": "949f8c86dc1c98c589f1455bb2d7cd8967ffecf85d77eed2789dce62ce6c2cf4"
         }
       }
     },
     "fewer-permission-prompts": {
       "shape": "body",
       "route": "slash",
-      "chars": 7523,
-      "sha256": "597c22d373718456c0f79a01fde065c65ea819c3eeae76c2a5ca0c93affa472d"
+      "chars": 7647,
+      "sha256": "6566809139f73f0cb1d8799b540e4064df78bf0d953306e3ef645082ab04b9fa"
     },
     "init": {
       "shape": "body",
@@ -464,8 +568,8 @@
     "keybindings-help": {
       "shape": "body",
       "route": "skill",
-      "chars": 14924,
-      "sha256": "036e8991cb9e0d4a5c814013aff180b4ea36112a684c26556790421f550e5b35"
+      "chars": 14951,
+      "sha256": "fd0b170584484e56bbf62f7a398f2d8ea9dfff6131d5bf42870514891f6816ba"
     },
     "loop": {
       "shape": "body",
@@ -476,8 +580,8 @@
     "plugin-authoring": {
       "shape": "body",
       "route": "slash",
-      "chars": 8638,
-      "sha256": "97da88a6a11c90d20c2135216b7c6054ee27fab86c7edf6e9e82c2da1e6285dd",
+      "chars": 8661,
+      "sha256": "984e4c54bd3e3e14ae22268dc32acba76f0a515186123cea475e7a2b4d5c91bf",
       "normalized_paths": true,
       "files": {
         "examples/band-state.d.ts": {
@@ -489,24 +593,28 @@
           "sha256": "c11083271a8357dde1a9487353963ea2d7c1ad33b8892a649a649126b0bb5c39"
         },
         "examples/pane-state.d.ts": {
-          "bytes": 173,
-          "sha256": "41961e2493946c56db296418138e1b5e65e0bb6f3cb8300f93a8a2581b25acaa"
+          "bytes": 181,
+          "sha256": "be62e7ae3be91cac0f556e3047aef255ea7b7c07698488ecb40957ae11d8d369"
+        },
+        "examples/pane.test.tsx": {
+          "bytes": 2126,
+          "sha256": "1e45eb9c479c44c6a96657cad80861cb87b83045f6413a72d41148a37775cb8e"
         },
         "examples/pane.tsx": {
-          "bytes": 1588,
-          "sha256": "19ff8f66c35bf147045c24d396460792eec38c8347bc6f6c3f7c8910e76c467c"
+          "bytes": 1732,
+          "sha256": "7f09400916f4894a7af732ca45cb12e7cda9ed5d3bfbb78db3f4cbd77dfc1c13"
         },
         "examples/tool-call.ts": {
-          "bytes": 598,
-          "sha256": "c7e3d90b61b640a590b1384b3f02e6a378dd974ee072e0071cd2cd4d04b835e4"
+          "bytes": 701,
+          "sha256": "0453adc1d830fca71c8756221f8bbcb32719b2391002025aafdd5d7d9c2ad9b8"
         },
         "reference.md": {
-          "bytes": 37941,
-          "sha256": "7850081a4f0b4b87f504e4d0555c2d9063c9b4d162ae3f0789dff56f214f5302"
+          "bytes": 77613,
+          "sha256": "df42d276d37dc5e98a1ddb5d76765c486bce1ab71da1c762efb6094727efbe8f"
         },
         "types/claude-code.d.ts": {
-          "bytes": 754987,
-          "sha256": "26b51934cb79e9d2bbe8773eb81e4691857ffd4129305f48f5ea0e2b12bac56a"
+          "bytes": 852196,
+          "sha256": "d29c0e91d212c9dfaca5b4a0ab6d48e41e112c3017fe1fde4bd32d5d1d721004"
         }
       }
     },
@@ -565,8 +673,8 @@
     "update-config": {
       "shape": "body",
       "route": "slash",
-      "chars": 288012,
-      "sha256": "dd8fef4bd1040f53376f47a3e26872f6220ef0256717014a9074a9c030d1d90a"
+      "chars": 293319,
+      "sha256": "4efd94148a1c7c65055ed69d2ef94e17c41a106f3d4c7bf01f3447193e41e7d8"
     },
     "workflow-authoring": {
       "shape": "body",

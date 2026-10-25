@@ -13,7 +13,7 @@
 
 Creates a new draft email in the authenticated user's Gmail account.
 
-This tool takes recipient addresses (`to`, `cc`, `bcc`), a `subject`, and body content as inputs. Plain text body content can be provided in `body` (do NOT format `body` with Markdown), and rich-text HTML content can be provided in `htmlBody` (use valid HTML tags for formatting; if both are provided, `body` serves as the plain-text alternative). If the draft is created as a reply to an existing message, the ID of the original message should be passed to the tool in the `replyToMessageId` field.
+This tool takes recipient addresses (`to`, `cc`, `bcc`), a `subject`, and body content as inputs. Plain text body content can be provided in `body` (do NOT format `body` with Markdown), and rich-text HTML content can be provided in `htmlBody` (use valid HTML tags for formatting; if both are provided, `body` serves as the plain-text alternative). If the draft is created as a reply to an existing message, the ID of the original message should be passed to the tool in the `replyToMessageId` field. Set `includeSignature` to true to append the user's configured Gmail web signature to the draft.
 
 Returns a Draft object with the `id`, `threadId`, and `viewUrl` fields populated.
 
@@ -53,6 +53,10 @@ Returns a Draft object with the `id`, `threadId`, and `viewUrl` fields populated
       "description": "Optional. The HTML content of the email draft. If provided, this will be used as the rich-text version of the email. Use this field (with valid HTML tags such as ` `, ` ",
       "type": "string"
     },
+    "includeSignature": {
+      "description": "Optional. Whether to append the user's configured Gmail web signature to the draft. Defaults to false.",
+      "type": "boolean"
+    },
     "replyToMessageId": {
       "description": "Optional. The ID of the message to reply to. If provided, this will be used as the reply-to message ID for the email draft, and the `body` and `html_body` will be appended to the original message body.",
       "type": "string"
@@ -79,7 +83,7 @@ Returns a Draft object with the `id`, `threadId`, and `viewUrl` fields populated
           "type": "string"
         },
         "filename": {
-          "description": "Optional. The name of the file to be attached, e.g. \"invoice.pdf\". For inline attachments, this is used for Content-ID generation. For regular attachments, `filename` is used to specify the filename to email clients. If not provided, the attachment may be received with no name.",
+          "description": "Optional. The name of the file to be attached, e.g. \"invoice.pdf\". Email clients show this name to recipients for both regular and inline attachments. If not provided, the attachment may be received with no name.",
           "type": "string"
         },
         "id": {
@@ -88,7 +92,7 @@ Returns a Draft object with the `id`, `threadId`, and `viewUrl` fields populated
           "type": "string"
         },
         "inline": {
-          "description": "Optional. If true, this attachment is handled as inline. An inline attachment is a content that is intended to be displayed within the body of an HTML email, as opposed to being listed as a separate file for download. If false or absent, defaults to false, and it's treated as a regular attachment.",
+          "description": "Optional. If `true`, this attachment is handled as inline. An inline attachment is content, such as an image, that is displayed within the body of an HTML email instead of being listed as a separate file for download. To display an inline attachment, add `` to `html_body`, where `` is the attachment's zero-based position in `attachments`, counting all attachments. For example, if `attachments` contains a PDF followed by an inline PNG, use `` for the PNG. Don't reference inline attachments by `filename`. Other images in `html_body` are removed. If `false` or absent, defaults to `false`, and it's treated as a regular attachment.",
           "type": "boolean"
         },
         "mimeType": {

@@ -13,7 +13,8 @@
 
 Adds one or more labels to a specific message in the authenticated user's Gmail account.
 
-To find the message ID, use tools like `search_threads` or `get_thread`. If unsure of a user label's ID, use the `list_labels` tool first to discover available labels and their IDs.
+To find the message ID, use the `get_thread` tool. If unsure of a user label's ID, use the `list_labels` tool first to discover available labels and their IDs.
+To move a message to a different inbox category tab, add the target `CATEGORY_*` label (e.g. `CATEGORY_PERSONAL` for Primary); Gmail automatically removes the previous category.
 To move a specific message to Trash or mark it as Spam, please use the `trash_message` or `mark_message_spam` tool instead.
 
 

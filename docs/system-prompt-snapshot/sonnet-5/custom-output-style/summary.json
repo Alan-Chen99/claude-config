@@ -1,7 +1,7 @@
 {
   "model": "claude-sonnet-5",
   "system_blocks": 4,
-  "system_tokens": 9167,
+  "system_tokens": 9473,
   "tools_upfront": [
     "Agent",
     "Artifact",
@@ -47,7 +47,7 @@
   "tools_deferred_loaded": [],
   "tools_deferred_loaded_count": 0,
   "tools_server": [],
-  "tools_total_tokens": 30269,
+  "tools_total_tokens": 31582,
   "has_output_style": true,
   "has_doing_tasks": true,
   "subagent_count": 0

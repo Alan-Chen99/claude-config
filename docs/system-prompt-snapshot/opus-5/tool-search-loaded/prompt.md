@@ -30,26 +30,26 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
         "v": 1,
         "permission_mode": "auto",
         "platform": "linux",
-        "live_cwd": "/tmp/capture-cwd-7090fpb_",
+        "live_cwd": "/tmp/capture-cwd-o3_45mgz",
         "home_dir": "/root",
         "rule_roots": {
-          "userSettings": "/root/.claude/tmp/claude-0/-root-claude-config-work/bba96906-cd9d-486f-8f22-e925749fcfff/scratchpad/cc-config-2.1.289",
-          "projectSettings": "/tmp/capture-cwd-7090fpb_",
-          "localSettings": "/tmp/capture-cwd-7090fpb_",
-          "flagSettings": "/tmp/capture-cwd-7090fpb_",
-          "policySettings": "/tmp/capture-cwd-7090fpb_",
-          "cliArg": "/tmp/capture-cwd-7090fpb_",
-          "command": "/tmp/capture-cwd-7090fpb_",
-          "session": "/tmp/capture-cwd-7090fpb_",
-          "toolsNarrowing": "/tmp/capture-cwd-7090fpb_",
-          "mcpServerPolicy": "/tmp/capture-cwd-7090fpb_",
-          "hostCredential": "/tmp/capture-cwd-7090fpb_"
+          "userSettings": "/root/.claude/tmp/claude-0/-root-claude-config-work/957710ab-0413-430a-96b3-d33546d2951c/scratchpad/cfg-9357cf6d",
+          "projectSettings": "/tmp/capture-cwd-o3_45mgz",
+          "localSettings": "/tmp/capture-cwd-o3_45mgz",
+          "flagSettings": "/tmp/capture-cwd-o3_45mgz",
+          "policySettings": "/tmp/capture-cwd-o3_45mgz",
+          "cliArg": "/tmp/capture-cwd-o3_45mgz",
+          "command": "/tmp/capture-cwd-o3_45mgz",
+          "session": "/tmp/capture-cwd-o3_45mgz",
+          "toolsNarrowing": "/tmp/capture-cwd-o3_45mgz",
+          "mcpServerPolicy": "/tmp/capture-cwd-o3_45mgz",
+          "hostCredential": "/tmp/capture-cwd-o3_45mgz"
         },
         "trusted_directories": {
           "primary": {
-            "path": "/tmp/capture-cwd-7090fpb_",
+            "path": "/tmp/capture-cwd-o3_45mgz",
             "resolved": [
-              "/tmp/capture-cwd-7090fpb_"
+              "/tmp/capture-cwd-o3_45mgz"
             ]
           },
           "additional": [],
@@ -74,8 +74,8 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
         "classify_all_shell": false,
         "user_identity": "chenxinyang99",
         "git_state": {
-          "cwd": "/tmp/capture-cwd-7090fpb_",
-          "root": "/tmp/capture-cwd-7090fpb_",
+          "cwd": "/tmp/capture-cwd-o3_45mgz",
+          "root": "/tmp/capture-cwd-o3_45mgz",
           "branch": null,
           "default_branch": null,
           "status": {
@@ -111,8 +111,8 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
             "handlers": false,
             "room_client": false,
             "eval_stub": false,
-            "scratchpad_dir": "/tmp/claude-0/-tmp-capture-cwd-7090fpb-/9d04e901-cfd3-416d-a4fb-4b8ee25c228f/scratchpad",
-            "tool_results_dir": "/root/.claude/tmp/claude-0/-root-claude-config-work/bba96906-cd9d-486f-8f22-e925749fcfff/scratchpad/cc-config-2.1.289/projects/-tmp-capture-cwd-7090fpb-/9d04e901-cfd3-416d-a4fb-4b8ee25c228f/tool-results",
+            "scratchpad_dir": "/tmp/claude-0/-tmp-capture-cwd-o3-45mgz/a5914332-d847-4902-b3ca-ed9c099fe9ad/scratchpad",
+            "tool_results_dir": "/root/.claude/tmp/claude-0/-root-claude-config-work/957710ab-0413-430a-96b3-d33546d2951c/scratchpad/cfg-9357cf6d/projects/-tmp-capture-cwd-o3-45mgz/a5914332-d847-4902-b3ca-ed9c099fe9ad/tool-results",
             "toolset": true,
             "live_edit": false,
             "live_doc_stream": false,
@@ -133,10 +133,10 @@ Rendered from `request.json` by `render_capture.py`. Tool definitions are one fi
   },
   "thread": {
     "type": "continue",
-    "previous_message_id": "msg_011Cfm9rBjznYUwhvxMS3NEj"
+    "previous_message_id": "msg_011CgNLZK3EhD6xgGYcudVcf"
   },
   "diagnostics": {
-    "previous_message_id": "msg_011Cfm9rBjznYUwhvxMS3NEj"
+    "previous_message_id": "msg_011CgNLZK3EhD6xgGYcudVcf"
   },
   "stream": true
 }
@@ -183,14 +183,14 @@ Names in request order; the definitions are under `tools/`.
 
 ## system[0]
 
-x-anthropic-billing-header: cc_version=2.1.289.767; cc_entrypoint=cli; cch=2dc4e; cc_prev_req=req_011Cfm9rBVd4MUPG5NLEZL45; cc_prompt_id=6415add0-55bf-475b-87bd-3bea701c77a5; cc_turn_origin=human; cc_prompt_index=1; cc_turn_index=1;
+x-anthropic-billing-header: cc_version=2.1.310.37a; cc_entrypoint=cli; cch=38d88; cc_prev_req=req_011CgNLZJk7mXMs41M8Efadu; cc_prompt_id=45a522f9-d698-496f-8650-a0e829367217; cc_turn_origin=human; cc_prompt_index=1; cc_turn_index=1;
 
-## messages[0] user, content[0] — {"tool_use_id": "toolu_01SShgbPvF1r6cTfAepWqG8P", "content": [{"type": "tool_reference", "tool_name": "ArtifactComments"}, {"type": "tool_reference", "tool_name": "ArtifactData"}, {"type": "tool_reference", "tool_name": "CronCreate"}, {"type": "tool_reference", "tool_name": "CronDelete"}, {"type": "tool_reference", "tool_name": "CronList"}, {"type": "tool_reference", "tool_name": "DesignSync"}, {"type": "tool_reference", "tool_name": "EndConversation"}, {"type": "tool_reference", "tool_name": "EnterPlanMode"}, {"type": "tool_reference", "tool_name": "EnterWorktree"}, {"type": "tool_reference", "tool_name": "ExitPlanMode"}, {"type": "tool_reference", "tool_name": "ExitWorktree"}, {"type": "tool_reference", "tool_name": "Monitor"}, {"type": "tool_reference", "tool_name": "NotebookEdit"}, {"type": "tool_reference", "tool_name": "PushNotification"}, {"type": "tool_reference", "tool_name": "RemoteTrigger"}, {"type": "tool_reference", "tool_name": "SendMessage"}, {"type": "tool_reference", "tool_name": "TaskStop"}, {"type": "tool_reference", "tool_name": "WebFetch"}, {"type": "tool_reference", "tool_name": "WebSearch"}]}
+## messages[0] user, content[0] — {"tool_use_id": "toolu_01TETt53te3vgTrh2NpephgA", "content": [{"type": "tool_reference", "tool_name": "ArtifactComments"}, {"type": "tool_reference", "tool_name": "ArtifactData"}, {"type": "tool_reference", "tool_name": "CronCreate"}, {"type": "tool_reference", "tool_name": "CronDelete"}, {"type": "tool_reference", "tool_name": "CronList"}, {"type": "tool_reference", "tool_name": "DesignSync"}, {"type": "tool_reference", "tool_name": "EndConversation"}, {"type": "tool_reference", "tool_name": "EnterPlanMode"}, {"type": "tool_reference", "tool_name": "EnterWorktree"}, {"type": "tool_reference", "tool_name": "ExitPlanMode"}, {"type": "tool_reference", "tool_name": "ExitWorktree"}, {"type": "tool_reference", "tool_name": "Monitor"}, {"type": "tool_reference", "tool_name": "NotebookEdit"}, {"type": "tool_reference", "tool_name": "PushNotification"}, {"type": "tool_reference", "tool_name": "RemoteTrigger"}, {"type": "tool_reference", "tool_name": "SendMessage"}, {"type": "tool_reference", "tool_name": "TaskStop"}, {"type": "tool_reference", "tool_name": "WebFetch"}, {"type": "tool_reference", "tool_name": "WebSearch"}]}
 
 ```json
 {
   "type": "tool_result",
-  "tool_use_id": "toolu_01SShgbPvF1r6cTfAepWqG8P",
+  "tool_use_id": "toolu_01TETt53te3vgTrh2NpephgA",
   "content": [
     {
       "type": "tool_reference",
@@ -278,4 +278,4 @@ Tool loaded.
 
 ## messages[1] system, content[0] — {"cache_control": {"type": "ephemeral", "ttl": "1h"}}
 
-<total_tokens>14966490 tokens left</total_tokens>
+<total_tokens>14964226 tokens left</total_tokens>

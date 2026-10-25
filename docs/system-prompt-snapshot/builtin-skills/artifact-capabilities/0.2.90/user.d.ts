@@ -46,7 +46,8 @@ declare namespace Claude {
     function isOwner(): Promise<boolean>;
 
     /** This person can publish new PAGE VERSIONS -- i.e. artifact publish would
-     *  not reject not_writer; read it up front instead of waiting for the
+     *  not reject not_writer (a page that declares `publish: false` rejects
+     *  not_granted for everyone); read it up front instead of waiting for the
      *  rejection. For `db` it is the `admin` level: gate the controls a
      *  declared rule reserves for `admin` on this. It does NOT mean "may
      *  write SHARED db documents" -- by default the `interact` level writes
@@ -67,7 +68,10 @@ declare namespace Claude {
      *  fallback, so offer no add-people control. The names:
      *    "data.write"      change the artifact's SHARED `db` documents
      *    "files.write"     publish the artifact's own files and page versions
-     *    "assets.write"    upload and delete assets
+     *    "assets.write"    upload, list and delete the artifact's assets (an
+     *                      Editor invited from outside the organization
+     *                      deletes only their own); a Contributor the page
+     *                      lets upload (see `assets`) does not hold it
      *    "people.add"      add a colleague to this artifact by name
      *  When the platform answers at all, any other string resolves false, so
      *  a page written for a name a later host adds simply does not offer that

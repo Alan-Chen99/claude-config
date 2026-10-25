@@ -13,8 +13,6 @@
 
 Removes an entire thread from the Trash in the authenticated user's Gmail account.
 
-If unsure of the thread ID, use the `search_threads` tool first.
-
 
 ## input_schema
 

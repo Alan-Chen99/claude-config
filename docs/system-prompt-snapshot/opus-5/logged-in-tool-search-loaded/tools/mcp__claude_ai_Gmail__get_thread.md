@@ -25,14 +25,13 @@ The optional `messageFormat` parameter controls the format of the messages retur
   "type": "object",
   "properties": {
     "messageFormat": {
-      "description": "Optional. Specifies the format of the messages returned within the thread. Defaults to `FULL_CONTENT`. We recommend using `PLAIN_TEXT` to prevent context exhaustion. Note: `MINIMAL` format returns `id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`. `METADATA_ONLY` format returns `id`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`. `FULL_CONTENT` returns `id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `attachment_ids`, `plaintext_body`, `html_body`, `attachments`. `PLAIN_TEXT` returns `id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `attachment_ids`, `plaintext_body`, `attachments` (without `html_body`). `RAW` format is not supported here.",
+      "description": "Optional. Specifies the format of the messages returned within the thread. Defaults to `FULL_CONTENT`. We recommend using `PLAIN_TEXT` to prevent context exhaustion. Note: `MINIMAL` format returns `id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `view_url` (if applicable). `METADATA_ONLY` format returns `id`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `view_url` (if applicable). `FULL_CONTENT` returns `id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `attachment_ids`, `plaintext_body`, `html_body`, `attachments`, `view_url` (if applicable). `PLAIN_TEXT` returns `id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `attachment_ids`, `plaintext_body`, `attachments`, `view_url` (if applicable, without `html_body`).",
       "enum": [
         "MESSAGE_FORMAT_UNSPECIFIED",
         "MINIMAL",
         "FULL_CONTENT",
         "METADATA_ONLY",
-        "PLAIN_TEXT",
-        "RAW"
+        "PLAIN_TEXT"
       ],
       "type": "string",
       "x-google-enum-descriptions": [
@@ -40,8 +39,7 @@ The optional `messageFormat` parameter controls the format of the messages retur
         "Returns `id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `view_url` (if applicable). Omits `plaintext_body`, `html_body`, `attachment_ids`, `attachments`.",
         "Returns all message fields (`id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `attachment_ids`, `plaintext_body`, `html_body`, `attachments`, `view_url`) if applicable.",
         "Returns `id`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`, `view_url` (if applicable). Omits `subject`, `snippet`, `plaintext_body`, `html_body`, `attachment_ids`, `attachments`.",
-        "Returns all information in `MINIMAL` plus `plaintext_body`, `attachment_ids`, and `attachments` (if applicable). If plain text body is not available, converts the HTML body to plain text/markdown. Omits `html_body`.",
-        "Returns the raw MIME message content."
+        "Returns all information in `MINIMAL` plus `plaintext_body`, `attachment_ids`, and `attachments` (if applicable). If plain text body is not available, converts the HTML body to plain text/markdown. Omits `html_body`."
       ]
     },
     "threadId": {

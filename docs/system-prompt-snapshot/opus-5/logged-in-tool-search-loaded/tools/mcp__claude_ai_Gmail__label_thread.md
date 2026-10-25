@@ -13,9 +13,7 @@
 
 Adds labels to an entire thread in the authenticated user's Gmail account. This operation affects all messages currently in the thread and any future messages added to it.
 
-If unsure of the thread ID, use the `search_threads` tool first.
-
-If unsure of a user label's ID, use the `list_labels` tool first to discover available labels and their IDs. To move a thread to Trash or mark it as Spam, please use the `trash_thread` or `mark_thread_spam` tool instead.
+If unsure of a user label's ID, use the `list_labels` tool first to discover available labels and their IDs. To move a thread to a different inbox category tab, add the target `CATEGORY_*` label (e.g. `CATEGORY_PERSONAL` for Primary); Gmail automatically removes the previous category. To move a thread to Trash or mark it as Spam, please use the `trash_thread` or `mark_thread_spam` tool instead.
 
 
 ## input_schema

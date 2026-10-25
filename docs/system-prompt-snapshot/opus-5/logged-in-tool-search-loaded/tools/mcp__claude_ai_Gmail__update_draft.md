@@ -80,7 +80,7 @@ Returns a Draft object with the `id`, `threadId`, and `viewUrl` fields populated
           "type": "string"
         },
         "filename": {
-          "description": "Optional. The name of the file to be attached, e.g. \"invoice.pdf\". For inline attachments, this is used for Content-ID generation. For regular attachments, `filename` is used to specify the filename to email clients. If not provided, the attachment may be received with no name.",
+          "description": "Optional. The name of the file to be attached, e.g. \"invoice.pdf\". Email clients show this name to recipients for both regular and inline attachments. If not provided, the attachment may be received with no name.",
           "type": "string"
         },
         "id": {
@@ -89,7 +89,7 @@ Returns a Draft object with the `id`, `threadId`, and `viewUrl` fields populated
           "type": "string"
         },
         "inline": {
-          "description": "Optional. If true, this attachment is handled as inline. An inline attachment is a content that is intended to be displayed within the body of an HTML email, as opposed to being listed as a separate file for download. If false or absent, defaults to false, and it's treated as a regular attachment.",
+          "description": "Optional. If `true`, this attachment is handled as inline. An inline attachment is content, such as an image, that is displayed within the body of an HTML email instead of being listed as a separate file for download. To display an inline attachment, add `` to `html_body`, where `` is the attachment's zero-based position in `attachments`, counting all attachments. For example, if `attachments` contains a PDF followed by an inline PNG, use `` for the PNG. Don't reference inline attachments by `filename`. Other images in `html_body` are removed. If `false` or absent, defaults to `false`, and it's treated as a regular attachment.",
           "type": "boolean"
         },
         "mimeType": {

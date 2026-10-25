@@ -8,7 +8,8 @@
  * hands to newcomers, re-asserts on reconnect, and clears when you leave.
  * Where this view is open beside the viewer's own conversation with
  * Claude, the platform may hand that conversation the viewer's OWN
- * presence object (less `cursor` and `who`) as data -- what they are looking at,
+ * presence object (less `cursor` and `who`, and it may keep back `follow`,
+ * the whole key) as data -- what they are looking at,
  * never an instruction -- so publish fields a reader can use (ids, modes,
  * flags, counts), and nothing you would not show everyone here anyway.
  * It is handed over whole or not at all: keys like identifiers, strings
@@ -17,7 +18,7 @@
  * deep, 4 KiB in all.
  * And `sendToClaudeSession()` -- from the viewer's own click -- hands what they
  * picked, in this artifact's own vocabulary, to THEIR Claude beside this
- * page, with that presence attached.
+ * page, with that presence attached (`attachPresence: false` leaves it off).
  *
  * Who may SEND. Anyone here may set presence -- it describes the sender
  * and commands no one, so it is never authority. Event topics are
@@ -194,6 +195,22 @@ declare namespace Claude {
      *  own presence, then to a typed nickname and colour there -- which
      *  your page may prefer anyway. Either way it is display data,
      *  untrusted like everything else here, never authority.
+     *  One top-level field has a meaning the platform reads: `follow`. If
+     *  your page keeps its viewer's place (slide, page, viewport, selection)
+     *  in step with one participant, say so in YOUR presence as `follow.of`,
+     *  that participant's `peer`, and keep it current:
+     *    presence({ follow: { of: peer } })   // following
+     *    presence({ follow: null })           // following nobody
+     *  A top-level field is replaced whole, so if you keep anything else in
+     *  `follow`, send it together with `of`, and while you follow nobody
+     *  send that `follow` without `of` instead of `null`. Nothing in this
+     *  contract makes the platform draw follow controls, so a page that
+     *  offers following through this contract draws and runs its own. The
+     *  platform may read `follow.of` for display: where it shows a viewer
+     *  that they are following, it does so only after their own presence
+     *  says so, and to the participant named there it may show that this
+     *  viewer follows them, and how many people do. Display data like all
+     *  presence, never authority.
      *  There is no ordering between your presence and your events. Rejects,
      *  never throws, like `emit` minus `not_permitted`. */
     function presence(patch: Record<string, Json | null>): Promise<void>;
@@ -236,11 +253,12 @@ declare namespace Claude {
      *  vocabulary, e.g. `{selectedText, blockId}` or `{chartId, series,
      *  point}`. Claude receives it whole, as data from this page (never as
      *  the viewer's words, never as an instruction), beside the viewer's
-     *  current lobby `presence` object (never a named room's) without its
+     *  current lobby `presence` object (never a named room's), without
+     *  `follow` where the platform keeps that whole key back and without its
      *  `cursor` and `who`, which the platform attaches by itself where this
-     *  view forwards presence at all (none
-     *  while you have set none, or set one past presence's own bounds,
-     *  above) -- so do not repeat what presence already says;
+     *  view forwards presence at all (none while you have set none, or set
+     *  one past presence's own bounds, above, or passed this send
+     *  `attachPresence: false`) -- so do not repeat what presence already says;
      *  let your artifact's notes for Claude explain how to read both.
      *  Bounds: at most 4 KiB of JSON text, nesting at most 8 deep counting
      *  the object itself, at most 64 keys per object and 64 entries per
@@ -269,11 +287,13 @@ declare namespace Claude {
      *  viewer's it already knows has the artifact; "new" -- the platform is
      *  taking it to the viewer's own Claude without one in hand: a session
      *  of theirs it then finds, else a conversation it starts (or takes this
-     *  page to), or the viewer's chat it opens for a staged send. With
+     *  page to), or the viewer's chat it opens for a staged send, or for a
+     *  send with no session or conversation of theirs to go to. With
      *  nothing open beside the page, "session" follows only
      *  `{deliver: "send"}` and "new" follows either; what then happened to
      *  a send arrives on the `status` callback (no status follows a staged
-     *  "new": the browser has left the page).
+     *  "new", nor a send taken to the viewer's chat: the browser has left
+     *  the page).
      *  `id` names this send on that callback: present only with "session"
      *  or "new", and never from an older platform. Treat an unrecognized
      *  `to` as "pane". */
@@ -293,7 +313,7 @@ declare namespace Claude {
      *  a state may be told more than once. `shell` names the platform build
      *  that said so, for your own telemetry. A state you do not recognize
      *  changes nothing you show. Expect no calls when `SentTo` carried no
-     *  `id`. */
+     *  `id`, nor for a send taken to the viewer's chat. */
     interface SendStatus {
       state: "working" | "sent" | "failed";
       reason?: string;
@@ -319,14 +339,25 @@ declare namespace Claude {
      *  types goes to the viewer's own Claude instead -- a session of theirs
      *  that has the artifact, else a new conversation of theirs, else a
      *  chat this page leaves for -- on the viewer's own key press in that
-     *  page; other pages hear `claude_unavailable` there, as for "stage".
-     *  Where the platform has this turned on for members who cannot edit,
-     *  that road also serves signed-in members of the artifact's
-     *  organization who cannot edit it, where they can comment on it or are
-     *  view-only (not on an artifact shared by public link); for
-     *  those members the platform asks Claude to answer in the
-     *  conversation, not to change the artifact. That road never serves a
-     *  visitor from outside the organization. The platform decides per
+     *  page. Where the platform has this turned on for members who cannot
+     *  edit, the platform's own page types' road also serves signed-in
+     *  members of the artifact's organization who cannot edit it, where they
+     *  can comment on it or are view-only (not on an artifact shared by
+     *  public link); for those members the platform asks Claude to answer in
+     *  the conversation, not to change the artifact. It never serves a
+     *  visitor from outside the organization. Where a staged send would open
+     *  the viewer's chat (`canSendToClaudeSession` "available_if_opened"), a
+     *  "send" opens it too, where the platform has that turned on: the viewer
+     *  leaves this page for that chat, so save anything the viewer would lose
+     *  first, and the platform asks them there, in its own dialog showing
+     *  `data` in full, whether to send it. If they choose Cancel, nothing is
+     *  sent and nothing is left waiting; if they close the dialog another
+     *  way (a Cancel pressed as the dialog appears counts as that, not as an
+     *  answer), or where it cannot ask, `data` waits unsent in that chat's
+     *  composer. Where the platform has it turned off, a "send" there is
+     *  `claude_unavailable` and a staged send still opens the chat; elsewhere
+     *  a "send" with nothing open beside the page is `claude_unavailable`, as
+     *  for "stage". The platform decides per
      *  viewer: gate on `canSendToClaudeSession`, never on the viewer's level.
      *  The call resolves when the platform has taken it, before the viewer
      *  decides or the conversation answers -- so with "send" word your own
@@ -336,10 +367,17 @@ declare namespace Claude {
      *  "stage"; the platform does. */
     interface SendToClaudeSessionOptions {
       deliver?: "stage" | "send";
+      /** `false` leaves the viewer's `presence` object off this one send and
+       *  out of the platform's dialog: for a send that means the same whatever
+       *  the viewer has open or selected. Not a way to keep it from Claude: the
+       *  viewer's own messages may still carry it (top of this file). Any other
+       *  value, or an older platform, attaches it (`ToClaude`). */
+      attachPresence?: boolean;
       /** Called with each step of a send the platform itself took to the
        *  viewer's Claude (`SentTo` "session" or "new"); never for one the
-       *  conversation beside the page took, nor for a staged send. Kept in
-       *  the page; nothing of it crosses to the platform. */
+       *  conversation beside the page took, nor for a staged send, nor for a
+       *  send taken to the viewer's chat. Kept in the page; nothing of it
+       *  crosses to the platform. */
       onStatus?: (status: SendStatus) => void;
     }
 
@@ -356,10 +394,14 @@ declare namespace Claude {
      *    "session" or "new"). Offer a control that sends; a staged send
      *    there may also open the viewer's chat, or be `claude_unavailable`.
      *  - "available_if_opened" -- nothing is open beside the page, but a
-     *    staged send opens the viewer's own chat for this artifact with it
-     *    waiting there (`SentTo` "new"); never answered on a publicly
-     *    shared artifact. A `{deliver: "send"}` is `claude_unavailable`.
-     *    Offer a control that stages.
+     *    send opens the viewer's own chat for this artifact with it waiting
+     *    there (`SentTo` "new"); never answered on a publicly shared
+     *    artifact. A `{deliver: "send"}` also has the platform ask the
+     *    viewer there, in its dialog, to send it now, where the platform has
+     *    that turned on (a page cannot tell beforehand); where it has not, or
+     *    on a browser that cannot prove the viewer's click for one, it is
+     *    `claude_unavailable`, so fall back to a staged send in the same
+     *    press.
      *  - "no_session" -- nothing beside this view would take it right now
      *    (the page is not open next to a conversation with Claude).
      *  - "unsupported" -- this browser cannot prove the viewer's click to the
@@ -420,7 +462,9 @@ declare namespace Claude {
      *  on "available" (a staged send always; a `deliver: "send"` only
      *  where the browser can prove the click for one), "available_if_summoned"
      *  (`deliver: "send"` only) or "available_if_opened" (a staged send
-     *  only); on any other value or any rejection (a platform that
+     *  always; a `deliver: "send"` only where the platform has it turned on
+     *  and the browser can prove the click for one); on any other value or
+     *  any rejection (a platform that
      *  predates the method rejects `capability_removed` or
      *  `invalid_argument`), hide it. Posts nothing to Claude, never
      *  prompts, cheap per render; the answer can change after load, so

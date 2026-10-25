@@ -9,7 +9,7 @@
  *     const { text, truncated } = await sample(input, options?)         // the whole answer
  *     const data = await sample.json(input, options?)                    // the answer parsed as JSON
  *     // input   = "prompt" | [{role: "user"|"assistant", content}, ...] ending on a user turn
- *     // options = { onText?({text, delta}), signal?, tools?, images?, modelTier?, model?, effort?, cache? }
+ *     // options = { onText?({text, delta}), signal?, tools?, images?, modelTier?, model?, effort?, fast?, cache? }
  *     // failure = one rejected {code, message, text?}; text = the part you may keep
  *     // manifest = capabilities: {sample: {}}, or capabilities: {sample: {images: true}} to pass images
  *
@@ -389,6 +389,22 @@ declare namespace Claude {
        * with a console warning.
        */
       effort?: SampleEffort;
+
+      /**
+       * Whether the platform may answer this call faster. Left out or
+       * `null`, it is `"auto"`, so most calls need not pass it.
+       * `"auto"`: the platform may answer faster when it expects that to use
+       * no more of the viewer's usage limits or paid extra usage than the
+       * same call at normal speed; otherwise the call runs at normal speed.
+       * No speed is promised, and the result does not say whether it was
+       * faster.
+       * `false`: asks for normal speed. Use it where a faster answer helps
+       * nobody, such as a prefetch or background work.
+       * The same model answers either way, and a cached answer is reused
+       * whatever `fast` was. Any other value, `true` among them, is ignored
+       * with a console warning, as if `fast` were left out.
+       */
+      fast?: "auto" | false;
 
       /**
        * Answer caching — ON by default. An answer this viewer already

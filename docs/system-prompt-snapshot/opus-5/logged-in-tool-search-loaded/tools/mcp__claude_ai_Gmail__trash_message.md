@@ -11,11 +11,11 @@
 
 ## description
 
-Moves a specific message to the Trash in the authenticated user's Gmail account.
+Moves a specific message to the Trash (soft delete) in the authenticated user's Gmail account.
 
-Use `trash_message` when targeting a specific message within a thread. To trash an entire thread or a single-message thread, prefer `trash_thread`.
+This is the default tool (along with `trash_thread`) when a user asks to 'delete', 'remove', or 'get rid of' a message without explicitly requesting permanent, irreversible deletion. Use `trash_message` when targeting a specific message within a thread. To trash an entire thread or a single-message thread, prefer `trash_thread`.
 
-To find the message ID, use tools like `search_threads` or `get_thread`. To find the draft message ID, use tools like `list_drafts`.
+To find the message ID, use the `get_thread` tool. To find the draft message ID, use tools like `list_drafts`.
 
 
 ## input_schema
