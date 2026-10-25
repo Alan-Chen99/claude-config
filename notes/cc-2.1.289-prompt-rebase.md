@@ -1,6 +1,7 @@
 # cc 2.1.269 → 2.1.289: `sys_prompt/` rebase, reviewed 2026-10-05/06 — one borrowed clause dropped upstream
 
 > **Dated record.** Claude Code **2.1.289**; the procedure is `docs/prompt-rebase.md`.
+> 2026-10-25: the opening line was adopted and the `<pasted_content>` bullet declined later; see `notes/cc-2.1.310-prompt-rebase.md`.
 
 Against a 2.1.269 tree (`archive 8606fb66 src`). Same 23 keys in the same order; four bodies moved,
 the rest byte-identical; all thirteen pins resolve.

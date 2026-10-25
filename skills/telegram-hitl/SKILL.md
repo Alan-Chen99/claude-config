@@ -72,9 +72,8 @@ Bash(command="python3 <skill dir>/listen.py 61 --wait", timeout=2147483647)
 ```
 
 It returns the next message(s); exit 1: `channel down`. Under `claude -p`
-(`$CLAUDE_CODE_SESSION_ATTENDED` is `0`) a turn end ends the process and
-monitor events are lost: arm no listener, wait only this way, and read with
-`listen.py 61 --peek` between steps.
+(`$CLAUDE_CODE_SESSION_ATTENDED` is `0`) the main thread's turn end kills a subagent's
+listener: a subagent arms none, waits this way, reads with `listen.py 61 --peek` between steps.
 
 ## Traps
 

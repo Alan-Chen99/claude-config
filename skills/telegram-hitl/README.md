@@ -111,7 +111,7 @@ Measured 2026-10-01 on Claude Code 2.1.269 unless marked; source read in
   after `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS`, default 600,000 ms, with
   `Background tasks still running <duration> after the last turn (<tasks>);
   stopping them.` on stderr (`src/chunk-j0tbz6ra.js:5630`,
-  `src/chunk-7rnqxvcm.js:3853`; the 2.1.289 wording was `… still running
+  `src/chunk-7rnqxvcm.js:3855`; the 2.1.289 wording was `… still running
   after Ns; terminating.`). `settings.json` sets `0`, which
   waits indefinitely, so a listener nobody re-arms holds only until its expiry.
 - Notifications queued while a tool call runs are delivered only if the process
@@ -138,10 +138,12 @@ Measured 2026-10-01 on Claude Code 2.1.269 unless marked; source read in
   `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP` turns it off).
 - A `-p` session's tool subprocesses see `CLAUDE_CODE_SESSION_ATTENDED=0` and
   `CLAUDE_CODE_ENTRYPOINT=sdk-cli`, against `1` and `cli` interactive — the
-  `-p` test `SKILL.md` names. Measured 2026-10-01 for a `Stop` hook (the first
+  `-p` marker `SKILL.md` names. Measured 2026-10-01 for a `Stop` hook (the first
   note) and for a Bash call: `echo $CLAUDE_CODE_SESSION_ATTENDED` under
   `claude -p --model haiku` printed `0`, and `1` in the interactive session
   that launched it. The variable is written from a separate predicate
   (`src/chunk-6h7ejyet.js:13267`, `src/chunk-4nzy53ma.js:300`) from the one the
   background deadline reads, and the two agree only by coincidence under `-p`:
-  the flag is a sound `-p` test for the skill, not a reading of that deadline.
+  the flag marks `-p`, not that deadline. On 2.1.310 a `-p` main thread's background
+  shell is held past the turn end (`"tengu_tidy_sloth"`, default on; `docs/subagent-backgrounding.md`),
+  a subagent's killed when the main thread finishes: the flag says `-p`, not which.

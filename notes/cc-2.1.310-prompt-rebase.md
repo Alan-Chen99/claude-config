@@ -1,6 +1,7 @@
 # cc 2.1.289 → 2.1.310: `sys_prompt/` rebase, reviewed 2026-10-25 — the opening line adopted
 
 > **Dated record.** Claude Code **2.1.310**; the procedure is `docs/prompt-rebase.md`.
+> 2026-10-25: the user declined the `<pasted_content>` bullet; it is now a divergence row in `docs/prompt-rebase.md`.
 
 Against the 2.1.289 tree (`af400306`) and the captures re-taken on 2.1.310 (`18e10549`).
 
