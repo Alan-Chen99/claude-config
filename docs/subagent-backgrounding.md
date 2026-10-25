@@ -40,7 +40,7 @@ completion starts a turn, as does a background shell unless `"tengu_tidy_sloth"`
 (`ppt()`, `src/chunk-j0tbz6ra.js:5633`; then it is killed after 5 s). At the ceiling (default
 600,000 ms of the main session idle, restarted whenever it has work) the agents are killed
 (`stopped`), with `Background tasks still running Ns after the last turn` on stderr
-(`src/chunk-7rnqxvcm.js:3853`). `0` turns the ceiling off (`x > 0 &&`, `:3833`). Probed
+(`src/chunk-7rnqxvcm.js:3855`). `0` turns the ceiling off (`x > 0 &&`, `:3833`). Probed
 2026-10-22, an agent busy 40 s: at `10000` it was `killed` and the run exited 0, no failure to
 a driver; at `0` the final turn delivered the report. The cost: a hung agent holds `-p`
 until an outer timeout: `PROMPT_TEST_TIMEOUT` in `scripts/prompt-test-cc.sh`, a year in

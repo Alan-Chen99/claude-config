@@ -365,7 +365,7 @@ extract_branch "$TARGET" "$FILE" | jq 'select(.type=="user") | .message.content'
 ## Timing and Concurrency
 
 **Citations in this file.** A bare `src/chunk-<hash>.js:<line>` is
-`/repos/claude-code-decompiled/src/`, the 2.1.289 decompile, and is current. Anything
+`/repos/claude-code-decompiled/src/`, the 2.1.310 decompile. Anything
 prefixed `claude-code-src/` is `/repos/claude-code-src/`, the **v2.1.88** sourcemap leak —
 readable TypeScript, four-plus versions stale, kept only where it names a shape the
 decompile does not. Never carry a `claude-code-src/` line number forward as current; chunk

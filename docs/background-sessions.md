@@ -1,6 +1,6 @@
 # Background Sessions (agent view / FleetView)
 
-Verified against claude-cli **2.1.289** in the decompile at
+Verified against claude-cli **2.1.310** in the decompile at
 `/repos/claude-code-decompiled`, plus one live check of the disable knob under
 2.1.269. Citations are `src/chunk-<hash>.js:<line>` there; hashes rotate every
 build and minified names are **per-file**, so the address is the `<file>:<line>`
@@ -47,7 +47,7 @@ job-dir and `adopt.json` writer at `:2857` → the respawn-argv builder at `:198
 `chunk-f3ak9604.js:403`) is **not** a handoff — it makes a fresh `claude` open
 the agent view instead of a REPL, moving no existing conversation.
 
-No timer, idle watcher or automatic handoff path exists in the 2.1.289 source,
+No timer, idle watcher or automatic handoff path exists in the 2.1.310 source,
 which does not settle it: under 2.1.235 six background jobs came out of one
 interactive session in an hour, three from one prompt, with no deliberate ←
 press reported. Unreproduced since, and the launcher disables the agent view, so
@@ -148,7 +148,7 @@ anything it drops). The daemon launches first from the dispatch record's
 `respawnFlags` for every later respawn (`:1731`), so `respawnFlags` is the
 authoritative record of what a respawn will use. One such value still on disk,
 from a session this repo's launcher started with `--system-prompt-file`
-(captured under 2.1.235; the 2.1.289 construction reproduces it, modulo an added
+(captured under 2.1.235; the 2.1.310 construction reproduces it, modulo an added
 `--effort <level>`):
 `["--reply-on-resume", "--permission-mode", "bypassPermissions", "--model", "opus"]`.
 `--dangerously-skip-permissions` reaches the fork only as `--permission-mode

@@ -51,18 +51,18 @@ Settings: [official OpenAI configuration reference](https://developers.openai.co
 the complete API request bodies Claude Code sends — every system block, every
 message, every tool definition — captured from live traffic through this
 repository's own MITM proxy ([`scripts/intercept/`](scripts/intercept/README.md)),
-one directory per model id, for claude-cli 2.1.269 (captured 2026-09-11).
+one directory per model id, for claude-cli 2.1.310 (captured 2026-10-25).
 `request.json` is the artifact of record; `prompt.md` and one file per tool
 under `tools/` are derived from it so that a release upgrade can be reviewed as
 `git diff`. The finding that reorganised the directory: the prompt is chosen per
 model id, not per version, and
 [no two of the five captured models receive the same one](docs/system-prompt-snapshot/what-the-model-gets.md)
-— opus-4-7 and sonnet-5 get the long-form body (8,702 and 8,745 system tokens),
-opus-5, fable-5 and opus-4-8 the compressed `# Harness` body (3,252, 3,556 and
-2,266). The 17 built-in skills' bodies and the files five of them extract, which
+— opus-4-7 and sonnet-5 get the long-form body (9,428 and 9,467 system tokens),
+opus-5, fable-5 and opus-4-8 the compressed `# Harness` body (3,974, 4,248 and
+2,952). The 17 built-in skills' bodies and the files five of them extract, which
 no ordinary capture records, are captured separately
 ([`builtin-skills/`](docs/system-prompt-snapshot/builtin-skills/README.md),
-533,724 characters and 114 files on 2.1.289). The proxy logs bodies only, never headers; it had to be
+548,533 characters and 141 files on 2.1.310). The proxy logs bodies only, never headers; it had to be
 taught pass-through streaming, because mitmproxy's default buffering withholds
 response headers past Claude Code's first-byte watchdog
 ([`notes/intercept-proxy-response-buffering.md`](notes/intercept-proxy-response-buffering.md),

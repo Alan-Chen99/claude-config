@@ -276,8 +276,8 @@ without them, leave the skill alone, or cc's `name-only` rendering states the ru
 
 ### `# Context management`: `before reasoning about what the summary says`
 
-Claude Code 2.1.289 re-sends no skill listing after a compaction, so the `resume-from-summary`
-description cannot fire where the skill matters most; this line is the trigger, and
+Before 2.1.304 no skill listing followed a compaction, so the `resume-from-summary` description
+could not fire where the skill matters most; this line is the trigger, and
 `skills/resume-from-summary/README.md` holds the measurements and the sizes. Each clause answers a
 pull seen in a trial: *even mid-task* — an automatic compaction keeps a verbatim tail, and the model
 resumed from its own tool result; *"Resume directly" does not waive it* — the summary's closing

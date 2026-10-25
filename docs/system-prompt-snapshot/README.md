@@ -165,7 +165,7 @@ memory line. Committed as captured.
 `builtin-skills/` holds what invoking each of the 17 built-in skills injects on 2.1.310
 (sonnet-5, 2026-10-25), 548,533 characters in all, and the 141 files five of them extract;
 the per-skill table, the extraction and the three capture conditions that change the result
-are in `builtin-skills/README.md`. The listing is 2.1.289's; `capture_skills.py` prunes a dropped skill's entry, body and files on a
+are in `builtin-skills/README.md`. The set of 17 is unchanged from 2.1.289; `capture_skills.py` prunes a dropped skill's entry, body and files on a
 full-roster run. A wrong condition produces a plausible short body rather than an error, so
 `capture_skills.py` refuses to write a body opening with harness text and
 `tests/test_builtin_skills.py` checks the committed files for the same thing: the first run

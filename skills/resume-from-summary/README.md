@@ -12,8 +12,7 @@ On 2.1.289 the description did not reach the main case: the skill listing was no
 a compaction. In the eight compacted sessions on this machine on 2026-10-11, every
 `compact_boundary` is followed by an `invoked_skills` attachment and no `skill_listing`, so no
 description was in context to match. 2.1.304 re-sends it: on 2.1.310 the listing skips only the
-skills named by `skill_listing` attachments after the last `compact_boundary` (`ks()` in
-`iBr()`, `Sending ${V.length} skills via attachment`), so the first post-boundary request carries
+skills named by `skill_listing` attachments after the last `compact_boundary` (`Sending ${V.length} skills via attachment`), so the first post-boundary request carries
 all of it — read in source, not yet seen in a transcript. That alone was not enough where it was
 tried: a resume re-sends the listing too, yet in one trial (Opus 5.5, effort `high`) the
 description did not fire: the model answered from the summary. Sessions without that prompt
