@@ -8,13 +8,16 @@
 > before reasoning about what the summary says, even mid-task; its "Resume directly" does not waive
 > it. When writing such a summary, make this invocation its first next step.
 
-The description alone does not reach the main case: Claude Code 2.1.289 does not re-send the
-skill listing after a compaction. In the eight compacted sessions on this machine on 2026-10-11,
-every `compact_boundary` is followed by an `invoked_skills` attachment and no `skill_listing`, so
-no description is in context to match. A resume does re-send the listing, yet in one trial
-(Opus 5.5, effort `high`) the description alone did not fire: the model answered from the
-summary. Sessions without that prompt (background sessions, other launchers) have only the
-description.
+On 2.1.289 the description did not reach the main case: the skill listing was not re-sent after
+a compaction. In the eight compacted sessions on this machine on 2026-10-11, every
+`compact_boundary` is followed by an `invoked_skills` attachment and no `skill_listing`, so no
+description was in context to match. 2.1.304 re-sends it: on 2.1.310 the listing skips only the
+skills named by `skill_listing` attachments after the last `compact_boundary` (`ks()` in
+`iBr()`, `Sending ${V.length} skills via attachment`), so the first post-boundary request carries
+all of it — read in source, not yet seen in a transcript. That alone was not enough where it was
+tried: a resume re-sends the listing too, yet in one trial (Opus 5.5, effort `high`) the
+description did not fire: the model answered from the summary. Sessions without that prompt
+(background sessions, other launchers) have only the description.
 
 The line is not what carries the skill on every model. The `SessionStart` hook
 (`agent-tools env-context`, `src/claude_config/env_context/render.py`, `resumption_section`)
@@ -239,8 +242,8 @@ header and the request to name where the summary and the transcript disagree.
 Re-check on a fresh compaction: the summary still names the transcript (`read the full
 transcript at:`) and still says "Resume directly", which the prompt line answers; the compaction
 request still carries the session's system prompt and still asks for a next-step section, which
-the summary-reminder clause leans on; and whether a `skill_listing` now follows the boundary, which
-puts the description back in reach of a session without the prompt. The hook section leans on
+the summary-reminder clause leans on; and that a `skill_listing` follows the boundary, which puts
+the description in reach of a session without the prompt. The hook section leans on
 the `SessionStart` payload's `source` (`compact`, `resume`) and `transcript_path` fields — the
 latter also the path the rendered `cc-pretty` command targets — and on
 cc delivering that hook's context with the first post-boundary request; check that a compaction's
