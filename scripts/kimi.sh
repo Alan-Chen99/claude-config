@@ -51,6 +51,13 @@ esac
 KIMI_CONTEXT_TOKENS="${KIMI_CONTEXT_TOKENS:-$MODEL_CONTEXT_TOKENS}"
 test -n "$KIMI_CONTEXT_TOKENS" ||
 	{ echo "kimi.sh: KIMI_MODEL='$KIMI_MODEL' has no known context size; set KIMI_CONTEXT_TOKENS alongside it" >&2; exit 1; }
+# Both window variables below take this number. CLAUDE_CODE_AUTO_COMPACT_WINDOW
+# also reads `k`/`M` suffixes (2.1.304), but CLAUDE_CODE_MAX_CONTEXT_TOKENS
+# parses an integer with `parseInt`, so `256k` is a 256-token context to it.
+[[ "$KIMI_CONTEXT_TOKENS" =~ ^[1-9][0-9]*$ ]] || {
+	echo "kimi.sh: KIMI_CONTEXT_TOKENS='$KIMI_CONTEXT_TOKENS' is not a plain token count; give it as digits alone, such as 262144" >&2
+	exit 1
+}
 
 export ANTHROPIC_BASE_URL="https://api.kimi.ai/coding/"
 
@@ -80,7 +87,10 @@ export CLAUDE_CODE_SUBAGENT_MODEL="$KIMI_MODEL"
 export CLAUDE_CODE_MAX_CONTEXT_TOKENS="$KIMI_CONTEXT_TOKENS"
 # The compaction window is capped at 1,000,000: above that Claude Code warns at
 # startup that it "is too large" and uses the cap, so 1048576 is clamped here.
-export CLAUDE_CODE_AUTO_COMPACT_WINDOW="$((KIMI_CONTEXT_TOKENS < 1000000 ? KIMI_CONTEXT_TOKENS : 1000000))"
+# The length test keeps a number past bash's 64-bit arithmetic from wrapping.
+COMPACT_WINDOW="$KIMI_CONTEXT_TOKENS"
+((${#COMPACT_WINDOW} <= 7 && COMPACT_WINDOW <= 1000000)) || COMPACT_WINDOW=1000000
+export CLAUDE_CODE_AUTO_COMPACT_WINDOW="$COMPACT_WINDOW"
 export CLAUDE_CODE_EFFORT_LEVEL="${CLAUDE_CODE_EFFORT_LEVEL:-high}"
 
 # claude.sh fixes the git identity against the ambient environment; this is the

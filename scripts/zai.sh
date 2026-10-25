@@ -64,6 +64,12 @@ else
 		echo "  gets Claude Code's 200,000-token default; set ZAI_CONTEXT_TOKENS alongside it." >&2
 		exit 1
 	}
+	# CLAUDE_CODE_AUTO_COMPACT_WINDOW also reads `k`/`M` suffixes (2.1.304), but
+	# this variable parses an integer with `parseInt`: `200k` is 200 tokens to it.
+	[[ "$ZAI_CONTEXT_TOKENS" =~ ^[1-9][0-9]*$ ]] || {
+		echo "zai.sh: ZAI_CONTEXT_TOKENS='$ZAI_CONTEXT_TOKENS' is not a plain token count; give it as digits alone, such as 200000" >&2
+		exit 1
+	}
 	export CLAUDE_CODE_MAX_CONTEXT_TOKENS="$ZAI_CONTEXT_TOKENS"
 fi
 
@@ -97,9 +103,13 @@ export CLAUDE_CODE_SUBAGENT_MODEL="$ZAI_MODEL"
 # (`src/chunk-j0tbz6ra.js:64296`) takes this variable ahead of a settings
 # value, clientdata, an experiment and the model defaults, and the effective
 # threshold is the smaller of it and the context window. cc caps it at
-# 1,000,000: the derived default sits exactly there, and a larger
-# ZAI_CONTEXT_TOKENS is capped rather than refused.
-export CLAUDE_CODE_AUTO_COMPACT_WINDOW="$ZAI_CONTEXT_TOKENS"
+# 1,000,000, where the derived default sits: above that it warns at startup
+# that the value "is too large" and uses the cap, so a larger
+# ZAI_CONTEXT_TOKENS is clamped here. The length test keeps a number past
+# bash's 64-bit arithmetic from wrapping.
+COMPACT_WINDOW="$ZAI_CONTEXT_TOKENS"
+((${#COMPACT_WINDOW} <= 7 && COMPACT_WINDOW <= 1000000)) || COMPACT_WINDOW=1000000
+export CLAUDE_CODE_AUTO_COMPACT_WINDOW="$COMPACT_WINDOW"
 
 # Z.ai's own Claude Code configuration raises the per-request timeout to this,
 # from cc's 600,000 ms default. cc applies no ceiling of its own, so the number
