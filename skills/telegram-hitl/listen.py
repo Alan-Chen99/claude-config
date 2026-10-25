@@ -21,7 +21,8 @@ so the human and the listener agree on what is unread.
 `--wait` is the same reader run as a foreground Bash call: it returns on the
 first pass that delivers, with the messages as its output, so the answer is
 the tool result and the call is what holds the process — a `claude -p` turn
-cannot end while a tool runs, where a background task is killed as it does.
+cannot end while a tool runs, where a background task is killed as it does
+(2.1.310 holds a main-thread one, README.md).
 It exits 1 on `channel down`, for the caller to fix before waiting again.
 `--peek` is one pass and a return, for a `-p` session between steps, where a
 monitor's events during a foreground call are dropped at the turn end.

@@ -1,5 +1,12 @@
 # A subagent's foreground call is deaf until it returns, and only an interactive subagent survives ending its turn to wait
 
+> **2.1.310 (measured 2026-10-25).** Finding 6 still holds: under `claude -p` a subagent's
+> background shell was `killed` 8 s after the main thread's last `result`, as the new held-shell
+> test covers only `e.agentId === void 0`. A `-p` main thread's own shell now holds the process
+> and starts a turn when it ends (`docs/subagent-backgrounding.md`), so `agent-tools wait`
+> for a main thread is told only when its result carries `backgroundEndsWithFinalResponse`.
+> Everything below is 2.1.289's and stands as measured.
+
 Investigated 2026-10-24 (UTC) on Claude Code **2.1.289**, `CLAUDE_CODE_FORK_SUBAGENT=1`, sonnet
 unless named. P1-P4, P9 and P12 ran under `claude -p`; P5-P6 interactive; P7, P8, P10 and P11 under
 `agent-tools claude -p` from this checkout. Led to `agent-tools wait` and the "Waiting in the turn"

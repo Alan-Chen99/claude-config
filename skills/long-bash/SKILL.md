@@ -13,11 +13,12 @@ but you spent the whole window arriving where backgrounding would have put you
 at once. So when the duration is unclear, background it: a fast command costs
 one extra notification, a slow one costs the window.
 
-How you wait depends on what wakes you. An interactive main thread ends its
-turn and the completion notification re-invokes it. A subagent, or a main
-thread under `claude -p` (`$CLAUDE_CODE_SESSION_ATTENDED` is `0`), stays in its
-turn: launch the same way, then read **Waiting in the turn**. Unsure, stay in
-the turn: a needless wait costs minutes, a wrong turn end can cost the job.
+How you wait depends on what wakes you. A main thread ends its turn and the
+completion notification re-invokes it, under `claude -p` too. A subagent, or a
+main thread whose launch result says the job is terminated when you give your
+final response, stays in its turn: launch the same way, then read **Waiting in
+the turn**. Unsure, stay in the turn: a needless wait costs minutes, a wrong
+turn end can cost the job.
 
 The rest is **one example, not a procedure**. Take the shape; decide the details
 at runtime.
@@ -36,7 +37,7 @@ Command running in background with ID: bni9g1bct. Output is being written to:
 interim output, use Read on that file path.
 ```
 
-## Wait (interactive main thread)
+## Wait (main thread)
 
 End the turn. Do unrelated work or stop — either way the notification
 re-invokes you, and calling `agent-tools ps` cannot make it arrive sooner.
@@ -69,14 +70,15 @@ destroys the work, a wrong re-arm costs one turn.
 
 ## Waiting in the turn
 
-Ending your turn is no way to wait here. Under `claude -p` the process exits
-when the main thread's turn ends, killing the job, and holds a subagent's job
-notification until then. An interactive subagent is resumed when its job ends,
-but each turn end also hands its caller an interim report and a turn.
+Ending your turn is no way to wait here. Under `claude -p` a subagent's job
+is killed when the main thread's turn ends, and holds its notification until
+then. An interactive subagent is resumed when its job ends, but each turn end
+also hands its caller an interim report and a turn.
 
 So call `agent-tools wait` on the output file the launch printed (a call moved
 to the background at its timeout prints one too) until it reports the job
-ended: `Bash`, `timeout: 300000`,
+ended. Each call is one blocking wait, not the polling of the file the Bash
+tool warns against: `Bash`, `timeout: 300000`,
 `description: "wait for cargo build"`:
 
 ```

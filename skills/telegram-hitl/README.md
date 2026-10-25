@@ -20,7 +20,8 @@ design is current.
 ## The wait
 
 A `claude -p` turn end is the process end unless a tool call is still running,
-a `Monitor` is armed or a background agent runs (`docs/subagent-backgrounding.md`). `--wait` is the first: one Bash call that returns
+a `Monitor` is armed, a background agent runs or (2.1.310) a main-thread
+background shell does (`docs/subagent-backgrounding.md`). `--wait` is the first: one Bash call that returns
 when the log has something for the session. Its ceiling is the Bash tool's
 `timeout`, clamped to `Math.min(timeout || BASH_DEFAULT_TIMEOUT_MS,
 max(600000, BASH_MAX_TIMEOUT_MS))` — 120 s and 10 min by default — so
@@ -28,7 +29,8 @@ max(600000, BASH_MAX_TIMEOUT_MS))` — 120 s and 10 min by default — so
 of the one `setTimeout` the harness arms, and leaves the default at 120 s for
 every other command; the skill's call passes that value, and the test pins it
 under the env value. At the deadline the command is auto-backgrounded, which
-under `-p` is killed at the turn end — a silent advance, which is why the
+under `-p` is killed at the turn end (on 2.1.310 only in a subagent or with
+`"tengu_tidy_sloth"` off) — a silent advance, which is why the
 ceiling is 24.8 days rather than a day. A command that reaches the background
 by any route runs there under a second deadline — 30 minutes by default, at
 most `max(2 h, BASH_MAX_TIMEOUT_MS)` — which the same env value raises to the
@@ -65,7 +67,11 @@ Measured 2026-10-01 on Claude Code 2.1.269 unless marked; source read in
 - A Bash `run_in_background` task is **killed** when a `-p` turn ends
   (`task_updated status: killed`), in the wind-down that runs once input is
   closed and nothing is queued (`src/chunk-7rnqxvcm.js:3702`, `:3726`). A
-  background wait cannot hold an iteration.
+  background wait cannot hold an iteration. 2.1.310 changes this for a
+  main-thread shell (measured 2026-10-25): behind `"tengu_tidy_sloth"`, on by
+  default, it holds the process and its end starts a turn (`e.agentId === void
+  0` in the held-shell test); a subagent's is still killed. The foreground
+  `--wait` stands: it holds under either gate state and in a subagent.
 - A foreground Bash call **holds** a `-p` process until it returns — 150 s and
   661 s measured, zero model turns, `tool_progress` every 30 s — bounded only
   by its `timeout`. The wind-down runs between turns, so it never sees one.

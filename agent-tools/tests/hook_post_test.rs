@@ -193,11 +193,13 @@ fn explicit_run_in_background_is_not_reported_as_timeout() {
 /// this literal shares an emit site with the `BACKGROUNDED:` prefix — so read the
 /// name back out of the emitted text and resolve it against `skills/`.
 /// An agent nothing re-invokes is told how to wait inside its turn, with a call
-/// it can copy: a subagent, and a `-p` main thread (`CLAUDE_CODE_SESSION_ATTENDED=0`).
-/// An interactive main thread, which the completion notification re-invokes, is not.
+/// it can copy: a subagent, and a main thread whose job cc says ends with its
+/// final response (`backgroundEndsWithFinalResponse`, a `-p` main thread with
+/// `"tengu_tidy_sloth"` off). A main thread the completion re-invokes is not,
+/// the `-p` one 2.1.310 holds for its shell included.
 #[test]
 fn only_an_agent_nothing_re_invokes_is_told_to_wait_in_its_turn() {
-    let notice = |agent: Option<&str>, attended: &str| {
+    let notice = |agent: Option<&str>, ends: bool| {
         let home = tempfile::tempdir().unwrap();
         let mut body = serde_json::json!({
             "session_id": "sid",
@@ -206,13 +208,16 @@ fn only_an_agent_nothing_re_invokes_is_told_to_wait_in_its_turn() {
             "tool_use_id": "tuid",
             "tool_response": {"backgroundTaskId": "bt-sub"}
         });
+        if ends {
+            body["tool_response"]["backgroundEndsWithFinalResponse"] = serde_json::json!(true);
+        }
         if let Some(a) = agent {
             body["agent_id"] = serde_json::json!(a);
         }
         let mut c = agent_tools()
             .arg("hook-post")
             .env("HOME", home.path())
-            .env("CLAUDE_CODE_SESSION_ATTENDED", attended)
+            .env("CLAUDE_CODE_SESSION_ATTENDED", "0")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -224,14 +229,15 @@ fn only_an_agent_nothing_re_invokes_is_told_to_wait_in_its_turn() {
         let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
         v["hookSpecificOutput"]["additionalContext"].as_str().unwrap().to_string()
     };
-    for (agent, attended, who) in [(Some("a1"), "1", "as a subagent"), (Some("a1"), "0", "as a subagent"), (None, "0", "under `claude -p`")] {
-        let n = notice(agent, attended);
+    for (agent, ends, who) in [(Some("a1"), false, "as a subagent"), (Some("a1"), true, "as a subagent"), (None, true, "under `claude -p`")] {
+        let n = notice(agent, ends);
         assert!(n.starts_with("BACKGROUNDED: Command was backgrounded."), "{n}");
         assert!(n.contains(&format!("To wait for it {who}, stay in your turn")), "{n}");
         assert!(n.contains("`agent-tools wait <its output file>`"), "{n}");
         assert!(n.contains("`timeout: 300000`"), "{n}");
     }
-    let main = notice(None, "1");
+    // `CLAUDE_CODE_SESSION_ATTENDED=0` (a `-p` session) no longer decides it.
+    let main = notice(None, false);
     assert!(!main.contains("agent-tools wait"), "{main}");
 }
 

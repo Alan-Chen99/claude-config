@@ -263,7 +263,8 @@ enum Cmd {
     /// Block until a job ends or --max seconds pass, and print where each
     /// stands: the background task output files given, or else this agent's
     /// runs through `agent-tools run`. For an agent no notification
-    /// re-invokes: a subagent, or a `claude -p` main thread. Exits 0 either
+    /// re-invokes: a subagent, or a main thread told its job ends with its
+    /// final response (`claude -p` with `"tengu_tidy_sloth"` off). Exits 0 either
     /// way, 1 when there is nothing to wait on. Give the Bash call a
     /// `timeout` above --max, or it is moved to the background at the
     /// default 120 s.

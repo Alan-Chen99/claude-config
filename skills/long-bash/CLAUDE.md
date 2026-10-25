@@ -20,8 +20,10 @@ not: a new step has to carry a fixed fact, or it is prose paid for on every auto
 The fork on what wakes the reader sits above the example because it changes the whole wait for
 a subagent; with the carve-out at the bottom (2026-09-21) a subagent planned a background wait
 from the example before reaching the bullet that voided it. "Waiting in the turn" is the
-subagent and `claude -p` path: `agent-tools wait` in bounded calls, not a turn end, because a
-`-p` turn end loses the job and an interactive one wakes the caller per turn end. Evidence,
+subagent path: `agent-tools wait` in bounded calls, not a turn end, because a `-p` subagent's
+turn end loses the job and an interactive one wakes the caller per turn end. A `-p` main thread
+took it too until 2.1.310 held the process for its shell (`"tengu_tidy_sloth"`); it still does
+when the launch result says the job ends with the final response, the gate's off state. Evidence,
 cache arithmetic and probe shape: `notes/cc-2.1.289-subagent-waits.md`.
 
 ## Measured, Claude Code 2.1.269 (2026-09-21) unless dated
@@ -47,6 +49,11 @@ cache arithmetic and probe shape: `notes/cc-2.1.289-subagent-waits.md`.
 - 2026-10-24, 2.1.289: subagents cache for 5 minutes; a message or its own job's end reaches
   a subagent only when its current tool call returns; ending its turn with a job running keeps
   an interactive subagent (resumed by the job, and by a message) and loses a `-p` one's job.
+- 2026-10-25, 2.1.310: a `-p` main thread's background shell holds the process and its end
+  starts a turn (a 25 s `sleep`, exit at 29 s, two `result`s); a `-p` subagent's shell was
+  `killed` 8 s after the main thread's last `result`. cc's interactive Bash text says "do not
+  poll its output file"; `agent-tools wait` is one blocking call per round, which the skill
+  names so the two do not read as conflicting.
 
 ## Cut deliberately — do not re-add without a fact it carries
 

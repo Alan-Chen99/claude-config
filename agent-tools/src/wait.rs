@@ -23,7 +23,9 @@ const TAIL_BYTES: u64 = 256;
 /// print where each stands. Exits 0 either way; the first line says which.
 ///
 /// The caller is an agent nothing re-invokes when a background shell ends: a
-/// subagent, or a `claude -p` main thread. A subagent's prompt cache lives 5
+/// subagent, or a main thread whose job ends with its final response (a
+/// `claude -p` one, which 2.1.310 re-invokes unless `"tengu_tidy_sloth"` is
+/// off). A subagent's prompt cache lives 5
 /// minutes, and a message to it is delivered only when its current tool call
 /// returns, so one bounded call per tool round keeps both working
 /// (`notes/cc-2.1.289-subagent-waits.md`).
