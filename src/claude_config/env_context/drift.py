@@ -22,7 +22,7 @@ markdown-parser regexes and HTTP/2 error strings and not one env field.
 What this check is worth, re-derived on 2.1.289: less than the 2.1.269 pass
 assumed, and the limit is now measured rather than inferred. That pass
 reasoned that the field templates cluster because one function emits all of
-them (`sEn`, chunk-wgfrtm7w.js:4662). They do in the *source* copy the binary
+them (`yao`, chunk-j0tbz6ra.js:3536). They do in the *source* copy the binary
 also embeds, 104 MB further on, but the string table is a deduplicated pool
 in emission order, not source order: on 2.1.289 the window holds the primary
 directory, the git-repo flag, both `Additional working directories

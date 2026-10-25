@@ -677,8 +677,8 @@ def test_the_block_states_nothing_cc_already_states() -> None:
     assert "powered by the model" not in text
     # `Shell:` unqualified is cc's spelling; this block must not use it.
     assert " - Shell:" not in text
-    # cc's own worktree block carries the stash caution (`OQe`,
-    # chunk-wgfrtm7w.js:4552), so the supplement's worktree line names only
+    # cc's own worktree block carries the stash caution (`Xwt`,
+    # chunk-j0tbz6ra.js:3409), so the supplement's worktree line names only
     # the checkout path.
     linked = render.sections(_facts(worktree_common_dir="/repos/claude-config/.git"))
     assert "git stash" not in linked

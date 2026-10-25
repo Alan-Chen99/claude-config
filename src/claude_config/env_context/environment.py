@@ -1,10 +1,10 @@
 """Machine facts for the env block.
 
 Claude Code's own env block reports `$SHELL`, falling back to the literal
-string `unknown` (`ZTn()`, chunk-wgfrtm7w.js:4589, whose win32 arm now reads
-`PowerShell (primary); ${vGn}.` from the fragment at :4548). That is not the
+string `unknown` (`uao()`, chunk-j0tbz6ra.js:3450, whose win32 arm now reads
+`PowerShell (primary); ${vGn}.` from the fragment at :3405). That is not the
 shell it runs commands with: the Bash tool resolves one independently
-(`UXn()`, chunk-wgfrtm7w.js:37080, which logs
+(`yyi()`, chunk-j0tbz6ra.js:126874, which logs
 `is not a valid bash/zsh path, falling back to detection`) and exports it.
 `resolve_shell` mirrors the Bash tool, so the reported shell is the one Bash
 tool commands execute under.
@@ -126,8 +126,8 @@ def clock_line() -> str:
 
 
 def _executable(path: str) -> bool:
-    """Whether `path` names something runnable, mirroring `HAe()`,
-    chunk-wgfrtm7w.js:37067 -- an `X_OK` access check, then the candidate run
+    """Whether `path` names something runnable, mirroring `kot()`,
+    chunk-j0tbz6ra.js:126860 -- an `X_OK` access check, then the candidate run
     with `["--version"]` under `timeout: 1000`.
 
     The access check answers for a real path; cc falls back to running the
@@ -152,9 +152,9 @@ def resolve_shell(
     search_dirs: Sequence[str] | None = None,
     found: Callable[[str], str | None] = shutil.which,
 ) -> str:
-    """Return the shell the Bash tool will run, mirroring `UXn()`,
-    chunk-wgfrtm7w.js:37080 (search dirs
-    `["/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"]` at :37087).
+    """Return the shell the Bash tool will run, mirroring `yyi()`,
+    chunk-j0tbz6ra.js:126874 (search dirs
+    `["/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"]` at :126881).
 
     `found` looks up a shell name on PATH, defaulting to shutil.which. Tests
     pass a stub (e.g. `lambda _: None`) to keep the real PATH out of the result.
@@ -223,9 +223,9 @@ def worktree_common_dir(cwd: str) -> str | None:
     Asking git directly is what covers a worktree made by hand. Through
     2.1.235 that was the whole point: cc emitted its worktree warnings only
     for worktrees it had created itself. 2.1.269 broadened its own test to
-    `pP()`, now `Lz()` (chunk-s5xz0z8j.js:1976) -- git root's `.git` is a
-    `gitdir:` pointer whose `commondir` resolves elsewhere (`Me()`, :1888,
-    reached through `Es()`, :1928), which is the same question this asks of
+    `pP()`, now `Sq()` (chunk-dc0nzty2.js:2846) -- git root's `.git` is a
+    `gitdir:` pointer whose `commondir` resolves elsewhere (`Et()`, :2757,
+    reached through `oi()`, :2798), which is the same question this asks of
     git -- so the two agree on which directories count, and this no longer
     covers a case cc misses.
     """
@@ -249,8 +249,8 @@ class GitSnapshot(TypedDict):
     recent_commits: str
 
 
-# cc caps its own status output at 2000 characters (`Lxe`,
-# chunk-wgfrtm7w.js:29903, applied at :29939 with the message
+# cc caps its own status output at 2000 characters (`RYe`,
+# chunk-j0tbz6ra.js:55250, applied at :55318 with the message
 # `... (truncated because it exceeds 2k characters`); the marker is this
 # hook's own.
 STATUS_CAP = 2000
@@ -261,16 +261,16 @@ def git_snapshot(cwd: str) -> GitSnapshot | None:
     """Branch, `status --short` and the last five commits, or None outside a repo.
 
     cc sends the same facts as its `gitStatus` reminder, but that reminder
-    shares one gate with the Bash tool's `# Git` block -- `pDt()`,
-    chunk-wgfrtm7w.js:29957: `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, else the
+    shares one gate with the Bash tool's `# Git` block -- `Xpt()`,
+    chunk-j0tbz6ra.js:55336: `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, else the
     `includeGitInstructions` setting -- and settings.json turns that gate off
     so `sys_prompt/` is the only git policy the agent receives. A `-p`
     session never carried the reminder at all. This is the copy that survives
     both, and it re-fires with the hook on resume, `/clear` and compact where
     cc's is taken once. The git flags mirror cc's builder (`ZGn`,
-    chunk-wgfrtm7w.js:29905; the status flags are the `azn` array at :29904,
-    the log call at :29923, and the literal `This is the git status at the
-    start of the conversation` at :29944): `--no-optional-locks` so a
+    chunk-j0tbz6ra.js:55255; the status flags are the `jKo` array at :55251,
+    the log call at :55308, and the literal `This is the git status at the
+    start of the conversation` at :55323): `--no-optional-locks` so a
     snapshot never takes the index lock from a concurrent session,
     `--ignore-submodules=dirty`,
     five commits, the 2000-character cap. What it leaves out of cc's block:
@@ -281,11 +281,11 @@ def git_snapshot(cwd: str) -> GitSnapshot | None:
     cc's own copy is a `session_context` attachment field, never part of the
     `# Environment` block (the field list `gan` is
     `["userEmail", "attachedProject", "gitStatus", "perforceMode"]`,
-    chunk-wgfrtm7w.js:5010). 2.1.281 moved the git reads off the first frame,
-    which only changed *when* they run: the prefetch (`_Ce`, :29994) warms a
-    promise the prompt-context build awaits (chunk-xy34qwnq.js:1329), so the
-    section still rides the first request wherever `ZOr()` (:29986,
-    `!CLAUDE_CODE_REMOTE && pDt()`) allows it -- which here it does not.
+    chunk-j0tbz6ra.js:3885). 2.1.281 moved the git reads off the first frame,
+    which only changed *when* they run: the prefetch (`pWe`, :55376) warms a
+    promise the prompt-context build awaits (chunk-tqjdehqd.js:1625), so the
+    section still rides the first request wherever `vRo()` (chunk-j0tbz6ra.js:55368,
+    `!CLAUDE_CODE_REMOTE && Xpt()`) allows it -- which here it does not.
     """
     branch = _git(["branch", "--show-current"], cwd)
     if branch is None or branch.returncode != 0:

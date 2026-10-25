@@ -12,13 +12,13 @@ reminder anyway. `environment.git_snapshot` is the replacement, and it
 re-fires with this hook on resume, /clear and compact.
 
 That premise is half gone since 2.1.269, which moved the machine facts out
-of the system prompt and into an `environment` attachment (`UQe`,
-chunk-wgfrtm7w.js:4669, opening with `ASe`/`zTn` = `# Environment` and
-`You have been invoked in the following environment: ` at :4549-4550),
+of the system prompt and into an `environment` attachment (`nTt`,
+chunk-j0tbz6ra.js:3543, opening with `a$e`/`nao` = `# Environment` and
+`You have been invoked in the following environment: ` at :3406-3407),
 delivered in a system-reminder user message and gated only on
-CLAUDE_CODE_SIMPLE and on bare/isolated forks (`cKe`,
-chunk-wgfrtm7w.js:136318: `!oIe() && !e.bareFork && !e.isolatedContext`,
-`oIe()` being `a.CLAUDE_CODE_SIMPLE` at chunk-898k2gs2.js:263) -- not on the
+CLAUDE_CODE_SIMPLE and on bare/isolated forks (`Qrt`,
+chunk-j0tbz6ra.js:135221: `!wLe() && !e.bareFork && !e.isolatedContext`,
+`wLe()` being `i.CLAUDE_CODE_SIMPLE` at chunk-cn4azb2f.js:224) -- not on the
 system prompt being custom. So a --system-prompt-file session receives cc's
 own env block, verified in this repo's own session logs: the attachment
 appears in every session started after the upgrade and in none of the 1255
@@ -26,14 +26,18 @@ before it. render.py was trimmed to match on 2026-09-13 and the 2.1.289
 re-derivation confirms the trim; the block goes to **both** destinations
 with disjoint content, and what --system-prompt-file still discards is only
 the `# Environment` *system-prompt* section -- the model-family, CLI
-availability and fast-mode lines (`_go`, chunk-wgfrtm7w.js:59144, whose
-model-family sentence `Omo()` is at :58783), plus the separate
-model/knowledge-cutoff attachment text (chunk-wgfrtm7w.js:4870-4873). That
+availability and fast-mode lines (`Bur`, chunk-j0tbz6ra.js:90907, whose
+model-family sentence `Vdr()` is at :90471), plus the separate
+model/knowledge-cutoff attachment text (chunk-j0tbz6ra.js:3740-3743). That
 section is registered under the key `env_info_static` when the caller passes
 `excludeDynamicSections` and `env_info_simple` otherwise
-(chunk-wgfrtm7w.js:59100); the same flag is `_go`'s own argument, and the
+(chunk-j0tbz6ra.js:90857); the same flag is `Bur`'s first argument, and the
 only thing it changes is dropping the /fast bullet, so the two keys name one
-section with and without one line -- no machine fact rides on either.
+section with and without one line -- no machine fact rides on either. Since
+2.1.310 the key also takes a `:R` suffix, and `Bur`/`Vdr` a second argument,
+when the model's `leanRewrite` setting holds (`Ace`, chunk-cn4azb2f.js:129):
+that swaps the model-family sentence for another rendering, again no machine
+fact.
 
 What this hook supplies that cc does not: the shell the Bash tool actually
 runs (cc reports `unknown` here), the session id, the worktree's
@@ -46,8 +50,8 @@ than from the system prompt's tail or after a `Skill` call.
 
 Emitting the JSON envelope is not optional. Plain stdout from a SessionStart
 hook is injected as `SessionStart hook success: <text>`
-(chunk-wgfrtm7w.js:168530); only hookSpecificOutput.additionalContext is
-injected verbatim (chunk-wgfrtm7w.js:93182, the `case "SessionStart"` arm of
+(chunk-j0tbz6ra.js:204320); only hookSpecificOutput.additionalContext is
+injected verbatim (chunk-j0tbz6ra.js:140905, the `case "SessionStart"` arm of
 the hook-output normalizer). A crash here is safer than it looks: cc
 classifies a non-zero hook exit as `non_blocking_error`, which shows stderr
 to the *user* but maps to `[]` for the model, so failing loudly tells the
