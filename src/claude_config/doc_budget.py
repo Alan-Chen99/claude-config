@@ -70,11 +70,13 @@ def session_of(environ: Mapping[str, str]) -> str:
 
 
 def tracked_md(root: Path) -> list[str]:
-    """Tracked `.md` files, symlinks skipped, sorted."""
+    """Tracked `.md` files the worktree still holds, symlinks skipped, sorted:
+    the worktree is what is measured, so an unstaged deletion counts as made."""
     out = subprocess.run(["git", "ls-files", "-z"], cwd=root,
                          capture_output=True, text=True, check=True).stdout
     return sorted(f for f in out.split("\0")
-                  if f.endswith(".md") and not (root / f).is_symlink())
+                  if f.endswith(".md") and not (root / f).is_symlink()
+                  and (root / f).is_file())
 
 
 def frontmatter(text: str) -> dict[str, str]:

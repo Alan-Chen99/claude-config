@@ -359,13 +359,14 @@ def test_a_path_outside_the_root_is_refused_before_the_registry_is_read(tmp_path
     assert "is outside" in capsys.readouterr().err
 
 
-def test_a_tracked_file_missing_from_the_worktree_exits_2(tmp_path, capsys):
-    """Deleted and not staged: a boundary of the worktree, not a crash."""
-    root = repo(tmp_path, {"x/a.md": w(5), "x/b.md": w(5)})
+def test_a_tracked_file_deleted_from_the_worktree_is_not_counted(tmp_path, capsys):
+    """Deleted and not staged: the worktree is measured, so the deletion counts."""
+    root = repo(tmp_path, {"x/a.md": w(5), "x/b.md": w(6)}, BASE + "\n[groups.x]\nloaded = 'a'\n")
     (tmp_path / "x" / "a.md").unlink()
-    code, _, err = run(root, capsys=capsys)
-    assert code == 2
-    assert "a.md is tracked but missing from the worktree" in err
+    code, out, err = run(root, str(tmp_path / "x"), capsys=capsys)
+    assert code == 0, err
+    assert row(6, 100, 80, "x") in out
+    assert "x/a.md" not in out
 
 
 def test_a_root_that_is_not_a_git_checkout_exits_2(tmp_path, capsys):
