@@ -20,7 +20,10 @@ const POLL: Duration = Duration::from_secs(1);
 /// Enough of a task output file's end to hold its trailer line.
 const TAIL_BYTES: u64 = 256;
 /// A 5-minute cache, or one whose lifetime the transcript does not show: the
-/// next request lands inside it with a minute to generate it.
+/// next request lands inside it with a minute to generate it. Held for the
+/// whole wait, past the point where the wakes have cost more than one rebuild:
+/// measured waits end too soon for a cold wait after it to pay
+/// (`notes/cc-2.1.310-subagent-wait-costs.md`, finding 6).
 const BOUND_5M: Duration = Duration::from_secs(240);
 /// A 1-hour cache: ten minutes spare, as `scripts/cache-keepalive` takes.
 const BOUND_1H: Duration = Duration::from_secs(3000);

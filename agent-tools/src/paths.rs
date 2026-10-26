@@ -29,8 +29,11 @@ pub fn scope_dir(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
 /// Messages queued for an agent and not yet delivered, one
 /// `<rfc3339>\t<sender>` line each: `hook-post` appends when a SendMessage
 /// queues one and empties it when the agent's tool round ends, and
-/// `agent-tools wait` returns while it holds a line. A dot-file, so the
-/// directory walks that look for tool_use_id dirs pass over it.
+/// `agent-tools wait` returns while it holds a line. A sender's hook that
+/// lands after the recipient's round already delivered the message leaves a
+/// line that ends the recipient's next wait at once, announcing nothing new;
+/// that round empties it. A dot-file, so the directory walks that look for
+/// tool_use_id dirs pass over it.
 pub fn inbox_path(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
     Ok(scope_dir(session_id, agent_id)?.join(".inbox"))
 }

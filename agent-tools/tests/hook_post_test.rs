@@ -1328,7 +1328,6 @@ fn a_pin_id_that_is_not_an_agent_id_is_refused_loudly() {
     let home = tempfile::tempdir().unwrap();
     let (st, out, err) = run_post(home.path(), send_message_body(None, "x", queued("../escape")));
     assert!(st.success(), "the hook must not fail the call: {err}");
-    assert!(out.is_empty(), "{out}");
-    assert!(err.contains("is not an agent id"), "{err}");
+    assert!(out.contains("inbox update failed") && out.contains("is not an agent id"), "{out}");
     assert!(!home.path().join(".claude/agent-tools/escape").exists());
 }

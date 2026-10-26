@@ -3,7 +3,8 @@
 Investigated 2026-10-26 (UTC) on Claude Code **2.1.310**: the decompile read through two sonnet
 Explore agents, this machine's transcripts since 2026-10-24, and the proxy captures under
 `~/.claude/requests-log/`. Led to `agent-tools wait` returning on a queued message and sizing
-a subagent's bound to its cache, and to the "Several jobs" paragraph of `skills/long-bash/SKILL.md`.
+a subagent's bound to its cache but keeping a 5-minute one warm throughout, to `agents/gp-cache1h.md`'s
+thresholds, and to the "Several jobs" paragraph of `skills/long-bash/SKILL.md`.
 
 ## Findings
 
@@ -40,6 +41,18 @@ a subagent's bound to its cache, and to the "Several jobs" paragraph of `skills/
    Bash call's timeout is the model's `timeout`, else `BASH_DEFAULT_TIMEOUT_MS`, else 120000,
    `Math.min`'d to `BASH_MAX_TIMEOUT_MS`, else 600000 (`timeout_clamped`). A running call's own
    assistant record is not yet in the transcript, so neither is readable from inside it.
+6. **Past the break-even, a cold wait still does not pay on measured runs.** Arithmetic: a
+   4-minute wake reads the context at 0.1x, about 0.23x with the summary it triggers (0.11x
+   under `-p`, which has none), and a rebuild costs 1.25x, so 5 to 11 wakes cost one rebuild.
+   With the inbox bounding a message's delay, the loop past that point had no stated reason
+   left (`notes/cc-2.1.289-subagent-waits.md`, "What follows"). Replayed on the 241 runs of
+   consecutive `nothing ended` subagent waits here: switching after N warm wakes to one wait
+   up to its call's 58 minutes, which rebuilds when it returns, lost 0.66 to 2.94 M
+   input-price tokens over N = 4 to 12 at 0.11x, and at 0.23x gained 0.04 M at best (N = 8).
+   Only 21 runs passed 6 wakes, all in session `c6c0e3e0`, the longest 18 (72 minutes). The
+   same arithmetic prices a 1-hour cache (2x writes, 0.75x of the final context over 1.25x):
+   it pays once an agent waits over about 15 minutes in its turn (30 under `-p`; the agent's
+   description splits them at 20), or once idle over 5.
 
 ## Probe
 

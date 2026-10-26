@@ -8,7 +8,8 @@
 > Finding 1 is the default only: an agent whose frontmatter sets `experimental.cacheTtl: 1h`
 > (`agents/gp-cache1h.md`) wrote its cache at 1h (2.1.310, 2026-10-25). Finding 2 held on
 > 2.1.310, read in source too; `agent-tools wait` now returns on a queued message, and progress
-> summaries refresh a waiting subagent's cache (`notes/cc-2.1.310-subagent-wait-costs.md`).
+> summaries refresh a waiting subagent's cache (`notes/cc-2.1.310-subagent-wait-costs.md`). The
+> loop past 45-50 minutes is kept for the cost of measured runs, not a message's delivery (its finding 6).
 > Everything below is 2.1.289's and stands as measured.
 
 Investigated 2026-10-24 (UTC) on Claude Code **2.1.289**, `CLAUDE_CODE_FORK_SUBAGENT=1`, sonnet

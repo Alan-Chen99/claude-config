@@ -73,10 +73,8 @@ pub fn run() -> Result<()> {
     };
 
     // Independent of the report below, and like it never allowed to fail the
-    // tool call this hook answers.
-    if let Err(e) = update_inboxes(&input) {
-        eprintln!("agent-tools hook-post: inbox update failed: {e:#}");
-    }
+    // tool call this hook answers; its error goes to the agent with the rest.
+    let inbox_error = update_inboxes(&input).err();
 
     let mut parts: Vec<String> = Vec::new();
 
@@ -110,6 +108,14 @@ pub fn run() -> Result<()> {
                  run `agent-tools ps` for the current state"
             ));
         }
+    }
+
+    if let Some(e) = inbox_error {
+        eprintln!("agent-tools hook-post: inbox update failed: {e:#}");
+        parts.push(format!(
+            "agent-tools hook-post: inbox update failed ({e:#}), so `agent-tools wait` may \
+             miss a message queued for its agent or announce one already delivered"
+        ));
     }
 
     if parts.is_empty() {
