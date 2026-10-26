@@ -69,8 +69,9 @@ An agent definition file is a whole system prompt for its subagent, and Claude C
 into a map keyed by name where user and project definitions overwrite built-ins. A file in `agents/`
 named after a built-in — `Explore`, `general-purpose`, `Plan`, `claude-code-guide`,
 `statusline-setup` — therefore replaces Anthropic's prompt for that agent, and that copy needs
-rebasing exactly like `alan-default-next.md`. Every file in `agents/` today is a new name, so
-none is upstream-coupled; adding a shadow is what changes that.
+rebasing exactly like `alan-default-next.md`. No file in `agents/` shadows a built-in, but a copy
+under a new name is coupled the same way: each `gp-*.md` carries general-purpose's prompt
+verbatim, so `check-prompt-upstream.py` pins it beside the system prompt's passages.
 
 ## Deliberate divergences
 
