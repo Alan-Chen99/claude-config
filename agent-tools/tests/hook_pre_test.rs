@@ -20,9 +20,21 @@ fn agent_tools() -> Command {
 }
 
 fn run_hook_pre(home: &std::path::Path, input: &str) -> std::process::Output {
-    let mut child = agent_tools()
-        .arg("hook-pre")
+    run_hook_pre_env(home, input, &[])
+}
+
+/// The Bash timeout variables the hook reads are cleared first, so the
+/// session running the tests cannot leak its own into them.
+fn run_hook_pre_env(home: &std::path::Path, input: &str, env: &[(&str, &str)]) -> std::process::Output {
+    let mut c = agent_tools();
+    c.arg("hook-pre")
         .env("HOME", home)
+        .env_remove("BASH_DEFAULT_TIMEOUT_MS")
+        .env_remove("BASH_MAX_TIMEOUT_MS");
+    for (k, v) in env {
+        c.env(k, v);
+    }
+    let mut child = c
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -44,13 +56,14 @@ fn run_hook_pre(home: &std::path::Path, input: &str) -> std::process::Output {
 }
 
 /// Check that `cmd` matches the regex
-/// `^unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='[^']+'; <orig>$`
-/// without pulling in a regex dependency.
-fn assert_matches_envprefix(cmd: &str, orig: &str) {
+/// `^unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='[^']+'( AGENT_TOOLS_CALL_TIMEOUT_MS=<ms>)?; <orig>$`
+/// without pulling in a regex dependency; `timeout_ms` is the part in parentheses.
+fn assert_matches_envprefix(cmd: &str, orig: &str, timeout_ms: Option<u64>) {
     let prefix =
         "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; export AGENT_TOOLS_PARENT_DIR='";
     assert!(cmd.starts_with(prefix), "missing prefix; got: {cmd}");
-    let suffix = format!("'; {orig}");
+    let timeout = timeout_ms.map_or(String::new(), |ms| format!(" AGENT_TOOLS_CALL_TIMEOUT_MS={ms}"));
+    let suffix = format!("'{timeout}; {orig}");
     assert!(
         cmd.ends_with(&suffix),
         "missing suffix `{suffix}`; got: {cmd}"
@@ -82,7 +95,7 @@ fn bash_simple_command_is_wrapped_with_env_prefix() {
     let new_cmd = parsed["hookSpecificOutput"]["updatedInput"]["command"]
         .as_str()
         .unwrap();
-    assert_matches_envprefix(new_cmd, "echo hi");
+    assert_matches_envprefix(new_cmd, "echo hi", Some(120_000));
 }
 
 #[test]
@@ -247,7 +260,7 @@ fn preserves_timeout_description_run_in_background_in_updated_input() {
 
     // command rewritten with env prefix, original tail preserved
     let new_cmd = ui["command"].as_str().expect("command missing");
-    assert_matches_envprefix(new_cmd, "sleep 9999");
+    assert_matches_envprefix(new_cmd, "sleep 9999", None);
 
     // every other field from the original tool_input must round-trip
     assert_eq!(
@@ -272,4 +285,45 @@ fn preserves_timeout_description_run_in_background_in_updated_input() {
         Some(true),
         "unknown field dangerouslyDisableSandbox was dropped: {ui}"
     );
+}
+
+/// `agent-tools wait` reads the exported value to return before the call is
+/// moved to the background, so it must be the timeout Claude Code applies.
+#[test]
+fn a_foreground_bash_call_exports_the_timeout_claude_code_applies() {
+    let exported = |tool: &str, tool_input: serde_json::Value, env: &[(&str, &str)]| {
+        let home = tempfile::tempdir().unwrap();
+        let input = serde_json::json!({
+            "session_id": "sid-test",
+            "agent_id": "a1",
+            "tool_name": tool,
+            "tool_input": tool_input,
+            "tool_use_id": "tuid-t"
+        })
+        .to_string();
+        let out = run_hook_pre_env(home.path(), &input, env);
+        let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        let cmd = parsed["hookSpecificOutput"]["updatedInput"]["command"].as_str().unwrap().to_string();
+        let marker = "AGENT_TOOLS_CALL_TIMEOUT_MS=";
+        cmd.find(marker).map(|i| cmd[i + marker.len()..].split(';').next().unwrap().parse::<u64>().unwrap())
+    };
+    let wait = |timeout: Option<u64>| match timeout {
+        Some(t) => serde_json::json!({"command": "agent-tools wait", "timeout": t}),
+        None => serde_json::json!({"command": "agent-tools wait"}),
+    };
+    assert_eq!(exported("Bash", wait(None), &[]), Some(120_000));
+    assert_eq!(exported("Bash", wait(Some(300_000)), &[]), Some(300_000));
+    // Clamped to the 10-minute ceiling, raised by BASH_MAX_TIMEOUT_MS.
+    assert_eq!(exported("Bash", wait(Some(3_600_000)), &[]), Some(600_000));
+    assert_eq!(
+        exported("Bash", wait(Some(3_600_000)), &[("BASH_MAX_TIMEOUT_MS", "2147483647")]),
+        Some(3_600_000)
+    );
+    // A default above the ceiling raises the ceiling to it.
+    assert_eq!(exported("Bash", wait(None), &[("BASH_DEFAULT_TIMEOUT_MS", "900000")]), Some(900_000));
+    assert_eq!(
+        exported("Bash", serde_json::json!({"command": "x", "run_in_background": true, "timeout": 5000}), &[]),
+        None
+    );
+    assert_eq!(exported("Monitor", serde_json::json!({"command": "x", "timeout_ms": 5000}), &[]), None);
 }

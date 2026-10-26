@@ -13,12 +13,26 @@ pub fn state_root() -> Result<PathBuf> {
 /// Compute the parent dir for `agent-tools run` captures within this tool
 /// call. `agent_id == None` means main-thread.
 pub fn parent_dir_for(session_id: &str, agent_id: Option<&str>, task_id: &str) -> Result<PathBuf> {
+    Ok(scope_dir(session_id, agent_id)?.join(task_id))
+}
+
+/// One agent's scope: `<state root>/<session>[/<agent>]`. Its tool_use_id
+/// dirs, its ledger and its inbox live directly under it.
+pub fn scope_dir(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
     let mut p = state_root()?.join(session_id);
     if let Some(a) = agent_id {
         p.push(a);
     }
-    p.push(task_id);
     Ok(p)
+}
+
+/// Messages queued for an agent and not yet delivered, one
+/// `<rfc3339>\t<sender>` line each: `hook-post` appends when a SendMessage
+/// queues one and empties it when the agent's tool round ends, and
+/// `agent-tools wait` returns while it holds a line. A dot-file, so the
+/// directory walks that look for tool_use_id dirs pass over it.
+pub fn inbox_path(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
+    Ok(scope_dir(session_id, agent_id)?.join(".inbox"))
 }
 
 /// Read AGENT_TOOLS_PARENT_DIR env var as an absolute path.

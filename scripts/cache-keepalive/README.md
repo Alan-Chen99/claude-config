@@ -58,9 +58,9 @@ After a turn end in that case both are armed. In the one session where the mod r
 context (2026-10-24), no compaction followed; whether the fork makes it refuse
 (`newer_request`) was not traced.
 
-**Main thread only.** `$.model.fork` replays the main thread, and a subagent caches for 5
-minutes, so a waiting subagent keeps itself warm with `skills/long-bash`'s `agent-tools wait`
-loop. A subagent's `tool.call` and, since 2.1.299, its `turn.start` carry its `agentId` and pass
+**Main thread only.** `$.model.fork` replays the main thread, and a waiting subagent keeps
+itself warm with `skills/long-bash`'s `agent-tools wait` loop, which wakes it inside its cache's
+lifetime, 5 minutes unless its frontmatter sets an hour. A subagent's `tool.call` and, since 2.1.299, its `turn.start` carry its `agentId` and pass
 through. A stopped subagent's running shell is listed in `background_tasks` (2.1.289,
 `notes/cc-2.1.289-subagent-waits.md`): subagent activity neither disarms a refresh nor hides the
 work that arms one.

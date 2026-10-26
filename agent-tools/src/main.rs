@@ -260,19 +260,22 @@ enum Cmd {
         #[arg(long)]
         events: bool,
     },
-    /// Block until a job ends or --max seconds pass, and print where each
-    /// stands: the background task output files given, or else this agent's
-    /// runs through `agent-tools run`. For an agent no notification
-    /// re-invokes: a subagent, or a main thread told its job ends with its
-    /// final response (`claude -p` with `"tengu_tidy_sloth"` off). Exits 0 either
-    /// way, 1 when there is nothing to wait on. Give the Bash call a
-    /// `timeout` above --max, or it is moved to the background at the
-    /// default 120 s.
+    /// Block until a job ends, a message is queued for you, or --max seconds
+    /// pass, and print where each job stands: the background task output files
+    /// given, or else this agent's runs through `agent-tools run`. For an agent
+    /// no notification re-invokes: a subagent, or a main thread told its job
+    /// ends with its final response (`claude -p` with `"tengu_tidy_sloth"`
+    /// off). Exits 0 in each case, 1 when there is nothing to wait on.
     Wait {
-        /// Seconds to wait at most. 240 keeps a subagent's next request inside
-        /// its 5-minute prompt cache with a minute to spare for generating it.
-        #[arg(long, default_value_t = 240)]
-        max: u64,
+        /// Seconds to wait at most. Without it: 240, or 3000 for a subagent
+        /// whose transcript shows a 1-hour prompt cache; either way 20 s short
+        /// of the Bash call's own `timeout`.
+        #[arg(long)]
+        max: Option<u64>,
+        /// Print the bound in seconds this call would use, and any note on
+        /// it, then exit: what `tests/` checks the transcript reading through.
+        #[arg(long, hide = true)]
+        print_bound: bool,
         /// Task output files, as a background launch prints them after
         /// `Output is being written to:`
         files: Vec<std::path::PathBuf>,
@@ -741,8 +744,8 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        Cmd::Wait { max, files } => {
-            if let Err(e) = wait::run(std::time::Duration::from_secs(max), files) {
+        Cmd::Wait { max, print_bound, files } => {
+            if let Err(e) = wait::run(max.map(std::time::Duration::from_secs), print_bound, files) {
                 eprintln!("agent-tools wait: {e:#}");
                 std::process::exit(1);
             }

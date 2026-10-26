@@ -234,7 +234,8 @@ fn only_an_agent_nothing_re_invokes_is_told_to_wait_in_its_turn() {
         assert!(n.starts_with("BACKGROUNDED: Command was backgrounded."), "{n}");
         assert!(n.contains(&format!("To wait for it {who}, stay in your turn")), "{n}");
         assert!(n.contains("`agent-tools wait <its output file>`"), "{n}");
-        assert!(n.contains("`timeout: 300000`"), "{n}");
+        assert!(n.contains("`timeout: 3600000`"), "{n}");
+        assert!(n.contains("the only call in its message"), "{n}");
     }
     // `CLAUDE_CODE_SESSION_ATTENDED=0` (a `-p` session) no longer decides it.
     let main = notice(None, false);
@@ -1244,4 +1245,90 @@ fn a_dropped_collapsed_line_is_announced_rather_than_silent() {
         ctx.contains("still-running children changed, omitted for size"),
         "a dropped collapsed line must be announced, not silent:\n{ctx}"
     );
+}
+
+fn send_message_body(from: Option<&str>, to: &str, response: serde_json::Value) -> serde_json::Value {
+    let mut b = serde_json::json!({
+        "session_id": "sid",
+        "tool_name": "SendMessage",
+        "tool_input": {"to": to, "message": "stop"},
+        "tool_use_id": "tu-send",
+        "tool_response": response
+    });
+    if let Some(a) = from {
+        b["agent_id"] = serde_json::json!(a);
+    }
+    b
+}
+
+fn inbox(home: &std::path::Path, agent: &str) -> std::path::PathBuf {
+    home.join(".claude/agent-tools/sid").join(agent).join(".inbox")
+}
+
+/// The shape SendMessage returns for a running recipient (2.1.310), the
+/// tool's output object being what PostToolUse carries as `tool_response`.
+fn queued(id: &str) -> serde_json::Value {
+    serde_json::json!({
+        "success": true,
+        "message": format!("Message queued for delivery to {id} at its next tool round."),
+        "pin": {"id": id, "name": id, "ref": "2894bb"}
+    })
+}
+
+#[test]
+fn a_message_queued_for_a_running_agent_lands_in_its_inbox() {
+    let home = tempfile::tempdir().unwrap();
+    let (st, _, err) = run_post(home.path(), send_message_body(None, "a2", queued("a2")));
+    assert!(st.success(), "{err}");
+    let (st, _, err) = run_post(home.path(), send_message_body(Some("a1"), "a2", queued("a2")));
+    assert!(st.success(), "{err}");
+    let text = std::fs::read_to_string(inbox(home.path(), "a2")).unwrap();
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 2, "{text}");
+    assert!(lines[0].ends_with("\tmain"), "{text}");
+    assert!(lines[1].ends_with("\ta1"), "{text}");
+    chrono::DateTime::parse_from_rfc3339(lines[0].split('\t').next().unwrap()).unwrap();
+}
+
+/// A resumed agent starts its turn with the message, and `to: "main"` names no
+/// agent: neither leaves anything for a wait to announce.
+#[test]
+fn a_delivered_or_unaddressed_message_writes_no_inbox() {
+    let home = tempfile::tempdir().unwrap();
+    let resumed = serde_json::json!({
+        "success": true, "message": "Resuming agent a2b3c4d", "resumedAgentId": "a2b3c4d",
+        "pin": {"id": "a2b3c4d", "name": "a2b3c4d", "ref": "9d78a9"}
+    });
+    run_post(home.path(), send_message_body(None, "a2b3c4d", resumed));
+    let to_main = serde_json::json!({"success": true, "message": "Message queued for the main conversation's next turn."});
+    run_post(home.path(), send_message_body(Some("a1"), "main", to_main));
+    assert!(!inbox(home.path(), "a2b3c4d").exists());
+    assert!(!home.path().join(".claude/agent-tools/sid/.inbox").exists());
+}
+
+/// Claude Code delivers queued messages when the recipient's tool round ends.
+#[test]
+fn the_recipients_next_tool_call_empties_its_inbox() {
+    let home = tempfile::tempdir().unwrap();
+    run_post(home.path(), send_message_body(None, "a2", queued("a2")));
+    assert!(inbox(home.path(), "a2").exists());
+    let mut other = post_body("Read", "tu-other");
+    other["agent_id"] = serde_json::json!("a3");
+    run_post(home.path(), other);
+    assert!(inbox(home.path(), "a2").exists(), "another agent's call emptied it");
+    let mut own = post_body("Read", "tu-own");
+    own["agent_id"] = serde_json::json!("a2");
+    let (st, _, err) = run_post(home.path(), own);
+    assert!(st.success(), "{err}");
+    assert!(!inbox(home.path(), "a2").exists());
+}
+
+#[test]
+fn a_pin_id_that_is_not_an_agent_id_is_refused_loudly() {
+    let home = tempfile::tempdir().unwrap();
+    let (st, out, err) = run_post(home.path(), send_message_body(None, "x", queued("../escape")));
+    assert!(st.success(), "the hook must not fail the call: {err}");
+    assert!(out.is_empty(), "{out}");
+    assert!(err.contains("is not an agent id"), "{err}");
+    assert!(!home.path().join(".claude/agent-tools/escape").exists());
 }

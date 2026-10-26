@@ -78,7 +78,7 @@ also hands its caller an interim report and a turn.
 So call `agent-tools wait` on the output file the launch printed (a call moved
 to the background at its timeout prints one too) until it reports the job
 ended. Each call is one blocking wait, not the polling of the file the Bash
-tool warns against: `Bash`, `timeout: 300000`,
+tool warns against: `Bash`, `timeout: 3600000`,
 `description: "wait for cargo build"`:
 
 ```
@@ -90,11 +90,22 @@ nothing ended in 4m00s; still running:
   …/tasks/bni9g1bct.output: running, 88112B, last write 1s ago
 ```
 
-It returns when the job ends (`ended within …`) or after `--max` seconds, 240
-by default. The bound is the point: your prompt cache lives 5 minutes, and a
-message sent to you waits until your current tool call returns. Unrelated work
-between waits is fine. A `last write` age that keeps growing reads like `quiet`
-under Notification. With no file, it watches your `agent-tools run` jobs.
+It returns when the job ends (`ended within …`), when a message to you is
+queued (`a message from main, … arrives with this result`), or in time to keep
+your prompt cache: after 4 minutes, or 50 for a subagent whose cache lasts an
+hour. Wait no other way: a message reaches you only when your current call
+returns, and no other call returns for one. A background agent's report or a
+Monitor event also waits for the return: while either of yours runs, pass
+`--max 240`; otherwise leave `--max` out, as it replaces your cache's bound.
+Unrelated work between waits is fine. A `last write` age that keeps growing
+reads like `quiet` under Notification. With no file, it watches your
+`agent-tools run` jobs.
+
+Several jobs: pass every file. The first to end returns the call, and the
+next waits on the rest. To wait on a condition rather than a job (a file
+appearing, a remote job's state), launch an `until` loop the same way, exiting
+once it holds or once what it waits on has died, and pass its file with the
+others.
 
 A message lands after a tool result: `The coordinator sent a message…` is the
 main thread (reply `to: "main"`), `<agent-message from="…">` another agent
@@ -120,8 +131,10 @@ capture directory, and tells you nothing more. Report that directory, which
   command's first statement: `make && sleep 600` runs, `sleep 600` does not.
   Wait with the backgrounded timer, or in the turn with `agent-tools wait`,
   rather than routing around the block.
-- `agent-tools wait`'s Bash `timeout` must exceed its `--max`: at the default
-  120 s the call itself is moved to the background.
+- `agent-tools wait` returns 20 s inside its call's `timeout`: one under
+  `3020000` cuts an hour cache's 50-minute wait short.
+- A wait goes alone in its message: calls in one message run back to back, so
+  a message to you waits for the whole batch.
 - Under `claude -p`, a background launch is stopped after 30 minutes unless its
   Bash call sets a longer `timeout`: the notification reads `stopped after
   reaching its background time limit`, the file ends `[killed]`.

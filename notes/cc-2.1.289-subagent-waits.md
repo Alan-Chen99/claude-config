@@ -6,7 +6,9 @@
 > and starts a turn when it ends (`docs/subagent-backgrounding.md`), so `agent-tools wait`
 > for a main thread is told only when its result carries `backgroundEndsWithFinalResponse`.
 > Finding 1 is the default only: an agent whose frontmatter sets `experimental.cacheTtl: 1h`
-> (`agents/gp-cache1h.md`) wrote its cache at 1h (2.1.310, 2026-10-25).
+> (`agents/gp-cache1h.md`) wrote its cache at 1h (2.1.310, 2026-10-25). Finding 2 held on
+> 2.1.310, read in source too; `agent-tools wait` now returns on a queued message, and progress
+> summaries refresh a waiting subagent's cache (`notes/cc-2.1.310-subagent-wait-costs.md`).
 > Everything below is 2.1.289's and stands as measured.
 
 Investigated 2026-10-24 (UTC) on Claude Code **2.1.289**, `CLAUDE_CODE_FORK_SUBAGENT=1`, sonnet

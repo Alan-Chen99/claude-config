@@ -1,6 +1,6 @@
 ---
 name: gp-cache1h
-description: General-purpose's prompt and tools with a 1-hour prompt cache, not 5 minutes, on the dispatched or inherited model. For a subagent that will idle over 5 minutes, then continue (SendMessage, its own background job); cache writes cost 2x input, not 1.25x.
+description: General-purpose's prompt and tools with a 1-hour prompt cache, not 5 minutes, on the dispatched or inherited model. For a subagent that will wait over 5 minutes at a time on its own job or a message, in its turn (its `agent-tools wait` then wakes it every 50 minutes, not 4) or idle; cache writes cost 2x input, not 1.25x.
 experimental:
   cacheTtl: 1h
 ---

@@ -182,10 +182,12 @@ loaded = "on demand, when the skill is invoked"
 # upgrade's step 13. Capped just above their size: the next row added pays the
 # 20% cut or asks the user for a cap. 2026-10-25 (user:cf4624e1): the user
 # approved the 2.1.310 pass landing near 9,400 rather than the 8,240 an 80% cut
-# reaches, which would delete check-bearing rows; the cap stays.
+# reaches, which would delete check-bearing rows; the cap stays. 2026-10-26
+# (user:adab5a05): raised to 10,600 for the rows `agent-tools wait`'s inbox and
+# transcript read added at 10,400, the user choosing it over that same cut.
 [groups.".claude/skills/update-claude-code"]
-cap = 10300
-approved = "user:149edf87"
+cap = 10600
+approved = "user:adab5a05"
 
 # One reference per topic, read one at a time.
 [groups."skills/prompt-engineer/references"]

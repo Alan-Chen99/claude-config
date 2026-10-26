@@ -64,9 +64,15 @@ pub fn run() -> Result<()> {
         &input.tool_use_id,
     )?;
     let quoted_dir = shell_single_quote(&parent_dir.to_string_lossy());
+    // `agent-tools wait` sizes itself to return before this call's timeout
+    // moves it to the background, and nothing inside the call can see it.
+    let timeout = match foreground_bash_timeout_ms(&input.tool_name, &input.tool_input) {
+        Some(ms) => format!(" AGENT_TOOLS_CALL_TIMEOUT_MS={ms}"),
+        None => String::new(),
+    };
     let new_command = format!(
         "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; \
-         export AGENT_TOOLS_PARENT_DIR={quoted_dir}; \
+         export AGENT_TOOLS_PARENT_DIR={quoted_dir}{timeout}; \
          {command}",
     );
 
@@ -96,6 +102,28 @@ pub fn run() -> Result<()> {
     });
     println!("{}", serde_json::to_string(&out)?);
     Ok(())
+}
+
+/// The timeout Claude Code gives a foreground Bash call (2.1.310, the Bash
+/// tool's call, marker `key: "timeout_clamped"`): the model's `timeout`, else
+/// `BASH_DEFAULT_TIMEOUT_MS`, else 120000, clamped to the ceiling
+/// `BASH_MAX_TIMEOUT_MS`, else 600000, which never falls below that default
+/// (`function Rde(n = process.env)`, `var a = 120000, i = 600000;`). A
+/// background call and Monitor run under other limits and get `None`.
+fn foreground_bash_timeout_ms(tool_name: &str, tool_input: &serde_json::Value) -> Option<u64> {
+    if tool_name != "Bash" || tool_input["run_in_background"].as_bool() == Some(true) {
+        return None;
+    }
+    let env_ms = |name: &str| {
+        std::env::var(name)
+            .ok()
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .filter(|&ms| ms > 0)
+    };
+    let default = env_ms("BASH_DEFAULT_TIMEOUT_MS").unwrap_or(120_000);
+    let ceiling = env_ms("BASH_MAX_TIMEOUT_MS").unwrap_or(600_000).max(default);
+    let asked = tool_input["timeout"].as_f64().filter(|&ms| ms >= 1.0).map(|ms| ms as u64);
+    Some(asked.unwrap_or(default).min(ceiling))
 }
 
 fn print_allow_passthrough() {

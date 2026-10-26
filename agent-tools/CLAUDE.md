@@ -17,7 +17,7 @@ Rust binary behind every `agent-tools` subcommand: the Claude Code hooks, the wr
 | `run.rs`, `core.rs`, `capture.rs` | `run`'s scope, capture dir and `meta.json`; the spawn/tee/drain core it shares with `run-core`, merge rule included; one stream's tee | Changing how a wrapped run starts, captures or forwards |
 | `background.rs`, `signals.rs` | `--background`'s fork, `setsid` and readiness pipe (the only `unsafe`); signal forwarding | Changing detach or signals |
 | `status.rs`, `psrecord.rs`, `ps.rs`, `statusline.rs` | Status derived from disk, and its line; the record the json and statusline renderers share; `ps` | Changing a key, a line, or `ps` output |
-| `wait.rs` | `wait`: blocks until a job ends or `--max`, on task output files or the agent's own captures | Changing how a subagent waits (`skills/long-bash`) |
+| `wait.rs` | `wait`: blocks until a job ends, a message is queued for the agent (the inbox `hook_post.rs` keeps), or a bound sized to a subagent's cache lifetime and to its call's timeout (exported by `hook_pre.rs`), on task output files or the agent's own captures | Changing how a subagent waits (`skills/long-bash`) |
 | `hook_pre.rs`, `hook_post.rs`, `hook_prompt.rs` | `PreToolUse` rewrite into a wrapped run; the report on `PostToolUse`/`PostToolUseFailure` and `UserPromptSubmit` | Changing what a hook rewrites or reports |
 | `hook_subagent.rs`, `hook_provenance.rs`, `hook_input.rs` | `SubagentStart` Required-notes ask and `name-only` skill rule; the launch record the model never sees; hook payloads | Changing those hooks |
 | `ledger.rs`, `events.rs`, `meta.rs`, `paths.rs` | What the agent was last told; the `ps --events` log; `meta.json` and `escape_control`; state root and scope | Touching reporting state or a rendered field |

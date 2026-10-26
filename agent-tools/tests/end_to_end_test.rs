@@ -83,6 +83,8 @@ fn full_loop_hook_pre_run_hook_post_ps() {
             .env("HOME", home.path())
             .env("PATH", &path_with_bin)
             .env("CLAUDE_CONFIG_ROOT", worktree_root())
+            .env_remove("BASH_DEFAULT_TIMEOUT_MS")
+            .env_remove("BASH_MAX_TIMEOUT_MS")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -108,7 +110,7 @@ fn full_loop_hook_pre_run_hook_post_ps() {
 
     let expected_prefix = format!(
         "unset HTTPS_PROXY NODE_EXTRA_CA_CERTS NODE_OPTIONS; \
-         export AGENT_TOOLS_PARENT_DIR='{}'; ",
+         export AGENT_TOOLS_PARENT_DIR='{}' AGENT_TOOLS_CALL_TIMEOUT_MS=120000; ",
         expected_parent.display()
     );
     assert!(

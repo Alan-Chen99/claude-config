@@ -1,7 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use std::fs;
 use std::io::{Read, Write};
-use std::path::PathBuf;
 
 use crate::hook_input;
 use crate::paths;
@@ -72,6 +71,12 @@ pub fn run() -> Result<()> {
             return Ok(());
         }
     };
+
+    // Independent of the report below, and like it never allowed to fail the
+    // tool call this hook answers.
+    if let Err(e) = update_inboxes(&input) {
+        eprintln!("agent-tools hook-post: inbox update failed: {e:#}");
+    }
 
     let mut parts: Vec<String> = Vec::new();
 
@@ -214,17 +219,20 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
         None
     };
     // cc's Bash text tells an agent it will be notified not to poll the
-    // output file; one call blocking up to 4 minutes is the wait cc itself
-    // recommends where nothing notifies ("one foreground shell command that
-    // blocks until the output file shows what you need"), so the sentence
-    // names the difference rather than read as the polling cc forbids.
+    // output file; one blocking call is the wait cc itself recommends where
+    // nothing notifies ("one foreground shell command that blocks until the
+    // output file shows what you need"), so the sentence names the difference
+    // rather than read as the polling cc forbids. The wait sizes its own bound
+    // to a subagent's prompt cache and to the call's `timeout`, so the hour
+    // asked for here is a ceiling, not how long it blocks.
     let in_turn = who.map_or(String::new(), |who| {
         format!(
             " To wait for it {who}, stay in your turn: call `agent-tools wait <its output \
-             file>` with Bash `timeout: 300000` until it reports the job ended. Each call is \
-             one wait blocking until the job ends or 4 minutes pass, not the polling of the \
-             file the Bash tool warns against; the bound keeps your prompt cache warm and \
-             lets messages to you arrive; answer them before the next call."
+             file>` with Bash `timeout: 3600000` until it reports the job ended. Each call is \
+             one blocking wait, not the polling of the file the Bash tool warns against: it \
+             returns when the job ends, when a message to you is queued (answer it before \
+             the next call), or in time to keep your prompt cache warm. Make each wait the \
+             only call in its message: calls in one message run back to back."
         )
     });
     // "Backgrounded" (not "involuntarily backgrounded") — every cause but the
@@ -239,16 +247,46 @@ fn bg_notice(input: &hook_input::PostToolUseInput) -> Option<String> {
     ))
 }
 
-/// Scope dir = ~/.claude/agent-tools/<session_id>[/<agent_id>]. Tool_use_id
-/// dirs and the ledger live directly under this scope. Subagents have their
-/// own scope (their ledger is independent), so cross-agent leakage cannot
-/// occur even within one session.
-fn scope_dir(session_id: &str, agent_id: Option<&str>) -> Result<PathBuf> {
-    let mut p = paths::state_root()?.join(session_id);
-    if let Some(a) = agent_id {
-        p.push(a);
+/// Keeps `paths::inbox_path` true for `agent-tools wait`. Claude Code delivers
+/// what is queued for an agent when its tool round ends, which is when this
+/// hook runs for it, so its own inbox empties here. A SendMessage that left a
+/// message waiting for the recipient's next tool round adds a line to the
+/// recipient's: SendMessage never cuts a running call short, and the wait is
+/// how a subagent in one hears of it (`notes/cc-2.1.310-subagent-wait-costs.md`).
+fn update_inboxes(input: &hook_input::PostToolUseInput) -> Result<()> {
+    let own = paths::inbox_path(&input.session_id, input.agent_id.as_deref())?;
+    match fs::remove_file(&own) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e).with_context(|| format!("remove {}", own.display())),
     }
-    Ok(p)
+    if input.tool_name != "SendMessage" {
+        return Ok(());
+    }
+    let r = &input.tool_response;
+    // `Resuming agent <id>` starts the recipient's turn with the message in
+    // it, and `to: "main"` names no agent: neither leaves a message waiting.
+    let queued = r["message"]
+        .as_str()
+        .is_some_and(|m| m.starts_with("Message queued for delivery to "));
+    let (true, Some(to)) = (queued, r["pin"]["id"].as_str()) else {
+        return Ok(());
+    };
+    if to.is_empty() || !to.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+        bail!("SendMessage's pin.id {to:?} is not an agent id, so no inbox was written");
+    }
+    let path = paths::inbox_path(&input.session_id, Some(to))?;
+    let dir = path.parent().expect("an inbox path has its scope as parent");
+    fs::create_dir_all(dir).with_context(|| format!("create {}", dir.display()))?;
+    let mut f = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let from = input.agent_id.as_deref().unwrap_or("main");
+    writeln!(f, "{}\t{from}", chrono::Utc::now().to_rfc3339())
+        .with_context(|| format!("append to {}", path.display()))?;
+    Ok(())
 }
 
 /// The lines to deliver, and the ledger that has recorded them as delivered.
@@ -281,7 +319,9 @@ impl Report {
 /// return one line per child whose key changed since it was last reported,
 /// together with the ledger holding those keys for the caller to commit.
 pub(crate) fn report_changes(session_id: &str, agent_id: Option<&str>) -> Result<Report> {
-    let scope = scope_dir(session_id, agent_id)?;
+    // Each subagent has its own scope and ledger, so no agent is told of
+    // another's runs even within one session.
+    let scope = paths::scope_dir(session_id, agent_id)?;
     let now = chrono::Utc::now();
     if !scope.is_dir() {
         return Ok(Report {

@@ -24,7 +24,8 @@ subagent path: `agent-tools wait` in bounded calls, not a turn end, because a `-
 turn end loses the job and an interactive one wakes the caller per turn end. A `-p` main thread
 took it too until 2.1.310 held the process for its shell (`"tengu_tidy_sloth"`); it still does
 when the launch result says the job ends with the final response, the gate's off state. Evidence,
-cache arithmetic and probe shape: `notes/cc-2.1.289-subagent-waits.md`.
+cache arithmetic and probe shape: `notes/cc-2.1.289-subagent-waits.md`; why the wait returns on
+a message and sizes its bound to the cache: `notes/cc-2.1.310-subagent-wait-costs.md`.
 
 ## Measured, Claude Code 2.1.269 (2026-09-21) unless dated
 
@@ -54,6 +55,8 @@ cache arithmetic and probe shape: `notes/cc-2.1.289-subagent-waits.md`.
   `killed` 8 s after the main thread's last `result`. cc's interactive Bash text says "do not
   poll its output file"; `agent-tools wait` is one blocking call per round, which the skill
   names so the two do not read as conflicting.
+- 2026-10-26, 2.1.310: agents batched waits in one message 39 times in three days; 7 of 903
+  wait results ended one of several jobs.
 
 ## Cut deliberately — do not re-add without a fact it carries
 
@@ -65,5 +68,8 @@ cache arithmetic and probe shape: `notes/cc-2.1.289-subagent-waits.md`.
 - A main-thread timer re-armed under the hour to keep its 1h cache: under the 5m TTL (overage,
   off a subscription) each wake rewrites the prefix, and the agent cannot see its TTL.
   `scripts/cache-keepalive` refreshes once instead.
+- `agent-tools wait --all`, returning only once every job ended: 1 of the 7 above went
+  straight back to waiting.
+- A condition-wait pointer in `hook_subagent.rs`'s block: pinned at 1,000 characters, 998 used.
 - Per-line timestamps were cut once because `ps` reports `started_at` and `last_byte_s`; that
   is the run, not its output, so they are back, optional, inside the example.
