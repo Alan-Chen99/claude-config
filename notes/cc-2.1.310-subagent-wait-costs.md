@@ -44,15 +44,18 @@ thresholds, and to the "Several jobs" paragraph of `skills/long-bash/SKILL.md`.
 6. **Past the break-even, a cold wait still does not pay on measured runs.** Arithmetic: a
    4-minute wake reads the context at 0.1x, about 0.23x with the summary it triggers (0.11x
    under `-p`, which has none), and a rebuild costs 1.25x, so 5 to 11 wakes cost one rebuild.
+   Opus and Sonnet 5.5 read at 0.05x, and 4,090 Opus 5.5 summaries since 2026-10-20 cost
+   0.0725x of their context each, uncached tail included: about 0.13x a wake, 0.06x under `-p`.
    With the inbox bounding a message's delay, the loop past that point had no stated reason
    left (`notes/cc-2.1.289-subagent-waits.md`, "What follows"). Replayed on the 241 runs of
    consecutive `nothing ended` subagent waits here: switching after N warm wakes to one wait
    up to its call's 58 minutes, which rebuilds when it returns, lost 0.66 to 2.94 M
-   input-price tokens over N = 4 to 12 at 0.11x, and at 0.23x gained 0.04 M at best (N = 8).
+   input-price tokens over N = 4 to 12 at 0.11x, and at 0.23x gained 0.04 M at best (N = 8);
+   cheaper wakes only deepen the loss.
    Only 21 runs passed 6 wakes, all in session `c6c0e3e0`, the longest 18 (72 minutes). The
    same arithmetic prices a 1-hour cache (2x writes, 0.75x of the final context over 1.25x):
-   it pays once an agent waits over about 15 minutes in its turn (30 under `-p`; the agent's
-   description splits them at 20), or once idle over 5.
+   it pays once an agent waits over about 15 minutes in its turn (30 under `-p`; on Opus 5.5
+   about 23 and 50; the agent's description says 20), or once idle over 5.
 
 ## Probe
 
