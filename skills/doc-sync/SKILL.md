@@ -14,8 +14,6 @@ For authoritative CLAUDE.md and README.md format specification:
 
 <file working-dir="~/.claude" uri="conventions/documentation.md" />
 
-The conventions/ directory contains all universal documentation standards.
-
 ## Scope Resolution
 
 Determine scope FIRST:
@@ -68,29 +66,16 @@ README.md warranted: [YES/NO] (invisible knowledge present?)
 
 **Critical:** If CLAUDE.md contains content that does NOT belong there, migrate it:
 
-Content that MUST be moved from CLAUDE.md to README.md:
+Content that MUST move from CLAUDE.md to README.md: architecture explanations
+or diagrams, design decisions, component interactions, the code's invariants
+and constraints (Key Invariants and Constraints sections included), Overview or
+Purpose prose beyond one sentence, explanatory Dependencies sections (the index
+can note that dependencies exist), and any "why" beyond a trigger, bullet lists
+of rationale included.
 
-- Architecture explanations or diagrams
-- Design decision documentation
-- Component interaction descriptions
-- Overview sections with prose (beyond one sentence)
-- Invariants or rules documentation
-- Any "why" explanations beyond simple triggers
-- Key Invariants sections
-- Dependencies sections (explanatory -- index can note dependencies exist)
-- Constraints sections
-- Purpose sections with prose (beyond one sentence)
-- Any bullet-point lists explaining rationale
-
-Content that MAY stay in CLAUDE.md (operational sections):
-
-- Build commands specific to this directory
-- Test commands specific to this directory
-- Regeneration/sync commands (e.g., protobuf regeneration)
-- Deploy commands
-- Other copy-pasteable procedural commands
-- Agent policy: behavioral rules and constraints for agents (coding standards,
-  tool preferences, workflow rules). Applies to this directory and all descendants
+Content that MAY stay: copy-pasteable commands for this directory (build, test,
+regeneration, deploy) and agent policy, the behavioral rules for agents that
+apply to this directory and its descendants.
 
 **Test:** Ask "is this explaining WHY or telling HOW?" Explanatory content
 (architecture, decisions, rationale) goes to README.md. Operational content
@@ -115,13 +100,8 @@ For each directory needing work:
 4. Write "When to read" column: action-oriented triggers
 5. If README.md exists, include it in the Files table
 
-**Creating README.md (when invisible knowledge exists):**
-
-1. Verify invisible knowledge exists (semantic trigger, not structural)
-2. Document architecture, design decisions, invariants, tradeoffs
-3. Apply the content test: remove anything visible from code
-4. Keep as concise as possible while capturing all invisible knowledge
-5. Must be self-contained: do not reference external authoritative sources
+**Creating README.md:** only where invisible knowledge exists, to
+`documentation.md`'s README.md specification and content test, self-contained.
 
 ### Phase 5: Verification
 
@@ -132,9 +112,8 @@ After all updates complete, verify:
 3. No drift remains (files <-> index entries match)
 4. No misplaced content in CLAUDE.md (explanatory prose moved to README.md)
 5. README.md files are indexed in their parent CLAUDE.md
-6. CLAUDE.md contains only: one-sentence overview + tabular index + operational sections + agent policy
-7. README.md exists wherever invisible knowledge was identified
-8. README.md files are self-contained (no external authoritative references)
+6. README.md exists wherever invisible knowledge was identified
+7. README.md files are self-contained (no external authoritative references)
 
 ## Output Format
 
@@ -182,42 +161,12 @@ DO index:
 - Test files and test directories
 - Documentation files (including README.md)
 
-## Anti-Patterns
-
-### Index Anti-Patterns
-
-**Too vague (matches everything):**
-
-```markdown
-| `config/` | Configuration | Working with configuration |
-```
-
-**Content description instead of trigger:**
-
-```markdown
-| `cache.rs` | Contains the LRU cache implementation | - |
-```
-
-**Missing action verb:**
-
-```markdown
-| `parser.py` | Input parsing | Input parsing and format handling |
-```
-
-### Correct Examples
-
-```markdown
-| `cache.rs` | LRU cache with O(1) get/set | Implementing caching, debugging misses, tuning eviction |
-| `config/` | YAML config parsing, env overrides | Adding config options, changing defaults, debugging config loading |
-```
-
 ## When NOT to Use This Skill
 
-- Single file documentation (inline comments, docstrings) - handle directly
-- Code comments - handle directly
-- Function/module docstrings - handle directly
-- This skill is for CLAUDE.md/README.md synchronization specifically
+Inline comments and function or module docstrings: handle those directly. This
+skill is for CLAUDE.md/README.md synchronization.
 
 ## Reference
 
-For additional trigger pattern examples, see `references/trigger-patterns.md`.
+Trigger examples and anti-patterns for the "When to read" column:
+`references/trigger-patterns.md`.

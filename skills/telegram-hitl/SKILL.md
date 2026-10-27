@@ -1,6 +1,6 @@
 ---
 name: telegram-hitl
-description: Use when a session needs a human decision it cannot make alone - asking and waiting hours for an answer, or listening for a correction mid-run - or touches the Telegram channel.
+description: Use when a session needs a human decision it cannot make alone (asking and waiting hours, or listening for a correction mid-run) or touches the Telegram channel.
 ---
 
 # Telegram human-in-the-loop
@@ -39,11 +39,11 @@ method, `411` chunked body, `502` Telegram unreachable; nothing is retried.
 
 ## Topics
 
-`message_thread_id` addresses a forum topic. **Make your own, named for the
-work, at its first real question** (`createForumTopic` `{"chat_id", "name"}` →
-`result.message_thread_id`) **and read it whole**. Two sessions in one topic
-take each other's answers — join one only to continue its work, then act only
-on replies to you. `listen.py topics` lists them and their senders.
+**Make your own forum topic, named for the work, at its first real question**
+(`createForumTopic` `{"chat_id", "name"}` → `result.message_thread_id`) **and
+read it whole**. Two sessions in one topic take each other's answers — join one
+only to continue its work, then act only on replies to you. `listen.py topics`
+lists them and their senders.
 
 Your messages all arrive from the same bot, so **name yourself as you arm the
 listener** — `▸ $CLAUDE_CODE_SESSION_ID · $PWD`, what you are doing — and **say
@@ -51,19 +51,19 @@ when you stop**, same handle, both with `"disable_notification": true`.
 
 ## Listening
 
-`listen.py` prints `message <id> in chat <chat>[, reply to
-<your id>]: <text>` per human message for you and `channel up` / `channel down:
-<cause>`. Its memory is the log: **react 👍 to each message you read**
-(`setMessageReaction`, `reaction: [{"type":"emoji","emoji":"👍"}]`); an
-unreacted one is replayed at every run and reads as unread.
+`listen.py` prints each human message for you, with the ids a reaction needs,
+and `channel up` / `channel down: <cause>`. Its memory is the log: **react 👍 to
+each message you read** (`setMessageReaction`,
+`reaction: [{"type":"emoji","emoji":"👍"}]`); an unreacted one is replayed at
+every run and reads as unread.
 
 ```
 Monitor(command="python3 <skill dir>/listen.py 61",
         description="topic 61", timeout_ms=1800000)
 ```
 
-Arm it as you create the topic; re-arm first thing at each expiry (30 min)
-until you say you stop, then `TaskStop` it. `channel down`: fix the channel.
+Arm it as you create the topic; re-arm first thing at each expiry until you
+say you stop, then `TaskStop` it. `channel down`: fix the channel.
 
 With nothing to do but wait, block on the answer:
 
@@ -71,9 +71,9 @@ With nothing to do but wait, block on the answer:
 Bash(command="python3 <skill dir>/listen.py 61 --wait", timeout=2147483647)
 ```
 
-It returns the next message(s); exit 1: `channel down`. Under `claude -p`
-(`$CLAUDE_CODE_SESSION_ATTENDED` is `0`) the main thread's turn end kills a subagent's
-listener: a subagent arms none, waits this way, reads with `listen.py 61 --peek` between steps.
+Under `claude -p` (`$CLAUDE_CODE_SESSION_ATTENDED` is `0`) the main thread's
+turn end kills a subagent's listener: a subagent arms none, waits this way, and
+reads with `listen.py 61 --peek` between steps.
 
 ## Traps
 

@@ -1,6 +1,6 @@
 ---
 name: adhd-explain
-description: Use before answering when the user asks to understand something and asks for no change (explain X, walk me through X, why or how does X, what is X, how do I X, [explain-status]). Not when a change is also asked, not in a subagent, not for text to agents or in Alan's voice.
+description: Use before answering when the user asks to understand something (explain X, walk me through X, why/how does X, what is X, how do I X, [explain-status]). Not when a change is also asked, in a subagent, or for text to agents or in Alan's voice.
 ---
 
 # adhd-explain

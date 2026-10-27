@@ -1,6 +1,6 @@
 ---
 name: session-analysis
-description: Evidence extraction and session-log analysis over opencode sessions and Claude Code JSONL logs. Use when you need raw factual evidence about one or more sessions for later analysis. Always operates in evidence mode when dispatched by a parent. IMPORTANT: before dispatching this agent, read skills/session-analysis/SKILL.md so you know what the artifact contains and how to phrase the focus.
+description: Use when you need raw factual evidence from one or more opencode or Claude Code session logs for later analysis. Load the session-analysis skill before dispatching it.
 model: claude-opus-4-8
 effort: medium
 tools: Read, Bash, Write

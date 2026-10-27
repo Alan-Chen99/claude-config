@@ -1,6 +1,6 @@
 ---
 name: gp-opus48
-description: General-purpose's prompt and tools on Opus 4.8 (claude-opus-4-8), which the dispatch `model` parameter cannot name; the user finds it rejects fewer requests as false positives (e.g. `reasoning_extraction`). Dispatch it without `model`, which overrides this.
+description: General-purpose on Opus 4.8, which `model` cannot name; the user finds it rejects fewer requests as false positives (e.g. `reasoning_extraction`). Dispatch it without `model`.
 model: claude-opus-4-8
 ---
 

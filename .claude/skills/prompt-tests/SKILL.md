@@ -1,6 +1,6 @@
 ---
 name: prompt-tests
-description: Use when running, grading, or iterating any case under prompt-tests/. Covers prompt-evaluation work in this repo, including the runners, contamination checks, and reading a run as a trajectory rather than a verdict.
+description: Use when running a prompt to evaluate it, or running, grading or iterating a case under prompt-tests/.
 ---
 
 # prompt-tests

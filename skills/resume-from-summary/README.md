@@ -229,7 +229,7 @@ on the next compaction twice in a row; at `settings.json`'s 400,000 (compaction 
 about 6%. The skill's "stop once you can act" is aimed at that: with it, recovery took 4–5k
 tokens in each of the three prompt-trigger trials, and none compacted again.
 
-`SKILL.md` is 400 tokens under a 400 cap (the user's, 2026-10-12, raised from 200 for the rules, the
+`SKILL.md` is 385 tokens under a 600 cap (the user's, 2026-10-27; 400 on 2026-10-12, raised from 200 for the rules, the
 typed-handoff target and a fresh reader's review of the body — the `<scratchpad>` definition, the
 precedence of transcript over summary, the no-compaction and no-transcript cases). Rendered by the hook with two live-length paths it is about 525 tokens
 (`tests/test_env_context.py` pins 630), spent on the first post-boundary request and carried in

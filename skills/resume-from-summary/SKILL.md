@@ -1,6 +1,6 @@
 ---
 name: resume-from-summary
-description: Use when this conversation continues from earlier work it no longer holds — a summary after autocompact or /compact, a resume, a handoff, or "continue <session id>" typed into a fresh session — before acting on what was handed over.
+description: Use before acting on earlier work this conversation no longer holds — a compaction summary, a resume, a handoff, or "continue <session id>" typed into a fresh session.
 ---
 
 The summary — or whatever stood in for it — is prior output. Trust what it reports as said, done or decided, the transcript winning where they differ; hold its judgments with room for doubt; inherit none of its framing: re-determine the task, its scope and the approach from the user's words and the transcript.

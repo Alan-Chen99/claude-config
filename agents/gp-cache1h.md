@@ -1,6 +1,6 @@
 ---
 name: gp-cache1h
-description: General-purpose's prompt and tools with a 1-hour prompt cache, not 5 minutes, on the dispatched or inherited model. For a subagent that will wait on its own job or a message over 20 minutes in all in its turn (its `agent-tools wait` then wakes it every 50 minutes, not 4), or over 5 minutes at a time idle; cache writes cost 2x input, not 1.25x.
+description: General-purpose with a 1-hour prompt cache (writes cost 2x input, not 1.25x), for a subagent that will wait in its turn over 20 minutes in all, or idle over 5 minutes at a time.
 experimental:
   cacheTtl: 1h
 ---

@@ -1,6 +1,6 @@
 ---
 name: prompt-engineer-v2
-description: Use whenever authoring, editing, reviewing, or reasoning about instructions, prompts, agent definitions, SKILL.md files, system prompts, CLAUDE.md files, or any other text that becomes part of an LLM's context. Provides foundational principles to keep in mind. Includes an optional "patch mode" script for difficult prompt edits — invoke patch mode only when the user requests it or when the change is complex enough to need the full structured workflow.
+description: Use whenever writing, editing, reviewing or reasoning about text that becomes part of an LLM's context (prompts, agent definitions, SKILL.md, CLAUDE.md, system prompts).
 ---
 
 # Prompt Engineer v2
@@ -21,30 +21,21 @@ fit. Nor is it complete: a text that passes every check can still fail.
 - **Every character is an instruction.** Keep framing minimal. Maintainer
   notes read to the agent as instructions; keep them in one place all
   maintainers find, such as a companion CLAUDE.md.
-- **Fix invariants, not symptoms.** Rule out failures under perfect obedience,
-  then find the broken pair: a structural property and what holds it,
-  like "no single point of failure" enforced by "output passes 3 parallel
-  reviewer runs". If a reviewer skipped a check on X, restore the 3-run
-  guarantee, not X: fixing X masks the broken pair, so X′ fails next. Test each
-  property: if a naive design that merely emits the named artifact (a block, a
-  tool call) satisfies it, restate it as a relationship between steps
-  (ordering, feedback loop, dependency).
+- **Fix invariants, not symptoms.** Find the broken pair: a structural
+  property and what holds it. Test each property: if a naive design that merely
+  emits the named artifact (a block, a tool call) satisfies it, restate it as a
+  relationship between steps (ordering, feedback loop, dependency).
 - **A failing line is evidence about the line.** Before adding anything, find
   why the existing text failed (unseen, misread, outweighed, misleading) from a
   transcript or a reproduction, or mark the cause unverified. Then fix that
   text: a new guard beside it unchanged leaves the cause to misfire where no
   one watches.
-- **Fixed rules and judgment fail differently.** A fixed rule (a hook, a script,
-  an absolute "never X", a closed list) does exactly what its author, as
-  fallible as its reader, encoded: it looks infallible to that author, but on
-  unanticipated cases, which always exist, it acts wrongly with no way out.
-  Judgment adapts there, but drifts, skips under load, and argues itself past
-  rules it finds inconvenient. Fixed where the condition is mechanical, judgment
-  where it is nuanced; a failing fixed rule may need loosening, failing judgment
-  a check. A mechanical condition is still the author's guess at every case:
-  give a fixed rule a visible way out. Where both act, check each side when the
-  other errs: a check firing wrongly or silent, a reader overriding a correct
-  check.
+- **Fixed rules and judgment fail differently.** Fixed where the condition is
+  mechanical, judgment where it is nuanced; a failing fixed rule may need
+  loosening, failing judgment a check. A mechanical condition is still the
+  author's guess at every case: give a fixed rule a visible way out. Where both
+  act, check each side when the other errs: a check firing wrongly or silent, a
+  reader overriding a correct check.
 - **TDD for prompts.** When the broken enforcement is itself a check, test or
   review, fix only it; defer what it reviews until a real run shows it catching
   the failure: patched symptoms would hide whether it works.
@@ -52,17 +43,15 @@ fit. Nor is it complete: a text that passes every check can still fail.
   a search for dependents, and no line shows if it is three steps or three years
   old, so agents only add. Pair each step that can add artifacts with one that
   removes them as confidently: a stated safe-to-remove rule, a diff against a
-  named commit, or a prune step enumerating candidates. **Someone must do it**:
-  a workflow gives every routine task, destructive ones included, to an agent
-  with a safe procedure, not to the human.
+  named commit, or a prune step enumerating candidates.
 
 ## Checks for each edit
 
 **Failures under perfect obedience first.** Commands crashing or exiting 0
 with wrong output, steps needing absent state or tools, "if X" with X
-uncheckable, underspecified specs, dangling pointers, context missing or late,
-a fixed action wrong in some case it reaches. Then misreading, skipping under pressure, over-applied
-triggers, misordering, hallucinated verification.
+uncheckable, underspecified specs, dangling pointers, context missing or late.
+Then misreading, skipping under pressure, misordering, hallucinated
+verification.
 
 ### The rule
 
@@ -82,11 +71,7 @@ triggers, misordering, hallucinated verification.
   in the work where the case is already in front of the reader.
 - **Fires in the right places?** Too broad reaches cases it was not written
   for. Too narrow, when a failure motivates the edit, is scoped by the case
-  instead of the invariant: words lifted from the case, categories mapping 1:1
-  onto its failures, examples mirroring it (pre-existing wording exempt),
-  artifact-type or domain framing narrower than the invariant ("your *code*
-  must…" when it covers prose). Examples span domains, at least one the case
-  does not touch.
+  instead of the invariant.
 - **Where does obeying it do harm?** An edge case, or a case where its fixed
   action is wrong and the reader sees no way out, for a hook or script too.
   Narrow the condition, name the exception, give a visible override, or state
@@ -107,16 +92,15 @@ triggers, misordering, hallucinated verification.
 
 ### What it leaves out or hides
 
-- **Does the text shrink the job unseen?** "Review X" read as "look only at
-  X"; "do not touch the tests" read as "and do not report the test this
-  breaks"; a step list read as the whole job; cross-cutting work the task
+- **Does the text shrink the job unseen?** Look for cross-cutting work the task
   implies (tests, docs, error paths, cleanup, the message to whoever waits on
-  the result) left to no one. Routine work goes to an agent (someone must do
-  it); anything else the agent reports undone instead of dropping.
+  the result) left to no one. **Someone must do it**: a workflow gives every
+  routine task, destructive ones included, to an agent with a safe procedure,
+  not to the human; anything else the agent reports undone instead of dropping.
 - **What does the user never see?** A rule that changes what the user gets
   with no visible act, such as a filter, a default, a "never do X" the user
-  wants this time, or a judgment call made silently, runs unnoticed until it costs them. Make its effect visible
-  to them, or ask.
+  wants this time, or a judgment call made silently, runs unnoticed until it
+  costs them. Make its effect visible to them, or ask.
 
 ### Testing the edit
 
@@ -127,8 +111,7 @@ triggers, misordering, hallucinated verification.
   failure mode; ask what narrows below the invariant and which lines it reads
   otherwise than meant, and, for each fixed rule, what the reader can do from
   the text it sees when the user explicitly asks for the other action, and who
-  sees it. Drafters miss that case; asked directly, reviewers find it. Revise
-  the prompt on each finding and re-review.
+  sees it. Revise the prompt on each finding and re-review.
 - Running cases or reading transcripts? First read this skill's
   `experiments.md`.
 

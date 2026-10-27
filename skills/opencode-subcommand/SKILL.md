@@ -1,6 +1,6 @@
 ---
 name: opencode-subcommand
-description: Use when running opencode programmatically — test harness, automation, batch runs. Covers inline-config invocation, plugin loading, model overrides, capturing/exporting sessions, and common pitfalls.
+description: Use when running opencode programmatically (test harness, automation, batch runs) or capturing or exporting its sessions.
 ---
 
 # opencode-subcommand

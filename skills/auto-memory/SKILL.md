@@ -1,6 +1,6 @@
 ---
 name: auto-memory
-description: You MUST load before reading or writing any memory under ~/.claude/projects/<slug>/memory/ (the persistent memory system). Do NOT load if your system prompt already contains an "# auto memory" section — the built-in feature is active and the protocol is already loaded.
+description: You MUST load before reading or writing memory under ~/.claude/projects/<slug>/memory/, unless your system prompt has an "# auto memory" section.
 ---
 
 # Auto Memory

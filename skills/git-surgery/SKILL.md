@@ -1,6 +1,6 @@
 ---
 name: git-surgery
-description: Use when rewriting git history (squash, drop, reorder, split, amend message/author/date) and the worktree, index, or HEAD must not be touched (uncommitted work in progress, dirty index, HEAD must stay), or when commit SHAs in tracked files (CHANGELOG, docs, release notes) or in other commit messages reference rewritten commits and those references must remain valid after the rewrite.
+description: Use to rewrite git history (squash, drop, reorder, split, amend metadata) without touching the worktree, index or HEAD, or so that commit SHAs cited in files or commit messages stay valid.
 ---
 
 # Git Surgery
