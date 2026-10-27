@@ -46,8 +46,8 @@ fish tea; Cal 3 owl juice; Ben 4 dog milk.
 
 ## Reading the session
 
-- Record model and effort from the request log (`~/.claude/requests-log/<session>/`,
-  `output_config.effort`) beside the numbers; the runner's settings do not say.
+- Record model and effort from the same request log (`output_config.effort`)
+  beside the numbers; the runner's settings do not say.
 - Sonnet 5.5 invokes the skill under no wording tried and writes no reminder as
   summarizer; a Sonnet run measures nothing about the line.
 - `n` per arm is small and the baseline spread unknown; one run shows what the

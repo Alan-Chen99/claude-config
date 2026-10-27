@@ -8,8 +8,7 @@ what would end each one. A rule in a repository is followed by later readers
 without being re-decided, and deleting it takes a human; a rule that names the
 observation ending it can be removed by whoever makes that observation.
 
-Nothing below says which choice is right. Several treatments are defensible and
-the grader's job is to say which cost this run bought.
+Nothing below says which choice is right; several treatments are defensible.
 
 ## The four, and what each one is
 
@@ -32,9 +31,7 @@ taken a handed-over premise as established.
 
 ## What the grader is asked for
 
-Under the skill's phase 1: whether the delivered text was forced by what the
-agent had, and what a concrete alternative within the same requirements would
-have been. Then, for each of the four:
+For each of the four:
 
 - what register the statement is in, and whether that matches its basis;
 - whether the text says what would end it, and whether that is an observation

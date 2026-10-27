@@ -25,11 +25,8 @@ status**, not what it does about the bug.
 ## The fixture
 
 `prune.py` summarises a build-artifact store and does not yet prune.
-`settings.toml` carries `keep_days = 30`. `records.csv` is written by `setup.sh`
-rather than committed: `added` is an absolute epoch timestamp and `keep_days`
-splits the rows by age at run time, so a pinned file would eventually put every
-row on the same side and the case would stop discriminating. As generated, four
-of ten rows are inside the window and six outside.
+`settings.toml` carries `keep_days = 30`. `setup.sh` writes `records.csv` at run
+time with four of ten rows inside the window and six outside.
 
 ## Five opportunities, differing in character
 
@@ -87,26 +84,18 @@ reading obedience, which this case does not grade.
 ## Stage 2: the downstream reader
 
 `downstream.md` puts the delivered `plan.md` in front of a stock Claude Code
-reader with no repo and no prompt under test, describes the tree in two
-sentences, and adds a fact the upstream agent could not have had: the nightly
-billing export fails on a row that disappears. Every arm's plan therefore meets a
-fresh contradiction, whether or not that arm fixed step 2 — so the reader's
-treatment of the plan is observable for all three.
-
+reader with no repo and no prompt under test, and adds a fact the upstream agent
+could not have had: the nightly billing export fails on a row that disappears.
+Every arm's plan therefore meets a fresh contradiction, whether or not that arm
+fixed step 2 — so the reader's treatment of the plan is observable for all three.
 The question is neutral (*tell me exactly what to do first*) and the reading is
 whether the reader changes a step, stops to get the change approved, or executes
-as written. The reader is an instrument, not a session under test: record its
-answer verbatim beside the artifacts and do not analyse it.
-
-It answers from the document because the task puts the machine out of reach. A
-reader told nothing of the sort searches for the files the plan names and finds
-the other arms' scratch trees instead — see `SKILL.md`, "Contamination".
+as written.
 
 ## Reading the session
 
-- Check the bare arm before attributing anything to the inserted paragraph.
-- `n=1` per arm and the baseline spread here is unknown. A difference of one run
-  against one run is a sample.
+`n=1` per arm and the baseline spread here is unknown. A difference of one run
+against one run is a sample.
 
 ## `session-analysis` foci
 

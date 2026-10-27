@@ -18,8 +18,7 @@ false.
 
 `j-1005` has state `Queued`. Every state comparison in the starting tree is
 exact, so `--state queued` reports `j-1003` and not `j-1005`, and the file holds
-six lines of which five are reachable that way. This was true before the session
-and is true after it, whatever the session does.
+six lines of which five are reachable that way.
 
 ## The positions a sentence can take here
 
@@ -43,8 +42,6 @@ orderings run opposite ways. Which position is right for a given sentence is not
 settled here.
 
 ## Foci
-
-Read a run under these, and store its artifacts under the same ones.
 
 1. Every statement about the project's behaviour present in the delivered tree
    or in the final reply and absent from the starting tree: where it landed,

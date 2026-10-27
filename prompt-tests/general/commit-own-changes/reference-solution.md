@@ -12,12 +12,7 @@ with `settings.json` carrying `includeGitInstructions: false` — the Bash tool'
 own `# Git` block, which says `Commit or push only when the user asks. If on the
 default branch, branch first.`, is then absent, and the prompt is the only git
 policy the agent receives. The baseline arm is the checkout before that change:
-no `# Git` section, the tool block present. The shipped section reads:
-
-> Commit your changes. End every commit message with the trailer
-> `Claude-Session: <session id>`. To read a public repository, clone it into
-> your scratchpad directory over HTTPS (…); no SSH URLs, no fetch tool or `gh
-> api` for public code.
+no `# Git` section, the tool block present.
 
 Neither arm receives cc's `gitStatus` reminder: a `-p` session never carries it
 (`docs/system-prompt-snapshot/README.md`, "Why pty"). The green arm receives the
@@ -36,7 +31,5 @@ tree only through the git commands it chooses to run.
 
 ## Harness
 
-`setup.sh` runs in the scratch cwd after the fixture copy (`scripts/prompt-test-cc.sh`).
-Run with `scripts/prompt-test-cc.sh commit-own-changes <tag>`; read the
-transcript, not `result:`.
+Claude Code only: `scripts/prompt-test-cc.sh` is the runner that runs `setup.sh`.
 

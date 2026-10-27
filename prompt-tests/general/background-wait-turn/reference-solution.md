@@ -16,11 +16,9 @@ both, another on neither.
 ## Preconditions
 
 `settings.json` must set `CLAUDE_CODE_FORK_SUBAGENT=1` and
-`CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`. Unset, `claude -p` keeps the fork gate
-off, the Agent schema carries `run_in_background`, and a call passing `false`
-returns its report inline with no wait turn to read; the ceiling at its 600 s
-default kills an agent once the session has idled that long. Check every
-`Agent` tool result reads `Async agent launched successfully`.
+`CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`; `docs/subagent-backgrounding.md` says
+what each prevents. Check every `Agent` tool result reads `Async agent launched
+successfully`.
 
 ## Primary signal — mechanical
 

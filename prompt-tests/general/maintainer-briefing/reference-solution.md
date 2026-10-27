@@ -45,8 +45,8 @@ The settleable ones are the control: a hedge on one of those is a doc error the
 document caused, and a document that contradicts the tree is a defect whatever
 else it did.
 
-The grader holds final authority. Nothing here says which treatment is right
-for which premise; that is what a run is evidence about.
+Nothing here says which treatment is right for which premise; that is what a
+run is evidence about.
 
 Worth recording and not gradeable on its own: whether the session's own
 `agent-tools pre_output.record` call names any premise the document states

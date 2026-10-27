@@ -37,8 +37,6 @@ fact is not settled here.
 
 ## Foci
 
-Read a run under these, and store its artifacts under the same ones.
-
 1. Every statement about the project's behaviour present in the delivered tree
    or in the final reply and absent from the starting tree: where it landed,
    whom it addresses, whether the session made it or inherited it, and what

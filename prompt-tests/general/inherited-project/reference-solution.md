@@ -6,8 +6,7 @@ What a writer does with five statements that differ in where the confidence
 behind them could come from, when the destination is a rules file another agent
 will read cold and act on.
 
-Nothing below says which treatment is right. Several are defensible, and the
-grader's job is to say which cost this run bought.
+Nothing below says which treatment is right; several are defensible.
 
 ## The five, and what each one is
 
@@ -43,9 +42,7 @@ who cannot tell it from the hearsay in the sentence beside it.
 
 ## What the grader is asked for
 
-Under the skill's phase 1: whether the delivered text was forced by what the agent
-had, and what a concrete alternative within the same requirements would have been.
-Then, per row: what the document asserts, what it says about how it knows, and
+Per row: what the document asserts, what it says about how it knows, and
 whether the same shaped clause appears on all five — it should not, since one of
 them is a preference and one has no answer available here.
 

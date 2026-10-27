@@ -8,6 +8,6 @@ style is delivered", governs.
 
 | File                   | What                                           | When to read                                |
 | ---------------------- | ---------------------------------------------- | ------------------------------------------- |
-| `README.md`            | Design decisions, injection mechanics, caching | **Always read if working on output styles** |
-| `alan-default.md`      | Known-good production style                    | -                                           |
-| `alan-default-next.md` | Active development style                       | -                                           |
+| `README.md`            | Design decisions, delivery, activation         | **Always read if working on output styles** |
+| `alan-default-next.md` | Alan's style; unloaded while `outputStyle` is `default` | -                                  |
+| `direct.md`            | Terse, fact-only style                         | -                                           |
