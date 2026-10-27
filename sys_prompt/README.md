@@ -128,7 +128,8 @@ The subagent half repairs a dangling reference rather than betting on a rate: th
 example cites an item "reported by subagent qr-3" while nothing ever asked a subagent for one.
 Of what this repo installs, only the `SubagentStart` hook reaches every subagent
 (`conventions/agent-responses.md` says why), so the ask belongs to the hook and the prompt keeps
-only the half no hook can do — folding what returns into the parent's own block.
+only the half no hook can do — folding what returns into the parent's own block, the only route by
+which a subagent's tool failures and wasted reads reach the user.
 Unlike the arrangement `docs/subagent-backgrounding.md` records backing out of, this hook
 overrides no decision the model made and spends none of the parent's attention, and every
 definition in `agents/` carries a notes slot so the ask does not contradict the ones that
@@ -170,9 +171,8 @@ unfalsified prose than a bare arm *and* a reader running the delivered code find
 its tree false against that code. `git checkout 7fccd245 -- prompt-tests/runs/amber-ferry` and
 `git checkout f04a01d4 -- prompt-tests/runs/tin-meridian` restore the two probes.
 
-`output-styles/` keeps an unwidened fork of the deleted sentence and `sys_prompt/alan-default.md`
-keeps the whole line; neither was in any arm, and `settings.json` sets `outputStyle: default`, so
-nothing loads the first.
+`output-styles/` keeps an unwidened fork of the deleted sentence; it was in no arm, and
+`settings.json` sets `outputStyle: default`, so nothing loads it.
 
 ### `# Git`
 

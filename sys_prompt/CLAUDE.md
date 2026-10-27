@@ -9,7 +9,6 @@ it holds only the index and the edit policy.
 | File | What | When to read |
 | --- | --- | --- |
 | `alan-default-next.md` | The prompt `scripts/claude.sh` loads, forked from cc's lean body | Editing the prompt |
-| `alan-default.md` | An earlier prompt, forked from cc's legacy body; no script loads it | - |
 | `README.md` | Why each line is there — claim, hypothesis, retirement condition — and the ledger of wordings measured and not shipped | Before changing, deleting or restoring a line; before measuring a wording |
 
 Rebasing on a Claude Code release: `docs/prompt-rebase.md`.
