@@ -32,11 +32,11 @@ VALID_SEVERITIES = frozenset({"MUST", "SHOULD", "COULD"})
 PYDANTIC_AVAILABLE = False
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel, Field
+    from pydantic import BaseModel, ConfigDict, Field
     from typing import Literal
 
 try:
-    from pydantic import BaseModel, Field, ValidationError
+    from pydantic import BaseModel, ConfigDict, Field, ValidationError
     from typing import Literal
     PYDANTIC_AVAILABLE = True
 except ImportError:
@@ -77,8 +77,7 @@ if PYDANTIC_AVAILABLE:
         decision: str
         reasoning: str = Field(alias="reasoning_chain")  # premise -> implication -> conclusion
 
-        class Config:
-            populate_by_name = True
+        model_config = ConfigDict(populate_by_name=True)
 
     class RejectedAlternative(BaseModel):
         """Alternative considered but rejected.
@@ -108,8 +107,7 @@ if PYDANTIC_AVAILABLE:
         constraints: list[str] = Field(default_factory=list)  # INTENT.md line 67: string[]
         risks: list[Risk] = Field(default_factory=list, alias="known_risks")
 
-        class Config:
-            populate_by_name = True
+        model_config = ConfigDict(populate_by_name=True)
 
     class InvisibleKnowledge(BaseModel):
         """Knowledge for future LLM sessions."""
