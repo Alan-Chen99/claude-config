@@ -1,6 +1,6 @@
 # agent-tools
 
-What spans files here, or concerns a task rather than a file; each file's own design is in its comments. The status-line grammar agents are taught is `docs/agent-tools-status-reference.md`.
+What no single file's comments say. The status-line grammar agents are taught is `docs/agent-tools-status-reference.md`.
 
 ## Launching an uninstalled checkout
 
@@ -8,7 +8,6 @@ What spans files here, or concerns a task rather than a file; each file's own de
 
 - `.credentials.json` is linked: once its `expiresAt` passes and refresh fails, the child dies on its first request with `OAuth session expired and could not be refreshed`, and nothing earlier says so. Claude Code strips `CLAUDE_CODE_OAUTH_TOKEN` from tool subprocesses, so source the runners' token first: `set -a && . /workspace/.env && set +a`.
 - Transcripts land under `<root>/.claude/worktree-config/projects/`, out of a normal session's `/resume`.
-- A hook can be driven by hand: `echo '{"session_id":"…","tool_name":"Bash",…}' | CLAUDE_CONFIG_ROOT=<root> ./target/release/agent-tools hook-post`.
 
 ## Status channel
 

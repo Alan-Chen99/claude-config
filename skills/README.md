@@ -1,601 +1,83 @@
-# Skills Architecture
-
-Script-based agent workflows with shared orchestration framework.
-
-## File Organization: The "Book" Pattern
-
-Skill files read top-to-bottom like a book. Dependencies are defined before use. The ordering principle: **a reader should never need to scroll up to understand what they're reading.**
-
-### Section Order
-
-Files use a fixed section sequence. Group by type, not by step. Within each type-group, order by workflow step. Omit sections with no content.
-
-```python
-# ============================================================================
-# SHARED PROMPTS
-# ============================================================================
-# Prompts used by 2+ workflow steps. If large, extract to prompts/shared.py
-
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-# Constants, temperatures, thresholds
-
-# ============================================================================
-# SYSTEM PROMPTS
-# ============================================================================
-
-# ============================================================================
-# MESSAGE TEMPLATES
-# ============================================================================
-# Step-delimited subsections (see below)
-
-# ============================================================================
-# PARSING FUNCTIONS
-# ============================================================================
-
-# ============================================================================
-# MESSAGE BUILDERS
-# ============================================================================
-# Functions that compose templates into complete messages
-
-# ============================================================================
-# [DOMAIN] LOGIC
-# ============================================================================
-# Domain-specific (utility) functions
-
-# ============================================================================
-# STEP DEFINITIONS
-# ============================================================================
-# STATIC_STEPS and DYNAMIC_STEPS dicts (table-driven dispatch)
-
-# ============================================================================
-# OUTPUT FORMATTING
-# ============================================================================
-# format_output() entry point
-
-# ============================================================================
-# ENTRY POINT
-# ============================================================================
-# main() function
-```
-
-Rationale: functions often reference prompts from multiple steps. Grouping by type avoids forward references within function sections.
-
-### Step-Delimited MESSAGE TEMPLATES
-
-Within MESSAGE TEMPLATES, use step dividers to organize chronologically:
-
-```python
-# ============================================================================
-# MESSAGE TEMPLATES
-# ============================================================================
-
-# --- STEP 1: SCOPE -----------------------------------------------------------
-
-SCOPE_INSTRUCTIONS = """..."""
-
-# --- STEP 2: SURVEY ----------------------------------------------------------
-
-SURVEY_DISPATCH_CONTEXT = """\
-Analysis goals from SCOPE step:
-- User intent and what they want to understand
-- Identified focus areas"""
-
-SURVEY_DISPATCH_AGENTS = [
-    "[Exploration focus 1: e.g., 'Explore authentication flow']",
-    "[Exploration focus 2: e.g., 'Explore database schema']",
-]
-
-SURVEY_DISPATCH_GUIDANCE = """\
-DISPATCH GUIDANCE:
-...
-ADVANCE: After results received, re-invoke with --confidence low."""
-
-SURVEY_LOW_INSTRUCTIONS = """..."""
-SURVEY_MEDIUM_INSTRUCTIONS = """..."""
-
-# --- STEP 3: DEEPEN ----------------------------------------------------------
-
-DEEPEN_DISPATCH_CONTEXT = SURVEY_DISPATCH_CONTEXT  # reuse if identical
-DEEPEN_LOW_INSTRUCTIONS = """..."""
-
-# --- STEP 4: SYNTHESIZE ------------------------------------------------------
-
-SYNTHESIZE_EXPLORING_INSTRUCTIONS = """..."""
-```
-
-Step divider format: `# --- STEP N: PHASE_NAME ` followed by dashes to column 76.
-
-Within a step section, order constants by execution flow. Dispatch-related constants (context, agents, guidance) come before instruction constants.
-
-### Dispatch Prompts: Templates vs Builders
-
-Dispatch prompts combine static templates with dynamic composition. Split them:
-
-**Static parts -> MESSAGE TEMPLATES** (constants):
-
-```python
-# --- STEP 2: SURVEY ----------------------------------------------------------
-
-SURVEY_DISPATCH_CONTEXT = """\
-Analysis goals from SCOPE step:
-- User intent and what they want to understand
-- Identified focus areas (architecture, components, flows, etc.)"""
-
-SURVEY_DISPATCH_AGENTS = [
-    "[Exploration focus 1: e.g., 'Explore authentication flow']",
-    "[Exploration focus 2: e.g., 'Explore database schema']",
-]
-
-SURVEY_DISPATCH_GUIDANCE = """\
-DISPATCH GUIDANCE:
-
-Single codebase, focused scope:
-  - One Explore agent with specific focus
-
-Large/broad scope:
-  - Multiple parallel Explore agents by boundary
-
-WAIT for Explore results before re-invoking this step.
-
-ADVANCE: After results received, re-invoke with --confidence low."""
-```
-
-**Composition -> MESSAGE BUILDERS** (functions that call `roster_dispatch()` etc.):
-
-```python
-# ============================================================================
-# MESSAGE BUILDERS
-# ============================================================================
-
-def build_survey_exploring_body() -> str:
-    """Build SURVEY exploring instructions with dispatch."""
-    dispatch_text = roster_dispatch(
-        agent_type="Explore",
-        agents=SURVEY_DISPATCH_AGENTS,
-        command="Use Task tool with subagent_type='Explore'",
-        shared_context=SURVEY_DISPATCH_CONTEXT,
-        model="haiku",
-    )
-    return f"DISPATCH Explore agent(s):\n\n{dispatch_text}\n\n{SURVEY_DISPATCH_GUIDANCE}"
-```
-
-This separation ensures:
-
-1. Prompt text is visible at the constant definition (no tracing into functions)
-2. Builders reference only constants defined above (chronological ordering)
-3. Changes to dispatch parameters don't require modifying prompt text
-
-### Naming Convention
-
-```
-[PHASE]_[TYPE]
-```
-
-PHASE is the workflow phase: `SCOPE`, `SURVEY`, `DEEPEN`, `SYNTHESIZE`, `DISCOVERY`, `IDEATION`.
-TYPE is its role: `INSTRUCTIONS`, `DISPATCH_CONTEXT`, `DISPATCH_AGENTS`, `DISPATCH_GUIDANCE`, `FORMAT`, `FEEDBACK`.
-
-Confidence variants use suffixes: `_LOW`, `_MEDIUM`, `_HIGH`, `_EXPLORING`, `_CERTAIN`.
-
-Examples:
-
-```python
-EVALUATION_CRITERIA              # shared (used by 2+ steps)
-SCOPE_INSTRUCTIONS               # step 1
-SURVEY_DISPATCH_CONTEXT          # step 2, dispatch context
-SURVEY_DISPATCH_AGENTS           # step 2, dispatch agent list
-SURVEY_LOW_INSTRUCTIONS          # step 2, low confidence variant
-DEEPEN_HIGH_INSTRUCTIONS         # step 3, high confidence variant
-SYNTHESIZE_FORMAT                # step 4, output format
-```
-
-### Placement Rule
-
-> A prompt belongs in the earliest section where it is used.
-
-- Used in Steps 2, 4, 6? -> SHARED PROMPTS section
-- Used only in Step 3? -> Step 3 position in MESSAGE TEMPLATES
-- Used in Steps 3 and 4 only? -> Step 3 position (consecutive use doesn't require SHARED)
-
-### Visual Formatting
-
-Section headers (76 equals signs):
-
-```python
-# ============================================================================
-# SECTION NAME
-# ============================================================================
-```
-
-Step dividers within MESSAGE TEMPLATES (76 chars total):
-
-```python
-# --- STEP N: PHASE_NAME ------------------------------------------------------
-```
-
-Blank line before and after section headers. No blank line required around step dividers.
-
-### String Format Convention
-
-Multi-line strings use parenthesized concatenation, not triple-quoted strings:
-
-```python
-# GOOD - each line visible at its indentation level
-SCOPE_INSTRUCTIONS = (
-    "PARSE user intent:\n"
-    "  - What codebase(s) are we analyzing?\n"
-    "  - What is the user trying to understand?\n"
-    "\n"
-    "DEFINE goals (1-3 specific objectives):\n"
-    "  - 'Understand how [system X] processes [Y]'\n"
-    "  - 'Map dependencies between [A] and [B]'"
-)
-
-# GOOD - composing with variables
-EXECUTE_INSTRUCTIONS = (
-    "Apply each approved change.\n"
-    "\n"
-    "INTEGRATION CHECKS:\n"
-    "  - Cross-section references correct?\n"
-    "  - Terminology consistent?\n"
-    "\n"
-    + ANTI_PATTERN_AUDIT + "\n"
-    "\n"
-    + CHANGE_PRESENTATION
-)
-
-# BAD - triple-quoted strings force column 0 for content
-SCOPE_INSTRUCTIONS = """\
-PARSE user intent:
-  - What codebase(s) are we analyzing?
-  - What is the user trying to understand?"""
-```
-
-Rules:
-
-- Every line gets its own string literal with explicit `\n`
-- Blank lines become `"\n"` on their own line
-- Last line has no trailing `\n`
-- Variable composition uses `+ VARIABLE + "\n"` (or no `"\n"` if last)
-
-## How Skills Build Step Bodies
-
-No "action factories". No inversion of control. Just strings.
-
-### Pattern 1: Static Steps (deepthink subagent)
-
-All-static workflows use separate `STEP_TITLES` and `STEP_INSTRUCTIONS` dicts:
-
-```python
-STEP_TITLES = {
-    1: "Context Grounding",
-    2: "Analogical Generation",
-    3: "Planning",
-    # ...
-}
-
-STEP_INSTRUCTIONS = {
-    1: CONTEXT_GROUNDING_INSTRUCTIONS,
-    2: ANALOGICAL_GENERATION_INSTRUCTIONS,
-    3: PLANNING_INSTRUCTIONS,
-    # ...
-}
-
-def format_output(step: int) -> str:
-    if step not in STEP_TITLES:
-        return f"ERROR: Invalid step {step}"
-    title = STEP_TITLES[step]
-    instructions = STEP_INSTRUCTIONS[step]
-    next_cmd = build_next_command(step)
-    return format_step(instructions, next_cmd or "", title=f"WORKFLOW - {title}")
-```
-
-### Pattern 2: Parameterized Steps (codebase-analysis)
-
-Templates and builders are separated. Templates are constants defined in MESSAGE TEMPLATES (step-delimited). Builders compose templates into complete messages.
-
-```python
-# ============================================================================
-# MESSAGE TEMPLATES
-# ============================================================================
-
-# --- STEP 2: SURVEY ----------------------------------------------------------
-
-SURVEY_DISPATCH_CONTEXT = (
-    "Analysis goals from SCOPE step:\n"
-    "- User intent and what they want to understand"
-)
-
-SURVEY_DISPATCH_AGENTS = [
-    "[Exploration focus 1: e.g., 'Explore authentication flow']",
-    "[Exploration focus 2: e.g., 'Explore database schema']",
-]
-
-SURVEY_DISPATCH_GUIDANCE = (
-    "DISPATCH GUIDANCE:\n"
-    "...\n"
-    "ADVANCE: After results received, re-invoke with --confidence low."
-)
-
-SURVEY_LOW_INSTRUCTIONS = (
-    "EXTRACT findings from Explore output:\n"
-    "..."
-)
-
-# ============================================================================
-# MESSAGE BUILDERS
-# ============================================================================
-
-def build_survey_exploring_body() -> str:
-    dispatch_text = roster_dispatch(
-        agent_type="Explore",
-        agents=SURVEY_DISPATCH_AGENTS,
-        command="Use Task tool with subagent_type='Explore'",
-        shared_context=SURVEY_DISPATCH_CONTEXT,
-        model="haiku",
-    )
-    return (
-        "DISPATCH Explore agent(s):\n"
-        "\n"
-        + dispatch_text + "\n"
-        "\n"
-        + SURVEY_DISPATCH_GUIDANCE
-    )
-
-def get_survey_body(confidence: str) -> str:
-    if confidence == "exploring":
-        return build_survey_exploring_body()
-    elif confidence == "low":
-        return "SURVEY - Low Confidence\n\n" + SURVEY_LOW_INSTRUCTIONS
-    # ...
-
-def format_output(step: int, confidence: str) -> str:
-    bodies = {1: get_scope_body, 2: get_survey_body, ...}
-    body = bodies[step](confidence)
-    next_cmd = build_next_command(step, confidence)
-    return format_step(body, next_cmd)
-```
-
-### Pattern 3: Dispatch Steps (planner orchestrator)
-
-```python
-from skills.lib.workflow.prompts import format_step, subagent_dispatch
-from skills.planner.prompts.constants import ORCHESTRATOR_CONSTRAINT
-
-def format_dispatch_step(agent_type: str, invoke_cmd: str, state_dir: str) -> str:
-    dispatch = subagent_dispatch(agent_type=agent_type, command=invoke_cmd)
-
-    body = (
-        ORCHESTRATOR_CONSTRAINT + "\n"
-        "\n"
-        + dispatch
-    )
-
-    next_step_cmd = "python3 -m skills.planner.orchestrator.planner --step N --state-dir " + state_dir
-    return format_step(body, next_step_cmd)
-```
-
-### Pattern 4: File Injection (prompt-engineer)
-
-```python
-from skills.lib.workflow.prompts import format_step, format_file_content
-
-def format_technique_step(categories: list[str]) -> str:
-    file_blocks = []
-    for cat in categories:
-        path = CATEGORY_TO_FILE[cat]
-        content = (REFS_DIR / path).read_text()
-        file_blocks.append(format_file_content(f"references/{path}", content))
-
-    body = (
-        "TECHNIQUE REFERENCES\n"
-        "The following files have been loaded based on your category selection:\n"
-        "\n"
-        + "\n".join(file_blocks) + "\n"
-        "\n"
-        "TASK: Apply techniques from these references to the target prompt.\n"
-        "..."
-    )
-
-    return format_step(body, "python3 -m skills.prompt_engineer.optimize --step 5")
-```
-
-### Pattern 5: Hybrid Static/Dynamic Steps (deepthink)
-
-Workflows with mostly static steps and few parameterized steps benefit from a hybrid approach:
-
-```python
-# ============================================================================
-# MESSAGE BUILDERS
-# ============================================================================
-
-def build_dispatch_body() -> str:
-    """Builder functions that dynamic formatters may call."""
-    # ... implementation
-    return dispatch_text
-
-
-# ============================================================================
-# STEP DEFINITIONS
-# ============================================================================
-
-# Static steps: (title, instructions) tuples
-STATIC_STEPS = {
-    1: ("Context Clarification", CONTEXT_CLARIFICATION_INSTRUCTIONS),
-    2: ("Abstraction", ABSTRACTION_INSTRUCTIONS),
-    # ... more static steps
-}
-
-
-# Dynamic formatter functions - defined BEFORE DYNAMIC_STEPS dict
-def _format_step_9(mode: str, confidence: str, iteration: int) -> tuple[str, str]:
-    """Dynamic step that calls a builder function."""
-    return ("Dispatch", build_dispatch_body())
-
-
-def _format_step_13(mode: str, confidence: str, iteration: int) -> tuple[str, str]:
-    """Dynamic step with parameterized title and body."""
-    suffix = " -> Complete" if confidence == "certain" else ""
-    title = f"Iterative Refinement (Iteration {iteration}){suffix}"
-    body = INSTRUCTIONS.format(iteration=iteration, max_iter=MAX_ITERATIONS)
-    return (title, body)
-
-
-# Dynamic steps dict - references functions defined above
-DYNAMIC_STEPS = {
-    9: _format_step_9,
-    13: _format_step_13,
-}
-
-
-# ============================================================================
-# OUTPUT FORMATTING
-# ============================================================================
-
-def format_output(step: int, mode: str, confidence: str, iteration: int) -> str:
-    """Callable dispatch: static lookup or dynamic function call."""
-    if step in STATIC_STEPS:
-        title, instructions = STATIC_STEPS[step]
-    elif step in DYNAMIC_STEPS:
-        title, instructions = DYNAMIC_STEPS[step](mode, confidence, iteration)
-    else:
-        return f"ERROR: Invalid step {step}"
-
-    next_cmd = build_next_command(step, mode, confidence, iteration)
-    return format_step(instructions, next_cmd or "", title=f"WORKFLOW - {title}")
-```
-
-**Ordering constraint (book pattern)**: Dynamic formatter functions that call MESSAGE BUILDERS must appear AFTER MESSAGE BUILDERS. The DYNAMIC*STEPS dictionary must appear AFTER all `\_format_step*\*` functions it references.
-
-Use this pattern when:
-
-- Many steps share the same structure (title + constant body)
-- Few steps need parameters for title or body construction
-- Parameters are uniform across all dynamic steps
-
-Benefits:
-
-- Compact representation for static steps (one line per step)
-- Clear, readable functions for dynamic steps
-- Single dispatch point in `format_output()`
-- Follows "book pattern" (all references resolve to definitions above)
-
-### Anti-Pattern: Action Factories
-
-```python
-# BAD - unnecessary indirection
-def technique_review_actions(for_ecosystem=False):
-    base = ["For each technique...", "1. QUOTE the trigger", ...]
-    if for_ecosystem:
-        base.append("Note techniques across prompts")
-    return base
-```
-
-Replace with:
-
-```python
-# GOOD - text at call site
-TECHNIQUE_REVIEW = (
-    "For each technique in the Technique Selection Guide:\n"
-    "1. QUOTE the trigger condition from the table\n"
-    "2. QUOTE text from the target prompt that matches\n"
-    "3. Verdict: APPLICABLE or NOT APPLICABLE"
-)
-
-TECHNIQUE_REVIEW_ECOSYSTEM = (
-    TECHNIQUE_REVIEW + "\n"
-    "Note techniques that apply to multiple prompts."
-)
-
-# Usage: compose with +
-body = (
-    "...\n"
-    + TECHNIQUE_REVIEW_ECOSYSTEM + "\n"
-    "..."
-)
-```
-
-Functions that return prompt fragments are only justified when there's complex conditional logic (multiple if/else branches). Even then, they live in the skill, not the shared lib.
-
-## Shared Library
-
-Location: `skills/lib/workflow/prompts/`
-
-Only abstractions used by 3+ skills with identical semantics:
-
-```
-prompts/
-    __init__.py         # re-exports
-    subagent.py         # dispatch templates
-    step.py             # format_step()
-    file.py             # format_file_content()
-```
-
-### subagent.py
-
-Three dispatch patterns for spawning sub-agents via the Task tool:
-
-- `subagent_dispatch(agent_type, command, prompt="", model=None)` -- single sequential dispatch
-- `template_dispatch(agent_type, template, targets, command, ...)` -- parallel SIMD (same template, N targets with $var substitution)
-- `roster_dispatch(agent_type, agents, command, shared_context="", ...)` -- parallel MIMD (shared context + unique tasks)
-
-Building blocks (also exported):
-
-- `task_tool_instruction(agent_type, model)` -- how to use Task tool
-- `sub_agent_invoke(cmd)` -- command the spawned agent runs
-- `parallel_constraint(count)` -- MANDATORY_PARALLEL enforcement
-
-### step.py
-
-```python
-def format_step(body: str, next_cmd: str = "", title: str = "") -> str:
-    """Assemble a complete workflow step.
-
-    Args:
-        body: The prompt content (free-form text)
-        next_cmd: Command to run next (empty string for final step)
-        title: Optional title rendered as "TITLE\\n======\\n\\n" header
-
-    Returns:
-        Complete step output as plain text
-    """
-```
-
-### file_content.py
-
-```python
-def format_file_content(path: str, content: str) -> str:
-    """Embed file content in a prompt.
-
-    Uses 4-backtick fence to handle content containing triple-backticks.
-    """
-```
-
-## Two Invoke Concepts
-
-The codebase has two distinct "invoke" situations:
-
-**Sub-agent invoke** (`sub_agent_invoke()` in subagent.py): Appears INSIDE a dispatch prompt. Tells the SPAWNED agent what command to run after it's created.
-
-**Parent invoke_after** (in `format_step()`): Appears AFTER the body as the step's terminal directive. Tells the CURRENT agent what to run next.
-
-A dispatch step has BOTH:
-
-- The body contains a dispatch prompt with the sub-agent's invoke command
-- The step ends with the parent's invoke_after for what happens after the sub-agent returns
-
-## Core Abstraction: The Step
-
-Every workflow step has the same fundamental structure:
-
-```
-[body]
-
-[invoke_after]
-```
-
-That's it. Two parts:
-
-1. **body**: The actual prompt content. Free-form text.
-2. **invoke_after**: The command the LLM should run next. Optional (empty for final steps).
+# Skills architecture
+
+Script-based agent workflows on a shared orchestration framework. These rules
+govern every skill module under `scripts/skills/`; `deepthink/think.py`,
+`decision_critic/decision_critic.py` and `codebase_analysis/analyze.py` there
+follow them.
+
+## The book pattern
+
+A skill file reads top to bottom like a book: everything is defined above its
+first use, so a reader never scrolls up.
+
+### Section order
+
+Group by type, not by step, because functions reference prompts from several
+steps. Omit a section with no content. Within each section, order by workflow
+step.
+
+1. SHARED PROMPTS: prompts used by 2+ steps (`prompts/shared.py` if large)
+2. CONFIGURATION: constants, temperatures, thresholds
+3. SYSTEM PROMPTS
+4. MESSAGE TEMPLATES: step-delimited (below)
+5. PARSING FUNCTIONS
+6. MESSAGE BUILDERS: functions that compose templates into messages
+7. [DOMAIN] LOGIC
+8. STEP DEFINITIONS: the `STATIC_STEPS` and `DYNAMIC_STEPS` dicts
+9. OUTPUT FORMATTING: `format_output()`
+10. ENTRY POINT: `main()`
+
+A section header is three comment lines, `# ` and 76 `=`, then
+`# SECTION NAME`, then the `=` line again, with a blank line before and after.
+Inside MESSAGE TEMPLATES, a divider of the same width opens each step,
+`# --- STEP 2: SURVEY ---…`. Within a step, the dispatch constants (context,
+agents, guidance) come before the instructions.
+
+### Placement
+
+A prompt belongs in the earliest section where it is used. A prompt used in
+steps 2, 4 and 6 goes in SHARED PROMPTS. A prompt used only in step 3, or in
+steps 3 and 4, goes at step 3's position.
+
+### Naming
+
+Constants are named `[PHASE]_[TYPE]`. PHASE is the workflow phase (`SCOPE`,
+`SURVEY`, `DEEPEN`, `SYNTHESIZE`). TYPE is the constant's role
+(`INSTRUCTIONS`, `DISPATCH_CONTEXT`, `DISPATCH_AGENTS`, `DISPATCH_GUIDANCE`,
+`FORMAT`, `FEEDBACK`). A confidence variant puts the level after the phase
+(`SURVEY_LOW_INSTRUCTIONS`). A shared prompt has no phase
+(`EVALUATION_CRITERIA`).
+
+### Strings
+
+A multi-line prompt is a parenthesized concatenation and never a
+triple-quoted string, which forces its content to column 0. Each line is its
+own literal ending in an explicit `\n`. A blank line is `"\n"` on its own line,
+and the last line has no `\n`. A composed constant joins as
+`+ NAME + "\n"`.
+
+## Step bodies
+
+A step body is a string. There are no action factories and no inversion of
+control.
+
+- Static text is a constant in MESSAGE TEMPLATES. Anything that calls
+  `roster_dispatch()` and its kin, or takes parameters, is a builder in
+  MESSAGE BUILDERS that composes constants defined above it. The prompt text
+  then reads at its definition, and dispatch parameters change without
+  touching it.
+- A mostly static workflow maps each static step to `(title, instructions)` in
+  `STATIC_STEPS`, and each parameterized step to a `_format_step_N` function
+  in `DYNAMIC_STEPS`. One `format_output()` reads both dicts. A
+  `_format_step_N` comes after MESSAGE BUILDERS and before `DYNAMIC_STEPS`.
+- A function that returns a prompt fragment is justified only by real
+  branching, and it lives in the skill, not in `lib/`. Otherwise compose
+  constants with `+`.
+
+## Shared library
+
+`scripts/skills/lib/workflow/prompts/` holds only abstractions that three or
+more skills use with the same meaning; anything narrower stays in its skill. A
+dispatch step carries two commands: the sub-agent's, inside the dispatch
+prompt (`sub_agent_invoke()`), and the parent's, for after the sub-agent
+returns, as `format_step`'s `next_cmd`.

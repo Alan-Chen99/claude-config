@@ -122,7 +122,7 @@ Final output adapts to question type (determined in Step 3):
 
 ## Implementation Notes
 
-The workflow uses `skills.lib.workflow.formatters.text` for output formatting.
+The workflow uses `format_step` from `skills.lib.workflow.prompts` for output formatting.
 Step 5 generates different invoke_after based on mode (quick vs full). Step 13
 uses `--iteration` parameter computed by the script, with MAX_ITERATIONS=5
 hardcoded.
