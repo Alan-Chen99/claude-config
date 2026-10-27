@@ -29,4 +29,4 @@ Adjust based on user request scope:
 - MEDIUM (directory, module, standard analysis): N = 10
 - LARGE (entire codebase, "thorough", "comprehensive"): N = 25
 
-The script randomly selects N categories from the 38 available code quality categories defined in conventions/code-quality/.
+The script randomly selects N categories from the code quality categories defined in conventions/code-quality/.

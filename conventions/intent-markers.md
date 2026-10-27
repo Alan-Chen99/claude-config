@@ -1,7 +1,7 @@
 # Intent Markers
 
 Markers suppress QR checks for intentional code patterns.
-\
+
 ## Format
 
 `:MARKER: [what]; [why]`
@@ -20,14 +20,8 @@ Markers suppress QR checks for intentional code patterns.
 
 ## Validation
 
-- Marker without semicolon or empty [why] = MARKER_INVALID (MUST)
-- Valid marker = skip relevant checks for marked code
-- Unmarked code = full scrutiny
+QR validates each marker's format (semicolon present, `[why]` non-empty):
 
-## QR Behavior
-
-QR scripts detect markers and:
-
-1. Validate format (structural: has semicolon, non-empty why)
-2. If valid: skip category checks for marked code
-3. If invalid: report MARKER_INVALID (MUST severity)
+- Valid marker: skip the relevant category checks for the marked code
+- Missing semicolon or empty `[why]`: report MARKER_INVALID (MUST)
+- Unmarked code: full scrutiny

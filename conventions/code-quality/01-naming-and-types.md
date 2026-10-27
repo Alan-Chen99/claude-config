@@ -2,230 +2,91 @@
 
 # Naming & Types
 
-Evaluate whether names and types accurately communicate intent.
-
-**The core question**: If a reader sees only the name or type, will their mental model match actual behavior? Names are micro-documentation. Types are contracts. When either lies, readers build wrong mental models and write bugs.
-
-**What to look for**:
-
-- Names that describe HOW instead of WHAT
-- Verbs that lie (get that mutates, validate that parses)
-- Missing domain types (primitives where concepts belong)
-- Type-based branching (isinstance chains indicating missing polymorphism)
-- Multiple names for the same concept within a file
-
-**The threshold**: Flag only when name/type actively misleads or when domain concepts are hidden in primitives crossing boundaries. Imperfect-but-accurate names are style preferences, not quality issues.
+If a reader sees only a name or type, will their mental model match actual behavior? Names are micro-documentation and types are contracts: when either lies, readers write bugs. Grep hints and violations are starting points, not a closed list: flag whatever breaks a category's principle.
 
 <design-mode>
-When evaluating Code Intent (Design Review phase):
-
-- Does the proposed function/class name predict its behavior?
-- Does the intent use domain types or raw primitives?
-- Are type choices appropriate for the domain concept?
-
-Evidence format: Quote the Code Intent description showing naming/type issue.
+Code Intent (Design Review): does each proposed function or class name predict its behavior? Does the intent use domain types or raw primitives, and do they fit the concept? Does it introduce a new name for an existing concept? Quote the Code Intent description.
 </design-mode>
 
 <code-mode>
-When evaluating actual code (Diff Review, Codebase Review, Refactor):
-
-- Does the implementation name match actual behavior?
-- Are domain concepts hidden in primitive comparisons?
-- Are isinstance chains indicating missing polymorphism?
-
-Evidence format: Quote code with file:line showing the issue.
+Quote code with file:line.
 </code-mode>
-
----
 
 ## 1. Naming Precision
 
-<principle>
-A name is micro-documentation. It should predict behavior accurately enough that reading the implementation confirms rather than surprises.
-</principle>
+<principle>A name should predict behavior well enough that reading the implementation confirms rather than surprises.</principle>
 
-Detect: Does the name accurately describe what this does? Would a reader's mental model, built from the name alone, match actual behavior?
-
-<grep-hints>
-Terms that sometimes indicate naming issues (starting points, not definitive):
-`Manager`, `Handler`, `Utils`, `Helper`, `Data`, `Info`, `process`, `handle`, `do`
-</grep-hints>
+<grep-hints>`Manager`, `Handler`, `Utils`, `Helper`, `Data`, `Info`, `process`, `handle`, `do`</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] Names describing HOW not WHAT (e.g., loopOverItems -> processOrders); verbs that lie (e.g., get that mutates, validate that parses)
+- [medium] Implementation details in public API names; vague umbrella terms (e.g., Manager, Handler, Utils, Data)
+- [low] Negated booleans (e.g., isNotValid -> isInvalid, disableFeature -> featureEnabled)
+</violations>
 
-[high] Name-behavior mismatch
+<exceptions>Generic names in genuinely generic contexts (item in a generic collection, T in type params). Test: would a specific name add signal or just noise?</exceptions>
 
-- Names describing HOW not WHAT (e.g., loopOverItems -> processOrders)
-- Verbs that lie (e.g., get that mutates, validate that parses)
-- Any name that would cause surprise when implementation is read
-
-[medium] Abstraction leakage
-
-- Implementation details in public API names
-- Vague umbrella terms (e.g., Manager, Handler, Utils, Helper, Data, Info)
-
-[low] Cognitive friction
-
-- Negated booleans (e.g., isNotValid -> isInvalid, disableFeature -> featureEnabled)
-  </violations>
-
-<exceptions>
-Generic names in genuinely generic contexts (e.g., item in a generic collection, T in type params). Test: would a specific name add signal or just noise?
-</exceptions>
-
-<threshold>
-Flag only when name actively misleads. Imperfect names that are still accurate are style preferences.
-</threshold>
+<threshold>Flag only when the name actively misleads. Imperfect but accurate names are style preferences.</threshold>
 
 ## 2. Missing Domain Modeling
 
-<principle>
-Domain concepts should be explicit in code, not hidden in raw comparisons. When the same concept is checked multiple ways, it belongs in a domain object.
-</principle>
+<principle>Domain concepts should be explicit in code, not hidden in raw comparisons. A concept checked several ways belongs in a domain object.</principle>
 
-Detect: Are domain concepts hiding in raw conditions? Is the same business concept checked via primitive comparison in multiple places?
-
-<grep-hints>
-Pattern indicators (starting points, not definitive):
-`== 'admin'`, `== "admin"`, `status ==`, `role ==`, `type ==`, magic numbers
-</grep-hints>
+<grep-hints>`== 'admin'`, `status ==`, `role ==`, `type ==`, magic numbers</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] Domain predicates in raw conditions (e.g., user.role == 'admin' -> user.can_edit()); magic value comparisons (e.g., status == 3 -> Status.APPROVED)
+- [medium] String comparisons for state (e.g., mode == 'active' -> enum); business rules buried in conditions (extract to a domain object method)
+</violations>
 
-[high] Hidden domain logic
+<exceptions>Explicit comparisons inside the domain layer itself. Config values compared once at startup.</exceptions>
 
-- Domain predicates in raw conditions (e.g., user.role == 'admin' -> user.can_edit())
-- Magic value comparisons (e.g., status == 3 -> Status.APPROVED)
-- Any business concept expressed only through primitive comparison
-
-[medium] Implicit modeling
-
-- String comparisons for state (e.g., mode == 'active' -> enum)
-- Business rules buried in conditions (extract to domain object method)
-  </violations>
-
-<exceptions>
-Explicit comparisons in domain layer implementation itself. Config values compared once at startup.
-</exceptions>
-
-<threshold>
-Flag when same domain concept is checked via raw comparison in 2+ places.
-</threshold>
+<threshold>Flag when the same domain concept is checked via raw comparison in 2+ places.</threshold>
 
 ## 3. Type-Based Branching
 
-<principle>
-Type dispatch scattered across code indicates missing polymorphism. When you branch on type in multiple places, the type itself should carry the behavior.
-</principle>
+<principle>Type dispatch scattered across code indicates missing polymorphism: when you branch on type in several places, the type itself should carry the behavior.</principle>
 
-Detect: Is type-checking being used where polymorphism would be cleaner? Does the same type dispatch appear in multiple locations?
-
-<grep-hints>
-Pattern indicators (starting points, not definitive):
-`isinstance`, `typeof`, `instanceof`, `hasattr`, `in dict`, `.type ==`
-</grep-hints>
+<grep-hints>`isinstance`, `typeof`, `instanceof`, `hasattr`, `in dict`, `.type ==`</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] isinstance/typeof chains (3+ branches -> polymorphism candidate); the same type dispatch in several locations
+- [medium] Attribute-presence checks used as type dispatch (e.g., hasattr, key in dict)
+- [low] Duck-typing conditionals that should be protocols/interfaces
+</violations>
 
-[high] Scattered dispatch
+<exceptions>A single isinstance check for input validation. Type narrowing for type safety.</exceptions>
 
-- isinstance/typeof chains (3+ branches -> polymorphism candidate)
-- Same type dispatch appearing in multiple locations
-
-[medium] Implicit dispatch
-
-- Attribute-presence checks (e.g., hasattr/in dict as type dispatch)
-
-[low] Missing abstraction
-
-- Duck typing conditionals that should be protocols/interfaces
-  </violations>
-
-<exceptions>
-Single isinstance check for input validation. Type narrowing for type safety.
-</exceptions>
-
-<threshold>
-Flag when same type dispatch appears in 2+ places. Single-use type checks are often appropriate.
-</threshold>
+<threshold>Flag when the same type dispatch appears in 2+ places. Single-use type checks are often appropriate.</threshold>
 
 ## 4. Type Design
 
-<principle>
-Domain concepts deserve their own types. Primitives that cross boundaries without validation invite bugs; value objects with validation prevent them.
-</principle>
+<principle>Domain concepts deserve their own types. Primitives that cross boundaries without validation invite bugs; value objects with validation prevent them.</principle>
 
-Detect: What domain concepts are represented as primitives? Do primitives cross API boundaries without validation?
-
-<grep-hints>
-Pattern indicators (starting points, not definitive):
-`str` for IDs, `float` for money, `dict` passed through call chain, `Any`, `object`
-</grep-hints>
+<grep-hints>`str` for IDs, `float` for money, `dict` passed through a call chain, `Any`, `object`</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] Primitive obsession (e.g., userId as string -> UserId type with validation); missing value objects (e.g., money as float -> Money(amount, currency))
+- [medium] Stringly-typed data (JSON strings -> typed objects); leaky abstractions (callers must know implementation details)
+- [low] Optional explosion (many nullable fields -> separate types per state)
+</violations>
 
-[high] Missing domain types
+<exceptions>Primitives in internal implementation, at serialization boundaries, and on performance-critical paths.</exceptions>
 
-- Primitive obsession (e.g., userId as string -> UserId type with validation)
-- Missing value objects (e.g., money as float -> Money(amount, currency))
-- Any domain concept crossing API boundary as primitive
+<threshold>Flag when primitives cross API boundaries without validation.</threshold>
 
-[medium] Weak typing
+## 5. Naming Consistency
 
-- Stringly-typed data (JSON strings -> typed objects)
-- Leaky abstractions (callers must know implementation details)
+<principle>A concept should have one name, within a file and across the codebase. Several names for one thing make readers doubt whether they are the same.</principle>
 
-[low] Type proliferation
-
-- Optional explosion (many nullable fields -> consider separate types for states)
-  </violations>
-
-<exceptions>
-Primitives in internal implementation. Serialization boundaries. Performance-critical paths.
-</exceptions>
-
-<threshold>
-Flag when primitives cross API boundaries without validation. Internal use of primitives is acceptable.
-</threshold>
-
-## 5. Naming Consistency (File Scope)
-
-<principle>
-A concept should have one name within a file. Multiple names for the same thing create confusion about whether they're actually the same.
-</principle>
-
-Detect: Are there multiple names for the same concept within this file? Would a reader wonder if user and account refer to the same entity?
-
-<grep-hints>
-Pattern indicators (starting points, not definitive):
-Synonyms as variable prefixes (user/account/customer, config/settings/options, id/uid/identifier)
-</grep-hints>
+<grep-hints>Synonyms as variable prefixes (user/account/customer, config/settings/options, id/uid/identifier)</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] One entity under different names (e.g., user vs account vs customer), within a file or drifting across modules to integration points
+- [medium] Inconsistent abbreviations (e.g., userId vs uid vs id)
+- [low] Style inconsistency without semantic confusion
+</violations>
 
-[high] Semantic confusion
+<exceptions>Different names for genuinely different concepts. External API naming conventions. Domain-specific terminology. Aliasing for clarity at a specific scope. Legacy compatibility aliases in a bounded migration.</exceptions>
 
-- Same entity called different names in same file (e.g., user vs account vs customer)
-- Any naming inconsistency causing doubt about identity within a single file
-
-[medium] Inconsistent conventions
-
-- Inconsistent abbreviations within file (e.g., id vs identifier)
-
-[low] Style drift
-
-- Style inconsistency without semantic confusion
-  </violations>
-
-<exceptions>
-Different names for genuinely different concepts. External API naming conventions. Aliasing for clarity at specific scopes.
-</exceptions>
-
-<threshold>
-Flag when same semantic concept has multiple names within a file AND causes confusion about whether they refer to the same thing.
-</threshold>
+<threshold>Flag when one concept has 2+ names within a file, or 3+ names across modules (needs a codebase view), AND readers would doubt whether they refer to the same thing.</threshold>

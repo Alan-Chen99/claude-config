@@ -2,223 +2,69 @@
 
 # Repetition & Consistency
 
-Evaluate whether code follows DRY principles and maintains consistency.
-
-**The core question**: Is this DRY and consistent? When the same logic, validation, or pattern appears in multiple places, bugs must be fixed everywhere -- and they won't be. When similar operations use different patterns, readers question whether the difference is meaningful.
-
-**What to look for**:
-
-- Duplicated code blocks that would require multi-location bug fixes
-- Validation rules implemented multiple times
-- Business rules scattered across locations
-- Repeated boolean expressions
-- Inconsistent error handling within a file or class
-
-**The threshold**: Flag when duplication is unintentional and would require coordinated changes. Flag inconsistency when it creates confusion about whether the difference is meaningful. Intentional duplication for modularity or bounded context isolation is acceptable.
-
-<design-mode>
-Not applicable -- this group requires actual code to evaluate.
-</design-mode>
+Does each piece of logic, validation and business rule have a single source of truth? When the same thing lives in several places, a bug must be fixed everywhere -- and it won't be -- and the copies drift apart. Needs actual code. Grep hints and violations are starting points, not a closed list: flag whatever breaks a category's principle.
 
 <code-mode>
-When evaluating actual code (Diff Review, Codebase Review, Refactor):
-
-- Would fixing a bug require changing multiple locations?
-- Are validation/business rules duplicated?
-- Are similar operations handled inconsistently?
-- Do repeated patterns need extraction?
-
-Evidence format: Quote code with file:line showing the duplication/inconsistency.
+Quote code with file:line showing the duplication or inconsistency.
 </code-mode>
-
----
 
 ## 1. Duplication
 
-<principle>
-Code should have a single source of truth. When the same logic exists in multiple places, bugs must be fixed everywhere -- and they won't be.
-</principle>
+<principle>Code should have a single source of truth. Test: if I fixed a bug here, where else would I need to fix it? The same transformation in several files is a missing abstraction trying to emerge.</principle>
 
-Detect: If I fixed a bug here, where else would I need to fix it?
-
-<grep-hints>
-Structural indicators (starting points, not definitive):
-Identical multi-line blocks, similar function bodies, function names suggesting similar purpose across modules
-</grep-hints>
+<grep-hints>Identical multi-line blocks, similar function bodies, function names suggesting similar purpose across modules, parallel implementations, repeated configuration shapes</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] The same code block duplicated (3+ lines, logic not just boilerplate); the same transformation applied in 3+ files
+- [medium] Copy-paste with minor variations; parallel class hierarchies doing similar things differently; copy-paste inheritance (similar classes with minor variations)
+- [low] A common pattern not extracted to a shared location; data pipelines or configuration patterns repeated without abstraction
+</violations>
 
-[high] Direct duplication
+<exceptions>Intentionally different logic serving different purposes. Test setup code. Generated/vendored code. Deliberate isolation for modularity. Similar code in different bounded contexts. Templates/generators producing similar code.</exceptions>
 
-- Same code block duplicated (3+ lines, logic not just boilerplate)
-- Any logic that would require multi-location bug fixes
-
-[medium] Near-duplication
-
-- Copy-paste with minor variations
-
-[low] Missed abstraction
-
-- Common pattern not extracted to shared location
-  </violations>
-
-<exceptions>
-Intentionally different logic serving different purposes. Test setup code. Generated/vendored code. Deliberate isolation for modularity. Similar code in different bounded contexts.
-</exceptions>
-
-<threshold>
-Flag when bug fix would require changing multiple locations AND the duplication is unintentional.
-</threshold>
+<threshold>Flag when a bug fix would require changing multiple locations AND the duplication is unintentional. Across files, flag when a pattern appears in 3+ implementations AND extracting a shared abstraction is the fix.</threshold>
 
 ## 2. Validation Scattering
 
-<principle>
-Validation rules should live in one place. When the same validation is implemented multiple times, implementations diverge -- and some will be wrong.
-</principle>
+<principle>Validation rules should live in one place. Implemented several times, the copies diverge -- and some will be wrong.</principle>
 
-Detect: Is this validation duplicated? Would changing the validation rule require updating multiple locations?
-
-<grep-hints>
-Pattern indicators (starting points, not definitive):
-Repeated regex patterns, duplicate bounds checks, email/phone/format validation across locations
-</grep-hints>
+<grep-hints>Repeated regex patterns, duplicate bounds checks, email/phone/format validation across locations</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] Validation rules diverged between implementations
+- [medium] The same validation repeated without a shared implementation
+- [low] Defensive re-validation deeper in the call chain
+</violations>
 
-[high] Diverged validation
+<exceptions>Validation at trust or service boundaries. Defense-in-depth by design. Context-specific validation rules.</exceptions>
 
-- Validation rules diverged between implementations
-- Any validation requiring multi-location updates
-
-[medium] Repeated validation
-
-- Same validation repeated without shared implementation
-
-[low] Defensive re-validation
-
-- Defensive re-validation deeper in call chain
-  </violations>
-
-<exceptions>
-Validation at trust boundaries. Defense-in-depth by design. Context-specific validation rules. Service boundary validation.
-</exceptions>
-
-<threshold>
-Flag when identical validation appears 3+ times (file scope) or 5+ files (codebase scope) AND implementations have diverged or will diverge.
-</threshold>
+<threshold>Flag when identical validation appears 3+ times (file scope) or in 5+ files (codebase scope) AND the implementations have diverged or will diverge.</threshold>
 
 ## 3. Business Rule Scattering
 
-<principle>
-Business rules should have a single source of truth. When the same decision is made in multiple places, they will eventually disagree.
-</principle>
+<principle>Business rules should have a single source of truth. When the same decision is made in several places, they will eventually disagree. Test: if the rule changes, how many places need updating?</principle>
 
-Detect: Where is the single source of truth for this rule? If the rule changes, how many places need updating?
-
-<grep-hints>
-Pattern indicators (starting points, not definitive):
-Repeated conditional patterns, magic numbers in multiple places, pricing/permission/eligibility logic
-</grep-hints>
+<grep-hints>Repeated conditional patterns, magic numbers in multiple places, pricing/permission/eligibility logic</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] The same business decision in several places that could diverge
+</violations>
 
-[high] Scattered decisions
+<exceptions>Orchestration calling multiple rule checks. Rules intentionally duplicated for service isolation. Per-tenant/region rule variations. Caching of computed rules.</exceptions>
 
-- Same business decision in multiple places that could diverge
-- Any business rule without clear single source of truth
-
-[medium] Mixed concerns
-
-- Business logic mixed with infrastructure code
-
-[low] Implicit rules
-
-- Rules embedded in raw conditionals instead of named predicates
-  </violations>
-
-<exceptions>
-Orchestration calling multiple rule checks. Rules intentionally duplicated for service isolation. Per-tenant/region rule variations. Caching of computed rules.
-</exceptions>
-
-<threshold>
-Flag when same business decision is made in 2+ places (file scope) or 3+ files (codebase scope) AND they have diverged or could diverge independently.
-</threshold>
+<threshold>Flag when the same business decision is made in 2+ places (file scope) or 3+ files (codebase scope) AND they have diverged or could diverge independently.</threshold>
 
 ## 4. Condition Pattern Repetition
 
-<principle>
-Repeated boolean expressions should be named predicates. When the same condition appears everywhere, changing it requires finding all occurrences.
-</principle>
+<principle>Repeated boolean expressions should be named predicates. When the same condition appears everywhere, changing it means finding every occurrence.</principle>
 
-Detect: Should this condition be a named predicate? Does extracting it reduce the bug surface area?
-
-<grep-hints>
-Pattern indicators (starting points, not definitive):
-Identical boolean expressions, repeated guard clauses, permission/feature-flag check patterns
-</grep-hints>
+<grep-hints>Identical boolean expressions, repeated guard clauses, permission/feature-flag check patterns</grep-hints>
 
 <violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
+- [high] An identical condition in 3+ places (file) or 5+ files (codebase)
+- [low] The same guard clause pattern across related functions
+</violations>
 
-[high] High-frequency repetition
+<exceptions>Standard guard clauses (null checks, bounds checks). Framework-required patterns. Simple conditions that read clearly inline.</exceptions>
 
-- Identical condition in 3+ places (file) or 5+ files (codebase) (extracting reduces bug surface)
-- Any condition requiring multi-location updates when logic changes
-
-[medium] Pattern repetition
-
-- Repeated feature flag conditions
-
-[low] Guard repetition
-
-- Same guard clause pattern across related functions
-  </violations>
-
-<exceptions>
-Standard guard clauses (null checks, bounds checks). Framework-required patterns. Simple conditions that read clearly inline.
-</exceptions>
-
-<threshold>
-Flag when identical condition appears 3+ times (file scope) or 5+ files (codebase scope) AND extracting to named predicate would reduce bug surface area.
-</threshold>
-
-## 5. Error Pattern Consistency (File Scope)
-
-<principle>
-Error handling should be consistent within an abstraction level. Mixed patterns create confusion about how errors propagate and should be handled.
-</principle>
-
-Detect: Is error handling consistent within this file or class? Would a caller know what to expect from similar operations?
-
-<grep-hints>
-Pattern indicators (starting points, not definitive):
-Mixed exception/return-code patterns, inconsistent error message formats, varying error context
-</grep-hints>
-
-<violations>
-Illustrative patterns (not exhaustive -- similar violations exist):
-
-[high] Incompatible patterns
-
-- Incompatible error patterns for similar operations within same class
-- Any error handling creating caller confusion
-
-[medium] Inconsistent hierarchy
-
-- Inconsistent exception hierarchies within same abstraction level
-
-[low] Missing convention
-
-- No standard for error context/wrapping within file
-  </violations>
-
-<exceptions>
-Different patterns for different abstraction levels (domain vs API vs infra). Wrapper functions translating between error styles. Legacy code under active migration.
-</exceptions>
-
-<threshold>
-Flag when same class uses 2+ incompatible error patterns for similar operations AND no migration plan exists.
-</threshold>
+<threshold>Flag when an identical condition appears 3+ times (file scope) or in 5+ files (codebase scope) AND extracting a named predicate would reduce the bug surface.</threshold>

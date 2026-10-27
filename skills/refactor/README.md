@@ -112,9 +112,10 @@ searches only for listed patterns and misses analogous violations.
 
 Mechanisms used:
 
-- "Illustrative patterns (not exhaustive -- similar violations exist)"
+- The `<interpretation>` block explore.py wraps each category in ("ILLUSTRATIVE
+  PATTERNS, not an exhaustive checklist"; "Detect ANY code violating the
+  underlying <principle>")
 - "e.g.," prefix on examples
-- Open-ended escape hatches: "Any X that causes Y"
 - DOMAIN TRANSLATION instruction to translate abstract to project-specific
 
 ## Code Quality Categories

@@ -1,23 +1,20 @@
 # Documentation Conventions
 
-This is the authoritative documentation conventions file. All code-adjacent
-documentation (CLAUDE.md, README.md) must follow these principles.
+The authoritative conventions for code-adjacent documentation (CLAUDE.md, README.md).
 
 ## Core Principles
 
-**Self-contained documentation**: All code-adjacent documentation (CLAUDE.md,
-README.md) must be self-contained. Do NOT reference external authoritative
-sources (doc/ directories, wikis, external documentation). If knowledge exists
-in an authoritative source, it must be summarized locally. Duplication is
-acceptable; the maintenance burden is the cost of locality.
+**Self-contained documentation**: CLAUDE.md and README.md must not defer to
+external authoritative sources (doc/ directories, wikis, external
+documentation): summarize that knowledge locally. Duplication is acceptable;
+the maintenance burden is the cost of locality.
 
-**CLAUDE.md = pure index + policy**: CLAUDE.md files are primarily navigation
-aids. They contain WHAT is in the directory and WHEN to read each file. All
-explanatory content (architecture, decisions, invariants) belongs in README.md.
-CLAUDE.md may additionally contain agent policy -- behavioral rules and
-constraints that agents must follow. Policy in a parent directory applies to all
-descendants. Claude Code auto-loads CLAUDE.md from the working directory and all
-parent directories upward. That covers ancestors, not descendants: this repo
+**CLAUDE.md = pure index + policy**: CLAUDE.md says WHAT is in the directory
+and WHEN to read each file, plus any agent policy -- behavioral rules and
+constraints agents must follow, which apply to all descendants. Explanation
+(architecture, decisions, invariants) belongs in README.md. Claude Code
+auto-loads CLAUDE.md from the working directory and all parent directories
+upward. That covers ancestors, not descendants: this repo
 tracks 60 CLAUDE.md files and a session started at the root carries two of them
 — the user's `~/.claude/CLAUDE.md` and this repo's root file — with every nested
 one absent from the opening context (observed 2026-09-13, cc 2.1.269). Put
@@ -30,9 +27,9 @@ token (4 on pre-5 models) if that is larger, loads only up to its last line
 break within that size, with a note to `Read` the rest (`"Only the start of
 this file is shown."`).
 
-**README.md = invisible knowledge**: README.md files capture knowledge NOT
-visible from reading source code. If ANY invisible knowledge exists for a
-directory, README.md is required.
+**README.md = invisible knowledge**: README.md captures knowledge NOT visible
+from reading the source code. If ANY exists for a directory, README.md is
+required.
 
 ## Documentation budget
 
@@ -82,380 +79,132 @@ including good writing — git history keeps it.
 
 ### Index Format
 
-Use tabular format with What and When columns:
-
 ```markdown
 ## Files
 
-| File        | What                           | When to read                              |
-| ----------- | ------------------------------ | ----------------------------------------- |
-| `cache.rs`  | LRU cache with O(1) operations | Implementing caching, debugging evictions |
-| `errors.rs` | Error types and Result aliases | Adding error variants, handling failures  |
-
-## Subdirectories
-
-| Directory   | What                          | When to read                              |
-| ----------- | ----------------------------- | ----------------------------------------- |
-| `config/`   | Runtime configuration loading | Adding config options, modifying defaults |
-| `handlers/` | HTTP request handlers         | Adding endpoints, modifying request flow  |
+| File       | What                           | When to read                              |
+| ---------- | ------------------------------ | ----------------------------------------- |
+| `cache.rs` | LRU cache with O(1) operations | Implementing caching, debugging evictions |
 ```
 
-### Column Guidelines
+`## Subdirectories` is the same table with a `Directory` column.
 
-- **File/Directory**: Use backticks around names: `cache.rs`, `config/`
-- **What**: Factual description of contents (nouns, not actions)
-- **When to read**: Task-oriented triggers using action verbs (implementing,
-  debugging, modifying, adding, understanding)
+- **File/Directory**: names in backticks: `cache.rs`, `config/`
+- **What**: factual description of contents (nouns, not actions)
+- **When to read**: task-oriented triggers using action verbs (implementing,
+  debugging, modifying, adding, understanding). Test: given the task "add a new
+  validation rule", can an LLM scan this column and identify the right file?
 - At least one column must have content; empty cells use `-`
 
-### Trigger Quality Test
+Generated and vendored files/directories MUST be flagged as not for manual
+editing: the What column (or a Regenerate section) gives the origin and the
+regeneration command, and When to read says so:
 
-Given task "add a new validation rule", can an LLM scan the "When to read"
-column and identify the right file?
-
-### Generated and Vendored Code
-
-CLAUDE.md MUST flag files/directories that should not be manually edited:
-
-| Directory      | What                              | When to read        |
-| -------------- | --------------------------------- | ------------------- |
-| `proto/gen/`   | Generated from proto/. Run `make` | Never edit directly |
-| `vendor/`      | Vendored deps, upstream: go.mod   | Never edit directly |
-| `third_party/` | Copied from github.com/foo v1.2.3 | Never edit directly |
-
-The "When to read" column should indicate these are not editable. Include
-regeneration commands in the "What" column or in a dedicated Regenerate section.
-
-This prevents LLMs from wasting effort analyzing or "improving" auto-generated
-code, and prevents edits that will be overwritten or cause merge conflicts.
-
-See also: conventions/code-quality/baseline.md "Generated and Vendored Code Awareness".
+| Directory    | What                              | When to read        |
+| ------------ | --------------------------------- | ------------------- |
+| `proto/gen/` | Generated from proto/. Run `make` | Never edit directly |
+| `vendor/`    | Vendored deps, upstream: go.mod   | Never edit directly |
 
 ### ROOT vs SUBDIRECTORY CLAUDE.md
 
-**ROOT CLAUDE.md:**
+**SUBDIRECTORY**: `# [directory-name]/`, then the Files and Subdirectories
+tables.
 
-```markdown
-# [Project Name]
+**ROOT**: `# [Project Name]`, one sentence on what this is, the Files and
+Subdirectories tables, then `## Build` and `## Test` (copy-pasteable commands),
+`## Development` (setup, environment requirements, workflow notes) and
+`## Agent Policy` (coding standards, tool preferences, workflow constraints,
+things to always/never do).
 
-[One sentence: what this is]
-
-## Files
-
-| File | What | When to read |
-| ---- | ---- | ------------ |
-
-## Subdirectories
-
-| Directory | What | When to read |
-| --------- | ---- | ------------ |
-
-## Build
-
-[Copy-pasteable command]
-
-## Test
-
-[Copy-pasteable command]
-
-## Development
-
-[Setup instructions, environment requirements, workflow notes]
-
-## Agent Policy
-
-[Behavioral rules for agents: coding standards, tool preferences,
-workflow constraints, things to always/never do]
-```
-
-**SUBDIRECTORY CLAUDE.md:**
-
-```markdown
-# [directory-name]/
-
-## Files
-
-| File | What | When to read |
-| ---- | ---- | ------------ |
-
-## Subdirectories
-
-| Directory | What | When to read |
-| --------- | ---- | ------------ |
-```
-
-**Critical constraint:** CLAUDE.md files are navigation aids, not explanatory
-documents. They contain:
-
-- File/directory index (REQUIRED): tabular format with What/When columns
-- One-sentence overview (OPTIONAL): what this directory is
-- Operational sections (OPTIONAL): Build, Test, Regenerate, Deploy, or similar
-  commands specific to this directory's artifacts
-- Agent policy (OPTIONAL): behavioral rules and constraints for agents (coding
-  standards, tool preferences, workflow rules). Applies to this directory and all
-  descendants
-
-They do NOT contain:
-
-- Architectural explanations (-> README.md)
-- Design decisions or rationale (-> README.md)
-- Invariants or constraints (-> README.md)
-- Multi-paragraph prose (-> README.md)
-
-Operational sections must be copy-pasteable commands with minimal context, not
-explanatory prose about why the build works a certain way.
+A CLAUDE.md contains only the file/directory index (REQUIRED), a one-sentence
+overview, operational sections (Build, Test, Regenerate, Deploy or similar:
+copy-pasteable commands for this directory's artifacts with minimal context,
+not prose on why the build works) and agent policy. Architecture, design
+decisions and rationale, invariants and multi-paragraph prose go to README.md.
 
 ## README.md Specification
 
-### Creation Criteria (Invisible Knowledge Test)
+Create a README.md when the directory holds ANY invisible knowledge --
+knowledge NOT visible from reading the code: planning decisions (from the
+Decision Log), business context, architectural rationale, trade-offs,
+invariants not in types, rejected alternatives, non-obvious performance
+characteristics, non-obvious contracts between components, domain knowledge
+encoded in the directory structure, failure modes or edge cases not apparent
+from individual files, and rules not enforced by compiler or linter. The
+trigger is semantic, not structural (file count, complexity). Do NOT create one
+for a purely organizational directory, or to restate what the code shows.
 
-Create README.md when the directory contains ANY invisible knowledge --
-knowledge NOT visible from reading the code:
+**Content test**: for each sentence, ask "Could a developer learn this by
+reading the source files?" If yes, delete it.
 
-- Planning decisions (from Decision Log during implementation)
-- Business context (why the product works this way)
-- Architectural rationale (why this structure)
-- Trade-offs made (what was sacrificed for what)
-- Invariants (rules that must hold but aren't in types)
-- Historical context (why not alternatives)
-- Performance characteristics (non-obvious efficiency properties)
-- Multiple components interact through non-obvious contracts
-- The directory's structure encodes domain knowledge
-- Failure modes or edge cases aren't apparent from reading individual files
-- "Rules" developers must follow that aren't enforced by compiler/linter
-
-**README.md is required if ANY of the above exist.** The trigger is semantic
-(presence of invisible knowledge), not structural (file count, complexity).
-
-**DO NOT create README.md when:**
-
-- The directory is purely organizational with no decisions behind its structure
-- All knowledge is visible from reading source code
-- You'd only be restating what code already shows
-
-### Content Test
-
-For each sentence in README.md, ask: "Could a developer learn this by reading
-the source files?"
-
-- If YES: delete the sentence
-- If NO: keep it
-
-README.md earns its tokens by providing INVISIBLE knowledge: the reasoning
-behind the code, not descriptions of the code.
-
-### README.md Structure
-
-```markdown
-# [Component Name]
-
-## Overview
-
-[One paragraph: what problem this solves, high-level approach]
-
-## Architecture
-
-[How sub-components interact; data flow; key abstractions]
-
-## Design Decisions
-
-[Tradeoffs made and why; alternatives considered]
-
-## Invariants
-
-[Rules that must be maintained; constraints not enforced by code]
-```
+**Structure**: `# [Component Name]`, then `## Overview` (one paragraph: the
+problem and the approach), `## Architecture` (how sub-components interact,
+data flow, key abstractions), `## Design Decisions` (trade-offs, alternatives
+considered), `## Invariants` (rules not enforced by code).
 
 ## Architecture Documentation
 
-For cross-cutting concerns and system-wide relationships that span multiple
-directories, create dedicated architecture documentation.
-
-### Structure
-
-```markdown
-# Architecture: [System/Feature Name]
-
-## Overview
-
-[One paragraph: problem and high-level approach]
-
-## Components
-
-[Each component with its single responsibility and boundaries]
-
-## Data Flow
-
-[Critical paths - prefer diagrams for complex flows]
-
-## Design Decisions
-
-[Key tradeoffs and rationale]
-
-## Boundaries
-
-[What this system does NOT do; where responsibility ends]
-```
-
-### Quality Standard
-
-Components must explain relationships, not just list responsibilities.
-
-Wrong -- lists without relationships:
-
-```markdown
-## Components
-
-- UserService: Handles user operations
-- AuthService: Handles authentication
-- Database: Stores data
-```
-
-Right -- explains boundaries and flow:
-
-```markdown
-## Components
-
-- UserService: User CRUD only. Delegates auth to AuthService. Never queries auth
-  state directly.
-- AuthService: Token validation, session management. Stateless; all state in
-  Redis.
-- PostgreSQL: Source of truth for user data. AuthService has no direct access.
-
-Flow: Request -> AuthService (validate) -> UserService (logic) -> Database
-```
-
+For cross-cutting concerns spanning several directories, write a dedicated
+`# Architecture: [System/Feature Name]` document with `## Overview`,
+`## Components` (each one's single responsibility and boundaries),
+`## Data Flow` (critical paths), `## Design Decisions` and `## Boundaries`
+(what the system does NOT do; where responsibility ends). Components must
+explain relationships -- what each delegates, what it never touches, where its
+state lives, and the flow between them -- not just list responsibilities.
 Prefer diagrams over prose for relationships.
 
 ## In-Code Documentation
 
-Code-level documentation captures knowledge at the point where it is most useful.
-The principle: knowledge belongs as close as possible to the code it describes.
-Cross-cutting knowledge that cannot be localized belongs in README.md.
+Knowledge belongs as close as possible to the code it describes; only
+cross-cutting knowledge that cannot be localized goes to README.md.
 
 ### Tier 1: Inline Comments
 
-Above statements or expressions where the choice is non-obvious.
-
-Document *why* this approach, never *what* the code does. The reader can see what
-the code does: they cannot see why it was chosen over alternatives.
-
-Good:
-
-```python
-# Polling: 30% webhook delivery failures observed in production
-result = poll_endpoint(url, interval=30)
-
-# Mutex-free: single-writer guarantee from caller contract
-counter.fetch_add(1, Ordering::Relaxed)
-```
-
-Bad:
-
-```python
-# Poll the endpoint
-result = poll_endpoint(url, interval=30)
-
-# Increment the counter
-counter.fetch_add(1, Ordering::Relaxed)
-```
-
-When a decision log entry exists, reference it: `# DL-003: Polling over webhooks`
+Above a statement or expression whose choice is non-obvious. Document *why*
+this approach, never *what* the code does: `# Polling: 30% webhook delivery
+failures observed in production`, not `# Poll the endpoint`. When a decision
+log entry exists, cite it: `# DL-003: Polling over webhooks`.
 
 ### Tier 2: Function-Level Explanation Blocks
 
-Near the top of non-trivial functions (after signature, before body logic).
-Required when a function has >3 distinct transformation steps, coordinates
-multiple subsystems, or implements a non-obvious algorithm.
-
-Content: what the function does, how it does it, how it fits in the overall
-architecture, what problem it solves.
-
-```python
-def reconcile_state(local, remote):
-    # Reconciles local state against remote source of truth. Operates in
-    # three phases:
-    # 1. Diff local vs remote to find divergent keys
-    # 2. For each divergence, apply conflict resolution (remote wins)
-    # 3. Write merged state back to local store
-    #
-    # Called by the sync loop after each heartbeat. Remote state is
-    # authoritative -- local is a cache that may lag behind.
-    ...
-```
-
-Skip for CRUD operations and standard patterns where the code speaks for itself.
+After the signature, before the body logic, of a function with >3 distinct
+transformation steps, that coordinates multiple subsystems, or that implements
+a non-obvious algorithm: what it does, how, how it fits the overall
+architecture and what problem it solves. Skip CRUD operations and standard
+patterns where the code speaks for itself.
 
 ### Tier 3: Docstrings
 
-**Private functions**: One-line summary + trigger clause (when to call).
+**Private functions**: a one-line summary plus a trigger clause (when to call):
+`"""Strip whitespace and lowercase. Use before cache lookup."""`
 
-```python
-def _normalize_key(k):
-    """Strip whitespace and lowercase. Use before cache lookup."""
-```
-
-**Public functions**: Summary + trigger clause + parameter semantics + example.
-Optimized for LLM consumption -- trigger clauses and examples enable accurate
-tool selection.
-
-```python
-def validate_config(path, strict=False):
-    """Validate configuration file against schema.
-
-    Use when loading user-provided config at startup or after hot-reload.
-    In strict mode, unknown keys are errors; otherwise warnings.
-
-    Args:
-        path: Absolute path to YAML config file.
-        strict: Treat unknown keys as errors.
-
-    Returns:
-        Validated Config object.
-
-    Example:
-        cfg = validate_config("/etc/app/config.yaml", strict=True)
-    """
-```
+**Public functions**: summary, trigger clause, parameter semantics and an
+example. Trigger clauses and examples let an LLM select the right tool.
 
 ### Tier 4: Module Documentation
 
-Top-of-file comment or module docstring. Documents what the module contains and
-why it exists as a separate unit.
-
-```python
-"""Rate limiting using sliding window counters.
-
-Provides per-client rate limiting for the API gateway. Sliding window
-chosen over fixed window to prevent burst-at-boundary attacks (DL-007).
-Token bucket rejected: memory overhead per client unacceptable at
-projected scale (>100k concurrent clients).
-"""
-```
+A top-of-file comment or module docstring: what the module contains and why it
+exists as a separate unit (e.g., the approach chosen and the alternatives
+rejected).
 
 ### Tier 5: Invisible Knowledge Placement
 
-Invisible knowledge is knowledge not visible from reading the code: business
-context, architectural rationale, tradeoffs, constraints, rejected alternatives.
+Invisible knowledge (business context, architectural rationale, trade-offs,
+constraints, rejected alternatives) goes to the closest viable location:
 
-**Placement hierarchy** (closest viable location wins):
+1. **Inline comment**: knowledge about a specific statement
+2. **Function-level block**: about a whole function's approach or algorithm
+3. **Module docstring**: about why the module exists or its overall design
+4. **README.md**: cross-cutting (spans files/modules) or not localizable to a
+   single code point
 
-1. **Inline comment**: When knowledge applies to a specific statement
-2. **Function-level block**: When knowledge applies to an entire function's
-   approach or algorithm
-3. **Module docstring**: When knowledge applies to why this module exists or
-   its overall design
-4. **README.md**: When knowledge is cross-cutting (spans multiple files/modules)
-   or cannot be localized to a single code point
-
-What is NOT acceptable: invisible knowledge captured only in planning artifacts
-(decision logs, plan documents, conversation history) that are not carried
-forward into the codebase. Every decision, constraint, and tradeoff must land
-in code or README.md.
+Knowledge captured only in planning artifacts (decision logs, plan documents,
+conversation history) is not acceptable: every decision, constraint and
+trade-off must land in code or README.md.
 
 ### Priority Order
 
-When deciding what to document, prioritize by uncertainty:
+Document the most uncertain first:
 
 | Priority | Code Pattern                 | WHY Question           |
 | -------- | ---------------------------- | ---------------------- |
@@ -465,5 +214,4 @@ When deciding what to document, prioritize by uncertainty:
 | HIGH     | External system interactions | What assumptions?      |
 | MEDIUM   | Non-standard pattern usage   | Why deviate from norm? |
 | MEDIUM   | Performance-critical paths   | Why this optimization? |
-| LOW      | Boilerplate/established      | Skip unless unusual    |
-| LOW      | Simple CRUD operations       | Skip unless unusual    |
+| LOW      | Boilerplate, simple CRUD     | Skip unless unusual    |
