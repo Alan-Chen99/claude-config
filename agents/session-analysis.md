@@ -1,7 +1,7 @@
 ---
 name: session-analysis
 description: Use when you need raw factual evidence from one or more opencode or Claude Code session logs for later analysis. Load the session-analysis skill before dispatching it.
-model: claude-opus-4-8
+model: opus
 effort: medium
 tools: Read, Bash, Write
 ---
