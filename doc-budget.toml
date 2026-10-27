@@ -41,27 +41,32 @@ default_cap = 12000
 
 # -- every request ----------------------------------------------------------
 
+# 4,805 is the user's cap (2026-10-27), set so the file's 3,844 after that
+# day's consolidation sits at 80%: what is left is pinned upstream text or rules
+# that change behaviour.
 [groups."sys_prompt/alan-default-next.md"]
 loaded = "every request, every project"
-cap = 4400
+cap = 4805
+approved = "user:ffa7577b"
 
 # One opencode agent body is loaded per session; the set pays its largest.
-# target 4,400: the cc prompt's cap, for the same job.
+# 5,417 is the user's cap (2026-10-27), chosen over cutting alan-default-ids.md
+# from 4,333 to 3,520, which would delete its personality and formatting rules.
 [groups.opencode-prompt]
 loaded = "every request of an opencode session"
 one_of = "opencode/agents/<agent>.md"
-cap = 5200
+cap = 5417
+approved = "user:ffa7577b"
 
 # -- every session ----------------------------------------------------------
 
 # The `description:` of every skill and agent, which the skills listing carries
-# into every session; counted here and again inside its file.
-# target 900: a trigger needs the when; six descriptions run 74-116 tokens and
-# carry the how.
+# into every session; counted here and again inside its file.  A description
+# carries the when; the how is the body's.
 [groups.descriptions]
 loaded = "every session, every project"
 derived = "descriptions"
-cap = 1200
+cap = 900
 
 # -- per invocation, per spawn ----------------------------------------------
 
@@ -73,18 +78,19 @@ loaded = "per invocation"
 derived = "skill-bodies"
 cap = 2000
 
-# Grew to 7,316 before anything measured it, so it carries a cap of its own;
-# 1,000 stands until the skill's job changes.
+# Grew to 7,316 before anything measured it, so it carries a cap of its own.
+# 1,500 is the user's cap (2026-10-27, up from 1,000): what is left is rules,
+# several pinned by tests/test_telegram_hitl_skill.py.
 [groups."skills/telegram-hitl/SKILL.md"]
-cap = 1000
+cap = 1500
+approved = "user:ffa7577b"
 
 # Loaded after every compaction: the SessionStart hook renders the body and the
-# system prompt names the skill. 400 is the user's cap (2026-10-12, up from 200
-# when the body took the rules for reading a summary), set at the file's size:
-# growth is a request to the user, not a cut.
+# system prompt names the skill. 600 is the user's cap (2026-10-27; 400 on
+# 2026-10-12, up from 200 when the body took the rules for reading a summary).
 [groups."skills/resume-from-summary/SKILL.md"]
-cap = 400
-approved = "user:95e6d4cf"
+cap = 600
+approved = "user:ffa7577b"
 
 # 2,000 is the user's cap (2026-10-14): the skill-bodies cap, pinned to the
 # file so a later change to the class cap does not move it.
@@ -100,13 +106,11 @@ loaded = "per spawn"
 derived = "agent-bodies"
 cap = 2000
 
-# Agent bodies tell their agent to read these, so the set is spent per spawn;
-# the cap sits just above today's size and the next growth past it pays the cut.
-# target 20,000: code-quality/README.md beside code-quality/CLAUDE.md is two
-# indexes; 04, 07 and 08 overlap; documentation.md is half examples.
+# Agent bodies tell their agent to read these, so the set is spent per spawn,
+# and the refactor and planner scripts load the code-quality files by path.
 [groups.conventions]
 loaded = "per spawn (agent bodies read them)"
-cap = 25000
+cap = 20000
 approved = "user:834203fa"
 
 # -- every session touching the directory -----------------------------------
@@ -133,6 +137,16 @@ cap = 2000
 loaded = "on demand, one file at a time"
 per_file = true
 cap = 2000
+
+# The user's caps (2026-10-27), each set so the note's size after that day's
+# consolidation sits at 80%: what is left is dated evidence other docs cite.
+[groups."notes/cc-2.1.289-subagent-waits.md"]
+cap = 2154
+approved = "user:ffa7577b"
+
+[groups."notes/print-mode-task-lifetime.md"]
+cap = 2328
+approved = "user:ffa7577b"
 
 [groups."docs/superpowers/specs"]
 per_file = true
@@ -196,13 +210,6 @@ approved = "user:84f920a6"
 per_file = true
 cap = 8000
 
-# INTENT.md is the skill's 11k design spec, read whole; the cap is today's size,
-# so the next addition pays the 20% cut.
-# target 12,000 (default_cap): INTENT.md is a spec, and a spec is 2,000 elsewhere.
-[groups."skills/planner"]
-cap = 17808
-approved = "user:834203fa"
-
 # -- on demand, a directory at a time ---------------------------------------
 
 [groups.scripts]
@@ -221,20 +228,16 @@ loaded = "on demand"
 
 # settings.json has had `outputStyle: default` since cbeb6721, so nothing here
 # is loaded; the cap keeps the directory from growing unnoticed.
-# target 7,000: alan-default.md is the superseded twin of alan-default-next.md;
-# the README's Reference half is snapshot material.
 [groups.output-styles]
 loaded = "not loaded since cbeb6721 (outputStyle: default)"
-cap = 11000
+cap = 7000
 
-# Everything else: root README.md and skills/README.md.  Residual, so a new
-# directory lands here and shows as infra debt, not nowhere.
-# target 9,000: skills/README.md is the scripts' layout convention, mostly
-# template; the public README stays.
+# Everything else: the root, skills/ and agent-tools/ README.md.  Residual, so a
+# new directory lands here and shows as infra debt, not nowhere.
 [groups.infra]
 loaded = "on demand, the residual"
 residual = true
-cap = 12000
+cap = 9000
 
 # -- data: listed in every report, never counted ----------------------------
 
@@ -311,11 +314,11 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 
 [held.files]
 "notes/compliance-check-failure-mode.md" = 13796
-"docs/opencode-system-prompt/alan-default-commentary.md" = 12684
+"docs/opencode-system-prompt/alan-default-commentary.md" = 12141
 "plans/refactor-coding-style-skill.md" = 12506
 "notes/agent-tools-run-stress-findings.md" = 12249
 "plans/alan-coding-style-v2-fixes.md" = 12016
-"skills/cc-history/SKILL.md" = 7810
+"skills/cc-history/SKILL.md" = 7792
 "skills/alan-writing-style/CLAUDE.md" = 10977
 "skills/prompt-engineer/references/correctness/sampling.md" = 9783
 "plans/fix-style-skill-problems.md" = 8909
@@ -324,33 +327,33 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "docs/system-prompt-anatomy-source-verified.md" = 8032
 "plans/agent-tools-run-finish.md" = 7835
 "docs/superpowers/specs/2026-09-02-env-context-design.md" = 7475
-"docs/opencode-system-prompt/min-commentary.md" = 6851
+"docs/opencode-system-prompt/min-commentary.md" = 6847
 "plans/planner-lite.md" = 6871
 "docs/superpowers/specs/2026-08-29-agent-tools-run-background-ps-design.md" = 6689
-"skills/opencode-subcommand/SKILL.md" = 6534
+"skills/opencode-subcommand/SKILL.md" = 6521
 "plans/alan-style-reference-gating.md" = 5865
-"skills/session-analysis/SKILL.md" = 5739
+"skills/session-analysis/SKILL.md" = 5653
 "plans/deterministic-qr-gates-plan.md" = 5607
 "docs/superpowers/specs/2026-08-24-agent-tools-run-observability-design.md" = 5466
-"docs/agent-tools-status-reference.md" = 4803
+"docs/agent-tools-status-reference.md" = 4800
 "docs/superpowers/specs/2026-05-17-agent-tools-run-design.md" = 4641
 "docs/superpowers/specs/2026-06-01-prompt-tests-restructure-design.md" = 4573
 "notes/env-context-manifest.md" = 4467
 "notes/total-tokens-reminder.md" = 4047
-"docs/background-sessions.md" = 3983
+"docs/background-sessions.md" = 3847
 "docs/superpowers/specs/2026-09-30-intercept-replay-design.md" = 3916
 "agents/quality-reviewer.md" = 3766
 "docs/system-prompt-anatomy.md" = 3510
 "agents/developer.md" = 3374
 "docs/superpowers/specs/2026-08-12-session-analysis-skeleton-design.md" = 3347
 "plans/rebase-to-48bc8ed.md" = 3324
-"skills/auto-memory/SKILL.md" = 3248
+"skills/auto-memory/SKILL.md" = 3224
 "docs/superpowers/specs/2026-08-26-agent-tools-run-design.md" = 3079
 "plans/alan-coding-style-gap-analysis-v2.md" = 3065
-"skills/alan-writing-style/SKILL.md" = 3021
+"skills/alan-writing-style/SKILL.md" = 2960
 "plans/fuzzy-chasing-steele.md" = 3000
 "agents/debugger.md" = 2956
-"skills/git-surgery/SKILL.md" = 2947
+"skills/git-surgery/SKILL.md" = 2907
 "docs/superpowers/specs/2026-08-20-session-analysis-two-mode-revision-design.md" = 2884
 "notes/workers-bullet-hint-in-fact-position/probe-statement-form-2026-09-15.md" = 2812
 "docs/superpowers/specs/2026-05-17-unified-config-design.md" = 2617
@@ -362,7 +365,7 @@ why = "Frozen at the size each file had when its class cap was set, both on 2026
 "notes/artifact-tool-roster-cost.md" = 2244
 "notes/prompt-test-grading-projection/judgement-l3r7-presence-phase1.md" = 2205
 "plans/pset3-timeout-policy-violation.md" = 2092
-"skills/notes/SKILL.md" = 2025
+"skills/notes/SKILL.md" = 2014
 "plans/planner-skill-bugs.md" = 1824
 "plans/bug-report-doconly-loop-upstream.md" = 1808
 "plans/tranquil-wandering-mochi.md" = 1697
