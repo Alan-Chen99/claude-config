@@ -374,14 +374,22 @@ def _build_assistant_blocks(
                     "is_error": True,
                     "_pi": pi,
                 })
-            content.append({
+            block = {
                 "type": "tool_use",
                 "id": call_id,
                 "name": name,
                 "input": state.get("input", {}),
                 "_pi": pi,
                 "_out_len": out_len,
-            })
+            }
+            # A `task` call runs its subagent as a session of its own, named in
+            # the part's metadata from the moment it starts, so the tool_use
+            # carries it: a task still running at export time has no result.
+            metadata = state.get("metadata")
+            child = metadata.get("sessionId") if isinstance(metadata, dict) else None
+            if isinstance(child, str) and child:
+                block["_subagent_session"] = child
+            content.append(block)
         # step-start / step-finish / snapshot / patch / agent / subtask /
         # retry / file: not rendered. They're either bookkeeping or carry
         # signal we don't have a slot for in the cc-pretty record types.

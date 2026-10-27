@@ -12,6 +12,11 @@ a subagent id, whole or as any unique prefix. An id resolves against both
 transcript families under <config dir>/projects, and the render then names the
 file it resolved to. See :mod:`claude_config.cc_pretty.locate`.
 
+Times are local, in the zone TZ or /etc/localtime names; the header states it.
+A subagent call's result (Agent, a SendMessage resume, Workflow, an agent's
+task-notification) is followed by a ``⇢`` line naming the transcript that
+subagent wrote, or saying none was found.
+
 Flags form four orthogonal axes (see --help): SELECTION (which records),
 DENSITY (full render / --skeleton / --chat-only), BODY-DETAIL (within full
 render), OUTPUT. Every rendered block carries an @L<n>[i] ref; the legend
@@ -42,7 +47,14 @@ import os
 import sys
 from dataclasses import dataclass
 
-from claude_config.cc_pretty.locate import SessionNotFound, resolve_log_arg
+from claude_config.cc_pretty.locate import (
+    SessionNotFound,
+    config_root,
+    resolve_log_arg,
+    session_tree,
+    subagent_index,
+    workflow_transcripts,
+)
 from claude_config.cc_pretty.parse import (
     AssistantRecord,
     AttachmentRecord,
@@ -58,7 +70,14 @@ from claude_config.cc_pretty.parse import (
     read_jsonl,
     parse_all,
 )
-from claude_config.cc_pretty.render import C, Renderer, fmt_ts, render_skeleton, separator
+from claude_config.cc_pretty.render import (
+    C,
+    Renderer,
+    SubagentLogs,
+    fmt_ts,
+    render_skeleton,
+    separator,
+)
 
 
 # ─── Attachment model-visibility ─────────────────────────────────────────────
@@ -736,6 +755,24 @@ class PipelineInput:
     jq_paths: dict[int, str] | None = None
 
 
+def subagent_logs(log_path: str) -> SubagentLogs:
+    """The subagent-log lookup for a render of ``log_path``.
+
+    A transcript on disk is searched from its own session tree outward; any
+    other source (an intercept capture, an opencode session) has no tree, and a
+    Claude Code agent id it names is looked up in the config dir alone.
+    """
+    projects = os.path.join(config_root(None), "projects")
+    searched = projects
+    if os.path.isfile(log_path):
+        searched = f"{os.path.join(session_tree(log_path), 'subagents')} or {projects}"
+    return SubagentLogs(
+        load_index=lambda: subagent_index(log_path),
+        searched=searched,
+        find_workflow=workflow_transcripts,
+    )
+
+
 def run_pipeline(inp: PipelineInput) -> None:
     """Render ``inp.records`` through the shared Renderer to stdout.
 
@@ -752,6 +789,7 @@ def run_pipeline(inp: PipelineInput) -> None:
         C.disable()
 
     tool_input_max = args.tool_max if args.truncate_input else sys.maxsize
+    subagents = subagent_logs(inp.log_path)
     r = Renderer(
         inp.log_path,
         tool_output_max=args.tool_max,
@@ -760,6 +798,7 @@ def run_pipeline(inp: PipelineInput) -> None:
         show_usage=args.show_usage,
         chat_only=args.chat_only,
         jq_paths=inp.jq_paths,
+        subagents=subagents,
     )
 
     saved_stdout = None
@@ -827,6 +866,7 @@ def run_pipeline(inp: PipelineInput) -> None:
             compaction_markers=compaction_markers,
             rewind_markers=rewind_markers,
             record_visible=record_visible,
+            subagents=subagents,
         ))
     else:
         # ── Session header (first visible record) ───────────────────────

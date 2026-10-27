@@ -7,6 +7,7 @@ No JSON parsing or schema validation here.
 from __future__ import annotations
 
 import json
+import os
 import re
 import textwrap
 from collections.abc import Callable
@@ -167,12 +168,37 @@ def fmt_tool_input(inp: dict) -> str:
     return "\n".join(lines)
 
 
+def _local(ts_str: str) -> datetime:
+    """``ts_str`` in the reader's zone, the one the C library resolved from TZ.
+
+    Every log family stamps UTC, while the clock, shell history and commit
+    times a reader holds a render against are local. A naive stamp names no
+    zone and is taken as already local.
+    """
+    return datetime.fromisoformat(ts_str.replace("Z", "+00:00")).astimezone()
+
+
 def fmt_ts(ts_str: str) -> str:
+    """Time of day in the local zone; an unparseable stamp is shown as it is."""
     try:
-        dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-        return dt.strftime("%H:%M:%S")
-    except Exception:
-        return ts_str or ""
+        return _local(ts_str).strftime("%H:%M:%S")
+    except ValueError:
+        return ts_str
+
+
+def fmt_ts_zoned(ts_str: str) -> str:
+    """``2026-10-27 10:19:25 EDT (UTC-04:00)``: the date and zone ``fmt_ts`` omits.
+
+    Printed once per render, in its header, so the bare times below it read as
+    one zone's. "" for an unparseable stamp, so a header shows no zone it
+    cannot vouch for.
+    """
+    try:
+        dt = _local(ts_str)
+    except ValueError:
+        return ""
+    offset = dt.strftime("%z")
+    return f"{dt:%Y-%m-%d %H:%M:%S} {dt:%Z} (UTC{offset[:3]}:{offset[3:]})"
 
 
 def fmt_duration(ms: int | float) -> str:
@@ -512,6 +538,110 @@ def fmt_usage(u: Usage) -> str:
     return " ".join(parts)
 
 
+# ─── Subagent logs ───────────────────────────────────────────────────────────
+
+# An intercept capture holds the API's view of a result, its text and nothing
+# else, so these are what name the agent there: the Agent tool's text carries an
+# `agentId: <id>` line, the Workflow tool's a `Transcript dir: <dir>` line.
+_AGENT_ID_LINE = re.compile(r"^agentId: (\w+)", re.MULTILINE)
+_TRANSCRIPT_DIR_LINE = re.compile(r"^Transcript dir: (\S.*)$", re.MULTILINE)
+# A task-notification's <task-id> is the agent id when the task is an agent;
+# a background shell's names no transcript, so it never resolves.
+_TASK_ID = re.compile(r"<task-id>(\w+)</task-id>")
+_AGENT_TOOLS = frozenset({"Agent", "Task"})
+
+
+class SubagentLogs:
+    """The ``⇢`` lines saying where a subagent call's own log is.
+
+    A call's result names the agent it spawned by id alone, and the log that
+    agent wrote is another file, so a reader of the parent has no path to open.
+    One instance serves a whole render, full and skeleton alike.
+    ``load_index`` (agent id → transcript paths) runs on the first id met, so a
+    render with no subagent calls never searches the config dir; ``searched``
+    names where it looks, for the line that reports a miss; ``find_workflow``
+    lists a Workflow run's transcripts, None when its directory is gone.
+    """
+
+    def __init__(
+        self,
+        load_index: Callable[[], dict[str, list[str]]],
+        searched: str,
+        find_workflow: Callable[[str], list[str] | None],
+    ):
+        self._load_index = load_index
+        self._index: dict[str, list[str]] | None = None
+        self._searched = searched
+        self._find_workflow = find_workflow
+
+    def _paths(self, agent_id: str) -> list[str]:
+        if self._index is None:
+            self._index = self._load_index()
+        return self._index.get(agent_id, [])
+
+    def _agent_line(self, agent_id: str) -> str:
+        paths = self._paths(agent_id)
+        if not paths:
+            return f"⇢ subagent {agent_id} log: not found under {self._searched}"
+        noun = "log" if len(paths) == 1 else f"logs ({len(paths)} copies)"
+        return f"⇢ subagent {agent_id} {noun}: {' · '.join(paths)}"
+
+    def _workflow_line(self, run_id: str, transcript_dir: str) -> str:
+        found = self._find_workflow(transcript_dir)
+        state = "directory not found" if found is None else f"{len(found)} agent logs"
+        return f"⇢ workflow {run_id} logs: {transcript_dir}/ ({state})"
+
+    def for_result(self, tool_name: str, tool_use_result: Any, text: str) -> list[str]:
+        """Lines for one tool result; [] when it spawned and resumed nothing.
+
+        The structured ``toolUseResult`` answers when the record has one; the
+        result text, only for a source without it. ``tool_name`` is "" for a
+        capture whose request starts after the call — 292 of one 2.1.310
+        session's last 400 captures held only the newest two messages
+        (2026-10-27) — and a text-named agent or run then counts only when it
+        resolves, since any tool's output may contain that line.
+        """
+        agents: list[str] = []
+        workflow: tuple[str, str] | None = None
+        if isinstance(tool_use_result, ToolUseResultDict):
+            r = tool_use_result
+            agents = [a for a in (r.agentId, r.resumedAgentId, r.revivedAgentId) if a]
+            pinned = (r.pin or {}).get("id")
+            if not agents and isinstance(pinned, str) and self._paths(pinned):
+                agents = [pinned]
+            if r.transcriptDir:
+                workflow = (r.runId or os.path.basename(r.transcriptDir), r.transcriptDir)
+        if not agents and workflow is None:
+            unnamed = not tool_name
+            if (m := _AGENT_ID_LINE.search(text)) and (
+                tool_name in _AGENT_TOOLS or (unnamed and self._paths(m.group(1)))
+            ):
+                agents = [m.group(1)]
+            elif (m := _TRANSCRIPT_DIR_LINE.search(text)) and (
+                tool_name == "Workflow"
+                or (unnamed and self._find_workflow(m.group(1).rstrip("/")) is not None)
+            ):
+                path = m.group(1).rstrip("/")
+                workflow = (os.path.basename(path), path)
+        lines = [self._agent_line(a) for a in dict.fromkeys(agents)]
+        if workflow:
+            lines.append(self._workflow_line(*workflow))
+        return lines
+
+    def for_notification(self, text: str) -> list[str]:
+        """The agent a task-notification reports on, when its task is an agent."""
+        m = _TASK_ID.search(text)
+        if m and self._paths(m.group(1)):
+            return [self._agent_line(m.group(1))]
+        return []
+
+    @staticmethod
+    def for_child_session(session_id: str) -> list[str]:
+        """An opencode subagent: a session of its own, read by id rather than path."""
+        return [f"⇢ subagent session {session_id}: "
+                f"agent-tools opencode-pretty {session_id}"]
+
+
 # ─── Renderer ────────────────────────────────────────────────────────────────
 
 class Renderer:
@@ -520,8 +650,12 @@ class Renderer:
     def __init__(self, log_path: str, tool_output_max: int,
                  tool_input_max: int, show_thinking: bool = True,
                  show_usage: bool = False, chat_only: bool = False,
-                 jq_paths: dict[int, str] | None = None):
+                 jq_paths: dict[int, str] | None = None,
+                 subagents: SubagentLogs | None = None):
         self.log_path = log_path
+        # None prints no ⇢ lines: a Renderer built outside run_pipeline has no
+        # transcript tree to search.
+        self.subagents = subagents
         # lineno → jq address of that record, for formats whose records are not
         # one per line. Empty for cc and opencode, where the ref itself locates
         # the record. See recovery_cmd.
@@ -574,7 +708,14 @@ class Renderer:
         if len(inp_str) > self.tool_input_max:
             lines.append(self._hint(lineno, _resolve_idx(block, block_idx),
                                     jq_leaf(self.log_path, "tool_input")))
+        child = getattr(block, "_subagent_session", None)
+        if child and self.subagents:
+            lines.extend(self._subagent_lines(self.subagents.for_child_session(child)))
         return "\n".join(lines)
+
+    @staticmethod
+    def _subagent_lines(lines: list[str]) -> list[str]:
+        return [f"    {C.TOOL}{line}{C.RESET}" for line in lines]
 
     def _render_tool_result(self, block: ToolResultBlock, lineno: int, block_idx: int,
                             tur: Any = None) -> str:
@@ -641,6 +782,10 @@ class Renderer:
             lines.append(
                 f"    {C.DIM}{trunc(tur, self.tool_output_max)}{C.RESET}"
             )
+
+        if self.subagents:
+            lines.extend(self._subagent_lines(
+                self.subagents.for_result(tool_name, tur, raw_body)))
 
         return "\n".join(lines)
 
@@ -729,6 +874,11 @@ class Renderer:
                 lines.append(f"  {C.DIM}── {ref} ──{C.RESET}")
             if isinstance(rec.message.content, str):
                 lines.append(ind(rec.message.content, "  "))
+                # A task-notification reaching an idle session arrives as a
+                # user turn of its own, not as a queued_command.
+                if self.subagents:
+                    lines.extend(self._subagent_lines(
+                        self.subagents.for_notification(rec.message.content)))
         return "\n".join(lines)
 
     def render_tool_output(self, records: list[tuple[UserRecord, int]], ts: str) -> str:
@@ -1107,7 +1257,11 @@ class Renderer:
 
         if atype == "queued_command":
             preview = trunc(a.prompt, self.tool_output_max)
-            return f"{C.DIM}  ⊞ queued [{a.commandMode}]: {preview}{C.RESET}"
+            line = f"{C.DIM}  ⊞ queued [{a.commandMode}]: {preview}{C.RESET}"
+            if self.subagents:
+                return "\n".join([line, *self._subagent_lines(
+                    self.subagents.for_notification(str(a.prompt)))])
+            return line
 
         if atype in ("file", "edited_text_file", "compact_file_reference", "nested_memory"):
             label = a.displayPath or a.path or a.filename or "?"
@@ -1153,6 +1307,9 @@ class Renderer:
             header_parts.append(f"v{version}")
         if cwd:
             header_parts.append(f"cwd: {cwd}")
+        zoned = fmt_ts_zoned(getattr(first_record, "timestamp", ""))
+        if zoned:
+            header_parts.append(f"first shown: {zoned}")
         lines: list[str] = []
         if header_parts:
             lines.append(f"{C.DIM}{'  '.join(header_parts)}{C.RESET}")
@@ -1281,6 +1438,7 @@ def render_skeleton(
     compaction_markers: dict[int, dict],
     rewind_markers: dict[int, dict],
     record_visible: Callable[[Record], bool],
+    subagents: SubagentLogs | None = None,
 ) -> str:
     """One line per content block + hidden-region markers with reveal hints.
 
@@ -1290,7 +1448,8 @@ def render_skeleton(
     Bookkeeping records (progress, snapshots, last-prompt, permission-mode) are
     skipped; --show-all surfaces model-invisible attachments, system lines and
     the queue enqueues (attachments holding no text anywhere are skipped — there
-    is nothing to extract).
+    is nothing to extract). A row for a subagent call is followed by the ``⇢``
+    line naming that subagent's own log, indented past the ref column.
     """
     oc = _is_opencode_path(log_path)
     ic = _is_intercept_path(log_path)
@@ -1324,6 +1483,9 @@ def render_skeleton(
         lines.append(
             f"{ref:<12} {label:<30} {size:<20} {leaf:<26} {preview}".rstrip()
         )
+
+    def emit_subagents(found: list[str]) -> None:
+        lines.extend(f"{'':<12} {line}" for line in found)
 
     def rewind_line(m: dict) -> str:
         line = f"⟲ rewind · {m['count']} records"
@@ -1382,6 +1544,9 @@ def render_skeleton(
                         leaf = jq_leaf(log_path, "tool_input")
                     emit(ref, f"tool:{block.name}", size, leaf,
                          _tool_target(block.input))
+                    child = getattr(block, "_subagent_session", None)
+                    if child and subagents:
+                        emit_subagents(subagents.for_child_session(child))
                 elif isinstance(block, BinaryBlock):
                     emit(ref, *_binary_row(block, lineno,
                                            _resolve_idx(block, bi)))
@@ -1399,6 +1564,8 @@ def render_skeleton(
                 emit(ref, "user", f"{_tok(rec.message.content)}~tok",
                      jq_leaf(log_path, "message_string"),
                      f'"{_preview(rec.message.content)}"')
+                if subagents:
+                    emit_subagents(subagents.for_notification(rec.message.content))
             else:
                 for bi, block in enumerate(rec.message.content_blocks()):
                     ref = block_ref(block, lineno, bi)
@@ -1419,6 +1586,9 @@ def render_skeleton(
                             preview = f"{preview} {inventory}".strip()
                         emit(ref, label, f"{_tok(text)}~tok",
                              jq_leaf(log_path, "tool_output"), preview)
+                        if subagents:
+                            emit_subagents(subagents.for_result(
+                                name, rec.parsed_tool_use_result(), text))
                     elif isinstance(block, TextBlock):
                         # cc context block — raw string at .text, not .content
                         emit(ref, "context", f"{_tok(block.text)}~tok",
@@ -1454,6 +1624,8 @@ def render_skeleton(
                  f"{_tok(text)}~tok",
                  leaf,
                  f'"{_preview(unwrap_system_reminder(text))}"')
+            if rec.attachment.type == "queued_command" and subagents:
+                emit_subagents(subagents.for_notification(text))
 
         elif isinstance(rec, SystemRecord):
             if rec.subtype == "compact_boundary":

@@ -8,7 +8,7 @@ an `agent-tools` subcommand, whose own flags print with `agent-tools <sub> -- --
 
 | Module | What | CLI entry point |
 | --- | --- | --- |
-| `cc_pretty/` | Parse and render Claude Code JSONL session logs; `locate.py` resolves a session or subagent id to a transcript path | `cc-pretty` |
+| `cc_pretty/` | Parse and render Claude Code JSONL session logs in local time; `locate.py` resolves a session or subagent id to a transcript path, which is how a subagent call's render names its agent's log | `cc-pretty` |
 | `cc_pretty/coverage.py` | Coverage check: content the renderers fail to show at unbounded `--tool-max`. Both families render through `run_pipeline`, so the check exercises the shipping path rather than a reconstruction of it | `cc-render-coverage` |
 | `cc_pretty_intercept/`, `opencode_pretty/` | Pretty-print one MITM intercept log file or an `opencode export` session through cc-pretty's pipeline: each `convert.py` flattens its source — the capture's named regions, opencode's part-based messages — into cc-pretty records; the intercept one keys each record by its jq address, so refs stay recoverable | `cc-pretty-intercept`, `opencode-pretty` |
 | `cc_replay/` | Re-send a captured API request. `proxy_module.py` loads `scripts/intercept/proxy.py` by path so the reassembler is shared without the addon importing this package — the bare `mitmdump -s proxy.py` its README documents has to keep working. `credentials.py` resolves per host and names its source; a capture never carries one | `cc-replay` |

@@ -24,7 +24,7 @@ from claude_config.cc_pretty.parse import (
     SystemRecord,
     UserRecord,
 )
-from claude_config.cc_pretty.render import fmt_duration, fmt_ts
+from claude_config.cc_pretty.render import fmt_duration, fmt_ts_zoned
 from claude_config.cc_pretty_intercept.parse import (
     InterceptLog,
     SystemTextItem,
@@ -194,7 +194,7 @@ def header_lines(
         parts.append(log.request.model)
     parts.append("streaming" if log.streaming else "non-stream")
     if log.timestamp:
-        parts.append(fmt_ts(log.timestamp))
+        parts.append(fmt_ts_zoned(log.timestamp) or log.timestamp)
     if log.duration_ms:
         parts.append(f"dur:{fmt_duration(log.duration_ms)}")
     lines = [parts]

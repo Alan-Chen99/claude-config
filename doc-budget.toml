@@ -185,9 +185,11 @@ loaded = "on demand, when the skill is invoked"
 # reaches, which would delete check-bearing rows; the cap stays. 2026-10-26
 # (user:adab5a05): raised to 10,600 for the rows `agent-tools wait`'s inbox and
 # transcript read added at 10,400, the user choosing it over that same cut.
+# 2026-10-27 (user:84f920a6): raised to 10,850 for the row cc-pretty's subagent
+# log lines added at 10,817, the user choosing it over that same cut.
 [groups.".claude/skills/update-claude-code"]
-cap = 10600
-approved = "user:adab5a05"
+cap = 10850
+approved = "user:84f920a6"
 
 # One reference per topic, read one at a time.
 [groups."skills/prompt-engineer/references"]

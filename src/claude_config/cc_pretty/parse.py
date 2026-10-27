@@ -136,6 +136,16 @@ class ToolUseResultDict(_Base):
     stdout: str = ""
     stderr: str = ""
     interrupted: bool = False
+    # Where a subagent call's own log is. Agent: the agent it spawned, sync
+    # (`status: "completed"`) or background (`"async_launched"`). SendMessage:
+    # the agent it resumed, or `pin.id`, which names an agent id only sometimes
+    # (`pin` also carries peer sessions). Workflow: its run's transcript dir.
+    agentId: str | None = None
+    resumedAgentId: str | None = None
+    revivedAgentId: str | None = None
+    pin: dict[str, Any] | None = None
+    transcriptDir: str | None = None
+    runId: str | None = None
 
 def parse_tool_use_result(raw: Any) -> Any:
     """Parse a user record's top-level toolUseResult.
