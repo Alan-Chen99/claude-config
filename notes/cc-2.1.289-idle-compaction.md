@@ -48,9 +48,16 @@ notification matching). Over the same days, 16 in-turn waits pending 55+ min at 
 ## Against `scripts/cache-keepalive`
 
 - Inside a turn it does not fire, so the mod's in-turn refresh is the only cover there.
-- After a turn end with background work, 200k+ tokens and the person away, both are armed. In
-  the one session where the mod refreshed such a context (2026-10-24: turn end 18:44:14 UTC at
-  240k tokens, refresh 19:34:16, next response 19:43:31), no compaction came at 54 min. A
-  compaction after a refresh would spend that refresh (0.1x of the prefix) for nothing. Under 200k
-  tokens, or with the person present, only the mod acts.
+- After a turn end with background work, 200k+ tokens and the person away, both are armed, and
+  the mod's refresh at 50 min does not stop the compaction at 54: the fork neither re-arms the
+  timer nor draws `newer_request`. 2026-10-27, 2.1.310: last main-thread request 12:47:34.136
+  UTC, refresh 13:37:38, compaction start 13:41:34.156 (the boundary's timestamp less its
+  `durationMs`), 54:00.0 after the request. Of 8 such refreshes in this machine's transcripts
+  (2026-10-24 to 10-27, 205k-354k tokens), 4 were followed by an idle compaction about 5 minutes
+  later (three on 2.1.289, one on 2.1.310), 1 by a turn starting 3 minutes later, and 3 by
+  neither for the 9-39 minutes before the next turn (2026-10-24 18:44:14 UTC turn end at 240k,
+  refresh 19:34:16, next response 19:43:31, on 2.1.289; two in one 2.1.310 session that drew no
+  idle compaction at all). No debug log was kept that records why those 3 refused. A compaction
+  after a refresh spends that refresh (0.1x of the prefix) for nothing. Under 200k tokens, or
+  with the person present, only the mod acts.
 - A plugin can skip a compaction from `session.compact` (`({ skip: … })`); the mod does not.

@@ -54,9 +54,14 @@ its last request when its context is 200k+ tokens (`CLAUDE_CODE_IDLE_COMPACT_MIN
 this repo's does not). On this account the
 GrowthBook flag `tengu_sunny_locket` is `{"mode": "compact"}`
 (`notes/cc-2.1.289-idle-compaction.md`). It ignores background work and refuses inside a turn.
-After a turn end in that case both are armed. In the one session where the mod refreshed a 240k
-context (2026-10-24), no compaction followed; whether the fork makes it refuse
-(`newer_request`) was not traced.
+After a turn end in that case both are armed, and the refresh at 50 minutes does not stop the
+compaction at 54: the fork neither re-arms its timer nor draws `newer_request`. On 2026-10-27
+(2.1.310) the main thread's last request went out at 12:47:34.136 UTC, the refresh logged at
+13:37:38 and the compaction began at 13:41:34.156, 54:00.0 after the request. Of 8 such
+refreshes in this machine's transcripts (2026-10-24 to 10-27, 205k-354k tokens), 4 were followed
+by an idle compaction about 5 minutes later and spent for nothing, 1 by a turn starting 3
+minutes later, and 3 by neither for the 9-39 minutes before the next turn; no debug log was
+kept that records why those 3 refused.
 
 **Main thread only.** `$.model.fork` replays the main thread, and a waiting subagent keeps
 itself warm with `skills/long-bash`'s `agent-tools wait` loop, which wakes it inside its cache's
