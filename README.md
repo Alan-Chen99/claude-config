@@ -32,7 +32,7 @@ The config preserves the existing permission and trust settings without pinning
 a model. Authentication and session data stay outside this repository.
 
 The native footer shows context usage, model/effort, five-hour and weekly limits,
-input/output tokens, branch and thread ID. It approximates `statusline.py`;
+input/output tokens, branch and thread ID. It approximates the Claude status line (`agent-tools cc-cost --statusline`);
 Claude's cache diagnostics, cost split and task rows remain Claude-specific.
 Use `/statusline` to adjust the native fields.
 
@@ -203,6 +203,18 @@ were inaccurate in 6 of 6 arms.
 [`diagnose-workflow`](skills/diagnose-workflow/SKILL.md) extracts sub-agent
 dispatch structure as ground truth where a parent's self-report disagrees.
 
+[`agent-tools cc-cost`](src/claude_config/cc_cost/main.py) prices a session or
+subagent per agent as cc 2.1.310 prices it: cache writes at their own TTL's
+rate, reads at the model's, a fork's copies of its parent's records owned by
+the parent, interrupted streams counted. It judges every agent's cache with
+the miss test cc applies to its main thread alone. Over 300 sessions
+(2026-10-26), subagents missed 270 times, which cost $207 to re-write. cc's
+status line shows none of those misses; the main thread's 52 cost $57. The traced
+total never exceeds cc's own `cost-state` total by more than 0.05% in 264
+sessions, and the median session traces 96% of it. The rest is requests cc
+never transcribes, such as prompt suggestions and WebFetch's model calls.
+`--statusline` is the status line, with main and subagent rows of their own.
+
 ### Human in the loop over Telegram
 
 One local process holds the bot token, owns the single `getUpdates` drain,
@@ -318,14 +330,14 @@ neutral harness for the other harness's prompt: its default subject is
 | --- | --- |
 | [`CLAUDE.md`](CLAUDE.md) | The index: every directory, with when to read what; the detail sits in each directory's own `CLAUDE.md` |
 | [`doc-budget.toml`](doc-budget.toml) | Token caps for every tracked `.md`, by how the text reaches a context; `uv run doc-budget` reports and CI gates |
-| [`agent-tools/`](agent-tools/) | Rust binary: the `run`/`ps` process wrapper and hooks, `cc-pretty`, `count-tokens`, `env-context`, launchers |
+| [`agent-tools/`](agent-tools/) | Rust binary: the `run`/`ps` process wrapper and hooks, `cc-pretty`, `cc-cost`, `count-tokens`, `env-context`, launchers |
 | [`sys_prompt/`](sys_prompt/) | Replacement system prompts loaded by `scripts/claude.sh`, and the reasoning behind each line |
 | [`output-styles/`](output-styles/) | Output styles — the customisation surface that survives a background handoff |
 | [`prompt-tests/`](prompt-tests/) | Runner-neutral prompt evaluation cases; `runs/` is scratch, deleted with the round |
 | [`notes/`](notes/) | Investigation write-ups: measured evidence and root cause, one behaviour each |
 | [`docs/`](docs/) | Captured system prompts, harness anatomy, design specs and plans |
 | [`skills/`](skills/), [`agents/`](agents/), [`conventions/`](conventions/) | Skills, sub-agent definitions, documentation and code conventions — upstream's, extended |
-| [`src/claude_config/`](src/claude_config/) | Python: log renderers, the Telegram proxy, the env-context hook, token counting |
+| [`src/claude_config/`](src/claude_config/) | Python: log renderers, session costs and the status line, the Telegram proxy, the env-context hook, token counting |
 | [`scripts/`](scripts/) | The `claude.sh` launcher and its provider-backed siblings `kimi.sh` and `zai.sh`, the MITM intercept proxy, prompt-test runners, drift checks |
 | [`opencode/`](opencode/) | opencode configuration and agent prompts |
 | [`plans/`](plans/) | Plan storage, historical |
@@ -352,7 +364,7 @@ git clone https://github.com/Alan-Chen99/claude-config ~/claude-config
 
 Directory-level symlinks for `agents`, `conventions`, `output-styles` and
 `skills` into `~/.claude/`, `~/.config/opencode` → `opencode/`, file symlinks
-for `settings.json` and `statusline.py`, the `systemd/` units into
+for `settings.json`, the `systemd/` units into
 `~/.config/systemd/user/` (linked, enabled by hand), an `agent-tools` build
 linked with the `scripts/claude.sh`, `scripts/kimi.sh` and `scripts/zai.sh`
 launchers into `~/.local/bin`, and the Python venv. Run it from the

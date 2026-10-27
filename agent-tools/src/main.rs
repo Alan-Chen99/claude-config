@@ -123,6 +123,13 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Price a session or subagent and judge its prompt cache; `--statusline` is the status line
+    #[command(name = "cc-cost")]
+    CcCost {
+        /// Arguments forwarded to cc-cost
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Extract sub-agent workflow summary from a session log
     CcWorkflow {
         /// Arguments forwarded to cc-workflow-extract
@@ -815,6 +822,14 @@ fn main() {
                     &root,
                     None,
                     &["python3", "-m", "claude_config.cc_pretty.coverage"],
+                    &args,
+                );
+            }
+            Cmd::CcCost { args } => {
+                uv_run(
+                    &root,
+                    None,
+                    &["python3", "-m", "claude_config.cc_cost.main"],
                     &args,
                 );
             }

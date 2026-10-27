@@ -10,7 +10,6 @@ Claude Code configuration: skills, agents, prompts and conventions (forked from
 | `README.md` | Public-facing: the fork's ideas and evidence, install, tests | First orientation |
 | `install.sh` | Symlinks the config into `~/.claude/`, `~/.config/`, `~/.local/bin/`: a canonical-checkout edit is live at once, a worktree's nowhere | Installing; deciding whether an edit needs deploying |
 | `settings.json` | User settings: hooks, statusline, permissions, `env`. Keys governed elsewhere: `includeGitInstructions`/`attribution` in `sys_prompt/README.md`, the subagent `CLAUDE_CODE_*` pair in `docs/subagent-backgrounding.md`, `TELEGRAM_HITL_STATE_DIR` in `src/claude_config/CLAUDE.md`, `BASH_MAX_TIMEOUT_MS` in `skills/telegram-hitl/README.md`, `autoCompactWindow` in `docs/total-tokens-reminder-trial.md`, `enableArtifact` in `notes/artifact-tool-roster-cost.md`, `switchModelsOnFlag` in `notes/cc-2.1.289-refusal-fallback-write.md`, `feedbackDrafts`/`permissions.deny`/`skillOverrides`/the connector and Chrome `env` cuts in `plans/2026-09-30-session-start-token-cuts.md`, `syncClaudeAi*` in the `update-claude-code` skill. Key order is Claude Code's schema order (any `/config` change rewrites the file into it): add a key anywhere, then run `.claude/skills/update-claude-code/settings-order.py --write` | Modifying hooks, statusline, permissions, env; adding any key |
-| `statusline.py` | Status line (stdlib Python); cost split re-priced from the transcript; open-tasks row from `agent-tools ps --format statusline` | Customizing the status line |
 | `patch-upstream-paths.sh` | Patches `.claude/` → `~/.claude/` paths | After an upstream sync |
 | `pyproject.toml` | Python project config | Adding dependencies |
 | `.env` / `.env.example` | Secrets: NTFY URL, OpenRouter, Anthropic token-count | Setting up secrets |
@@ -21,7 +20,7 @@ Claude Code configuration: skills, agents, prompts and conventions (forked from
 | Directory | What | When to read |
 | --- | --- | --- |
 | `agent-tools/` | Rust binary: subcommands, the wrapped-run status channel, hooks | Running or modifying a subcommand; reading a run status line |
-| `src/claude_config/` | Python package: session-log renderers, `count-tokens`, hooks, Telegram proxy | Modifying Python tooling |
+| `src/claude_config/` | Python package: session-log renderers, `cc-cost` (session costs, cache misses, the status line), `count-tokens`, hooks, Telegram proxy | Modifying Python tooling or the status line |
 | `skills/` | Invocable skills and the shared script framework | Using, modifying or adding a skill |
 | `agents/` | Sub-agent definitions | Customizing agent behavior |
 | `sys_prompt/` | Full replacement prompts (`--system-prompt-file`), not inherited by background sessions | Editing the launcher's system prompt; read `sys_prompt/CLAUDE.md` first |

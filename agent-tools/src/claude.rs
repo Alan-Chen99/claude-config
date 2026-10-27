@@ -22,13 +22,7 @@ use std::process::Command;
 
 /// What `install.sh` symlinks into `~/.claude`, sourced from this checkout, so
 /// the session is what installing this checkout would give.
-const FROM_CHECKOUT: [&str; 5] = [
-    "agents",
-    "conventions",
-    "output-styles",
-    "skills",
-    "statusline.py",
-];
+const FROM_CHECKOUT: [&str; 4] = ["agents", "conventions", "output-styles", "skills"];
 
 /// Machine state rather than checkout state. Shared with the real config so the
 /// session keeps its credentials, its environment `CLAUDE.md`, and the plugins

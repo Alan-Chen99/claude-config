@@ -251,7 +251,7 @@
   "enableArtifact": false,
   "statusLine": {
     "type": "command",
-    "command": "~/.claude/statusline.py"
+    "command": "agent-tools cc-cost --statusline"
   },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
