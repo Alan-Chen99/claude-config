@@ -5,6 +5,7 @@ Prices are hand-computed from cc 2.1.310's tiers ($/Mtok): opus-4-8 is
 """
 
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -83,6 +84,22 @@ def test_a_fork_owns_only_its_own_requests_and_nests_under_its_parent(tmp_path):
     assert round(by["afork"]["total"], 6) == 0.0755
     assert (by["afork"]["requests"], by["afork"]["misses"], by["afork"]["cold"]) == (1, 0, 0)
     assert round(r["total"]["total"], 6) == 0.76175
+
+
+def test_each_agent_reports_the_context_it_ended_on(tmp_path):
+    main = [asst("m1", 0, **WRITE),
+            {"type": "system", "subtype": "compact_boundary", "timestamp": at(1)},
+            # Compaction shrank it: the last response's context, not the largest
+            asst("m2", 1, input_tokens=0, output_tokens=500, cache_creation_input_tokens=20000)]
+    sub = [asst("s1", 0, **WRITE), asst("s2", 1, input_tokens=300, output_tokens=2000,
+                                        cache_read_input_tokens=100000, cache_creation_input_tokens=1000)]
+    layout(tmp_path, main, [("asub", sub, {"agentType": "Explore", "description": "look"})])
+    assert {a["id"]: a["context"] for a in report(tmp_path, "sid-1")["agents"]} == {"main": 20500, "asub": 103300}
+    out = cc_cost(tmp_path, "sid-1").stdout
+    # reqs, then ctx; the total row has none, its input cost follows reqs
+    assert re.search(r"^main +2 +20K +0\.00 ", out, re.M), out
+    assert re.search(r"^  asub Explore: look +2 +103K +0\.00 ", out, re.M), out
+    assert re.search(r"^total +4 +0\.00 ", out, re.M), out
 
 
 def test_a_forked_sessions_copies_belong_to_its_origin(tmp_path):

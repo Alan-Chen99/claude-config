@@ -17,6 +17,9 @@ inference and web search. A miss is cc's prompt-cache test applied to every
 agent (`session.py`); its cost is the re-written prefix at the write rate less
 what reading it would have cost.
 
+An agent's ctx is the context it ended on, or is at while it runs: its last
+response's prompt plus its reply, as the status line counts it.
+
 cc's own total (the `cost-state` record it writes on exit and on /clear,
 /resume and fork) also counts requests it never transcribes: compaction, prompt
 suggestions, away summaries, session titles, WebFetch's and WebSearch's model
@@ -37,7 +40,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
-from claude_config.cc_cost.pricing import MODELS, base_model, rates
+from claude_config.cc_cost.pricing import MODELS, base_model
 from claude_config.cc_cost.session import Agent, Priced, Session, Stats, load, tree
 
 COLUMNS = [("inp", "input"), ("out", "output"), ("w5", "wr 5m"), ("w1h", "wr 1h"), ("rd", "read"), ("web", "web")]
@@ -61,9 +64,20 @@ def clip(s: str, n: int) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
-def row(label: str, s: Stats) -> str:
+def context(priced: list[Priced]) -> int | None:
+    if not priced:
+        return None
+    t = priced[-1].tokens
+    return t.prompt + t.out
+
+
+def kilo(n: int | None) -> str:
+    return "-" if n is None else f"{n // 1000}K"
+
+
+def row(label: str, s: Stats, ctx: str) -> str:
     cells = "".join(f"{s.cost.get(k, 0):>9.2f}" for k, _ in COLUMNS)
-    return (f"{clip(label, LABEL):<{LABEL}}{s.requests:>6}{cells}{s.total:>10.2f}"
+    return (f"{clip(label, LABEL):<{LABEL}}{s.requests:>6}{ctx:>7}{cells}{s.total:>10.2f}"
             f"{pct(s.hit_ratio):>6}{len(s.misses):>6}{s.premium:>9.2f}")
 
 
@@ -112,19 +126,6 @@ def _against_cc_lines(c: dict) -> list[str]:
     return out
 
 
-def _cache_line(priced: list[Priced]) -> str:
-    """What caching saved: every cached prompt token at the uncached input
-    rate, less what its reads and writes actually cost."""
-    uncached = actual = 0.0
-    for p in priced:
-        u, t = p.response.usage, p.tokens
-        r = rates(p.response.model, t, u.get("speed") == "fast", u.get("inference_geo") == "us")
-        uncached += t.cached * r["inp"]
-        actual += t.rd * r["rd"] + t.w5 * r["w5"] + t.w1h * r["w1h"]
-    return (f"cache: reads and writes cost ${actual:.2f}; the same tokens uncached would cost "
-            f"${uncached:.2f}, so caching saved ${uncached - actual:.2f}")
-
-
 def report(session: Session, agents: list[tuple[Agent, int]], show_misses: bool) -> str:
     priced = [p for a, _ in agents for p in a.priced]
     total = Stats.of(priced)
@@ -135,11 +136,11 @@ def report(session: Session, agents: list[tuple[Agent, int]], show_misses: bool)
     if priced:
         out.append(f"  {when(min(p.response.first_ts for p in priced))} → "
                    f"{when(max(p.response.last_ts for p in priced))}")
-    out += ["", f"{'agent ($)':<{LABEL}}{'reqs':>6}" + "".join(f"{h:>9}" for _, h in COLUMNS)
+    out += ["", f"{'agent ($)':<{LABEL}}{'reqs':>6}{'ctx':>7}" + "".join(f"{h:>9}" for _, h in COLUMNS)
             + f"{'total':>10}{'hit':>6}{'miss':>6}{'miss $':>9}"]
-    out += [row("  " * level + a.label, Stats.of(a.priced)) for a, level in agents]
+    out += [row("  " * level + a.label, Stats.of(a.priced), kilo(context(a.priced))) for a, level in agents]
     if len(agents) > 1:
-        out.append(row("total", total))
+        out.append(row("total", total, ""))
     unpriced = sorted({p.response.model for p in priced if base_model(p.response.model) not in MODELS})
     if unpriced:
         out.append(f"\nUNPRICED models, charged as cc charges an unknown one (5/25 $/Mtok): {', '.join(unpriced)}")
@@ -153,7 +154,7 @@ def report(session: Session, agents: list[tuple[Agent, int]], show_misses: bool)
     elif root.id == "main":
         out += ["", "no cost-state record yet (cc writes one on exit): cc's own total is not known here"]
 
-    out += ["", _cache_line(priced), f"misses: {len(total.misses)}, re-writing "
+    out += ["", f"misses: {len(total.misses)}, re-writing "
             f"{sum(p.rewritten for p in total.misses):,} cached tokens, ${total.premium:.2f} over reading them"
             + (f"; {total.expected} expected rebuilds after compaction" if total.expected else "")]
     causes: Counter[str] = Counter()
@@ -184,7 +185,7 @@ def as_json(session: Session, agents: list[tuple[Agent, int]]) -> dict:
     priced = [p for a, _ in agents for p in a.priced]
     out = {"session": session.main.stem, "main": str(session.main),
            "agents": [{"id": a.id, "label": a.label, "parent": a.parent, "level": level, "path": str(a.path),
-                       **stats(Stats.of(a.priced))} for a, level in agents],
+                       "context": context(a.priced), **stats(Stats.of(a.priced))} for a, level in agents],
            "total": stats(Stats.of(priced)),
            "misses": [{"agent": a.id, "message_id": p.response.id, "model": p.response.model,
                        "at": iso(p.response.last_ts), "rewritten": p.rewritten, "gap_seconds": p.gap,
