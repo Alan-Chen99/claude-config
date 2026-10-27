@@ -56,19 +56,19 @@ def test_split_reprices_each_response_once_across_subagents(tmp_path):
     t = session(tmp_path, [OPUS, OPUS, '{"type":"assistant","message":{"id":"m9"'], [HAIKU])
     rows, err = run(t)
     assert "$0.0403  in 0%   out 52%  wr 43%  rd 5%   other 0%   │" in rows[0], rows[0]
-    assert "traced" not in rows[-2] and err == ""
+    assert "traced" not in rows[1] and err == ""
 
 
 def test_cost_no_transcript_records_is_other(tmp_path):
     # $0.06 billed, $0.04029 traced: other = 32.85%; shares are of cc's total
     rows, _ = run(session(tmp_path, [OPUS], [HAIKU]), total=0.06)
     assert "in 0%   out 35%  wr 29%  rd 3%   other 33% " in rows[0], rows[0]
-    assert "traced" not in rows[-2]
+    assert "traced" not in rows[1]
 
 
 def test_transcripts_above_cc_total_are_flagged(tmp_path):
     rows, _ = run(session(tmp_path, [OPUS], [HAIKU]), total=0.02)
-    assert rows[-2].startswith("traced 201% │ ")
+    assert rows[1] == "cache - │ traced 201% │ sid", rows[1]
 
 
 def test_an_unfinished_response_is_priced_but_not_held_against_cc(tmp_path):
@@ -76,7 +76,7 @@ def test_an_unfinished_response_is_priced_but_not_held_against_cc(tmp_path):
     cut = assistant("m2", "claude-opus-5-5", stop=None, input_tokens=0, output_tokens=0,
                     cache_read_input_tokens=100000)  # 100000*0.2 = $0.02
     rows, _ = run(session(tmp_path, [OPUS, cut]), total=0.03804)
-    assert "other 0% " in rows[0] and "traced" not in rows[-2], rows
+    assert "other 0% " in rows[0] and "traced" not in rows[1], rows
     assert "main   $0.06 " in rows[2], rows[2]
 
 
@@ -99,13 +99,13 @@ def test_an_unfinished_response_is_priced_but_not_held_against_cc(tmp_path):
 ])
 def test_each_response_is_priced_at_its_tier(tmp_path, line, total):
     rows, _ = run(session(tmp_path, [line]), total=total)
-    assert "other 0% " in rows[0] and "traced" not in rows[-2], rows
+    assert "other 0% " in rows[0] and "traced" not in rows[1], rows
 
 
 def test_an_unknown_model_is_named(tmp_path):
     glm = assistant("g1", "glm-5.3", input_tokens=5, output_tokens=5)
     rows, _ = run(session(tmp_path, [OPUS, glm]))
-    assert "unpriced: glm-5.3" in rows[-2]
+    assert "unpriced: glm-5.3" in rows[1]
 
 
 def test_a_corrupt_line_fails_visibly(tmp_path):
@@ -122,7 +122,7 @@ def test_an_unmodelled_price_fails_visibly(tmp_path):
 def test_no_usage_yet(tmp_path):
     rows, _ = run(session(tmp_path, ['{"type":"user"}']))
     assert "cost split -" in rows[0]
-    assert rows[2].startswith("main   $0.00    │ hit -    │ miss 0/0"), rows[2]
+    assert rows[2] == "main   $0.00   hit -    miss 0/0     $0.00 ", rows[2]
 
 
 def test_tasks_failure_is_shown(tmp_path):
@@ -130,7 +130,7 @@ def test_tasks_failure_is_shown(tmp_path):
     assert rows[-1] == "▶ ?"
 
 
-def test_a_subagent_miss_shows_on_its_own_row(tmp_path):
+def test_three_rows_hold_both_groups_and_the_last_miss(tmp_path):
     # The subagent reads 1000 of the 100001-token prompt its last request
     # cached six minutes earlier, past the 5m TTL, and re-writes the other
     # 99001: 99001 * (6.25 - 0.5) = $0.569 over reading them. Its two requests
@@ -139,22 +139,39 @@ def test_a_subagent_miss_shows_on_its_own_row(tmp_path):
                       cache_creation_input_tokens=100000)
     lapsed = assistant("s2", "claude-opus-4-8", ts="2026-10-26T12:06:00.000Z", input_tokens=1, output_tokens=0,
                        cache_read_input_tokens=1000, cache_creation_input_tokens=99500)
-    rows, _ = run(session(tmp_path, [OPUS], [first, lapsed]), total=2)
-    assert rows[2].startswith("main   $0.04    │ hit 83%  │ miss 0/1       $0.00"), rows[2]
-    assert rows[3].startswith("sub×1  $1.25    │ hit 0%   │ miss 1/2       $0.57  (last: ttl_expired_5m)"), rows[3]
+    limits = {"five_hour": {"used_percentage": 34, "resets_at": 0}, "seven_day": {"used_percentage": 61, "resets_at": 0}}
+    pc = {"ttl": "5m", "warm": True, "expires_at": 3600}
+    rows, _ = run(session(tmp_path, [OPUS], [first, lapsed]), total=2, rate_limits=limits, prompt_cache=pc)
+    assert rows[1:] == [
+        "cache 5m warm until 01:00 │ 5h 34%  Thu 00:00 │ 7d 61%  Thu 00:00 │ sid",
+        "main   $0.04   hit 83%  miss 0/1     $0.00  │ sub×1  $1.25   hit 0%   miss 1/2     $0.57  │ last miss: sub ttl_expired_5m",
+        "▶ ?",  # the tasks row, a fourth only while a wrapped run is live or `agent-tools ps` fails
+    ], rows
+
+
+@pytest.mark.parametrize("main_lapse, shown", [("12:10", "main"), ("12:05:30", "sub")])
+def test_the_last_miss_is_the_latest_of_either_group(tmp_path, main_lapse, shown):
+    # Both groups' second request outlives a 5m cache: the sub's at 12:06
+    def lapse(msg_id, at):
+        return assistant(msg_id, "claude-opus-4-8", ts=f"2026-10-26T{at}{':00' if at.count(':') == 1 else ''}.000Z",
+                         input_tokens=1, output_tokens=0, cache_read_input_tokens=1000, cache_creation_input_tokens=99500)
+    write = lambda msg_id: assistant(msg_id, "claude-opus-4-8", input_tokens=1, output_tokens=0,
+                                     cache_creation_input_tokens=100000)
+    rows, _ = run(session(tmp_path, [write("m1"), lapse("m2", main_lapse)], [write("s1"), lapse("s2", "12:06")]))
+    assert rows[2].endswith(f"│ last miss: {shown} ttl_expired_5m"), rows[2]
 
 
 def test_cc_names_the_main_threads_last_miss_cause(tmp_path):
     pc = {"ttl": "1h", "warm": True, "expires_at": 3600, "last_miss_cause": {"causes": ["tools_changed"]}}
     rows, _ = run(session(tmp_path, [OPUS]), prompt_cache=pc)
     assert rows[1].startswith("cache 1h warm until 01:00"), rows[1]
-    assert rows[2].endswith("(last: tools_changed)"), rows[2]
+    assert rows[2].endswith("│ last miss: main tools_changed"), rows[2]
 
 
 def test_columns_hold_across_sessions(tmp_path):
     """The model and name start in the same column whatever the context size,
-    cost, split or model name, and with no usage yet; so do the main and sub
-    rows' fields."""
+    cost, split or model name, and with no usage yet; so do the main group's
+    fields, and the sub group after it."""
     for d in "abc":
         (tmp_path / d).mkdir()
     c, _ = run(session(tmp_path / "c", ['{"type":"user"}']))
@@ -162,6 +179,8 @@ def test_columns_hold_across_sessions(tmp_path):
     b, _ = run(session(tmp_path / "b", [HAIKU], [OPUS]),
                total=12.5, model={"display_name": "Sonnet 5.5"}, effort={"level": "medium"},
                context_window={"used_percentage": 100, "current_usage": {"input_tokens": 1_000_000}})
-    cols = lambda row: [m.start() for m in re.finditer("│", row)]
+    cols = lambda row, pat="│": [m.start() for m in re.finditer(pat, row)]
     assert cols(a[0]) == cols(b[0]) == cols(c[0]), (a[0], b[0], c[0])
-    assert cols(a[2]) == cols(b[2]) == cols(b[3]) == cols(c[2]), (a[2], b[2], b[3], c[2])
+    fields = "hit|miss|│"
+    assert cols(a[2], fields) == cols(c[2], fields) == cols(b[2], fields)[:2], (a[2], b[2], c[2])
+    assert cols(b[2])[0] == len(a[2]) + 1, (a[2], b[2])

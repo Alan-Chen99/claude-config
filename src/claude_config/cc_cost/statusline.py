@@ -1,13 +1,16 @@
 """Claude Code status line: cc's statusLine JSON on stdin, rows on stdout.
 
     ctx │ $total and its split by category │ model │ session name
-    cache TTL and state │ plan rate limits
-    main  $ │ hit │ miss n/requests $ (last: cause)
-    sub×N $ │ hit │ miss n/requests $ (last: cause)      only once a subagent ran
-    cost warnings │ transcript path
+    cache TTL and state │ plan rate limits │ cost warnings │ session id
+    main $ hit miss n/requests $ │ sub×N $ hit miss n/requests $ │ last miss: group cause
     ▶ open tasks                                          only while one runs
 
-The main and sub rows are priced and judged from the session's transcripts
+Three rows, subagents or not: the status line shares a terminal with the
+conversation, and at 25 rows each line is 4% of it. With both groups the third
+row is about 120 columns. The tasks row stays a row of its own while a wrapped
+run is live: `agent-tools ps --format statusline` budgets 90 columns or more.
+
+The main and sub groups are priced and judged from the session's transcripts
 (`session.py`), so both count a miss by the same rule over the whole session.
 cc's own `prompt_cache` counts the main thread of the running process alone;
 its state, expiry and last-miss cause are still the ones shown.
@@ -130,16 +133,17 @@ def cache_row(pc):
     return f"{lab('cache')} {pad(hi(pc.get('ttl') or ''), 2)} {pad(fg(GREEN if warm else YELLOW, state), 16)}"
 
 
-def agents_row(label, stats, cause):
-    """One group's traced cost and cache record: requests that missed, of all
-    it sent, and what re-writing the lost prefix cost over reading it."""
+def group(label, stats):
+    """One group's traced cost and cache record, fixed width so the next group
+    starts in the same column in every session: hit ratio, requests that
+    missed of all it sent, and what re-writing the lost prefix cost over
+    reading it."""
     n = len(stats.misses)
     miss = f"{n}/{stats.requests}"
     hit = "-" if stats.hit_ratio is None else f"{round(stats.hit_ratio * 100)}%"
-    row = (f"{pad(lab(label), 6)} {pad(hi(f'${stats.total:.2f}'), 8)}{SEP}{lab('hit')} {pad(hi(hit), 4)}"
-           f"{SEP}{lab('miss')} {pad(fg(YELLOW, miss) if n else hi(miss), 9)} "
-           f"{pad(fg(YELLOW, f'${stats.premium:.2f}') if n else hi('$0.00'), 6)}")
-    return row + (f" {lab(f'(last: {cause})')}" if cause else "")
+    return (f"{pad(lab(label), 6)} {pad(hi(f'${stats.total:.2f}'), 7)} {lab('hit')} {pad(hi(hit), 4)} "
+            f"{lab('miss')} {pad(fg(YELLOW, miss) if n else hi(miss), 7)} "
+            f"{pad(fg(YELLOW, f'${stats.premium:.2f}') if n else hi('$0.00'), 6)}")
 
 
 def limits(rl):
@@ -153,17 +157,21 @@ def limits(rl):
     return out
 
 
-def agent_rows(session: Session, pc: dict | None) -> list[str]:
+def agents_row(session: Session, pc) -> str:
     main = Stats.of(session.agents[0].priced)
     subs = session.agents[1:]
     sub = Stats.of([p for a in subs for p in a.priced])
-    # cc's attribution of its last main miss diffs the request it sent, which
-    # the transcript cannot; the transcript's own guess stands in otherwise
-    cc_causes = ((pc or {}).get("last_miss_cause") or {}).get("causes") or []
-    rows = [agents_row("main", main, ",".join(cc_causes) or (main.last_miss.cause if main.last_miss else ""))]
-    if subs:
-        rows.append(agents_row(f"sub×{len(subs)}", sub, sub.last_miss.cause if sub.last_miss else ""))
-    return rows
+    fields = [group("main", main)] + ([group(f"sub×{len(subs)}", sub)] if subs else [])
+    # cc's attribution of a main miss diffs the request it sent, which the
+    # transcript cannot, so it names the main thread's cause whenever it has one
+    cc_causes = ",".join(((pc or {}).get("last_miss_cause") or {}).get("causes") or [])
+    main_cause = cc_causes or (main.last_miss.cause if main.last_miss else "")
+    m, s = main.last_miss, sub.last_miss
+    if s and (not m or s.response.last_ts > m.response.last_ts):
+        fields.append(lab(f"last miss: sub {s.cause}"))
+    elif main_cause:
+        fields.append(lab(f"last miss: main {main_cause}"))
+    return SEP.join(fields)
 
 
 def main():
@@ -186,7 +194,7 @@ def main():
     pc = data.get("prompt_cache")
 
     warn = []
-    agents = []
+    agents = None
     if transcript and Path(transcript).is_file():
         # The status line must keep its other rows when the transcripts cannot
         # be priced; the red `?` is the signal and the traceback goes to stderr
@@ -198,11 +206,11 @@ def main():
             unpriced = sorted({p.response.model for p in priced if base_model(p.response.model) not in MODELS})
             if unpriced:
                 warn.append(fg(RED, f"unpriced: {','.join(unpriced)}"))
-            agents = agent_rows(session, pc)
+            agents = agents_row(session, pc)
         except Exception:
             traceback.print_exc()
             split = fg(RED, "cost split ?")
-            agents = [fg(RED, "agents ?")]
+            agents = fg(RED, "agents ?")
     else:
         split = fg(RED, "cost split ?")
 
@@ -213,10 +221,12 @@ def main():
     row1 = (f"{lab('ctx')} {pad(emph(f'{used_k}K {level(pct)}'), 10)}{SEP}"
             f"{pad(lab(f'${total:.4f}'), 8)} {pad(split, SPLIT_WIDTH)}{SEP}{pad(emph(model), 19)}"
             + (f"{SEP}{hi(name)}" if name else ""))
-    # Cost warnings lead their row rather than follow the split, which would
-    # push the model and name off their columns whenever one appears
-    last = SEP.join([*warn, lab(transcript) if transcript else fg(RED, "transcript ?")])
-    rows = [row1, cache_row(pc) + limits(data.get("rate_limits")), *agents, last]
+    # Cost warnings follow the fixed-width cache and limits, ahead of the
+    # session id, so a narrow window loses the id first. The id, not the
+    # transcript's 90-column path: every tool here resolves a session by it.
+    row2 = SEP.join([cache_row(pc) + limits(data.get("rate_limits")), *warn,
+                     lab(Path(transcript).stem) if transcript else fg(RED, "transcript ?")])
+    rows = [row1, row2] + ([agents] if agents else [])
     if data.get("session_id"):
         tasks = tasks_row(data["session_id"])
         if tasks:

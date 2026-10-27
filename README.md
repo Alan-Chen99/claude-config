@@ -213,7 +213,8 @@ status line shows none of those misses; the main thread's 52 cost $57. The trace
 total never exceeds cc's own `cost-state` total by more than 0.05% in 264
 sessions, and the median session traces 96% of it. The rest is requests cc
 never transcribes, such as prompt suggestions and WebFetch's model calls.
-`--statusline` is the status line, with main and subagent rows of their own.
+`--statusline` is the status line, three rows with the main thread's and the
+subagents' cost and misses side by side.
 
 ### Human in the loop over Telegram
 
