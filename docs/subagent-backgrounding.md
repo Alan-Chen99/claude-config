@@ -19,19 +19,15 @@ available. Not backgrounded: the built-in `web-fetch` agent (`av()`) and a `-p` 
 Agent call (an interactive subagent's is).
 
 A subagent ending its turn with its own shell running is kept interactively, resumed when the
-shell ends or a message arrives, each turn end notifying the main thread; under
-`-p` the shell's notification waits for the main thread, whose exit kills the shell
+shell ends or a message arrives, each turn end notifying the main thread; under `-p` the
+shell's notification waits for the main thread, whose exit kills the shell
 (`notes/cc-2.1.289-subagent-waits.md`; so on 2.1.310, 2026-10-25).
-`agent-tools/src/hook_subagent.rs` asks every subagent to wait out its work, and
-`hook_post.rs`'s `BACKGROUNDED:` notice gives a subagent, or a main thread whose result has
-`backgroundEndsWithFinalResponse`, the `agent-tools wait` call.
+`agent-tools/src/hook_subagent.rs` and `hook_post.rs`'s `BACKGROUNDED:` notice answer that with
+`agent-tools wait`.
 
-Every `Stop` payload carries `background_tasks[]`, agents as `type: "subagent"`
-(`src/chunk-j0tbz6ra.js:139700`, `background_tasks: bPn(`), so
-`src/claude_config/ntfy_hook.py` holds the "Done" push while one runs. A `Monitor` is a
-`"shell"` task there, like a backgrounded Bash call, so a Bash wait still gets a "Done". The
-`idle_prompt` notification waits while a background agent runs
-(`backgroundAgents.getSnapshot()`, `src/chunk-mdxeekqd.js:962`).
+`src/claude_config/ntfy_hook.py` reads the `Stop` payload's `background_tasks[]`
+(`src/chunk-j0tbz6ra.js:139700`, `background_tasks: bPn(`); cc's own `idle_prompt` waits while
+a background agent runs (`backgroundAgents.getSnapshot()`, `src/chunk-mdxeekqd.js:962`).
 
 ## `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`: `-p` waits as long as interactive
 
@@ -48,46 +44,37 @@ ralph's `build.yml`.
 
 ## The alternatives
 
-`CLAUDE_CODE_FORK_SUBAGENT=0`, the arrangement until 2026-10-22, keeps the parameter and
-backgrounds a call unless it is literally `false` (`!_ && f !== !1`,
-`src/chunk-qnd362wh.js:128`); a prompt rule asking for `false` held 9 of 9 calls on 2026-09-16.
-It costs `fork`, and every report the model waits for then arrives inline.
+`CLAUDE_CODE_FORK_SUBAGENT=0` (to 2026-10-22) keeps the parameter and backgrounds a call unless
+it is literally `false` (`!_ && f !== !1`, `src/chunk-qnd362wh.js:128`); a prompt rule asking
+for `false` held 9 of 9 calls on 2026-09-16. It costs `fork`, and every report the model waits
+for then arrives inline.
 
 `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` alone makes the foreground a guarantee with no help
 from the model, bar a remote-isolation launch and a plugin's background-launch rule, at the cost
-of the whole background-task facility. Measured, one interactive session each:
-
-| | `DISABLE_BACKGROUND_TASKS=1` | background tasks on |
-| --- | --- | --- |
-| Bash `run_in_background` | absent from the schema | present; a task id, the agent re-invoked when the command exits |
-| A command outliving its `timeout` | killed, `Exit code 143` | moved to the background with a task id; upstream's exemption for a `sleep`-first command is unreachable behind `hook_pre.rs`'s prelude (`docs/agent-tools-status-reference.md`) |
-| `BACKGROUNDED:` from `hook_post.rs` | cannot fire: no tool response carries `backgroundTaskId` | fires, naming the cause, the task id and the `long-bash` skill |
-| Foreground `sleep` | permitted | blocked at 25 s or more as the first statement only (`echo hi; sleep 25` runs) |
-
-## Paths that ship but are not exercised here
-
-MCP auto-background (`src/chunk-687969by.js:423`), the Ctrl+B affordance
-(`src/chunk-hy2g8tcy.js:138`), observer agents (`src/chunk-28117reb.js:29`) and forked skills
-(`src/chunk-jgs1ysys.js:96`) open on the background-tasks checks in `src/chunk-m18k9mtt.js`
-(`:14`, `:28`, `:31`), all on here. Interactively, `background` defaults to true for a skill
-declaring `context: fork`; `background: false` keeps the caller waiting
-(`src/chunk-jgs1ysys.js:97`). `CLAUDE_AUTO_BACKGROUND_TASKS` (unset here) backgrounds a
-foreground subagent after 2 min (`zo()`, `src/chunk-qnd362wh.js:329`).
+of the whole background-task facility. Measured, one interactive session each: Bash loses
+`run_in_background`, a command outliving its `timeout` is killed (`Exit code 143`) rather than
+backgrounded, `hook_post.rs`'s `BACKGROUNDED:` cannot fire (no tool response carries
+`backgroundTaskId`), and foreground `sleep` is no longer blocked.
+The facility also gates, unexercised here, MCP auto-background, the Ctrl+B affordance,
+observer agents and forked skills (`src/chunk-m18k9mtt.js:14`, `:28`, `:31`); interactively a
+skill declaring `context: fork` defaults to `background: true` (`background: false` keeps the
+caller waiting, `src/chunk-jgs1ysys.js:97`).
+`CLAUDE_AUTO_BACKGROUND_TASKS` (unset here) backgrounds a foreground subagent after 2 min
+(`zo()`, `src/chunk-qnd362wh.js:329`).
 
 ## Print mode: what outlives a turn
 
-Measured 2026-10-01 on 2.1.269 (`notes/print-mode-task-lifetime.md`,
-`notes/foreground-wait-under-print-mode.md`) unless dated. Under `claude -p` the turn ending
-is the process ending, except:
+Under `claude -p` the turn ending is the process ending, except for the background agents,
+workflows and main-thread shells above (a subagent's shell is killed) and these, measured
+2026-10-01 on 2.1.269 (`notes/print-mode-task-lifetime.md`,
+`notes/foreground-wait-under-print-mode.md`; the clamps and their citations:
+`skills/telegram-hitl/README.md`, "Harness facts the design rests on"):
 
-| Running at turn end | `-p` does |
-| --- | --- |
-| a background agent or workflow | holds the process and starts a turn per completion, up to the ceiling above (2026-10-22) |
-| Bash `run_in_background` | a main-thread shell: as above (2026-10-25; 2.1.269 killed it); a subagent's: killed |
-| a foreground Bash call | holds the process until it returns, up to its `timeout`: 10 min unless settings `env` `BASH_MAX_TIMEOUT_MS` raises it (to at most 2,147,483,647); a `Monitor` event fired meanwhile is dropped when the turn ends with nothing running |
-| `Monitor` | stays up: each event and the completion re-invoke the model; `timeout_ms` defaults to 5 min, is refused above an hour and clamped to 10 min under `-p` (30 interactive), with no `persistent` in the schema |
-
-A `Stop` hook can block the turn end (`{"decision": "block"}`; `stop_hook_active` advisory;
-`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` consecutive blocks, default 8), holding the process while it
-runs up to its settings `timeout`, a kill being no decision; `skills/telegram-hitl` waited that
-way until 2026-10-01.
+- A foreground Bash call holds the process until it returns, up to its `timeout` (10 min unless
+  settings `env` `BASH_MAX_TIMEOUT_MS` raises it); a `Monitor` event fired meanwhile is dropped
+  when the turn ends with nothing running.
+- A `Monitor` stays up: each event and the completion re-invoke the model, `timeout_ms` clamped
+  to 10 min under `-p`.
+- A `Stop` hook can block the turn end (`{"decision": "block"}`) up to
+  `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` consecutive times, default 8, holding the process while it
+  runs up to its settings `timeout`.

@@ -3,10 +3,8 @@
 Measured 2026-10-01 on Claude Code **2.1.269**, haiku, `--dangerously-skip-permissions`,
 `--output-format stream-json --verbose`, this repo's user `settings.json` plus a
 `--settings` file per run; each run one `claude -p` process whose prompt makes one to
-four tool calls and replies with a word. Why it mattered: `notes/print-mode-task-lifetime.md`
-had settled on a `Stop` hook holding the process for a human answer — a 24-hour hook, a
-renewal, a declaration file and a global block-cap override — because a background task
-dies with the turn; the foreground form of the same wait had not been tried.
+four tool calls and replies with a word. It tries the foreground form of
+`notes/print-mode-task-lifetime.md`'s `Stop`-hook wait.
 
 ## One foreground call holds the process — B1, B2, B3
 
@@ -34,9 +32,8 @@ the command when auto-backgrounding is on, else kills it with `Command timed out
 ## How high — C, C2
 
 `BASH_MAX_TIMEOUT_MS` and `timeout` both 9,999,999,999 (115 days): released at 60 s, result
-+61.4 s, no early fire. Both 2,147,483,647: result +59.7 s. The 32-bit bound is measured and
-is what JS timers are defined for; what Bun does above it was not established, so the
-settings value is 2,147,483,647.
++61.4 s, no early fire. Both 2,147,483,647: result +59.7 s. That 32-bit bound is what JS
+timers are defined for; what Bun does above it is not established, so settings use it.
 
 ## What a wait blocks — A against D
 
@@ -53,11 +50,10 @@ settings value is 2,147,483,647.
   wait's tool result +60.3 s is `RELEASED` and nothing else; the model's thinking names only
   RELEASED; one `result` (`turns 4`), exit. `TICK` is in no `user` record.
 
-Both waits freeze the model. They differ in the queue: after the hook's block the process
-was still at a turn boundary and drained it, one turn per event; after the foreground call
-the turn ended with nothing running and the process exited with the queue undelivered. Under
-`-p`, a listener armed beside a foreground wait loses its events; the wait reads the same
-log, so the human's message is not what is lost.
+Both waits freeze the model. After the hook's block the process sat at a turn boundary and
+drained the queue, one turn per event; after the foreground call the turn ended with nothing
+running and the process exited, the queue undelivered. Under `-p` a listener armed beside a
+foreground wait loses its events; the wait reads the human's message from the same log.
 
 ## The real artifact — F
 
@@ -67,14 +63,12 @@ log, so the human's message is not what is lost.
 was accepted at that timeout (`task_started`, `is_backgrounded: false`, `tool_progress` at
 30 s), blocked 56 s until a synthetic inbound message was appended at +60 s, and returned
 `channel up` / `message 13 in chat -100123: answer three` as the tool result, exit 0; the
-model echoed it and the process exited at 62.9 s. An earlier run (E) with the probe's old
-`stop-hook` registration still in its settings — a mode `listen.py` no longer has, so the
-hook printed nothing — timed the same.
+model echoed it and the process exited at 62.9 s. An earlier run (E), its settings still
+registering the old `stop-hook` (a `listen.py` mode then gone, so printing nothing), timed the
+same.
 
 ## What this settled
 
 `skills/telegram-hitl/listen.py <thread> --wait` blocks in the foreground and returns the
-unreacted messages as its output; `settings.json` `env` sets `BASH_MAX_TIMEOUT_MS=2147483647`
-and the skill's call passes it; the `Stop` hook, its 24 h timeout, the declaration file and
-`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` are gone; under `-p` nothing is armed and `--peek` reads
-between steps. Guarantees: `skills/telegram-hitl/README.md`.
+unreacted messages, under the raised `BASH_MAX_TIMEOUT_MS` (settings `env`) and the call's own
+`timeout`; no `Stop` hook holds the process. Guarantees: `skills/telegram-hitl/README.md`.

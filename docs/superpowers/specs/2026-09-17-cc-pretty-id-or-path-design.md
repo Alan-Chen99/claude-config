@@ -127,17 +127,9 @@ Both keep taking paths.
 
 ## Tests
 
-`tests/test_cc_pretty_locate.py`, driving `main()` end-to-end against a synthetic
-`projects/` tree in `tmp_path` with `CLAUDE_CONFIG_DIR` monkeypatched:
-
-- a relative path, an absolute path, and a file in the working directory named
-  like a session id — all open as paths
-- a full session id, and a session id prefix
-- a subagent id in both spellings
-- a subagent nested under `workflows/wf_<id>/`
-- `journal.jsonl` is not resolvable
-- an ambiguous prefix names its candidates; an unknown id names the config dir
-- the `# source:` line appears for an id and not for a path, in both render modes
+`tests/test_cc_pretty_locate.py` drives `main()` end-to-end against a synthetic `projects/`
+tree in `tmp_path` with `CLAUDE_CONFIG_DIR` monkeypatched, covering each rule, failure and
+output line above.
 
 ## Documentation
 

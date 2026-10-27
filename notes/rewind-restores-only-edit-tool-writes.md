@@ -6,15 +6,14 @@
 > 2.1.310 sets `_simulatedSedEdit`; the name survives only in the lists that strip it from a
 > call's input. Every Bash write is now outside the restore boundary below.
 
-Investigated 2026-09-04 against the decompiled **Claude Code 2.1.235** tree at `/repos/claude-code-decompiled/`. `/rewind`'s code restore reverts only files that the Edit, Write, or NotebookEdit tools were about to touch. It is not a working-tree snapshot: no directory walk exists in the file-history module, so a file changed by `sed -i`, a heredoc, `>` redirection, `cp`, `mv`, or any other shell means is neither backed up nor restored.
+Investigated 2026-09-04 against the decompiled **Claude Code 2.1.235** tree. `/rewind`'s code restore reverts only files that the Edit, Write, or NotebookEdit tools were about to touch. It is not a working-tree snapshot: no directory walk exists in the file-history module, so a file changed by `sed -i`, a heredoc, `>` redirection, `cp`, `mv`, or any other shell means is neither backed up nor restored.
 
-Concrete consequence for this repo: under bypass-permissions mode the harness instructs the agent to make file changes through Bash rather than through Edit/Write. That instruction and file checkpointing are mutually exclusive — a session following it produces edits that `/rewind` cannot undo, while the same session's conversation restore still succeeds, leaving files ahead of the transcript. The `[may-rewind]` marker in `sys_prompt/alan-default-next.md` (`# Tone markers`) tells an agent the user may drop an exchange from its context; it deliberately carries none of these mechanics, so this note is the only place the restore boundary is written down.
+Under bypass-permissions mode the harness tells the agent to make file changes through Bash rather than Edit/Write, so a session following it makes edits `/rewind` cannot undo while its conversation restore still succeeds, leaving files ahead of the transcript. The `[may-rewind]` marker in `sys_prompt/alan-default-next.md` (`# Tone markers`) carries none of these mechanics: this note is the only record of the restore boundary.
 
-> **Citations below are pinned to 2.1.235.** `/repos/claude-code-decompiled` now
-> holds a re-extraction of 2.1.269 in an unrelated chunk-file layout, so every
-> `src/globals/*.js:<line>` reference below — including `src/_entry.js`, cited
-> as the export table (that role is now `defs.tsv` at the repo's root) —
-> resolves to nothing. To re-resolve one, see that repo's README,
+> **Citations below are pinned to 2.1.235.** `/repos/claude-code-decompiled` holds a
+> later re-extraction in an unrelated chunk-file layout, so every `src/globals/*.js:<line>`
+> reference below, and `src/_entry.js` as the export table (that role is `defs.tsv` at the
+> repo's root), resolves to nothing. To re-resolve one, see that repo's README,
 > "Re-resolving an old citation."
 
 ## Evidence (source, 2.1.235)
@@ -31,7 +30,7 @@ Only files in `trackedFiles` are ever snapshotted or restored:
 - The per-user-turn snapshot iterates the tracked set only — `src/globals/10.js:17948`. There is no `readdir` or glob in the module.
 - Bash dispatches a `'touch'` op after non-read-only runs (`src/modules/Cae.js:794-797`), and `'touch'` only increments a counter (`src/globals/10.js:17830-17835`).
 
-The product surface says the same thing: `' Rewinding does not affect files edited manually or via bash.'` — `src/globals/26.js:12014`.
+The product surface agrees: `' Rewinding does not affect files edited manually or via bash.'` — `src/globals/26.js:12014`.
 
 ### The `sed -i` exception does not apply under bypass permissions
 
@@ -51,4 +50,4 @@ The product surface says the same thing: `' Rewinding does not affect files edit
 
 ## Not determined
 
-Whether the `sed -i` interception can also fire outside the `'ask'` permission branch; not every permission entry point reaching `Iqn` was enumerated. Immaterial to the conclusion here, since bypass-permissions auto-approval skips that branch either way.
+Whether the `sed -i` interception can also fire outside the `'ask'` permission branch: not every permission entry point reaching `Iqn` was enumerated. Bypass-permissions auto-approval skips that branch either way.

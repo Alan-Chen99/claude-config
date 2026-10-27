@@ -5,13 +5,9 @@
 **Status**: Analysis Complete, Proposed Fix Below
 **Related**: `planner-verification-reporting-analysis.md` (sibling problem, same architectural weakness)
 
----
-
 ## Summary
 
 During planner execution of a 7-item AGENTS.md update task, the Doc QR agent correctly identified 6 policy violations. The parent (orchestrator) agent dismissed all 6 as "false positives" and routed through `--qr-status pass`. The Code QR agent missed 1 serialization behavior change. All errors shipped.
-
----
 
 ## Errors Observed
 
@@ -19,11 +15,11 @@ During planner execution of a 7-item AGENTS.md update task, the Doc QR agent cor
 
 AGENTS.md defines blockquotes (`>`) as user-maintained and addition-only. The executing agent edited 6 blockquotes inline (changing `> [ ]` to `> [x]`), violating both rules.
 
-**Doc QR correctly flagged all 6.** Parent agent dismissed them. From transcript thinking:
+Doc QR flagged all 6; the parent's thinking on dismissing them:
 
 > "The QR's concern seems like a false positive given the explicit instruction to execute the plan"
 
-**Evidence**: Transcript `cb24e8f0-51ce-474d-9608-dfbda9f789f4.jsonl`, subagent `agent-a1ece0c` (Doc QR).
+**Evidence**: subagent `agent-a1ece0c` (Doc QR) of the original session (Evidence Logs).
 
 ### Error 2: Serialization behavior change
 
@@ -31,7 +27,7 @@ AGENTS.md defines blockquotes (`>`) as user-maintained and addition-only. The ex
 
 **Code QR missed this.** It compared new code to `json.dumps` behavior instead of the old conditional logic.
 
-**Evidence**: Transcript subagent `agent-ac45b94` (Code QR). Affected file: `/repo/essay_wb/run/removal_queue.py:90`.
+**Evidence**: subagent `agent-ac45b94` (Code QR). File: `/repo/essay_wb/run/removal_queue.py:90`.
 
 ### Error 3: User-facing print replaced with logger
 
@@ -39,7 +35,7 @@ AGENTS.md defines blockquotes (`>`) as user-maintained and addition-only. The ex
 
 **Neither QR caught this.** The executing agent (M-003) applied print→logger blanket replacement without distinguishing user-facing output.
 
-**Evidence**: Transcript subagent `agent-a9fd3cd` (M-003). Affected file: `/repo/essay_wb/prompting/prompt_update.py:438`.
+**Evidence**: subagent `agent-a9fd3cd` (M-003). File: `/repo/essay_wb/prompting/prompt_update.py:438`.
 
 ### Error 4: Missing script inventory entry
 
@@ -49,17 +45,15 @@ AGENTS.md defines blockquotes (`>`) as user-maintained and addition-only. The ex
 
 "Replace `output_type=str`" item marked [DONE] despite Error 2 (serialization behavior change) being a known regression introduced by the same work.
 
----
-
 ## Root Cause
 
-**Plan authority displacement.** The plan file (`notes/2026-02-17-seven-active-work-items-plan.md`) contained task-specific instructions that the orchestrator treated as authoritative specification. When QR findings conflicted with plan instructions, the orchestrator resolved the conflict in the plan's favor.
+**Plan authority displacement.** The plan file (Evidence Logs) contained task-specific instructions that the orchestrator treated as authoritative specification. When QR findings conflicted with plan instructions, the orchestrator resolved the conflict in the plan's favor.
 
-The plan file contains zero mentions of "addition-only", "blockquote", or "script inventory" — project rules that apply regardless of task.
+The plan never mentions "addition-only", "blockquote", or "script inventory" — project rules that apply regardless of task.
 
 ### Mechanism in executor.py
 
-Steps 4 and 7 dispatch QR agents. Steps 5 and 8 are gates. The gate routing is **LLM-determined**: the orchestrator reads QR output, decides pass/fail, then invokes either:
+Steps 4 and 7 dispatch QR agents; steps 5 and 8 are gates. Gate routing is **LLM-determined**: the orchestrator reads QR output, decides pass/fail, then invokes either:
 
 ```
 python3 -m skills.planner.orchestrator.executor --step 5 --qr-status pass
@@ -68,19 +62,17 @@ python3 -m skills.planner.orchestrator.executor --step 5 --qr-status fail
 
 (`executor.py` lines 585-586, 657-658)
 
-The `format_gate()` function (line 211) renders deterministically based on `qr.passed`, but `qr.passed` is set by the LLM's `--qr-status` choice. This means the LLM orchestrator is the sole arbiter of whether QR passed — violating the "dumb dispatcher" invariant from `INTENT.md`:
+`format_gate()` (line 211) renders deterministically from `qr.passed`, but `qr.passed` is set by the LLM's `--qr-status` choice, so the LLM orchestrator is the sole arbiter of whether QR passed — violating the "dumb dispatcher" invariant from `INTENT.md`:
 
 > "Orchestrator is a dumb dispatcher... never decides to 'proceed anyway' when protocol requires iteration"
 
 ### Why QR prompts didn't catch everything
 
-`impl_code_qr_decompose.py` and `impl_docs_qr_decompose.py` contain zero mentions of cross-cutting project rules (AGENTS.md blockquote policy, addition-only rule, script inventory). QR agents only check what their decompose prompts tell them to check.
-
----
+`impl_code_qr_decompose.py` and `impl_docs_qr_decompose.py` contain zero mentions of cross-cutting project rules (AGENTS.md blockquote policy, addition-only rule, script inventory). QR agents check only what those prompts name.
 
 ## Relationship to Verification Reporting Analysis
 
-Both analyses target the same architectural weakness: **executor.py relies on LLM judgment for critical gates instead of deterministic enforcement.**
+Same weakness: **executor.py relies on LLM judgment for critical gates instead of deterministic enforcement.**
 
 | | This analysis | Verification reporting |
 |---|---|---|
@@ -89,8 +81,6 @@ Both analyses target the same architectural weakness: **executor.py relies on LL
 | Data exists? | Yes (QR output has findings) | No (test results never recorded) |
 
 Fixes are **complementary**, not overlapping.
-
----
 
 ## Proposed Fix
 
@@ -101,8 +91,6 @@ Replace LLM-chosen `--qr-status pass/fail` with script-read routing from `qr-{ph
 **Change 2: Project-rule invariant checks in QR decompose prompts** (`impl_docs_qr_decompose.py`, `impl_code_qr_decompose.py`)
 
 Add mandatory check items for cross-cutting project rules: blockquote preservation, addition-only edits, script inventory completeness, behavioral compatibility. These are sourced from the project's `context.json` `constraints` field (which exists but was not populated). ~15 lines of prompt additions per file.
-
----
 
 ## Evidence Logs
 

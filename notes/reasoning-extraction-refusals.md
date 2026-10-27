@@ -27,35 +27,27 @@ interleave within seconds — opus-5 refusing at 22:23:56, 22:24:56 and 22:26:08
 UTC between 4.x passes — so this is tiering, not a mid-run filter change. 0/36
 per 4.x id bounds an unobserved rate under 8 % (95 %) against opus-5's 36/36.
 
-These are single-turn prompts, not the operational shape: a `session-analysis`
-dispatch carrying the SKILL.md plus real `cc-pretty` output is a much stronger
-stimulus, and 4.x surviving these does not establish it survives that. The
-SKILL.md passage "Verbatim text is placed, not transcribed", a minimal trigger
-in the 09-24 probes, is now 0/18 on opus-5 across both channels — either the
-filter narrowed on that item or the 09-24 observation was a low-rate event,
-which one probe each way cannot separate.
+These are single-turn prompts: a `session-analysis` dispatch carrying the SKILL.md
+plus real `cc-pretty` output is a much stronger stimulus, which 4.x surviving these
+does not establish it survives. The SKILL.md passage "Verbatim text is placed, not
+transcribed", a minimal trigger in the 09-24 probes, is 0/18 on opus-5 across both
+channels: either the filter narrowed on it or the 09-24 observation was a low-rate
+event, which one probe each way cannot separate.
 
 ## Measured 2026-09-25
 
-Every refusal in 45,330 home captures (back to 2026-05-18) and 52,119 on ionos
-(back to 2026-08-24): 7 on home 09-13 on `claude-fable-5-1`, 2 on home 09-24,
-and on ionos 1, 4, 3 then 62 across 09-21→09-24 — the last over 41 sessions,
-~48 of them deliberate probes. All opus-5 but the fable ones. Zero before 09-13
-anywhere, zero on `claude-sonnet-5` or `claude-haiku-4-5-20251001` ever.
-
 Natural per-session kill rates stay low — 1/416 editing CLAUDE.md, 3/195 and
 9/578 in ralph grading loops, 4/24 at worst, and 8/598 in a fan-out whose deaths
-fell in one 53-second burst, its artifacts still produced an hour later. The
-workflow limps; it does not die, and the block is intermittent: one
-session interleaves dozens of successful requests carrying 0.5–4.2 Kchars of
-quoted thinking with its 9 refusals. Both modes occur — pre-generation
-(`output_tokens: 0`, sometimes a subagent's first request at `messages: 2`) and
-mid-stream cuts after 202–13,775 output tokens, reading as an input classifier
-plus an output monitor though neither stage is observed. A cut lands while the
-model writes an evidence artifact quoting reasoning, or the jq/python script
-that would build one — too early for the skill's "verbatim-by-tool" rule to
-help. Attempts fail loudly rather than go quiet; verbosity and thinking
-visibility show no population-level change.
+fell in one 53-second burst, its artifacts still produced an hour later: the
+workflow limps rather than dies. The block is intermittent: one session interleaves
+dozens of successful requests carrying 0.5–4.2 Kchars of quoted thinking with its
+9 refusals. Both modes occur — pre-generation (`output_tokens: 0`, sometimes a
+subagent's first request at `messages: 2`) and mid-stream cuts after 202–13,775
+output tokens, reading as an input classifier plus an output monitor though neither
+stage is observed. A cut lands while the model writes an evidence artifact quoting
+reasoning, or the jq/python script that would build one — too early for the skill's
+"verbatim-by-tool" rule to help. Attempts fail loudly rather than go quiet;
+verbosity and thinking visibility show no population-level change.
 
 ## Input patterns that draw the block
 
@@ -76,10 +68,9 @@ Three classes, any one apparently sufficient:
 What passes: ~100 K captures of ordinary coding and repo work; session-analysis
 reporting behaviour without quoting reasoning; and — the sharpest control — the
 same ralph loop's ~20 grading dispatches of 09-22, matching in shape the 09-24
-dispatches that now die. Scope widened in steps, which is what "the filter
-changed multiple times" looked like from inside: fable-only (09-13) → opus-5
-with thinking-in-context (09-21) → opus-5 on instructions alone (09-24 ~01:00),
-each a first observation rather than a deploy date.
+dispatches that die. The scope widened in steps, each a first observation rather
+than a deploy date: fable-only (09-13) → opus-5 with thinking-in-context (09-21) →
+opus-5 on instructions alone (09-24 ~01:00).
 
 ## Two things this is not
 
@@ -94,21 +85,3 @@ API key has no credits.
 API default on opus-5/4.8/4.7 and sonnet-5 (`builtin-skills/claude-api.md`), and
 Claude Code sets it from `showThinkingSummaries` — `summarized` only for
 interactive sessions with it on, `omitted` forced for `-p` and subagent ones.
-
-## Confidence
-
-- **>99 %, counted:** every count, date, model and rate here, the explanation
-  text, the 10-01 matrix and its wire categories. Refusals are 200-stream
-  replies, so the capture gaps in `scripts/intercept/README.md` cannot hide them;
-  `agent-tools claude` worktree sessions produce none, so home counts are lower
-  bounds.
-- **~85–90 %:** each trigger class suffices sometimes — 1 and 3 from many natural
-  instances, 2 from the 09-24 probes plus natural `messages: 2` refusals,
-  reproducing at 18/18 a week later.
-- **~70 %:** the widening is filter-side, not workload drift; "first observed"
-  dates could instead be rollouts or threshold tuning.
-- **~60 %:** sonnet-5 and haiku are exempt — thousands of captures, zero
-  refusals, but little reasoning-quoting work ran on them and, unlike
-  opus-4.8/4.7, they were never probed directly.
-- **Unresolved:** which span trips a request, and the ceiling on quoted thinking
-  one can carry.

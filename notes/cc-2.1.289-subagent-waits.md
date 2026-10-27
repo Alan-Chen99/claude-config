@@ -1,16 +1,12 @@
 # A subagent's foreground call is deaf until it returns, and only an interactive subagent survives ending its turn to wait
 
-> **2.1.310 (measured 2026-10-25).** Finding 6 still holds: under `claude -p` a subagent's
-> background shell was `killed` 8 s after the main thread's last `result`, as the new held-shell
-> test covers only `e.agentId === void 0`. A `-p` main thread's own shell now holds the process
-> and starts a turn when it ends (`docs/subagent-backgrounding.md`), so `agent-tools wait`
-> for a main thread is told only when its result carries `backgroundEndsWithFinalResponse`.
-> Finding 1 is the default only: an agent whose frontmatter sets `experimental.cacheTtl: 1h`
-> (`agents/gp-cache1h.md`) wrote its cache at 1h (2.1.310, 2026-10-25). Finding 2 held on
-> 2.1.310, read in source too; `agent-tools wait` now returns on a queued message, and progress
-> summaries refresh a waiting subagent's cache (`notes/cc-2.1.310-subagent-wait-costs.md`). The
-> loop past 45-50 minutes is kept for the cost of measured runs, not a message's delivery (its finding 6).
-> Everything below is 2.1.289's and stands as measured.
+> **2.1.310 (measured 2026-10-25).** Finding 6 holds: a `-p` subagent's background shell was
+> `killed` 8 s after main's last `result`, the new held-shell test covering only
+> `e.agentId === void 0` (main's shell: `docs/subagent-backgrounding.md`). Finding 1 is the
+> default only: an agent with `experimental.cacheTtl: 1h` in its frontmatter
+> (`agents/gp-cache1h.md`) wrote at 1h. Finding 2
+> holds, read in source too. `notes/cc-2.1.310-subagent-wait-costs.md` revises "What follows":
+> the loop past 45-50 minutes stays for its measured cost, not a message's delivery.
 
 Investigated 2026-10-24 (UTC) on Claude Code **2.1.289**, `CLAUDE_CODE_FORK_SUBAGENT=1`, sonnet
 unless named. P1-P4, P9 and P12 ran under `claude -p`; P5-P6 interactive; P7, P8, P10 and P11 under
@@ -46,13 +42,13 @@ section of `skills/long-bash/SKILL.md`.
 7. **Plugin events** (P6): `turn.start` fires for main-thread turns only; `turn.complete` carries
    a subagent's `agentId`; `classic.Stop`'s `background_tasks` lists a running subagent as
    `subagent` and, once it stopped, its running shell as `shell`.
-8. **Without a pointer, a subagent writes its own wait.** P7, the hooks unchanged: told its
-   command takes six minutes, it loaded neither the listed skill nor the one the `BACKGROUNDED:`
-   notice named, and blocked on an `until grep` loop. Main's message, sent 40 s in, reached it
-   5m21s later with the job done; its next request read 0 and wrote 12,991. P8, with the
-   `SubagentStart` clause and the notice's subagent sentence: it loaded the skill, waited 4m00s,
-   answered 4 s later at step 25 of 36, read 14,320 (the prior read plus write), and its second
-   wait returned within a second of the job's end. P10 (opus) and P11 did the same.
+8. **Without a pointer, a subagent writes its own wait.** P7, hooks unchanged, told its command
+   takes six minutes: it loaded neither the listed skill nor the one the `BACKGROUNDED:` notice
+   named and blocked on an `until grep` loop; main's message, sent 40 s in, reached it 5m21s
+   later with the job done, and its next request read 0 and wrote 12,991. P8, with the
+   `SubagentStart` clause and the notice's subagent sentence: it loaded the skill, waited
+   4m00s, answered 4 s later at step 25 of 36, read 14,320 (the prior read plus write), and its
+   second wait returned within a second of the job's end. So did P10 (opus) and P11.
 9. **Hooks see the attended flag**: a `-p` `PostToolUse` hook's environment carried
    `CLAUDE_CODE_SESSION_ATTENDED=0` (P12).
 10. **`-p` stops an untimed background job at 30 minutes.** P9: `sleep 1900` launched with no
@@ -62,8 +58,8 @@ section of `skills/long-bash/SKILL.md`.
 ## What follows
 
 - A subagent, and a `-p` main thread, waits inside its turn in bounded calls: each return
-  delivers queued messages, and one inside 5 minutes re-reads the cache. `agent-tools wait`
-  defaults to 240 s, leaving a minute to generate the next request.
+  delivers queued messages, and one inside 5 minutes re-reads the cache (`agent-tools wait`'s
+  240 s bound).
 - Ending the turn, open to an interactive subagent, costs main a turn per subagent turn end, and
   a timer chain to keep the 5m cache one per timer; so the skill teaches the loop in both modes.
 - Arithmetic, not measured: a 5m rewrite costs 1.25x the prefix and a read 0.1x, so 4-minute

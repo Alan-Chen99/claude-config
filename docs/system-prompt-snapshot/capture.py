@@ -471,9 +471,9 @@ def spawn_claude(
     # for it. Three that demonstrably do so: CLAUDECODE and
     # CLAUDE_CODE_CHILD_SESSION make the child detect a nested session and stop
     # saving a transcript; CLAUDE_CODE_TMPDIR moves the scratchpad path the
-    # prompt prints; CLAUDE_CODE_FORK_SUBAGENT=0 (set by this repo's
-    # settings.json since c70788a) swaps the subagent guidance from the `fork`
-    # paragraph to the older Agent/Explore bullets. Dropping the prefix wholesale
+    # prompt prints; CLAUDE_CODE_FORK_SUBAGENT, which this repo's settings.json
+    # sets, picks between the `fork` subagent paragraph and the older
+    # Agent/Explore bullets. Dropping the prefix wholesale
     # rather than naming knobs keeps the next one from landing unnoticed.
     # CLAUDE_CODE_OAUTH_TOKEN is the exception, for two reasons: it authenticates
     # the child, and it is itself the knob that keeps a capture MCP-free. A child

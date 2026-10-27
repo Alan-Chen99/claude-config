@@ -3,11 +3,9 @@
 2026-10-19, `codex-cli 0.163.0`, `gpt-6.1-sol`, low reasoning, configured CLI
 `exec` in `/root/claude-config-work`. Answer: `Hello!`.
 
-The [snapshot](system-prompt-snapshot/codex-gpt-6.1-sol/exec-say-hello/)
-contains sanitized WebSocket frames, both terminal responses, CLI events,
-new/original session logs, provenance/hashes, generated `prompt.md`, eleven
-`tools/*.md` files and `summary.json`. Headers/credentials are excluded;
-persistent account/device IDs are redacted. Linkage IDs remain.
+The [snapshot](system-prompt-snapshot/codex-gpt-6.1-sol/exec-say-hello/) holds
+the sanitized frames, CLI events, session logs and provenance; its `.md` files and
+`summary.json` are derived. `capture_codex.py` says what is saved and redacted.
 
 ## Token accounting
 
@@ -32,18 +30,16 @@ this available OpenAI encoding is not a verified production tokenizer.
 | **Total** | **9,046 text-only** | **17,348** |
 
 **Zero unattributed input tokens.** Output 6, reasoning 0, total **17,354**;
-12,288 input tokens cached. `summary.json` also counts each tool's description
-and JSON locally. Exact per-tool API costs are unavailable: tools are attributed
-together. Compact tool JSON measures 9,455 tokens; its serialization differs
-from the service's tool rendering.
+12,288 input tokens cached. Exact per-tool API costs are unavailable: tools are
+attributed together. Compact tool JSON measures 9,455 tokens; its serialization
+differs from the service's tool rendering.
 
 `001-request.json` uploads tools and base instructions with `generate=false`.
 Its response reports 12,498 input: 8,280 tools + 4,216 base + residual framing 2.
 `003-request.json` sends five conversation messages, referring to that response
 through `previous_response_id`; its 17,348 input includes inherited context.
 Adding both usage totals counts the prefix twice and establishes no billing
-conclusion. `store=false` coexists with request chaining. Parameters/transport
-metadata remain visible, rather than being silently counted as prompt text.
+conclusion. `store=false` coexists with request chaining.
 
 ## Sources and surprises
 
@@ -111,15 +107,7 @@ SSL_CERT_FILE="$HOME/.mitmproxy/mitmproxy-ca-cert.pem" \
 codex exec -m gpt-6.1-sol --json 'say hello' < /dev/null > "$SCRATCH/exec.jsonl"
 ```
 
-Stop the proxy after completion. It retains terminal events, not all response
-deltas. Live configuration/authentication are used; normal caches may refresh.
-Review prompt bodies for secrets; copy matching sanitized session logs/provenance.
-Regenerate:
-
-```bash
-uv run --no-project --with tiktoken==0.14.0 python \
-  docs/system-prompt-snapshot/render_codex.py \
-  docs/system-prompt-snapshot/codex-gpt-6.1-sol/exec-say-hello
-```
-
-The renderer rejects changes to the observed two-request protocol/attribution.
+Stop the proxy after completion. Live configuration/authentication are used;
+normal caches may refresh. Review prompt bodies for secrets; copy matching
+sanitized session logs/provenance, then regenerate with `render_codex.py`
+(usage in its docstring), which accepts only the observed two-request shape.

@@ -125,8 +125,7 @@ carry it.
 
 The dropped custom system prompt is the consequence that bites: a session
 launched with `--system-prompt-file` runs the **default** prompt after
-backgrounding, with no warning — `docs/system-prompt-snapshot/README.md`
-§ "Background sessions do not inherit the flag" has the measured before/after.
+backgrounding, with no warning — `git show f31bcacc` has the measured before/after.
 Only settings-based configuration, notably an output style, is durable.
 
 ## Job directory

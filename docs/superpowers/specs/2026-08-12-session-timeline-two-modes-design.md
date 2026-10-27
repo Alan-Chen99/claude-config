@@ -113,19 +113,13 @@ Body:
 
 ## SKILL.md edits
 
-Preserve all existing sections (Invariants, Extractor judgment, Provenance,
-Anti-patterns, Harness-specific rendering, Output location and naming) — they
-describe the evidence artifact itself, which is common to both modes.
-
-Add:
-- **"Modes"** section (before Invariants): documents question vs evidence, mode
-  selection rule, default question, response shape per mode
-- **"For parents dispatching this skill"** section (near Invocation): parent
-  must read SKILL.md before dispatch; parent must pass `mode: evidence`; brief
-  format; parent's synthesis happens outside the skill
-- **Evidence discipline** clarification (extend Invariants or add a note): "in
-  evidence mode, gather anything that MIGHT be relevant to the focus; when in
-  doubt, include (summarized)"
+Every existing section (Invariants, Extractor judgment, Provenance, Anti-patterns,
+Harness-specific rendering, Output location and naming) stays: it describes the evidence
+artifact, common to both modes. Added: a **"Modes"** section before Invariants (both modes,
+the selection rule, the default question verbatim, the response shape per mode); a **"For
+parents dispatching this skill"** section near Invocation (read SKILL.md first, pass
+`mode: evidence`, the brief format, synthesis outside the skill); and the evidence-mode
+discipline above, in or beside Invariants.
 
 ## Practical: many-subagent cross-session analysis
 
@@ -141,26 +135,9 @@ The evidence artifacts persist beyond the subagent's lifetime and are the
 substrate for the parent's synthesis. Nothing about many-subagent use requires
 skill changes beyond what's specified above.
 
-## Acceptance criteria
-
-- `skills/session-timeline/SKILL.md` has a "Modes" section documenting both
-  modes and the selection rule
-- `skills/session-timeline/SKILL.md` has a "For parents dispatching this skill"
-  section stating the parent's read-SKILL.md obligation and requirement to pass
-  `mode: evidence`
-- `agents/session-timeline.md` exists with `name`, `description`, `tools`
-  frontmatter, and a body that instructs the subagent to invoke the skill and
-  default to evidence mode
-- All existing SKILL.md content (Invariants, Extractor judgment, Provenance,
-  Anti-patterns, Harness-specific rendering, Output location and naming) is
-  preserved and remains applicable to both modes
-- Default question wording matches this spec verbatim
-
 ## Files
 
-- Modify: `skills/session-timeline/SKILL.md`
-- Create: `agents/session-timeline.md`
-- Create (this spec): `docs/superpowers/specs/2026-08-12-session-timeline-two-modes-design.md`
+Modify `skills/session-timeline/SKILL.md`; create `agents/session-timeline.md`.
 
 ## Decision log
 

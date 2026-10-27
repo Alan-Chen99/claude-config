@@ -3,14 +3,13 @@
 The operational text is `.claude/skills/prompt-tests/SKILL.md`: the runners, the
 grader dispatch, what a run's record is. This file carries only the reasoning
 behind it, so that a later session can disagree with the design on its merits
-instead of rediscovering it or quietly reverting it. Nothing here restates an
-instruction from there — where both would apply, the skill governs.
+instead of rediscovering it or quietly reverting it. Where both would apply, the
+skill governs.
 
-Measured results are not kept here. Prompt-test evidence does not survive the run
-that produced it: a reference edit, a foci change or a prompt edit each make an
-old run a different measurement, and none of them announces itself in a document
-that quotes the old numbers. What survives a round is a semantic claim with its
-reasoning attached, which is what each section below is.
+Measured results are not kept here: a reference edit, a foci change or a prompt
+edit each make an old run a different measurement, and none of them announces
+itself in a document that quotes the old numbers. What survives a round is a
+semantic claim with its reasoning attached, which is what each section below is.
 
 ## A run's result is the trajectory
 
@@ -53,11 +52,8 @@ evidence in any case.
 Grading needs the whole picture; comparison needs a fixed narrow one. A
 whole-picture grader is not comparable across runs, because its attention moves
 with what it notices. A focus extract is comparable precisely because it is
-narrow and stable.
-
-So foci are the **cross-run diff instrument** — did run N+1 differ in a stated
-respect — and are not the grading instrument. They were never satisfiable as
-grading, and most cases compare nothing and want none.
+narrow and stable — so foci answer whether run N+1 differed in a stated respect,
+and were never satisfiable as grading.
 
 This costs less than it looks: `session-analysis`'s reading protocol requires
 every reasoning, text and tool-input block in all modes, so each per-focus
@@ -66,26 +62,21 @@ whole-session reads than a per-focus pipeline, not more.
 
 ## Grade from the runtime agent's position
 
-The grader argues as the agent, not as the person who wrote the prompt. Grading
-from the writer's position grades intent-compliance — did it do what I meant —
-which is unfalsifiable and self-confirming. Grading from the agent's position
-grades what the page actually licensed. This is `Recognition before enforcement`
-(`skills/prompt-engineer-v2/experiments.md`) applied at grading time.
-
-One consequence does the most work: **the reference is inadmissible as a
-requirement.** The agent never saw it, so nothing in it is something the agent
-"should have done". It can only tell the grader what the caller cares about. A
-rubric's authority is not policy here; it is a consequence of who the grader is
-arguing as — which also makes one rubric defect decidable, an element satisfiable
-only by an agent that had read the reference.
+Grading from the writer's position grades intent-compliance — did it do what I
+meant — which is unfalsifiable and self-confirming. Grading from the agent's
+position grades what the page actually licensed. This is `Recognition before
+enforcement` (`skills/prompt-engineer-v2/experiments.md`) applied at grading time.
+It is also why the reference is inadmissible as a requirement: its authority is
+not policy here but a consequence of who the grader is arguing as, which makes one
+rubric defect decidable, an element satisfiable only by an agent that had read the
+reference.
 
 ## Why the second argument kills the first
 
 The constraint and alternative arguments are one instrument, not two opinions:
-argument 2 is the falsification test for argument 1. An alternative that survives
-argument 1's quotes refutes the forcing claim, and the defect is the agent's; an
-alternative that cannot be produced leaves the forcing claim standing, and the
-defect is the prompt's. Both surviving means both defects exist. The product is
+argument 2 is the falsification test for argument 1. An alternative surviving
+argument 1's quotes makes the defect the agent's; one that cannot be produced
+leaves the forcing claim standing and the defect the prompt's. The product is
 that boundary, which is why forcing a winner destroys the result.
 
 Order is mandatory. Written second-first, the constraint argument degenerates
@@ -94,20 +85,16 @@ into rationalising whatever the criticism left over.
 Each argument has a cheap dishonest form, and the guards are symmetric: each
 demands evidence the *agent* had rather than evidence the *grader* has. The tell
 for both is the word *just*. A defect with no trigger the agent could have had is
-**undiscoverable from the agent's position** — a third outcome, and a finding
-about the task rather than a pass for the agent. Inventing a trigger to avoid
-writing it is this design's characteristic failure.
+a third outcome, a finding about the task rather than a pass for the agent.
 
 ## Instruction is obeyed, a view is weighed
 
 A grader cannot tell from inside whether a sentence reached it as an instruction
-or as a view: it obeys the first and weighs only the second. So the dispatch
-carries scope and facts — what to evaluate, which arm ran which prompt — and no
-framing: candidate reasons, a method, the one criterion the verdict turns on, an
-expected null. A framing in an instruction is the parent's hypothesis reaching
-the verdict unweighed, and the parent that wrote the edit is the least
-independent reader of its arms. The reference carries the caller's framing on
-purpose, and arrives labelled as a view after the grader's own has formed.
+or as a view: it obeys the first and weighs only the second. A framing in an
+instruction is the parent's hypothesis reaching the verdict unweighed, and the
+parent that wrote the edit is the least independent reader of its arms. The
+reference carries the caller's framing on purpose, and arrives labelled as a view
+after the grader's own has formed.
 
 Blinding the comparison grader to the arms guarded the same thing by hiding
 facts, and failed on its own terms: the harness unblinds a grader with a file it
@@ -133,9 +120,8 @@ second phrasing before it means anything.
 
 ## What this does not measure, and what it costs
 
-- A judgement is not comparable across runs. Only the foci artifacts are. Nothing
-  here produces a pass rate, and any aggregate built from these documents is a
-  misuse of them.
+- A judgement is not comparable across runs; only the foci artifacts are. Any
+  aggregate built from these documents is a misuse of them.
 - Whole-session grading is bounded by one context. A session too large for one is
   read in passes off the skeleton; if it genuinely does not fit, that is reported
   as a fact about the run, not hidden behind narrower foci.
