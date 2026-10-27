@@ -1,7 +1,8 @@
 """`cc-cost --statusline` run as cc runs it: statusLine JSON on stdin, a session dir on disk.
 
 The child environment is built from scratch so `agent-tools` is off PATH: the
-tasks row then has to show its failure marker rather than vanish.
+tasks row then has to show its failure marker rather than vanish. Its HOME is
+the test's own, so the readings log and cc's global config are too.
 """
 
 import json
@@ -41,13 +42,18 @@ HAIKU = assistant("s1", "claude-haiku-4-5-20251001", input_tokens=0, output_toke
 TOTAL = 0.04029
 
 
-def run(transcript, total=TOTAL, **over):
+def run(transcript, total=TOTAL, config=True, **over):
+    home = transcript.parent.parent / "home"
+    home.mkdir(exist_ok=True)
+    if config and not (home / ".claude.json").exists():
+        (home / ".claude.json").write_text(json.dumps({"oauthAccount": {
+            "emailAddress": "me@example.com", "organizationRateLimitTier": "default_claude_max_20x"}}))
     data = {"model": {"display_name": "Opus 5.5"}, "effort": {"level": "high"}, "session_name": "name",
             "session_id": "sid", "transcript_path": str(transcript), "cost": {"total_cost_usd": total},
             "context_window": {"used_percentage": 3, "current_usage": {"input_tokens": 29000}}} | over
     r = subprocess.run([sys.executable, "-m", "claude_config.cc_cost.main", "--statusline"],
                        input=json.dumps(data), capture_output=True, text=True,
-                       env={"PATH": "/nonexistent", "TZ": "UTC"}, check=True)
+                       env={"PATH": "/nonexistent", "TZ": "UTC", "HOME": str(home)}, check=True)
     return ANSI.sub("", r.stdout).splitlines(), r.stderr
 
 
@@ -184,3 +190,22 @@ def test_columns_hold_across_sessions(tmp_path):
     fields = "hit|miss|│"
     assert cols(a[2], fields) == cols(c[2], fields) == cols(b[2], fields)[:2], (a[2], b[2], c[2])
     assert cols(b[2])[0] == len(a[2]) + 1, (a[2], b[2])
+
+
+def test_a_reading_is_logged_when_it_changes(tmp_path):
+    t = session(tmp_path, [OPUS])
+    first = {"five_hour": {"used_percentage": 6, "resets_at": 1793089800},
+             "seven_day": {"used_percentage": 12, "resets_at": 1793556000}}
+    later = first | {"seven_day": {"used_percentage": 13, "resets_at": 1793556000}}
+    for rl in (first, first, later):
+        rows, err = run(t, rate_limits=rl)
+        assert "limits log ?" not in rows[1] and err == "", (rows, err)
+    log = [json.loads(line) for line in (tmp_path / "home/.claude/cc-cost/rate-limits.jsonl").read_text().splitlines()]
+    assert [(r["session"], r["transcript"], r["account"], r["tier"], r["seven_day"]["used_percentage"]) for r in log] \
+        == [("sid", str(t), "me@example.com", "default_claude_max_20x", p) for p in (12, 13)], log
+
+
+def test_a_failed_log_is_shown(tmp_path):
+    rows, err = run(session(tmp_path, [OPUS]), config=False,
+                    rate_limits={"five_hour": {"used_percentage": 6, "resets_at": 1793089800}})
+    assert "limits log ?" in rows[1] and "Traceback" in err and ".claude.json" in err, (rows, err)

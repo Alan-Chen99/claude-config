@@ -22,6 +22,9 @@ or still streaming. Its usage is the stream's opening one, so its output is a
 floor, and cc, which prices a response when its stream ends, never counts it;
 its prompt was processed and is priced here all the same.
 
+Each session's account is the email cc attaches to it as context (an
+`attachment` of type `session_context`, re-sent after a resume or /login).
+
 A miss is cc's own client-side test (2.1.310's prompt-cache ledger, beside the
 literal `system_prompt_changed: "system prompt changed"`), applied to every
 agent where cc applies it to the main thread alone.
@@ -30,6 +33,8 @@ agent where cc applies it to the main thread alone.
 from __future__ import annotations
 
 import json
+import re
+from bisect import bisect_right
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -71,6 +76,8 @@ class Log:
     requests: dict[str, tuple]
     # Each `cost-state` record and the latest timestamp logged before it
     cost_states: list[tuple[dict, float | None]]
+    # (timestamp, email) of each `session_context` naming the account
+    accounts: list[tuple[float, str]]
 
 
 @dataclass(frozen=True)
@@ -120,6 +127,14 @@ class Session:
     # The main transcript's `cost-state` records, oldest first: cc's running
     # total, written on exit and before /clear, /resume and fork
     cost_states: list[tuple[dict, float | None]]
+    accounts: list[tuple[float, str]]
+
+    def account_at(self, t: float) -> str | None:
+        """The account the session ran as at `t`: the last one cc named before
+        it, or the first when it named none before."""
+        if not self.accounts:
+            return None
+        return self.accounts[max(bisect_right(self.accounts, (t, "\uffff")) - 1, 0)][1]
 
     @property
     def cost_state(self) -> tuple[dict, float | None] | None:
@@ -134,6 +149,9 @@ class Session:
                    for a, b in zip(recs, recs[1:]))
 
 
+EMAIL = re.compile(r"email address is (\S+?)\.(?:\s|$)")
+
+
 def ts(s: str) -> float:
     return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
 
@@ -142,6 +160,7 @@ def read_log(path: Path) -> Log:
     responses: dict[str, Response] = {}
     requests: dict[str, tuple] = {}
     cost_states: list[tuple[dict, float | None]] = []
+    accounts: list[tuple[float, str]] = []
     last_ts = None
     compact = False
     lines = path.read_bytes().splitlines()
@@ -183,7 +202,14 @@ def read_log(path: Path) -> Log:
             requests[rec["id"]] = (rec.get("shapeHash"), params, ttls)
         elif kind == "cost-state":
             cost_states.append((rec, last_ts))
-    return Log(list(responses.values()), requests, cost_states)
+        elif kind == "attachment" and (rec.get("attachment") or {}).get("type") == "session_context":
+            said = (rec["attachment"].get("context") or {}).get("userEmail")
+            if said:
+                m = EMAIL.search(said)
+                if not m:
+                    raise ValueError(f"{path}: session_context userEmail names no address: {said[:80]!r}")
+                accounts.append((ts(rec["timestamp"]), m.group(1)))
+    return Log(list(responses.values()), requests, cost_states, accounts)
 
 
 def _cause(prev: Response, cur: Response, gap: float, ttl: str, requests: dict[str, tuple]) -> str:
@@ -273,7 +299,7 @@ def load(target: Path) -> Session:
         owned = {r.id for r in log.responses if r.id not in seen and not r.copied}
         seen |= {r.id for r in log.responses}
         agents.append(Agent(agent_id, path, meta, parent, depth, judge(log.responses, owned, requests)))
-    return Session(main, agents, logs[0].cost_states)
+    return Session(main, agents, logs[0].cost_states, sorted(a for log in logs for a in log.accounts))
 
 
 def tree(session: Session, root: str = "main") -> list[tuple[Agent, int]]:

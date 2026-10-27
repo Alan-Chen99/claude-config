@@ -3,6 +3,7 @@ its prompt cache did.
 
     agent-tools cc-cost [TARGET] [--misses] [--json]
     agent-tools cc-cost --statusline        # cc's statusLine JSON on stdin
+    agent-tools cc-cost --limits [--span N] [--plot PNG] [--json]
 
 TARGET is a session id, a subagent id (either with its `agent-` prefix or
 without), a unique prefix of one, or a transcript path; with none, the running
@@ -20,6 +21,10 @@ cc's own total (the `cost-state` record it writes on exit and on /clear,
 /resume and fork) also counts requests it never transcribes: compaction, prompt
 suggestions, away summaries, session titles, WebFetch's and WebSearch's model
 calls. The report compares the two at the time cc last wrote it.
+
+--limits sizes each account's 5-hour and weekly windows in API-equivalent
+dollars from the readings the status line logs and this machine's transcripts
+(`limits.py`).
 """
 
 from __future__ import annotations
@@ -200,14 +205,38 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--json", action="store_true", help="machine-readable report")
     ap.add_argument("--statusline", action="store_true",
                     help="read cc's statusLine JSON on stdin and print the status line")
+    ap.add_argument("--limits", action="store_true",
+                    help="size each account's 5-hour and weekly windows from the logged readings")
+    ap.add_argument("--span", type=float, default=5, help="--limits: points a best span covers at least (default 5)")
+    ap.add_argument("--plot", type=Path, metavar="PNG", help="--limits: also plot cost per point to this file")
     args = ap.parse_args(argv)
     if args.statusline:
-        if args.target or args.misses or args.json:
-            ap.error("--statusline takes no TARGET, --misses or --json")
+        if args.target or args.misses or args.json or args.limits:
+            ap.error("--statusline takes no TARGET, --misses, --json or --limits")
         from claude_config.cc_cost.statusline import main as statusline
 
         statusline()
         return
+    if args.limits:
+        if args.target or args.misses:
+            ap.error("--limits takes no TARGET or --misses")
+        from claude_config.cc_cost import limits
+
+        if not limits.LOG.is_file():
+            sys.exit(f"cc-cost: no readings yet: the status line logs them to {limits.LOG}")
+        roots = [Path.home() / ".claude" / "projects"]
+        if os.environ.get("CLAUDE_CONFIG_DIR"):
+            roots.append(Path(os.environ["CLAUDE_CONFIG_DIR"]) / "projects")
+        cfg = json.loads(limits.global_config().read_text())
+        flag = (cfg.get("cachedGrowthBookFeatures") or {}).get("tengu_amber_tally") or {}
+        a = limits.analyse(limits.LOG, roots, args.span, flag)
+        print(json.dumps(a, indent=1) if args.json else limits.report(a))
+        if args.plot:
+            limits.plot(a, args.plot)
+            print(f"plot: {args.plot}", file=sys.stderr)
+        return
+    elif args.plot:
+        ap.error("--plot needs --limits")
     target = args.target or os.environ.get("CLAUDE_CODE_SESSION_ID")
     if not target:
         ap.error("no TARGET and no CLAUDE_CODE_SESSION_ID")

@@ -10,6 +10,9 @@ conversation, and at 25 rows each line is 4% of it. With both groups the third
 row is about 120 columns. The tasks row stays a row of its own while a wrapped
 run is live: `agent-tools ps --format statusline` budgets 90 columns or more.
 
+Each session's `rate_limits` reading is logged when it changes (`limits.py`,
+read back by `cc-cost --limits`).
+
 The main and sub groups are priced and judged from the session's transcripts
 (`session.py`), so both count a miss by the same rule over the whole session.
 cc's own `prompt_cache` counts the main thread of the running process alone;
@@ -26,6 +29,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
+from claude_config.cc_cost.limits import record
 from claude_config.cc_cost.pricing import MODELS, base_model
 from claude_config.cc_cost.session import Session, Stats, load
 
@@ -213,6 +217,11 @@ def main():
             agents = fg(RED, "agents ?")
     else:
         split = fg(RED, "cost split ?")
+    try:
+        record(data)
+    except Exception:
+        traceback.print_exc()
+        warn.append(fg(RED, "limits log ?"))
 
     # Fixed-width fields first and the variable-length ones last, so each item
     # sits in the same column in every session; cc truncates a row at the

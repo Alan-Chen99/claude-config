@@ -17,6 +17,7 @@ dependencies = [
   "python-dotenv>=1.0.0",
   "pygit2>=1.19.2",
   "basedpyright>=1.39.5",
+  "matplotlib>=3.10",
 ]
 
 [project.scripts]

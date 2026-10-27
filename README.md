@@ -214,7 +214,11 @@ total never exceeds cc's own `cost-state` total by more than 0.05% in 264
 sessions, and the median session traces 96% of it. The rest is requests cc
 never transcribes, such as prompt suggestions and WebFetch's model calls.
 `--statusline` is the status line, three rows with the main thread's and the
-subagents' cost and misses side by side.
+subagents' cost and misses side by side. It also logs each change in the plan's
+usage readings, and `--limits` turns that log into each account's 5-hour and weekly
+allowance in API dollars: what this machine spent per point. Other machines and
+claude.ai move the readings too, so that is a floor, and the best multi-point span
+comes closest.
 
 ### Human in the loop over Telegram
 
