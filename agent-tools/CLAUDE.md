@@ -17,7 +17,7 @@ Rust binary behind every `agent-tools` subcommand: the Claude Code hooks, the wr
 | `run.rs`, `core.rs`, `capture.rs` | `run`'s scope, capture dir and `meta.json`; the spawn/tee/drain core it shares with `run-core`, merge rule included; one stream's tee | Changing how a wrapped run starts, captures or forwards |
 | `background.rs`, `signals.rs` | `--background`'s fork, `setsid` and readiness pipe (the only `unsafe`); signal forwarding | Changing detach or signals |
 | `status.rs`, `psrecord.rs`, `ps.rs`, `statusline.rs` | Status derived from disk, and its line; the record the json and statusline renderers share; `ps` | Changing a key, a line, or `ps` output |
-| `wait.rs` | `wait`: blocks until a job ends, a message is queued for the agent (the inbox `hook_post.rs` keeps), or a bound sized to a subagent's cache lifetime and to its call's timeout (exported by `hook_pre.rs`), on task output files or the agent's own captures | Changing how a subagent waits (`skills/long-bash`) |
+| `wait.rs` | `wait`: blocks on task output files or the agent's own captures until a job ends, a message is queued (`hook_post.rs`'s inbox), or a bound set by the subagent's cache lifetime and call timeout (`hook_pre.rs` exports it) | Changing how a subagent waits (`skills/long-bash`) |
 | `hook_pre.rs`, `hook_post.rs`, `hook_prompt.rs` | `PreToolUse` rewrite into a wrapped run; the report on `PostToolUse`/`PostToolUseFailure` and `UserPromptSubmit` | Changing what a hook rewrites or reports |
 | `hook_subagent.rs`, `hook_provenance.rs`, `hook_input.rs` | `SubagentStart` Required-notes ask and `name-only` skill rule; the launch record the model never sees; hook payloads | Changing those hooks |
 | `ledger.rs`, `events.rs`, `meta.rs`, `paths.rs` | What the agent was last told; the `ps --events` log; `meta.json` and `escape_control`; state root and scope | Touching reporting state or a rendered field |
@@ -31,13 +31,13 @@ cargo build --release && cargo test
 CLAUDE_CONFIG_ROOT=/path/to/worktree ./target/release/agent-tools <sub> [args...]
 ```
 
-`~/.local/bin/agent-tools` is the canonical checkout's build and `install.sh` refuses a worktree, so a worktree runs its own binary as above.
+`install.sh` refuses a worktree, so a worktree runs its own build as above.
 
 ## Agent policy
 
-- `settings.json` is live once a merge lands, before `install.sh` rebuilds, and a hook naming a subcommand the installed build lacks exits 2: that denies a `PreToolUse` call, refuses a `UserPromptSubmit` prompt and keeps a `Stop` turn from ending. Hence `hook-provenance || true`: the hook never fails, but clap and root resolution run first.
+- `settings.json` is live once a merge lands, before `install.sh` rebuilds, and a hook naming a subcommand the installed build lacks exits 2, blocking the `PreToolUse` call, `UserPromptSubmit` prompt or `Stop` turn end it hooks. Hence `hook-provenance || true`: the hook never fails, but clap and root resolution run first.
 - A string the system prompt or `docs/agent-tools-status-reference.md` quotes has a needle in `scripts/check-prompt-coupling.sh`, plus a `// PROMPT-COUPLED` marker in the three files it counts: emitter, needle and quoting sentence change together. `GATE_STDOUT`/`MIN_GATE_STDOUT` are unpinned: edit them with `opencode/agents/alan-default-ids.md`/`min.md`.
 - `run-core` is `run` without scope, ledger or hooks, identical in both streams and exit code so its tests vouch for `run`; agents use `run`. The hidden `background-probe` serves `tests/` alone.
 - `run --hide-cmdline` hides the wrapper's argv and `--desc`; the child's own `/proc/<pid>/cmdline` still shows its command.
-- `count-tokens`: `--api` when the number stands for Claude context consumed, the offline default otherwise (the only one a worktree, lacking `.env`, can run). Re-vendor from `PROVENANCE.json`'s `source`/`revision`, then regenerate its `sha256`, `bytes`, `vocab_size`, `revision`, `retrieved`.
-- `cc-replay send` is a real, billed call, spending the 5h/7d window under OAuth, which refuses a replaced `system`: that needs `--credential-env ANTHROPIC_TOKEN_COUNT_API_KEY --credential-header x-api-key`, exported first.
+- `count-tokens`: `--api` when the number stands for Claude context consumed, the offline default otherwise (the only one a worktree, lacking `.env`, can run). Re-vendor from `PROVENANCE.json`'s `source` and refresh every field it records.
+- `cc-replay send` is a real, billed call; under OAuth it spends the 5h/7d window and refuses a replaced `system`, which needs `--credential-env ANTHROPIC_TOKEN_COUNT_API_KEY --credential-header x-api-key`, exported first.
