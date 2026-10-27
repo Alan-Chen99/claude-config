@@ -52,7 +52,7 @@ if PYDANTIC_AVAILABLE:
     class Context(BaseModel):
         """Context captured in step 2 for sub-agent handover.
 
-        Schema per INTENT.md lines 23-35. All fields are string arrays.
+        All fields are string arrays.
         Empty arrays acceptable; omitting fields is not.
         """
         task_spec: list[str]
@@ -104,7 +104,7 @@ if PYDANTIC_AVAILABLE:
         """Planning context container."""
         decisions: list[Decision] = Field(default_factory=list, alias="decision_log")
         rejected_alternatives: list[RejectedAlternative] = Field(default_factory=list)
-        constraints: list[str] = Field(default_factory=list)  # INTENT.md line 67: string[]
+        constraints: list[str] = Field(default_factory=list)
         risks: list[Risk] = Field(default_factory=list, alias="known_risks")
 
         model_config = ConfigDict(populate_by_name=True)

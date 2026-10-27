@@ -131,7 +131,7 @@ def get_resource(name: str) -> str:
     Scripts inject these at runtime so agents don't need embedded copies.
 
     Args:
-        name: Resource filename (e.g., "plan-format.md")
+        name: Resource filename (e.g., "plan-json-schema.md")
 
     Returns:
         Full content of the resource file

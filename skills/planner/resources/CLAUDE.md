@@ -1,11 +1,9 @@
 # resources/
 
-Planner-specific templates injected by scripts at runtime.
+Planner templates that scripts load by name through `get_resource()` (`skills/scripts/skills/planner/shared/resources.py`) and inject into an agent's prompt: an edit here changes what that agent is told.
 
 ## Files
 
-| File                       | What                          | When to read                   |
-| -------------------------- | ----------------------------- | ------------------------------ |
-| `plan-format.md`           | Plan structure template       | Editing plan structure         |
-| `explore-output-format.md` | XML schema for explore output | Modifying exploration workflow |
-| `README.md`                | Loading mechanism             | Understanding resource loading |
+| File                  | What                                                       | When to read                         |
+| --------------------- | ---------------------------------------------------------- | ------------------------------------ |
+| `plan-json-schema.md` | plan.json reference, injected into architect step 6 (`architect/plan_design_execute.py`) | Changing plan.json fields or the architect's plan writing |

@@ -1,12 +1,6 @@
 # planner/
 
-Planning and execution workflows with QR gates, TW passes, and Dev execution. State files managed by LLM agents for session continuity.
-
-## Files
-
-| File        | What                                                | When to read                                     |
-| ----------- | --------------------------------------------------- | ------------------------------------------------ |
-| `README.md` | Architecture, data flow, QR gates, design decisions | Understanding planner architecture, QR workflows |
+Planning and execution workflows with QR gates, TW passes, and Dev execution. State files managed by LLM agents for session continuity. The design, the state files' lifecycles, the workflows and the QR protocol are in the planner skill's `INTENT.md` (`skills/planner/INTENT.md` from the repo root), which this code must conform to; field-level schemas are `shared/schema.py`, and `orchestrator/planner.py` and `orchestrator/executor.py` hold the `STEPS`.
 
 ## Shared Files
 
@@ -14,11 +8,12 @@ Planning and execution workflows with QR gates, TW passes, and Dev execution. St
 | ----------------------- | ---------------------------------------------- | ------------------------------------ |
 | `shared/schema.py`      | Pydantic schemas (context, plan, qr) and       | Understanding state file schemas,    |
 |                         | validate_state() function                      | modifying schema definitions         |
-| `shared/constraints.py` | Orchestrator constraint AST builders               | Building planner/executor prompts,   |
-|                         | (`build_orchestrator_constraint`,                  | composing reusable constraint blocks |
-|                         | `build_step_header`, `build_state_banner`)         |                                      |
+| `shared/constraints.py` | Reusable orchestrator constraint strings and builders | Building planner/executor prompts, composing reusable constraint blocks |
 | `shared/gates.py`       | Unified gate output builder                    | Understanding QR gate logic,         |
 |                         | (`build_gate_output`)                          | modifying gate behavior              |
+| `shared/routing.py`     | `route_work_phase()`: the one router behind the five work-phase router scripts | Changing how a phase picks execute or fix mode |
+| `shared/resources.py`   | Path helpers, resource provider, context loading | Changing where a state file lives    |
+| `shared/qr/`            | QR state loading, phases, types, blocking severities per iteration | QR iteration and severity logic |
 
 ## Subdirectories
 
@@ -29,11 +24,12 @@ Planning and execution workflows with QR gates, TW passes, and Dev execution. St
 | `developer/`        | Code filling and implementation        | Dev execution, diff creation               |
 | `technical_writer/` | Documentation scrubbing and generation | TW passes, temporal cleanup                |
 | `quality_reviewer/` | QR modules for all phases              | QR logic, validation, understanding gates  |
+| `cli/`              | `cli.plan` and `cli.qr`: the validated, locked writes to `plan.json` and `qr-{phase}.json` | Changing a state mutation command |
 | `shared/`           | Shared resources, schemas, conventions | Accessing conventions, resource management |
 
 ## State Files
 
-All plan state lives in plan.json. Context captured separately in context.json. See README.md for full schemas.
+All plan state lives in plan.json. Context captured separately in context.json. Who writes each and when: `INTENT.md`, "State Files".
 
 | File              | What                                    | Mutability          | When to read                   |
 | ----------------- | --------------------------------------- | ------------------- | ------------------------------ |

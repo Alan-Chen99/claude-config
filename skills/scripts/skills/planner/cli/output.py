@@ -1,7 +1,7 @@
 """Shared output formatting for state mutation CLIs.
 
 Both plan.py and qr.py need consistent structured output after mutations.
-This module provides the canonical entity result format specified in INTENT.md.
+This module provides the canonical entity result format.
 """
 
 from __future__ import annotations
@@ -19,10 +19,7 @@ class EntityResult:
 
 
 def print_entity_result(r: EntityResult) -> None:
-    """Print structured success output with ID and version.
-
-    Format matches INTENT.md specification for CLI success output.
-    """
+    """Print structured success output with ID and version."""
     print(f"""<entity_result>
   <id>{r.id}</id>
   <version>{r.version}</version>

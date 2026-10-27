@@ -23,7 +23,7 @@ class ResourceProvider(Protocol):
         """Retrieve resource content by name.
 
         Args:
-            name: Resource filename (e.g., "plan-format.md")
+            name: Resource filename (e.g., "plan-json-schema.md")
 
         Returns:
             Resource file content as string

@@ -37,7 +37,7 @@ from skills.planner.shared.qr.types import QRState, QRStatus, LoopState
 from skills.planner.shared.gates import build_gate_output, GateResult
 from skills.planner.shared.qr.cli import add_qr_args
 from skills.planner.shared.qr.utils import qr_file_exists, increment_qr_iteration
-from skills.planner.shared.resources import get_mode_script_path, PlannerResourceProvider
+from skills.planner.shared.resources import get_mode_script_path
 from skills.planner.shared.builders import THINKING_EFFICIENCY, format_forbidden
 from skills.planner.shared.constraints import (
     ORCHESTRATOR_CONSTRAINT_EXTENDED,
@@ -71,14 +71,7 @@ def _translate_plan(state_dir: str) -> str | None:
         print(f"Warning: plan.md translation failed: {e}", file=sys.stderr)
         return None
 
-_provider = PlannerResourceProvider()
-
 QUESTION_RELAY_INSTRUCTION = SUB_AGENT_QUESTION_FORMAT
-
-def get_plan_format() -> str:
-    """Read the plan format template from resources."""
-    return _provider.get_resource("plan-format.md")
-
 
 def _build_fix_mode_output(title, agent, agent_role, script, mode_total_steps, qr, ctx):
     """Build output for execute step in fix mode."""
