@@ -25,6 +25,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -65,7 +66,7 @@ def pad(s, width):
 
 
 def level(pct):
-    """A usage percentage, yellow from 50, red from 80."""
+    """A context usage percentage, yellow from 50, red from 80."""
     s = f"{pct}%"
     return fg(RED, s) if pct >= 80 else fg(YELLOW, s) if pct >= 50 else s
 
@@ -150,14 +151,25 @@ def group(label, stats):
             f"{pad(fg(YELLOW, f'${stats.premium:.2f}') if n else hi('$0.00'), 6)}")
 
 
+def pace(used, resets_at, seconds):
+    """A window's usage against the share of it elapsed: yellow once ahead of
+    that share, red from 10 points ahead, and red at 100% whatever the time.
+    The window starts `seconds` before `resets_at`, as cc's own early warning
+    dates it (`timePct`)."""
+    elapsed = min(max((time.time() - (resets_at - seconds)) / seconds, 0), 1) * 100
+    pct = round(used)
+    s = f"{pct}%"
+    return fg(RED, s) if pct >= 100 or used - elapsed >= 10 else fg(YELLOW, s) if used > elapsed else s
+
+
 def limits(rl):
     """Plan rate limits; cc omits a window it has no current reading for."""
     out = ""
-    for label, key in (("5h", "five_hour"), ("7d", "seven_day")):
+    for label, key, seconds in (("5h", "five_hour", 5 * 3600), ("7d", "seven_day", 7 * 86400)):
         w = (rl or {}).get(key)
         if w:
-            pct = round(w["used_percentage"])
-            out += f"{SEP}{lab(label)} {pad(hi(level(pct)), 4)} {datetime.fromtimestamp(w['resets_at']):%a %H:%M}"
+            used = pace(w["used_percentage"], w["resets_at"], seconds)
+            out += f"{SEP}{lab(label)} {pad(hi(used), 4)} {datetime.fromtimestamp(w['resets_at']):%a %H:%M}"
     return out
 
 

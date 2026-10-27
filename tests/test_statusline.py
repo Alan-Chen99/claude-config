@@ -9,6 +9,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -42,7 +43,7 @@ HAIKU = assistant("s1", "claude-haiku-4-5-20251001", input_tokens=0, output_toke
 TOTAL = 0.04029
 
 
-def run(transcript, total=TOTAL, config=True, **over):
+def run(transcript, total=TOTAL, config=True, strip=True, **over):
     home = transcript.parent.parent / "home"
     home.mkdir(exist_ok=True)
     if config and not (home / ".claude.json").exists():
@@ -54,7 +55,7 @@ def run(transcript, total=TOTAL, config=True, **over):
     r = subprocess.run([sys.executable, "-m", "claude_config.cc_cost.main", "--statusline"],
                        input=json.dumps(data), capture_output=True, text=True,
                        env={"PATH": "/nonexistent", "TZ": "UTC", "HOME": str(home)}, check=True)
-    return ANSI.sub("", r.stdout).splitlines(), r.stderr
+    return (ANSI.sub("", r.stdout) if strip else r.stdout).splitlines(), r.stderr
 
 
 def test_split_reprices_each_response_once_across_subagents(tmp_path):
@@ -190,6 +191,24 @@ def test_columns_hold_across_sessions(tmp_path):
     fields = "hit|miss|│"
     assert cols(a[2], fields) == cols(c[2], fields) == cols(b[2], fields)[:2], (a[2], b[2], c[2])
     assert cols(b[2])[0] == len(a[2]) + 1, (a[2], b[2])
+
+
+# A window's colour is its usage against the share of it elapsed, not the usage alone
+@pytest.mark.parametrize("key, elapsed, used, color", [
+    ("seven_day", 0.9, 85, None),  # high, but behind the clock
+    ("seven_day", 0.1, 30, 203),  # low, but 20 points ahead
+    ("seven_day", 0.5, 55, 220),
+    ("seven_day", 0.97, 100, 203),  # spent, however close the reset
+    ("five_hour", 0.5, 45, None),
+    ("five_hour", 0.5, 55, 220),
+    ("five_hour", 0.2, 35, 203),
+])
+def test_a_limit_is_coloured_by_its_pace(tmp_path, key, elapsed, used, color):
+    seconds = {"five_hour": 5 * 3600, "seven_day": 7 * 86400}[key]
+    rl = {key: {"used_percentage": used, "resets_at": time.time() + (1 - elapsed) * seconds}}
+    rows, _ = run(session(tmp_path, [OPUS]), strip=False, rate_limits=rl)
+    shown = f"\x1b[38;5;{color}m{used}%\x1b[39m" if color else f"\x1b[22m{used}%\x1b[2m"
+    assert shown in rows[1], repr(rows[1])
 
 
 def test_a_reading_is_logged_when_it_changes(tmp_path):
