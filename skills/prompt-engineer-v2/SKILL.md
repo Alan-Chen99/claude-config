@@ -6,9 +6,37 @@ description: Use whenever writing, editing, reviewing or reasoning about text th
 # Prompt Engineer v2
 
 This skill is **context, not a workflow**: keep it in mind for the whole task.
-It is also **advice, not rules**: every item here, principle or check, is
-non-binding; weigh each against the text at hand and set aside what does not
-fit. Nor is it complete: a text that passes every check can still fail.
+It is also **advice, not rules**: every principle and check is non-binding;
+weigh each against the text at hand and set aside what does not fit. Nor is it
+complete: a text that passes every check can still fail. Of this skill, only the
+next section binds.
+
+## Rules beyond the user's words
+
+No rule reaches standing text unless the user's words require all of it or the
+user first approved its exact text.
+
+- **Rule:** text telling later agents what they must, must not or may only do,
+  in any form (a default, a preference stated as fact) or place (prompt, doc,
+  memory, script output), or a hook or check enforcing one on them. A fact
+  setting no convention is not one; a choice among working options is. A brief
+  or plan used only in its task is not one.
+- **Needs approval:** a rule you write, or brief an agent to write, that is new
+  to its file, tighter, read more widely, or stripped of a hedge or limiting
+  condition, unless the least demanding reading of the user's own words
+  requires every must, scope and step of it. Words naming a source to copy
+  require its text unchanged; a standing order to record rules approves
+  none. Loosening or deleting a whole rule needs none.
+- **Approval:** the user's yes to the exact text, shown apart from other
+  changes (a hook or check: what it matches, does and says); approving a plan
+  or diff approves no text. Write it as approved, or ask again. Unable to ask,
+  leave it out and report its text as awaiting approval.
+- **User's words:** only text shown verbatim as theirs or as approved, never a
+  summary's gist; a briefer relays rules a subagent reports to the user
+  verbatim. No agent approves or waives.
+- **Waiver:** the user's explicit leave to add rules unreviewed, for the task or
+  the span they name; "don't stop" is not one. Rules written under it are
+  still reported verbatim.
 
 ## Principles
 
