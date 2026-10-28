@@ -9,7 +9,7 @@ Why make this change? What goes wrong if we do nothing?
 Write out:
 
 1. **The problem**: What specific behavior needs to change? Be concrete (quote output, describe failure mode, show example).
-2. **Why the current text failed**: only when the change responds to a failure. If an existing instruction should have prevented it, quote it and say why it did not hold — the agent never saw it, misread it, let something outweigh it, or followed it into the failure. Take this from the transcript's reasoning or a reproduction; if neither is available, mark the cause unverified rather than guessing. "No instruction covers this" is also an answer. If the change responds to no failure (a new capability, a removal, an optimization), write "no failure" — every later step that names the failing text then skips it.
+2. **Why the current text failed**: only when the change responds to a failure. If an existing instruction should have prevented it, quote it and say why it did not hold — the agent never saw it, misread it, let something outweigh it, or followed it into the failure. Take this from the transcript's reasoning or a reproduction; if neither is available, mark the cause unverified rather than guessing. "No instruction covers this" is also an answer. If the change responds to no failure (a new capability, a removal, an optimization; a requested rule usually responds to one), write "no failure" — every later step that names the failing text then skips it.
 3. **Cost of inaction**: What happens if no prompt change is made? Who is affected and how?
 4. **Success criteria**: How will you know the change worked? What observable difference?
 5. **Classification**: Pick one mode. This gates Step 2 behavior.

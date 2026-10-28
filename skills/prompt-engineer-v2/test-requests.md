@@ -56,88 +56,139 @@ of thing the agent must produce, not list answers that fit this task.
 
 ### Context the agent gathered before Step 1
 
-Re-verified against the worktree on 2026-10-17; drift from the
-previous run is marked **(drift)**.
+Re-verified against the worktree on 2026-10-28. Changes since the
+previous run (2026-10-17) are marked **(drift)**, and dependents it did
+not list are marked **(new dependent)**. Paths are relative to the
+worktree; the task's `/repos/claude-config/` is the same tree.
 
-- `sys_prompt/alan-default-next.md` lines 205–224 hold `## Before
-  response` **(drift: was 204–221)**. Line 207: `IMPORTANT: MUST run
-  before responding to user, including follow-ups. NO EXCEPTIONS.`
-  The JSON (`turn`, `summary`, `workflow`, `uncertainties`,
-  `possible-verification`, `possible-next-steps`) now reaches
-  `agent-tools pre_output.record` on stdin through a quoted heredoc,
-  not as an argument **(drift)**. Line 222: `If more work turns out
-  needed after recording, re-record with the same \`turn\`.` Line
-  224: `This should be the last thing you run. If you needed to call
-  any tools (including read) afterwards, call \`agent-tools
-  pre_output.record\` again.`
-- `src/claude_config/pre_output/record.py` no longer discards its
-  input **(drift)**. Two jobs: (1) print a `<system-reminder>` with
-  **one** rule, `NEVER ask user to read files or run commands that
-  you have not already read or run yourself`; (2) validate the JSON
-  (object, non-empty `summary`) and write it atomically to
-  `/tmp/claude-pre-output-<session>.json`. On bad input it prints the
-  reason to stderr and exits 1, and still prints the rule.
-- The second rule (`NEVER reply to user if uncertainties remain…`)
-  was deleted on purpose **(drift)**: `sys_prompt/README.md`
-  `### pre_output.record's RULES` says `# Epistemic Integrity` already
-  states it with the escalate branch, and that it bought neither
-  verification nor obedience.
-- `src/claude_config/ntfy_hook.py` `recorded_summary()` reads that
-  file on Stop and sends its `summary` as the "Done" push body;
-  `do_cancel` unlinks it on UserPromptSubmit so an existing file means
-  "this turn". Without a record it falls back to an OpenRouter-haiku
-  summary of the transcript **(new dependent)**. Pinned by
-  `tests/test_pre_output_record.py`.
-- Other code naming the call: `src/claude_config/env_context/render.py`
-  emits hook text telling a resumed session to run the
-  resume-from-summary commands "before any other tool call,
-  `pre_output.record` included" **(new dependent)**;
-  `agent-tools/src/main.rs` (subcommand) and `claude.rs` (comments).
-- Docs that assume the call is the turn's last tool call:
-  `.claude/skills/prompt-tests/SKILL.md` step 3 and
-  `references/grader.md`.
-- Same section, out of scope: `sys_prompt/alan-default.md`,
-  `output-styles/alan-default.md`, `output-styles/alan-default-next.md`
-  **(drift: the old list named `output-styles/*.md` loosely)**.
-- `sys_prompt/CLAUDE.md` governs any edit here: every line needs a
-  `README.md` section (claim, hypothesis, retirement condition) that
-  quotes live prompt text, checked by `scripts/check-prompt-rationale.sh`.
+- `sys_prompt/alan-default-next.md` lines 182–199 hold `## Before
+  response` **(drift: was 205–224)**. Line 184 now reads `IMPORTANT: MUST run before responding to
+  user, including follow-ups. One exception: a turn ending only to
+  wait on background work you started, with nothing to report yet, is
+  one line naming what it waits on: no record, no template. The turn
+  that reports runs both, covering everything since the user's
+  message.` **(drift: `NO EXCEPTIONS` replaced by one exception,
+  9197a25c)**. Lines 187–196 still read `agent-tools pre_output.record <<'EOF'`,
+  followed by the six-field JSON. Line 199: ``Run it last: if you call any
+  tool afterwards, a read included, re-record with the same `turn`.``
+  **(drift: the old lines 222 and 224 merged)**.
+- The neighbouring lines the steps use have all been renumbered **(drift)**. Line 7:
+  `<system-reminder>` in tool results comes from the harness, and hook
+  output is user feedback. Line 24: temporary files get random names.
+  Line 136: `agent-tools run` is "Required for side-effectful or
+  possibly-slow (>2 min) commands" (was 155). Line 177: the
+  `! <command>` bullet (was 198). Lines 204–205: `## Evidence
+  (REQUIRED)`, `Commands you ran (exact)`. Line 228: a mid-response
+  mistake is reset by calling any tool.
+- `src/claude_config/pre_output/record.py` is unchanged. It prints a
+  `<system-reminder>` with one rule, `NEVER ask user to read files or
+  run commands that you have not already read or run yourself`. It also
+  validates the stdin JSON (an object, a non-empty `summary`, no
+  arguments, `CLAUDE_CODE_SESSION_ID` set) and writes it atomically to
+  `/tmp/claude-pre-output-<session>.json`. On bad input it exits 1 with
+  the reason and still prints the rule. Its `record_path` is "the only
+  definition of the path; `ntfy_hook` imports it".
+- `sys_prompt/README.md`:
+  - ``### `pre_output.record`'s `RULES` `` records the sibling rule's
+    deliberate deletion; the surviving rule has no retirement condition.
+  - ``### `a turn ending only to wait on background work` ``
+    **(new dependent)** owns line 184's exception. It records that under
+    `NO EXCEPTIONS`, wait turns in
+    `prompt-tests/general/background-wait-turn` recorded by chance.
+- `src/claude_config/ntfy_hook.py`: `recorded_summary()` sends the
+  file's `summary` on Stop. `do_cancel` unlinks the file on every
+  UserPromptSubmit, `<task-notification>` prompts included, and the
+  Done waits for the last background agent. Without a record, the push
+  falls back to an OpenRouter-haiku summary of the transcript tail
+  (`TRANSCRIPT_TAIL_BYTES = 16_000`; the previous run's "8,000" is the
+  tail that other helpers read). Pinned by `tests/test_pre_output_record.py`.
+- Code that names the call:
+  - `src/claude_config/env_context/render.py` line 262, the resume hook
+    text "before any other tool call, `pre_output.record` included".
+  - `agent-tools/src/main.rs` (the subcommand).
+  - `claude.rs` (comments, already stale: they name the output style as
+    the carrier).
+
+  `scripts/check-prompt-coupling.sh` checks only Rust emitters, so
+  nothing pins render.py's phrase to the prompt.
+- Cases and docs that name the call:
+  - `prompt-tests/general/background-wait-turn/reference-solution.md`
+    grades a "`pre_output.record` called" column, and root `README.md`
+    describes that case **(new dependent)**.
+  - The `cinder-orchard` and `maintainer-briefing` reference solutions
+    **(new dependent)**.
+  - `.claude/skills/prompt-tests/SKILL.md` step 3 and
+    `references/grader.md`. The grader's example rests on the rule
+    arriving "in the tool response".
+  - `src/claude_config/CLAUDE.md`, `.env.example`, `doc-budget.toml`,
+    the `CLAUDE_CODE_SESSION_ID` row in
+    `.claude/skills/update-claude-code/references/inventory.md`, and
+    comments in `docs/system-prompt-snapshot/capture.py` and
+    `skills/scripts/skills/do/do.py` **(new dependent)**.
+- Evidence about the section in `skills/resume-from-summary/README.md`:
+  14 of 19 resumes ran the call (the other 5, all deep, also skipped the
+  template), and 17 of 19 summaries restated it.
+- The same section elsewhere: only `output-styles/alan-default-next.md`,
+  which still says `NO EXCEPTIONS` and is unloaded (`settings.json`
+  `outputStyle: "default"`) **(drift: `sys_prompt/alan-default.md`
+  deleted in af19839c; `output-styles/alan-default.md` gone)**.
+- `sys_prompt/CLAUDE.md` governs any edit here. Every line needs a
+  `README.md` section whose `###` heading quotes live prompt text,
+  checked by `scripts/check-prompt-rationale.sh`. The prompt is 3,844
+  local tokens against a cap of 4,805.
+- Transcript format, checked on one session log: an assistant
+  `tool_use` keeps the model's original Bash command, and hook-pre's
+  `unset …; export …;` rewrite appears only in a hook attachment. Tool
+  results are `type: "user"` records.
 
 ---
 
 ### Step 1 — Motivation
 
-**Problem.** Lines 205–224 make every reply end with `agent-tools
-pre_output.record`, which bundles three things: (a) a breakpoint —
-the agent composes six fields of turn state; (b) the one surviving
-rule, re-entering context in the tool result after the work and
-before the reply; (c) a per-turn summary file that the ntfy "Done"
-push reads. We want (a)–(c) without the script.
+**Problem.** Lines 182–199 make every reply that reports end with
+`agent-tools pre_output.record`. The call runs last and again after
+any later tool call; a turn that only waits on background work is
+excepted. It bundles four things:
 
-**Why the current text failed.** Nothing failed: the change removes a
-dependency, it does not answer a misbehaviour. "No instruction covers
-this" does not fit either — the section works as written. The nearest
-evidence about the text's performance: `sys_prompt/README.md` records
-that the deleted sibling rule changed nothing, and
-`skills/resume-from-summary/README.md` records line 207's `NO
-EXCEPTIONS` being obeyed strongly (14 of 19 resumes ran the call; 17
-of 19 summaries restated it) and competing with a skill invocation
-for the first action. Whether the surviving rule changes behaviour is
-**unverified** — no ablation is recorded. So there is no failing text
-to diagnose; the text to replace is lines 205–224 by the task's fiat.
+- (a) a breakpoint where the agent composes six fields of turn state
+  after the work;
+- (b) the one rule, re-entering context in the tool result after the
+  work and before the reply;
+- (c) the per-turn file that the ntfy "Done" push sends;
+- (d) validation that exits 1 with a reason.
+
+The task wants all four without the script.
+
+**Why the current text failed.** `no failure`. The task removes a
+dependency, which is one of the item's listed cases. It reports no
+misbehaviour and requests no rule, so the new clause "a requested rule
+usually responds to one" has nothing to act on. Evidence about how the
+section performs is carried forward as evidence, not as a diagnosis:
+
+- the sibling rule's deletion;
+- the call's obedience on resumes (14 of 19);
+- wait turns recording by chance under `NO EXCEPTIONS`.
+
+Whether the surviving rule changes behaviour is unmeasured.
 
 **Cost of inaction.** The prompt needs the `agent-tools` binary and
-the `claude_config` package on PATH; the rule a reader of the prompt
-cares about lives in a Python constant; every turn pays a subprocess.
+the `claude_config` package; per `claude.rs`, a venv seeded from
+another checkout silently runs that checkout's code. The rule a reader
+of the prompt cares about lives in a Python constant, and every turn
+pays for a subprocess.
 
 **Success criteria.**
 
 - `alan-default-next.md` names no `pre_output.record`.
-- The surviving rule still reaches context after the turn's work and
-  before the reply, and a later tool call still forces a fresh pass.
-- The "Done" push still carries the session's own summary of the
-  turn that just ended, never an earlier turn's.
-- No new script; any code change is to an existing hook.
+- The rule still reaches context after the turn's work and before the
+  reply, and a later tool call still forces a fresh pass.
+- A wait-only turn still ends on one line with no checkpoint; the
+  reporting turn makes one.
+- The "Done" push carries the session's own summary of the turn that
+  just ended, never an earlier turn's.
+- No new script; code changes go only to existing hooks.
+- `check-prompt-rationale.sh` passes, and `background-wait-turn` stays
+  gradeable.
 
 **Mode.** `efficiency`.
 
@@ -145,143 +196,158 @@ cares about lives in a Python constant; every turn pays a subprocess.
 
 ### Step 2 — Invariant Extraction
 
-Each pair was sketch-tested: "the rule is in the prompt" and "a block
-of fields exists" both pass a naive option (rule at the top of the
-prompt; a block emitted anywhere), so both were re-stated as
-relationships.
+The sketch test restated two pairs. A design that only emits a summary
+block passes "a summary exists", and one that never checkpoints passes
+"wait turns have no record". Both pairs were restated as relationships.
 
-- **I1 — The rule is read after the turn's work and before the reply
-  is composed.** Enforced by: the rule arrives in the tool result of
-  the call line 224 makes the last thing run.
-- **I2 — Composing turn state precedes the reply.** Enforced by: line
-  207 (`MUST run before responding … NO EXCEPTIONS`) and the six
-  fields the heredoc requires. `record.py`'s docstring: "the
-  argument's content matters less than the act of composing it."
-- **I3 — Tool work after the checkpoint invalidates it.** Enforced
-  by: line 224's "call … again" and line 222's re-record with the
-  same `turn`.
+- **I1 — The rule is read after the turn's work and before the
+  reply.** Enforced by: the rule arrives in the tool result of the
+  call that line 199 makes run last.
+- **I2 — Composing turn state follows the work and precedes the
+  reply.** Enforced by: line 184's `MUST` and the six fields of the
+  heredoc. `record.py`'s docstring says "the argument's content matters
+  less than the act of composing it."
+- **I3 — Tool work after the checkpoint invalidates it.** Enforced by:
+  line 199 (`if you call any tool afterwards, a read included,
+  re-record`). Line 228's reset-by-tool-call therefore forces a
+  re-record too.
 - **I4 — The push carries the summary written in the turn that is
-  ending.** Enforced by: `record.py` writes the file;
-  `ntfy_hook.do_cancel` deletes it on UserPromptSubmit; Stop reads it.
-  Sketch: an option that only emits a summary block passes "a summary
-  exists" while the push silently falls back to haiku.
+  ending.** Enforced by: `record.py` writes the file, `do_cancel`
+  unlinks it on every prompt (task notifications included), Stop reads
+  it, and `tests/test_pre_output_record.py` pins the sequence.
 - **I5 — A malformed checkpoint is visible to the agent.** Enforced
-  by: `record.py` exits 1 with the reason on stderr when `summary` is
-  missing or the JSON is bad.
+  by: `record.py` exits 1 with the reason on stderr.
+- **I6 — Whether a turn checkpoints follows whether it reports.** A
+  wait-only turn does not checkpoint; the reporting turn does and
+  covers everything since the user's message. Enforced by: line 184's
+  exception, and Stop holding the Done until the last background agent
+  finishes.
 
-Per the new Step 2 sentence, I2 and I3 count as enforcement even
-though they are prompt lines, and I5 gets no extra weight for being
-code.
+**At risk.**
 
-**At risk.** I1 high: any static placement loses recency. I4 high:
-removing the script removes the writer the push reads. I3 medium. I5
-medium: nothing replaces validation unless an option adds it. I2 low.
-
-The previous run's loop and no-work-savings pairs are gone: both hung
-on the uncertainties rule, which no longer exists. The surviving rule
-gains from being anticipated — an agent that reads it before filling
-`possible-verification` is the desired outcome.
+- I1 high: only a tool result places the rule after the work.
+- I4 high: removing the script removes the writer the push reads. Also,
+  `ntfy_hook` imports `record_path` from `record.py`, so deleting the
+  module later breaks every push at import.
+- I6 medium: the exception's wording and `background-wait-turn`'s
+  grading column both say "record".
+- I3 and I5 medium. I2 low.
 
 ---
 
 ### Step 3 — Brainstorm
 
-Dimensions: timing, actor, mechanism, scope, existing text, plus one
-problem-specific: *where the summary reaches the push from*.
+Dimensions: timing, actor, mechanism, rigidity and scope, plus one
+specific to this problem: *where the push's summary comes from*.
+Step 3 skipped the Existing-text dimension because Step 1 answered "no
+failure".
 
-1. **(T)** Bash `cat <<'X'` of the JSON with the rule appended; the
-   tool result carries both.
-2. **(T)** Same, but `cat > /tmp/claude-pre-output-$SID.json`
-   writes the record and an `echo` prints the rule.
-3. **(T)** One-line `echo` of the rule only; no fields.
-4. **(R)** No tool call: the rule moves into the Response template's
-   `## Evidence` line, next to the slot it governs.
-5. **(R)** ntfy reads the reply's existing `## Summary` line from the
+1. **(T)** Bash `cat <<'TURN_STATE'` echoes the JSON with the rule as
+   its last line, so the result carries both.
+2. **(T)** The same, redirected into the record file, plus an `echo`
+   of the rule.
+3. **(T)** A one-line `echo` of the rule only, with no fields.
+4. **(R)** No tool call: the fields become a section of the response
+   template, and the rule sits at the Evidence slot.
+5. **(R)** ntfy reads the `## Summary` line of the reply from the
    transcript.
-6. **(R)** ntfy reads `"summary"` from the last checkpoint command in
-   the transcript (the tool_use input of idea 1).
-7. **(H)** PostToolUse hook appends the rule to every tool result.
-8. **(H)** Stop hook scans the reply for "please run" and blocks.
-9. **(H)** UserPromptSubmit hook injects the rule.
-10. **(N)** Delete lines 205–224 and the rule; rely on `# Epistemic
-    Integrity` and line 198; push falls back to haiku.
-11. **(N)** Keep the section, drop line 207's `NO EXCEPTIONS` force.
-12. **(S)** Fold the rule into line 198 (`! <command>`), the existing
-    line on asking the user to run commands.
+6. **(R)** ntfy reads `"summary"` from the input of the last
+   checkpoint call in the transcript.
+7. **(H)** A PostToolUse hook appends the rule to every tool result.
+8. **(H)** A Stop hook scans the reply for asks to run or read and
+   blocks with the rule.
+9. **(H)** A Stop hook blocks a reporting turn that made no
+   checkpoint.
+10. **(G)** Loosen: drop `MUST` and the fields, state the goal, and
+    leave the checkpoint to judgment.
+11. **(G)** Loosen by condition: checkpoint only when the reply asks
+    the user to act.
+12. **(S)** Fold the rule into line 177, the `! <command>` bullet.
+13. **(N)** Delete the section; haiku becomes the push's only source.
+14. **(X)** Port `record.py` into Rust as an `agent-tools` subcommand.
 
-Groups: T 1–3; R 4–6; H 7–9; N 10–11; S 12. No group exceeds three.
-The existing-text dimension yielded 10–12; every other idea also
-rewrites lines 205–224, because the task already demands it.
+Groups: T 1–3, R 4–6, H 7–9, G 10–11, S 12, N 13, X 14. No group has
+more than three ideas. The Rigidity dimension yielded 10 and 11.
 
 ---
 
 ### Step 4 — Identify Target State & Workflows
 
-**Target state.** After each turn's last tool call and before its
-reply, the agent has composed the turn state and read the rule; the
-"Done" push carries that turn's own summary; the prompt names no
-custom executable.
+**Target state.** After a reporting turn's last tool call and before
+its reply, the agent has composed the turn state and read the rule. A
+later tool call forces a fresh pass, and a wait-only turn stays one
+line. The "Done" push carries that turn's own summary, and the prompt
+names no custom executable.
 
 **Option A — Inline checkpoint that writes the record** (ideas 1, 2).
-Work → Bash: `cat > /tmp/claude-pre-output-${SID}.json <<'EOF' {…}
-EOF; echo '<rule>'` → result shows the rule → reply. Any later tool
-call → run it again.
-Restored: I1, I2, I3, I4 (ntfy unchanged). Abandoned: I5 — a bad
-JSON or empty summary lands in the file and ntfy logs and falls back.
-Failing text: lines 205–224 rewritten in place.
+The agent finishes its work, then runs Bash `cat > /tmp/claude-pre-output-…json
+<<'TURN_STATE' … TURN_STATE; echo '<rule>'`. The result shows the rule,
+and the agent replies. Any later tool call means running it again.
+Restored: I1–I4 and I6, with ntfy unchanged. Abandoned: I5, because
+bad JSON lands in the file and ntfy logs it and falls back.
 
-**Option B — Response-borne** (ideas 4, 5).
-Work → reply opens with `## Evidence`, whose template line carries the
-rule → `## Summary` → Stop: ntfy extracts `## Summary` from the
-transcript.
-Restored: I4 (turn-scoped by construction: the transcript's last
-message is this turn's). Abandoned: I1 (rule is static, read at the
-slot rather than after the work), I2, I3 (no checkpoint to go stale),
-I5. Failing text: lines 205–224 removed; rule moved into the template.
+**Option B — Hook-carried rule, summary taken from the reply**
+(ideas 7, 5). The agent works, and every tool result ends with the rule
+(appended by hook-post). The reply carries `## Summary`, and on Stop
+ntfy extracts it from the transcript.
+Restored: I1 (the last result carries the rule), I3 by construction,
+and I4 (the last assistant message is this turn's). Abandoned: I2,
+since nothing is composed; I5; and I6, trivially.
 
-**Option C — Delete** (idea 10).
-Work → reply. Restored: none. Abandoned: I1–I5; the push uses haiku.
-Failing text: removed; its rule's content is left to `# Epistemic
-Integrity`, which does not state it.
+**Option C — Goal stated at the slot** (ideas 10, 4, 5). The agent
+works and replies. The template's Evidence line states the goal, and
+ntfy extracts `## Summary`.
+Restored: I4. Abandoned: I1, I2, I3 and I5, because the rule is static
+and left to judgment.
 
-**Distinctness.** A has a tool result between the work and the reply;
-B has none but a different summary source; C has neither. Distinct.
+Ideas 13 and 14 were not built into options. Deleting the section fails
+the task's "equivalent", and a Rust port is still a pre-output command.
+
+**Distinctness.** A puts one tool result between the work and the
+reply. B puts the rule after every call and composes no state. C has no
+tool result at all; the agent meets the rule while writing the reply.
 
 ---
 
 ### Step 5 — Draft Prompt Updates Per Option
 
-**Option A.** Replace lines 205–224 with:
-
-````
-## Before response
-
-Last thing before every reply, follow-ups included, and again after any later tool call:
+**Option A.** In lines 182–199, replace only the command lines:
 
 ```
-cat > "/tmp/claude-pre-output-${CLAUDE_CODE_SESSION_ID:?}.json" <<'EOF'
-{ "turn": <int>, "summary": "<≤10 words>", "workflow": "...", "uncertainties": [...], "possible-verification": [...], "possible-next-steps": [...] }
-EOF
-echo 'Rule: never ask the user to read a file or run a command you have not read or run yourself.'
+cat > "/tmp/claude-pre-output-${CLAUDE_CODE_SESSION_ID:?}.json" <<'TURN_STATE'
+{ …the six fields, unchanged… }
+TURN_STATE
+echo 'NEVER ask user to read files or run commands that you have not already read or run yourself'
 ```
-````
 
-- Remove: lines 205–224, including line 207's `NO EXCEPTIONS` and
-  both `agent-tools pre_output.record` references.
-- Placement: same position, above `## Response template`.
-- Trigger: every reply.
+- Remove: `agent-tools pre_output.record <<'EOF'` and `EOF`.
+- Placement: in place. Lines 184 and 199 are unchanged.
+- Trigger: unchanged (line 184).
 
-**Option B.** Remove lines 205–224. In `## Response template`, change
-`Commands you ran (exact), and the output (brief)` to `Commands you
-ran (exact), and the output (brief). Anything you ask the user to run
-or read is here first.` Code: `ntfy_hook.recorded_summary` reads the
-last `## Summary` of the final assistant message.
+**Option B.**
 
-**Option C.** Remove lines 205–224. No addition.
+- Remove lines 182–199.
+- Under `## Response template`, add this text: `A turn
+ending only to wait on background work you started, with nothing to
+report yet, is one line naming what it waits on, no template. The turn
+that reports carries it, covering everything since the user's
+message.`
+- Code: `hook_post.rs` appends the rule to every main-session tool
+  result, and `ntfy_hook.recorded_summary` reads the last `## Summary`
+  of the final assistant message.
 
-All three also need `sys_prompt/README.md`'s `### pre_output.record's
-RULES` rewritten, or `check-prompt-rationale.sh` fails on a section
-quoting no live text.
+**Option C.**
+
+- Remove lines 182–199, and move the exception as in B.
+- Change line 205 to `Commands you ran (exact), and the output (brief).
+  The user checks your result, not your work: anything you ask them to
+  run or read, you ran or read first.`
+- ntfy changes as in B.
+
+**All three options.** `sys_prompt/README.md`'s ``### `pre_output.record`'s `RULES` `` quotes text that the prompt loses, so
+`check-prompt-rationale.sh` fails until the section is rewritten. Each
+option keeps the literal `a turn ending only to wait on background
+work`, which owns its section.
 
 ---
 
@@ -289,21 +355,24 @@ quoting no live text.
 
 | Question | Option A | Option B | Option C |
 | --- | --- | --- | --- |
-| Reinforce | Line 7: hooks and tool results carry harness text, so a tool result is a familiar place for a rule. Line 222's re-record idea survives. | `## Evidence (REQUIRED)` already asks for "Commands you ran" — the rule is its contrapositive. | `# Epistemic Integrity` covers uncertainty, not punting. |
-| Contradict | **Line 155**: `agent-tools run` is "Required for side-effectful … commands" — the `cat >` write is one, so the checkpoint must be wrapped in the very binary we are removing. Line 7 says `<system-reminder>` in tool results comes from the harness; wrapping the echo in it would be false, so it is not wrapped. | Response template is skipped on deep resumes (5 of 19 in resume-from-summary README); the rule would go with it. | Line 198 sanctions suggesting `! <command>` the user runs; with no rule left, nothing bounds that to commands the agent could not run itself. |
-| What goes wrong | Prompt now hard-codes `record_path`, which `record.py` calls "the only definition of the path". Unset session id → `:?` aborts. | `## Summary` inside a fenced block (a reply drafting a doc) is taken as the summary. Summary is a sentence, not ≤10 words. | Push loses the session's own summary. |
+| Reinforce | Line 7: harness text already rides on tool results. Line 184's exception is carried verbatim. Line 228's reset already presumes a fresh pass after any call. | Line 7: "Hooks may intercept tool calls; treat hook output as user feedback". Line 137 already teaches status blocks on tool results. | `## Evidence (REQUIRED)` asks for "Commands you ran"; the rule is its contrapositive. |
+| Contradict | **Line 136**: the `cat >` write is side-effectful, so it must be wrapped in the binary being removed. **Line 24**: temporary files get random names, but ntfy needs a fixed path. | Line 7 makes the rule "user feedback" after every call, mid-work too. hook-post also fires in subagents, which carry no `## Before response`. | Line 177 sanctions `! <command>` for an interactive login; the goal must count an attempt as "ran". |
+| What goes wrong | The prompt duplicates `record_path`. An unset session id makes `:?` abort, which is loud and therefore fine. | About 25 tokens on every tool result, and habituation. `## Summary` is a sentence, not ≤10 words, and a `## Summary` inside a fenced draft is taken as the summary. | The rule is static, with no position after the work and no fresh pass. ntfy has the same problems as in B. |
 
-**Hard constraint.** No checkpoint may have a side effect: line 155
-would then require `agent-tools`.
+**Hard constraint.** The checkpoint can have no side effect: line 136
+would require `agent-tools` for it, and line 24 rules out the fixed
+path it would write to.
 
 **Revisions.**
 
-- **A → A′.** Drop the write; `cat <<'TURN_STATE'` echoes the JSON
-  and the rule. The push takes `"summary"` from that call's input in
-  the transcript (idea 6), which is turn-scoped by position like B's,
-  so `do_cancel`'s unlink is no longer needed for this source.
-- **B:** kept as the static alternative.
-- **C:** dropped — fails the task's "equivalent".
+- **A → A′.** Drop the write: `cat <<'TURN_STATE'` echoes the JSON and
+  the rule. ntfy takes `"summary"` from that call's `tool_use` input
+  (idea 6), which hook-pre leaves unprefixed. The rule text and lines
+  184 and 199 stay verbatim, so only three prompt lines change.
+- **B → B′.** hook-post emits the rule only when the hook input has no
+  `agent_id`.
+- **C:** kept. Its reason clause ("checks your result, not your work")
+  is new text and would go to the user as exact text before use.
 
 ---
 
@@ -311,49 +380,65 @@ would then require `agent-tools`.
 
 **A′.**
 
-- *Resumed session.* Current: `env_context/render.py` tells the agent
-  to run the resume commands before `pre_output.record`. Risk: after
-  the prompt change the hook still names a call the prompt no longer
-  teaches; the subcommand still exists, so the agent runs the old
-  script and both mechanisms coexist. Mitigation: change the hook
-  text in the same change to "before any other tool call, the
-  pre-response check included" and re-run
-  `check-prompt-coupling.sh`.
-- *Other prompts still on the script.* Current:
-  `sys_prompt/alan-default.md` and both output styles write the file.
-  Risk: if ntfy only reads the transcript, those sessions lose their
-  summary. Mitigation: ntfy tries the record file, then the
-  transcript checkpoint, then haiku.
-- *Heredoc collision.* Current: the delimiter is `EOF`. Risk: a
-  summary or uncertainty containing a line `EOF` ends the heredoc and
-  the rest runs as shell. Mitigation: delimiter `TURN_STATE`.
-- *Prompt-test grading.* Current: the prompt-tests skill says
-  "`pre_output.record` is the last tool call". Risk: the statement
-  goes stale; the shape (deliverable second-to-last) holds.
-  Mitigation: reword those two docs to "the pre-response check".
+- *Resumed session.* Current: `render.py` tells the agent to run the
+  resume commands "before any other tool call, `pre_output.record`
+  included". Risk: the subcommand still exists, so the agent runs the
+  old call beside the new one, and no guard catches the drift.
+  Mitigation: reword the text to "the `## Before response` record
+  included". A section heading outlives a command spelling.
+- *Wait turns.* Current: one line and no record, then the reporting
+  turn records. Risk: the agent's behaviour is unchanged, but
+  `background-wait-turn`'s "`pre_output.record` called" column reads 0
+  on every A′ turn, so the reporting turn grades as a miss. Mitigation:
+  rename the column and focus 1, and reword root `README.md`.
+- *Push across turns.* Current: `do_cancel`'s unlink means a turn that
+  recorded nothing gets haiku, never the previous turn's summary. Risk:
+  an extractor that scans past the turn boundary sends an earlier
+  turn's summary. Tool results are user-role records, so "after the
+  last user record" finds nothing. Mitigation: the boundary is the last
+  user record whose content is a prompt, task notifications included,
+  which mirrors `do_cancel`.
+- *Grader premise.* Current: `grader.md` reads behaviour before the
+  first `pre_output.record` call as baseline, because the rule "arrives
+  in the tool response". Risk: under A′ the rule is in the prompt from
+  turn 0, so the premise is false for this rule. Mitigation: keep the
+  principle and drop the example.
+- *Sessions launched before the change.* Current: they still write the
+  file. Mitigation: ntfy tries the record file, then the transcript,
+  then haiku, until `record.py` goes.
 
-**B.** Same resume and other-prompt regressions; plus deep resumes
-that skip the template now lose the rule as well — today 14 of 19 ran
-the call. Accepted only if B is picked.
+**B′.** A token cost on every call, and the rule read mid-work, where
+habituation sets in. Deep resumes that skip the template (5 of 19) lose
+the summary to haiku. The wait-turn column reads 0. These are accepted
+only if B′ is picked.
+
+**C.** The same ntfy losses as B′, plus the interactive-login case.
 
 ---
 
 ### Step 8 — Pick Best Option & Full Draft
 
-**Pick A′.** It is the only option that keeps I1 (rule after the
-work) and I3 (fresh pass after later tool calls) — the reason
-`record.py` exists — while meeting the no-side-effect constraint. B
-trades I1 for removing a tool call per turn, a measurement question
-(Step 11) rather than a design one. Versus the script: the rule is
-visible in the prompt, no binary is needed, and the push's source is
-turn-scoped by transcript position instead of by a delete-on-submit.
+**Pick A′.**
 
-**`sys_prompt/alan-default-next.md`**, replace lines 205–224:
+- It is the only option with a tool result after the work and a fresh
+  pass after later calls, so it keeps I1 and I3, which are why the
+  script exists. It keeps I6 verbatim.
+- It changes three prompt lines.
+- It adds no rule beyond the user's words: the rule's text is
+  unchanged, and it is now also visible in the prompt.
+- B′ adds a fixed injection on every call that the user never asked
+  for.
+- C trades I1 and I3 for one fewer tool call, and its reason clause
+  would need the user's yes.
+
+**`sys_prompt/alan-default-next.md`**: lines 182–199 become the block
+below. Only the `cat` line and the two lines before the code block's
+closing fence change.
 
 ````
 ## Before response
 
-The last thing you run before every reply, follow-ups included, and again after any later tool call (same `turn`):
+IMPORTANT: MUST run before responding to user, including follow-ups. One exception: a turn ending only to wait on background work you started, with nothing to report yet, is one line naming what it waits on: no record, no template. The turn that reports runs both, covering everything since the user's message.
 
 ```
 cat <<'TURN_STATE'
@@ -365,100 +450,153 @@ cat <<'TURN_STATE'
   "possible-verification": ["what should the user do to verify your response", ...],
   "possible-next-steps": ["refactor, update docs", ...]
 }
-Rule: never ask the user to read a file or run a command you have not read or run yourself.
+NEVER ask user to read files or run commands that you have not already read or run yourself
 TURN_STATE
 ```
 
-If the rule shows more work is needed, do it and run this again.
+Run it last: if you call any tool afterwards, a read included, re-record with the same `turn`.
 ````
 
-**`sys_prompt/README.md`**: replace `### pre_output.record's RULES`
-with `### \`## Before response\`'s \`Rule:\`` — claim: the rule
-re-enters at the recency edge; hypothesis: fewer replies that hand the
-user an unrun command; retirement: an arm without the section hands
-the user unrun commands no more often, on a `prompt-tests/general/`
-case to be named (none exists — it stands as a deletion candidate).
+The prompt goes from 3,844 to 3,862 local tokens (cap 4,805).
 
-**Code (existing hooks, not applied here).**
-`ntfy_hook.recorded_summary`: record file, else the `"summary"` of the
-last `cat <<'TURN_STATE'` Bash call after the last user message
-(`json.JSONDecoder().raw_decode` on the heredoc body), else `None`.
-`env_context/render.py`: the wording from Step 7.
+**`sys_prompt/README.md`**: replace the heading ``### `pre_output.record`'s `RULES` `` and the two sentences
+under it (through "One is left.") with the block below. The paragraph from
+"`NEVER reply to user if uncertainties remain`" onward stays as it is:
+
+```
+### `NEVER ask user to read files or run commands`
+
+`## Before response` has the agent type this rule below its turn state and `cat` echo both,
+so it re-enters context in a tool result after the turn's work and before the reply, as it did
+when `pre_output.record` printed it. Hypothesis: fewer replies hand the user a command or file
+the agent has not run or read. Retire it when an arm without the line does that no more often,
+on a `prompt-tests/general/` case not yet written; until then it stands as a deletion candidate.
+```
+
+Checked by running `check-prompt-rationale.sh`'s logic on scratch
+copies: this README passes against the drafted prompt, and today's
+README fails against it on the old heading.
+
+**Code changes to existing hooks (not applied here):**
+
+- `ntfy_hook.recorded_summary(session_id, transcript_path)` tries the
+  record file first, as today. If there is none, it reads the
+  transcript backwards to the last `type: "user"` record whose content
+  is a string or holds a `text` block, skipping `isSidechain` and
+  `isMeta` records. Within that turn it takes the last assistant Bash
+  `tool_use` whose `input.command` starts with `cat <<'TURN_STATE'\n`.
+  It decodes the rest of the command with `json.JSONDecoder().raw_decode`
+  and returns a non-empty `summary`; otherwise it logs an error and
+  returns `None`.
+- `build_notification` passes the transcript path.
+- `render.py` line 262: "`pre_output.record` included" → "the
+  `## Before response` record included".
+
+**Docs:**
+
+- `prompt-tests/SKILL.md` step 3: "`pre_output.record` is the last tool
+  call" → "The `## Before response` record is the last tool call".
+- `grader.md`: delete "The `pre_output.record` reminder is the case in
+  point: its text arrives in the tool response, so" and begin the
+  remainder of that sentence with "Behaviour".
+- `background-wait-turn/reference-solution.md` and root `README.md`:
+  "`pre_output.record`" → "the `## Before response` record".
+- `cinder-orchard`: "Running `agent-tools pre_output.record` first" →
+  "Running the `## Before response` record first".
+- `maintainer-briefing`: "`agent-tools pre_output.record` call" →
+  "`## Before response` record".
 
 ---
 
 ### Step 9 — Failures Under Perfect Obedience
 
-1. **Crash / silent success.** `cat` of a quoted heredoc cannot fail
-   or expand. A JSON typo now succeeds silently (I5 lost); the only
-   consumer is the push, which falls back.
-2. **Impossible to follow.** Needs Bash. Every session under this
-   prompt has it.
-3. **When to follow.** "Last thing … again after any later tool
-   call" is checkable from the agent's own transcript.
-4. **Underspecified.** "Same `turn`" moved to the first line from
-   line 222, so a re-run cannot open a new turn number.
-5. **Missing context.** None: the rule is in the prompt and the
+1. **Crash or silent success.** `cat` of a quoted heredoc cannot fail
+   or expand. A JSON typo now succeeds silently, so I5 is lost. The
+   push falls back, and the only signal is a line in
+   `ntfy_hook.log`.
+2. **Impossible to follow.** The checkpoint needs Bash, as the script
+   did.
+3. **When to follow.** Unchanged: line 184's exception turns on state
+   the agent can see.
+4. **Underspecified.** The agent now copies the rule line itself and
+   may drop or paraphrase it, and nothing notices. Step 10 rates this.
+5. **Missing context.** None: the rule is in the prompt and in the
    result.
-6. **Code paired with the prompt.**
-   - *ntfy extractor.* Condition: the last `cat <<'TURN_STATE'` call
-     after the last user message. Wrong cases: the agent quotes the
-     checkpoint inside another Bash command (editing a prompt that
-     contains it — exactly this task); the call is earlier than
-     `read_transcript_tail`'s 8,000-byte tail when the reply is long;
-     a subagent's checkpoint in a sidechain. Revision: match only a
-     command that *starts* with the delimiter line; read a larger
-     tail; skip sidechain records. The agent never sees the
-     extractor's verdict, so no prompt line depends on it; a miss
-     costs one haiku-summarised push.
-   - *`env_context` hook text.* Its message names the checkpoint; if
-     it drifts from the prompt it misleads the agent into a removed
-     call. Pinned by adding the new phrase to
-     `check-prompt-coupling.sh`.
-   - *Removed code.* `record.py`'s validation and loud exit go; the
-     prompt never told the agent the script was always right, so
-     nothing in the prompt now trusts a check that no longer runs.
+6. **Fixed action, wrong case.** The carried rule says `NEVER`. Suppose
+   the user explicitly asks, "Give me the command, I'll run it on the
+   prod box myself." The text offers no way out, so the agent either
+   disobeys a `NEVER` or runs the command itself, which line 20's
+   confirm-first argues against. The user sees which happened only in
+   the reply. This exists today and A′ does not change it. Naming an
+   exception would be an exception the user never asked for, so it
+   goes to Step 12 as a question and not into the draft. The
+   interactive-login case of line 177 passes if an attempt counts as
+   "run yourself".
+7. **Fixed check paired with judgment.**
+   - *ntfy extractor.* It matches start-anchored on `cat <<'TURN_STATE'`,
+     so a checkpoint quoted inside another command (an edit to this
+     prompt) is skipped. The boundary is the last user record whose
+     content is a prompt; tool-result records do not count, and
+     sidechain and `isMeta` records are skipped. It reads back to the
+     boundary rather than the 16,000-byte tail, which a long reply
+     pushes the call out of. The agent never sees the extractor's
+     verdict, so no prompt line depends on it, and a miss costs one
+     haiku push.
+   - *Resume hook text.* No guard covers Python hook text. Naming the
+     section heading slows drift; a coupling check would be a new
+     check, so it is offered in Step 12, not added.
+   - *Removed check.* `record.py`'s validation goes. The prompt never
+     told the agent that a check would catch its mistakes, so nothing
+     in the prompt trusts a check that no longer runs.
 
-**Assumptions.** Bash available; Claude Code JSONL transcripts with
-tool_use inputs; `CLAUDE_CODE_SESSION_ID` no longer needed by the
-prompt.
+**Assumptions.**
+
+- Bash and `cat` are available.
+- Claude Code JSONL keeps the model's original `tool_use` input
+  (checked on one transcript).
+- Tool results are user-role records.
+- The prompt no longer needs `CLAUDE_CODE_SESSION_ID`.
 
 ---
 
 ### Step 10 — Execution Error Check
 
-1. **Misreading (low).** "Last thing you run" vs. "last thing in the
-   turn" — same in practice.
-2. **Skipping (high).** Deep resumes skipped today's call in 5 of 19;
-   dropping `NO EXCEPTIONS` may raise that. Revision: none in the
-   prompt — the force is a claim `sys_prompt/CLAUDE.md` says needs a
-   rate; measure it (Step 12) before restoring the capitals.
-3. **Over-application (low).** Subagents do not get this prompt.
-4. **Ordering (medium).** The agent writes the reply, then the
-   checkpoint, then a second reply. Line "The last thing you run
-   before every reply" already orders it; the risk is unchanged from
+1. **Misreading (low).** The agent reads "record" as a file and adds
+   `> path`, which trips line 136.
+2. **Skipping (medium).** The rule line gets dropped or paraphrased
+   while typed, silently losing I1. The condition is mechanical, so a
+   hook-post check could catch it, but that is a fixed check the user
+   never asked for. It goes to Step 12 as a question; the Step 12 test
+   measures the drop rate meanwhile. The deep-resume skip (5 of 19) is
+   unchanged, because line 184's force is unchanged.
+3. **Over-application (low).** Forks inherit the prompt, as they do
    today.
-5. **Hallucination (medium).** `possible-verification` listing
-   commands not run is exactly what the rule targets; no revision.
+4. **Ordering (low).** The agent may batch the checkpoint in parallel
+   with its last real call. "Run it last" is unchanged.
+5. **Hallucination (medium).** `possible-verification` may list
+   commands the agent never ran. The rule now sits in the same block,
+   so the agent reads it while filling the field. No revision.
 
 ---
 
 ### Step 11 — Top Concerns
 
-1. **The rule may be cost only.** Likelihood medium, impact low. No
-   case measures it; its sibling was deleted for doing nothing. A′
-   preserves a mechanism whose value is unverified. Mitigation: the
-   README entry's deletion-candidate status.
-2. **Self-authored recency.** Likelihood medium, impact low. The
-   script's rule was text the agent had not typed; A′'s is text the
-   agent copies into its own command. Whether reading it back has the
-   script's effect is unmeasured. Mitigation: the testing suggestion
-   compares arms.
-3. **Two mechanisms during migration.** Likelihood high, impact low.
-   Three other prompt files keep the script until the follow-up.
-   Mitigation: ntfy reads both sources.
+1. **The rule may be cost only, and now every request pays for it.**
+   The prompt grows by 18 tokens, where today the rule costs a tool
+   result per turn. No case measures its effect. Likelihood medium,
+   impact low. Mitigation: the README entry marks it a deletion
+   candidate.
+2. **Self-authored recency.** The script's rule was text the agent had
+   not typed, inside a `<system-reminder>` that line 7 attributes to
+   the harness. A′'s rule is text the agent types and reads back.
+   Likelihood medium, impact low. Mitigation: the testing arms.
+3. **What compaction summaries restate.** 17 of 19 summaries restated
+   the call, which is one suspect in the record rule beating
+   `resume-from-summary` to the first action. A renamed call changes
+   what summaries restate, in an unknown direction. Likelihood medium,
+   impact low. Mitigation: re-run that README's resume fixture.
 
-None is ≥ medium on both axes. No revision.
+No concern is medium or higher on both axes, so there is no revision.
 
 ---
 
@@ -466,94 +604,139 @@ None is ≥ medium on both axes. No revision.
 
 **1. Files changed.**
 
-- `sys_prompt/alan-default-next.md` lines 205–224 (from `## Before
-  response` through `…call \`agent-tools pre_output.record\` again.`):
-  replace with the Step 8 block verbatim.
-- `sys_prompt/README.md`: the Step 8 section replaces `###
-  pre_output.record's RULES`.
-- `src/claude_config/ntfy_hook.py`: `recorded_summary` falls back to
-  the transcript checkpoint (Step 8, with Step 9's matching rules);
-  `tests/test_pre_output_record.py` gains a transcript case.
-- `src/claude_config/env_context/render.py`: "`pre_output.record`
-  included" → "the pre-response check included";
-  `scripts/check-prompt-coupling.sh` pins the phrase.
+- `sys_prompt/alan-default-next.md` lines 182–199: the Step 8 block.
+  Concretely, line 187 `agent-tools pre_output.record <<'EOF'` → `cat
+  <<'TURN_STATE'`, and line 196 `EOF` → the rule line plus
+  `TURN_STATE`.
+- `sys_prompt/README.md`: the Step 8 heading and paragraph.
+- `src/claude_config/ntfy_hook.py`: the transcript fallback in
+  `recorded_summary`, as in Step 8 with Step 9's matching rules. The
+  module docstring's "recorded through `agent-tools pre_output.record`"
+  → "recorded in its `## Before response` call".
+  `tests/test_pre_output_record.py` gains four transcript cases:
+  - a checkpoint after the last prompt is sent;
+  - a checkpoint only before the last prompt falls back;
+  - a checkpoint quoted inside another command falls back;
+  - a tool-result record after the checkpoint is not a boundary.
+- `src/claude_config/env_context/render.py`, the prompt-tests skill
+  docs, and the three reference solutions plus root `README.md`: the
+  Step 8 wording.
 
-**2. The failing text from Step 1.** None was diagnosed. Lines
-205–224 are rewritten in place because the task removes their
-dependency; line 207's `NO EXCEPTIONS` is dropped as a force claim
-with no rate behind it, and Step 10 names the measurement that would
-restore it.
+**2. The failing text from Step 1.** None (`no failure`).
 
-**3. Environment.** Bash. No `agent-tools`, no `claude_config` on
-the prompt's path.
+**3. Environment.** Bash and `cat`. The prompt needs no `agent-tools`
+and no `claude_config`.
 
-**4. Tradeoffs.** I5 lost: a malformed checkpoint is silent and the
-push falls back. Rule value unverified (concern 1). Migration leaves
-two mechanisms until the other three prompts move.
+**4. Tradeoffs.**
 
-**Follow-ups.** Migrate `sys_prompt/alan-default.md` and both output
-styles; then delete `record.py`, the `pre_output.record` subcommand,
-`do_cancel`'s unlink, and the `output-styles/README.md` section;
-reword the two prompt-tests docs.
+- I5 is lost: a malformed checkpoint is silent, and the push falls
+  back.
+- The rule's value is unverified, and it now costs 18 prompt tokens on
+  every request.
+- The rule is self-authored and no longer framed as harness text.
+- The record file stays readable until sessions on the old prompt have
+  ended.
 
-**5. Testing.** Under `prompt-tests`, a fixture whose task tempts the
-agent to end with "run `pytest` to confirm": arms = script prompt,
-A′, no section. Grade the reply for unrun commands handed to the
-user, and the session for a checkpoint after the last tool call. Then
-check `~/.cache/claude-config/ntfy_hook.log` shows the A′ arm's
-summary taken from the transcript.
+**Awaiting the user's yes.** These are rules, checks or exceptions
+beyond the user's words, and none is in the changes above:
+
+- An exception to the rule (Step 9 item 6). Its exact text: `NEVER ask
+  user to read files or run commands that you have not already read or
+  run yourself, unless they asked for the command itself`.
+- A hook-post check (Step 10). It matches a main-session Bash call
+  whose command starts with `cat <<'TURN_STATE'` and lacks the rule
+  line, and appends that line to the call's result. It blocks nothing
+  and says nothing else.
+- A coupling pin (Step 9 item 7). `scripts/check-prompt-coupling.sh`
+  would fail when `render.py`'s "the `## Before response` record
+  included" no longer matches a `## Before response` heading in the
+  prompt.
+
+**Follow-ups, once no running session uses the old prompt.** Delete
+`record.py` together with `do_cancel`'s unlink and the file branch of
+`recorded_summary`; `ntfy_hook` imports `record_path`, so deleting the
+module alone breaks every push. Then remove:
+
+- the `pre_output.record` subcommand in `main.rs`, and the comments in
+  `claude.rs`;
+- the unloaded `output-styles/alan-default-next.md` section and
+  `output-styles/README.md`;
+- the rows and comments listed in the context section.
+
+**5. Testing.**
+
+1. Under `prompt-tests`, run a fixture whose task tempts the agent to
+   end with "run `pytest` to confirm", with three arms: the script
+   prompt, A′, and A′ without the rule line.
+2. Grade three things in each arm:
+   - unrun commands handed to the user;
+   - a checkpoint after the last tool call;
+   - whether each checkpoint carries the rule line verbatim (the risk
+     in Step 10 item 2).
+3. Re-run `background-wait-turn` under A′ with the renamed column.
+4. Check that `ntfy_hook.log` shows the A′ arm's summary taken from the
+   transcript.
+5. Run `uv run pytest tests/test_pre_output_record.py` and
+   `scripts/check-prompt-rationale.sh`.
 
 ---
 
 ## Notes from this run (for steps.md maintainers)
 
-These are about the workflow, not the example. This run was on the
-2026-10-17 `steps.md` and the drifted context above.
+These notes are about the workflow, not the example. This run, on
+2026-10-28, used the worktree's `steps.md`, including the uncommitted
+Step 1 item 2 parenthetical, and the drifted context above. Since the
+previous transcript, `steps.md` has also gained the "no failure" answer
+(834805b3, added after that run), the Rigidity dimension and
+rule-versus-goal distinctness (9a8ec76f), and Step 9 item 6's "the user
+explicitly asks for the other action" (026e3b9a).
 
-- **Step 1 item 2 "Why the current text failed": vacuous as a
-  diagnosis, useful as a prompt to look.** The task is a dependency
-  removal; nothing failed. The item's three listed answers (cause
-  found / unverified / "no instruction covers this") do not include
-  "this is not a failure-driven change", so the answer had to be
-  improvised. The search it prompted did surface evidence about the
-  text (the sibling rule's deletion, `NO EXCEPTIONS` being obeyed),
-  which shaped Steps 10 and 11. Suggest an explicit "n/a: change is
-  not failure-driven" answer, or gate the item on `correctness`.
-- **Step 3 "Existing text" dimension: mostly noise here.** Every idea
-  already rewrites the section because the task says so; the
-  dimension's own yield (delete, drop the force, fold into another
-  line) were reasonable ideas but came from treating "Step 1's failing
-  text" as "the text being replaced", which the step did not say.
-- **Step 4 "Failing text" line: redundant.** Each option's answer
-  restated its own sequence ("rewritten in place", "removed"). It
-  added one useful observation, for C (the rule's content left to a
-  section that does not state it), which "abandoned" would also have
-  caught.
-- **Step 5 remove line: harmless duplication** of "what existing text
-  conflicts" on this task, since the failing text and the conflicting
-  text are the same lines.
-- **Step 9 item 6 (now item 7, "Fixed check paired with judgment") "Code paired with the prompt": the most productive
-  new item.** It found the extractor would match the checkpoint quoted
-  inside another command, the 8,000-byte tail, and sidechains, and it
-  forced the stale `env_context` hook text to be treated as a
-  prompt-coupled message. Its second bullet ("what the agent does
-  next") was vacuous for the ntfy code, whose verdict the agent never
-  sees; the item could say so as an answer.
-- **Step 12 item 2: vacuous, same root as Step 1 item 2.** "Why its
-  cause no longer applies" has no referent when no cause was found.
-- **Changed in `steps.md` after this run, from the findings above:**
-  Step 1 item 2 now takes "no failure" as an answer and Steps 3, 4, 5
-  and 12 skip their failing-text items when it is given; Step 9 item 7
-  asks what the agent does next only for results it sees. On this task
-  those items would now be skipped, not answered vacuously.
-- **The Step 2 "code is not stronger" sentence changed scoring.** I5
-  (script validation) was rated medium, not as the strongest pair, and
-  its loss was accepted.
-- **Context drift was large and changed the answer.** The script now
-  feeds the ntfy push and has one rule; the old run's loop invariants
-  no longer exist. Re-verifying the "Context gathered" section is
-  essential, and the per-turn summary file was found only by reading
-  `record.py`, not the prompt.
-- **Step 6 found the decisive constraint again**, this time from an
-  unrelated prompt line (`agent-tools run` for side effects) — the
-  table's "contradict" row is where cross-section conflicts surface.
+- **Step 1 item 2 produced "no failure", and the edited parenthetical
+  did not change that.** The task is a dependency removal, one of the
+  listed cases. It requests no rule, so "a requested rule usually
+  responds to one" never fired. On this example the answer would be the
+  same without the clause. The shape still differs from the old
+  transcript, which improvised "nothing failed" in a paragraph, but
+  that difference comes from 834805b3. To check the clause itself, run
+  it on a task that asks for a rule, not on this one.
+- **The "no failure" skips cost nothing here.** Steps 3, 4, 5 and
+  item 2 of Step 12 skipped their failing-text items. The ideas that
+  the old run drew from the Existing-text dimension (delete, loosen the
+  force, fold into the `!` line) came this time from Rigidity, Scope
+  and the delete idea. One cost: "no failure" ends the search for
+  evidence about the text, and in the old run that search surfaced the
+  evidence that shaped Steps 10 and 11. This time the evidence came
+  from re-verifying the context. One run, so no change is proposed.
+- **Rigidity (Step 3) and rule-versus-goal distinctness (Step 4)
+  changed the option set.** The options were a hook option and a goal
+  option, where the old run had a response-borne option and a delete
+  option. Part of that is these edits and part is run-to-run variance:
+  the delete idea appeared again but was not built.
+- **Step 9 item 6's user-asks trace found a real gap,** an exception
+  missing from a `NEVER` rule. The gap predates the edit.
+- **The remedies in `steps.md` still only add, and Step 12 has no slot
+  for rules awaiting the user's yes.** Step 9 says "Fix by … naming the
+  exception, adding a visible override" and "For each issue found:
+  revise the draft". Step 10 says "A revision can add a fixed check".
+  Step 11 says "revise the draft". `SKILL.md`'s new paragraph makes
+  such a remedy "a question for them, not an edit". In this run, three
+  such remedies stayed out of the draft only because `SKILL.md` was
+  read over the step text, and Step 12's items 1–5 had nowhere to put
+  them, so they were improvised as "Awaiting the user's yes". The reader
+  in this run had seen the `SKILL.md` diff, so whether a reader without
+  that priming would add them is unverified.
+- **Context drift changed the answer again.** The section was
+  rewritten (an exception, merged lines) and the other copies went
+  away. A′ shrank to three lines that keep lines 184 and 199 verbatim.
+  The old run's decision to drop `NO EXCEPTIONS` and its migration
+  concern disappeared, and I6 and the dependents in prompt-test
+  grading appeared. Re-verifying also caught two errors in the old
+  run:
+  - the tail is 16,000 bytes, not 8,000;
+  - `check-prompt-coupling.sh` cannot pin Python hook text.
+- **The `SKILL.md` hidden-rule check shaped the pick.** A′ carries the
+  rule verbatim, where the old run reworded it, and every
+  remedy that went beyond the user's words became a question.
+- **Step 6 found the decisive constraint again** (line 136) and a
+  second one this time (line 24's random temporary names). Step 2's
+  sketch test again restated two pairs (I4, I6).
