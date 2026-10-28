@@ -8,7 +8,8 @@ its prompt cache did.
 TARGET is a session id, a subagent id (either with its `agent-` prefix or
 without), a unique prefix of one, or a transcript path; with none, the running
 session (`CLAUDE_CODE_SESSION_ID`). A session reports every agent in it; a
-subagent reports itself and the agents it spawned.
+subagent reports itself and the agents it spawned. Each agent names the models
+its responses ran on, most requests first.
 
 Each response is priced as cc 2.1.310 prices it (`pricing.py`): cache writes at
 their own TTL's rate (5m 1.25x input, 1h 2x), reads at the model's own read
@@ -75,9 +76,14 @@ def kilo(n: int | None) -> str:
     return "-" if n is None else f"{n // 1000}K"
 
 
-def row(label: str, s: Stats, ctx: str) -> str:
+def models(priced: list[Priced]) -> list[str]:
+    # most_common orders equal counts by first use
+    return [m for m, _ in Counter(p.response.model for p in priced).most_common()]
+
+
+def row(label: str, model: str, width: int, s: Stats, ctx: str) -> str:
     cells = "".join(f"{s.cost.get(k, 0):>9.2f}" for k, _ in COLUMNS)
-    return (f"{clip(label, LABEL):<{LABEL}}{s.requests:>6}{ctx:>7}{cells}{s.total:>10.2f}"
+    return (f"{clip(label, LABEL):<{LABEL}} {model:<{width}}{s.requests:>6}{ctx:>7}{cells}{s.total:>10.2f}"
             f"{pct(s.hit_ratio):>6}{len(s.misses):>6}{s.premium:>9.2f}")
 
 
@@ -136,11 +142,14 @@ def report(session: Session, agents: list[tuple[Agent, int]], show_misses: bool)
     if priced:
         out.append(f"  {when(min(p.response.first_ts for p in priced))} → "
                    f"{when(max(p.response.last_ts for p in priced))}")
-    out += ["", f"{'agent ($)':<{LABEL}}{'reqs':>6}{'ctx':>7}" + "".join(f"{h:>9}" for _, h in COLUMNS)
-            + f"{'total':>10}{'hit':>6}{'miss':>6}{'miss $':>9}"]
-    out += [row("  " * level + a.label, Stats.of(a.priced), kilo(context(a.priced))) for a, level in agents]
+    names = [",".join(models(a.priced)) or "-" for a, _ in agents]
+    width = max(len("model"), *map(len, names))
+    out += ["", f"{'agent ($)':<{LABEL}} {'model':<{width}}{'reqs':>6}{'ctx':>7}"
+            + "".join(f"{h:>9}" for _, h in COLUMNS) + f"{'total':>10}{'hit':>6}{'miss':>6}{'miss $':>9}"]
+    out += [row("  " * level + a.label, name, width, Stats.of(a.priced), kilo(context(a.priced)))
+            for (a, level), name in zip(agents, names)]
     if len(agents) > 1:
-        out.append(row("total", total, ""))
+        out.append(row("total", "", width, total, ""))
     unpriced = sorted({p.response.model for p in priced if base_model(p.response.model) not in MODELS})
     if unpriced:
         out.append(f"\nUNPRICED models, charged as cc charges an unknown one (5/25 $/Mtok): {', '.join(unpriced)}")
@@ -165,9 +174,13 @@ def report(session: Session, agents: list[tuple[Agent, int]], show_misses: bool)
     out += [f"  {c:<40}{n:>5}  ${cost[c]:.2f}" for c, n in causes.most_common()]
     if show_misses and total.misses:
         owner = {id(p): a.label for a, _ in agents for p in a.priced}
-        out += ["", f"{'time':<17} {'agent':<24} {'model':<20}{'rewritten':>10}{'gap':>9}  {'cause':<40}{'$':>7}"]
-        for p in sorted(total.misses, key=lambda p: p.response.last_ts):
-            out.append(f"{when(p.response.last_ts):<17} {clip(owner[id(p)], 24):<24} {p.response.model:<20}"
+        misses = sorted(total.misses, key=lambda p: p.response.last_ts)
+        times = [when(p.response.last_ts) for p in misses]
+        tw = max(map(len, times))
+        mw = max(len("model"), *(len(p.response.model) for p in misses))
+        out += ["", f"{'time':<{tw}} {'agent':<24} {'model':<{mw}} {'rewritten':>10}{'gap':>9}  {'cause':<40}{'$':>7}"]
+        for t, p in zip(times, misses):
+            out.append(f"{t:<{tw}} {clip(owner[id(p)], 24):<24} {p.response.model:<{mw}} "
                        f"{p.rewritten:>10,}{span(p.gap):>9}  {clip(p.cause, 40):<40}{p.premium:>7.2f}")
     return "\n".join(out)
 
@@ -185,7 +198,8 @@ def as_json(session: Session, agents: list[tuple[Agent, int]]) -> dict:
     priced = [p for a, _ in agents for p in a.priced]
     out = {"session": session.main.stem, "main": str(session.main),
            "agents": [{"id": a.id, "label": a.label, "parent": a.parent, "level": level, "path": str(a.path),
-                       "context": context(a.priced), **stats(Stats.of(a.priced))} for a, level in agents],
+                       "models": models(a.priced), "context": context(a.priced), **stats(Stats.of(a.priced))}
+                      for a, level in agents],
            "total": stats(Stats.of(priced)),
            "misses": [{"agent": a.id, "message_id": p.response.id, "model": p.response.model,
                        "at": iso(p.response.last_ts), "rewritten": p.rewritten, "gap_seconds": p.gap,

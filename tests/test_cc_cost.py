@@ -96,10 +96,40 @@ def test_each_agent_reports_the_context_it_ended_on(tmp_path):
     layout(tmp_path, main, [("asub", sub, {"agentType": "Explore", "description": "look"})])
     assert {a["id"]: a["context"] for a in report(tmp_path, "sid-1")["agents"]} == {"main": 20500, "asub": 103300}
     out = cc_cost(tmp_path, "sid-1").stdout
-    # reqs, then ctx; the total row has none, its input cost follows reqs
-    assert re.search(r"^main +2 +20K +0\.00 ", out, re.M), out
-    assert re.search(r"^  asub Explore: look +2 +103K +0\.00 ", out, re.M), out
+    # model, reqs, then ctx; the total row has none, its input cost follows reqs
+    assert re.search(rf"^main +{OPUS} +2 +20K +0\.00 ", out, re.M), out
+    assert re.search(rf"^  asub Explore: look +{OPUS} +2 +103K +0\.00 ", out, re.M), out
     assert re.search(r"^total +4 +0\.00 ", out, re.M), out
+
+
+def test_each_agent_names_the_models_it_ran_on_most_requests_first(tmp_path):
+    # A refusal fallback or /model switch mid-session: opus-4-8 first, opus-5-5 more often
+    main = [asst("m1", 0, **WRITE), asst("m2", 1, model="claude-opus-5-5", **WRITE),
+            asst("m3", 2, model="claude-opus-5-5", **READ)]
+    haiku = "claude-haiku-4-5-20251001"
+    layout(tmp_path, main, [
+        ("asub", [asst("s1", 0, model=haiku, **WRITE)], {"agentType": "Explore", "description": "look"}),
+        # Only copies of main's records: it owns no response, so ran on no model of its own
+        ("afork", main[:1], {"agentType": "fork", "isFork": True, "spawnDepth": 1}),
+    ])
+    assert {a["id"]: a["models"] for a in report(tmp_path, "sid-1")["agents"]} == {
+        "main": ["claude-opus-5-5", OPUS], "asub": [haiku], "afork": []}
+    out = cc_cost(tmp_path, "sid-1").stdout
+    assert re.search(r"^agent \(\$\) +model +reqs ", out, re.M), out
+    assert re.search(rf"^main +claude-opus-5-5,{OPUS} +3 +101K ", out, re.M), out
+    assert re.search(rf"^  asub Explore: look +{haiku} +1 +100K ", out, re.M), out
+    assert re.search(r"^  afork fork +- +0 +- ", out, re.M), out
+    assert re.search(r"^total +4 +0\.00 ", out, re.M), out
+
+
+def test_the_miss_list_keeps_its_columns_under_a_dated_model_id(tmp_path):
+    haiku = "claude-haiku-4-5-20251001"
+    # Six minutes on, the 5m entry lapsed: m2 re-writes all 100000
+    layout(tmp_path, [asst("m1", 0, model=haiku, **WRITE), asst("m2", 6, model=haiku, **WRITE)])
+    lines = cc_cost(tmp_path, "sid-1", "--misses").stdout.splitlines()
+    head = next(line for line in lines if line.startswith("time "))
+    miss = next(line for line in lines if line.startswith("2026") and haiku in line)
+    assert miss.index("100,000") + len("100,000") == head.index("rewritten") + len("rewritten"), lines
 
 
 def test_a_forked_sessions_copies_belong_to_its_origin(tmp_path):
